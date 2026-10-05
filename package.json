@@ -7,6 +7,8 @@
     "test": "nx run-many --target=test --all",
     "lint": "nx run-many --target=lint --all",
     "typecheck": "tsc --noEmit -p tsconfig.base.json",
+    "test:tools": "jest tools/",
+    "seed:terminology": "TS_NODE_PROJECT=tsconfig.base.json ts-node tools/terminology-seed/seed-terminology.ts",
     "stack:up": "docker compose up -d --wait",
     "stack:down": "docker compose down -v"
   },
