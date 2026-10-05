@@ -1,0 +1,711 @@
+# API Specification
+
+> Living specification. Entry point — [`MANIFEST.md`](MANIFEST.md). Sections are appended per task
+> with the `### [TASK-N] ...` prefix. Structure template — `../spec-desc.md`.
+> Базовая архитектура, ADR и матрица владения данными — [`architect-architecture.md`](architect-architecture.md).
+
+---
+
+### [TASK-001] REST API 8 BFF-сервисов + SMART/OAuth2 (2026-10-04)
+
+**Источники:** `specs/architect-architecture.md` (§4, §6, ADR-001…ADR-017),
+`tasks/TASK-001/requirements-analyst-requirements.md` (21 FR, 9 BR),
+`tasks/TASK-001/brainstorming-design.md` (§API Design, D1–D9).
+**Итог:** `specs/api-designer-spec.md` = полная спецификация `/api/v1` (9 доменов, 59 эндпоинтов),
+SMART/OAuth2, DTO с `class-validator`, каталог ошибок, Swagger-конвенции, Bruno-коллекция, трассируемость 21 FR.
+
+#### 0. Общие соглашения
+
+**Базовые пути.** Единый вход — Traefik (ADR-009): `/api/v1/**` → BFF-сервис по правилам маршрутизации
+в `docker-compose`; `/fhir/**` → HAPI (не публикуется наружу); `/.well-known/*` и `/oauth/*` →
+`auth-service`. FHIR REST клиентом не потребляется напрямую (кроме `GET /fhir/metadata` для
+`CapabilityStatement` — NFR-010); BFF-сервисы обращаются к HAPI через `fhir-kit-client` (ADR-004)
+в приватной сети Docker.
+
+**Форматы.** Запросы/ответы: `application/json; charset=utf-8`. FHIR-взаимодействие внутри
+периметра: `application/fhir+json`. Даты — RFC 3339 (UTC); идентификаторы — UUID v4
+(FHIR `Resource.id`, `Location`/`Appointment`/… и сущности схемы `auth`).
+
+**Аутентификация.** Все эндпоинты, кроме явно помеченных `public`, требуют
+`Authorization: Bearer <JWT>`. Проверка JWT по JWKS, SMART-scopes, RBAC и rate-limit —
+общим guard-слоем `libs/common` в каждом BFF-сервисе (`APP_GUARD`, ADR-009): порядок
+`JwtAuthGuard` → `ScopeGuard` → `RoleGuard` → `RateLimitGuard`.
+
+**Скоуп-матрица** (SMART on FHIR, KDR-2; scopes: `patient/*.read`, `patient/*.write`,
+`user/*.read`, `user/*.write`, `launch`):
+
+| Роль | Scopes | RBAC-guard | Компартмент (ADR-013) |
+| --- | --- | --- | --- |
+| Пациент | `patient/*.read`, `patient/*.write`, `launch` | `PATIENT` | только свои ресурсы: `patientRef` из `ExternalLink` пользователя, проверка владения на уровне сервиса |
+| Врач | `user/*.read`, `user/*.write`, `launch` | `DOCTOR` | только свои `Encounter`/`Appointment` как участник (`PractitionerRole` из `ExternalLink`) |
+| Администратор | `user/*.read`, `user/*.write`, `launch` | `ADMIN` | без ограничений компартмента |
+
+Правило: scope не отменяет компартмент — пациент-скоупный запрос **всегда** получает
+`patientRef` из JWT-контекста (`ExternalLink`), а не из параметров запроса (defence-in-depth,
+ADR-013; BR-006). Параметр `patient` в query игнорируется для `patient/*`-скоупов.
+
+**Пагинация и сортировка** (листинги `GET`):
+
+| Параметр | Тип | По умолчанию | Ограничение |
+| --- | --- | --- | --- |
+| `page` | int ≥ 1 | 1 | — |
+| `pageSize` | int 1…100 | 20 | ≤ 100 |
+| `sortBy` | enum per-endpoint | per-endpoint | — |
+| `sortOrder` | `asc` \| `desc` | `asc` | — |
+
+Ответ-конверт (единый для всех листингов):
+
+```typescript
+// libs/contracts/src/pagination.dto.ts
+export class PageMetaDto {
+  page: number;
+  pageSize: number;
+  totalItems: number;
+  totalPages: number;
+}
+
+export class PaginatedResponseDto<TItem> {
+  items: TItem[];
+  meta: PageMetaDto;
+}
+```
+
+**Rate-limit** (NFR-006, Redis-счётчики, guard `libs/common`): `120 req/min` на пользователя
+на сервис; `20 req/min` на `POST /oauth/token` (по `clientId`+IP); превышение → `429` с
+заголовками `Retry-After`. Аудит (`AuditEvent`) пишется на create/update/delete (FR-021, ADR-014).
+
+**Идемпотентность.** `POST /appointments` и `POST /admin/schedules/generate` принимают
+заголовок `Idempotency-Key: <uuid>` (хранится в Redis, TTL 24 h, ответ повторяется из кэша).
+
+#### 1. Модель ошибок
+
+**BFF REST → RFC 7807 Problem Details** (`application/problem+json`), глобальный exception filter
+`libs/common`:
+
+```json
+{
+  "type": "https://api.medcenter.by/errors/slot-conflict",
+  "title": "Slot conflict",
+  "status": 409,
+  "detail": "Slot 7c9e… уже занят (status=busy)",
+  "instance": "/api/v1/appointments",
+  "requestId": "01J9ZK3M8Q…",
+  "errorCode": "SLOT_CONFLICT"
+}
+```
+
+**FHIR-эндпоинты (HAPI) → `OperationOutcome`** — см. `architect-architecture.md` §4.5.
+
+Каталог кодов ошибок (`errorCode` / HTTP / условие):
+
+| errorCode | HTTP | Условие |
+| --- | --- | --- |
+| `VALIDATION_ERROR` | 400 | DTO `class-validator` не прошёл валидацию (`details[]` с полями) |
+| `UNAUTHENTICATED` | 401 | нет/просрочен/невалиден JWT (JWKS-проверка) |
+| `TOKEN_REVOKED` | 401 | `jti` в Redis-denylist (refresh-rotation) |
+| `FORBIDDEN_SCOPE` | 403 | scope не покрывает операцию |
+| `FORBIDDEN_ROLE` | 403 | RBAC-роль не допущена |
+| `COMPARTMENT_VIOLATION` | 403 | обращение к чужим данным (ADR-013) |
+| `NOT_FOUND` | 404 | ресурс не найден |
+| `METHOD_NOT_ALLOWED` | 405 | — |
+| `SLOT_CONFLICT` | 409 | BR-001: слот уже занят (гонка, ADR-012) |
+| `APPOINTMENT_NOT_CANCELLABLE` | 409 | BR-002: статус не позволяет отмену |
+| `ENCOUNTER_STATE_INVALID` | 409 | BR-003/BR-008: приём уже оформлен / запись cancelled/noshow |
+| `SCHEDULE_OVERLAP` | 409 | пересечение `Schedule.planningHorizon` одного `PractitionerRole` |
+| `INVALID_ICD10_CODE` | 422 | код не входит в ValueSet `https://fhir.by/ValueSet/InternClassificDiseases10` |
+| `TERMINOLOGY_NOT_FOUND` | 422 | код отсутствует в локальном seed НСИ (ADR-002/016) |
+| `RATE_LIMITED` | 429 | превышение лимита |
+| `INTERNAL` | 500 | необработанная ошибка (детали только в логе `pino` + `request-id`) |
+
+#### 2. `auth-service` — SMART / OAuth2 и пользователи (KDR-2, FR-001, FR-015)
+
+**Модули:** `oauth`, `users`, `terminology` (секция 2.3 — FR-018).
+**Хранилище:** PostgreSQL схема `auth` (TypeORM); FHIR-связи через `ExternalLink`.
+
+##### 2.1 SMART / OAuth2 (FHIR `fhir-server`-контекст)
+
+| # | Метод и путь | Назначение | Доступ |
+| --- | --- | --- | --- |
+| 2.1.1 | `GET /.well-known/smart-configuration` | SMART discovery: endpoints, scopes, capabilities; `fhir_base` → HAPI | public |
+| 2.1.2 | `GET /oauth/authorize` | Authorization Code + PKCE (`code_challenge`, `code_challenge_method=S256`) | public (сессия логина) |
+| 2.1.3 | `POST /oauth/token` | Обмен `code`/`refresh_token` на JWT (RS256, TTL 15 min) + refresh (TTL 14 d, rotation) | public, rate-limit |
+| 2.1.4 | `POST /oauth/token/revoke` | Отзыв refresh-токена (`jti` → Redis-denylist) | Bearer |
+| 2.1.5 | `GET /.well-known/jwks.json` | Публичный ключ RS256 для guard-слоя всех BFF-сервисов | public |
+
+**2.1.2 `GET /oauth/authorize`** — параметры: `response_type=code`, `client_id`, `redirect_uri`,
+`scope` (пробел-разделённые), `state`, `code_challenge`, `code_challenge_method=S256`, `launch?`.
+302 → `redirect_uri?code=…&state=…` | ошибка → `redirect_uri?error=access_denied&state=…`.
+
+**2.1.3 `POST /oauth/token`** — `application/x-www-form-urlencoded`:
+
+```text
+grant_type=authorization_code | refresh_token
+code=… & redirect_uri=… & client_id=… & code_verifier=…        (authorization_code)
+refresh_token=…                                                 (refresh_token)
+```
+
+**Response 200** (JWT claims: `sub` (userId), `patient?` (PatientRef), `encounter?`,
+`scope`, `role` (`PATIENT`|`DOCTOR`|`ADMIN`), `fhirUser?` (PractitionerRoleRef), `jti`, `iss`, `iat`, `exp`):
+
+```json
+{
+  "access_token": "eyJhbGciOiJSUzI1NiIs…",
+  "token_type": "Bearer",
+  "expires_in": 900,
+  "refresh_token": "…",
+  "scope": "patient/*.read patient/*.write launch",
+  "patient": "Patient/9f2c…"
+}
+```
+
+**Status:** 200 · 400 (`invalid_grant` / `unsupported_grant_type`) · 401 (`invalid_client`) ·
+429 (`RATE_LIMITED`).
+
+##### 2.2 Пользователи (FR-015, BR-007)
+
+| # | Метод и путь | Назначение | Доступ |
+| --- | --- | --- | --- |
+| 2.2.1 | `POST /api/v1/admin/users` | создать пользователя (`PATIENT` — саморегистрация A-6 см. §7) | `ADMIN` |
+| 2.2.2 | `GET /api/v1/admin/users?role=&search=&page=&pageSize=` | список | `ADMIN` |
+| 2.2.3 | `GET /api/v1/admin/users/{id}` | карточка + `ExternalLink` | `ADMIN` |
+| 2.2.4 | `PATCH /api/v1/admin/users/{id}` | роль, `isActive` | `ADMIN` |
+| 2.2.5 | `DELETE /api/v1/admin/users/{id}` | деактивация (soft) | `ADMIN` |
+| 2.2.6 | `POST /api/v1/auth/register` | саморегистрация пациента (A-6) | public |
+| 2.2.7 | `GET /api/v1/me` | профиль текущего пользователя + `ExternalLink` | любой Bearer |
+
+**2.2.6 `POST /api/v1/auth/register`** — после создания `User` сервис создаёт `Patient` в HAPI
+через `fhir-kit-client` и сохраняет `ExternalLink`; событие `patient.registered.v1` (§4.4
+архитектуры).
+
+```typescript
+// apps/auth-service/src/modules/users/dto/register-patient.dto.ts
+import { IsDateString, IsEmail, IsNotEmpty, IsString, IsStrongPassword, MaxLength } from 'class-validator';
+import { ApiProperty } from '@nestjs/swagger';
+
+export class RegisterPatientDto {
+  @ApiProperty({ example: 'ivanov@example.by' })
+  @IsEmail()
+  @MaxLength(255)
+  email: string;
+
+  @ApiProperty({ example: 'Иван', maxLength: 100 })
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(100)
+  firstName: string;
+
+  @ApiProperty({ example: 'Иванов', maxLength: 100 })
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(100)
+  lastName: string;
+
+  @ApiProperty({ format: 'password', example: 'Str0ng!Pass' })
+  @IsStrongPassword({ minLength: 10, minLowercase: 1, minUppercase: 1, minNumbers: 1, minSymbols: 1 })
+  password: string;
+
+  @ApiProperty({ format: 'date', example: '1990-05-12' })
+  @IsDateString()
+  birthDate: string;
+
+  @ApiPropertyOptional({ enum: ['male', 'female'] })
+  gender?: 'male' | 'female';
+}
+```
+
+**Response 201** `UserResponseDto`: `{ id: UUID; email; firstName; lastName; roles: string[];
+patientRef: string | null; isActive: boolean }` · **409** email занят (`VALIDATION_ERROR` →
+код `EMAIL_TAKEN` в `detail`).
+
+**2.2.4 `PATCH /api/v1/admin/users/{id}`** — `UpdateUserDto = PartialType(OmitType(RegisterPatientDto, ['password'] as const))`
++ `@IsOptional() @IsArray() roles?: string[]` + `@IsOptional() @IsBoolean() isActive?: boolean`.
+
+##### 2.3 Терминология (FR-018, ADR-002/016/017)
+
+| # | Метод и путь | Назначение | Доступ |
+| --- | --- | --- | --- |
+| 2.3.1 | `GET /api/v1/terminology/value-sets` | список seed'нутых `ValueSet` (canonical `https://fhir.by/...`) | `ADMIN` |
+| 2.3.2 | `GET /api/v1/terminology/value-sets/{url}/$expand` | развёртка ValueSet (кэш Redis) | `user/*.read` |
+| 2.3.3 | `GET /api/v1/terminology/validate?system=&code=` | валидация пары system/code в seed'нутых ValueSet | `user/*.read` |
+| 2.3.4 | `POST /api/v1/admin/terminology/import` | запуск импортера снапшота НСИ (ADR-016) | `ADMIN` |
+
+**2.3.4** — тело `{ "snapshotVersion": "1.4.463" }` → 202 Accepted, прогресс через логи/событие;
+конфликт выполняющегося импорта → 409.
+
+#### 3. `patient-service` — Пациенты (FR-001, FR-002)
+
+| # | Метод и путь | Назначение | Доступ |
+| --- | --- | --- | --- |
+| 3.1 | `GET /api/v1/me/patient` | FHIR-профиль текущего пациента (по `ExternalLink`) | `patient/*.read` |
+| 3.2 | `GET /api/v1/patients/{id}` | карточка пациента | `user/*.read` (DOCTOR/ADMIN) |
+| 3.3 | `GET /api/v1/patients/{id}/related` | доверенные лица (`RelatedPerson`) | `user/*.read` (DOCTOR/ADMIN) |
+
+Маппинг: `Patient` R4 ↔ `PatientResponseDto` (`FhirToXMapper`); компартмент: врач видит только
+пациентов с активным `Encounter`/`Appointment` вместе (defence-in-depth, ADR-013).
+
+#### 4. `practitioner-service` — Врачи, кабинеты, организация (FR-002, FR-017)
+
+| # | Метод и путь | Назначение | Доступ |
+| --- | --- | --- | --- |
+| 4.1 | `GET /api/v1/doctors?serviceId=&specialty=&search=&page=&pageSize=` | каталог врачей | public (см. §0) |
+| 4.2 | `GET /api/v1/doctors/{id}` | карточка врача + специальность + кабинет | public |
+| 4.3 | `GET /api/v1/rooms?page=&pageSize=` | кабинеты (`Location.physicalType=room`) | `user/*.read` |
+| 4.4 | `POST /api/v1/admin/rooms` | создать кабинет | `ADMIN` |
+| 4.5 | `PATCH /api/v1/admin/rooms/{id}` | обновить кабинет | `ADMIN` |
+| 4.6 | `DELETE /api/v1/admin/rooms/{id}` | удалить (если нет активных `Schedule`) → иначе 409 `ROOM_IN_USE` | `ADMIN` |
+| 4.7 | `GET /api/v1/admin/rooms/{id}/usage` | занятость кабинета (`Schedule`/`Slot` references) | `ADMIN` |
+
+```typescript
+// apps/practitioner-service/src/modules/rooms/dto/create-room.dto.ts
+import { IsInt, IsNotEmpty, IsOptional, IsString, Max, MaxLength, Min } from 'class-validator';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+
+export class CreateRoomDto {
+  @ApiProperty({ example: '204-Х' })
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(50)
+  identifier: string; // Location.identifier, уникален
+
+  @ApiProperty({ example: 'Кабинет 204' })
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(200)
+  name: string;
+
+  @ApiPropertyOptional({ example: 2 })
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(10)
+  floor?: number;
+
+  @ApiPropertyOptional({ maxLength: 500 })
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  description?: string;
+}
+
+export class UpdateRoomDto extends PartialType(CreateRoomDto) {}
+```
+
+**RoomResponseDto:** `{ id; identifier; name; floor?: number; description?: string; isActive }`.
+**Status:** 201/200/204 · 404 `NOT_FOUND` · 409 `ROOM_IN_USE` (4.6).
+
+#### 5. `catalog-service` — Услуги, расписание, слоты (FR-003, FR-016, FR-020)
+
+##### 5.1 Услуги (HealthcareService)
+
+| # | Метод и путь | Назначение | Доступ |
+| --- | --- | --- | --- |
+| 5.1.1 | `GET /api/v1/services?page=&pageSize=&search=` | каталог услуг | public |
+| 5.1.2 | `GET /api/v1/services/{id}` | карточка услуги +specialty | public |
+| 5.1.3 | `POST /api/v1/admin/services` | создать услугу | `ADMIN` |
+| 5.1.4 | `PATCH /api/v1/admin/services/{id}` | обновить услугу | `ADMIN` |
+| 5.1.5 | `DELETE /api/v1/admin/services/{id}` | удалить (нет активных `Schedule` → иначе 409 `SERVICE_IN_USE`) | `ADMIN` |
+
+**5.1.3 `CreateServiceDto`** (маппинг → `HealthcareService`; `type` биндится на НСИ ЦИСЗ через
+canonical `https://fhir.by/...`, ADR-002):
+
+```typescript
+// apps/catalog-service/src/modules/services/dto/create-service.dto.ts
+import { IsArray, IsInt, IsNotEmpty, IsOptional, IsString, Max, MaxLength, Min } from 'class-validator';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+
+export class CreateServiceDto {
+  @ApiProperty({ example: 'Консультация терапевта' })
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(200)
+  name: string;
+
+  @ApiProperty({ example: 'https://fhir.by/CodeSystem/nsi-services' })
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(255)
+  typeSystem: string; // canonical НСИ ЦИСЗ (ADR-002)
+
+  @ApiProperty({ example: '01.001' })
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(50)
+  typeCode: string;   // код услуги из НСИ
+
+  @ApiProperty({ example: 30 })
+  @IsInt()
+  @Min(5)
+  @Max(240)
+  defaultDurationMin: number;
+
+  @ApiPropertyOptional({ maxLength: 2000 })
+  @IsOptional()
+  @IsString()
+  @MaxLength(2000)
+  description?: string;
+
+  @ApiPropertyOptional({ type: [String] })
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  specialtyCodes?: string[]; // ссылки на PractitionerRole.specialty
+}
+```
+
+**ServiceResponseDto:** `{ id; name; typeSystem; typeCode; typeDisplay; defaultDurationMin;
+description?; isActive }`. Инвалидация Redis-кэша `catalog:services` при 5.1.3–5.1.5.
+
+##### 5.2 Расписание (Schedule) и генерация слотов (FR-020, BR-007, ADR-015)
+
+| # | Метод и путь | Назначение | Доступ |
+| --- | --- | --- | --- |
+| 5.2.1 | `POST /api/v1/admin/schedules` | создать `Schedule` (`planningHorizon` ≤ 90 дней) | `ADMIN` |
+| 5.2.2 | `GET /api/v1/admin/schedules?doctorId=&active=true&page=` | список расписаний | `ADMIN` |
+| 5.2.3 | `PATCH /api/v1/admin/schedules/{id}` | изменить окно/горизонт (проверка `SCHEDULE_OVERLAP`) | `ADMIN` |
+| 5.2.4 | `DELETE /api/v1/admin/schedules/{id}` | удалить расписание: busy-слоты защищены; free slots удаляются | `ADMIN` |
+| 5.2.5 | `POST /api/v1/admin/schedules/{id}/generate` | сгенерировать `Slot` на период | `ADMIN` |
+| 5.2.6 | `GET /api/v1/admin/schedules/{id}/slots?from=&to=&status=` | слоты расписания | `ADMIN` |
+| 5.2.7 | `GET /api/v1/doctor/schedule?from=&to=` | своё расписание + слоты | `user/*.read` (DOCTOR) |
+| 5.2.8 | `GET /api/v1/doctors/{id}/slots?from=&to=` | свободные слоты врача | public |
+
+**5.2.1 `CreateScheduleDto`:**
+
+```typescript
+// apps/catalog-service/src/modules/schedules/dto/create-schedule.dto.ts
+import {
+  IsArray, IsIn, IsInt, IsNotEmpty, IsOptional, IsString, IsUUID, Max, MaxLength, Min,
+  ValidateNested, ArrayMinSize, IsDateString, Matches,
+} from 'class-validator';
+import { Type } from 'class-transformer';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+
+export class WeeklyWindowDto {
+  @ApiProperty({ enum: ['MO', 'TU', 'WE', 'TH', 'FR', 'SA', 'SU'] })
+  @IsIn(['MO', 'TU', 'WE', 'TH', 'FR', 'SA', 'SU'])
+  dayOfWeek: 'MO' | 'TU' | 'WE' | 'TH' | 'FR' | 'SA' | 'SU';
+
+  @ApiProperty({ example: '09:00' })
+  @IsString()
+  @Matches(/^([01]\d|2[0-3]):[0-5]\d$/)
+  startTime: string; // HH:mm, локальное время клиники
+
+  @ApiProperty({ example: '13:00' })
+  @IsString()
+  @Matches(/^([01]\d|2[0-3]):[0-5]\d$/)
+  endTime: string;   // endTime > startTime
+}
+
+export class CreateScheduleDto {
+  @ApiProperty({ format: 'uuid' })
+  @IsUUID()
+  practitionerRoleId: string; // actor: PractitionerRole
+
+  @ApiProperty({ format: 'uuid' })
+  @IsUUID()
+  roomId: string;             // actor: Location (кабинет)
+
+  @ApiProperty({ format: 'uuid' })
+  @IsUUID()
+  serviceId: string;          // actor: HealthcareService
+
+  @ApiProperty({ format: 'date' })
+  @IsDateString()
+  horizonFrom: string;
+
+  @ApiProperty({ format: 'date' })
+  @IsDateString()
+  horizonTo: string;          // horizonTo - horizonFrom ≤ 90 дней
+
+  @ApiProperty({ type: [WeeklyWindowDto], minItems: 1 })
+  @IsArray()
+  @ArrayMinSize(1)
+  @ValidateNested({ each: true })
+  @Type(() => WeeklyWindowDto)
+  windows: WeeklyWindowDto[];
+
+  @ApiProperty({ example: 30 })
+  @IsInt()
+  @Min(5)
+  @Max(120)
+  slotDurationMin: number;
+
+  @ApiPropertyOptional({ maxLength: 500 })
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  comment?: string;
+}
+```
+
+**5.2.5 `POST /admin/schedules/{id}/generate`** — тело `GenerateSlotsDto`:
+`{ from: date; to: date }` (`to-from` ≤ 90 дней, в пределах `planningHorizon`) → **201** с
+`{ generated: number; skipped: number }` (существующие слоты не дублируются). Поддерживает
+`Idempotency-Key` (§0). **5.2.4** — тело `{ "cascade": false }`: при `false` → 409
+`SCHEDULE_IN_USE`, при `true` → 204 (busy-слоты защищены: только отменённые удаления, BR-001).
+
+**5.2.8 `SlotResponseDto`:** `{ id; scheduleId; start; end; status: 'free' | 'busy' }` —
+пагинация отключена (данные компактны), сортировка по `start` обязательна.
+
+#### 6. `appointment-service` — Запись на приём (FR-004/005/006, BR-001/002, ADR-012)
+
+| # | Метод и путь | Назначение | Доступ |
+| --- | --- | --- | --- |
+| 6.1 | `POST /api/v1/appointments` | записаться: слот → busy, `Appointment(status=booked)` | `patient/*.write` |
+| 6.2 | `GET /api/v1/appointments?upcoming=true&page=` | свои записи (компартмент) | `patient/*.read` |
+| 6.3 | `GET /api/v1/appointments/{id}` | детали записи | владелец / DOCTOR / ADMIN |
+| 6.4 | `POST /api/v1/appointments/{id}/cancel` | отмена: `status=cancelled` + `statusReason` | владелец-пациент / ADMIN |
+| 6.5 | `GET /api/v1/doctor/appointments?from=&to=&page=` | записи врача как участника | `user/*.read` (DOCTOR) |
+| 6.6 | `POST /api/v1/doctor/appointments/{id}/noshow` | пометить неявку (`status=noshow`) | `user/*.write` (DOCTOR) |
+
+**6.1 `CreateAppointmentDto`** — плюс заголовок `Idempotency-Key` (§0):
+
+```typescript
+// apps/appointment-service/src/modules/appointments/dto/create-appointment.dto.ts
+import { IsOptional, IsString, IsUUID, MaxLength, MinLength } from 'class-validator';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+
+export class CreateAppointmentDto {
+  @ApiProperty({ format: 'uuid' })
+  @IsUUID()
+  slotId: string;      // Slot.status=free (проверка в транзакции, ADR-012)
+
+  @ApiPropertyOptional({ format: 'uuid' })
+  @IsOptional()
+  @IsUUID()
+  serviceId?: string;  // по умолчанию — serviceId расписания слота
+
+  @ApiPropertyOptional({ example: 'Болит спина', maxLength: 500 })
+  @IsOptional()
+  @IsString()
+  @MinLength(3)
+  @MaxLength(500)
+  reason?: string;     // Appointment.reasonCode/ReasonReference
+}
+```
+
+**Транзакция 6.1** (ADR-012): re-read `Slot` c пессимистичной блокировкой → `status=free`?
+→ создать `Appointment` (participants: Patient + PractitionerRole; `slot` reference) →
+`Slot.status=busy` → publish `appointment.booked.v1` → `AuditEvent(create)` → **201**
+`AppointmentResponseDto`. Гонка → **409** `SLOT_CONFLICT`.
+
+```typescript
+// apps/appointment-service/src/modules/appointments/dto/appointment-response.dto.ts
+export class AppointmentResponseDto {
+  id: string;              // UUID Appointment
+  status: 'booked' | 'cancelled' | 'noshow' | 'fulfilled';
+  start: string;           // RFC 3339
+  end: string;
+  slotId: string;
+  patientId: string;       // Patient/x
+  doctorId: string;        // Practitioner/x
+  practitionerRoleId: string;
+  serviceId: string;
+  reason?: string;
+  cancelReason?: string;   // statusReason
+  createdAt: string;
+}
+```
+
+**6.4 `CancelAppointmentDto`:** `{ reason: string (3…500) }` → `statusReason` (BR-002):
+отменять может пациент-владелец или ADMIN; врач не отменяет (использует 6.6). Повторная отмена →
+409 `APPOINTMENT_NOT_CANCELLABLE`. Publish `appointment.cancelled.v1`, слот → `free`.
+**Status:** 201 (6.1) · 200 (6.2–6.6) · 400/401/403/404/409 — §1.
+
+#### 7. `encounter-service` — Приём и клинические данные (FR-010…FR-014, BR-003…BR-005/008/009)
+
+| # | Метод и путь | Назначение | Доступ |
+| --- | --- | --- | --- |
+| 7.1 | `POST /api/v1/encounters` | открыть приём по booked-записи (врач) | `user/*.write` (DOCTOR) |
+| 7.2 | `GET /api/v1/encounters/{id}` | детали приёма | участник / ADMIN |
+| 7.3 | `POST /api/v1/encounters/{id}/complete` | завершить приём: диагноз/план/назначения | `user/*.write` (DOCTOR) |
+| 7.4 | `GET /api/v1/patients/{id}/history?page=` | история обращений | владелец / DOCTOR / ADMIN |
+| 7.5 | `GET /api/v1/patients/{id}/prescriptions?page=` | назначения (ServiceRequest/MedicationRequest) | владелец / DOCTOR / ADMIN |
+| 7.6 | `GET /api/v1/me/history` | своя история (компартмент) | `patient/*.read` |
+| 7.7 | `GET /api/v1/me/prescriptions` | свои назначения (компартмент) | `patient/*.read` |
+
+**7.1** — тело `{ appointmentId: UUID }`; проверка BR-008 (запись `booked`), создаётся
+`Encounter(status=in-progress, class=AMB)`; `AuditEvent`. **409** `ENCOUNTER_STATE_INVALID`.
+
+**7.3 `CompleteEncounterDto`** — одно тело, атомарное оформление приёма (FR-011…FR-014):
+
+```typescript
+// apps/encounter-service/src/modules/encounters/dto/complete-encounter.dto.ts
+import {
+import {
+  ArrayMaxSize, ArrayMinSize, IsArray, IsIn, IsInt, IsNotEmpty,
+  IsNumber, IsOptional, IsString, Max, MaxLength, Min, MinLength, ValidateNested,
+} from 'class-validator';
+import { Type } from 'class-transformer';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+
+export class ConditionDto {
+  @ApiProperty({ example: 'J06.9' })
+  @MatchesICD10()                       // custom-валидатор: ValueSet InternClassificDiseases10
+  code: string;                         // МКБ-10 (адапт. МЗ РБ)
+
+  @ApiProperty({ example: 'Острый назофарингит' })
+  @IsString() @IsNotEmpty() @MaxLength(500)
+  display: string;
+
+  @ApiPropertyOptional({ enum: ['working', 'provisional', 'confirmed'] })
+  @IsOptional() @IsIn(['working', 'provisional', 'confirmed'])
+  verificationStatus?: 'working' | 'provisional' | 'confirmed';
+}
+
+export class ObservationDto {
+  @ApiProperty({ example: 'https://fhir.by/CodeSystem/nsi-observations' })
+  @IsString() @IsNotEmpty() @MaxLength(255)
+  codeSystem: string;
+
+  @ApiProperty({ example: '50849' })
+  @IsString() @IsNotEmpty() @MaxLength(50)
+  code: string;
+
+  @ApiProperty({ example: 36.6 })
+  @IsNumber() @Min(-50) @Max(300)
+  value: number;
+
+  @ApiProperty({ example: 'Cel' })
+  @IsString() @IsNotEmpty() @MaxLength(20)
+  unit: string;                         // UCUM (BR-009), canonical http://unitsofmeasure.org
+}
+
+export class ServiceRequestDto {
+  @ApiProperty({ example: 'https://fhir.by/CodeSystem/nsi-services' })
+  @IsString() @IsNotEmpty() @MaxLength(255)
+  codeSystem: string;                   // НСИ ЦИСЗ (ADR-002)
+
+  @ApiProperty() @IsString() @IsNotEmpty() @MaxLength(50)
+  code: string;
+
+  @ApiPropertyOptional() @IsOptional() @IsString() @MaxLength(500)
+  note?: string;
+}
+
+export class MedicationRequestDto {
+  @ApiProperty({ example: 'J01FA10' })
+  @MatchesATC()                         // custom-валидатор: АТХ (BR-009)
+  atcCode: string;
+
+  @ApiProperty({ example: '1 таб 3 раза в день после еды' })
+  @IsString() @IsNotEmpty() @MinLength(3) @MaxLength(1000)
+  dosageText: string;                   // dosageInstruction.text
+
+  @ApiPropertyOptional() @IsOptional() @IsString() @MaxLength(500)
+  note?: string;
+}
+
+export class CompleteEncounterDto {
+  @ApiProperty({ maxLength: 4000 })
+  @IsString() @IsNotEmpty() @MinLength(3) @MaxLength(4000)
+  summary: string;                      // ClinicalImpression.summary
+
+  @ApiProperty({ type: [ConditionDto], maxItems: 20 })
+  @IsArray() @ArrayMinSize(1) @ArrayMaxSize(20)
+  @ValidateNested({ each: true }) @Type(() => ConditionDto)
+  diagnoses: ConditionDto[];            // Condition (category=encounter-diagnosis, BR-004)
+
+  @ApiProperty({ maxLength: 2000 })
+  @IsString() @IsNotEmpty() @MinLength(3) @MaxLength(2000)
+  recommendations: string;              // CarePlan (рекомендации, FR-013)
+
+  @ApiPropertyOptional({ type: [ObservationDto], maxItems: 50 })
+  @IsOptional() @IsArray() @ArrayMaxSize(50)
+  @ValidateNested({ each: true }) @Type(() => ObservationDto)
+  observations?: ObservationDto[];      // Observation (UCUM, BR-009)
+
+  @ApiPropertyOptional({ type: [ServiceRequestDto], maxItems: 20 })
+  @IsOptional() @IsArray() @ArrayMaxSize(20)
+  @ValidateNested({ each: true }) @Type(() => ServiceRequestDto)
+  serviceRequests?: ServiceRequestDto[];
+
+  @ApiPropertyOptional({ type: [MedicationRequestDto], maxItems: 20 })
+  @IsOptional() @IsArray() @ArrayMaxSize(20)
+  @ValidateNested({ each: true }) @Type(() => MedicationRequestDto)
+  medicationRequests?: MedicationRequestDto[];
+}
+```
+
+**Транзакция 7.3** (атомарно; все ресурсы создаются через `fhir-kit-client`, повторная
+отправка → 409 `ENCOUNTER_STATE_INVALID`): `Encounter.status=finished` → `ClinicalImpression`
+(summary, findings=Condition[]) → `Condition[]` (BR-004) → `CarePlan` (recommendations) →
+`Observation[]` (UCUM) → `ServiceRequest[]`/`MedicationRequest[]` (BR-005: ссылки на `Encounter`
+и `Condition`) → publish `encounter.completed.v1` → `AuditEvent(create)`. **Status:** 200 с
+`EncounterResponseDto { id; status: 'finished'; period: { start; end }; diagnosisCodes: string[] }`.
+
+#### 8. `notification-service` — Уведомления (FR-008, KDR-7)
+
+| # | Метод и путь | Назначение | Доступ |
+| --- | --- | --- | --- |
+| 8.1 | `GET /api/v1/notifications?page=&pageSize=&unread=true` | свои in-app уведомления | Bearer |
+| 8.2 | `GET /api/v1/notifications/unread-count` | счётчик (поллинг, ADR-015) | Bearer |
+| 8.3 | `POST /api/v1/notifications/{id}/read` | отметить прочитанным | владелец |
+
+Потребитель RabbitMQ (`appointment.booked/cancelled.v1`, `encounter.completed.v1`,
+`patient.registered.v1` — каталог в §4.4 архитектуры) создаёт `Communication` (recipient=Patient,
+sender=Organization) + email-адаптер (A-3). Компартмент: фильтр по `patientRef` из JWT (ADR-013).
+**Status:** 200 · 204 (8.3) · 403/404.
+
+#### 9. `analytics-service` — Отчёты и аудит (FR-019, FR-021, ADR-014)
+
+| # | Метод и путь | Назначение | Доступ |
+| --- | --- | --- | --- |
+| 9.1 | `GET /api/v1/admin/analytics/appointments?from=&to=` | сводка записей (booked/cancelled/noshow) | `ADMIN` |
+| 9.2 | `GET /api/v1/admin/analytics/encounters?from=&to=` | сводка приёмов по специальностям | `ADMIN` |
+| 9.3 | `GET /api/v1/admin/analytics/services-popularity?from=&to=&top=` | топ услуг | `ADMIN` |
+| 9.4 | `GET /api/v1/admin/audit?from=&to=&entity=&userId=&page=` | журнал `AuditEvent` (read-model) | `ADMIN` |
+
+Ответ 9.1–9.3 — `MeasureReport`-производный DTO (группировка `measureScoring`), из read-model
+PostgreSQL (worker наполняет по событиям). Ответ 9.4 — `PaginatedResponseDto<AuditEventDto>`:
+`{ id; occurredAt; userId; action: 'create'|'update'|'delete'; resourceType; resourceId;
+requestId }`. **Status:** 200 · 400 (диапазон > 366 дней).
+
+#### 10. Swagger / OpenAPI
+
+- **`@nestjs/swagger` во всех BFF-сервисах.** UI: `/api/docs/<service>` (например,
+  `/api/docs/appointment`), JSON: `/api/docs/<service>-json` — маршрутизация Traefik.
+  В проде (задел: env `SWAGGER_ENABLED=false`) отключается.
+- **Конвенции декораторов** (скилл api-designer): `@ApiTags('<service>')` на контроллере;
+  `@ApiOperation({ summary })`; `@ApiBody({ type })`, `@ApiParam`, `@ApiQuery` с
+  `DefaultValuePipe`/`ParseIntPipe`; `@ApiResponse` **на каждый** код из §1–§9 (200/201/204,
+  400/401/403/404/409/422/429/500); `@ApiBearerAuth()` на защищённых; `@ApiSecurity()`
+  не используется (Bearer-only).
+- **Типизация:** все контроллеры возвращают DTO (`Promise<XResponseDto>`), strict-типы
+  (GOLDEN-PRINCIPLES: без `any`, explicit return types). `PartialType`/`OmitType` для update-DTO.
+- **RFC 7807 в Swagger:** глобальный `problemDetails` schema в `main.ts` каждого сервиса
+  (`SwaggerModule`), ссылки на errorCode-каталог §1.
+
+#### 11. Bruno-коллекция
+
+`bruno/medcenter-api/` — коллекция по доменам §2–§9 (env: `{{baseUrl}}`, `{{accessToken}}`,
+`{{patientRef}}`); скрипты pre-request: PKCE-challenge, обмен code→token (2.1.3); сценарий E2E
+«запись → приём → диагноз → назначение» как цепочка запросов §6.1 → §7.1 → §7.3. Файлы коллекции
+именуются с префиксом `api-designer-` (политика AGENTS.md) при выгрузке в `tasks/TASK-001/`.
+
+#### 12. Трассируемость FR → эндпоинты
+
+| FR | Эндпоинты (§) | BR/ADR |
+| --- | --- | --- |
+| FR-001 | 2.1.1–2.1.5, 2.2.6–2.2.7 | KDR-2; JWT/refresh-rotation §2.1 |
+| FR-002 | 4.1–4.2, 5.1.1–5.1.2 | — |
+| FR-003 | 5.2.8 | индекс `Slot.start/status`, Redis-кэш (NFR-005) |
+| FR-004 | 6.1 | BR-001, ADR-012 (409), Idempotency-Key |
+| FR-005 | 6.4 | BR-002, `appointment.cancelled.v1` |
+| FR-006 | 6.2–6.3, 7.4, 7.6 | ADR-013 (компартмент) |
+| FR-007 | 7.5, 7.7 | BR-005 |
+| FR-008 | 8.1–8.3 | KDR-7; поллинг 8.2 (ADR-015) |
+| FR-009 | 5.2.7, 6.5 | — |
+| FR-010 | 7.4 | ADR-013 |
+| FR-011 | 7.1, 7.3 | BR-003/BR-008 |
+| FR-012 | 7.3 (`diagnoses`) | BR-004, ValueSet МКБ-10 |
+| FR-013 | 7.3 (`recommendations`) | — |
+| FR-014 | 7.3 (`serviceRequests`/`medicationRequests`) | BR-005, BR-009 (АТХ/UCUM) |
+| FR-015 | 2.2.1–2.2.5 | BR-007 |
+| FR-016 | 5.1.3–5.1.5 | BR-007 |
+| FR-017 | 4.4–4.7 | BR-007, `ROOM_IN_USE` |
+| FR-018 | 2.3.1–2.3.4 | ADR-002/016/017 |
+| FR-019 | 9.1–9.3 | read-model, ADR-011 |
+| FR-020 | 5.2.1–5.2.6 | ADR-015 (horizon ≤ 90 d), `SCHEDULE_OVERLAP` |
+| FR-021 | 9.4 | ADR-014; запись — во всех мутирующих операциях |
+
+**Coverage:** 21/21 FR покрыты эндпоинтами §2–§9; все 9 BR выражены кодами §1 и правилами §5–§7.

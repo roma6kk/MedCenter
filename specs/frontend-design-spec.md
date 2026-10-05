@@ -1,0 +1,343 @@
+# Frontend Design Specification
+
+> Living specification. Entry point — [`MANIFEST.md`](MANIFEST.md). Sections are appended per task
+> with the `### [TASK-N] ...` prefix. Structure template — `../spec-desc.md`.
+> Базовая архитектура — [`architect-architecture.md`](architect-architecture.md); контракты API —
+> [`api-designer-spec.md`](api-designer-spec.md) (далее «API §N»).
+
+---
+
+### [TASK-001] Клиент Next.js — дизайн-система «Медицинская карта», страницы, компоненты, состояние (2026-10-04)
+
+**Источники:** `specs/architect-architecture.md` (§1 CLIENT, ADR-006/007/009/012/013/015),
+`specs/api-designer-spec.md` (59 эндпоинтов, каталог 16 errorCode), `tasks/TASK-001/requirements-analyst-requirements.md`
+(21 FR, 9 BR, 11 NFR, A-6/A-8), `tasks/TASK-001/brainstorming-design.md` (D6, D7).
+**Итог:** дизайн-спека `apps/web` (Next.js App Router): дизайн-направление, карта маршрутов по ролям,
+каталог доменных компонентов, модель состояния (TanStack Query + Zustand), карта ошибок errorCode → UX,
+6 E2E-сценариев, трассируемость 21 FR.
+
+#### 0. Дизайн-направление «Медицинская карта»
+
+Продукт = рабочий инструмент клиники + потребительский сервис записи. Направление — **бумажная
+медицинская карта**: тёплая бумага, чернильная типографика, волосяные линии вместо теней, статусы —
+как «штампы», терминологические коды — как монотипные чипы. Осознанно избегаем generic-AI эстетики:
+без фиолетовых градиентов, glassmorphism, emoji-иконок и pill-кнопок везде.
+
+**Токены (shadcn CSS-переменные, light-тема — единственная в объёме; тёмная — задел через токены):**
+
+| Токен                              | Значение                        | Назначение                                                                    |
+| --------------------------------------- | --------------------------------------- | --------------------------------------------------------------------------------------- |
+| `--background`                        | `#FAF9F6`                             | тёплая бумага, фон приложения                                  |
+| `--card`                              | `#FFFFFF`                             | карточки, панели                                                          |
+| `--foreground`                        | `#1C2B33`                             | чернила (сине-графит)                                                  |
+| `--muted-foreground`                  | `#5B6770`                             | вторичный текст                                                           |
+| `--primary`                           | `#0F766E`                             | хирургический бирюзовый: CTA, активные состояния |
+| `--primary-foreground`                | `#ECFDF5`                             | текст на primary                                                                 |
+| `--secondary` / `--accent`          | `#F1EFE9`                             | светлый шалфей: ховеры, чипы                                     |
+| `--destructive`                       | `#B3261E`                             | ошибки, cancel/noshow                                                             |
+| `--warning`                           | `#B45309`                             | охра: noshow, предупреждения                                          |
+| `--success`                           | `#2F6B4F`                             | fulfilled, «слот свободен»                                                |
+| `--border` / `--input` / `--ring` | `#E5E2D9` / `#E5E2D9` / `#0F766E` | волосяные линии, фокус                                               |
+
+**Типографика** (next/font, `display: swap`): заголовки — **PT Serif** 600/700 (кириллический
+шрифт, «журнальная» иерархия, tracking −0.01em); интерфейс — **Inter** 400/500/600; коды
+(МКБ-10/АТХ/UCUM, `requestId`) — **JetBrains Mono**. Шкала: 12/14/16/20/24/32. Лейблы форм —
+uppercase, tracking +0.08em, 12px. **Радиус 6px** (карточки 8px), тени не используются — глубина
+только границами. Иконки Lucide, stroke 1.5.
+
+**Фирменные паттерны:**
+
+- `StampBadge` — статус как штамп: uppercase, tracking +0.08em, рамка 1.5px, без заливки
+  (`booked`=primary, `cancelled`=destructive, `noshow`=warning, `fulfilled`=success, `free`/`busy` — для слотов).
+- `CodeChip` — код терминации в JetBrains Mono на `#F3F1EA` с 1px рамкой (`J06.9`, `J01FA10`, `Cel`).
+- Плотность: пациент — comfortable; врач/админ — compact (строки таблиц h-11, sticky header,
+  hover `#F7F5EF`), без зебры.
+- Движение: 150 мс ease-out, skeleton-шиммер едва заметный, `prefers-reduced-motion` уважается.
+
+**Каркас (wireframe, StaffShell):**
+
+```
+┌──────────┬────────────────────────────────────────────────┐
+│ logo     │ Пациенты дня            🔔(3)  RU  Иванов И. ▾ │
+│──────────│────────────────────────────────────────────────│
+│ Журнал   │ 09:00  Иванов И.    booked   [Открыть приём]   │
+│ Schedule │ 09:30  Петрова А.   booked   [Открыть приём]   │
+│ Пациенты │ 10:00  Сидоров К.   noshow   штамп · —         │
+│ ———      │        … PaginatedTable ← 1 2 3 … →            │
+│ Admin ▾  │                                                 │
+└──────────┴────────────────────────────────────────────────┘
+   PatientShell: верхняя навигация (Запись · Мои записи · История ·
+   Назначения · Профиль) — consumer-режим, карточки вместо таблиц.
+```
+
+#### 1. Каркас приложения, маршрутизация, guard-матрица
+
+Nx: приложение `apps/web` (см. §9). App Router, route groups; публичный каталог — **RSC**
+(серверный fetch публичных эндпоинтов API §4.1/§5.1.1/§5.2.8, без клиентского JS для списков);
+всё авторизованное — client components + TanStack Query. `middleware.ts` (edge): наличие cookie
+сессии → редирект на `/login` с `returnTo`; проверка подписи JWT — не в middleware (защиту делает
+guard-слой BFF, ADR-009/013), роль-гейтинг в UI — только UX.
+
+| Route group   | Роль                  | Маршруты                                                                                                                                            | Редирект после входа |
+| ------------- | ------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------- |
+| `(public)`  | любой / аноним | `/`, `/doctors`, `/doctors/[doctorId]`                                                                                                                | —                                     |
+| `(auth)`    | аноним              | `/login`, `/register`                                                                                                                                   | по роли (ниже)               |
+| `(patient)` | PATIENT                   | `/booking`, `/appointments`, `/appointments/[appointmentId]`, `/history`, `/prescriptions`, `/profile`, `/notifications`                      | `/booking`                           |
+| `(doctor)`  | DOCTOR                    | `/doctor` → `/doctor/appointments`, `/doctor/schedule`, `/encounters/[encounterId]`, `/patients/[patientId]`                                     | `/doctor/appointments`               |
+| `(admin)`   | ADMIN                     | `/admin` → `/admin/analytics`, `/admin/users`, `/admin/services`, `/admin/rooms`, `/admin/schedules`, `/admin/terminology`, `/admin/audit` | `/admin/analytics`                   |
+
+Мismatch роли → `403.hbs`-страница `ForbiddenState` («Недостаточно прав»). Компартмент (BR-006,
+ADR-013): в patient-роутах UI **никогда** не предлагает выбор пациента — все чтения через
+`/me/*`-семейство (API §3.1, §6.2, §7.6–7.7, §8.1).
+
+#### 2. Аутентификация и сессия (SMART PKCE, ADR-009/KDR-2)
+
+**Token broker в Next.js** (`app/api/auth/*` route handlers, серверная сторона клиента): код
+PKCE-обмена и refresh-токен не попадают в JS браузера (OWASP NFR-006).
+
+| Route handler                | Назначение                                                                                                                                                    |
+| ---------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `GET  /api/auth/authorize` | генерирует`code_verifier`+S256 challenge (httpOnly cookie `mc_pkce`), 302 → `GET /oauth/authorize` (API 2.1.2) с `state=returnTo`                   |
+| `GET  /api/auth/callback`  | сверяет`state`, обменяет `code` → `POST /oauth/token` (2.1.3), ставит `mc_rt` (httpOnly, Secure, SameSite=Lax, 14 d), 302 → `returnTo` |
+| `GET  /api/auth/session`   | отдаёт access-токен в память:`{ accessToken, expiresAt, role, scope, patientRef?, fhirUser? }` (refresh при истечении)                  |
+| `POST /api/auth/refresh`   | refresh-rotation через 2.1.3 (`grant_type=refresh_token`), новый `mc_rt` + access в ответ                                                           |
+| `POST /api/auth/logout`    | `POST /oauth/token/revoke` (2.1.4), очистка cookies, → `/login`                                                                                             |
+
+- **Допущение UI-1:** форма ввода логина/пароля рендерится `auth-service` внутри `GET /oauth/authorize`
+  («public (сессия логина)», API §2.1.2); POST /auth/login в API нет — эндпоинт не изобретаем.
+  Клиентский `/login` = брендированный входной экран с кнопкой «Войти» (→ `/api/auth/authorize`) и
+  ссылкой на `/register`.
+- **Scopes:** клиент запрашивает `launch patient/*.read patient/*.write user/*.read user/*.write`
+  offline через refresh; сервер выдаёт подмножество по роли (скоуп-матрица API §0). Роль берём из
+  claim `role` (UI-навигация; авторитет — сервер).
+- `apiFetch` (lib/api): Bearer из session store; `401 UNAUTHENTICATED` → single-flight
+  `POST /api/auth/refresh` → retry 1 раз; `401 TOKEN_REVOKED` или повторный 401 → logout.
+- **Draft бронирования переживает redirect:** черновик мастера в `sessionStorage` (ключ `booking-draft`),
+  `state` возвращает на `/booking`; после входа — восстановление шага 4.
+- `Idempotency-Key` (API §0): uuid v4 генерируется при создании интента (шаг 4 мастера, диалог
+  генерации слотов, импорт терминологии) и **переиспользуется** при ретраях того же интента.
+
+#### 3. Информационная архитектура: страницы → компоненты → эндпоинты → FR
+
+**(public + auth)**
+
+| Маршрут          | Содержимое                                                                           | Компоненты               | API        |
+| ----------------------- | ---------------------------------------------------------------------------------------------- | ---------------------------------- | ---------- |
+| `/`                   | навигационный лендинг: услуги + спецы                           | RSC`ServiceGrid`, `DoctorCard` | 5.1.1, 4.1 |
+| `/doctors`            | каталог врачей, фильтры услуга/специальность/поиск | `DoctorCatalog`, `FilterBar`   | 4.1, 5.1.1 |
+| `/doctors/[doctorId]` | карточка врача + свободные слоты, CTA «Записаться»      | `DoctorCard`, `SlotPicker`     | 4.2, 5.2.8 |
+| `/login`              | вход (UI-1),`returnTo`                                                                   | `AuthEntry`                      | 2.1.2      |
+| `/register`           | саморегистрация пациента (A-6)                                          | `RegisterForm`                   | 2.2.6      |
+
+**(patient)**
+
+| Маршрут                    | Содержимое                                                             | Компоненты                                              | API                    | FR         |
+| --------------------------------- | -------------------------------------------------------------------------------- | ----------------------------------------------------------------- | ---------------------- | ---------- |
+| `/booking`                      | мастер: услуга → врач → слот → подтверждение | `BookingWizard` (4 шага, черновик, Idempotency-Key) | 5.1.1, 4.1, 5.2.8, 6.1 | FR-003/004 |
+| `/appointments`                 | предстоящие/прошедшие                                        | `AppointmentList`, `StampBadge`                               | 6.2                    | FR-006     |
+| `/appointments/[appointmentId]` | детали + отмена                                                      | `AppointmentCard`, `CancelAppointmentDialog`                  | 6.3, 6.4               | FR-005/006 |
+| `/history`                      | моя история приёмов                                             | `PatientHistoryTimeline`                                        | 7.6                    | FR-006     |
+| `/prescriptions`                | мои назначения                                                      | `PrescriptionCard`                                              | 7.7                    | FR-007     |
+| `/profile`                      | профиль + FHIR-пациент                                             | `ProfileForm` (read-only), `ProfileCard`                      | 2.2.7, 3.1             | FR-001     |
+| `/notifications`                | центр уведомлений                                                | `NotificationCenter`                                            | 8.1–8.3               | FR-008     |
+
+**(doctor)**
+
+| Маршрут                | Содержимое                                                                          | Компоненты                                                                                                   | API                | FR          |
+| ----------------------------- | --------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- | ------------------ | ----------- |
+| `/doctor/appointments`      | журнал на дату (from/to), фильтр статусов                           | `PaginatedTable`, `NoshowButton`, действие «Открыть приём» (только `booked`, BR-008) | 6.5, 6.6, 7.1      | FR-009/011  |
+| `/doctor/schedule`          | своё расписание и слоты                                                   | `DoctorScheduleView` (окна недели + слоты)                                                            | 5.2.7              | FR-009      |
+| `/encounters/[encounterId]` | карточка приёма; до complete — пусто, после — read-only           | `StatusBanner`, `EncounterCompleteForm`                                                                            | 7.2, 7.3           | FR-011…014 |
+| `/patients/[patientId]`     | карточка пациента: история, назначения, доверенные | `PatientHeader`, `PatientHistoryTimeline`, `PrescriptionCard`, `RelatedPersons`                                | 3.2, 3.3, 7.4, 7.5 | FR-010      |
+
+**(admin)** — все под StaffShell, раздел «Admin» виден только ADMIN (BR-007):
+
+| Маршрут         | Содержимое                                                              | Компоненты                               | API          | FR     |
+| ---------------------- | --------------------------------------------------------------------------------- | -------------------------------------------------- | ------------ | ------ |
+| `/admin/users`       | CRUD пользователей, роли,`isActive`, `ExternalLink`-чипы | `UsersTable`, `UserForm`                       | 2.2.1–2.2.5 | FR-015 |
+| `/admin/services`    | CRUD услуг (НСИ-тип)                                                   | `ServicesTable`, `ServiceForm`                 | 5.1.3–5.1.5 | FR-016 |
+| `/admin/rooms`       | CRUD кабинетов + занятость                                      | `RoomsTable`, `RoomForm`, `RoomUsageDrawer`  | 4.3–4.7     | FR-017 |
+| `/admin/schedules`   | расписания + генерация слотов                            | `ScheduleEditor`, `SlotGenerationDialog`       | 5.2.1–5.2.6 | FR-020 |
+| `/admin/terminology` | ValueSets, импорт снапшота                                          | `ValueSetExplorer`, `TerminologyImportPanel`   | 2.3.1–2.3.4 | FR-018 |
+| `/admin/analytics`   | сводки записей/приёмов, топ услуг                     | `AnalyticsDashboard` (KPI-карты + recharts) | 9.1–9.3     | FR-019 |
+| `/admin/audit`       | журнал аудита                                                         | `AuditTable`                                     | 9.4          | FR-021 |
+
+#### 4. Каталог доменных компонентов
+
+| Компонент                                                            | Назначение / контракт                                                                                                                                                                                                                               |
+| ----------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `SlotPicker`                                                                | плитки свободных слотов по дням (mono-время,`CodeChip`-стиль); staleTime 15 s; при 409 — авто-refresh и подсветка занятого (BR-001)                                                                  |
+| `BookingWizard`                                                             | 4 шага, черновик в sessionStorage,`Idempotency-Key`, маска reason (3…500)                                                                                                                                                                        |
+| `AppointmentList` / `AppointmentCard`                                     | конверт`PaginatedResponseDto` → `PaginatedTable`; `StampBadge` статуса; cancel — только для владельца/ADMIN (BR-002)                                                                                                          |
+| `CancelAppointmentDialog`                                                   | reason обязателен (3…500, zod), подтверждение                                                                                                                                                                                                 |
+| `NoshowButton`                                                              | пометить неявку (врач, confirm-dialog)                                                                                                                                                                                                              |
+| `DoctorScheduleView`                                                        | окна недели MO–SU + слоты своего расписания                                                                                                                                                                                           |
+| `EncounterCompleteForm`                                                     | 4 секции: summary+diagnoses / observations / назначения / recommendations; атомарный submit`CompleteEncounterDto` (API 7.3); после `finished` — read-only + баннер (BR-003/008)                                              |
+| `Icd10Combobox`                                                             | поиск по ValueSet`https://fhir.by/ValueSet/InternClassificDiseases10` через `$expand` (2.3.2) + клиентская маска `^[A-Z]\d{2}(\.\d{1,2})?$`; офлайн-фолбэк — ввод кода с `GET /terminology/validate` (2.3.3) |
+| `UcumUnitSelect`                                                            | селект единиц из UCUM ValueSet (`$expand`, кэш), свободный ввод запрещён (BR-009)                                                                                                                                             |
+| `AtcCodeField`                                                              | mono-поле АТХ + маска + валидация 2.3.3                                                                                                                                                                                                          |
+| `NsiCodedField`                                                             | универсальный выбор system+code по НСИ ValueSet (canonical`https://fhir.by/...`)                                                                                                                                                             |
+| `PatientHistoryTimeline`                                                    | лента`Encounter` с чипами диагнозов; переход в детали приёма                                                                                                                                                               |
+| `PrescriptionCard`                                                          | ServiceRequest/MedicationRequest:`CodeChip` кода, dosageText, примечания                                                                                                                                                                              |
+| `NotificationBell` + `NotificationCenter`                                 | поллинг`unread-count` каждые 30 с при фокусе окна (ADR-015: без SSE); «отметить прочитанным»                                                                                                                     |
+| `PaginatedTable`                                                            | серверная пагинация из`meta: PageMetaDto`; сортировка sortBy/sortOrder                                                                                                                                                                |
+| `ScheduleEditor`                                                            | weekly windows (MO–SU, HH:mm), horizon ≤ 90 дней, slotDurationMin; превью пересечений                                                                                                                                                          |
+| `SlotGenerationDialog`                                                      | from/to в пределах горизонта,`Idempotency-Key`; результат `{ generated, skipped }` (API 5.2.5, 201); конфликт удаления расписания — `SCHEDULE_IN_USE`/каскад-чекбокс (5.2.4)                 |
+| `TerminologyImportPanel`                                                    | snapshotVersion → 202 Accepted, состояние «импорт выполняется»; 409 → «уже выполняется»                                                                                                                                 |
+| `RoomUsageDrawer`                                                           | занятость кабинета: Schedule/Slot references (4.7); удаление блокируется при активных расписаниях (`ROOM_IN_USE`)                                                                                         |
+| `UsersTable` / `UserForm`                                                 | роли,`isActive`, деактивация (soft) с подтверждением                                                                                                                                                                                  |
+| `AnalyticsDashboard`                                                        | KPI-карты + линейные/столбчатые графики (recharts через shadcn/charts — дополнение к D7); фильтр дат ≤ 366 дней                                                                                          |
+| `AuditTable`                                                                | occurredAt, userId, action (create/update/delete), resourceType, resourceId,`requestId` (mono)                                                                                                                                                                      |
+| `ProblemBanner`                                                             | рендер problem+json: title, detail,`errorCode`-чип, `requestId` с кнопкой «копировать»                                                                                                                                               |
+| `ForbiddenState` / `NotFoundState` / `EmptyState` / skeleton-набор | системные состояния                                                                                                                                                                                                                                 |
+
+#### 5. Состояние
+
+##### 5.1 TanStack Query — ключи, кэш, инвалидация
+
+Конвенция ключей: `[domain, ...identity, params]`. staleTime: каталог `services`/`doctors` 5 мин
+(сервер кэширует в Redis, API §7); `slots` 15 s + refetchOnWindowFocus; `appointments` 30 s;
+`notifications.unreadCount` — `refetchInterval` 30 s; терминология ValueSet — 1 ч.
+
+| Мутация (API §)                   | Инвалидация ключей                                               |
+| ----------------------------------------- | --------------------------------------------------------------------------------- |
+| `POST /appointments` (6.1)              | `slots`, `appointments`, `unreadCount`                                      |
+| `cancel` (6.4), `noshow` (6.6)        | `appointments`, `appointment detail`, `doctorAppointments`, `unreadCount` |
+| `POST /encounters` (7.1)                | `doctorAppointments`, `encounters`                                            |
+| `complete` (7.3)                        | `encounter detail`, `patient history`, `prescriptions`                      |
+| `read` (8.3)                            | `notifications`, `unreadCount`                                                |
+| admin CRUD users/services/rooms/schedules | соответствующие списки +`rooms usage`                      |
+| `generate` (5.2.5)                      | `admin schedule slots`, `doctor schedule`                                     |
+| терминология import (2.3.4)   | `valueSets`                                                                     |
+
+##### 5.2 Zustand
+
+`useSessionStore` (сессия из broker: role, scope, patientRef, fhirUser, expiresAt; hydrated-флаг) ·
+`useUiStore` (locale, sidebar, активные фильтры) · `useBookingDraftStore` (черновик мастера,
+persist → sessionStorage). Серверные данные — **только** TanStack Query.
+
+##### 5.3 Формы: react-hook-form + zod, паритет с class-validator
+
+Каждая DTO, попадающая в форму, имеет zod-схему в `libs/contracts/src/schemas/*.schema.ts` с
+**теми же ограничениями**, что у class-validator (API §2–§7), + Jest-тест паритета (поле/правило).
+Кастомные клиентские валидаторы: `icd10` (маска), `atc` (маска `^[A-Z][0-9]{2}[A-Z]{2}([0-9]{2}[A-Z]{2})?$`),
+UCUM — только селект, пароль — зеркало `IsStrongPassword`. Итоговая инстанция истины — сервер
+(422 → §5.4).
+
+##### 5.4 Карта ошибок: errorCode → UX (API §1, все 16)
+
+| errorCode                                | UX                                                                                                                             |
+| ---------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| `VALIDATION_ERROR`                     | `details[]` → ошибки полей формы (aria-describedby)                                                         |
+| `UNAUTHENTICATED`                      | silent-refresh flow (§2), невидимо пользователю                                                           |
+| `TOKEN_REVOKED`                        | logout + тост «Сессия завершена, войдите снова»                                               |
+| `FORBIDDEN_SCOPE` / `FORBIDDEN_ROLE` | `ForbiddenState`                                                                                                             |
+| `COMPARTMENT_VIOLATION`                | показывать как 404 (не раскрывать существование ресурса)                          |
+| `NOT_FOUND`                            | `NotFoundState`                                                                                                              |
+| `METHOD_NOT_ALLOWED`                   | `ProblemBanner` (generic)                                                                                                    |
+| `SLOT_CONFLICT`                        | `SlotPicker`: refresh слотов, тост «Слот уже занят», шаг мастера сохранён (BR-001) |
+| `APPOINTMENT_NOT_CANCELLABLE`          | refresh записи, кнопка отмены скрыта (BR-002)                                                          |
+| `ENCOUNTER_STATE_INVALID`              | refresh приёма, баннер «Приём уже оформлен», read-only (BR-003/008)                              |
+| `SCHEDULE_OVERLAP`                     | подсветка конфликтующих окон в`ScheduleEditor`                                                    |
+| `INVALID_ICD10_CODE`                   | чип диагноза помечается невалидным, фокус в`Icd10Combobox` (BR-004)                     |
+| `TERMINOLOGY_NOT_FOUND`                | то же для НСИ/АТХ-полей (BR-009)                                                                             |
+| `RATE_LIMITED`                         | тост «Слишком много запросов», уважать`Retry-After`, disable submit на период       |
+| `INTERNAL`                             | `ProblemBanner` + `requestId` для поддержки                                                                    |
+
+#### 6. Ключевые сценарии → Playwright E2E (NFR-011)
+
+Стенд E2E — docker-compose (сиды: Organization, врачи, услуги, кабинеты, расписание); компонентные
+тесты — Jest + MSW (мок `/api/v1`).
+
+| #  | Сценарий                                                                                                                                                          | Проверяет                                                                             |
+| -- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| A  | Гость:`/doctors` → врач → слот → «Записаться» → вход → черновик восстановлен → подтверждение → 201 | FR-002…004, PKCE-returnTo, Idempotency-Key                                                    |
+| A2 | Два параллельных бронирования одного слота                                                                                          | 409`SLOT_CONFLICT`, refresh слотов (BR-001)                                            |
+| B  | Пациент отменяет запись с reason                                                                                                                    | 6.4,`StampBadge` → cancelled, уведомление (BR-002)                               |
+| C  | Врач: журнал → «Открыть приём» → complete (J06.9, 36.6 Cel, J01FA10)                                                                            | 7.1→7.3 атомарно; статус finished (FR-011…014; BR-004, BR-005, BR-008, BR-009) |
+| C2 | Повторный complete того же приёма                                                                                                                    | 409`ENCOUNTER_STATE_INVALID` → read-only                                                    |
+| D  | Админ: расписание + генерация слотов → слоты видны врачу и пациенту                                                | 5.2.1–5.2.6, overlap-контроль (FR-020)                                                |
+| E  | Уведомления: поллинг счётчика, отметить прочитанным                                                                          | 8.1–8.3 (FR-008)                                                                              |
+| F  | Аналитика + аудит с фильтрами                                                                                                                     | 9.1–9.4 (FR-019/021)                                                                          |
+
+Дополнительно unit: zod-паритет, `apiFetch` (refresh/retry), `useBookingDraftStore`; security-чек
+(UI не отправляет `patient`-параметр при `patient/*`-скоупах — ADR-013).
+
+#### 7. i18n, локализация данных, доступность
+
+- **next-intl**, `ru-BY` по умолчанию (NFR-008, A-8), `en` — задел: `messages/{ru,en}.json`,
+  namespace `common/booking/doctor/admin/errors`; переключатель в шапке. Названия услуг/диагнозов —
+  display из сервера (терминология), не переводим клиентом.
+- Даты: хранение RFC 3339 UTC (API §0) → отображение `Europe/Minsk` через `Intl.DateTimeFormat`;
+  ввод — локальное время (как в `WeeklyWindowDto`).
+- Локализация ошибок: `errorCode` → ключ `errors.<errorCode>` (текст из каталога §1).
+- **WCAG 2.1 AA:** skip-link; focus-visible ring 2px `--ring`; фокус-трапы в диалогах (shadcn);
+  `aria-live` для тостов и конфликта слота; контраст body 13:1, primary на бумаге — только для
+  крупного/жирного текста; все инпуты с явными `<label>`.
+
+#### 8. Производительность и наблюдаемость клиента
+
+Бюджеты: LCP каталога < 2.5 s (RSC-рендер публичных списков, `next/image`, `next/font` swap);
+TTI авторизованных роутов < 3 s; code-splitting по route groups (пациент/врач/админ не грузят код
+друг друга). NFR-005 (< 500 ms сервер) + клиентский кэш §5.1 = отзывчивый подбор слота. Сетевые
+ошибки → ретрай с экспонентой только для идемпотентных GET; `requestId` из problem+json выводится в
+`ProblemBanner` и странице 500 (поддержка по логам pino, API §1).
+
+#### 9. Структура `apps/web` и конвенции (GOLDEN-PRINCIPLES: kebab-case, без `any`)
+
+```
+apps/web/src/
+  app/
+    (public)/  (auth)/  (patient)/  (doctor)/  (admin)/     # route groups, layout.tsx в каждой
+    api/auth/{authorize,callback,session,refresh,logout}/route.ts   # token broker (§2)
+    layout.tsx  error.tsx  not-found.tsx
+    middleware.ts
+  components/
+    ui/          # shadcn-примитивы
+    layout/      # patient-shell, staff-shell, notification-bell, locale-switcher
+    domain/      # slot-picker, booking-wizard, encounter-complete-form, icd10-combobox, …
+    feedback/    # problem-banner, stamp-badge, code-chip, empty-state
+  lib/
+    api/         # api-fetch.ts, problem.ts, query-keys.ts
+    auth/        # session-store.ts
+    format/      # datetime.ts (Europe/Minsk)
+  messages/      # ru.json, en.json
+```
+
+Компоненты ≤ 300 строк (§ Code Organization); формы — `use*Form`-хуки рядом с компонентом.
+
+#### 10. Трассируемость FR → страницы/компоненты
+
+| FR     | UI                                                                      | API (§)                   |
+| ------ | ----------------------------------------------------------------------- | -------------------------- |
+| FR-001 | `/login`, `/register`, token broker, session store                  | 2.1.2–2.1.4, 2.2.6–2.2.7 |
+| FR-002 | `/`, `/doctors`, `/doctors/[id]`                                  | 4.1–4.2, 5.1.1–5.1.2     |
+| FR-003 | `BookingWizard` шаг 3, `SlotPicker`                              | 5.2.8                      |
+| FR-004 | `BookingWizard` шаг 4                                              | 6.1                        |
+| FR-005 | `CancelAppointmentDialog`                                             | 6.4                        |
+| FR-006 | `/appointments`, `/appointments/[id]`, `/history`                 | 6.2–6.3, 7.6              |
+| FR-007 | `/prescriptions`                                                      | 7.7                        |
+| FR-008 | `NotificationBell`, `/notifications`                                | 8.1–8.3                   |
+| FR-009 | `/doctor/appointments`, `/doctor/schedule`                          | 5.2.7, 6.5                 |
+| FR-010 | `/patients/[id]`                                                      | 3.2–3.3, 7.4              |
+| FR-011 | «Открыть приём»,`/encounters/[id]`                      | 7.1–7.3                   |
+| FR-012 | `Icd10Combobox` в `EncounterCompleteForm`                          | 7.3                        |
+| FR-013 | секция «Рекомендации»                               | 7.3                        |
+| FR-014 | секции назначений (`AtcCodeField`, `NsiCodedField`) | 7.3                        |
+| FR-015 | `/admin/users`                                                        | 2.2.1–2.2.5               |
+| FR-016 | `/admin/services`                                                     | 5.1.3–5.1.5               |
+| FR-017 | `/admin/rooms`                                                        | 4.3–4.7                   |
+| FR-018 | `/admin/terminology`                                                  | 2.3.1–2.3.4               |
+| FR-019 | `/admin/analytics`                                                    | 9.1–9.3                   |
+| FR-020 | `/admin/schedules`                                                    | 5.2.1–5.2.6               |
+| FR-021 | `/admin/audit`                                                        | 9.4                        |
+
+**Coverage:** 21/21 FR; все 9 BR выражены в UX: BR-001 → `SlotPicker`+409; BR-002 → cancel/noshow-действия;
+BR-003 → complete только в своем приёме; BR-004 (диагноз в контексте приёма), BR-005 (назначения
+ссылаются на Condition и Encounter), BR-009 (АТХ/UCUM) → валидаторы `EncounterCompleteForm`;
+BR-006 → `/me/*`-роуты без выбора пациента; BR-007 → admin-раздел; BR-008 → «Открыть приём» только
+для `booked`.
+
+**Допущение UI-1 (для writing-plans):** форма логина — у `auth-service` внутри authorize-flow
+(API §2.1.2 «сессия логина»); если потребуется логин внутри Next-клиента — нужен новый эндпоинт
+`POST /api/v1/auth/login` (изменение API-спеки, вне объёма TASK-001).

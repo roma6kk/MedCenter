@@ -1,0 +1,43 @@
+# ---- Git worktrees (Skill: using-git-worktrees, Step 3) ----
+/.worktrees/
+/worktrees/
+
+# ---- Secrets (AGENTS.md: MUST NOT commit .env or secrets/) ----
+.env
+.env.*
+!.env.example
+secrets/
+
+# ---- Node / Nx ----
+node_modules/
+dist/
+build/
+coverage/
+.nx/
+*.tsbuildinfo
+
+# ---- Test / e2e artifacts ----
+test-results/
+playwright-report/
+blob-report/
+/playwright/.cache/
+
+# ---- Logs ----
+*.log
+npm-debug.log*
+logs/
+
+# ---- Editors / OS ----
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json
+
+# ---- Cline/Freebuff local state ----
+.cline/
+.freebuff/
+
+# ---- macOS AppleDouble / FUSE artifacts ----
+.fuse_hidden*
+._*

@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "fhir-docs": {
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "-y",
+        "fhir-spec-mcp-server"
+      ],
+      "env": {}
+    }
+  }
+}

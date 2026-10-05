@@ -1,0 +1,45 @@
+#!/usr/bin/env bash
+# CLINE hook: PostToolUse
+# Location: .clinerules/hooks/PostToolUse — no extension, executable.
+# Ported from loop-detection.sh (Claude Code exit-code protocol → Cline JSON protocol).
+# Warn at 7 edits, block-flag at 10 edits of the same file within a session.
+
+INPUT=$(cat)
+
+FILE_PATH=$(printf '%s' "$INPUT" | jq -r '.postToolUse.parameters.path // .postToolUse.parameters.filePath // .postToolUse.parameters.file_path // empty' 2>/dev/null)
+
+if [ -z "$FILE_PATH" ]; then
+  echo '{"cancel":false}'
+  exit 0
+fi
+
+TRACK_DIR="/tmp/cline-loop-detection"
+mkdir -p "$TRACK_DIR"
+
+if command -v md5sum >/dev/null 2>&1; then
+  SAFE_NAME=$(printf '%s' "$FILE_PATH" | md5sum | cut -d' ' -f1)
+elif command -v md5 >/dev/null 2>&1; then
+  SAFE_NAME=$(printf '%s' "$FILE_PATH" | md5 -q)
+else
+  SAFE_NAME=$(printf '%s' "$FILE_PATH" | cksum | cut -d' ' -f1)
+fi
+TRACK_FILE="$TRACK_DIR/$SAFE_NAME"
+
+if [ -f "$TRACK_FILE" ]; then
+  COUNT=$(cat "$TRACK_FILE")
+  COUNT=$((COUNT + 1))
+else
+  COUNT=1
+fi
+echo "$COUNT" > "$TRACK_FILE"
+
+if [ "$COUNT" -ge 10 ]; then
+  jq -n --arg f "$FILE_PATH" --arg n "$COUNT" \
+    '{cancel:false,contextModification:("🚫 DOOM LOOP: file \""+$f+"\" edited "+$n+" times this session. Stop and reassess — consider /debugger to find root cause.")}'
+elif [ "$COUNT" -ge 7 ]; then
+  jq -n --arg f "$FILE_PATH" --arg n "$COUNT" \
+    '{cancel:false,contextModification:("⚠️ Possible edit loop: \""+$f+"\" edited "+$n+" times. If stuck, step back and re-plan.")}'
+else
+  echo '{"cancel":false}'
+fi
+exit 0
