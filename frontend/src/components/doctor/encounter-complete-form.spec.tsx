@@ -38,7 +38,8 @@ async function submit(): Promise<void> {
 async function typeValidDiagnosis(): Promise<void> {
   await userEvent.type(screen.getByLabelText('Заключение'), 'ОРВИ, состояние удовлетворительное');
   await userEvent.type(screen.getByLabelText('Код МКБ-10'), 'J06.9');
-  await userEvent.type(screen.getByLabelText('Название диагноза'), 'Острая респираторная инфекция');
+  await userEvent.type(screen.getByLabelText(/Название диагноза/), 'Острая респираторная инфекция');
+  await userEvent.type(screen.getByLabelText(/Рекомендации/), 'Покой, обильное питьё, контроль температуры');
 }
 
 const UCUM_UNITS = ['Cel', 'mg', 'g', 'mL', 'mmol/L', 'mg/dL'];
@@ -51,12 +52,12 @@ describe('EncounterCompleteForm validation', () => {
     );
   });
 
-  it('should expose only the whitelisted UCUM units in the medication select', async () => {
+  it('should expose only the whitelisted UCUM units in the observation select', async () => {
     renderForm();
 
-    await userEvent.click(screen.getByRole('button', { name: 'Добавить лекарство' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Добавить наблюдение' }));
 
-    const select = screen.getByLabelText('Единица измерения (UCUM — только выбор)');
+    const select = screen.getByLabelText(/Единица UCUM/);
     const values = Array.from(select.querySelectorAll('option')).map((option) => option.value);
     expect(values).toEqual(UCUM_UNITS);
   });
@@ -74,6 +75,7 @@ describe('EncounterCompleteForm validation', () => {
     renderForm();
 
     await userEvent.type(screen.getByLabelText('Заключение'), 'ОРВИ, состояние удовлетворительное');
+    await userEvent.type(screen.getByLabelText(/Рекомендации/), 'Покой, обильное питьё, контроль температуры');
     await submit();
 
     await waitFor(() => expect(screen.getByRole('button', { name: 'Завершить приём' })).toBeEnabled());
@@ -83,9 +85,10 @@ describe('EncounterCompleteForm validation', () => {
   it('should block submission for an invalid ICD-10 code', async () => {
     renderForm();
 
-    await userEvent.type(screen.getByLabelText('Заключение'), 'ОРВИ');
+    await userEvent.type(screen.getByLabelText('Заключение'), 'ОРВИ, состояние удовлетворительное');
+    await userEvent.type(screen.getByLabelText(/Рекомендации/), 'Покой, обильное питьё, контроль температуры');
     await userEvent.type(screen.getByLabelText('Код МКБ-10'), 'bad');
-    await userEvent.type(screen.getByLabelText('Название диагноза'), 'Диагноз');
+    await userEvent.type(screen.getByLabelText(/Название диагноза/), 'Диагноз');
     await submit();
 
     expect(await screen.findByText('Некорректный код МКБ-10')).toBeInTheDocument();
@@ -120,9 +123,10 @@ describe('EncounterCompleteForm validation', () => {
     renderForm();
 
     await userEvent.type(screen.getByLabelText('Заключение'), 'Два диагноза');
+    await userEvent.type(screen.getByLabelText(/Рекомендации/), 'Покой, обильное питьё, контроль температуры');
     await userEvent.click(screen.getByRole('button', { name: 'Добавить диагноз' }));
     const codes = screen.getAllByLabelText('Код МКБ-10');
-    const displays = screen.getAllByLabelText('Название диагноза');
+    const displays = screen.getAllByLabelText(/Название диагноза/);
     await userEvent.type(codes[0], 'J06.9');
     await userEvent.type(displays[0], 'ОРВИ');
     await userEvent.type(codes[1], 'K21.0');
@@ -142,28 +146,40 @@ describe('EncounterCompleteForm validation', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Добавить диагноз' }));
     expect(screen.getAllByLabelText('Код МКБ-10')).toHaveLength(2);
 
-    await userEvent.click(screen.getAllByRole('button', { name: 'Удалить диагноз' })[0]);
+    await userEvent.click(screen.getByRole('button', { name: 'Удалить диагноз 1' }));
 
     expect(screen.getAllByLabelText('Код МКБ-10')).toHaveLength(1);
-    expect(screen.queryByRole('button', { name: 'Удалить диагноз' })).toBeNull();
+    expect(screen.queryByRole('button', { name: /Удалить диагноз/ })).toBeNull();
   });
 
-  it('should submit service requests and medication requests', async () => {
+  it('should submit observations, service requests and medication requests', async () => {
     renderForm();
 
     await typeValidDiagnosis();
+    await userEvent.click(screen.getByRole('button', { name: 'Добавить наблюдение' }));
+    await userEvent.type(screen.getByLabelText(/Код показателя/), '8480-6');
+    await userEvent.type(screen.getByLabelText(/Значение/), '36.6');
     await userEvent.click(screen.getByRole('button', { name: 'Добавить услугу' }));
-    await userEvent.type(screen.getByLabelText('Код услуги'), 'SRV-1');
-    await userEvent.type(screen.getByLabelText('Название услуги'), 'Общий анализ крови');
+    await userEvent.type(screen.getByLabelText(/Код услуги/), 'SRV-1');
     await userEvent.click(screen.getByRole('button', { name: 'Добавить лекарство' }));
-    await userEvent.type(screen.getByLabelText('Код АТХ'), 'N02BE01');
-    await userEvent.type(screen.getByLabelText('Дозировка'), '1 таб 3 раза в день');
+    await userEvent.type(screen.getByLabelText(/Код АТХ/), 'N02BE01');
+    await userEvent.type(screen.getByLabelText(/Дозировка/), '1 таб 3 раза в день после еды');
     await submit();
 
     await waitFor(() => expect(completeCall()).toBeDefined());
     const body = completeBody();
-    expect(body['serviceRequests']).toEqual([{ code: 'SRV-1', display: 'Общий анализ крови' }]);
-    expect(body['medicationRequests']).toEqual([{ atcCode: 'N02BE01', dosageText: '1 таб 3 раза в день', ucumUnit: 'Cel' }]);
+    expect(body['observations']).toEqual([
+      {
+        codeSystem: 'https://fhir.by/CodeSystem/nsi-observations',
+        code: '8480-6',
+        value: 36.6,
+        unit: 'Cel',
+      },
+    ]);
+    expect(body['serviceRequests']).toEqual([
+      { codeSystem: 'https://fhir.by/CodeSystem/nsi-services', code: 'SRV-1' },
+    ]);
+    expect(body['medicationRequests']).toEqual([{ atcCode: 'N02BE01', dosageText: '1 таб 3 раза в день после еды' }]);
   });
 
   it('should block submission for an invalid ATC code', async () => {
@@ -171,8 +187,8 @@ describe('EncounterCompleteForm validation', () => {
 
     await typeValidDiagnosis();
     await userEvent.click(screen.getByRole('button', { name: 'Добавить лекарство' }));
-    await userEvent.type(screen.getByLabelText('Код АТХ'), 'bad');
-    await userEvent.type(screen.getByLabelText('Дозировка'), 'x');
+    await userEvent.type(screen.getByLabelText(/Код АТХ/), 'bad');
+    await userEvent.type(screen.getByLabelText(/Дозировка/), 'x');
     await submit();
 
     await waitFor(() => expect(screen.getByRole('button', { name: 'Завершить приём' })).toBeEnabled());

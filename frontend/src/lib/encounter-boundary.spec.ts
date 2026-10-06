@@ -5,6 +5,7 @@ describe('completeEncounterSchema boundary pipeline', () => {
     const result = completeEncounterSchema.safeParse({
       summary: 'ОРВИ, состояние удовлетворительное',
       diagnoses: [{ code: 'J06.9', display: 'Острая инфекция верхних дыхательных путей' }],
+      recommendations: 'Назначить лекарство',
     });
     expect(result.success).toBe(true);
   });
@@ -35,7 +36,12 @@ describe('completeEncounterSchema boundary pipeline', () => {
     [' J06.9', false],
   ])('ICD-10 %s should validate as %s', (code, valid) => {
     expect(ICD10_PATTERN.test(code)).toBe(valid);
-    const result = completeEncounterSchema.safeParse({ summary: 's', diagnoses: [{ code, display: 'd' }] });
+    const payload = {
+      summary: 'Синдром',
+      diagnoses: [{ code, display: 'd' }],
+      recommendations: 'Назначить лекарство',
+    };
+    const result = completeEncounterSchema.safeParse(payload);
     expect(result.success).toBe(valid);
   });
 
@@ -49,8 +55,9 @@ describe('completeEncounterSchema boundary pipeline', () => {
   ])('ATC %s should validate as %s', (atcCode, valid) => {
     expect(ATC_PATTERN.test(atcCode)).toBe(valid);
     const result = completeEncounterSchema.safeParse({
-      summary: 's',
+      summary: 'Синдром',
       diagnoses: [{ code: 'J06.9', display: 'd' }],
+      recommendations: 'Назначить лекарство',
       medicationRequests: [{ atcCode, dosageText: '500 mg', ucumUnit: 'mg' }],
     });
     expect(result.success).toBe(valid);

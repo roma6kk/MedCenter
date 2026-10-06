@@ -7,7 +7,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   if (refreshToken) {
     await fetch(`${backend}/oauth/token/revoke`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ refreshToken }) }).catch(() => undefined);
   }
-  const response = NextResponse.redirect(new URL('/login', request.url));
+  const response = NextResponse.json({ loggedOut: true }, { status: 200 });
   response.cookies.delete('mc_rt');
   response.cookies.delete('mc_session');
   return response;

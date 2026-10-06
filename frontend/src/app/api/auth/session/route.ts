@@ -67,11 +67,11 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
   const response: NextResponse = NextResponse.json(payload);
   response.cookies.set('mc_session', '1', {
-    httpOnly: false,
+    httpOnly: true,
     secure: isSecure(request),
     sameSite: 'lax',
     path: '/',
-    maxAge: tokens.expires_in ?? 3600,
+    maxAge: 14 * 24 * 3600,
   });
   return response;
 }

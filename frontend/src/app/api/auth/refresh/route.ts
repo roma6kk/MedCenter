@@ -15,6 +15,6 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   const isSecure: boolean = process.env.NODE_ENV === 'production' || request.nextUrl.protocol === 'https:';
   const response = NextResponse.json({ accessToken: tokens.access_token, expiresAt: new Date(Date.now() + tokens.expires_in * 1000).toISOString() });
   response.cookies.set('mc_rt', tokens.refresh_token, { httpOnly: true, secure: isSecure, sameSite: 'lax', path: '/', maxAge: 14 * 24 * 3600 });
-  response.cookies.set('mc_session', '1', { httpOnly: false, secure: isSecure, sameSite: 'lax', path: '/', maxAge: tokens.expires_in });
+  response.cookies.set('mc_session', '1', { httpOnly: true, secure: isSecure, sameSite: 'lax', path: '/', maxAge: 14 * 24 * 3600 });
   return response;
 }

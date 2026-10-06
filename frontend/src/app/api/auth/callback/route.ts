@@ -39,7 +39,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   const isSecure: boolean = process.env.NODE_ENV === 'production' || request.nextUrl.protocol === 'https:';
   const response = NextResponse.redirect(new URL(returnTo, request.url));
   response.cookies.set('mc_rt', tokens.refresh_token, { httpOnly: true, secure: isSecure, sameSite: 'lax', path: '/', maxAge: 14 * 24 * 3600 });
-  response.cookies.set('mc_session', '1', { httpOnly: false, secure: isSecure, sameSite: 'lax', path: '/', maxAge: tokens.expires_in });
+  response.cookies.set('mc_session', '1', { httpOnly: true, secure: isSecure, sameSite: 'lax', path: '/', maxAge: 14 * 24 * 3600 });
   response.cookies.delete('mc_pkce');
   return response;
 }

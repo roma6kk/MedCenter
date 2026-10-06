@@ -32,8 +32,9 @@ describe('contracts', () => {
 
   it('should require at least one ICD-10 diagnosis to complete an encounter', () => {
     const result = completeEncounterSchema.safeParse({
-      summary: 'ОРВИ',
+      summary: 'ОРВИ, состояние удовлетворительное',
       diagnoses: [{ code: 'J06.9', display: 'Острая респираторная инфекция' }],
+      recommendations: 'Покой, обильное питьё, контроль температуры',
     });
 
     expect(result.success).toBe(true);
@@ -41,10 +42,33 @@ describe('contracts', () => {
 
   it('should reject an invalid ICD-10 code', () => {
     const result = completeEncounterSchema.safeParse({
-      summary: 'ОРВИ',
+      summary: 'ОРВИ, состояние удовлетворительное',
       diagnoses: [{ code: 'bad', display: 'x' }],
+      recommendations: 'Покой, обильное питьё, контроль температуры',
     });
 
     expect(result.success).toBe(false);
+  });
+
+  it('should accept structured observations with UCUM units', () => {
+    const result = completeEncounterSchema.safeParse({
+      summary: 'ОРВИ, состояние удовлетворительное',
+      diagnoses: [{ code: 'J06.9', display: 'Острая респираторная инфекция', verificationStatus: 'confirmed' }],
+      recommendations: 'Покой, обильное питьё, контроль температуры',
+      observations: [
+        {
+          codeSystem: 'https://fhir.by/CodeSystem/nsi-observations',
+          code: '8480-6',
+          value: 36.6,
+          unit: 'Cel',
+        },
+      ],
+      serviceRequests: [
+        { codeSystem: 'https://fhir.by/CodeSystem/nsi-services', code: 'SRV-1', note: 'Натощак' },
+      ],
+      medicationRequests: [{ atcCode: 'N02BE01', dosageText: '1 таб 3 раза в день после еды' }],
+    });
+
+    expect(result.success).toBe(true);
   });
 });
