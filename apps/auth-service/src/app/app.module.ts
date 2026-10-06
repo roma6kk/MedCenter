@@ -10,6 +10,7 @@ import {
 } from '@medcenter/common';
 
 import { AppController } from './app.controller';
+import { OAuthModule } from '../modules/oauth/oauth.module';
 
 /**
  * The guard stack is mounted through `APP_GUARD` on purpose (ADR-009): it is
@@ -17,6 +18,7 @@ import { AppController } from './app.controller';
  * rate-limit protection living behind Traefik.
  */
 @Module({
+  imports: [OAuthModule],
   controllers: [AppController],
   providers: [
     { provide: APP_GUARD, useClass: JwtAuthGuard },
