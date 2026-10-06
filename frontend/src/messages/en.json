@@ -1,0 +1,29 @@
+{
+  "common": {
+    "appName": "MedCenter",
+    "loading": "Loading…",
+    "retry": "Retry",
+    "save": "Save",
+    "cancel": "Cancel",
+    "backHome": "Back home"
+  },
+  "booking": {
+    "title": "Book an appointment",
+    "stepDoctor": "Doctor",
+    "stepService": "Service",
+    "stepSlot": "Time",
+    "stepConfirm": "Confirm",
+    "confirm": "Confirm booking",
+    "slotConflict": "Slot was just taken"
+  },
+  "errors": {
+    "SLOT_CONFLICT": "Slot already taken",
+    "APPOINTMENT_NOT_CANCELLABLE": "Appointment cannot be cancelled",
+    "ENCOUNTER_STATE_INVALID": "Encounter already completed",
+    "SCHEDULE_OVERLAP": "Schedule windows overlap",
+    "INVALID_ICD10_CODE": "Invalid ICD-10 code",
+    "TERMINOLOGY_NOT_FOUND": "Term not found",
+    "RATE_LIMITED": "Too many requests",
+    "INTERNAL": "Internal error"
+  }
+}

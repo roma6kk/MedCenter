@@ -1,0 +1,29 @@
+{
+  "common": {
+    "appName": "Медцентр",
+    "loading": "Загрузка…",
+    "retry": "Повторить",
+    "save": "Сохранить",
+    "cancel": "Отмена",
+    "backHome": "На главную"
+  },
+  "booking": {
+    "title": "Запись на приём",
+    "stepDoctor": "Врач",
+    "stepService": "Услуга",
+    "stepSlot": "Время",
+    "stepConfirm": "Подтверждение",
+    "confirm": "Подтвердить запись",
+    "slotConflict": "Слот только что заняли"
+  },
+  "errors": {
+    "SLOT_CONFLICT": "Слот уже занят",
+    "APPOINTMENT_NOT_CANCELLABLE": "Запись нельзя отменить",
+    "ENCOUNTER_STATE_INVALID": "Приём уже оформлен",
+    "SCHEDULE_OVERLAP": "Окна расписания пересекаются",
+    "INVALID_ICD10_CODE": "Некорректный код МКБ-10",
+    "TERMINOLOGY_NOT_FOUND": "Термин не найден",
+    "RATE_LIMITED": "Слишком много запросов",
+    "INTERNAL": "Внутренняя ошибка"
+  }
+}
