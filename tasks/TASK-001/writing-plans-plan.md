@@ -1,4 +1,3 @@
-
 # Медицинский центр — Implementation Plan
 
 **Task:** TASK-001

@@ -44,6 +44,7 @@ User runs: /requirements-analyst [prompt]
 ```
 
 **Key Benefits:**
+
 - Each command runs in isolated context (prevents hallucination)
 - Context summaries allow handoff to next command
 - User controls the flow (no automatic chaining)
@@ -52,12 +53,14 @@ User runs: /requirements-analyst [prompt]
 ## Documentation System
 
 ### Temporary Task Docs (tasks/)
+
 - Created by: requirements-analyst, brainstorming, writing-plans
 - Location: `tasks/TASK-N/` (N auto-increments)
 - Files: requirements-analyst-requirements.md, brainstorming-design.md, writing-plans-plan.md
 - Lifecycle: Delete manually after implementation complete
 
 ### Living Specifications (specs/)
+
 - Created/Updated by: architect, api-designer, frontend-design, docs-generator
 - Location: `specs/` with MANIFEST.md index
 - Files: architect-architecture.md, api-designer-spec.md, frontend-design-spec.md, docs-generator-implementation.md
@@ -113,19 +116,20 @@ Install from [python.org](https://www.python.org/downloads/) or via package mana
 
 [RTK](https://github.com/rtk-ai/rtk) is a CLI proxy that compresses command output before it reaches the agent's context window. A PreToolUse hook automatically rewrites bash commands to RTK equivalents. If not installed, the hook silently passes through — nothing breaks.
 
-```bash
-# macOS
-brew install rtk jq
+* [ ] 
+  ```bash
+  # macOS
+  brew install rtk jq
 
-# Windows
-winget install --id jqlang.jq
-# RTK: download binary from https://github.com/rtk-ai/rtk/releases
-# and add to PATH
+  # Windows
+  winget install --id jqlang.jq
+  # RTK: download binary from https://github.com/rtk-ai/rtk/releases
+  # and add to PATH
 
-# Linux
-curl -fsSL https://raw.githubusercontent.com/rtk-ai/rtk/refs/heads/master/install.sh | sh
-sudo apt install jq
-```
+  # Linux
+  curl -fsSL https://raw.githubusercontent.com/rtk-ai/rtk/refs/heads/master/install.sh | sh
+  sudo apt install jqni
+  ```
 
 Verify:
 
@@ -160,8 +164,8 @@ The agent-browser skill is already bundled in this repo at `.claude/skills/agent
 
 Commands are shortcuts to invoke skills. Type `/` followed by the command name:
 
-| Command                 | Description                                       |
-| ----------------------- | ------------------------------------------------- |
+| Command                   | Description                                       |
+| ------------------------- | ------------------------------------------------- |
 | `/requirements-analyst` | Analyze and decompose requirements                |
 | `/brainstorm`           | Explore ideas and create designs through dialogue |
 | `/writing-plans`        | Create detailed implementation plans              |
@@ -179,7 +183,7 @@ Commands are shortcuts to invoke skills. Type `/` followed by the command name:
 | `/finishing-branch`     | Complete branch work and merge/PR                 |
 | `/verify`               | Run DoD checklist and report pass/fail status     |
 | `/docs-generator`       | Generate project documentation                    |
-| `/reflect`              | Turn agent mistakes into permanent rules           |
+| `/reflect`              | Turn agent mistakes into permanent rules          |
 | `/skill-creator`        | Create new skills                                 |
 | `/accelerator-update`   | Update accelerator to latest version              |
 
@@ -208,23 +212,23 @@ See `.claude/skills/SKILL FLOW.md` for the complete visual diagram.
 
 ### Quick Reference: Next by Flow
 
-| Current Command | Next by Flow | Why |
-|-----------------|--------------|-----|
-| `/requirements-analyst` | `/brainstorm` | Turn requirements into design |
-| `/brainstorm` | `/architect` | Review architecture |
-| `/architect` | `/api-designer` | Design APIs |
-| `/api-designer` | `/frontend-design` | Design UI based on API |
-| `/frontend-design` | `/writing-plans` | Create implementation tasks |
-| `/writing-plans` | `/git-worktrees` | Create workspace |
-| `/git-worktrees` | `/coder` or `/coder-frontend` | Start coding |
-| `/coder` | `/code-reviewer` | Review code |
-| `/coder-frontend` | `/browser-verify` or `/code-reviewer` | Verify UI or review code |
-| `/browser-verify` | `/code-reviewer` | Review code after visual verify |
-| `/code-reviewer` | `/test-generator` | Generate tests |
-| `/test-generator` | `/debugger` or `/docs-generator` | Debug or update documentation |
-| `/docs-generator` | `/release` or `/finishing-branch` | Create release or complete branch |
-| `/release` | `/finishing-branch` | Complete the branch |
-| `/finishing-branch` | (end) | Workflow complete |
+| Current Command           | Next by Flow                              | Why                               |
+| ------------------------- | ----------------------------------------- | --------------------------------- |
+| `/requirements-analyst` | `/brainstorm`                           | Turn requirements into design     |
+| `/brainstorm`           | `/architect`                            | Review architecture               |
+| `/architect`            | `/api-designer`                         | Design APIs                       |
+| `/api-designer`         | `/frontend-design`                      | Design UI based on API            |
+| `/frontend-design`      | `/writing-plans`                        | Create implementation tasks       |
+| `/writing-plans`        | `/git-worktrees`                        | Create workspace                  |
+| `/git-worktrees`        | `/coder` or `/coder-frontend`         | Start coding                      |
+| `/coder`                | `/code-reviewer`                        | Review code                       |
+| `/coder-frontend`       | `/browser-verify` or `/code-reviewer` | Verify UI or review code          |
+| `/browser-verify`       | `/code-reviewer`                        | Review code after visual verify   |
+| `/code-reviewer`        | `/test-generator`                       | Generate tests                    |
+| `/test-generator`       | `/debugger` or `/docs-generator`      | Debug or update documentation     |
+| `/docs-generator`       | `/release` or `/finishing-branch`     | Create release or complete branch |
+| `/release`              | `/finishing-branch`                     | Complete the branch               |
+| `/finishing-branch`     | (end)                                     | Workflow complete                 |
 
 ## Skills
 
@@ -234,24 +238,24 @@ Skills are detailed instruction sets that define how Claude performs specific ta
 
 #### Understanding Phase
 
-| Skill                  | Purpose                                                  |
-| ---------------------- | -------------------------------------------------------- |
+| Skill                    | Purpose                                                  |
+| ------------------------ | -------------------------------------------------------- |
 | `requirements-analyst` | Parse requirements from Confluence, decompose into tasks |
 | `brainstorming`        | Explore ideas through dialogue, create designs           |
 
 #### Planning Phase
 
-| Skill                 | Purpose                              |
-| --------------------- | ------------------------------------ |
-| `architect`           | High-level architecture decisions    |
-| `api-designer`        | REST API design, DTOs, Swagger docs  |
-| `frontend-design`     | Create distinctive, production-grade UI |
-| `writing-plans`       | Create granular implementation plans |
+| Skill               | Purpose                                 |
+| ------------------- | --------------------------------------- |
+| `architect`       | High-level architecture decisions       |
+| `api-designer`    | REST API design, DTOs, Swagger docs     |
+| `frontend-design` | Create distinctive, production-grade UI |
+| `writing-plans`   | Create granular implementation plans    |
 
 #### Implementation Phase
 
-| Skill                 | Purpose                                                |
-| --------------------- | ------------------------------------------------------ |
+| Skill                   | Purpose                                                |
+| ----------------------- | ------------------------------------------------------ |
 | `using-git-worktrees` | Create isolated git worktrees                          |
 | `coder`               | Backend implementation (Controller/Service/Repository) |
 | `coder-frontend`      | Frontend implementation (React/Vue/Angular)            |
@@ -259,25 +263,25 @@ Skills are detailed instruction sets that define how Claude performs specific ta
 
 #### Quality Phase
 
-| Skill                            | Purpose                                    |
-| -------------------------------- | ------------------------------------------ |
-| `code-reviewer`                  | Code quality, security, performance review |
-| `test-generator`                 | Generate comprehensive tests               |
-| `systematic-debugger`            | Root cause analysis and debugging          |
-| `verify`                         | Run DoD checklist, report pass/fail        |
+| Skill                   | Purpose                                    |
+| ----------------------- | ------------------------------------------ |
+| `code-reviewer`       | Code quality, security, performance review |
+| `test-generator`      | Generate comprehensive tests               |
+| `systematic-debugger` | Root cause analysis and debugging          |
+| `verify`              | Run DoD checklist, report pass/fail        |
 
 #### Finalization Phase
 
-| Skill                     | Purpose                                       |
-| ------------------------- | --------------------------------------------- |
-| `release`                 | Create GitHub release with changelog          |
-| `finishing-branch`        | Complete branch work, create PR/merge         |
-| `documentation-generator` | Generate project documentation                |
+| Skill                       | Purpose                               |
+| --------------------------- | ------------------------------------- |
+| `release`                 | Create GitHub release with changelog  |
+| `finishing-branch`        | Complete branch work, create PR/merge |
+| `documentation-generator` | Generate project documentation        |
 
 #### Utility
 
-| Skill                | Purpose                              |
-| -------------------- | ------------------------------------ |
+| Skill                  | Purpose                              |
+| ---------------------- | ------------------------------------ |
 | `reflect`            | Turn mistakes into permanent rules   |
 | `skill-creator`      | Create new skills                    |
 | `accelerator-update` | Update accelerator to latest version |
@@ -289,6 +293,7 @@ Agents are workers that execute skills in isolation and return structured output
 ### Agent Behavior
 
 Every agent:
+
 1. Uses the Skill tool to invoke its skill
 2. Executes the skill completely
 3. **STOPS** when done (no automatic chaining)
@@ -298,32 +303,33 @@ Every agent:
 
 ### Agent List
 
-| Agent                           | Skill                          | Purpose                     |
-| ------------------------------- | ------------------------------ | --------------------------- |
-| `requirements-analyst-agent`    | requirements-analyst           | Parse requirements          |
-| `brainstorming-agent`           | brainstorming                  | Design through dialogue     |
-| `writing-plans-agent`           | writing-plans                  | Create implementation plans |
-| `architect-agent`               | architect                      | Architecture decisions      |
-| `api-designer-agent`            | api-designer                   | REST API design             |
-| `using-git-worktrees-agent`     | using-git-worktrees            | Create isolated workspaces  |
-| `coder-agent`                   | coder                          | Backend implementation      |
-| `coder-frontend-agent`          | coder-frontend                 | Frontend implementation     |
-| `browser-verify-agent`          | browser-verify                 | Visual UI verification      |
-| `frontend-design-agent`         | frontend-design                | UI/UX design                |
-| `code-reviewer-agent`           | code-reviewer                  | Code quality review         |
-| `test-generator-agent`          | test-generator                 | Generate tests              |
-| `systematic-debugger-agent`     | systematic-debugger            | Root cause analysis         |
-| `verify-agent`                  | verify                         | Run DoD checklist           |
-| `release-agent`                 | release                        | Create GitHub releases      |
-| `finishing-branch-agent`        | finishing-branch               | Complete branch work        |
-| `documentation-generator-agent` | documentation-generator        | Generate docs               |
-| `reflect-agent`                 | reflect                        | Stabilize errors into rules |
-| `skill-creator-agent`           | skill-creator                  | Create new skills           |
-| `accelerator-update-agent`      | accelerator-update             | Update accelerator version  |
+| Agent                             | Skill                   | Purpose                     |
+| --------------------------------- | ----------------------- | --------------------------- |
+| `requirements-analyst-agent`    | requirements-analyst    | Parse requirements          |
+| `brainstorming-agent`           | brainstorming           | Design through dialogue     |
+| `writing-plans-agent`           | writing-plans           | Create implementation plans |
+| `architect-agent`               | architect               | Architecture decisions      |
+| `api-designer-agent`            | api-designer            | REST API design             |
+| `using-git-worktrees-agent`     | using-git-worktrees     | Create isolated workspaces  |
+| `coder-agent`                   | coder                   | Backend implementation      |
+| `coder-frontend-agent`          | coder-frontend          | Frontend implementation     |
+| `browser-verify-agent`          | browser-verify          | Visual UI verification      |
+| `frontend-design-agent`         | frontend-design         | UI/UX design                |
+| `code-reviewer-agent`           | code-reviewer           | Code quality review         |
+| `test-generator-agent`          | test-generator          | Generate tests              |
+| `systematic-debugger-agent`     | systematic-debugger     | Root cause analysis         |
+| `verify-agent`                  | verify                  | Run DoD checklist           |
+| `release-agent`                 | release                 | Create GitHub releases      |
+| `finishing-branch-agent`        | finishing-branch        | Complete branch work        |
+| `documentation-generator-agent` | documentation-generator | Generate docs               |
+| `reflect-agent`                 | reflect                 | Stabilize errors into rules |
+| `skill-creator-agent`           | skill-creator           | Create new skills           |
+| `accelerator-update-agent`      | accelerator-update      | Update accelerator version  |
 
 ### Key Principle: Stop After Completion
 
 Agents must:
+
 - Execute ONLY their specific skill
 - STOP when done
 - NOT chain to other skills automatically
@@ -337,21 +343,21 @@ Hooks are shell commands that execute in response to Claude Code events.
 
 ### Configured Hooks
 
-| Hook                      | Trigger                  | Purpose                    |
-| ------------------------- | ------------------------ | -------------------------- |
-| `SessionStart`            | Session begins           | Project context scanner    |
-| `PreToolUse:Write\|Edit`  | Before file modification | File naming validation     |
-| `PreToolUse:Bash`         | Before bash command      | Destructive command guard  |
-| `PostToolUse:Edit`        | After file edit          | Loop detection (7/10 edits)|
-| `Notification`            | Permission/input needed  | Desktop notification       |
+| Hook                      | Trigger                  | Purpose                     |
+| ------------------------- | ------------------------ | --------------------------- |
+| `SessionStart`          | Session begins           | Project context scanner     |
+| `PreToolUse:Write\|Edit` | Before file modification | File naming validation      |
+| `PreToolUse:Bash`       | Before bash command      | Destructive command guard   |
+| `PostToolUse:Edit`      | After file edit          | Loop detection (7/10 edits) |
+| `Notification`          | Permission/input needed  | Desktop notification        |
 
 ### Hook Return Codes
 
-| Code | Meaning                         |
-| ---- | ------------------------------- |
-| `0`  | Success, continue               |
-| `1`  | Failure, but continue (warning) |
-| `2`  | Failure, block operation        |
+| Code  | Meaning                         |
+| ----- | ------------------------------- |
+| `0` | Success, continue               |
+| `1` | Failure, but continue (warning) |
+| `2` | Failure, block operation        |
 
 See `.claude/hooks/README.md` for more examples.
 
@@ -407,7 +413,6 @@ Personal overrides (gitignored):
    **Alternatives:**
    - `/alt-command [context]` - Why use this.
    ```
-
 3. **Create command** (optional): `.claude/commands/<skill-name>.md`
 4. **Create agent** (optional): `.claude/agents/<skill-name>-agent.md`
 
@@ -493,4 +498,4 @@ After completion, agent suggests: `/code-reviewer [context]`
 - [Claude Code Documentation](https://docs.anthropic.com/claude-code)
 - [.claude/agents/](.claude/agents/) - Agent architecture details
 - [.claude/hooks/README.md](.claude/hooks/README.md) - Hook configuration guide
-- [.claude/skills/SKILL FLOW.md](.claude/skills/SKILL%20FLOW.md) - Skill flow diagram
+- [.claude/skills/SKILL FLOW.md](<.claude/skills/SKILL%20FLOW.md>) - Skill flow diagram

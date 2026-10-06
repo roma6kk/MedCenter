@@ -16,6 +16,11 @@ coverage/
 .nx/
 *.tsbuildinfo
 
+# ---- Next.js ----
+.next/
+out/
+next-env.d.ts
+
 # ---- Test / e2e artifacts ----
 test-results/
 playwright-report/
