@@ -6,6 +6,8 @@ export * from './lib/decorators/requires-roles.decorator';
 export * from './lib/decorators/rate-limit.decorator';
 export * from './lib/filters/problem-details.filter';
 export * from './lib/guards/jwt-auth.guard';
+export * from './lib/guards/token-revocation';
 export * from './lib/guards/scope.guard';
 export * from './lib/guards/role.guard';
 export * from './lib/guards/rate-limit.guard';
+export * from './lib/pipes/validation.pipe';
