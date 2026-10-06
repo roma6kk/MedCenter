@@ -102,7 +102,7 @@ export class PaginatedResponseDto<TItem> {
 | --- | --- | --- |
 | `VALIDATION_ERROR` | 400 | DTO `class-validator` не прошёл валидацию (`details[]` с полями) |
 | `UNAUTHENTICATED` | 401 | нет/просрочен/невалиден JWT (JWKS-проверка) |
-| `TOKEN_REVOKED` | 401 | `jti` в Redis-denylist (refresh-rotation) |
+| `TOKEN_REVOKED` | 401 | Bearer-токен отозван: `jti` (или `sid` пары) найден в denylist — проверка в `JwtAuthGuard` (ADR-009) |
 | `FORBIDDEN_SCOPE` | 403 | scope не покрывает операцию |
 | `FORBIDDEN_ROLE` | 403 | RBAC-роль не допущена |
 | `COMPARTMENT_VIOLATION` | 403 | обращение к чужим данным (ADR-013) |
@@ -136,6 +136,23 @@ export class PaginatedResponseDto<TItem> {
 `scope` (пробел-разделённые), `state`, `code_challenge`, `code_challenge_method=S256`, `launch?`.
 302 → `redirect_uri?code=…&state=…` | ошибка → `redirect_uri?error=access_denied&state=…`.
 
+##### 2.1.1 `GET /.well-known/smart-configuration`
+
+Документ публикует endpoints (`authorization_endpoint`, `token_endpoint`, `revocation_endpoint`, `jwks_uri`),
+`scopes_supported`, `response_types_supported: ['code']`, `code_challenge_methods_supported: ['S256']`,
+`capabilities` и `fhir_base`. Как клиент аутентифицируется на `token_endpoint` (RFC 8414 §2) и какие grant'ы
+поддерживаются — тоже часть discovery-документа:
+
+```json
+{
+  "token_endpoint_auth_methods_supported": ["client_secret_post", "none"],
+  "grant_types_supported": ["authorization_code", "refresh_token"]
+}
+```
+
+`none` — публичный PKCE-клиент (без секрета); `client_secret_post` — конфиденциальный клиент передаёт
+`client_secret` в теле запроса (проверяет `TokenClientGuard`).
+
 **2.1.3 `POST /oauth/token`** — `application/x-www-form-urlencoded`:
 
 ```text
@@ -145,7 +162,8 @@ refresh_token=…                                                 (refresh_token
 ```
 
 **Response 200** (JWT claims: `sub` (userId), `patient?` (PatientRef), `encounter?`,
-`scope`, `role` (`PATIENT`|`DOCTOR`|`ADMIN`), `fhirUser?` (PractitionerRoleRef), `jti`, `iss`, `iat`, `exp`):
+`scope`, `role` (`PATIENT`|`DOCTOR`|`ADMIN`), `fhirUser?` (PractitionerRoleRef), `jti`,
+`sid` (session id: `jti` парного refresh-токена), `iss`, `iat`, `exp`):
 
 ```json
 {
@@ -160,6 +178,39 @@ refresh_token=…                                                 (refresh_token
 
 **Status:** 200 · 400 (`invalid_grant` / `unsupported_grant_type`) · 401 (`invalid_client`) ·
 429 (`RATE_LIMITED`).
+
+> **Contract note (R1, decided 2026-10-06).** A revoked or already-rotated `refresh_token` is reported
+> exactly like any other unusable one — **400 `invalid_grant`** — so this endpoint stays strictly RFC 6749
+> §5.2 and never reveals that a `jti` previously existed. `TOKEN_REVOKED` is a **401** catalogue code and
+> belongs to the guard layer, where a Bearer access token whose `jti` is denied is the unambiguous source
+> (denylist check in `JwtAuthGuard` — реализована 2026-10-06; намеренно **не** часть 2.1.3).
+>
+> **`sid` — связь access/refresh.** Access-токен несёт `sid`, равный `jti` выданного вместе с ним
+> refresh-токена. Поэтому отзыв refresh-токена (2.1.4) закрывает и ещё живой Bearer: guard-слой отвечает
+> **401 `TOKEN_REVOKED`**. Ротация (`refresh_token` grant) пишет только «reuse»-метку и сессию **не** закрывает,
+> иначе каждый плановый refresh разлогинивал бы собственного клиента.
+
+**2.1.4 `POST /oauth/token/revoke`** — `application/json` body:
+
+```json
+{ "refreshToken": "…", "client_id": "medcenter-web" }
+```
+
+`refreshToken` is required; `client_id` is optional (a user-driven logout has no client identity). The route
+requires `Authorization: Bearer <JWT>`.
+
+**Ownership (RFC 7009 §2.1).** The server revokes a refresh token only when it was issued to the
+authenticated principal: the stored token's `userId` must equal the Bearer `sub` (and, when `client_id` is
+supplied, its owning client must match). Anything else — unknown token, already consumed/denied, or a token
+owned by another principal — is a **no-op**, never a new denial, so the endpoint cannot be used to enumerate
+or to revoke another principal's token.
+
+**Response 200:** `{ "revoked": true | false }` — `false` when the token was not owned by the caller or was
+already unusable (the outcome is indistinguishable by design).
+
+**Отзыв закрывает сессию.** Access-токен, выданный вместе с отозванным refresh-токеном, несёт его `jti`
+как `sid`, поэтому после успешного отзыва (`revoked: true`) тот же Bearer перестаёт приниматься
+guard-слоем — **401 `TOKEN_REVOKED`** (см. 2.1.3).
 
 ##### 2.2 Пользователи (FR-015, BR-007)
 

@@ -12,6 +12,12 @@ export interface JwtClaims {
   readonly patient?: string;
   readonly fhirUser?: string;
   readonly jti: string;
+  /**
+   * Session id of the token pair this access token belongs to — the `jti` of the
+   * refresh token issued alongside it. Revoking that refresh token (RFC 7009 /
+   * logout) therefore also denies this access token; see `TokenRevocationChecker`.
+   */
+  readonly sid?: string;
 }
 
 /** Any HTTP request that may carry authenticated claims attached by `JwtAuthGuard`. */

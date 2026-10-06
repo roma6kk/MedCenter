@@ -1,8 +1,10 @@
 import { z } from 'zod';
 
 /**
- * Full environment schema for a BFF service. Secrets (`FHIR_CLIENT_SECRET`)
- * have no defaults on purpose — a production deployment must provide them.
+ * Full environment schema for a BFF service. Secrets (`FHIR_CLIENT_SECRET`,
+ * `JWT_PRIVATE_KEY`) have no defaults on purpose — a production deployment
+ * must provide them. The signing keys are optional here because only the
+ * service that mounts the OAuth surface (auth-service) needs them.
  */
 export const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
@@ -12,6 +14,8 @@ export const envSchema = z.object({
   FHIR_CLIENT_SECRET: z.string().min(1),
   JWT_JWKS_URI: z.url(),
   JWT_ISSUER: z.string().min(1),
+  JWT_PRIVATE_KEY: z.string().min(1).optional(),
+  JWT_PUBLIC_KEY: z.string().min(1).optional(),
   REDIS_URL: z.url(),
   RABBITMQ_URL: z.url(),
   RATE_LIMIT_PER_MINUTE: z.coerce.number().int().positive().default(120),
@@ -37,10 +41,19 @@ export const rateLimitEnvSchema = envSchema.pick({
   RATE_LIMIT_PER_MINUTE: true,
 });
 
+/**
+ * The RS256 key pair is mandatory wherever tokens are *signed* (auth-service,
+ * API 2.1.3/2.1.5). Verification elsewhere uses the JWKS URI instead.
+ */
+export const jwtSigningEnvSchema = envSchema
+  .pick({ JWT_PRIVATE_KEY: true, JWT_PUBLIC_KEY: true })
+  .required();
+
 export type Env = z.infer<typeof envSchema>;
 export type GuardEnv = z.infer<typeof guardEnvSchema>;
 export type JwtEnv = z.infer<typeof jwtEnvSchema>;
 export type RateLimitEnv = z.infer<typeof rateLimitEnvSchema>;
+export type JwtSigningEnv = z.infer<typeof jwtSigningEnvSchema>;
 
 export function parseEnv(source: NodeJS.ProcessEnv): Env {
   return envSchema.parse(source);
@@ -52,6 +65,10 @@ export function parseGuardEnv(source: NodeJS.ProcessEnv): GuardEnv {
 
 export function parseJwtEnv(source: NodeJS.ProcessEnv): JwtEnv {
   return jwtEnvSchema.parse(source);
+}
+
+export function parseJwtSigningEnv(source: NodeJS.ProcessEnv): JwtSigningEnv {
+  return jwtSigningEnvSchema.parse(source);
 }
 
 let cachedEnv: Env | null = null;

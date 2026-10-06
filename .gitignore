@@ -46,3 +46,4 @@ Thumbs.db
 # ---- macOS AppleDouble / FUSE artifacts ----
 .fuse_hidden*
 ._*
+.env

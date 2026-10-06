@@ -1,4 +1,10 @@
-import { clearEnvCache, loadEnv, parseEnv, parseGuardEnv } from './env.schema';
+import {
+  clearEnvCache,
+  loadEnv,
+  parseEnv,
+  parseGuardEnv,
+  parseJwtSigningEnv,
+} from './env.schema';
 
 const validSource: NodeJS.ProcessEnv = {
   FHIR_BASE_URL: 'http://hapi:8080/fhir',
@@ -8,6 +14,12 @@ const validSource: NodeJS.ProcessEnv = {
   JWT_ISSUER: 'https://api.medcenter.by',
   REDIS_URL: 'redis://redis:6379',
   RABBITMQ_URL: 'amqp://rabbitmq:5672',
+};
+
+const signingSource: NodeJS.ProcessEnv = {
+  ...validSource,
+  JWT_PRIVATE_KEY: '-----BEGIN PRIVATE KEY-----\nkey\n-----END PRIVATE KEY-----',
+  JWT_PUBLIC_KEY: '-----BEGIN PUBLIC KEY-----\nkey\n-----END PUBLIC KEY-----',
 };
 
 describe('envSchema', () => {
@@ -32,6 +44,10 @@ describe('envSchema', () => {
 
     expect(() => parseEnv(invalid)).toThrow();
   });
+
+  it('should leave the signing keys optional for services that never sign', () => {
+    expect(parseEnv(validSource).JWT_PRIVATE_KEY).toBeUndefined();
+  });
 });
 
 describe('parseGuardEnv', () => {
@@ -44,6 +60,22 @@ describe('parseGuardEnv', () => {
 
     expect(guardEnv.RATE_LIMIT_PER_MINUTE).toBe(120);
     expect(guardEnv).not.toHaveProperty('FHIR_BASE_URL');
+  });
+});
+
+describe('parseJwtSigningEnv', () => {
+  it('should return the key pair when both PEM values are present', () => {
+    const signing = parseJwtSigningEnv(signingSource);
+
+    expect(signing.JWT_PRIVATE_KEY).toContain('BEGIN PRIVATE KEY');
+    expect(signing.JWT_PUBLIC_KEY).toContain('BEGIN PUBLIC KEY');
+  });
+
+  it('should throw when the private half of the signing key is missing', () => {
+    const incomplete: NodeJS.ProcessEnv = { ...signingSource };
+    delete incomplete['JWT_PRIVATE_KEY'];
+
+    expect(() => parseJwtSigningEnv(incomplete)).toThrow();
   });
 });
 
