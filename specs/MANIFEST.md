@@ -15,6 +15,13 @@ UCUM) подключается по canonical URL `https://fhir.by/...`. Арх�
 > **Статус TASK-001 (2026-10-04):** все открытые гейты закрыты — D1, D9 (владелец продукта) и R-3
 > (заказчик); риски R-1, R-2, R-4 сняты решениями; спроектированы API и фронтенд. Открытых пунктов не осталось.
 
+> **Реализация бэкенда (2026-10-05):** в Nx-монорепозитории реализованы `apps/auth-service`
+> (SMART/OAuth2, схема `auth` через TypeORM, Init-миграция) и общие библиотеки `libs/{common,config,contracts}`
+> (guard-слой JWT/scope/RBAC/rate-limit, RFC 7807-фильтр, env-схема, контракты ошибок/пагинации/событий).
+> Остальные 7 BFF-сервисов запланированы (карта портов — в `infra/traefik/dynamic.yml`). Тесты
+> `contracts`/`common`/`config` — 14 suites / 71 tests зелёные; инвентарь — в
+> `tasks/TASK-001/test-generator-backend-coverage-report.md`.
+
 ## Specs Index
 
 | File | Purpose | Depends On | Last Updated |
@@ -22,7 +29,7 @@ UCUM) подключается по canonical URL `https://fhir.by/...`. Арх�
 | `architect-architecture.md` | Системный дизайн, слои, размещение модулей, интерфейсы, ADR | - | 2026-10-04 |
 | `api-designer-spec.md` | Эндпоинты `/api/v1` (9 доменов, 59 эндпоинтов), DTO, SMART/OAuth2, ошибки RFC 7807, Swagger, Bruno, трассируемость 21 FR | architect-architecture | 2026-10-04 |
 | `frontend-design-spec.md` | Клиент Next.js: дизайн-система, маршруты по ролям (5 route groups), компоненты, состояние, карта errorCode→UX, E2E Playwright, трассируемость 21 FR | architect-architecture, api-designer-spec | 2026-10-04 |
-| `docs-generator-implementation.md` | Сборка, деплой, инструменты (планируется) | - | - |
+| `docs-generator-implementation.md` | Nx-воркспейс, сборка, тесты, инструменты, env и dev-стек бэкенда | - | 2026-10-05 |
 
 **Источники требований/дизайна** (временные, `tasks/`): `tasks/TASK-001/requirements-analyst-requirements.md`
 (21 FR, 11 NFR, 9 BR, 10 KDR), `tasks/TASK-001/brainstorming-design.md` (решения D1–D9).
