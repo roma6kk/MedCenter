@@ -12,6 +12,31 @@ import {
 import { AppController } from './app.controller';
 import { OAuthModule } from '../modules/oauth/oauth.module';
 
+function decodePemFromBase64Env(key: string): string {
+  const encoded = process.env[key];
+  if (!encoded) {
+    return '';
+  }
+  try {
+    return Buffer.from(encoded, 'base64').toString('utf8');
+  } catch {
+    return '';
+  }
+}
+
+function ensureSigningEnv(): void {
+  const privateKey = decodePemFromBase64Env('JWT_PRIVATE_KEY_B64');
+  const publicKey = decodePemFromBase64Env('JWT_PUBLIC_KEY_B64');
+  if (privateKey && privateKey.startsWith('-----BEGIN RSA PRIVATE KEY-----')) {
+    process.env['JWT_PRIVATE_KEY'] = privateKey;
+  }
+  if (publicKey && publicKey.startsWith('-----BEGIN RSA PUBLIC KEY-----')) {
+    process.env['JWT_PUBLIC_KEY'] = publicKey;
+  }
+}
+
+ensureSigningEnv();
+
 /**
  * The guard stack is mounted through `APP_GUARD` on purpose (ADR-009): it is
  * the global default, so no service can ship without JWT → scopes → RBAC →
