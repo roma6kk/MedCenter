@@ -12,8 +12,14 @@ UCUM) подключается по canonical URL `https://fhir.by/...`. Арх�
 > и национальная терминология ЦИСЗ; бельгийские профили не применяются.
 > `fhir.by` — национальный ориентир; **ЦИСЗ** — централизованная ИС здравоохранения РБ.
 
-> **Статус TASK-001 (2026-10-04):** все открытые гейты закрыты — D1, D9 (владелец продукта) и R-3
+> **Статус TASK-001 (2026-10-05):** все открытые гейты закрыты — D1, D9 (владелец продукта) и R-3
 > (заказчик); риски R-1, R-2, R-4 сняты решениями; спроектированы API и фронтенд. Открытых пунктов не осталось.
+> Фронтенд (`frontend/`) прошёл code review и исправление замечаний. Четыре Critical закрыты: расположение
+> middleware (`src/middleware.ts`), харденинг callback (fail-closed PKCE + denylist `returnTo`), auth-контур
+> (httpOnly `mc_rt` + in-memory Bearer через `/api/auth/session`) и проведение формы приёма
+> (`CompleteEncounterDto` — МКБ-10/ServiceRequest/MedicationRequest). Проверки: `tsc --noEmit`, `jest`
+> (19 suites / 212 tests), `next lint` и `next build` (27 маршрутов + middleware) — зелёные.
+> E2E-сценарии остаются smoke-заглушками (`test.fixme`) до подключения полного стека в CI.
 
 ## Specs Index
 
@@ -21,8 +27,8 @@ UCUM) подключается по canonical URL `https://fhir.by/...`. Арх�
 | --- | --- | --- | --- |
 | `architect-architecture.md` | Системный дизайн, слои, размещение модулей, интерфейсы, ADR | - | 2026-10-04 |
 | `api-designer-spec.md` | Эндпоинты `/api/v1` (9 доменов, 59 эндпоинтов), DTO, SMART/OAuth2, ошибки RFC 7807, Swagger, Bruno, трассируемость 21 FR | architect-architecture | 2026-10-04 |
-| `frontend-design-spec.md` | Клиент Next.js: дизайн-система, маршруты по ролям (5 route groups), компоненты, состояние, карта errorCode→UX, E2E Playwright, трассируемость 21 FR | architect-architecture, api-designer-spec | 2026-10-04 |
-| `docs-generator-implementation.md` | Сборка, деплой, инструменты (планируется) | - | - |
+| `frontend-design-spec.md` | Клиент Next.js: дизайн-система, маршруты по ролям (5 route groups), компоненты, состояние, карта errorCode→UX, E2E Playwright, трассируемость 21 FR | architect-architecture, api-designer-spec | 2026-10-05 |
+| `docs-generator-implementation.md` | Сборка, тесты, инструменты, env и auth-контур фронтенда | - | 2026-10-05 |
 
 **Источники требований/дизайна** (временные, `tasks/`): `tasks/TASK-001/requirements-analyst-requirements.md`
 (21 FR, 11 NFR, 9 BR, 10 KDR), `tasks/TASK-001/brainstorming-design.md` (решения D1–D9).

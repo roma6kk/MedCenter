@@ -341,3 +341,98 @@ BR-006 → `/me/*`-роуты без выбора пациента; BR-007 → a
 **Допущение UI-1 (для writing-plans):** форма логина — у `auth-service` внутри authorize-flow
 (API §2.1.2 «сессия логина»); если потребуется логин внутри Next-клиента — нужен новый эндпоинт
 `POST /api/v1/auth/login` (изменение API-спеки, вне объёма TASK-001).
+
+---
+
+### [TASK-001] Frontend polish iteration — визуальные спеки состояний и страниц (2026-10-05)
+
+**Источники:** `specs/frontend-design-spec.md` (§0–§10 TASK-001 от 2026-10-04),
+`specs/api-designer-spec.md` (каталог 16 errorCode, §1), `tasks/TASK-001/writing-plans-plan.md`
+(M6 — 5 route groups, errorCode→UX 16/16). **Характер изменения:** дополнение, не редизайн —
+направление «Медицинская карта» (§0: `#FAF9F6` + `#1C2B33` + `#0F766E`, PT Serif / Inter /
+JetBrains Mono, радиус 6px, без теней) подтверждается; ниже — визуальные спеки состояний,
+страниц и print-режима для прямой реализации в `coder-frontend`.
+
+#### A. Направление и дифференциация (подтверждение)
+
+Направление — **Editorial / Medical-ledger**: журнальная иерархия PT Serif + волосяные линии
+`#E5E2D9` вместо теней. Избегаем generic-AI эстетики: нет фиолетовых градиентов,
+glassmorphism, emoji-иконок, pill-кнопок «везде». Запоминающийся элемент — **статусы-штампы
+`StampBadge`** (uppercase, tracking +0.08em, рамка 1.5px, прозрачный фон) плюс монотипные
+**`CodeChip`** для МКБ-10/АТХ/UCUM — интерфейс как страница медкарты, а не SaaS-дашборд.
+
+#### B. Токены — дополнения к §0 (без ломающих изменений)
+
+- Focus: `outline: 2px solid var(--ring)` (`#0F766E`), `outline-offset: 2px` — на всех
+  интерактивных элементах (WCAG 2.1 AA, §7).
+- Skeleton: фон `#F1EFE9`, шиммер 1200 мс едва заметный; при `prefers-reduced-motion` — статика.
+- Print: `@media print` — белый фон, чёрный текст, скрыть шапку/сайдбар/тосты; `StampBadge`
+  печатается рамкой; «История»/«Детали приёма» — печатная выписка.
+- Плотность: пациент — comfortable (touch-target ≥ 44px); врач/админ — compact (строки h-11,
+  sticky header, hover `#F7F5EF`, без зебры).
+
+<!-- POLISH-PART-2 -->
+
+#### C. Визуальные спеки ключевых страниц (состояния: default/loading/пусто/ошибка)
+
+1. **`(public)` `/`, `/doctors`, `/doctors/[doctorId]` (RSC, FR-002).** Хиро — PT Serif 32px,
+   подзаголовок Inter 16px `#5B6770`; поиск (специальность + услуга + дата) — одна строка на
+   десктопе, стек на `<768px`. Карточки врачей: аватар-инициалы на `#F1EFE9`, имя Serif 20px,
+   специальность + `CodeChip` услуг. Loading: 6 skeleton-карточек. Пусто: `EmptyState`
+   «Врачи не найдены — измените фильтры». Ошибка сети: `ProblemBanner` + retry.
+2. **`(patient)` `BookingWizard` (4 шага, FR-003/FR-004, BR-001).** Шаги — нумерованные
+   волосяные (1 Услуга · 2 Врач · 3 Время · 4 Подтверждение), текущий — primary-рамка.
+   `SlotPicker`: плитки по дням, время JetBrains Mono 14px; `free` — bordered, hover `#F1EFE9`;
+   `busy` — зачёркнут, `aria-disabled`; выбранный — заливка `#0F766E`, текст `#ECFDF5`.
+   staleTime 15 s + `refetchOnWindowFocus`. Конфликт 409 `SLOT_CONFLICT`: тост `aria-live`
+   «Слот только что заняли», авто-refresh, занятый слот — destructive-рамка 1.5px, мастер
+   остаётся на шаге 3. Черновик — sessionStorage (§5.2).
+3. **`(patient)` `/appointments`, `/history`, `/prescriptions` (FR-006/FR-007).**
+   `AppointmentCard`: дата Serif 20px + `StampBadge` справа; cancel — только владелец (BR-002)
+   через `CancelAppointmentDialog` (reason 3…500, zod). `PatientHistoryTimeline`: волосяная
+   линия, точки primary; запись — дата + диагноз-`CodeChip`. `PrescriptionCard`: код АТХ mono
+   + dosageText + примечание; печать — print-режим.
+
+<!-- POLISH-PART-3 -->
+
+4. **`(doctor)` `/doctor/appointments` + `/encounters/[encounterId]` (FR-009/011–014).**
+   Журнал дня — compact-таблица (09:00 mono, пациент, `StampBadge`, «Открыть приём» только для
+   `booked`, BR-008). `EncounterCompleteForm` — 4 секции-филдсета (summary+diagnoses /
+   observations / назначения / recommendations), один атомарный submit `CompleteEncounterDto`
+   (API 7.3). После `finished` — read-only + баннер «Приём завершён» (BR-003). `Icd10Combobox`:
+   `$expand` ValueSet `https://fhir.by/ValueSet/InternClassificDiseases10` + маска кода;
+   офлайн-фолбэк — ручной ввод + `GET /terminology/validate`. UCUM — только селект (BR-009),
+   АТХ — mono-поле + маска + validate 2.3.3. Повторный complete → 409 → read-only (C2).
+5. **`(admin)` `/admin/*` (FR-015–021, BR-007).** Паттерн: `PaginatedTable` (серверная
+   пагинация `PageMetaDto`, sortBy/sortOrder) + фильтры сверху + primary CTA справа.
+   `ScheduleEditor`: окна MO–SU, horizon ≤ 90 дней, превью пересечений; `SCHEDULE_OVERLAP` —
+   подсветка окон + `ProblemBanner`. `SlotGenerationDialog`: from/to в горизонте,
+   `Idempotency-Key`, результат `{ generated, skipped }`. `RoomUsageDrawer`: удаление
+   блокируется при активных расписаниях (`ROOM_IN_USE`). `TerminologyImportPanel`:
+   202 Accepted («импорт выполняется»), 409 → «уже выполняется». `AnalyticsDashboard`:
+   KPI-карты Serif-цифры + recharts, фильтр ≤ 366 дней. `AuditTable`: occurredAt + userId +
+   action + resourceType/Id + `requestId` mono с копированием.
+6. **`(auth)` `/login`, `/register` + broker (FR-001).** Карточка `#FFFFFF`, рамка `#E5E2D9`,
+   радиус 8px, max-w 400px по центру. 401/403 → `ProblemBanner` без раскрытия причины.
+   Редирект по роли: PATIENT → `/booking`, DOCTOR → `/doctor/appointments`,
+   ADMIN → `/admin/analytics`.
+
+#### D. Состояния, motion, responsive (дополнение к §5.4/§7/§8)
+
+- `ProblemBanner`: title + detail + `CodeChip errorCode` + `requestId` mono с копированием;
+  401 → silent refresh, повторный 401 → `/login?returnTo=…`; 429 → «повторите через N с»;
+  5xx → страница 500 с `requestId`. `ForbiddenState` (403), `NotFoundState` (404),
+  `EmptyState` с CTA, skeleton-набор для таблиц/карточек/таймлайна.
+- Motion: 150 мс ease-out hover/focus; баннеры — fade+slide 8px; шиммер 1200 мс;
+  `prefers-reduced-motion: reduce` — статика. Без параллаксов — инструмент клиники.
+- Responsive: `≥1280px` — StaffShell (сайдбар 240px); `1024–1279px` — сайдбар 72px;
+  `768–1023px` — верхняя навигация + табы; `<768px` — карточки вместо таблиц, мастер — один
+  шаг на экран + sticky CTA, `SlotPicker` — вертикальный список. `PaginatedTable` имеет
+  `cardView` < 768px (тот же `StampBadge`, та же семантика).
+
+#### E. Трассируемость дополнения
+
+Покрытие FR — 21/21 (§10, без изменений); дополнение закрывает визуальные пробелы для M6
+writing-plans (задачи 16–19): loading/empty/error каждого экрана, 409-ветка бронирования,
+read-only завершённого приёма, print-выписка, responsive-правила. Все 16 errorCode уже имеют
+UX в §5.4 — здесь добавлены тексты и фокус-поведение.
