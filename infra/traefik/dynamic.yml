@@ -1,0 +1,164 @@
+# Traefik edge routing (file provider) — ADR-009: Traefik performs NO token
+# validation; it terminates TLS, applies security headers and passes the
+# `x-request-id` header through. Every BFF validates JWT/scopes/RBAC itself.
+#
+# Service ports: auth 3001, practitioner 3002, catalog 3003, patient 3004,
+# appointment 3005, notification 3006, encounter 3007, analytics 3008.
+# Routers whose backend container is not up yet answer 502 — expected until
+# the corresponding milestone adds it to docker-compose.yml.
+
+http:
+  middlewares:
+    security-headers:
+      headers:
+        stsSeconds: 31536000
+        stsIncludeSubdomains: true
+        contentTypeOptions: nosniff
+        frameDeny: true
+        browserXssFilter: true
+        referrerPolicy: strict-origin-when-cross-origin
+
+  routers:
+    fhir:
+      rule: PathPrefix(`/fhir`)
+      entryPoints: [websecure]
+      service: hapi
+      middlewares: [security-headers]
+
+    auth-edge:
+      rule: PathPrefix(`/oauth`) || PathPrefix(`/.well-known`)
+      entryPoints: [websecure]
+      service: auth-service
+      middlewares: [security-headers]
+
+    auth-api:
+      rule: PathPrefix(`/api/v1/auth`) || PathPrefix(`/api/v1/terminology`) || PathPrefix(`/api/v1/admin/users`) || PathPrefix(`/api/v1/admin/terminology`) || Path(`/api/v1/me`)
+      priority: 40
+      entryPoints: [websecure]
+      service: auth-service
+      middlewares: [security-headers]
+
+    analytics:
+      rule: PathPrefix(`/api/v1/admin/analytics`) || PathPrefix(`/api/v1/admin/audit`)
+      entryPoints: [websecure]
+      service: analytics-service
+      middlewares: [security-headers]
+
+    catalog-admin:
+      rule: PathPrefix(`/api/v1/admin/schedules`) || PathPrefix(`/api/v1/admin/services`) || PathPrefix(`/admin/schedules`)
+      entryPoints: [websecure]
+      service: catalog-service
+      middlewares: [security-headers]
+
+    practitioner-rooms-admin:
+      rule: PathPrefix(`/api/v1/admin/rooms`)
+      entryPoints: [websecure]
+      service: practitioner-service
+      middlewares: [security-headers]
+
+    practitioner-doctors:
+      rule: PathPrefix(`/api/v1/doctors`) || PathPrefix(`/api/v1/rooms`)
+      priority: 50
+      entryPoints: [websecure]
+      service: practitioner-service
+      middlewares: [security-headers]
+
+    catalog-doctor-slots:
+      rule: PathPrefix(`/api/v1/doctor/schedule`) || PathPrefix(`/api/v1/services`) || PathRegexp(`^/api/v1/doctors/[^/]+/slots$`)
+      priority: 60
+      entryPoints: [websecure]
+      service: catalog-service
+      middlewares: [security-headers]
+
+    appointment-doctor:
+      rule: PathPrefix(`/api/v1/doctor/appointments`)
+      priority: 60
+      entryPoints: [websecure]
+      service: appointment-service
+      middlewares: [security-headers]
+
+    appointments:
+      rule: PathPrefix(`/api/v1/appointments`)
+      entryPoints: [websecure]
+      service: appointment-service
+      middlewares: [security-headers]
+
+    encounter-me:
+      rule: PathPrefix(`/api/v1/me/history`) || PathPrefix(`/api/v1/me/prescriptions`)
+      priority: 40
+      entryPoints: [websecure]
+      service: encounter-service
+      middlewares: [security-headers]
+
+    encounter-patient-history:
+      rule: PathRegexp(`^/api/v1/patients/[^/]+/(history|prescriptions)$`)
+      priority: 60
+      entryPoints: [websecure]
+      service: encounter-service
+      middlewares: [security-headers]
+
+    patient-me:
+      rule: Path(`/api/v1/me/patient`)
+      priority: 40
+      entryPoints: [websecure]
+      service: patient-service
+      middlewares: [security-headers]
+
+    patients:
+      rule: PathPrefix(`/api/v1/patients`)
+      priority: 50
+      entryPoints: [websecure]
+      service: patient-service
+      middlewares: [security-headers]
+
+    notifications:
+      rule: PathPrefix(`/api/v1/notifications`)
+      entryPoints: [websecure]
+      service: notification-service
+      middlewares: [security-headers]
+
+  services:
+    hapi:
+      loadBalancer:
+        servers:
+          - url: http://hapi:8080
+
+    auth-service:
+      loadBalancer:
+        servers:
+          - url: http://auth-service:3001
+
+    practitioner-service:
+      loadBalancer:
+        servers:
+          - url: http://practitioner-service:3002
+
+    catalog-service:
+      loadBalancer:
+        servers:
+          - url: http://catalog-service:3003
+
+    patient-service:
+      loadBalancer:
+        servers:
+          - url: http://patient-service:3004
+
+    appointment-service:
+      loadBalancer:
+        servers:
+          - url: http://appointment-service:3005
+
+    notification-service:
+      loadBalancer:
+        servers:
+          - url: http://notification-service:3006
+
+    encounter-service:
+      loadBalancer:
+        servers:
+          - url: http://encounter-service:3007
+
+    analytics-service:
+      loadBalancer:
+        servers:
+          - url: http://analytics-service:3008

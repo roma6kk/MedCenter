@@ -1,0 +1,34 @@
+{
+  "compileOnSave": false,
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "commonjs",
+    "lib": ["ES2022"],
+    "moduleResolution": "node",
+    "declaration": true,
+    "removeComments": true,
+    "emitDecoratorMetadata": true,
+    "experimentalDecorators": true,
+    "allowSyntheticDefaultImports": true,
+    "esModuleInterop": true,
+    "resolveJsonModule": true,
+    "sourceMap": true,
+    "baseUrl": ".",
+    "paths": {
+      "@medcenter/contracts": ["libs/contracts/src/index.ts"],
+      "@medcenter/common": ["libs/common/src/index.ts"],
+      "@medcenter/config": ["libs/config/src/index.ts"],
+      "@medcenter/fhir": ["libs/fhir/src/index.ts"],
+      "@medcenter/fhir-mappers": ["libs/fhir-mappers/src/index.ts"],
+      "@medcenter/terminology": ["libs/terminology/src/index.ts"]
+    },
+    "strict": true,
+    "noImplicitAny": true,
+    "strictNullChecks": true,
+    "noUnusedLocals": true,
+    "noFallthroughCasesInSwitch": true,
+    "forceConsistentCasingInFileNames": true,
+    "skipLibCheck": true
+  },
+  "exclude": ["node_modules", "tmp", "dist"]
+}
