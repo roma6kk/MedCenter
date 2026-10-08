@@ -7,6 +7,7 @@ import { StaffShell, DOCTOR_LINKS } from '@/components/layout/staff-shell';
 import { StampBadge, type StampStatus } from '@/components/feedback/stamp-badge';
 import { TableSkeleton, EmptyState } from '@/components/feedback/states';
 import { minskDateKey } from '@/lib/utils';
+import { NoshowButton } from '@/components/doctor/noshow-button';
 
 interface DayItem { id: string; time: string; patientName: string; status: StampStatus; }
 
@@ -30,7 +31,16 @@ export default function DoctorJournalPage(): React.JSX.Element {
                 <td className="mono h-11 px-3">{item.time}</td>
                 <td className="h-11 px-3">{item.patientName}</td>
                 <td className="h-11 px-3"><StampBadge status={item.status} /></td>
-                <td className="h-11 px-3">{item.status === 'booked' ? <Link href={`/encounters/${item.id}`} className="underline">Открыть приём</Link> : <span aria-hidden="true">—</span>}</td>
+                <td className="h-11 px-3">
+                  {item.status === 'booked' ? (
+                    <span className="inline-flex flex-wrap items-center gap-3">
+                      <Link href={`/encounters/${item.id}`} className="underline">Открыть приём</Link>
+                      <NoshowButton appointmentId={item.id} />
+                    </span>
+                  ) : (
+                    <span aria-hidden="true">—</span>
+                  )}
+                </td>
               </tr>
             ))}
           </tbody>

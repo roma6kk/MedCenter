@@ -1,6 +1,6 @@
 import { JwtService } from './jwt.service';
 import { JwksService } from './jwks.service';
-import { OAuthController } from './oauth.controller';
+import { OAuthController, readFhirBaseUrl } from './oauth.controller';
 import { OAuthService } from './oauth.service';
 import { PkceService } from './pkce.service';
 import { OAuthError } from './oauth-error';
@@ -52,6 +52,18 @@ function makeRedirectSpy(): { redirect: jest.Mock; response: AuthorizeArgs[1] } 
 }
 
 describe('OAuthController', () => {
+  const savedFhirBaseUrl = process.env['FHIR_BASE_URL'];
+
+  afterEach(() => {
+    // N5: the first test in this suite used to mutate `process.env` in place
+    // without restoring it, leaking into every suite sharing the Jest worker.
+    if (savedFhirBaseUrl === undefined) {
+      delete process.env['FHIR_BASE_URL'];
+    } else {
+      process.env['FHIR_BASE_URL'] = savedFhirBaseUrl;
+    }
+  });
+
   it('should advertise the SMART endpoints and S256 only', () => {
     process.env['FHIR_BASE_URL'] = 'http://hapi:8080/fhir';
     const { controller } = createHarness();
@@ -63,6 +75,14 @@ describe('OAuthController', () => {
     expect(config.response_types_supported).toEqual(['code']);
     expect(config.scopes_supported).toContain('patient/*.read');
     expect(config.fhir_base).toBe('http://hapi:8080/fhir');
+  });
+
+  it('should fall back to an empty fhir_base only when the value is absent or not a url', () => {
+    expect(readFhirBaseUrl({})).toBe('');
+    expect(readFhirBaseUrl({ FHIR_BASE_URL: 'not-a-url' })).toBe('');
+    expect(readFhirBaseUrl({ FHIR_BASE_URL: 'http://hapi:8080/fhir' })).toBe(
+      'http://hapi:8080/fhir',
+    );
   });
 
   it('should advertise how a client authenticates at the token endpoint and which grants exist', () => {
@@ -91,7 +111,11 @@ describe('OAuthController', () => {
     const { controller } = createHarness();
 
     const error = await captureOAuthError(
-      controller.token({ grant_type: 'authorization_code', code: 'c', client_id: 'medcenter-web' } as TokenArg),
+      controller.token({
+        grant_type: 'authorization_code',
+        code: 'c',
+        client_id: 'medcenter-web',
+      } as TokenArg),
     );
 
     expect(error.getResponse()).toMatchObject({ error: 'invalid_request' });
@@ -110,9 +134,7 @@ describe('OAuthController', () => {
   it('should reject a revoke call without a refresh token', async () => {
     const { controller } = createHarness();
 
-    const error = await captureOAuthError(
-      controller.revoke({} as RevokeArg, revokeRequest('u1')),
-    );
+    const error = await captureOAuthError(controller.revoke({} as RevokeArg, revokeRequest('u1')));
 
     expect(error.getResponse()).toMatchObject({ error: 'invalid_request' });
   });
@@ -173,7 +195,32 @@ describe('OAuthController', () => {
     expect(redirect).not.toHaveBeenCalled();
   });
 
-  it('should bounce a domain failure to the client with access_denied', async () => {
+  it('should bounce a token-endpoint-only failure to the client as access_denied', async () => {
+    // RFC 6749 §4.1.2.1 does not allow `invalid_grant` on the authorize redirect.
+    const { controller, oauth, pkce } = createHarness();
+    const { redirect, response } = makeRedirectSpy();
+    const { codeChallenge } = pkce.generate();
+    jest.spyOn(oauth, 'authorize').mockRejectedValue(OAuthError.invalidGrant('not allowed here'));
+    const request = {
+      query: {
+        client_id: 'medcenter-web',
+        redirect_uri: TEST_REDIRECT_URI,
+        state: 'st',
+        code_challenge: codeChallenge,
+      },
+      client: createTestClient(),
+      user: { sub: 'u1', role: 'PATIENT' },
+    } as unknown as AuthorizeArgs[0];
+
+    await controller.authorize(request, response);
+
+    expect(redirect).toHaveBeenCalledTimes(1);
+    const target = new URL(String(redirect.mock.calls[0]?.[0]));
+    expect(target.searchParams.get('error')).toBe('access_denied');
+    expect(target.searchParams.get('state')).toBe('st');
+  });
+
+  it('should forward invalid_request to the client instead of access_denied', async () => {
     const { controller, oauth, pkce } = createHarness();
     const { redirect, response } = makeRedirectSpy();
     const { codeChallenge } = pkce.generate();
@@ -193,9 +240,35 @@ describe('OAuthController', () => {
 
     await controller.authorize(request, response);
 
+    const target = new URL(String(redirect.mock.calls[0]?.[0]));
+    expect(target.searchParams.get('error')).toBe('invalid_request');
+    expect(target.searchParams.get('state')).toBe('st');
+  });
+
+  it('should redirect with invalid_scope when no requested scope is granted to the client', async () => {
+    // M5: the real service raises `invalid_scope`; the SMART client must see it
+    // on the redirect (RFC 6749 §4.1.2.1), not a generic `access_denied`.
+    const { controller, pkce } = createHarness();
+    const { redirect, response } = makeRedirectSpy();
+    const { codeChallenge } = pkce.generate();
+    const request = {
+      query: {
+        client_id: 'medcenter-web',
+        redirect_uri: TEST_REDIRECT_URI,
+        state: 'st',
+        scope: 'system/*.write',
+        code_challenge: codeChallenge,
+      },
+      client: createTestClient(),
+      user: { sub: 'u1', role: 'PATIENT' },
+    } as unknown as AuthorizeArgs[0];
+
+    await controller.authorize(request, response);
+
     expect(redirect).toHaveBeenCalledTimes(1);
     const target = new URL(String(redirect.mock.calls[0]?.[0]));
-    expect(target.searchParams.get('error')).toBe('access_denied');
+    expect(target.searchParams.get('error')).toBe('invalid_scope');
+    expect(target.searchParams.get('code')).toBeNull();
     expect(target.searchParams.get('state')).toBe('st');
   });
 

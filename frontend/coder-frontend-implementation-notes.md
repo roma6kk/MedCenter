@@ -76,3 +76,29 @@ Verified each named Critical against the running code, then wired the one that w
 - Next.js 15 async `params`/`searchParams` adopted for all dynamic routes.
 - `EncounterCompleteForm` observations section is still free-text; the server `ObservationDto[]` (API §7.3) is not modelled in the frontend contract.
 - The frontend `completeEncounterSchema` is a simplified mirror of `CompleteEncounterDto`: `serviceRequests` uses `{code, display}` and `medicationRequests` carries `ucumUnit`, whereas the server DTO expects `codeSystem`/`note` — reconcile once the encounter-service contract is frozen.
+
+## Gap closure vs plan (M6 Task 19, 2026-10-08)
+
+Closed gaps against `tasks/TASK-001/writing-plans-plan.md` (Task 16/19) and `specs/frontend-design-spec.md` §1, §4, §5.4:
+
+- **403 redirect.** `/403` page (`src/app/403/page.tsx`) renders `ForbiddenState`. Each route group layout wraps children in `RoleGuard` (`components/layout/role-guard.tsx`, decision table in `lib/auth/role-access.ts`): wrong role → `/403`, anonymous after hydration → `/login?returnTo=`, children are not mounted until access is decided. Role gating stays UX-only (ADR-009).
+- **Error map.** Moved `ErrorUx` and the 16-entry map into `src/lib/api/error-code-map.ts` (`Record<ErrorCode, ErrorUx>`, so a missing code fails to compile). `problem.ts` re-exports `errorCodeToUx` for existing callers. Spec: `error-code-map.spec.ts`.
+- **Messages.** `errors` namespace in `ru.json`/`en.json` now holds all 16 `errorCode` keys (was 8).
+- **Components (plan Task 19 list).** Added `AtcCodeField`, `UcumUnitSelect` (wired into `EncounterCompleteForm`), `NoshowButton` (wired into the doctor journal), `DoctorScheduleView` (wired into the schedule page), `UsersTable` (wired into admin users), `RoomUsageDrawer` (wired into admin rooms). Each has a spec.
+
+Deviations from the plan text:
+
+- Plan tests use `errorCodeMap.X.view`; the repo's existing contract uses `kind`, so `kind` was kept.
+- Plan's `lib/__tests__/` spec location → colocated `*.spec.ts(x)`, the project convention.
+- Middleware does not check role (the `mc_session` cookie carries no role); the role gate is client-side in the layouts.
+- `UcumUnitSelect` uses the static `UCUM_UNITS` snapshot, not `$expand` (API 2.3.2).
+- `RoomUsageDrawer` and `DoctorScheduleView` response shapes are assumptions; the API spec does not pin them.
+
+Still open from spec §4 (not in plan Task 19, not done): `PrescriptionCard`, `NotificationCenter`, `RelatedPersons`, `PatientHeader`, `ProfileCard`, `UserForm`/`ServiceForm`/`RoomForm`, `ServicesTable`, `ValueSetExplorer`, `DoctorCard`/`ServiceGrid`/`FilterBar`, and the users/rooms pages still lack their CRUD actions.
+
+Verification (`frontend/`, run with `node node_modules/<pkg>/bin/...`):
+
+- `tsc --noEmit` — PASS.
+- `jest --runInBand` — PASS: 29 suites, 244 tests. Parallel workers fail to start on this machine (no `@next/swc-win32-x64-msvc`), so run in band.
+- `next lint` — PASS.
+- `next build` — PASS with `NODE_ENV=production` (28 routes, `/403` prerendered). Under the shell's `NODE_ENV=development` the `/404` prerender fails with an `<Html>` error; that is environmental.

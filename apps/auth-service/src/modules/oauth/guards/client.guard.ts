@@ -72,7 +72,12 @@ export interface RequestWithClientQuery {
   client?: RegisteredClient;
 }
 
-function readQueryString(query: Record<string, unknown>, key: string): string {
+/**
+ * Reads a single-valued query parameter (N8: shared with
+ * `oauth.controller.ts` so the two call sites cannot drift apart — e.g. one
+ * treating `?scope=a&scope=b` as `'a'` and the other as `''`).
+ */
+export function readQueryString(query: Record<string, unknown>, key: string): string {
   const value = query[key];
   return typeof value === 'string' ? value : '';
 }

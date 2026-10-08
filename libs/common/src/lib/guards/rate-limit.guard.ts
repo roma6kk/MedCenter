@@ -31,11 +31,48 @@ interface RateLimitRequest extends RequestWithClaims {
   readonly method?: string;
   readonly originalUrl?: string;
   readonly ip?: string;
+  readonly body?: Record<string, unknown>;
+}
+
+/** Longest `client_id` copied into a key; the value is unauthenticated input. */
+const MAX_CLIENT_ID_LENGTH = 64;
+
+/**
+ * Picks the rate-limit bucket identity.
+ *
+ * An authenticated principal is bucketed on its `sub`. Without one (e.g. the
+ * `@Public()` `POST /oauth/token`), the bucket is `client_id|ip` (M2): two
+ * clients behind one NAT get separate budgets, yet the IP always stays in the
+ * key. This guard runs before `TokenClientGuard`, so `client_id` is
+ * unauthenticated — keying on it alone let one IP rotate `client_id` for fresh
+ * buckets and let any IP exhaust a real client's shared bucket. With the IP
+ * kept, a rotated `client_id` only buys buckets for ids `TokenClientGuard`
+ * rejects (401) before any secret or code is checked.
+ */
+function readBucketIdentity(request: RateLimitRequest): string {
+  const sub = request.user?.sub;
+  if (typeof sub === 'string' && sub.length > 0) {
+    return sub;
+  }
+  const fromBody = request.body?.['client_id'];
+  const clientId =
+    typeof fromBody === 'string' && fromBody.length > 0
+      ? fromBody.slice(0, MAX_CLIENT_ID_LENGTH)
+      : '-';
+  return `${clientId}|${request.ip ?? 'anonymous'}`;
+}
+
+/**
+ * Strips the query string: `POST /oauth/token?n=1` and `?n=2` must share one
+ * bucket, otherwise any caller can mint a fresh budget per request.
+ */
+function readRoutePath(request: RateLimitRequest): string {
+  return (request.originalUrl ?? '/').split('?')[0] ?? '/';
 }
 
 function buildRateLimitKey(request: RateLimitRequest): string {
-  const identity = request.user?.sub ?? request.ip ?? 'anonymous';
-  const route = `${request.method ?? 'GET'}:${request.originalUrl ?? '/'}`;
+  const identity = readBucketIdentity(request);
+  const route = `${request.method ?? 'GET'}:${readRoutePath(request)}`;
   const minute = Math.floor(Date.now() / (WINDOW_SECONDS * 1000));
   return `${identity}:${route}:${minute}`;
 }
@@ -63,10 +100,7 @@ export class RateLimitGuard implements CanActivate {
     }
 
     if (count > this.resolveLimit(context)) {
-      context
-        .switchToHttp()
-        .getResponse<Response>()
-        .header('Retry-After', String(WINDOW_SECONDS));
+      context.switchToHttp().getResponse<Response>().header('Retry-After', String(WINDOW_SECONDS));
       throw new HttpException(
         {
           errorCode: 'RATE_LIMITED',

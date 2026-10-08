@@ -14,6 +14,11 @@ import { IsOptional, IsString } from 'class-validator';
  *   `unsupported_grant_type`.
  * - the per-grant fields have no `@MinLength(1)`: an empty form value simply means
  *   "absent" (`code_verifier=`), which the controller reports as `invalid_request`.
+ * - `client_secret` is declared (R4) so the type documents the confidential
+ *   client's credential. It stays `@IsOptional() @IsString()` — a type guard
+ *   only — because `TokenClientGuard` reads the raw body *before* pipes run,
+ *   and rejecting unknown shapes here would break the client authentication
+ *   the discovery document advertises (`client_secret_post`).
  */
 export class TokenRequestDto {
   @IsOptional()
@@ -31,6 +36,10 @@ export class TokenRequestDto {
   @IsOptional()
   @IsString()
   client_id?: string;
+
+  @IsOptional()
+  @IsString()
+  client_secret?: string;
 
   @IsOptional()
   @IsString()

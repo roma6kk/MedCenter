@@ -6,13 +6,14 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   OBSERVATION_CODE_SYSTEM_DEFAULT,
   SERVICE_CODE_SYSTEM_DEFAULT,
-  UCUM_UNITS,
   completeEncounterSchema,
   type CompleteEncounterForm,
 } from '@/lib/contracts';
 import { apiFetch, ApiError, idempotencyKey } from '@/lib/api/api-fetch';
 import { ProblemBanner } from '@/components/feedback/problem-banner';
 import { Icd10Combobox } from '@/components/doctor/icd10-combobox';
+import { AtcCodeField } from '@/components/doctor/atc-code-field';
+import { UcumUnitSelect } from '@/components/doctor/ucum-unit-select';
 
 const EMPTY_DIAGNOSIS = { code: '', display: '' };
 const EMPTY_OBSERVATION = { codeSystem: OBSERVATION_CODE_SYSTEM_DEFAULT, code: '', value: NaN, unit: 'Cel' };
@@ -180,9 +181,7 @@ function ObservationsEditor({ control, register, errors }: EditorProps): React.J
               />
             </TextField>
             <TextField id={`observation-unit-${index}`} label={`Единица UCUM ${index + 1} — только выбор`} error={fieldMessage(rows?.[index]?.unit)}>
-              <select id={`observation-unit-${index}`} {...register(`observations.${index}.unit`)} className={INPUT_CLASS}>
-                {UCUM_UNITS.map((unit) => <option key={unit} value={unit}>{unit}</option>)}
-              </select>
+              <UcumUnitSelect id={`observation-unit-${index}`} {...register(`observations.${index}.unit`)} />
             </TextField>
           </div>
           <RemoveButton onClick={() => remove(index)} label="Удалить наблюдение" ariaLabel={`Удалить наблюдение ${index + 1}`} />
@@ -249,13 +248,10 @@ function MedicationRequestsEditor({ control, register, errors }: EditorProps): R
       {fields.map((field, index) => (
         <div key={field.id} className="mt-2 rounded-[6px] border border-[var(--border)] p-3">
           <TextField id={`medication-atc-${index}`} label={`Код АТХ ${index + 1}`} error={fieldMessage(rows?.[index]?.atcCode)}>
-            <input
+            <AtcCodeField
               id={`medication-atc-${index}`}
               {...register(`medicationRequests.${index}.atcCode`)}
-              className={`mono ${INPUT_CLASS}`}
               placeholder="N02BE01…"
-              spellCheck={false}
-              autoComplete="off"
             />
           </TextField>
           <div className="mt-2">

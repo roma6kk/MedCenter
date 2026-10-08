@@ -2,6 +2,7 @@ import {
   Body,
   Controller,
   Get,
+  Header,
   HttpCode,
   HttpStatus,
   Inject,
@@ -15,11 +16,12 @@ import {
 import type { Response } from 'express';
 import { Public, RateLimit } from '@medcenter/common';
 import { SMART_SCOPES } from '@medcenter/contracts';
+import { z } from 'zod';
 
 import { TokenRequestDto } from './dto/token-request.dto';
 import { OAuthErrorFilter } from './filters/oauth-error.filter';
 import { AuthorizePageGuard } from './guards/authorize-page.guard';
-import { ClientGuard, type RegisteredClient } from './guards/client.guard';
+import { ClientGuard, readQueryString, type RegisteredClient } from './guards/client.guard';
 import { TokenClientGuard } from './guards/token-client.guard';
 import { SIGNING_KEYS, type SigningKeys } from './jwt.service';
 import { JwksService, type JwksDocument } from './jwks.service';
@@ -73,14 +75,43 @@ export interface SmartConfiguration {
   readonly fhir_base: string;
 }
 
-function readQueryString(query: Record<string, unknown>, key: string): string {
-  const value = query[key];
-  return typeof value === 'string' ? value : '';
+/**
+ * N5: `fhir_base` is validated, not just read. A bare
+ * `process.env['FHIR_BASE_URL'] ?? ''` silently advertised an empty string
+ * when the variable was missing or malformed; the narrow `zod` parse below
+ * returns `''` only when the value is absent or not a URL — never a
+ * half-configured string — while staying independent of the full env schema
+ * (which requires secrets this surface's unit tests never set).
+ */
+const fhirBaseUrlSchema = z.object({ FHIR_BASE_URL: z.url() });
+
+export function readFhirBaseUrl(source: NodeJS.ProcessEnv = process.env): string {
+  const parsed = fhirBaseUrlSchema.safeParse({ FHIR_BASE_URL: source['FHIR_BASE_URL'] });
+  return parsed.success ? parsed.data.FHIR_BASE_URL : '';
 }
 
-function errorRedirect(redirectUri: string, state: string): string {
+/**
+ * The `error` values RFC 6749 §4.1.2.1 allows on the authorize redirect.
+ * `invalid_client`, `invalid_grant` and `unsupported_grant_type` belong to the
+ * token endpoint (§5.2) and are reported as `access_denied` instead.
+ */
+type AuthorizeRedirectError = 'access_denied' | 'invalid_request' | 'invalid_scope';
+
+/** M5: forwards the RFC code a SMART client branches on, e.g. `invalid_scope`. */
+function toAuthorizeRedirectError(error: OAuthError): AuthorizeRedirectError {
+  const body = error.getResponse();
+  const code =
+    typeof body === 'object' && body !== null && 'error' in body ? body.error : undefined;
+  return code === 'invalid_request' || code === 'invalid_scope' ? code : 'access_denied';
+}
+
+function errorRedirect(
+  redirectUri: string,
+  state: string,
+  error: AuthorizeRedirectError = 'access_denied',
+): string {
   const url = new URL(redirectUri);
-  url.searchParams.set('error', 'access_denied');
+  url.searchParams.set('error', error);
   if (state.length > 0) {
     url.searchParams.set('state', state);
   }
@@ -94,8 +125,9 @@ function errorRedirect(redirectUri: string, state: string): string {
  *
  * - The **redirect** back to the client is the only response shape that must
  *   never leak client or code material, so a failure of this surface's domain on
- *   `authorize` bounces to the *registered* `redirect_uri` with
- *   `?error=access_denied`. An infrastructure failure is not a consent decision
+ *   `authorize` bounces to the *registered* `redirect_uri` with its RFC 6749
+ *   §4.1.2.1 `error` (`invalid_request`, `invalid_scope`, otherwise
+ *   `access_denied`). An infrastructure failure is not a consent decision
  *   and must not be reported as one.
  * - Errors raised before that point must be legible to a SMART client, so they
  *   leave as the RFC 6749 §5.2 envelope via `OAuthErrorFilter` — *not* as the
@@ -133,7 +165,7 @@ export class OAuthController {
       // exactly what `TokenClientGuard` accepts (API 2.1.3).
       token_endpoint_auth_methods_supported: ['client_secret_post', 'none'],
       grant_types_supported: ['authorization_code', 'refresh_token'],
-      fhir_base: process.env['FHIR_BASE_URL'] ?? '',
+      fhir_base: readFhirBaseUrl(),
     };
   }
 
@@ -180,7 +212,7 @@ export class OAuthController {
       });
       response.redirect(redirectUrl);
     } catch (error: unknown) {
-      // Only a domain failure of this surface becomes `access_denied`: an
+      // Only a domain failure of this surface is bounced to the client: an
       // unreachable store or denylist, a rejected signing key or a broken
       // registry is an outage, and answering it as a denial would hide it from
       // the user *and* from monitoring. Anything that is not an `OAuthError`
@@ -192,13 +224,18 @@ export class OAuthController {
         { err: error, clientId: client.clientId },
         'Authorization request denied; bouncing to the registered redirect_uri',
       );
-      response.redirect(errorRedirect(redirectUri, state));
+      response.redirect(errorRedirect(redirectUri, state, toAuthorizeRedirectError(error)));
     }
   }
 
   // RFC 6749 §5.1 mandates 200 OK for a successful token response; Nest would
   // otherwise answer 201 for a POST.
   @HttpCode(HttpStatus.OK)
+  // RFC 6749 §5.1: a successful token response MUST NOT be cached. The error
+  // path sets the same header in `OAuthErrorFilter`; declaring it here closes
+  // M8 so both branches carry it.
+  @Header('Cache-Control', 'no-store')
+  @Header('Pragma', 'no-cache')
   @Public()
   @RateLimit(20)
   @UseGuards(TokenClientGuard)

@@ -65,6 +65,9 @@ services:
       context: .
       dockerfile: apps/auth-service/Dockerfile
     env_file: .env
+    environment:
+      # One proxy hop (Traefik) in front of the service; without it the rate limiter keys on Traefik's IP.
+      TRUST_PROXY: '1'
     ports:
       - '3001:3001' # dev only — production uses Traefik; do not expose in prod
     depends_on:

@@ -3,7 +3,6 @@ title: Accelerator Skill Flow
 type: index
 description: Master navigation for the command → agent → skill workflow.
 ---
-
 # Skill Flow Reference
 
 This document defines the recommended order of skills. Each skill stops after completion and suggests the next step - the user decides whether to continue.
@@ -99,45 +98,45 @@ Utility tools ([[moc-utility]]) are available at any time.
 
 ## Quick Reference: Next by Flow
 
-| Current Command           | Next by Flow                          | Why                                    |
-| ------------------------- | ------------------------------------- | -------------------------------------- |
-| [[/requirements-analyst]] | [[/brainstorm]]                       | Turn requirements into design          |
-| [[/brainstorm]]           | [[/architect]]                        | Review architecture for the design     |
-| [[/architect]]            | [[/api-designer]]                     | Design APIs based on architecture      |
-| [[/api-designer]]         | [[/frontend-design]]                  | Design UI based on API design          |
-| [[/frontend-design]]      | [[/writing-plans]]                    | Create implementation tasks from specs |
-| [[/writing-plans]]        | [[/git-worktrees]]                    | Create isolated workspace              |
-| [[/git-worktrees]]        | [[/coder]] or [[/coder-frontend]]     | Start implementation                   |
-| [[/coder-frontend]]       | [[/browser-verify]] or [[/code-reviewer]] | Verify UI in browser or review code |
-| [[/browser-verify]]       | [[/code-reviewer]]                    | Review the code after visual verify    |
-| [[/coder]]                | [[/code-reviewer]]                    | Review the backend code                |
-| [[/code-reviewer]]        | [[/test-generator]]                   | Generate tests for reviewed code       |
-| [[/test-generator]]       | [[/verify]] or [[/debugger]]          | Verify DoD or debug failures           |
-| [[/debugger]]             | [[/test-generator]]                   | Re-run tests after fix                 |
-| [[/verify]]               | [[/finishing-branch]]                 | Complete if all checks pass            |
-| [[/docs-generator]]       | [[/release]] or [[/finishing-branch]] | Create release or complete the branch  |
-| [[/release]]              | [[/finishing-branch]]                 | Complete the branch                    |
-| [[/finishing-branch]]     | (end)                                 | Workflow complete                      |
+| Current Command | Next by Flow | Why                                    |
+| --------------- | ------------ | -------------------------------------- |
+| [[/requirements-analyst]]                | [[/brainstorm]]             | Turn requirements into design          |
+| [[/brainstorm]]                | [[/architect]]             | Review architecture for the design     |
+| [[/architect]]                | [[/api-designer]]             | Design APIs based on architecture      |
+| [[/api-designer]]                | [[/frontend-design]]             | Design UI based on API design          |
+| [[/frontend-design]]                | [[/writing-plans]]             | Create implementation tasks from specs |
+| [[/writing-plans]]                | [[/git-worktrees]]             | Create isolated workspace              |
+| [[/git-worktrees]]                | [[/coder]] or [[/coder-frontend]]         | Start implementation                   |
+| [[/coder-frontend]]                | [[/browser-verify]] or [[/code-reviewer]]         | Verify UI in browser or review code    |
+| [[/browser-verify]]                | [[/code-reviewer]]             | Review the code after visual verify    |
+| [[/coder]]                | [[/code-reviewer]]             | Review the backend code                |
+| [[/code-reviewer]]                | [[/test-generator]]             | Generate tests for reviewed code       |
+| [[/test-generator]]                | [[/verify]] or [[/debugger]]         | Verify DoD or debug failures           |
+| [[/debugger]]                | [[/test-generator]]             | Re-run tests after fix                 |
+| [[/verify]]                | [[/finishing-branch]]             | Complete if all checks pass            |
+| [[/docs-generator]]                | [[/release]] or [[/finishing-branch]]         | Create release or complete the branch  |
+| [[/release]]                | [[/finishing-branch]]             | Complete the branch                    |
+| [[/finishing-branch]]                | (end)        | Workflow complete                      |
 
 ## Entry Points
 
 Choose your starting point based on your situation:
 
-| Situation                     | Start With                         |
-| ----------------------------- | ---------------------------------- |
-| Have requirements/specs       | [[/requirements-analyst]]          |
-| Have an idea to explore       | [[/brainstorm]]                    |
-| Have a plan ready             | [[/git-worktrees]] then [[/coder]] |
-| Existing project, add feature | [[/git-worktrees]] then [[/coder]] |
-| Fix a bug                     | [[/debugger]]                      |
+| Situation                     | Start With |
+| ----------------------------- | ---------- |
+| Have requirements/specs       | [[/requirements-analyst]]           |
+| Have an idea to explore       | [[/brainstorm]]           |
+| Have a plan ready             | [[/git-worktrees]] then [[/coder]]     |
+| Existing project, add feature | [[/git-worktrees]] then [[/coder]]     |
+| Fix a bug                     | [[/debugger]]           |
 
 ## Utility Commands (Any Time)
 
-| Command                 | When to Use                              |
-| ----------------------- | ---------------------------------------- |
-| [[/reflect]]            | Turn agent mistakes into permanent rules |
-| [[/skill-creator]]      | Create a new skill                       |
-| [[/accelerator-update]] | Update accelerator to latest version     |
+| Command | When to Use                              |
+| ------- | ---------------------------------------- |
+| [[/reflect]]        | Turn agent mistakes into permanent rules |
+| [[/skill-creator]]        | Create a new skill                       |
+| [[/accelerator-update]]        | Update accelerator to latest version     |
 
 ## How It Works
 

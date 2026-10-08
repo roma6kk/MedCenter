@@ -17,6 +17,15 @@
     "slotConflict": "Слот только что заняли"
   },
   "errors": {
+    "VALIDATION_ERROR": "Проверьте заполнение полей",
+    "UNAUTHENTICATED": "Требуется вход",
+    "TOKEN_REVOKED": "Сессия завершена, войдите снова",
+    "FORBIDDEN_SCOPE": "Недостаточно прав для этого действия",
+    "FORBIDDEN_ROLE": "Недостаточно прав для вашей роли",
+    "COMPARTMENT_VIOLATION": "Не найдено",
+    "NOT_FOUND": "Не найдено",
+    "METHOD_NOT_ALLOWED": "Операция не поддерживается",
+    "CONFLICT": "Конфликт с существующими данными",
     "SLOT_CONFLICT": "Слот уже занят",
     "APPOINTMENT_NOT_CANCELLABLE": "Запись нельзя отменить",
     "ENCOUNTER_STATE_INVALID": "Приём уже оформлен",

@@ -160,15 +160,46 @@ describe('loadRegisteredClients', () => {
     expect(clients[0]).toMatchObject({ clientId: 'medcenter-web', isPublic: true });
   });
 
-  it('should return an empty registry when OAUTH_CLIENTS_JSON is not valid json', () => {
-    expect(loadRegisteredClients({ OAUTH_CLIENTS_JSON: '{ not json' })).toEqual([]);
+  it('should throw at boot when OAUTH_CLIENTS_JSON is not valid json', () => {
+    expect(() => loadRegisteredClients({ OAUTH_CLIENTS_JSON: '{ not json' })).toThrow(
+      /OAUTH_CLIENTS_JSON is not valid JSON/,
+    );
   });
 
-  it('should return an empty registry when the payload is not an array', () => {
-    expect(loadRegisteredClients({ OAUTH_CLIENTS_JSON: '{"clientId":"medcenter-web"}' })).toEqual([]);
+  it('should throw at boot when the payload is not an array', () => {
+    expect(() =>
+      loadRegisteredClients({ OAUTH_CLIENTS_JSON: '{"clientId":"medcenter-web"}' }),
+    ).toThrow();
   });
 
-  it('should return an empty registry when the payload is a json null', () => {
-    expect(loadRegisteredClients({ OAUTH_CLIENTS_JSON: 'null' })).toEqual([]);
+  it('should throw at boot when the payload is a json null', () => {
+    expect(() => loadRegisteredClients({ OAUTH_CLIENTS_JSON: 'null' })).toThrow();
+  });
+
+  it('should throw at boot when an entry is missing redirectUris', () => {
+    // M3: this shape used to survive the cast and then throw a `TypeError`
+    // on the public authorize route (`client.redirectUris[0]` → 500).
+    expect(() =>
+      loadRegisteredClients({
+        OAUTH_CLIENTS_JSON: JSON.stringify([
+          { clientId: 'broken', scopes: ['launch'], isPublic: true },
+        ]),
+      }),
+    ).toThrow();
+  });
+
+  it('should throw at boot when an entry has an empty clientId', () => {
+    expect(() =>
+      loadRegisteredClients({
+        OAUTH_CLIENTS_JSON: JSON.stringify([
+          {
+            clientId: '',
+            redirectUris: ['https://app.medcenter.by/api/auth/callback'],
+            scopes: ['launch'],
+            isPublic: true,
+          },
+        ]),
+      }),
+    ).toThrow();
   });
 });

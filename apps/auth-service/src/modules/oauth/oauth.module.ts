@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { TOKEN_REVOCATION } from '@medcenter/common';
+import { z } from 'zod';
 
 import { OAuthErrorFilter } from './filters/oauth-error.filter';
 import { AuthorizePageGuard } from './guards/authorize-page.guard';
@@ -47,18 +48,35 @@ export function loadSigningKeys(source: NodeJS.ProcessEnv = process.env): Signin
  * Dev convenience: seed the client registry from `OAUTH_CLIENTS_JSON`
  * (a JSON array of `{ clientId, redirectUris, scopes, isPublic }`). The
  * `auth.oauth_client`-backed registry replaces this with persistence.
+ *
+ * M3: the payload is validated with `zod` and rejected loudly at boot. The
+ * previous `as` cast let a malformed entry throw a `TypeError` on a public
+ * route (`redirectUris[0]`, `allowed.includes(...)` → 500) or, worse, silently
+ * degrade to an empty registry where every client gets `401 invalid_client`,
+ * indistinguishable from a real auth failure.
  */
+const registeredClientSchema = z.object({
+  clientId: z.string().min(1),
+  redirectUris: z.array(z.string().min(1)).min(1),
+  scopes: z.array(z.string()),
+  isPublic: z.boolean(),
+  clientSecret: z.string().min(1).optional(),
+});
+
+const registeredClientsSchema = z.array(registeredClientSchema);
+
 export function loadRegisteredClients(source: NodeJS.ProcessEnv = process.env): ReadonlyArray<RegisteredClient> {
   const raw = source['OAUTH_CLIENTS_JSON'];
   if (!raw) {
     return [];
   }
+  let parsed: unknown;
   try {
-    const parsed: unknown = JSON.parse(raw);
-    return Array.isArray(parsed) ? (parsed as ReadonlyArray<RegisteredClient>) : [];
-  } catch {
-    return [];
+    parsed = JSON.parse(raw) as unknown;
+  } catch (error: unknown) {
+    throw new Error('OAUTH_CLIENTS_JSON is not valid JSON', { cause: error });
   }
+  return registeredClientsSchema.parse(parsed);
 }
 
 @Module({

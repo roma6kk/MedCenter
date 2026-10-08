@@ -10,6 +10,7 @@ export type OAuthErrorCode =
   | 'invalid_request'
   | 'invalid_client'
   | 'invalid_grant'
+  | 'invalid_scope'
   | 'unsupported_grant_type';
 
 export interface OAuthErrorBody {
@@ -57,6 +58,18 @@ export class OAuthError extends HttpException {
   static invalidGrant(description: string): OAuthError {
     return new OAuthError(HttpStatus.BAD_REQUEST, {
       error: 'invalid_grant',
+      error_description: description,
+      errorCode: INVALID_REQUEST_CODE,
+    });
+  }
+
+  static invalidScope(description: string): OAuthError {
+    // RFC 6749 §4.1.2.1 / §5.2: the client asked for a scope it was never
+    // granted. No catalogue code fits this one better than the generic
+    // validation code, and the RFC `error` discriminator is what the SMART
+    // client branches on (M5, R7).
+    return new OAuthError(HttpStatus.BAD_REQUEST, {
+      error: 'invalid_scope',
       error_description: description,
       errorCode: INVALID_REQUEST_CODE,
     });

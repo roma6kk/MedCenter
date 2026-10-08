@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { Role } from '@medcenter/contracts';
 
 import type { RegisteredClient } from './guards/client.guard';
 import { ACCESS_TOKEN_TTL_SECONDS, JwtService } from './jwt.service';
@@ -59,13 +60,23 @@ export interface TokenResponse {
   readonly patient?: string;
 }
 
-/** Scopes the client is allowed to request; unknown scopes are dropped. */
+/**
+ * Scopes the client is allowed to request; unknown scopes are dropped (M5).
+ * An empty request keeps the client's full grant — that is the "no scope
+ * asked" case. When the client *does* ask but nothing it asked for was ever
+ * granted, the authorize call must fail with `invalid_scope` (RFC 6749
+ * §4.1.2.1) instead of minting a token with an empty scope.
+ */
 function narrowScope(requested: string, allowed: ReadonlyArray<string>): string {
   const requestedScopes = requested.split(' ').filter((scope) => scope.length > 0);
   if (requestedScopes.length === 0) {
     return allowed.join(' ');
   }
-  return requestedScopes.filter((scope) => allowed.includes(scope)).join(' ');
+  const narrowed = requestedScopes.filter((scope) => allowed.includes(scope));
+  if (narrowed.length === 0) {
+    throw OAuthError.invalidScope('None of the requested scopes is granted to this client');
+  }
+  return narrowed.join(' ');
 }
 
 @Injectable()
@@ -179,7 +190,12 @@ export class OAuthService {
    * token (RFC 7009 / logout) as revoking the pair.
    */
   private async issuePair(stored: StoredToken): Promise<TokenResponse> {
-    const role = stored.role ?? 'PATIENT';
+    // N7: the default comes from the catalogue enum, so a rename of the role
+    // propagates instead of silently forking from it. `StoredToken.role` stays
+    // `string` — the store persists whatever the authorize call recorded, and
+    // only the fallback here is owned by this service.
+    const defaultRole: string = Role.PATIENT;
+    const role = stored.role ?? defaultRole;
     const refresh = await this.tokens.issue({
       userId: stored.userId,
       clientId: stored.clientId,

@@ -33,6 +33,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   green across `contracts`, `common` and `config`.
 - Containerised `auth-service`: multi-stage `Dockerfile` (node:22-alpine + tini), `.dockerignore`, and a
   `docker-compose` service with a Postgres/Redis healthcheck and an `/oauth/authorize` readiness probe.
+- **M2 — Catalog (read side):** `libs/terminology` (canonical `fhir.by` URLs + ICD-10/ATC/UCUM validators),
+  `libs/fhir` (`FHIR_CLIENT` token + dependency-free FHIR HTTP client) and `libs/fhir-mappers`
+  (slot/appointment/practitioner mappers).
+- `apps/practitioner-service` — doctor catalog (FR-002/016) and room CRUD with a `409 ROOM_IN_USE` guard
+  when an active `Schedule` references the `Location` (FR-017).
+- `apps/catalog-service` — services catalog with НСИ terminology validation (FR-003), schedules with
+  idempotent R4 `Slot` generation over a 90-day horizon and `409 SCHEDULE_OVERLAP` enforcement (FR-020),
+  and a read-through `RedisCacheService` (NFR-005).
+- Unit + e2e suites for the M2 libraries and services (typecheck, lint, test and build green across all
+  9 Nx projects; `jwt-perimeter` e2e present in both new services, ADR-009).
 
 ### Changed
 

@@ -19,7 +19,11 @@ This is the only BFF service implemented so far; the other seven are still plann
 Configuration is validated by `@medcenter/config` (`libs/config/src/lib/env.schema.ts`). Required keys:
 `FHIR_BASE_URL`, `FHIR_CLIENT_ID`, `FHIR_CLIENT_SECRET`, `JWT_JWKS_URI`, `JWT_ISSUER`, `REDIS_URL`,
 `RABBITMQ_URL`. Optional: `NODE_ENV`, `PORT` (default 3000), `RATE_LIMIT_PER_MINUTE` (default 120),
-`TERMINOLOGY_UPSTREAM_URL`. Secrets have no defaults and are never committed.
+`TERMINOLOGY_UPSTREAM_URL`, `TRUST_PROXY`. Secrets have no defaults and are never committed.
+
+`TRUST_PROXY` sets Express's `trust proxy` (unset = `false`, so `X-Forwarded-For` is ignored). Behind Traefik use the
+hop count `1`; a list of IPs/CIDRs (`10.0.0.0/8,loopback`) is also accepted. `true` trusts every hop, so a client can
+spoof its bucket. An invalid value fails the boot. The rate-limit store is Redis (`REDIS_URL`).
 
 ## Commands (from the workspace root)
 

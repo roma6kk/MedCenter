@@ -1,0 +1,80 @@
+#!/usr/bin/env bash
+# CLINE hook: PreToolUse
+# Location: .clinerules/hooks/PreToolUse — no extension, must be executable (chmod +x)
+# Protocol: reads Cline JSON on stdin, prints JSON on stdout, exits 0.
+#   Block:   {"cancel":true,"errorMessage":"..."}
+#   Warn:    {"cancel":false,"contextModification":"..."}
+#   Allow:   {"cancel":false}
+# NOTE: Cline does NOT read .clinerules/settings.json (that's Claude Code format) —
+# this file replaces settings.json hooks entirely for Cline.
+
+INPUT=$(cat)
+
+# ── 1. Block Belgian eHealth IG MCP tools ─────────────────────────────────────
+# Raw-substring scan: robust to Cline version field-name changes (toolName/tool).
+case "$INPUT" in
+  *list_belgian_igs*|*get_belgian_ig_page*)
+    jq -n '{cancel:true,errorMessage:"🚫 Belgian FHIR IG tools are blocked — this project targets a Belarusian clinic. Use HL7 FHIR International only (get_fhir_resource / get_fhir_page). See AGENTS.md → Medical Data & FHIR Standards."}'
+    exit 0
+    ;;
+esac
+
+TOOL=$(printf '%s' "$INPUT" | jq -r '.preToolUse.toolName // .preToolUse.tool // empty' 2>/dev/null)
+
+# ── 2. Destructive bash commands (ported from bash-validator.sh, was exit 2) ──
+case "$TOOL" in
+  *execute_command*|*run_command*|*bash*)
+    COMMAND=$(printf '%s' "$INPUT" | jq -r '.preToolUse.parameters.command // empty' 2>/dev/null)
+    if [ -n "$COMMAND" ]; then
+      BLOCKED_PATTERNS=(
+        "git push.*--force"
+        "git push.*-f"
+        "git reset --hard"
+        "git clean -f"
+        "DROP TABLE"
+        "DROP DATABASE"
+        "npm publish"
+        "npx publish"
+        "rm -rf /"
+        "rm -rf ~"
+        "rm -rf \."
+        "git branch -D"
+        "--no-verify"
+        "gh repo delete"
+        "gh repo archive"
+        "gh issue delete"
+        "gh release delete"
+        "gh api.*DELETE"
+      )
+      for P in "${BLOCKED_PATTERNS[@]}"; do
+        if echo "$COMMAND" | grep -qie "$P"; then
+          jq -n --arg p "$P" --arg c "$COMMAND" \
+            '{cancel:true,errorMessage:("🚫 BLOCKED: destructive command matches policy pattern: "+$p+"\nCommand: "+$c+"\nSee AGENTS.md → Code Quality.")}'
+          exit 0
+        fi
+      done
+    fi
+    ;;
+esac
+
+# ── 3. File naming convention (ported from file-naming-validator.sh, warn) ────
+case "$TOOL" in
+  *write_to_file*|*replace_in_file*|*insert_content*|*apply_diff*|*Edit*|*Write*)
+    FILE_PATH=$(printf '%s' "$INPUT" | jq -r '.preToolUse.parameters.path // .preToolUse.parameters.filePath // .preToolUse.parameters.file_path // empty' 2>/dev/null)
+    if [[ "$FILE_PATH" == *.md ]] && { [[ "$FILE_PATH" == *tasks/* ]] || [[ "$FILE_PATH" == *specs/* ]]; }; then
+      FILENAME=$(basename "$FILE_PATH")
+      case "$FILENAME" in
+        README.md|CHANGELOG.md|MANIFEST.md) ;;
+        requirements-analyst-*|brainstorming-*|writing-plans-*|architect-*|api-designer-*|frontend-design-*|coder-*|coder-frontend-*|code-reviewer-*|test-generator-*|systematic-debugger-*|finishing-branch-*|documentation-generator-*|docs-generator-*|release-*|skill-creator-*|accelerator-update-*|verify-*)
+          ;;
+        *)
+          jq -n --arg f "$FILENAME" \
+            '{cancel:false,contextModification:("⚠️ File naming convention: \""+$f+"\" in tasks/ or specs/ must be skill-prefixed: {skill-name}-{purpose}.md — see AGENTS.md → File Naming. Warning only, not blocked.")}'
+          exit 0
+          ;;
+      esac
+    fi
+    ;;
+esac
+
+echo '{"cancel":false}'

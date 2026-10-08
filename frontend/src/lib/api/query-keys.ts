@@ -15,6 +15,7 @@ export const queryKeys = {
   adminUsers: (params?: Record<string, string>) => ['adminUsers', params ?? {}] as const,
   adminSchedules: (params?: Record<string, string>) => ['adminSchedules', params ?? {}] as const,
   adminRooms: ['adminRooms'] as const,
+  doctorSchedule: ['doctorSchedule'] as const,
   roomUsage: (roomId: string) => ['roomUsage', roomId] as const,
   analytics: (kind: string, params?: Record<string, string>) => ['analytics', kind, params ?? {}] as const,
   audit: (params?: Record<string, string>) => ['audit', params ?? {}] as const,

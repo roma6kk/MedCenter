@@ -1,8 +1,8 @@
 import { ERROR_CODE_HTTP_STATUS, ERROR_CODES, ErrorCode } from './error-code';
 
 describe('ERROR_CODES', () => {
-  it('should expose exactly the 16 API error codes when the catalogue is read', () => {
-    expect(ERROR_CODES).toHaveLength(16);
+  it('should expose exactly the 17 API error codes when the catalogue is read', () => {
+    expect(ERROR_CODES).toHaveLength(17);
   });
 
   it('should declare no duplicate code when every entry is collected', () => {
@@ -35,6 +35,10 @@ describe('ERROR_CODES', () => {
 
   it('should return 405 for METHOD_NOT_ALLOWED when the status is read', () => {
     expect(ERROR_CODE_HTTP_STATUS.METHOD_NOT_ALLOWED).toBe(405);
+  });
+
+  it('should return 409 for CONFLICT when the status is read', () => {
+    expect(ERROR_CODE_HTTP_STATUS.CONFLICT).toBe(409);
   });
 
   it('should return 409 for SLOT_CONFLICT when the status is read', () => {

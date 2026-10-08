@@ -48,8 +48,9 @@ class RevocationProbeController {
   }
 }
 
+/** `response_type=code` is REQUIRED (RFC 6749 §4.1.1); a test may override it. */
 function authorizeQuery(extra: Record<string, string> = {}): string {
-  return new URLSearchParams(extra).toString();
+  return new URLSearchParams({ response_type: 'code', ...extra }).toString();
 }
 
 describe('OAuth / SMART surface (API 2.1.1–2.1.5)', () => {
@@ -120,7 +121,9 @@ describe('OAuth / SMART surface (API 2.1.1–2.1.5)', () => {
   describe('GET /oauth/authorize', () => {
     it('should answer the RFC 6749 envelope with invalid_client when client_id is absent', async () => {
       const response = await request(app.getHttpServer())
-        .get(`/oauth/authorize?${authorizeQuery({ code_challenge_method: 'S256', code_challenge: PKCE_CHALLENGE })}`)
+        .get(
+          `/oauth/authorize?${authorizeQuery({ code_challenge_method: 'S256', code_challenge: PKCE_CHALLENGE })}`,
+        )
         .expect(401);
 
       // Not problem+json: SMART clients branch on `error` (RFC 6749 §5.2).
@@ -167,6 +170,26 @@ describe('OAuth / SMART surface (API 2.1.1–2.1.5)', () => {
           })}`,
         )
         .expect(400);
+    });
+
+    it('should reject response_type=token', async () => {
+      const response = await request(app.getHttpServer())
+        .get(
+          `/oauth/authorize?${authorizeQuery({
+            client_id: E2E_CLIENT_ID,
+            redirect_uri: E2E_REDIRECT_URI,
+            response_type: 'token',
+            code_challenge_method: 'S256',
+            code_challenge: PKCE_CHALLENGE,
+          })}`,
+        )
+        .redirects(0)
+        .expect(400);
+
+      expect(response.body).toMatchObject({
+        error: 'invalid_request',
+        error_description: 'response_type must be code',
+      });
     });
 
     it('should refuse an unregistered redirect_uri without redirecting anywhere', async () => {
@@ -539,6 +562,35 @@ describe('OAuth / SMART surface (API 2.1.1–2.1.5)', () => {
 
       expect(response.headers['content-type']).toContain('application/json');
       expect(response.body).toMatchObject({ error: 'invalid_request' });
+    });
+
+    it('should carry Cache-Control no-store on the successful token response', async () => {
+      // M8 (RFC 6749 §5.1): the success path declares the header via `@Header`
+      // while errors set it in `OAuthErrorFilter` — both branches must carry it.
+      const code = await tokens.issue({
+        userId: 'user-cache',
+        clientId: E2E_CONFIDENTIAL_CLIENT_ID,
+        scope: 'user/*.read',
+        kind: 'code',
+        ttlSeconds: 300,
+        codeChallenge: PKCE_CHALLENGE,
+      });
+
+      const response = await request(app.getHttpServer())
+        .post('/oauth/token')
+        .type('form')
+        .send({
+          grant_type: 'authorization_code',
+          code: code.jti,
+          client_id: E2E_CONFIDENTIAL_CLIENT_ID,
+          client_secret: E2E_CONFIDENTIAL_SECRET,
+          code_verifier: PKCE_VERIFIER,
+        })
+        .expect(200);
+
+      expect(response.headers['cache-control']).toBe('no-store');
+      expect(response.headers['pragma']).toBe('no-cache');
+      expect(response.body.access_token).toBeTruthy();
     });
 
     it('should reject a body property no DTO declares without breaking client authentication', async () => {

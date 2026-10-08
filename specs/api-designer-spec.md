@@ -108,6 +108,7 @@ export class PaginatedResponseDto<TItem> {
 | `COMPARTMENT_VIOLATION` | 403 | обращение к чужим данным (ADR-013) |
 | `NOT_FOUND` | 404 | ресурс не найден |
 | `METHOD_NOT_ALLOWED` | 405 | — |
+| `CONFLICT` | 409 | конфликт версии или дубликат при записи в FHIR-хранилище (HAPI 409/412) |
 | `SLOT_CONFLICT` | 409 | BR-001: слот уже занят (гонка, ADR-012) |
 | `APPOINTMENT_NOT_CANCELLABLE` | 409 | BR-002: статус не позволяет отмену |
 | `ENCOUNTER_STATE_INVALID` | 409 | BR-003/BR-008: приём уже оформлен / запись cancelled/noshow |

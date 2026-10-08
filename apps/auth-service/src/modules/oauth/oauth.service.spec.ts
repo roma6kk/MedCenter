@@ -61,9 +61,13 @@ describe('OAuthService', () => {
     expect(cookieFromRedirect(redirect, 'code').length).toBeGreaterThan(0);
   });
 
-  it('should drop scopes the client is not registered for', async () => {
+  it('should drop scopes the client is not registered for when authorizing', async () => {
+    // M5: the previous version of this test exchanged with a bogus verifier
+    // and asserted only the PKCE failure — it proved nothing about narrowing.
+    // This one goes through the full authorize → exchange flow and asserts the
+    // issued scope is the narrowed one.
     const { service, pkce } = createHarness();
-    const { codeChallenge } = pkce.generate();
+    const { codeVerifier, codeChallenge } = pkce.generate();
 
     const redirect = await service.authorize({
       client: createTestClient({ scopes: ['launch'] }),
@@ -76,10 +80,51 @@ describe('OAuthService', () => {
     const tokens = await service.exchangeCode({
       code: cookieFromRedirect(redirect, 'code'),
       clientId: 'medcenter-web',
-      codeVerifier: 'placeholder',
-    }).catch(() => null);
+      codeVerifier,
+    });
 
-    expect(tokens).toBeNull();
+    expect(tokens.scope).toBe('launch');
+  });
+
+  it('should answer invalid_scope when no requested scope is granted to the client', async () => {
+    // M5: a token with an empty scope must never be minted.
+    const { service, pkce } = createHarness();
+    const { codeChallenge } = pkce.generate();
+
+    const error = await captureOAuthError(
+      service.authorize({
+        client: createTestClient({ scopes: ['launch'] }),
+        redirectUri: TEST_REDIRECT_URI,
+        scope: 'patient/*.write',
+        state: 's',
+        codeChallenge,
+        principal: { userId: 'u1', role: 'PATIENT' },
+      }),
+    );
+
+    expect(error.getStatus()).toBe(400);
+    expect(error.getResponse()).toMatchObject({ error: 'invalid_scope' });
+  });
+
+  it('should grant the full client scope when the authorize request asks for none', async () => {
+    const { service, pkce } = createHarness();
+    const { codeVerifier, codeChallenge } = pkce.generate();
+
+    const redirect = await service.authorize({
+      client: createTestClient({ scopes: ['launch'] }),
+      redirectUri: TEST_REDIRECT_URI,
+      scope: '',
+      state: 's',
+      codeChallenge,
+      principal: { userId: 'u1', role: 'PATIENT' },
+    });
+    const tokens = await service.exchangeCode({
+      code: cookieFromRedirect(redirect, 'code'),
+      clientId: 'medcenter-web',
+      codeVerifier,
+    });
+
+    expect(tokens.scope).toBe('launch');
   });
 
   it('should issue a token pair when the code and PKCE verifier are valid', async () => {

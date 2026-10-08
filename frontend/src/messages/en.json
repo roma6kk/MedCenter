@@ -17,6 +17,15 @@
     "slotConflict": "Slot was just taken"
   },
   "errors": {
+    "VALIDATION_ERROR": "Check the highlighted fields",
+    "UNAUTHENTICATED": "Sign-in required",
+    "TOKEN_REVOKED": "Session ended, please sign in again",
+    "FORBIDDEN_SCOPE": "Not allowed to perform this action",
+    "FORBIDDEN_ROLE": "Access denied for your role",
+    "COMPARTMENT_VIOLATION": "Not found",
+    "NOT_FOUND": "Not found",
+    "METHOD_NOT_ALLOWED": "Operation not supported",
+    "CONFLICT": "Conflicts with existing data",
     "SLOT_CONFLICT": "Slot already taken",
     "APPOINTMENT_NOT_CANCELLABLE": "Appointment cannot be cancelled",
     "ENCOUNTER_STATE_INVALID": "Encounter already completed",

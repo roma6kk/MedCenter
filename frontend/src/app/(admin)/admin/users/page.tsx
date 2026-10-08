@@ -4,19 +4,15 @@ import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { apiFetch } from '@/lib/api/api-fetch';
 import { StaffShell, ADMIN_LINKS } from '@/components/layout/staff-shell';
-import { PaginatedTable, type PageMeta } from '@/components/data-display/paginated-table';
+import type { PageMeta } from '@/components/data-display/paginated-table';
+import { UsersTable, type UserRow } from '@/components/admin/users-table';
 import { TableSkeleton, EmptyState } from '@/components/feedback/states';
-
-interface Row {
-  id: string;
-  name: string;
-}
 
 export default function AdminUsersPage(): React.JSX.Element {
   const [pageNum, setPageNum] = useState(1);
   const { data, isPending } = useQuery({
     queryKey: ['admin-users', { page: String(pageNum) }],
-    queryFn: () => apiFetch<{ items: Row[]; meta: PageMeta }>(`/api/v1/admin/users?page=${pageNum}`),
+    queryFn: () => apiFetch<{ items: UserRow[]; meta: PageMeta }>(`/api/v1/admin/users?page=${pageNum}`),
   });
   return (
     <StaffShell links={ADMIN_LINKS} title="Пользователи">
@@ -29,13 +25,7 @@ export default function AdminUsersPage(): React.JSX.Element {
       {data && data.items.length === 0 ? <EmptyState title="Пусто" /> : null}
       {data ? (
         <div className="mt-4">
-          <PaginatedTable<Row>
-            rowKey={(row) => row.id}
-            meta={data.meta}
-            onPage={setPageNum}
-            rows={data.items}
-            columns={[{ key: 'name', header: 'Название', render: (row) => row.name }]}
-          />
+          <UsersTable rows={data.items} meta={data.meta} onPage={setPageNum} />
         </div>
       ) : null}
     </StaffShell>
