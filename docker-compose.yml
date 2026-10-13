@@ -1,7 +1,111 @@
-# MedCenter development stack (Task 001, M0).
-# NFR-001 (>= 6 containers) is met at M7 when the 8 BFF services are added here;
-# this M0 slice ships the infrastructure containers the plan's Task 4 defines.
+# MedCenter stack (TASK-001). NFR-001 (>= 6 containers): 5 infrastructure
+# containers + 8 NestJS BFF services + the Next.js web client = 14.
+#
+#   docker compose up -d --build        # whole system
+#   open http://localhost:3000          # web client (browser entry point)
+#   http://localhost:8081/api/v1/...    # Traefik plain-HTTP dev edge (443: TLS)
+#
+# Secrets come from `.env` (never committed). Only auth-service loads the whole
+# file (`env_file`); every other container receives exactly the variables it
+# reads, through `${...}` interpolation (see "secret scoping" below).
+#
+# Required in `.env` (compose refuses to start without them):
+#   POSTGRES_PASSWORD, RABBITMQ_PASSWORD, REDIS_PASSWORD
+# RABBITMQ_PASSWORD and REDIS_PASSWORD end up inside connection URLs, so use
+# URL-safe characters only (e.g. `openssl rand -hex 16`). Optional: RABBITMQ_USER
+# (default `medcenter`), RATE_LIMIT_PER_MINUTE, FHIR_CLIENT_ID/FHIR_CLIENT_SECRET,
+# FHIR_TIMEOUT_MS, AUDIT_SYNC_ENABLED, AUDIT_SYNC_INTERVAL_MS, JWT_ISSUER,
+# WEB_OAUTH_CLIENT_ID, POSTGRES_PORT, REDIS_HOST_PORT, RABBITMQ_HOST_PORT.
+# Host-run services (`nx serve`) need the same credentials in their own URLs:
+#   REDIS_URL=redis://:<REDIS_PASSWORD>@localhost:6380
+#   RABBITMQ_URL=amqp://<RABBITMQ_USER>:<RABBITMQ_PASSWORD>@localhost:5672
+#
+# Network exposure: every published port is bound to 127.0.0.1. Nothing in this
+# file listens on a LAN interface.
+#
+# Secret scoping: the RS256 signing key (JWT_PRIVATE_KEY/JWT_PUBLIC_KEY), the
+# OAuth client registry (OAUTH_CLIENTS_JSON) and the database password exist only
+# in auth-service (and the DB password in analytics-service, which owns a
+# read-model schema). The other BFFs verify tokens through the JWKS endpoint, so
+# a compromised BFF cannot mint tokens (ADR-009 guard isolation).
+
+# --- shared fragments (YAML anchors; `x-` keys are ignored by compose) --------
+
+x-bff-build: &bff-build
+  context: .
+  dockerfile: infra/docker/nest-service.Dockerfile
+
+# Non-secret container-network values and the few variables the guard stack and
+# the FHIR client read. A key without a value is passed through from `.env` and
+# is not set at all in the container when `.env` does not define it.
+x-bff-env: &bff-env
+  NODE_ENV: production
+  FHIR_BASE_URL: http://hapi:8080/fhir
+  REDIS_URL: redis://:${REDIS_PASSWORD:?set REDIS_PASSWORD in .env (URL-safe, e.g. openssl rand -hex 16)}@redis:6379
+  JWT_JWKS_URI: http://auth-service:3001/.well-known/jwks.json
+  # One value for the signer (auth-service) and every verifier: the token `iss`
+  # must equal what the guard layer expects. Taken from `.env` when set there.
+  JWT_ISSUER: ${JWT_ISSUER:-http://medcenter.localhost:8081}
+  RATE_LIMIT_PER_MINUTE: ${RATE_LIMIT_PER_MINUTE:-120}
+  # One proxy hop (Traefik) sits in front of every BFF. Services whose bootstrap
+  # honours it key the rate limiter on the real client instead of Traefik's IP.
+  TRUST_PROXY: '1'
+  # Optional HAPI client credentials (sent as Basic auth; HAPI does not enforce it).
+  FHIR_CLIENT_ID:
+  FHIR_CLIENT_SECRET:
+  FHIR_TIMEOUT_MS:
+
+# Only for services that publish or consume domain events: auth-service
+# (patient events), appointment-service, encounter-service, notification-service
+# and analytics-service. practitioner, catalog and patient neither need the
+# broker URL nor depend on rabbitmq.
+x-mq-env: &mq-env
+  RABBITMQ_URL: amqp://${RABBITMQ_USER:-medcenter}:${RABBITMQ_PASSWORD:?set RABBITMQ_PASSWORD in .env (URL-safe, e.g. openssl rand -hex 16)}@rabbitmq:5672
+
+# auth.* schema (auth-service) and the analytics read-model share the compose
+# PostgreSQL; the password is interpolated from `.env` (POSTGRES_PASSWORD).
+x-db-env: &db-env
+  DB_HOST: postgres
+  DB_PORT: '5432'
+  DB_USERNAME: medcenter
+  DB_PASSWORD: ${POSTGRES_PASSWORD}
+  DB_NAME: medcenter
+
+# Liveness probe: GET http://127.0.0.1:$PORT$HEALTH_PATH; any answer below 500
+# counts as "up". Services without a dedicated route answer 404 on /health
+# (still "up"); once @nestjs/terminus adds /health, a 503 marks them unhealthy.
+x-bff-healthcheck: &bff-healthcheck
+  test:
+    - CMD
+    - node
+    - -e
+    - >-
+      fetch('http://127.0.0.1:' + process.env.PORT + (process.env.HEALTH_PATH || '/health'),
+      { signal: AbortSignal.timeout(4000) })
+      .then((r) => process.exit(r.status < 500 ? 0 : 1), () => process.exit(1))
+  interval: 10s
+  timeout: 5s
+  retries: 12
+  start_period: 30s
+
+x-bff-depends: &bff-depends
+  hapi:
+    condition: service_started # distroless image: no shell for a healthcheck
+  redis:
+    condition: service_healthy
+  auth-service:
+    condition: service_healthy # issuer of the JWKS every guard verifies against
+
+x-bff-depends-mq: &bff-depends-mq
+  <<: *bff-depends
+  rabbitmq:
+    condition: service_healthy
+
 services:
+  # --- infrastructure ----------------------------------------------------------
+  # Host ports exist only for services run on the host (`nx serve`, seed tools);
+  # they are bound to loopback so nothing is reachable from the network.
+
   postgres:
     image: postgres:16-alpine
     environment:
@@ -9,7 +113,7 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: medcenter
     # Host port is overridable: a developer machine may already run PostgreSQL on 5432.
-    ports: ['${POSTGRES_PORT:-5432}:5432']
+    ports: ['127.0.0.1:${POSTGRES_PORT:-5432}:5432']
     healthcheck:
       test: ['CMD-SHELL', 'pg_isready -U medcenter']
       interval: 5s
@@ -17,18 +121,31 @@ services:
 
   redis:
     image: redis:7-alpine
-    # Dev: published so services running on the host (nx serve) can reach it.
+    # Holds idempotency keys, rate-limit counters and the token denylist, so it
+    # is password protected. `redis-server` stays the entrypoint's first word,
+    # which keeps the image's drop-to-`redis`-user step working.
+    command:
+      - redis-server
+      - --requirepass
+      - ${REDIS_PASSWORD:?set REDIS_PASSWORD in .env (URL-safe, e.g. openssl rand -hex 16)}
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?set REDIS_PASSWORD in .env}
     # 6380, because a foreign `corporate-redis-cache` container already owns 6379.
-    ports: ['${REDIS_HOST_PORT:-6380}:6379']
+    ports: ['127.0.0.1:${REDIS_HOST_PORT:-6380}:6379']
     healthcheck:
-      test: ['CMD', 'redis-cli', 'ping']
+      test: ['CMD-SHELL', 'redis-cli -a "$$REDIS_PASSWORD" --no-auth-warning ping | grep -q PONG']
       interval: 5s
       retries: 10
 
   rabbitmq:
     image: rabbitmq:3-management-alpine
-    # Dev: published so host-run services can publish/consume domain events.
-    ports: ['${RABBITMQ_HOST_PORT:-5672}:5672']
+    # The default `guest` account is never created when these are set. They only
+    # apply to a fresh data directory: after changing them on an existing stack
+    # run `docker compose up -d -V rabbitmq` (renews the anonymous volume).
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-medcenter}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:?set RABBITMQ_PASSWORD in .env (URL-safe, e.g. openssl rand -hex 16)}
+    ports: ['127.0.0.1:${RABBITMQ_HOST_PORT:-5672}:5672']
     healthcheck:
       test: ['CMD', 'rabbitmq-diagnostics', '-q', 'ping']
       interval: 10s
@@ -49,49 +166,201 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-    ports: ['8080:8080'] # dev only — never published publicly in prod
+    # HAPI has no authentication: it is never routed through Traefik (except the
+    # read-only `GET /fhir/metadata`) and its host port is loopback-only, for
+    # host-run seed tools (tools/shared/seed-env.ts defaults to localhost:8080).
+    ports: ['127.0.0.1:8080:8080']
 
   traefik:
     image: traefik:v3
     command:
-      - '--providers.docker=true'
-      - '--providers.docker.exposedbydefault=false'
+      - '--global.checknewversion=false'
+      - '--global.sendanonymoususage=false'
+      # File provider only: routing lives in infra/traefik/dynamic.yml. The Docker
+      # provider (and with it the docker.sock mount) is deliberately absent: a
+      # compromised edge proxy must not be able to drive the Docker daemon.
       - '--providers.file.directory=/etc/traefik/dynamic'
       - '--entrypoints.websecure.address=:443'
-      # Dev-only plain-HTTP edge: host-run services and `next dev` reach the
-      # API at http://localhost:8081 without fighting the self-signed TLS cert.
+      # TLS on :443 with Traefik's generated self-signed certificate (without this
+      # the entrypoint answers plain HTTP and a TLS handshake gets a 404).
+      - '--entrypoints.websecure.http.tls=true'
+      # Dev-only plain-HTTP edge: the browser, `next dev` and host tools reach
+      # the API at http://localhost:8081 without fighting the self-signed cert.
       - '--entrypoints.web.address=:8081'
     volumes:
-      - /var/run/docker.sock:/var/run/docker.sock:ro
-      - ./infra/traefik/dynamic.yml:/etc/traefik/dynamic/dynamic.yml:ro
-    # Lets the file-provider backends reach services running on the host
-    # (docker-compose maps host.docker.internal -> host gateway on Linux).
+      # The directory, not the file: an editor that saves by rename (a new inode)
+      # would leave a single-file bind mount pointing at a deleted file and the
+      # file provider could no longer reload the routes.
+      - ./infra/traefik:/etc/traefik/dynamic:ro
+    # Escape hatch for host-run services: point a backend URL in dynamic.yml at
+    # http://host.docker.internal:<port> to route to an `nx serve` process.
     extra_hosts:
       - 'host.docker.internal:host-gateway'
-    ports: ['443:443', '8081:8081'] # dev only
+    networks:
+      default:
+        # One auth URL for both sides of the web client's OAuth broker:
+        # browsers resolve *.localhost to loopback (-> published :8081), and
+        # containers resolve this alias to Traefik on the compose network.
+        aliases: [medcenter.localhost]
+    ports: ['127.0.0.1:443:443', '127.0.0.1:8081:8081'] # dev only
 
-  # Task 001 implementation: the only BFF service built so far. Mounted behind
-  # Traefik on /oauth, /.well-known and /api/v1/auth* once the container is up.
+  # --- NestJS BFF services (one image each, infra/docker/nest-service.Dockerfile) ---
+  # No host ports except auth-service: everything is reached through Traefik.
+
   auth-service:
     build:
-      context: .
-      dockerfile: apps/auth-service/Dockerfile
+      <<: *bff-build
+      args: { APP: auth-service, PORT: '3001' }
+    # The only container that receives the whole `.env`: it owns the signing key
+    # pair, the OAuth client registry, the session secret and the bootstrap admin.
     env_file: .env
     environment:
-      # One proxy hop (Traefik) in front of the service; without it the rate limiter keys on Traefik's IP.
-      TRUST_PROXY: '1'
+      <<: [*bff-env, *mq-env, *db-env]
+      PORT: '3001'
+      HEALTH_PATH: /.well-known/jwks.json
     ports:
-      - '3001:3001' # dev only — production uses Traefik; do not expose in prod
+      - '127.0.0.1:3001:3001' # dev only (direct OAuth/JWKS debugging); production uses Traefik
     depends_on:
-      redis:
-        condition: service_healthy
       postgres:
         condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    healthcheck: *bff-healthcheck
+    restart: unless-stopped
+
+  practitioner-service:
+    build:
+      <<: *bff-build
+      args: { APP: practitioner-service, PORT: '3002' }
+    environment:
+      <<: *bff-env
+      PORT: '3002'
+      HEALTH_PATH: /health
+    depends_on: *bff-depends
+    healthcheck: *bff-healthcheck
+    restart: unless-stopped
+
+  catalog-service:
+    build:
+      <<: *bff-build
+      args: { APP: catalog-service, PORT: '3003' }
+    environment:
+      <<: *bff-env
+      PORT: '3003'
+      HEALTH_PATH: /health
+    depends_on: *bff-depends
+    healthcheck: *bff-healthcheck
+    restart: unless-stopped
+
+  patient-service:
+    build:
+      <<: *bff-build
+      args: { APP: patient-service, PORT: '3004' }
+    environment:
+      <<: *bff-env
+      PORT: '3004'
+      HEALTH_PATH: /health
+    depends_on: *bff-depends
+    healthcheck: *bff-healthcheck
+    restart: unless-stopped
+
+  appointment-service:
+    build:
+      <<: *bff-build
+      args: { APP: appointment-service, PORT: '3005' }
+    environment:
+      <<: [*bff-env, *mq-env]
+      PORT: '3005'
+      HEALTH_PATH: /health
+    depends_on: *bff-depends-mq
+    healthcheck: *bff-healthcheck
+    restart: unless-stopped
+
+  notification-service:
+    build:
+      <<: *bff-build
+      args: { APP: notification-service, PORT: '3006' }
+    environment:
+      <<: [*bff-env, *mq-env]
+      PORT: '3006'
+      HEALTH_PATH: /health
+      # The RabbitMQ consumer is the point of this service in the stack.
+      CONSUMER_ENABLED: 'true'
+    depends_on: *bff-depends-mq
+    healthcheck: *bff-healthcheck
+    restart: unless-stopped
+
+  encounter-service:
+    build:
+      <<: *bff-build
+      args: { APP: encounter-service, PORT: '3007' }
+    environment:
+      <<: [*bff-env, *mq-env]
+      PORT: '3007'
+      HEALTH_PATH: /health
+    depends_on: *bff-depends-mq
+    healthcheck: *bff-healthcheck
+    restart: unless-stopped
+
+  analytics-service:
+    build:
+      <<: *bff-build
+      args: { APP: analytics-service, PORT: '3008' }
+    environment:
+      <<: [*bff-env, *mq-env, *db-env]
+      PORT: '3008'
+      HEALTH_PATH: /health
+      AUDIT_SYNC_ENABLED:
+      AUDIT_SYNC_INTERVAL_MS:
+    depends_on:
+      <<: *bff-depends-mq
+      postgres:
+        condition: service_healthy
+    healthcheck: *bff-healthcheck
+    restart: unless-stopped
+
+  # --- Next.js web client -------------------------------------------------------
+
+  web:
+    build:
+      context: ./frontend
+      dockerfile: ../infra/docker/web.Dockerfile
+      args:
+        # Baked at build time (rewrite + inlined NEXT_PUBLIC_*): the Next server
+        # proxies the browser's same-origin /api/v1/* calls to the edge.
+        NEXT_PUBLIC_API_URL: http://traefik:8081
+    # No env_file on purpose: the web client is a public PKCE client and needs
+    # none of the backend secrets in `.env`.
+    environment:
+      PORT: '3000'
+      HOSTNAME: 0.0.0.0
+      # Used for the browser redirect to /oauth/authorize AND for the server-side
+      # /oauth/token|revoke calls, so it must resolve on both sides — see the
+      # `medcenter.localhost` alias on the traefik service.
+      AUTH_BACKEND_URL: http://medcenter.localhost:8081
+      OAUTH_CLIENT_ID: ${WEB_OAUTH_CLIENT_ID:-medcenter-web}
+    ports:
+      # Browser entry point. The OAuth redirect_uri is <origin>/api/auth/callback,
+      # i.e. http://localhost:3000/api/auth/callback — register exactly that.
+      - '127.0.0.1:3000:3000'
+    depends_on:
+      traefik:
+        condition: service_started
+      auth-service:
+        condition: service_healthy
     healthcheck:
-      # Lightweight readiness probe: /oauth/authorize is public and answers as soon
-      # as Nest has bound the port (302 to the client, 401 for an unknown/absent
-      # client_id — both mean "up"). Only a 5xx marks the container unhealthy.
-      test: ["CMD-SHELL", "node -e \"fetch('http://localhost:3001/oauth/authorize').then(r => { if (r.status >= 500) process.exit(1); })\" || exit 1"]
+      # Anonymous session probe: answers 200 without calling auth-service.
+      test:
+        - CMD
+        - node
+        - -e
+        - >-
+          fetch('http://127.0.0.1:3000/api/auth/session', { signal: AbortSignal.timeout(4000) })
+          .then((r) => process.exit(r.ok ? 0 : 1), () => process.exit(1))
       interval: 10s
-      retries: 30
-      start_period: 60s
+      timeout: 5s
+      retries: 6
+      start_period: 20s
+    restart: unless-stopped

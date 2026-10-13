@@ -1,17 +1,29 @@
-# Keep the docker build context small.
-node_modules
-dist
-coverage
-.tmp
-tmp
-.git
-*.md
-*.docx
-specs
-tasks
-tools
-accelerator-bootstrap-prompt.md
-AGENTS.md
-list_zadanija_ananyev_clinica.docx
-jest.config.js
-jest.preset.js
+# Build context for the NestJS images (context = repository root,
+# infra/docker/nest-service.Dockerfile). Allowlist: only the Nx workspace
+# sources reach the daemon, so docs, PDFs/DOCX, labs/, tmp/, logs/, .worktrees/,
+# .git, .nx, dist/, frontend/ and every .env file stay out by construction.
+# The web image uses its own context (frontend/) and ignore file
+# (infra/docker/web.Dockerfile.dockerignore).
+*
+!package.json
+!package-lock.json
+!nx.json
+!tsconfig.base.json
+!apps/
+!libs/
+
+# Never send nested artefacts or secrets, even from inside the allowlisted dirs.
+**/node_modules
+**/dist
+**/.nx
+**/.swc
+**/coverage
+**/test-results
+**/tmp
+**/logs
+**/*.md
+**/*.pdf
+**/*.docx
+**/.env
+**/.env.*
+**/*.tsbuildinfo

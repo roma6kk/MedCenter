@@ -4,8 +4,16 @@
 #
 # Service ports: auth 3001, practitioner 3002, catalog 3003, patient 3004,
 # appointment 3005, notification 3006, encounter 3007, analytics 3008.
-# Routers whose backend container is not up yet answer 502 — expected until
-# the corresponding milestone adds it to docker-compose.yml.
+# Every backend is the docker-compose container of the same name on the compose
+# network (`http://<service>:<port>`); a router whose container is not running
+# answers 502. The web app (Next.js) is NOT routed here: it is published on
+# host port 3000 and proxies `/api/v1/*` to this edge (see docker-compose.yml).
+#
+# HAPI FHIR has NO authentication and is not a BFF, so ADR-009 does not cover it:
+# the edge publishes exactly one HAPI endpoint, `GET /fhir/metadata`
+# (CapabilityStatement, NFR-010; specs/api-designer-spec.md). Every other
+# `/fhir/**` path and method gets Traefik's own 404. BFFs reach HAPI directly at
+# http://hapi:8080/fhir on the compose network.
 
 http:
   middlewares:
@@ -13,14 +21,18 @@ http:
       headers:
         stsSeconds: 31536000
         stsIncludeSubdomains: true
-        contentTypeOptions: nosniff
+        contentTypeNosniff: true
         frameDeny: true
         browserXssFilter: true
         referrerPolicy: strict-origin-when-cross-origin
+        # An empty value deletes the header: hides the `X-Powered-By: Express`
+        # fingerprint the BFFs send.
+        customResponseHeaders:
+          X-Powered-By: ''
 
   routers:
-    fhir:
-      rule: PathPrefix(`/fhir`)
+    fhir-metadata:
+      rule: Path(`/fhir/metadata`) && Method(`GET`)
       entryPoints: [websecure, web]
       service: hapi
       middlewares: [security-headers]
@@ -83,6 +95,12 @@ http:
       service: appointment-service
       middlewares: [security-headers]
 
+    encounters:
+      rule: PathPrefix(`/api/v1/encounters`)
+      entryPoints: [websecure, web]
+      service: encounter-service
+      middlewares: [security-headers]
+
     encounter-me:
       rule: PathPrefix(`/api/v1/me/history`) || PathPrefix(`/api/v1/me/prescriptions`)
       priority: 40
@@ -131,12 +149,12 @@ http:
     practitioner-service:
       loadBalancer:
         servers:
-          - url: http://host.docker.internal:3002
+          - url: http://practitioner-service:3002
 
     catalog-service:
       loadBalancer:
         servers:
-          - url: http://host.docker.internal:3003
+          - url: http://catalog-service:3003
 
     patient-service:
       loadBalancer:
@@ -146,12 +164,12 @@ http:
     appointment-service:
       loadBalancer:
         servers:
-          - url: http://host.docker.internal:3005
+          - url: http://appointment-service:3005
 
     notification-service:
       loadBalancer:
         servers:
-          - url: http://host.docker.internal:3006
+          - url: http://notification-service:3006
 
     encounter-service:
       loadBalancer:
