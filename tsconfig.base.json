@@ -20,6 +20,7 @@
       "@medcenter/config": ["libs/config/src/index.ts"],
       "@medcenter/fhir": ["libs/fhir/src/index.ts"],
       "@medcenter/fhir-mappers": ["libs/fhir-mappers/src/index.ts"],
+      "@medcenter/messaging": ["libs/messaging/src/index.ts"],
       "@medcenter/terminology": ["libs/terminology/src/index.ts"]
     },
     "strict": true,

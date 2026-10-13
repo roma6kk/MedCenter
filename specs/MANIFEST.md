@@ -36,6 +36,11 @@ UCUM) подключается по canonical URL `https://fhir.by/...`. Арх�
 > `tsc --noEmit`, `lint` (9 проектов), `test` (9 проектов, 154 passed / 2 skipped), `build` (9 проектов),
 > `e2e` (5 passed) — зелёные; инвентарь — в `tasks/TASK-002/coder-m2-catalog-report.md`.
 
+> **M3 — Booking (2026-10-08):** реализованы `apps/appointment-service` (запись `POST /appointments` с `Idempotency-Key`,
+> отмена, no-show врача FR-004/005/006) и `apps/notification-service` (потребитель RabbitMQ с DLQ и дедупликацией по
+> `eventId`, `Communication` FR-008), плюс библиотека `libs/messaging`. Конкуренция за слот решена атомарным
+> `transaction`-Bundle с `If-Match` на версии `Slot` (HAPI не даёт row-lock, см. отклонение 1 в спеке). Детали — `specs/coder-m3-booking-spec.md`.
+
 
 ## Specs Index
 
@@ -46,6 +51,7 @@ UCUM) подключается по canonical URL `https://fhir.by/...`. Арх�
 | `frontend-design-spec.md` | Клиент Next.js: дизайн-система, маршруты по ролям (5 route groups), компоненты, состояние, карта errorCode→UX, E2E Playwright, трассируемость 21 FR | architect-architecture, api-designer-spec | 2026-10-05 |
 | `docs-generator-implementation.md` | Nx-воркспейс и dev-стек бэкенда + сборка, тесты, env и auth-контур фронтенда | - | 2026-10-05 |
 | `coder-m2-catalog-spec.md` | M2 Catalog: библиотеки `terminology`/`fhir`/`fhir-mappers`, `practitioner-service`, `catalog-service`, отклонения от плана, M2-гейт | architect-architecture, api-designer-spec | 2026-10-06 |
+| `coder-m3-booking-spec.md` | M3 Booking: `appointment-service` (транзакция бронирования, If-Match), `notification-service` (потребитель RabbitMQ, DLQ, дедупликация), `libs/messaging`, отклонения от плана | architect-architecture, api-designer-spec, coder-m2-catalog-spec | 2026-10-08 |
 
 **Источники требований/дизайна** (временные, `tasks/`): `tasks/TASK-001/requirements-analyst-requirements.md`
 (21 FR, 11 NFR, 9 BR, 10 KDR), `tasks/TASK-001/brainstorming-design.md` (решения D1–D9).

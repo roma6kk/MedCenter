@@ -15,12 +15,11 @@ export interface AppointmentResponseDto {
   readonly createdAt: string;
 }
 
-function readReference(resource: FhirResource, key: string): string {
-  const value = resource[key];
-  if (typeof value !== 'object' || value === null) {
-    return '';
-  }
-  const { reference } = value as { reference?: unknown };
+interface Participant {
+  readonly actor?: { readonly reference?: unknown };
+}
+
+function idOf(reference: unknown): string {
   return typeof reference === 'string' ? reference.split('/').pop() ?? '' : '';
 }
 
@@ -29,20 +28,36 @@ function readString(resource: FhirResource, key: string): string | undefined {
   return typeof value === 'string' ? value : undefined;
 }
 
+/** Id of the first participant whose actor is of the given resource type (`Patient`, `PractitionerRole`, …). */
+function participantId(appointment: FhirResource, resourceType: string): string {
+  const participants = (appointment['participant'] as Participant[] | undefined) ?? [];
+  const match = participants.find((p) => {
+    const reference = p.actor?.reference;
+    return typeof reference === 'string' && reference.startsWith(`${resourceType}/`);
+  });
+  return idOf(match?.actor?.reference);
+}
+
 /** FHIR `Appointment` -> `AppointmentResponseDto` (ADR-002 mapper pair). */
 export function toAppointmentResponseDto(appointment: FhirResource): AppointmentResponseDto {
+  const slots = (appointment['slot'] as Array<{ reference?: unknown }> | undefined) ?? [];
+  const reasons = (appointment['reasonCode'] as Array<{ text?: unknown }> | undefined) ?? [];
+  const cancelation = appointment['cancelationReason'] as { text?: unknown } | undefined;
+  const reasonText = reasons[0]?.text;
+  const cancelText = cancelation?.text;
+
   return {
     id: appointment.id ?? '',
     status: (readString(appointment, 'status') as AppointmentResponseDto['status']) ?? 'booked',
     start: readString(appointment, 'start') ?? '',
     end: readString(appointment, 'end') ?? '',
-    slotId: readReference(appointment, 'slot'),
-    patientId: '',
-    doctorId: '',
-    practitionerRoleId: '',
-    serviceId: '',
-    reason: readString(appointment, 'description'),
-    cancelReason: readString(appointment, 'cancelationReason'),
+    slotId: idOf(slots[0]?.reference),
+    patientId: participantId(appointment, 'Patient'),
+    doctorId: participantId(appointment, 'Practitioner'),
+    practitionerRoleId: participantId(appointment, 'PractitionerRole'),
+    serviceId: participantId(appointment, 'HealthcareService'),
+    reason: typeof reasonText === 'string' ? reasonText : undefined,
+    cancelReason: typeof cancelText === 'string' ? cancelText : undefined,
     createdAt: readString(appointment, 'created') ?? '',
   };
 }
