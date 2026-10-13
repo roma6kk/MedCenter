@@ -1,0 +1,47 @@
+{
+  "name": "patient-service",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "apps/patient-service/src",
+  "projectType": "application",
+  "tags": ["type:app", "scope:patient"],
+  "targets": {
+    "build": {
+      "executor": "@nx/js:tsc",
+      "outputs": ["{options.outputPath}"],
+      "options": {
+        "outputPath": "dist/apps/patient-service",
+        "main": "apps/patient-service/src/main.ts",
+        "tsConfig": "apps/patient-service/tsconfig.app.json",
+        "assets": []
+      }
+    },
+    "serve": {
+      "executor": "@nx/js:node",
+      "dependsOn": ["build"],
+      "options": {
+        "buildTarget": "patient-service:build"
+      }
+    },
+    "test": {
+      "executor": "@nx/jest:jest",
+      "outputs": ["{workspaceRoot}/coverage/{projectRoot}"],
+      "options": {
+        "jestConfig": "apps/patient-service/jest.config.ts"
+      }
+    },
+    "e2e": {
+      "executor": "@nx/jest:jest",
+      "outputs": ["{workspaceRoot}/coverage/{projectRoot}"],
+      "options": {
+        "jestConfig": "apps/patient-service/jest.e2e.config.ts"
+      }
+    },
+    "lint": {
+      "executor": "@nx/eslint:lint",
+      "outputs": ["{options.outputFile}"],
+      "options": {
+        "lintFilePatterns": ["apps/patient-service/**/*.ts"]
+      }
+    }
+  }
+}
