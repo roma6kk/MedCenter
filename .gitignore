@@ -47,3 +47,6 @@ Thumbs.db
 .fuse_hidden*
 ._*
 .env
+
+# ---- Scratch (orchestrator) ----
+/tmp/

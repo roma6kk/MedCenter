@@ -92,15 +92,21 @@ export function buildValueSets(): SeedValueSet[] {
 
 const FHIR_JSON_HEADERS = { 'content-type': 'application/fhir+json' };
 
-async function postResource(baseUrl: string, resource: unknown): Promise<void> {
-  const response = await fetch(baseUrl, {
+async function postResource(
+  baseUrl: string,
+  resourceType: 'CodeSystem' | 'ValueSet',
+  resource: SeedCodeSystem | SeedValueSet,
+): Promise<void> {
+  // Create happens on the resource-type endpoint; HAPI rejects a bare base URL
+  // and every FHIR JSON body must carry `resourceType`.
+  const response = await fetch(`${baseUrl}/${resourceType}`, {
     method: 'POST',
     headers: FHIR_JSON_HEADERS,
-    body: JSON.stringify(resource),
+    body: JSON.stringify({ resourceType, ...resource }),
   });
   if (!response.ok) {
     const body = await response.text();
-    throw new Error(`FHIR POST ${baseUrl} failed with ${response.status}: ${body.slice(0, 500)}`);
+    throw new Error(`FHIR POST ${baseUrl}/${resourceType} failed with ${response.status}: ${body.slice(0, 500)}`);
   }
 }
 
@@ -119,11 +125,11 @@ async function verifyIcd10Expansion(baseUrl: string): Promise<void> {
 /** Posts every CodeSystem/ValueSet to HAPI, then proves the canonical survived via $expand. */
 export async function seedTerminology(baseUrl: string): Promise<void> {
   for (const codeSystem of buildCodeSystems()) {
-    await postResource(baseUrl, codeSystem);
+    await postResource(baseUrl, 'CodeSystem', codeSystem);
     console.log(`Seeded CodeSystem ${codeSystem.url}`);
   }
   for (const valueSet of buildValueSets()) {
-    await postResource(baseUrl, valueSet);
+    await postResource(baseUrl, 'ValueSet', valueSet);
     console.log(`Seeded ValueSet ${valueSet.url}`);
   }
   await verifyIcd10Expansion(baseUrl);

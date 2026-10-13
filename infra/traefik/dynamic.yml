@@ -21,99 +21,99 @@ http:
   routers:
     fhir:
       rule: PathPrefix(`/fhir`)
-      entryPoints: [websecure]
+      entryPoints: [websecure, web]
       service: hapi
       middlewares: [security-headers]
 
     auth-edge:
       rule: PathPrefix(`/oauth`) || PathPrefix(`/.well-known`)
-      entryPoints: [websecure]
+      entryPoints: [websecure, web]
       service: auth-service
       middlewares: [security-headers]
 
     auth-api:
       rule: PathPrefix(`/api/v1/auth`) || PathPrefix(`/api/v1/terminology`) || PathPrefix(`/api/v1/admin/users`) || PathPrefix(`/api/v1/admin/terminology`) || Path(`/api/v1/me`)
       priority: 40
-      entryPoints: [websecure]
+      entryPoints: [websecure, web]
       service: auth-service
       middlewares: [security-headers]
 
     analytics:
       rule: PathPrefix(`/api/v1/admin/analytics`) || PathPrefix(`/api/v1/admin/audit`)
-      entryPoints: [websecure]
+      entryPoints: [websecure, web]
       service: analytics-service
       middlewares: [security-headers]
 
     catalog-admin:
       rule: PathPrefix(`/api/v1/admin/schedules`) || PathPrefix(`/api/v1/admin/services`) || PathPrefix(`/admin/schedules`)
-      entryPoints: [websecure]
+      entryPoints: [websecure, web]
       service: catalog-service
       middlewares: [security-headers]
 
     practitioner-rooms-admin:
       rule: PathPrefix(`/api/v1/admin/rooms`)
-      entryPoints: [websecure]
+      entryPoints: [websecure, web]
       service: practitioner-service
       middlewares: [security-headers]
 
     practitioner-doctors:
       rule: PathPrefix(`/api/v1/doctors`) || PathPrefix(`/api/v1/rooms`)
       priority: 50
-      entryPoints: [websecure]
+      entryPoints: [websecure, web]
       service: practitioner-service
       middlewares: [security-headers]
 
     catalog-doctor-slots:
       rule: PathPrefix(`/api/v1/doctor/schedule`) || PathPrefix(`/api/v1/services`) || PathRegexp(`^/api/v1/doctors/[^/]+/slots$`)
       priority: 60
-      entryPoints: [websecure]
+      entryPoints: [websecure, web]
       service: catalog-service
       middlewares: [security-headers]
 
     appointment-doctor:
       rule: PathPrefix(`/api/v1/doctor/appointments`)
       priority: 60
-      entryPoints: [websecure]
+      entryPoints: [websecure, web]
       service: appointment-service
       middlewares: [security-headers]
 
     appointments:
       rule: PathPrefix(`/api/v1/appointments`)
-      entryPoints: [websecure]
+      entryPoints: [websecure, web]
       service: appointment-service
       middlewares: [security-headers]
 
     encounter-me:
       rule: PathPrefix(`/api/v1/me/history`) || PathPrefix(`/api/v1/me/prescriptions`)
       priority: 40
-      entryPoints: [websecure]
+      entryPoints: [websecure, web]
       service: encounter-service
       middlewares: [security-headers]
 
     encounter-patient-history:
       rule: PathRegexp(`^/api/v1/patients/[^/]+/(history|prescriptions)$`)
       priority: 60
-      entryPoints: [websecure]
+      entryPoints: [websecure, web]
       service: encounter-service
       middlewares: [security-headers]
 
     patient-me:
       rule: Path(`/api/v1/me/patient`)
       priority: 40
-      entryPoints: [websecure]
+      entryPoints: [websecure, web]
       service: patient-service
       middlewares: [security-headers]
 
     patients:
       rule: PathPrefix(`/api/v1/patients`)
       priority: 50
-      entryPoints: [websecure]
+      entryPoints: [websecure, web]
       service: patient-service
       middlewares: [security-headers]
 
     notifications:
       rule: PathPrefix(`/api/v1/notifications`)
-      entryPoints: [websecure]
+      entryPoints: [websecure, web]
       service: notification-service
       middlewares: [security-headers]
 
@@ -131,12 +131,12 @@ http:
     practitioner-service:
       loadBalancer:
         servers:
-          - url: http://practitioner-service:3002
+          - url: http://host.docker.internal:3002
 
     catalog-service:
       loadBalancer:
         servers:
-          - url: http://catalog-service:3003
+          - url: http://host.docker.internal:3003
 
     patient-service:
       loadBalancer:
@@ -146,12 +146,12 @@ http:
     appointment-service:
       loadBalancer:
         servers:
-          - url: http://appointment-service:3005
+          - url: http://host.docker.internal:3005
 
     notification-service:
       loadBalancer:
         servers:
-          - url: http://notification-service:3006
+          - url: http://host.docker.internal:3006
 
     encounter-service:
       loadBalancer:

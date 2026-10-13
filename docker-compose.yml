@@ -17,6 +17,9 @@ services:
 
   redis:
     image: redis:7-alpine
+    # Dev: published so services running on the host (nx serve) can reach it.
+    # 6380, because a foreign `corporate-redis-cache` container already owns 6379.
+    ports: ['${REDIS_HOST_PORT:-6380}:6379']
     healthcheck:
       test: ['CMD', 'redis-cli', 'ping']
       interval: 5s
@@ -24,6 +27,8 @@ services:
 
   rabbitmq:
     image: rabbitmq:3-management-alpine
+    # Dev: published so host-run services can publish/consume domain events.
+    ports: ['${RABBITMQ_HOST_PORT:-5672}:5672']
     healthcheck:
       test: ['CMD', 'rabbitmq-diagnostics', '-q', 'ping']
       interval: 10s
@@ -53,10 +58,17 @@ services:
       - '--providers.docker.exposedbydefault=false'
       - '--providers.file.directory=/etc/traefik/dynamic'
       - '--entrypoints.websecure.address=:443'
+      # Dev-only plain-HTTP edge: host-run services and `next dev` reach the
+      # API at http://localhost:8081 without fighting the self-signed TLS cert.
+      - '--entrypoints.web.address=:8081'
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - ./infra/traefik/dynamic.yml:/etc/traefik/dynamic/dynamic.yml:ro
-    ports: ['443:443']
+    # Lets the file-provider backends reach services running on the host
+    # (docker-compose maps host.docker.internal -> host gateway on Linux).
+    extra_hosts:
+      - 'host.docker.internal:host-gateway'
+    ports: ['443:443', '8081:8081'] # dev only
 
   # Task 001 implementation: the only BFF service built so far. Mounted behind
   # Traefik on /oauth, /.well-known and /api/v1/auth* once the container is up.
@@ -76,10 +88,10 @@ services:
       postgres:
         condition: service_healthy
     healthcheck:
-      # Lightweight readiness probe: /oauth/authorize is public and returns 302
-      # once Nest has bound the port. The probe ignores the redirect target so
-      # a missing FHIR/host does not make the container unhealthy.
-      test: ["CMD-SHELL", "node -e \"fetch('http://localhost:3001/oauth/authorize').then(r => { if (r.status !== 302) process.exit(1); })\" || exit 1"]
+      # Lightweight readiness probe: /oauth/authorize is public and answers as soon
+      # as Nest has bound the port (302 to the client, 401 for an unknown/absent
+      # client_id — both mean "up"). Only a 5xx marks the container unhealthy.
+      test: ["CMD-SHELL", "node -e \"fetch('http://localhost:3001/oauth/authorize').then(r => { if (r.status >= 500) process.exit(1); })\" || exit 1"]
       interval: 10s
       retries: 30
       start_period: 60s
