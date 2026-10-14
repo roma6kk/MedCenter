@@ -10,13 +10,14 @@ import {
 } from '@medcenter/common';
 
 import { AppointmentsModule } from '../modules/appointments/appointments.module';
+import { HealthModule } from '../modules/health/health.module';
 
 /**
  * The guard stack is mounted through `APP_GUARD` (ADR-009): JWT → scopes →
  * RBAC → rate-limit is the global default, so no route ships unprotected.
  */
 @Module({
-  imports: [AppointmentsModule],
+  imports: [AppointmentsModule, HealthModule],
   providers: [
     { provide: APP_GUARD, useClass: JwtAuthGuard },
     { provide: APP_GUARD, useClass: ScopeGuard },

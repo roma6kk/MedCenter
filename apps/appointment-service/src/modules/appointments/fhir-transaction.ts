@@ -1,6 +1,8 @@
 import { ConflictException, InternalServerErrorException } from '@nestjs/common';
 import { FhirClientError, type FhirClient, type FhirResource } from '@medcenter/fhir';
 
+import { parseReference } from './fhir-reference';
+
 /**
  * One write inside an atomic FHIR `transaction` Bundle. `ifMatch` is the
  * optimistic-lock check: the write is applied only if the stored resource is
@@ -16,14 +18,18 @@ export interface TransactionWrite {
   readonly ifMatch?: string;
 }
 
-/** Id of a FHIR reference (`Slot/abc` -> `abc`). */
+/**
+ * Logical id of a FHIR reference (`Slot/abc`, `Slot/abc/_history/2` and
+ * `http://hapi/fhir/Slot/abc` -> `abc`); `''` when it is not a reference, so
+ * callers never turn junk into a `GET Slot/` collection request.
+ */
 export function referenceId(reference: unknown): string {
-  return typeof reference === 'string' ? reference.split('/').pop() ?? '' : '';
+  return parseReference(reference)?.id ?? '';
 }
 
-/** Resource id from a `Location` header (`Appointment/abc/_history/1` -> `abc`). */
+/** Resource id from a transaction `response.location` (`Appointment/abc/_history/1`, relative or absolute -> `abc`). */
 export function idFromLocation(location: string | undefined): string {
-  return location?.split('/')[1] ?? '';
+  return referenceId(location);
 }
 
 /** `W/"<versionId>"` for the resource as read. Reads from HAPI always carry it. */

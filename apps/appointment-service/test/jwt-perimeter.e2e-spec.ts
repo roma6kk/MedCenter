@@ -44,4 +44,10 @@ describe('JWT perimeter (distributed guard stack, ADR-009)', () => {
     expect(response.body).toMatchObject({ status: 401, errorCode: 'UNAUTHENTICATED' });
     expect(response.body.requestId).toBeDefined();
   });
+
+  it('should answer the public liveness probe without a token when /health is called', async () => {
+    const response = await request(app.getHttpServer()).get('/health').expect(200);
+
+    expect(response.body).toEqual({ status: 'ok', service: 'appointment-service' });
+  });
 });

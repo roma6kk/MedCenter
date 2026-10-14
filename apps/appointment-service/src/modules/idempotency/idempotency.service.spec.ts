@@ -21,7 +21,7 @@ describe('IdempotencyService', () => {
     service = new IdempotencyService(store);
   });
 
-  it('runs the operation once and replays its cached result for the same key', async () => {
+  it('should run the operation once and replay its cached result when the same key is reused', async () => {
     const operation = jest.fn().mockResolvedValue({ id: 'apt-1' });
 
     const first = await service.run('user-1', KEY, BODY, operation);
@@ -32,7 +32,7 @@ describe('IdempotencyService', () => {
     expect(operation).toHaveBeenCalledTimes(1);
   });
 
-  it("does not replay one user's response to another user", async () => {
+  it('should not replay the response when another user sends the same key', async () => {
     const operation = jest.fn().mockResolvedValueOnce({ id: 'apt-1' }).mockResolvedValueOnce({ id: 'apt-2' });
 
     await service.run('user-1', KEY, BODY, operation);
@@ -42,7 +42,7 @@ describe('IdempotencyService', () => {
     expect(operation).toHaveBeenCalledTimes(2);
   });
 
-  it('does not cache a failed attempt, so the client can retry', async () => {
+  it('should not cache the attempt when the operation fails, so the client can retry', async () => {
     const operation = jest
       .fn()
       .mockRejectedValueOnce(new Error('SLOT_CONFLICT'))
@@ -52,7 +52,7 @@ describe('IdempotencyService', () => {
     await expect(service.run('user-1', KEY, BODY, operation)).resolves.toEqual({ id: 'apt-1' });
   });
 
-  it('runs without replay protection when no key is supplied', async () => {
+  it('should run without replay protection when no key is supplied', async () => {
     const operation = jest.fn().mockResolvedValue({ id: 'apt-1' });
 
     await service.run('user-1', undefined, BODY, operation);
@@ -62,10 +62,10 @@ describe('IdempotencyService', () => {
     expect(values.size).toBe(0);
   });
 
-  it('rejects a key that is not a UUID', async () => {
+  it('should reject with VALIDATION_ERROR when the key is not a UUID', async () => {
     await expect(service.run('user-1', 'not-a-uuid', BODY, jest.fn())).rejects.toBeInstanceOf(BadRequestException);
   });
-  it('refuses a reused key with a different body instead of replaying the first response', async () => {
+  it('should refuse with CONFLICT instead of replaying when a reused key carries a different body', async () => {
     const operation = jest.fn().mockResolvedValue({ id: 'apt-1' });
 
     await service.run('user-1', KEY, BODY, operation);
@@ -74,7 +74,7 @@ describe('IdempotencyService', () => {
     expect(operation).toHaveBeenCalledTimes(1);
   });
 
-  it('treats the same body with a different JSON key order as the same request', async () => {
+  it('should treat the request as the same when only the JSON key order differs', async () => {
     const operation = jest.fn().mockResolvedValue({ id: 'apt-1' });
 
     await service.run('user-1', KEY, { slotId: 'a', serviceId: 'b' }, operation);
@@ -84,7 +84,7 @@ describe('IdempotencyService', () => {
     expect(operation).toHaveBeenCalledTimes(1);
   });
 
-  it('fingerprints an absent optional field the same as an undefined one', () => {
+  it('should fingerprint the body the same when an optional field is absent or undefined', () => {
     expect(fingerprintOf({ slotId: 'a', reason: undefined })).toBe(fingerprintOf({ slotId: 'a' }));
     expect(fingerprintOf({ slotId: 'a', reason: 'x' })).not.toBe(fingerprintOf({ slotId: 'a' }));
   });
