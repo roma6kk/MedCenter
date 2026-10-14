@@ -1,3 +1,6 @@
+import { dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
 // Browser calls go to relative `/api/v1/*` (same-origin); the Next server
 // proxies them to the Traefik edge. Server-side `publicApiFetch` uses the same
 // base via NEXT_PUBLIC_API_URL.
@@ -5,6 +8,7 @@
 // - Container image (infra/docker/web.Dockerfile): built with
 //   NEXT_PUBLIC_API_URL=http://traefik:8081. Both the rewrite and the inlined
 //   NEXT_PUBLIC_* value are fixed at BUILD time, so a change needs a rebuild.
+const projectRoot = dirname(fileURLToPath(import.meta.url));
 const apiBase = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8081';
 
 const isDev = process.env.NODE_ENV !== 'production';
@@ -40,6 +44,9 @@ const securityHeaders = [
 const nextConfig = {
   // `.next/standalone/server.js` + traced deps — what the container ships.
   output: 'standalone',
+  // Pin the file-tracing root to frontend/: without it Next infers the repository root
+  // (a lockfile exists there too) and nests the standalone server under `frontend/`.
+  outputFileTracingRoot: projectRoot,
   reactStrictMode: true,
   // No `X-Powered-By: Next.js` fingerprint.
   poweredByHeader: false,

@@ -7,7 +7,7 @@
  * The timeout degrades gracefully to the page's error/empty state.
  */
 
-export const API_BASE: string = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8080';
+export const API_BASE: string = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8081';
 
 const PUBLIC_FETCH_TIMEOUT_MS = 5000;
 const PUBLIC_REVALIDATE_SECONDS = 300;

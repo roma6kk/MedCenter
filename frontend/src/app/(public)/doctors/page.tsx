@@ -5,6 +5,11 @@ import { publicApiFetch } from '@/lib/server-fetch';
 
 interface Doctor { id: string; name: string; specialty: string; }
 
+// Rendered per request, never at build time: `next build` runs where the API is
+// unreachable (docker build), and a prerendered page would bake the error banner
+// into the static HTML and serve it for the whole revalidate window.
+export const dynamic = 'force-dynamic';
+
 async function getDoctors(): Promise<{ readonly ok: true; readonly doctors: ReadonlyArray<Doctor> } | { readonly ok: false }> {
   const result = await publicApiFetch<{ items: Doctor[] }>('/api/v1/doctors');
   if (!result.ok) return { ok: false };

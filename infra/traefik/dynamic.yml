@@ -4,10 +4,12 @@
 #
 # Service ports: auth 3001, practitioner 3002, catalog 3003, patient 3004,
 # appointment 3005, notification 3006, encounter 3007, analytics 3008.
-# Every backend is the docker-compose container of the same name on the compose
+# Every backend is the docker-compose container of the same name on the `backend`
 # network (`http://<service>:<port>`); a router whose container is not running
 # answers 502. The web app (Next.js) is NOT routed here: it is published on
 # host port 3000 and proxies `/api/v1/*` to this edge (see docker-compose.yml).
+# Every `/api/v1/**` controller route of the 8 services must map to exactly one
+# router below; the mapping was audited route by route (tasks/TASK-001/coder-stack-fixes-report.md).
 #
 # HAPI FHIR has NO authentication and is not a BFF, so ADR-009 does not cover it:
 # the edge publishes exactly one HAPI endpoint, `GET /fhir/metadata`
@@ -23,8 +25,13 @@ http:
         stsIncludeSubdomains: true
         contentTypeNosniff: true
         frameDeny: true
-        browserXssFilter: true
+        # No `browserXssFilter`: it emits the deprecated `X-XSS-Protection: 1; mode=block`
+        # (OWASP: omit it or send 0), and modern browsers ignore the header anyway.
         referrerPolicy: strict-origin-when-cross-origin
+        # Only framing is restricted: the auth-service login page (HTML) must keep
+        # working, so no `default-src` here. The web client sets its own full CSP.
+        contentSecurityPolicy: "frame-ancestors 'none'"
+        permissionsPolicy: camera=(), microphone=(), geolocation=(), payment=()
         # An empty value deletes the header: hides the `X-Powered-By: Express`
         # fingerprint the BFFs send.
         customResponseHeaders:
@@ -57,7 +64,7 @@ http:
       middlewares: [security-headers]
 
     catalog-admin:
-      rule: PathPrefix(`/api/v1/admin/schedules`) || PathPrefix(`/api/v1/admin/services`) || PathPrefix(`/admin/schedules`)
+      rule: PathPrefix(`/api/v1/admin/schedules`) || PathPrefix(`/api/v1/admin/services`)
       entryPoints: [websecure, web]
       service: catalog-service
       middlewares: [security-headers]
