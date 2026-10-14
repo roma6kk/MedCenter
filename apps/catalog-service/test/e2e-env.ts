@@ -20,6 +20,9 @@ export function applyE2eEnv(): void {
   process.env['JWT_KEY_ID'] = 'e2e-1';
   process.env['JWT_JWKS_URI'] = `${E2E_ISSUER}/.well-known/jwks.json`;
   process.env['FHIR_BASE_URL'] = E2E_FHIR_BASE;
-  process.env['REDIS_URL'] = 'redis://localhost:6379';
+  // No Redis in e2e: the cache store is bound for real since `CACHE_STORE` is
+  // injected, and a host Redis on :6379 may belong to another project. Suites
+  // that exercise caching override `CACHE_STORE` with an in-memory store.
+  delete process.env['REDIS_URL'];
   process.env['RATE_LIMIT_PER_MINUTE'] = '1000';
 }

@@ -1,6 +1,7 @@
 import { Logger } from '@nestjs/common';
 import Redis from 'ioredis';
 
+import { FAIL_FAST_REDIS_OPTIONS } from '../../config/redis-options';
 import type { CacheStore } from './redis-cache.service';
 
 /**
@@ -56,17 +57,18 @@ export class RedisCacheStore implements CacheStore {
  * Module wiring: reads `REDIS_URL` from the environment eagerly so a missing
  * or broken URL surfaces in the startup logs instead of the first request.
  *
- * The connection is intentionally lazy-connected by ioredis (`lazyConnect`
- * defaults are on; commands issued before the connection completes are
- * buffered), keeping cold-start fast — the degrade-to-miss contract of
- * `RedisCacheService` absorbs transient unavailability.
+ * The client fails fast (`FAIL_FAST_REDIS_OPTIONS`: short connect and command
+ * timeouts, no offline queue): the cache sits on the hot path of the public
+ * catalog, and the degrade-to-miss contract of `RedisCacheService` only helps
+ * when an unreachable Redis is given up on within milliseconds, not after
+ * ioredis' default 10 s connect timeout.
  */
 export function createRedisCacheStore(env: NodeJS.ProcessEnv = process.env): RedisCacheStore | null {
   const url = env['REDIS_URL'];
   if (url === undefined || url === '') {
     return null;
   }
-  const client = new Redis(url, { lazyConnect: false, maxRetriesPerRequest: 1 });
+  const client = new Redis(url, FAIL_FAST_REDIS_OPTIONS);
   client.on('error', (error: Error) => {
     // Noise guard: without this listener an idle connection failure crashes
     // the Node process (https://github.com/redis/ioredis#events).

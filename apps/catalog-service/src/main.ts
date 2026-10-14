@@ -1,15 +1,10 @@
 import { Logger } from '@nestjs/common';
-import { NestFactory } from '@nestjs/core';
-import { createValidationPipe } from '@medcenter/common';
 
-import { AppModule } from './app/app.module';
+import { createApp } from './bootstrap';
 
 async function bootstrap(): Promise<void> {
   const logger = new Logger('Bootstrap');
-  const app = await NestFactory.create(AppModule);
-  // Global on purpose: without it every class-validator decorator in the
-  // service is inert (see `libs/common/src/lib/pipes/validation.pipe.ts`).
-  app.useGlobalPipes(createValidationPipe());
+  const app = await createApp(process.env, logger);
   app.enableShutdownHooks();
   const port = process.env['PORT'] ?? 3003;
   await app.listen(port);

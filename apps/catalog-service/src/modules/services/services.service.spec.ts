@@ -2,7 +2,8 @@ import { BadRequestException, ConflictException, UnprocessableEntityException } 
 import { FhirClientError, type FhirClient, type FhirResource } from '@medcenter/fhir';
 import { FHIR_BY, MEDCENTER_EXT } from '@medcenter/terminology';
 
-import { RedisCacheService } from '../cache/redis-cache.service';
+import { InMemoryCacheStore } from '../cache/__tests__/in-memory-cache-store';
+import { CACHE_KEYS, RedisCacheService } from '../cache/redis-cache.service';
 import { ServicesService } from './services.service';
 
 describe('ServicesService', () => {
@@ -175,6 +176,81 @@ describe('ServicesService', () => {
     });
   });
 
+  describe('list', () => {
+    const catalogBundle = { entry: [{ resource: { resourceType: 'HealthcareService', id: serviceId, name: 'Therapy' } }] };
+
+    it('should cache the plain listing under one key per page when no search term is given', async () => {
+      // Arrange
+      const store = new InMemoryCacheStore();
+      servicesService = new ServicesService(fhirClient, new RedisCacheService(store));
+      fhirClient.search.mockResolvedValue(catalogBundle);
+
+      // Act
+      await servicesService.list(2, 20);
+      await servicesService.list(2, 20);
+
+      // Assert
+      expect(fhirClient.search).toHaveBeenCalledTimes(1);
+      expect([...store.entries.keys()]).toEqual([CACHE_KEYS.SERVICES_PAGE(2, 20)]);
+    });
+
+    it('should not cache anything when a search term is given', async () => {
+      // Arrange — a key per free-text term would let an anonymous caller fill the shared Redis.
+      const store = new InMemoryCacheStore();
+      servicesService = new ServicesService(fhirClient, new RedisCacheService(store));
+      fhirClient.search.mockResolvedValue(catalogBundle);
+
+      // Act
+      await servicesService.list(1, 20, 'терапевт');
+      await servicesService.list(1, 20, 'терапевт');
+
+      // Assert
+      expect(fhirClient.search).toHaveBeenCalledTimes(2);
+      expect(store.entries.size).toBe(0);
+      expect(fhirClient.search).toHaveBeenCalledWith('HealthcareService', {
+        name: 'терапевт',
+        _count: 20,
+        _offset: 0,
+      });
+    });
+
+    it('should treat a blank search term as the plain listing when only whitespace is sent', async () => {
+      // Arrange
+      const store = new InMemoryCacheStore();
+      servicesService = new ServicesService(fhirClient, new RedisCacheService(store));
+      fhirClient.search.mockResolvedValue(catalogBundle);
+
+      // Act
+      await servicesService.list(1, 20, '   ');
+
+      // Assert
+      expect([...store.entries.keys()]).toEqual([CACHE_KEYS.SERVICES_PAGE(1, 20)]);
+      expect(fhirClient.search).toHaveBeenCalledWith('HealthcareService', { _count: 20, _offset: 0 });
+    });
+
+    it('should clear every cached page when a service is created', async () => {
+      // Arrange
+      const store = new InMemoryCacheStore();
+      servicesService = new ServicesService(fhirClient, new RedisCacheService(store));
+      fhirClient.search.mockResolvedValue(catalogBundle);
+      fhirClient.operation.mockResolvedValue(lookupFound);
+      fhirClient.create.mockResolvedValue({ resourceType: 'HealthcareService', id: 'svc-2' });
+      await servicesService.list(1, 20);
+      await servicesService.list(2, 20);
+
+      // Act
+      await servicesService.create({
+        name: 'New',
+        typeSystem: FHIR_BY.SERVICE_CODE_SYSTEM,
+        typeCode: '01',
+        defaultDurationMin: 30,
+      });
+
+      // Assert
+      expect(store.entries.size).toBe(0);
+    });
+  });
+
   describe('remove', () => {
     it('refuses to delete a service referenced by an active schedule', async () => {
       fhirClient.search.mockResolvedValue({ entry: [{ resource: { resourceType: 'Schedule' } }] });
@@ -182,6 +258,22 @@ describe('ServicesService', () => {
       await expect(servicesService.remove(serviceId)).rejects.toThrow('SERVICE_IN_USE');
       await expect(servicesService.remove(serviceId)).rejects.toBeInstanceOf(ConflictException);
       expect(fhirClient.delete).not.toHaveBeenCalled();
+    });
+
+    it('should look up referencing schedules through Schedule.actor when the delete is checked', async () => {
+      // Arrange
+      fhirClient.search.mockResolvedValue({ entry: [] });
+
+      // Act
+      await servicesService.remove(serviceId);
+
+      // Assert — R4 `Schedule` has no `service` search parameter (HAPI answers
+      // 400 → 500 INTERNAL); the service is one of the schedule's actors.
+      expect(fhirClient.search).toHaveBeenCalledWith('Schedule', {
+        actor: `HealthcareService/${serviceId}`,
+        _count: 1,
+      });
+      expect(fhirClient.delete).toHaveBeenCalledWith('HealthcareService', serviceId);
     });
   });
 });

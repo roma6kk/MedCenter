@@ -12,13 +12,14 @@ import {
 import { CacheModule } from '../modules/cache/cache.module';
 import { SchedulesModule } from '../modules/schedules/schedules.module';
 import { ServicesModule } from '../modules/services/services.module';
+import { SlotsModule } from '../modules/slots/slots.module';
 
 /**
  * The guard stack is mounted through `APP_GUARD` (ADR-009): JWT → scopes →
  * RBAC → rate-limit is the global default, so no route ships unprotected.
  */
 @Module({
-  imports: [CacheModule, ServicesModule, SchedulesModule],
+  imports: [CacheModule, ServicesModule, SchedulesModule, SlotsModule],
   providers: [
     { provide: APP_GUARD, useClass: JwtAuthGuard },
     { provide: APP_GUARD, useClass: ScopeGuard },

@@ -1,3 +1,6 @@
+import { Logger } from '@nestjs/common';
+
+import { InMemoryCacheStore } from './__tests__/in-memory-cache-store';
 import {
   CACHE_KEYS,
   CACHE_TTLS,
@@ -42,6 +45,108 @@ describe('RedisCacheService.getOrLoad', () => {
 
     await expect(cache.getOrLoad('k', 10, loader)).resolves.toEqual({ ok: true });
     expect(loader).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('RedisCacheService corrupt entries', () => {
+  beforeEach(() => {
+    jest.spyOn(Logger.prototype, 'warn').mockImplementation();
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  it('should reload and overwrite the entry when the cached value is not valid JSON', async () => {
+    // Arrange
+    const store = createStoreMock({ get: jest.fn().mockResolvedValue('{"truncated":') });
+    const cache = new RedisCacheService(store);
+    const loader = jest.fn().mockResolvedValue({ ok: true });
+
+    // Act
+    const value = await cache.getOrLoad('k', 10, loader);
+
+    // Assert — a damaged entry in the shared Redis costs one reload, not a 500.
+    expect(value).toEqual({ ok: true });
+    expect(loader).toHaveBeenCalledTimes(1);
+    expect(store.set).toHaveBeenCalledWith('k', JSON.stringify({ ok: true }), 10);
+  });
+
+  it('should report a miss from getJson when the cached value is not valid JSON', async () => {
+    // Arrange
+    const cache = new RedisCacheService(createStoreMock({ get: jest.fn().mockResolvedValue('not json') }));
+
+    // Act
+    const value = await cache.getJson('k');
+
+    // Assert
+    expect(value).toBeNull();
+  });
+
+  it('should round-trip a value through setJson and getJson when a store is bound', async () => {
+    // Arrange
+    const store = new InMemoryCacheStore();
+    const cache = new RedisCacheService(store);
+
+    // Act
+    await cache.setJson('k', [{ id: 'slot-1' }], 15);
+    const value = await cache.getJson<Array<{ id: string }>>('k');
+
+    // Assert
+    expect(value).toEqual([{ id: 'slot-1' }]);
+  });
+});
+
+describe('RedisCacheService outage logging', () => {
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  it('should log one compact warning per interval when many reads fail in a row', async () => {
+    // Arrange
+    const warn = jest.spyOn(Logger.prototype, 'warn').mockImplementation();
+    const nowSpy = jest.spyOn(Date, 'now').mockReturnValue(Date.parse('2026-11-02T10:00:00.000Z'));
+    const cache = new RedisCacheService(createStoreMock({ get: jest.fn().mockRejectedValue(new Error('down')) }));
+
+    // Act — one request reads a page per clinic day.
+    await Promise.all(Array.from({ length: 15 }, (_, day) => cache.getJson(`page-${day}`)));
+
+    // Assert
+    expect(warn).toHaveBeenCalledTimes(1);
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining('down'));
+
+    // Act — the next interval logs again.
+    nowSpy.mockReturnValue(Date.parse('2026-11-02T10:00:11.000Z'));
+    await cache.getJson('page-again');
+
+    // Assert
+    expect(warn).toHaveBeenCalledTimes(2);
+  });
+
+  it('should keep read and write warnings apart when both kinds fail in the same interval', async () => {
+    // Arrange
+    const warn = jest.spyOn(Logger.prototype, 'warn').mockImplementation();
+    jest.spyOn(Date, 'now').mockReturnValue(Date.parse('2026-11-02T10:00:00.000Z'));
+    const cache = new RedisCacheService(
+      createStoreMock({ get: jest.fn().mockRejectedValue(new Error('down')), set: jest.fn().mockRejectedValue(new Error('down')) }),
+    );
+
+    // Act
+    await cache.getOrLoad('k', 10, async () => ({ ok: true }));
+
+    // Assert
+    expect(warn).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe('CACHE_KEYS', () => {
+  it('should build one doctor-slot key per doctor and clinic day when the day is normalized', () => {
+    expect(CACHE_KEYS.DOCTOR_SLOTS_DAY('prac-1', '2026-11-02')).toBe('catalog:doctor-slots:prac-1:2026-11-02');
+    expect(CACHE_KEYS.DOCTOR_SLOTS_DAY('prac-1', '2026-11-02').startsWith(CACHE_KEYS.ALL_DOCTOR_SLOTS)).toBe(true);
+  });
+
+  it('should keep every services page under the prefix the services invalidation clears', () => {
+    expect(CACHE_KEYS.SERVICES_PAGE(2, 20).startsWith(`${CACHE_KEYS.SERVICES}:`)).toBe(true);
   });
 });
 

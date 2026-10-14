@@ -1,0 +1,54 @@
+import { Controller, Get, Param, Query, Req } from '@nestjs/common';
+import {
+  claimsOf,
+  Public,
+  RequiresRoles,
+  RequiresScopes,
+  type RequestWithClaims,
+} from '@medcenter/common';
+import { Role, SMART_SCOPES } from '@medcenter/contracts';
+
+import { DoctorScheduleService } from './doctor-schedule.service';
+import { DoctorSlotsService } from './doctor-slots.service';
+import { DoctorIdParamDto } from './dto/doctor-id-param.dto';
+import type { DoctorScheduleResponseDto } from './dto/doctor-schedule-response.dto';
+import type { DoctorSlotsResponseDto } from './dto/doctor-slots-response.dto';
+import { SlotRangeQueryDto } from './dto/slot-range-query.dto';
+import { requirePractitionerRoleId } from './practitioner-role-ref';
+import { resolveSlotRange } from './slot-range';
+
+/**
+ * API §5.2.7 (doctor's own schedule) and §5.2.8 (public free slots). Traefik
+ * routes `/api/v1/doctor/schedule` and `^/api/v1/doctors/[^/]+/slots$` here;
+ * the rest of `/api/v1/doctors` belongs to practitioner-service.
+ */
+@Controller('api/v1')
+export class SlotsController {
+  constructor(
+    private readonly doctorSlots: DoctorSlotsService,
+    private readonly doctorSchedule: DoctorScheduleService,
+  ) {}
+
+  @Public()
+  @Get('doctors/:id/slots')
+  async listDoctorSlots(
+    @Param() params: DoctorIdParamDto,
+    @Query() query: SlotRangeQueryDto,
+  ): Promise<DoctorSlotsResponseDto> {
+    return this.doctorSlots.listFree(params.id, resolveSlotRange(query));
+  }
+
+  @Get('doctor/schedule')
+  @RequiresRoles(Role.DOCTOR)
+  @RequiresScopes(SMART_SCOPES.USER_READ)
+  async ownSchedule(
+    @Req() request: RequestWithClaims,
+    @Query() query: SlotRangeQueryDto,
+  ): Promise<DoctorScheduleResponseDto> {
+    // Identity before the cross-field range rules (limits, defaults): a token without a
+    // PractitionerRole learns nothing about them. A malformed date is caught earlier, by
+    // the validation pipe, before this method runs.
+    const practitionerRoleId = requirePractitionerRoleId(claimsOf(request));
+    return this.doctorSchedule.forRole(practitionerRoleId, resolveSlotRange(query));
+  }
+}

@@ -28,19 +28,28 @@ export class ServicesService {
     private readonly cache: RedisCacheService,
   ) {}
 
+  /**
+   * Public listing (API §5.1.1). Only the plain, search-free listing is cached,
+   * one entry per validated (page, pageSize) — a key per free-text term would
+   * let an anonymous caller fill the shared Redis with arbitrary strings, so a
+   * search always goes to HAPI (a cheap `name` match).
+   */
   async list(page = 1, pageSize = 20, search?: string): Promise<ServiceResponseDto[]> {
-    return this.cache.getOrLoad(
-      `${CACHE_KEYS.SERVICES}:${search ?? ''}:${page}:${pageSize}`,
-      CACHE_TTLS.SERVICES_SECONDS,
-      async () => {
-        const result = await this.fhirClient.search('HealthcareService', {
-          ...(search === undefined ? {} : { name: search }),
-          _count: pageSize,
-          _offset: (page - 1) * pageSize,
-        });
-        return (result.entry ?? []).map((entry) => this.toResponseDto(entry.resource));
-      },
-    );
+    const term = search?.trim() ?? '';
+    const load = (): Promise<ServiceResponseDto[]> => this.loadPage(page, pageSize, term);
+    if (term !== '') {
+      return load();
+    }
+    return this.cache.getOrLoad(CACHE_KEYS.SERVICES_PAGE(page, pageSize), CACHE_TTLS.SERVICES_SECONDS, load);
+  }
+
+  private async loadPage(page: number, pageSize: number, term: string): Promise<ServiceResponseDto[]> {
+    const result = await this.fhirClient.search('HealthcareService', {
+      ...(term === '' ? {} : { name: term }),
+      _count: pageSize,
+      _offset: (page - 1) * pageSize,
+    });
+    return (result.entry ?? []).map((entry) => this.toResponseDto(entry.resource));
   }
 
   async findById(id: string): Promise<ServiceResponseDto> {
@@ -98,15 +107,25 @@ export class ServicesService {
     return merged as FhirResource;
   }
 
+  /**
+   * API §5.1.5. The service is a `Schedule.actor` and `actor` is the R4 search
+   * parameter over it — R4 `Schedule` has no `service` parameter (HAPI answers
+   * 400). No `active` filter: HAPI keeps referential integrity on delete, so a
+   * deactivated schedule pins the service too (same rule as `ROOM_IN_USE`).
+   *
+   * `SERVICE_IN_USE` is not in `ERROR_CODES` (libs/contracts) yet, so
+   * `ProblemDetailsFilter` answers `409` with `errorCode: CONFLICT` and the
+   * label stays in `detail`; it becomes the `errorCode` once the code is added.
+   */
   async remove(id: string): Promise<void> {
     const schedules = await this.fhirClient.search('Schedule', {
-      service: `HealthcareService/${id}`,
-      active: 'true',
+      actor: `HealthcareService/${id}`,
+      _count: 1,
     });
     if ((schedules.entry ?? []).length > 0) {
       throw new ConflictException({
         errorCode: 'SERVICE_IN_USE',
-        message: `SERVICE_IN_USE: service ${id} is referenced by an active schedule`,
+        message: `SERVICE_IN_USE: service ${id} is referenced by a schedule`,
       });
     }
     await this.fhirClient.delete('HealthcareService', id);

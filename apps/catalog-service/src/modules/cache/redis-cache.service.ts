@@ -1,4 +1,4 @@
-import { Injectable, Logger, Optional, type OnModuleDestroy } from '@nestjs/common';
+import { Inject, Injectable, Logger, Optional, type OnModuleDestroy } from '@nestjs/common';
 
 /**
  * Minimal cache contract. Kept narrow so the whole service can be exercised
@@ -23,6 +23,22 @@ export const CACHE_KEYS = {
   SLOTS: (schedule: string, from: string, to: string): string => `slots:${schedule}:${from}:${to}`,
   /** Prefix used to invalidate every cached slot page of one schedule. */
   SCHEDULE_SLOTS: (schedule: string): string => `slots:${schedule}:`,
+  /**
+   * Free slots of one doctor for one clinic calendar day (API §5.2.8). The key is
+   * built only from a Practitioner that exists and a normalized `YYYY-MM-DD`
+   * inside the lookahead window, so however a client spells its range the
+   * number of keys stays finite (doctors x about 400 days).
+   */
+  DOCTOR_SLOTS_DAY: (practitioner: string, day: string): string =>
+    `catalog:doctor-slots:${practitioner}:${day}`,
+  /**
+   * Prefix of every doctor slot page. A schedule only knows its PractitionerRole,
+   * not the Practitioner the public key is built from, so slot writes clear the
+   * whole namespace — admin writes are rare and the TTL is 15 s anyway.
+   */
+  ALL_DOCTOR_SLOTS: 'catalog:doctor-slots:',
+  /** One page of the public services listing without a search term (API §5.1.1). */
+  SERVICES_PAGE: (page: number, pageSize: number): string => `catalog:services:${page}:${pageSize}`,
 } as const;
 
 export const CACHE_TTLS = {
@@ -35,6 +51,13 @@ export const CACHE_TTLS = {
 export const CACHE_STORE = Symbol('CACHE_STORE');
 
 /**
+ * Minimum gap between two warnings of the same kind. A request reads and
+ * writes one cache page per clinic day, so an unreachable Redis would otherwise
+ * log dozens of identical lines per request.
+ */
+export const CACHE_WARN_INTERVAL_MS = 10_000;
+
+/**
  * Thin read-through wrapper over the cache store.
  *
  * When no store is bound the service degrades to "always miss" rather than
@@ -43,9 +66,15 @@ export const CACHE_STORE = Symbol('CACHE_STORE');
 @Injectable()
 export class RedisCacheService implements OnModuleDestroy {
   private readonly logger = new Logger(RedisCacheService.name);
+  private readonly lastWarnAt = new Map<string, number>();
   private store: CacheStore | null = null;
 
-  constructor(@Optional() store?: CacheStore) {
+  /**
+   * `@Inject(CACHE_STORE)` is required: `CacheStore` is an interface, so without
+   * the token Nest has no runtime type to resolve, `@Optional()` yields
+   * `undefined` and every read silently misses (NFR-005).
+   */
+  constructor(@Optional() @Inject(CACHE_STORE) store?: CacheStore | null) {
     this.store = store ?? null;
   }
 
@@ -59,13 +88,36 @@ export class RedisCacheService implements OnModuleDestroy {
     ttlSeconds: number,
     loader: () => Promise<T>,
   ): Promise<T> {
-    const cached = await this.read(key);
+    const cached = await this.getJson<T>(key);
     if (cached !== null) {
-      return JSON.parse(cached) as T;
+      return cached;
     }
     const value = await loader();
-    await this.write(key, value, ttlSeconds);
+    await this.setJson(key, value, ttlSeconds);
     return value;
+  }
+
+  /**
+   * Reads one JSON entry. A missing, unreadable or corrupt entry is a miss
+   * (`null`): the cache is shared with other services, so a damaged value must
+   * cost one reload, not a 500.
+   */
+  async getJson<T>(key: string): Promise<T | null> {
+    const cached = await this.read(key);
+    if (cached === null) {
+      return null;
+    }
+    try {
+      return JSON.parse(cached) as T;
+    } catch (error: unknown) {
+      this.warn('corrupt', `Cache entry is not valid JSON, treating as a miss: ${key}`, error);
+      return null;
+    }
+  }
+
+  /** Writes one JSON entry; a store failure is logged and never fails the request. */
+  async setJson(key: string, value: unknown, ttlSeconds: number): Promise<void> {
+    await this.write(key, value, ttlSeconds);
   }
 
   /**
@@ -86,7 +138,7 @@ export class RedisCacheService implements OnModuleDestroy {
         ...prefixes.map((prefix) => store.delByPrefix(prefix)),
       ]);
     } catch (error: unknown) {
-      this.logger.warn(error as Error, 'Cache invalidate failed, stale entries may persist');
+      this.warn('invalidate', 'Cache invalidate failed, stale entries may persist', error);
     }
   }
 
@@ -97,7 +149,7 @@ export class RedisCacheService implements OnModuleDestroy {
     try {
       return await this.store.get(key);
     } catch (error: unknown) {
-      this.logger.warn(error as Error, `Cache read failed, falling through: ${key}`);
+      this.warn('read', `Cache read failed, falling through: ${key}`, error);
       return null;
     }
   }
@@ -109,8 +161,18 @@ export class RedisCacheService implements OnModuleDestroy {
     try {
       await this.store.set(key, JSON.stringify(value), ttlSeconds);
     } catch (error: unknown) {
-      this.logger.warn(error as Error, `Cache write failed: ${key}`);
+      this.warn('write', `Cache write failed: ${key}`, error);
     }
+  }
+
+  /** One compact line (no stack) per kind per `CACHE_WARN_INTERVAL_MS`; the rest are dropped. */
+  private warn(kind: string, message: string, error: unknown): void {
+    const nowMs = Date.now();
+    if (nowMs - (this.lastWarnAt.get(kind) ?? 0) < CACHE_WARN_INTERVAL_MS) {
+      return;
+    }
+    this.lastWarnAt.set(kind, nowMs);
+    this.logger.warn(`${message} (${error instanceof Error ? error.message : String(error)})`);
   }
 
   async onModuleDestroy(): Promise<void> {

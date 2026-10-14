@@ -5,6 +5,7 @@ import { MEDCENTER_EXT } from '@medcenter/terminology';
 import { CreateRoomDto } from './dto/create-room.dto';
 import { UpdateRoomDto } from './dto/update-room.dto';
 import type { RoomResponseDto } from './dto/room-response.dto';
+import { roomScheduleQuery } from './room-schedules';
 
 /** FHIR R4 `Location` has no native floor element — it lives in an extension. */
 const FLOOR_EXT = MEDCENTER_EXT.ROOM_FLOOR;
@@ -13,8 +14,9 @@ const FLOOR_EXT = MEDCENTER_EXT.ROOM_FLOOR;
  * Admin CRUD over `Location` resources whose `physicalType` is `room`
  * (API §4.3–4.7, FR-017).
  *
- * The delete path protects busy slots: a room referenced by an active
- * `Schedule` is never removed (BR-001) — the caller gets `409 ROOM_IN_USE`.
+ * The delete path protects busy slots: a room referenced by any `Schedule`
+ * is never removed (BR-001) — the caller gets `409 ROOM_IN_USE`, and
+ * `GET /admin/rooms/{id}/usage` (API §4.7) lists exactly those schedules.
  */
 @Injectable()
 export class RoomsService {
@@ -67,24 +69,30 @@ export class RoomsService {
   }
 
   /**
-   * Refuses to delete a room referenced by an active schedule.
-   * Busy slots are protected (BR-001); the contract is 409 `ROOM_IN_USE`
-   * (API §4.6). `ProblemDetailsFilter` promotes `errorCode` to the problem
-   * document, and the message keeps the code greppable for tests and logs.
+   * Refuses to delete a room referenced by any schedule (active or not — HAPI
+   * keeps referential integrity on delete, so a deactivated schedule pins the
+   * room too). Busy slots are protected (BR-001); the contract is 409 `ROOM_IN_USE`
+   * (API §4.6).
+   *
+   * `ROOM_IN_USE` is not in `ERROR_CODES` (libs/contracts) yet, and
+   * `ProblemDetailsFilter` only promotes codes from that list: the client gets
+   * `409` with `errorCode: CONFLICT` and the label survives in `detail` (the
+   * message below). Once the code is added to the contract it becomes the
+   * `errorCode` without a change here.
    */
   async remove(id: string): Promise<void> {
     // An unknown id surfaces as 404 NOT_FOUND straight from the FHIR client.
     await this.fhirClient.read('Location', id);
-    // `_count: 1` — one referencing schedule is enough to refuse the delete,
-    // and HAPI's default page size cannot hide it.
+    // `_count: 1` — one referencing schedule is enough to refuse the delete.
+    // Same query as the usage view (API §4.7), so both always agree.
     const schedules = await this.fhirClient.search('Schedule', {
-      location: `Location/${id}`,
+      ...roomScheduleQuery(id),
       _count: 1,
     });
     if ((schedules.entry ?? []).length > 0) {
       throw new ConflictException({
         errorCode: 'ROOM_IN_USE',
-        message: `ROOM_IN_USE: room ${id} is referenced by an active schedule`,
+        message: `ROOM_IN_USE: room ${id} is referenced by a schedule`,
       });
     }
     await this.fhirClient.delete('Location', id);

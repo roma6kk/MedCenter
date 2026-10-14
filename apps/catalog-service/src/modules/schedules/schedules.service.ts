@@ -11,6 +11,7 @@ import {
   SLOT_DURATION_EXT,
   WEEKLY_WINDOWS_EXT,
 } from './schedule.constants';
+import { hasCrossOverlap, hasInternalOverlap } from './window-overlap';
 
 type Extension = Record<string, unknown>;
 
@@ -71,35 +72,7 @@ export class SchedulesService {
     if (dto.comment !== undefined) {
       merged['comment'] = dto.comment;
     }
-    // Every extension is upserted by its URL, so a PATCH of one of them never
-    // drops the others (windows, horizon and duration are independent).
-    let extensions: Extension[] = Array.isArray(existing['extension'])
-      ? [...(existing['extension'] as Extension[])]
-      : [];
-    if (dto.windows !== undefined) {
-      extensions = this.upsertExtension(extensions, {
-        url: WEEKLY_WINDOWS_EXT,
-        valueString: JSON.stringify(dto.windows),
-      });
-    }
-    if (start !== undefined || end !== undefined) {
-      extensions = this.upsertExtension(extensions, {
-        url: PLANNING_HORIZON_EXT,
-        valuePeriod: {
-          ...(start !== undefined ? { start } : {}),
-          ...(end !== undefined ? { end } : {}),
-        },
-      });
-    }
-    // The PATCH value wins, otherwise the stored one (extension or the legacy
-    // top-level element) is carried over and migrated into the extension.
-    const duration = dto.slotDurationMin ?? this.readStoredDuration(existing);
-    if (duration !== undefined) {
-      extensions = this.upsertExtension(extensions, {
-        url: SLOT_DURATION_EXT,
-        valueInteger: duration,
-      });
-    }
+    const extensions = this.mergeExtensions(existing, dto, start, end);
     // FHIR JSON forbids empty arrays.
     if (extensions.length > 0) {
       merged['extension'] = extensions;
@@ -108,6 +81,32 @@ export class SchedulesService {
     }
     delete merged['slotDurationMin'];
     return this.fhirClient.update('Schedule', id, merged as FhirResource);
+  }
+
+  /**
+   * Every extension is upserted by its URL, so a PATCH of one of them never
+   * drops the others (windows, horizon and duration are independent).
+   */
+  private mergeExtensions(
+    existing: FhirResource,
+    dto: UpdateScheduleDto,
+    start: string | undefined,
+    end: string | undefined,
+  ): Extension[] {
+    const stored: Extension[] = Array.isArray(existing['extension']) ? (existing['extension'] as Extension[]) : [];
+    // The PATCH duration wins, otherwise the stored one (extension or the legacy
+    // top-level element) is carried over and migrated into the extension.
+    const duration = dto.slotDurationMin ?? this.readStoredDuration(existing);
+    const changes: Extension[] = [
+      ...(dto.windows === undefined
+        ? []
+        : [{ url: WEEKLY_WINDOWS_EXT, valueString: JSON.stringify(dto.windows) }]),
+      ...(start === undefined && end === undefined
+        ? []
+        : [{ url: PLANNING_HORIZON_EXT, valuePeriod: { ...(start === undefined ? {} : { start }), ...(end === undefined ? {} : { end }) } }]),
+      ...(duration === undefined ? [] : [{ url: SLOT_DURATION_EXT, valueInteger: duration }]),
+    ];
+    return changes.reduce((extensions, change) => this.upsertExtension(extensions, change), [...stored]);
   }
 
   private upsertExtension(extensions: readonly Extension[], extension: Extension): Extension[] {
@@ -166,7 +165,7 @@ export class SchedulesService {
       });
     }
     await this.fhirClient.delete('Schedule', id);
-    await this.cache.invalidate([CACHE_KEYS.SCHEDULE_SLOTS(id)]);
+    await this.cache.invalidate([CACHE_KEYS.SCHEDULE_SLOTS(id), CACHE_KEYS.ALL_DOCTOR_SLOTS]);
   }
 
   /** Free slots of a schedule, cached for 15 s (NFR-005). The cache key
@@ -200,7 +199,7 @@ export class SchedulesService {
     windows: readonly WeeklyWindowDto[],
     excludeScheduleId?: string,
   ): Promise<void> {
-    if (this.hasInternalOverlap(windows)) {
+    if (hasInternalOverlap(windows)) {
       throw new ConflictException({
         errorCode: 'SCHEDULE_OVERLAP',
         message: 'SCHEDULE_OVERLAP: weekly windows intersect',
@@ -216,49 +215,13 @@ export class SchedulesService {
         continue;
       }
       const existingWindows = this.readWindows(entry.resource);
-      if (this.hasCrossOverlap(windows, existingWindows)) {
+      if (hasCrossOverlap(windows, existingWindows)) {
         throw new ConflictException({
           errorCode: 'SCHEDULE_OVERLAP',
           message: `SCHEDULE_OVERLAP: practitioner role ${practitionerRoleId} already has a schedule`,
         });
       }
     }
-  }
-
-  private hasInternalOverlap(windows: readonly WeeklyWindowDto[]): boolean {
-    for (let i = 0; i < windows.length; i += 1) {
-      for (let j = i + 1; j < windows.length; j += 1) {
-        const a = windows[i];
-        const b = windows[j];
-        if (a !== undefined && b !== undefined && this.intersects(a, b)) {
-          return true;
-        }
-      }
-    }
-    return false;
-  }
-
-  private hasCrossOverlap(
-    candidate: readonly WeeklyWindowDto[],
-    existing: readonly WeeklyWindowDto[],
-  ): boolean {
-    return candidate.some((a) => existing.some((b) => this.intersects(a, b)));
-  }
-
-  private intersects(a: WeeklyWindowDto, b: WeeklyWindowDto): boolean {
-    if (a.dayOfWeek !== b.dayOfWeek) {
-      return false;
-    }
-    const aStart = this.toMinutes(a.startTime);
-    const aEnd = this.toMinutes(a.endTime);
-    const bStart = this.toMinutes(b.startTime);
-    const bEnd = this.toMinutes(b.endTime);
-    return aStart < bEnd && bStart < aEnd;
-  }
-
-  private toMinutes(time: string): number {
-    const [hours, minutes] = time.split(':').map(Number);
-    return hours * 60 + minutes;
   }
 
   private readWindows(schedule: FhirResource): WeeklyWindowDto[] {

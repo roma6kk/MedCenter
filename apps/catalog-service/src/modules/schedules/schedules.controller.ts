@@ -15,9 +15,12 @@ import { Role } from '@medcenter/contracts';
 import type { FhirResource } from '@medcenter/fhir';
 import type { SlotResponseDto } from '@medcenter/fhir-mappers';
 
+import { FhirIdParamDto } from '../../common/fhir-id-param.dto';
 import { CreateScheduleDto } from './dto/create-schedule.dto';
 import { DeleteScheduleDto } from './dto/delete-schedule.dto';
 import { GenerateSlotsDto } from './dto/generate-slots.dto';
+import { ListSchedulesQueryDto } from './dto/list-schedules-query.dto';
+import { ScheduleSlotsQueryDto } from './dto/schedule-slots-query.dto';
 import { UpdateScheduleDto } from './dto/update-schedule.dto';
 import type { GenerateSlotsResult } from './slot-generator.service';
 import { SlotGeneratorService } from './slot-generator.service';
@@ -39,46 +42,41 @@ export class SchedulesController {
 
   @Get()
   @RequiresRoles(Role.ADMIN)
-  async list(
-    @Query('doctorId') doctorId?: string,
-    @Query('active') active?: string,
-  ): Promise<FhirResource[]> {
-    return this.schedulesService.list(doctorId, active);
+  async list(@Query() query: ListSchedulesQueryDto): Promise<FhirResource[]> {
+    return this.schedulesService.list(query.doctorId, query.active);
   }
 
   @Patch(':id')
   @RequiresRoles(Role.ADMIN)
   async update(
-    @Param('id') id: string,
+    @Param() params: FhirIdParamDto,
     @Body() dto: UpdateScheduleDto,
   ): Promise<FhirResource> {
-    return this.schedulesService.update(id, dto);
+    return this.schedulesService.update(params.id, dto);
   }
 
   @Delete(':id')
   @RequiresRoles(Role.ADMIN)
   @HttpCode(HttpStatus.NO_CONTENT)
-  async remove(@Param('id') id: string, @Body() dto: DeleteScheduleDto): Promise<void> {
-    await this.schedulesService.remove(id, dto.cascade === true);
+  async remove(@Param() params: FhirIdParamDto, @Body() dto: DeleteScheduleDto): Promise<void> {
+    await this.schedulesService.remove(params.id, dto.cascade === true);
   }
 
   @Post(':id/generate')
   @RequiresRoles(Role.ADMIN)
   async generate(
-    @Param('id') id: string,
+    @Param() params: FhirIdParamDto,
     @Body() dto: GenerateSlotsDto,
   ): Promise<GenerateSlotsResult> {
-    return this.slotGenerator.generate(id, dto);
+    return this.slotGenerator.generate(params.id, dto);
   }
 
   @Get(':id/slots')
   @RequiresRoles(Role.ADMIN)
   async slots(
-    @Param('id') id: string,
-    @Query('from') from: string,
-    @Query('to') to: string,
-    @Query('status') status?: string,
+    @Param() params: FhirIdParamDto,
+    @Query() query: ScheduleSlotsQueryDto,
   ): Promise<SlotResponseDto[]> {
-    return this.schedulesService.listSlots(id, from, to, status);
+    return this.schedulesService.listSlots(params.id, query.from, query.to, query.status);
   }
 }

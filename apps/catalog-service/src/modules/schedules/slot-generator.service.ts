@@ -1,23 +1,27 @@
 import { createHash } from 'node:crypto';
 
-import { BadRequestException, Inject, Injectable } from '@nestjs/common';
+import { BadGatewayException, BadRequestException, Inject, Injectable, Logger } from '@nestjs/common';
 import { FHIR_CLIENT, type FhirClient, type FhirResource } from '@medcenter/fhir';
 import { MEDCENTER_EXT } from '@medcenter/terminology';
 
+import { clinicDaysBetween, clinicDayEndMs, clinicDayStartMs } from '../../common/clinic-calendar';
+import { searchPages } from '../../common/fhir-search';
+import { CACHE_KEYS, RedisCacheService } from '../cache/redis-cache.service';
 import { GenerateSlotsDto } from './dto/generate-slots.dto';
 import type { WeeklyWindowDto } from './dto/create-schedule.dto';
 import { PLANNING_HORIZON_DAYS, SLOT_DURATION_EXT, WEEKLY_WINDOWS_EXT } from './schedule.constants';
+import { writeSlotBatches } from './slot-batch-writer';
+import { planSlots, type PlannedSlot } from './slot-planner';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
-const DAY_CODE: Readonly<Record<number, string>> = {
-  0: 'SU',
-  1: 'MO',
-  2: 'TU',
-  3: 'WE',
-  4: 'TH',
-  5: 'FR',
-  6: 'SA',
-};
+/**
+ * Pages read to find the slots a range already has: 150 x 200 = 30 000 covers the
+ * longest permitted run (91 clinic days, both ends of a 90-day range, of 288
+ * five-minute slots = 26 208 for one schedule). A
+ * cut-off list would let a re-run overwrite a booked slot with a fresh `free`
+ * one, so a search that still hits the cap fails the run instead (`findExistingStarts`).
+ */
+export const EXISTING_SLOT_MAX_PAGES = 150;
 
 export interface GenerateSlotsResult {
   readonly generated: number;
@@ -41,83 +45,132 @@ interface ScheduleHorizon {
  */
 @Injectable()
 export class SlotGeneratorService {
-  constructor(@Inject(FHIR_CLIENT) private readonly fhirClient: FhirClient) {}
+  private readonly logger = new Logger(SlotGeneratorService.name);
 
+  constructor(
+    @Inject(FHIR_CLIENT) private readonly fhirClient: FhirClient,
+    private readonly cache: RedisCacheService,
+  ) {}
+
+  /**
+   * Idempotency contract (API §5.2.5, ADR-015): a slot is identified by the
+   * deterministic (schedule, start) digest, so re-running the same range — or
+   * extending it into new days — never duplicates: every planned slot whose
+   * `start` already exists on this schedule is skipped individually (per-slot,
+   * not per-day/per-range), and only genuinely new slots are written. The id is
+   * a pure function of (scheduleId, start), so equal starts imply equal ids.
+   */
   async generate(scheduleId: string, dto: GenerateSlotsDto): Promise<GenerateSlotsResult> {
     this.assertWithinHorizon(dto);
 
     const schedule = await this.fhirClient.read('Schedule', scheduleId);
-    const windows = this.readWindows(schedule);
-    const slotDurationMin = this.readSlotDuration(schedule);
-    const actors = (schedule as ScheduleActors).actor ?? [];
-
-    // Idempotency contract (API §5.2.5, ADR-015): a slot is identified by the
-    // deterministic (schedule, start) digest, so re-running the same range —
-    // or extending it into new days — never duplicates: every planned slot
-    // whose `start` already exists on this schedule is skipped individually
-    // (per-slot, not per-day/per-range), and only genuinely new slots are
-    // written. Start is the natural identity here: the id is a pure function
-    // of (scheduleId, start), so equal starts imply equal ids.
-    const existing = await this.fhirClient.search('Slot', {
-      schedule: `Schedule/${scheduleId}`,
-      start: [`ge${dto.from}`, `le${dto.to}`],
-      _count: 1000,
-    });
-    const existingStarts = new Set(
-      (existing.entry ?? [])
-        .map((entry) => entry.resource['start'])
-        .filter((start): start is string => typeof start === 'string'),
+    const fromMs = Date.parse(dto.from);
+    const toMs = Date.parse(dto.to);
+    const planned = planSlots(
+      fromMs,
+      toMs,
+      this.readWindows(scheduleId, schedule),
+      this.readSlotDuration(schedule),
     );
 
-    const starts = this.expandStarts(dto.from, dto.to, windows, slotDurationMin);
-    const slots: FhirResource[] = starts.map(({ start, end }) => ({
-      resourceType: 'Slot',
-      id: this.slotId(scheduleId, start),
-      schedule: { reference: `Schedule/${scheduleId}` },
-      status: 'free',
-      start,
-      end,
-      ...(actors.length === 0
-        ? {}
-        : { extension: [{ url: MEDCENTER_EXT.SLOT_ACTORS, valueString: JSON.stringify(actors) }] }),
-    }));
+    const existing = await this.findExistingStarts(scheduleId, fromMs, toMs);
+    this.warnOnUnplannedSlots(scheduleId, planned, existing);
+    const fresh = planned
+      .filter((slot) => !existing.has(Date.parse(slot.start)))
+      .map((slot) => this.toSlotResource(scheduleId, schedule, slot));
+    const { generated, failures } = await writeSlotBatches(this.fhirClient, fresh);
+    if (generated > 0) {
+      // New free slots must show up in the 15 s slot caches (API §5.2.6/5.2.8).
+      await this.cache.invalidate([CACHE_KEYS.SCHEDULE_SLOTS(scheduleId), CACHE_KEYS.ALL_DOCTOR_SLOTS]);
+    }
+    if (failures.length > 0) {
+      throw this.partialFailure(scheduleId, generated, failures);
+    }
 
-    const fresh = slots.filter((slot) => !existingStarts.has(slot['start'] as string));
-    const generated = await this.createBatch(fresh);
-
-    return { generated, skipped: slots.length - generated };
+    return { generated, skipped: planned.length - generated };
   }
 
   /**
-   * Writes new slots in FHIR batch Bundles (one HTTP request per chunk, NFR-005
-   * — the previous per-slot loop issued thousands of sequential calls for a
-   * 90-day horizon). `type: 'batch'` keeps per-entry outcomes: a failed entry
-   * surfaces in `OperationOutcome` without rolling back the rest. Entries are
-   * `PUT Slot/{id}` (conditional on the deterministic id), so a concurrent
-   * generate with the same id updates instead of duplicating.
+   * A batch is not atomic, so some slots can be written while others are not.
+   * That is not "skipped": the admin must see the failure. Generation is
+   * idempotent, so running the same range again writes only what is missing.
    */
-  private async createBatch(slots: readonly FhirResource[]): Promise<number> {
-    const BATCH_SIZE = 200;
-    let generated = 0;
-    for (let offset = 0; offset < slots.length; offset += BATCH_SIZE) {
-      const chunk = slots.slice(offset, offset + BATCH_SIZE);
-      const bundle: FhirResource = {
-        resourceType: 'Bundle',
-        type: 'batch',
-        entry: chunk.map((slot) => ({
-          request: { method: 'PUT', url: `Slot/${slot.id}` },
-          resource: slot,
-        })),
-      };
-      const response = await this.fhirClient.batch(bundle);
-      const responseEntries = response['entry'] as
-        | ReadonlyArray<{ readonly response?: { readonly status?: string } }>
-        | undefined;
-      generated += (responseEntries ?? []).filter(
-        (entry) => typeof entry.response?.status === 'string' && entry.response.status.startsWith('2'),
-      ).length;
+  private partialFailure(scheduleId: string, generated: number, failures: readonly string[]): BadGatewayException {
+    const reasons = [...new Set(failures)].slice(0, 5);
+    this.logger.warn(
+      { scheduleId, generated, failed: failures.length, reasons },
+      'HAPI did not confirm every slot of the generated range',
+    );
+    return new BadGatewayException({
+      errorCode: 'INTERNAL',
+      message: `${failures.length} slots were not written (${generated} were); run the same range again to write the rest`,
+    });
+  }
+
+  /**
+   * Slots the schedule already has on the range's days that its current windows
+   * do not plan: windows edited after the first run, or slots from the older
+   * generator that read a window as UTC (`09:00` became 09:00Z, not 06:00Z).
+   * Generate still adds the planned slots next to them, so a day can end up with
+   * two sets of slots; the line makes that visible before an admin finds out.
+   */
+  private warnOnUnplannedSlots(scheduleId: string, planned: readonly PlannedSlot[], existing: ReadonlySet<number>): void {
+    const plannedStarts = new Set(planned.map((slot) => Date.parse(slot.start)));
+    const unplanned = [...existing].filter((start) => !plannedStarts.has(start)).length;
+    if (unplanned > 0) {
+      this.logger.warn(
+        { scheduleId, unplanned, existing: existing.size },
+        'Schedule has slots its weekly windows do not plan (windows edited, or slots made when windows were read as UTC); generate adds the planned slots next to them',
+      );
     }
-    return generated;
+  }
+
+  /**
+   * Starts (epoch ms) of every slot the schedule already has on the clinic days
+   * the range touches — the same days `planSlots` expands, whatever the status
+   * (a booked slot is "existing" too and is never overwritten).
+   */
+  private async findExistingStarts(scheduleId: string, fromMs: number, toMs: number): Promise<Set<number>> {
+    const days = clinicDaysBetween(fromMs, toMs);
+    const first = days[0];
+    const last = days[days.length - 1];
+    if (first === undefined || last === undefined) {
+      return new Set();
+    }
+    const { resources: existing, truncated } = await searchPages(
+      this.fhirClient,
+      'Slot',
+      {
+        schedule: `Schedule/${scheduleId}`,
+        start: [`ge${new Date(clinicDayStartMs(first)).toISOString()}`, `le${new Date(clinicDayEndMs(last)).toISOString()}`],
+        _sort: 'start,_id',
+      },
+      { maxPages: EXISTING_SLOT_MAX_PAGES },
+    );
+    if (truncated) {
+      // Writing on top of a partial list could overwrite a booked slot with a free one (BR-001).
+      throw new BadRequestException({
+        errorCode: 'VALIDATION_ERROR',
+        message: 'range: the schedule has too many slots in this range to compare safely; generate a shorter range',
+      });
+    }
+    const starts = existing.map((slot) => Date.parse(String(slot['start'])));
+    return new Set(starts.filter((start) => Number.isFinite(start)));
+  }
+
+  private toSlotResource(scheduleId: string, schedule: FhirResource, slot: PlannedSlot): FhirResource {
+    const actors = (schedule as ScheduleActors).actor ?? [];
+    return {
+      resourceType: 'Slot',
+      id: this.slotId(scheduleId, slot.start),
+      schedule: { reference: `Schedule/${scheduleId}` },
+      status: 'free',
+      start: slot.start,
+      end: slot.end,
+      ...(actors.length === 0
+        ? {}
+        : { extension: [{ url: MEDCENTER_EXT.SLOT_ACTORS, valueString: JSON.stringify(actors) }] }),
+    };
   }
 
   private assertWithinHorizon(dto: GenerateSlotsDto): void {
@@ -132,59 +185,10 @@ export class SlotGeneratorService {
     }
   }
 
-  private expandStarts(
-    from: string,
-    to: string,
-    windows: readonly WeeklyWindowDto[],
-    slotDurationMin: number,
-  ): Array<{ start: string; end: string }> {
-    const result: Array<{ start: string; end: string }> = [];
-    const startDay = this.floorToUtcDay(from);
-    const endDay = this.floorToUtcDay(to);
-
-    for (let cursor = startDay; cursor <= endDay; cursor += DAY_MS) {
-      const dayCode = DAY_CODE[new Date(cursor).getUTCDay()];
-      for (const window of windows) {
-        if (window.dayOfWeek !== dayCode) {
-          continue;
-        }
-        for (const slot of this.splitWindow(cursor, window, slotDurationMin)) {
-          result.push(slot);
-        }
-      }
-    }
-    return result;
-  }
-
-  private splitWindow(
-    dayStartMs: number,
-    window: WeeklyWindowDto,
-    slotDurationMin: number,
-  ): Array<{ start: string; end: string }> {
-    const startMin = this.toMinutes(window.startTime);
-    const endMin = this.toMinutes(window.endTime);
-    const slots: Array<{ start: string; end: string }> = [];
-    for (let minute = startMin; minute + slotDurationMin <= endMin; minute += slotDurationMin) {
-      slots.push({
-        start: new Date(dayStartMs + minute * 60_000).toISOString(),
-        end: new Date(dayStartMs + (minute + slotDurationMin) * 60_000).toISOString(),
-      });
-    }
-    return slots;
-  }
-
-  private toMinutes(time: string): number {
-    const [hours, minutes] = time.split(':').map(Number);
-    return hours * 60 + minutes;
-  }
-
-  private floorToUtcDay(date: string): number {
-    return Math.floor(Date.parse(date) / DAY_MS) * DAY_MS;
-  }
-
   /**
    * Deterministic slot id: same schedule + same start -> same id (idempotency).
-   *</n   * A raw concatenation (`sched-9-2026-11-02T09:00:00.000Z`) is not a valid FHIR
+   *
+   * A raw concatenation (`sched-9-2026-11-02T09:00:00.000Z`) is not a valid FHIR
    * id — the `:` characters violate `[A-Za-z0-9\-.]{1,64}` and HAPI rejects
    * every create. A SHA-256 digest truncated to 64 chars stays within the
    * pattern and stays collision-free for practical purposes.
@@ -193,7 +197,7 @@ export class SlotGeneratorService {
     return createHash('sha256').update(`${scheduleId}|${start}`).digest('hex').slice(0, 64);
   }
 
-  private readWindows(schedule: FhirResource): WeeklyWindowDto[] {
+  private readWindows(scheduleId: string, schedule: FhirResource): WeeklyWindowDto[] {
     const horizon = (schedule as ScheduleHorizon).extension?.find(
       (ext) => ext.url === WEEKLY_WINDOWS_EXT,
     );
@@ -201,8 +205,14 @@ export class SlotGeneratorService {
       return [];
     }
     try {
-      return JSON.parse(horizon.valueString) as WeeklyWindowDto[];
-    } catch {
+      const parsed: unknown = JSON.parse(horizon.valueString);
+      return Array.isArray(parsed) ? (parsed as WeeklyWindowDto[]) : [];
+    } catch (error: unknown) {
+      // Not silent: an unreadable value makes `generate` answer "0 generated".
+      this.logger.warn(
+        { scheduleId, err: error instanceof Error ? error.message : String(error) },
+        'Weekly windows of the schedule are not valid JSON; nothing to generate',
+      );
       return [];
     }
   }

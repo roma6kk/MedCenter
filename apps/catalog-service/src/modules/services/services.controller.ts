@@ -11,9 +11,11 @@ import {
   Query,
 } from '@nestjs/common';
 import { Public, RequiresRoles } from '@medcenter/common';
-import { Role } from '@medcenter/contracts';
+import { DEFAULT_PAGE, DEFAULT_PAGE_SIZE, Role } from '@medcenter/contracts';
 
+import { FhirIdParamDto } from '../../common/fhir-id-param.dto';
 import { CreateServiceDto } from './dto/create-service.dto';
+import { ListServicesQueryDto } from './dto/list-services-query.dto';
 import { UpdateServiceDto } from './dto/update-service.dto';
 import type { ServiceResponseDto } from './dto/service-response.dto';
 import { ServicesService } from './services.service';
@@ -25,18 +27,14 @@ export class ServicesController {
 
   @Public()
   @Get('services')
-  async list(
-    @Query('page') page = '1',
-    @Query('pageSize') pageSize = '20',
-    @Query('search') search?: string,
-  ): Promise<ServiceResponseDto[]> {
-    return this.servicesService.list(Number(page), Number(pageSize), search);
+  async list(@Query() query: ListServicesQueryDto): Promise<ServiceResponseDto[]> {
+    return this.servicesService.list(query.page ?? DEFAULT_PAGE, query.pageSize ?? DEFAULT_PAGE_SIZE, query.search);
   }
 
   @Public()
   @Get('services/:id')
-  async findById(@Param('id') id: string): Promise<ServiceResponseDto> {
-    return this.servicesService.findById(id);
+  async findById(@Param() params: FhirIdParamDto): Promise<ServiceResponseDto> {
+    return this.servicesService.findById(params.id);
   }
 
   @Post('admin/services')
@@ -48,16 +46,16 @@ export class ServicesController {
   @Patch('admin/services/:id')
   @RequiresRoles(Role.ADMIN)
   async update(
-    @Param('id') id: string,
+    @Param() params: FhirIdParamDto,
     @Body() dto: UpdateServiceDto,
   ): Promise<ServiceResponseDto> {
-    return this.servicesService.update(id, dto);
+    return this.servicesService.update(params.id, dto);
   }
 
   @Delete('admin/services/:id')
   @RequiresRoles(Role.ADMIN)
   @HttpCode(HttpStatus.NO_CONTENT)
-  async remove(@Param('id') id: string): Promise<void> {
-    await this.servicesService.remove(id);
+  async remove(@Param() params: FhirIdParamDto): Promise<void> {
+    await this.servicesService.remove(params.id);
   }
 }

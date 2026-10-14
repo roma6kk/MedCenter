@@ -9,7 +9,10 @@ import { CACHE_STORE, RedisCacheService } from './redis-cache.service';
  * store, so a second instance would silently split the namespace.
  *
  * The concrete backend binds only when `REDIS_URL` is configured; without it
- * `RedisCacheService` degrades to always-miss and the app still boots.
+ * `RedisCacheService` degrades to always-miss (module-level, as in the tests that
+ * boot `AppModule` directly). The service itself no longer starts without Redis:
+ * `main.ts` installs the rate-limit store (`enableRateLimit`), which fails the boot
+ * when `REDIS_URL` is missing.
  */
 @Global()
 @Module({

@@ -64,14 +64,18 @@ describe('RoomsService', () => {
     expect(fhirClient.delete).not.toHaveBeenCalled();
   });
 
-  it('should look up referencing schedules with _count so paging cannot hide one', async () => {
+  it('should look up referencing schedules through Schedule.actor when the delete is checked', async () => {
+    // Arrange
     fhirClient.read.mockResolvedValue({ resourceType: 'Location', id: roomId });
     fhirClient.search.mockResolvedValue({ entry: [] });
 
+    // Act
     await roomsService.remove(roomId);
 
+    // Assert — R4 `Schedule` has no `location` search parameter (HAPI answers
+    // 400 → 500 INTERNAL); the room is one of the schedule's actors.
     expect(fhirClient.search).toHaveBeenCalledWith('Schedule', {
-      location: `Location/${roomId}`,
+      actor: `Location/${roomId}`,
       _count: 1,
     });
   });
