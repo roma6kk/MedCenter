@@ -9,6 +9,7 @@
     "typecheck": "tsc --noEmit -p tsconfig.base.json",
     "test:tools": "jest tools/",
     "seed:terminology": "TS_NODE_PROJECT=tsconfig.base.json ts-node tools/terminology-seed/seed-terminology.ts",
+    "seed:demo": "TS_NODE_PROJECT=tsconfig.base.json ts-node tools/demo-seed/seed-demo.ts",
     "stack:up": "docker compose up -d --wait",
     "stack:down": "docker compose down -v"
   },
