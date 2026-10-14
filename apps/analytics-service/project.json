@@ -1,0 +1,47 @@
+{
+  "name": "analytics-service",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "apps/analytics-service/src",
+  "projectType": "application",
+  "tags": ["type:app", "scope:analytics"],
+  "targets": {
+    "build": {
+      "executor": "@nx/js:tsc",
+      "outputs": ["{options.outputPath}"],
+      "options": {
+        "outputPath": "dist/apps/analytics-service",
+        "main": "apps/analytics-service/src/main.ts",
+        "tsConfig": "apps/analytics-service/tsconfig.app.json",
+        "assets": []
+      }
+    },
+    "serve": {
+      "executor": "@nx/js:node",
+      "dependsOn": ["build"],
+      "options": {
+        "buildTarget": "analytics-service:build"
+      }
+    },
+    "test": {
+      "executor": "@nx/jest:jest",
+      "outputs": ["{workspaceRoot}/coverage/{projectRoot}"],
+      "options": {
+        "jestConfig": "apps/analytics-service/jest.config.ts"
+      }
+    },
+    "e2e": {
+      "executor": "@nx/jest:jest",
+      "outputs": ["{workspaceRoot}/coverage/{projectRoot}"],
+      "options": {
+        "jestConfig": "apps/analytics-service/jest.e2e.config.ts"
+      }
+    },
+    "lint": {
+      "executor": "@nx/eslint:lint",
+      "outputs": ["{options.outputFile}"],
+      "options": {
+        "lintFilePatterns": ["apps/analytics-service/**/*.ts"]
+      }
+    }
+  }
+}
