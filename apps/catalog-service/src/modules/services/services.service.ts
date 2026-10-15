@@ -5,6 +5,7 @@ import {
   Injectable,
   UnprocessableEntityException,
 } from '@nestjs/common';
+import { buildPaginatedResponse, type PaginatedResponseDto } from '@medcenter/contracts';
 import { FHIR_CLIENT, FhirClientError, type FhirClient, type FhirResource } from '@medcenter/fhir';
 import { FHIR_BY, MEDCENTER_EXT } from '@medcenter/terminology';
 
@@ -12,6 +13,9 @@ import { CACHE_KEYS, CACHE_TTLS, RedisCacheService } from '../cache/redis-cache.
 import { CreateServiceDto } from './dto/create-service.dto';
 import { UpdateServiceDto } from './dto/update-service.dto';
 import type { ServiceResponseDto } from './dto/service-response.dto';
+
+/** One page of the services catalog in the API §0 envelope. */
+export type ServicePage = PaginatedResponseDto<ServiceResponseDto>;
 
 /** HAPI answers `$lookup` of an unknown code (or system) with one of these. */
 const LOOKUP_NOT_FOUND_STATUSES: ReadonlySet<number> = new Set([400, 404, 422]);
@@ -34,22 +38,34 @@ export class ServicesService {
    * let an anonymous caller fill the shared Redis with arbitrary strings, so a
    * search always goes to HAPI (a cheap `name` match).
    */
-  async list(page = 1, pageSize = 20, search?: string): Promise<ServiceResponseDto[]> {
+  async list(page = 1, pageSize = 20, search?: string): Promise<ServicePage> {
     const term = search?.trim() ?? '';
-    const load = (): Promise<ServiceResponseDto[]> => this.loadPage(page, pageSize, term);
+    const load = (): Promise<ServicePage> => this.loadPage(page, pageSize, term);
     if (term !== '') {
       return load();
     }
     return this.cache.getOrLoad(CACHE_KEYS.SERVICES_PAGE(page, pageSize), CACHE_TTLS.SERVICES_SECONDS, load);
   }
 
-  private async loadPage(page: number, pageSize: number, term: string): Promise<ServiceResponseDto[]> {
+  /**
+   * `_total=accurate` asks HAPI for the count; without one the total is known
+   * only up to this page, which is the honest lower bound.
+   */
+  private async loadPage(page: number, pageSize: number, term: string): Promise<ServicePage> {
     const result = await this.fhirClient.search('HealthcareService', {
       ...(term === '' ? {} : { name: term }),
       _count: pageSize,
       _offset: (page - 1) * pageSize,
+      _total: 'accurate',
     });
-    return (result.entry ?? []).map((entry) => this.toResponseDto(entry.resource));
+    const items = (result.entry ?? []).map((entry) => this.toResponseDto(entry.resource));
+    const totalItems = result.total ?? (page - 1) * pageSize + items.length;
+    return buildPaginatedResponse(items, {
+      page,
+      pageSize,
+      totalItems,
+      totalPages: Math.ceil(totalItems / pageSize),
+    });
   }
 
   async findById(id: string): Promise<ServiceResponseDto> {
@@ -113,9 +129,9 @@ export class ServicesService {
    * 400). No `active` filter: HAPI keeps referential integrity on delete, so a
    * deactivated schedule pins the service too (same rule as `ROOM_IN_USE`).
    *
-   * `SERVICE_IN_USE` is not in `ERROR_CODES` (libs/contracts) yet, so
-   * `ProblemDetailsFilter` answers `409` with `errorCode: CONFLICT` and the
-   * label stays in `detail`; it becomes the `errorCode` once the code is added.
+   * `SERVICE_IN_USE` is catalogued in `ERROR_CODES` (libs/contracts), so
+   * `ProblemDetailsFilter` promotes it to the response `errorCode`; the same
+   * label stays at the start of `detail` for logs and older clients.
    */
   async remove(id: string): Promise<void> {
     const schedules = await this.fhirClient.search('Schedule', {

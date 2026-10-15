@@ -6,7 +6,7 @@ import request from 'supertest';
 
 import { AppModule } from '../src/app/app.module';
 import { InMemoryCacheStore } from '../src/modules/cache/__tests__/in-memory-cache-store';
-import { CACHE_STORE } from '../src/modules/cache/redis-cache.service';
+import { CACHE_KEYS, CACHE_STORE } from '../src/modules/cache/redis-cache.service';
 import { applyE2eEnv } from './e2e-env';
 import { bearer, DOCTOR_SCOPE } from './e2e-tokens';
 
@@ -40,6 +40,23 @@ describe('Services catalog (e2e)', () => {
     await app?.close();
   });
 
+  it('should answer the listing in the pagination envelope when the page is requested', async () => {
+    // Arrange
+    fhir.search.mockResolvedValue({
+      total: 41,
+      entry: [{ resource: { resourceType: 'HealthcareService', id: 'svc-1', name: 'Therapy', active: true } }],
+    });
+
+    // Act
+    const response = await request(app.getHttpServer()).get('/api/v1/services?page=2&pageSize=20').expect(200);
+
+    // Assert
+    expect(Array.isArray(response.body)).toBe(false);
+    expect(response.body.items).toEqual([expect.objectContaining({ id: 'svc-1', name: 'Therapy' })]);
+    expect(response.body.meta).toEqual({ page: 2, pageSize: 20, totalItems: 41, totalPages: 3 });
+    expect(fhir.search).toHaveBeenCalledWith('HealthcareService', { _count: 20, _offset: 20, _total: 'accurate' });
+  });
+
   it('should answer a repeated listing from the cache when the page and size match', async () => {
     // Act
     await request(app.getHttpServer()).get('/api/v1/services?page=1&pageSize=20').expect(200);
@@ -47,7 +64,7 @@ describe('Services catalog (e2e)', () => {
 
     // Assert
     expect(fhir.search).toHaveBeenCalledTimes(1);
-    expect([...store.entries.keys()]).toEqual(['catalog:services:1:20']);
+    expect([...store.entries.keys()]).toEqual([CACHE_KEYS.SERVICES_PAGE(1, 20)]);
   });
 
   it('should keep a search out of the cache when the term is free text', async () => {
@@ -55,7 +72,12 @@ describe('Services catalog (e2e)', () => {
     await request(app.getHttpServer()).get('/api/v1/services?search=therapy').expect(200);
 
     // Assert
-    expect(fhir.search).toHaveBeenCalledWith('HealthcareService', { name: 'therapy', _count: 20, _offset: 0 });
+    expect(fhir.search).toHaveBeenCalledWith('HealthcareService', {
+      name: 'therapy',
+      _count: 20,
+      _offset: 0,
+      _total: 'accurate',
+    });
     expect(store.entries.size).toBe(0);
   });
 

@@ -1,9 +1,10 @@
 import { BadRequestException, Controller, Get, HttpCode, HttpStatus, Param, Post, Query, Req } from '@nestjs/common';
-import { claimsOf, RequiresRoles, RequiresScopes, requirePatientRef, type RequestWithClaims } from '@medcenter/common';
+import { RequiresRoles, RequiresScopes, type RequestWithClaims } from '@medcenter/common';
 import { Role, SMART_SCOPES } from '@medcenter/contracts';
 
 import type { NotificationResponseDto } from './dto/notification-response.dto';
 import { NotificationsService } from './notifications.service';
+import { FhirIdPipe, patientReferenceOf } from './patient-reference';
 
 const MAX_PAGE_SIZE = 100;
 const DEFAULT_PAGE_SIZE = 20;
@@ -33,7 +34,7 @@ export class NotificationsController {
     @Query('pageSize') pageSize?: string,
     @Query('unread') unread?: string,
   ): Promise<NotificationResponseDto[]> {
-    const patientRef = requirePatientRef(claimsOf(request));
+    const patientRef = patientReferenceOf(request);
     return this.notifications.list(patientRef, {
       page: parsePositiveInt(page, 1, Number.MAX_SAFE_INTEGER, 'page'),
       pageSize: parsePositiveInt(pageSize, DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE, 'pageSize'),
@@ -45,7 +46,7 @@ export class NotificationsController {
   @RequiresRoles(Role.PATIENT)
   @RequiresScopes(SMART_SCOPES.PATIENT_READ)
   async unreadCount(@Req() request: RequestWithClaims): Promise<{ count: number }> {
-    const patientRef = requirePatientRef(claimsOf(request));
+    const patientRef = patientReferenceOf(request);
     return { count: await this.notifications.unreadCount(patientRef) };
   }
 
@@ -53,8 +54,8 @@ export class NotificationsController {
   @HttpCode(HttpStatus.NO_CONTENT)
   @RequiresRoles(Role.PATIENT)
   @RequiresScopes(SMART_SCOPES.PATIENT_WRITE)
-  async markRead(@Req() request: RequestWithClaims, @Param('id') id: string): Promise<void> {
-    const patientRef = requirePatientRef(claimsOf(request));
+  async markRead(@Req() request: RequestWithClaims, @Param('id', FhirIdPipe) id: string): Promise<void> {
+    const patientRef = patientReferenceOf(request);
     await this.notifications.markRead(patientRef, id);
   }
 }

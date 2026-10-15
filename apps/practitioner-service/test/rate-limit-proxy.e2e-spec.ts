@@ -1,12 +1,11 @@
 import type { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
-import { setRateLimitStore, type RateLimitStore } from '@medcenter/common';
+import { setRateLimitStore, type RateLimitStore, type TrustProxySetting } from '@medcenter/common';
 import { FHIR_CLIENT, type FhirClient } from '@medcenter/fhir';
 import request from 'supertest';
 
 import { AppModule } from '../src/app/app.module';
 import { configureApp } from '../src/bootstrap';
-import type { TrustProxySetting } from '../src/config/trust-proxy';
 import { applyE2eEnv } from './e2e-env';
 
 const LIMIT = 5;
@@ -93,6 +92,14 @@ describe('Public doctor catalog rate limit (e2e)', () => {
       expect(response.status).toBe(429);
       expect(response.headers['retry-after']).toBe('60');
       expect(response.body).toMatchObject({ errorCode: 'RATE_LIMITED' });
+    });
+
+    it('should not advertise the framework when a request is answered', async () => {
+      // Act
+      const response = await doctorsCall(app, '203.0.113.12');
+
+      // Assert
+      expect(response.headers['x-powered-by']).toBeUndefined();
     });
 
     it('should keep another patient on their own budget when a busy client is limited', async () => {

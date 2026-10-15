@@ -20,7 +20,7 @@ import type { RoomResponseDto } from './dto/room-response.dto';
 import type { RoomUsageResponseDto } from './dto/room-usage-response.dto';
 import { UpdateRoomDto } from './dto/update-room.dto';
 import { RoomUsageService } from './room-usage.service';
-import { RoomsService } from './rooms.service';
+import { RoomsService, type RoomPage } from './rooms.service';
 
 /** API §4.3–4.7. Read routes need `user/*.read`; admin routes carry `ADMIN` (BR-007). */
 @Controller('api/v1')
@@ -31,7 +31,8 @@ export class RoomsController {
   ) {}
 
   @Get('rooms')
-  async list(@Query() query: PageQueryDto): Promise<RoomResponseDto[]> {
+  @RequiresScopes(SMART_SCOPES.USER_READ)
+  async list(@Query() query: PageQueryDto): Promise<RoomPage> {
     return this.roomsService.list(query.page ?? DEFAULT_PAGE, query.pageSize ?? DEFAULT_PAGE_SIZE);
   }
 

@@ -1,4 +1,5 @@
 import { BadRequestException, ConflictException, UnprocessableEntityException } from '@nestjs/common';
+import { ERROR_CODES } from '@medcenter/contracts';
 import { FhirClientError, type FhirClient, type FhirResource } from '@medcenter/fhir';
 import { FHIR_BY, MEDCENTER_EXT } from '@medcenter/terminology';
 
@@ -211,6 +212,7 @@ describe('ServicesService', () => {
         name: 'терапевт',
         _count: 20,
         _offset: 0,
+        _total: 'accurate',
       });
     });
 
@@ -225,7 +227,7 @@ describe('ServicesService', () => {
 
       // Assert
       expect([...store.entries.keys()]).toEqual([CACHE_KEYS.SERVICES_PAGE(1, 20)]);
-      expect(fhirClient.search).toHaveBeenCalledWith('HealthcareService', { _count: 20, _offset: 0 });
+      expect(fhirClient.search).toHaveBeenCalledWith('HealthcareService', { _count: 20, _offset: 0, _total: 'accurate' });
     });
 
     it('should clear every cached page when a service is created', async () => {
@@ -258,6 +260,22 @@ describe('ServicesService', () => {
       await expect(servicesService.remove(serviceId)).rejects.toThrow('SERVICE_IN_USE');
       await expect(servicesService.remove(serviceId)).rejects.toBeInstanceOf(ConflictException);
       expect(fhirClient.delete).not.toHaveBeenCalled();
+    });
+
+    it('should throw the catalogued SERVICE_IN_USE error code when a schedule references the service', async () => {
+      // Arrange
+      fhirClient.search.mockResolvedValue({ entry: [{ resource: { resourceType: 'Schedule' } }] });
+
+      // Act
+      const error = await servicesService.remove(serviceId).then(
+        () => undefined,
+        (e: unknown) => e as ConflictException,
+      );
+
+      // Assert — ProblemDetailsFilter promotes only catalogued codes; an unknown one would degrade to CONFLICT.
+      const { errorCode } = error?.getResponse() as { errorCode: string };
+      expect(errorCode).toBe('SERVICE_IN_USE');
+      expect(ERROR_CODES).toContain(errorCode);
     });
 
     it('should look up referencing schedules through Schedule.actor when the delete is checked', async () => {

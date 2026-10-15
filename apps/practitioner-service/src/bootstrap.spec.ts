@@ -27,26 +27,29 @@ const ENV: NodeJS.ProcessEnv = {
 interface FakeApp {
   readonly app: INestApplication;
   readonly set: jest.Mock;
+  readonly disable: jest.Mock;
   readonly useGlobalPipes: jest.Mock;
 }
 
 function createFakeApp(): FakeApp {
   const set = jest.fn();
+  const disable = jest.fn();
   const useGlobalPipes = jest.fn();
-  const app = { getHttpAdapter: () => ({ getInstance: () => ({ set }) }), useGlobalPipes } as unknown as INestApplication;
-  return { app, set, useGlobalPipes };
+  const app = { getHttpAdapter: () => ({ getInstance: () => ({ set, disable }) }), useGlobalPipes } as unknown as INestApplication;
+  return { app, set, disable, useGlobalPipes };
 }
 
 describe('configureApp', () => {
-  it('should set trust proxy and mount the validation pipe when the app is configured', () => {
+  it('should set trust proxy, hide X-Powered-By and mount the validation pipe when the app is configured', () => {
     // Arrange
-    const { app, set, useGlobalPipes } = createFakeApp();
+    const { app, set, disable, useGlobalPipes } = createFakeApp();
 
     // Act
     configureApp(app, 1);
 
     // Assert
     expect(set).toHaveBeenCalledWith('trust proxy', 1);
+    expect(disable).toHaveBeenCalledWith('x-powered-by');
     expect(useGlobalPipes).toHaveBeenCalledWith(expect.any(ValidationPipe));
   });
 });
@@ -64,7 +67,7 @@ describe('createApp', () => {
 
   it('should install the rate-limit store, trust proxy and validation pipe when the environment is complete', async () => {
     // Arrange
-    const { app, set, useGlobalPipes } = createFakeApp();
+    const { app, set, disable, useGlobalPipes } = createFakeApp();
     jest.mocked(NestFactory.create).mockResolvedValue(app as never);
 
     // Act
@@ -74,6 +77,7 @@ describe('createApp', () => {
     expect(created).toBe(app);
     expect(Redis).toHaveBeenCalledWith(ENV['REDIS_URL'], expect.any(Object));
     expect(set).toHaveBeenCalledWith('trust proxy', 1);
+    expect(disable).toHaveBeenCalledWith('x-powered-by');
     expect(useGlobalPipes).toHaveBeenCalledWith(expect.any(ValidationPipe));
   });
 

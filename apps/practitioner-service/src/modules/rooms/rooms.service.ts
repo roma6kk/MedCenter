@@ -1,11 +1,17 @@
 import { ConflictException, Inject, Injectable } from '@nestjs/common';
+import type { PaginatedResponseDto } from '@medcenter/contracts';
 import { FHIR_CLIENT, type FhirClient, type FhirResource } from '@medcenter/fhir';
 import { MEDCENTER_EXT } from '@medcenter/terminology';
 
+import { toPage } from '../../common/page-envelope';
 import { CreateRoomDto } from './dto/create-room.dto';
 import { UpdateRoomDto } from './dto/update-room.dto';
 import type { RoomResponseDto } from './dto/room-response.dto';
 import { roomScheduleQuery } from './room-schedules';
+import { findAllRooms, LOCATION_PHYSICAL_TYPE_SYSTEM, ROOM_PHYSICAL_TYPE_CODE } from './room-search';
+
+/** One page of the room list in the API §0 envelope. */
+export type RoomPage = PaginatedResponseDto<RoomResponseDto>;
 
 /** FHIR R4 `Location` has no native floor element — it lives in an extension. */
 const FLOOR_EXT = MEDCENTER_EXT.ROOM_FLOOR;
@@ -22,13 +28,12 @@ const FLOOR_EXT = MEDCENTER_EXT.ROOM_FLOOR;
 export class RoomsService {
   constructor(@Inject(FHIR_CLIENT) private readonly fhirClient: FhirClient) {}
 
-  async list(page = 1, pageSize = 20): Promise<RoomResponseDto[]> {
-    const result = await this.fhirClient.search('Location', {
-      'physical-type': 'room',
-      _count: pageSize,
-      _offset: (page - 1) * pageSize,
-    });
-    return (result.entry ?? []).map((entry) => this.toResponseDto(entry.resource));
+  /** The page is cut from the room list itself, so the total counts rooms only (see {@link findAllRooms}). */
+  async list(page = 1, pageSize = 20): Promise<RoomPage> {
+    const rooms = await findAllRooms(this.fhirClient);
+    const offset = (page - 1) * pageSize;
+    const items = rooms.slice(offset, offset + pageSize).map((room) => this.toResponseDto(room));
+    return toPage(items, page, pageSize, rooms.length);
   }
 
   async findById(id: string): Promise<RoomResponseDto> {
@@ -74,11 +79,9 @@ export class RoomsService {
    * room too). Busy slots are protected (BR-001); the contract is 409 `ROOM_IN_USE`
    * (API §4.6).
    *
-   * `ROOM_IN_USE` is not in `ERROR_CODES` (libs/contracts) yet, and
-   * `ProblemDetailsFilter` only promotes codes from that list: the client gets
-   * `409` with `errorCode: CONFLICT` and the label survives in `detail` (the
-   * message below). Once the code is added to the contract it becomes the
-   * `errorCode` without a change here.
+   * `ROOM_IN_USE` is catalogued in `ERROR_CODES` (libs/contracts), so
+   * `ProblemDetailsFilter` promotes it to the response `errorCode`; the same
+   * label stays at the start of `detail` for logs and older clients.
    */
   async remove(id: string): Promise<void> {
     // An unknown id surfaces as 404 NOT_FOUND straight from the FHIR client.
@@ -109,11 +112,7 @@ export class RoomsService {
         : { extension: [{ url: FLOOR_EXT, valueInteger: dto.floor }] }),
       physicalType: {
         coding: [
-          {
-            system: 'http://terminology.hl7.org/CodeSystem/location-physical-type',
-            code: 'ro',
-            display: 'room',
-          },
+          { system: LOCATION_PHYSICAL_TYPE_SYSTEM, code: ROOM_PHYSICAL_TYPE_CODE, display: 'room' },
         ],
       },
     } as FhirResource;

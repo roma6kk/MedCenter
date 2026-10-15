@@ -1,6 +1,6 @@
 import { Logger } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
-import { createValidationPipe, RedisRateLimitStore, setRateLimitStore } from '@medcenter/common';
+import { applyHttpEdge, createValidationPipe, RedisRateLimitStore, setRateLimitStore } from '@medcenter/common';
 import { parseGuardEnv } from '@medcenter/config';
 import Redis from 'ioredis';
 
@@ -25,6 +25,8 @@ async function bootstrap(): Promise<void> {
   // Parsed before the app is created, so a missing guard variable fails the boot immediately.
   enableRateLimit(logger);
   const app = await NestFactory.create(AppModule);
+  // Trust the Traefik hop (TRUST_PROXY) so the rate limiter keys on the real client; drop X-Powered-By.
+  applyHttpEdge(app);
   // Global on purpose: without it every class-validator decorator in the
   // service is inert (see `libs/common/src/lib/pipes/validation.pipe.ts`).
   app.useGlobalPipes(createValidationPipe());

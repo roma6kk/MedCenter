@@ -159,9 +159,8 @@ describe('Room usage (e2e)', () => {
         .set('Authorization', admin)
         .expect(409);
 
-      // Assert — `ROOM_IN_USE` is not in `ERROR_CODES` yet, so the filter answers `errorCode: CONFLICT`
-      // and the label travels in `detail`. Switch the assertion to `errorCode` once the contract has it.
-      expect(response.body).toMatchObject({ status: 409, errorCode: 'CONFLICT' });
+      // Assert — `ROOM_IN_USE` is catalogued in `ERROR_CODES` (API §4.6), so the filter promotes it.
+      expect(response.body).toMatchObject({ status: 409, errorCode: 'ROOM_IN_USE' });
       expect(response.body.detail).toContain('ROOM_IN_USE');
       expect(fhir.search).toHaveBeenCalledWith('Schedule', { actor: 'Location/room-204', _count: 1 });
       expect(fhir.delete).not.toHaveBeenCalled();

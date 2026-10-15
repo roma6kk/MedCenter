@@ -1,6 +1,6 @@
 import { Logger } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
-import { createValidationPipe, RedisRateLimitStore, setRateLimitStore } from '@medcenter/common';
+import { applyHttpEdge, createValidationPipe, RedisRateLimitStore, setRateLimitStore } from '@medcenter/common';
 import Redis from 'ioredis';
 
 import { AppModule } from './app/app.module';
@@ -11,6 +11,8 @@ async function bootstrap(): Promise<void> {
   // Validated before anything starts, so a missing variable fails the boot with a clear zod error.
   const env = parsePatientServiceEnv(process.env);
   const app = await NestFactory.create(AppModule);
+  // Trust the Traefik hop (TRUST_PROXY) so the rate limiter keys on the real client; drop X-Powered-By.
+  applyHttpEdge(app);
   // NFR-006: the per-user budget is shared by every replica. Redis errors fail
   // open in `RateLimitGuard`, so the connection's error listener only logs.
   const redis = new Redis(env.REDIS_URL, { maxRetriesPerRequest: 1 });

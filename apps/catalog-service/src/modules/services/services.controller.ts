@@ -18,7 +18,7 @@ import { CreateServiceDto } from './dto/create-service.dto';
 import { ListServicesQueryDto } from './dto/list-services-query.dto';
 import { UpdateServiceDto } from './dto/update-service.dto';
 import type { ServiceResponseDto } from './dto/service-response.dto';
-import { ServicesService } from './services.service';
+import { ServicesService, type ServicePage } from './services.service';
 
 /** API §5.1. Public reads; admin writes carry `ADMIN` (BR-007). */
 @Controller('api/v1')
@@ -27,7 +27,7 @@ export class ServicesController {
 
   @Public()
   @Get('services')
-  async list(@Query() query: ListServicesQueryDto): Promise<ServiceResponseDto[]> {
+  async list(@Query() query: ListServicesQueryDto): Promise<ServicePage> {
     return this.servicesService.list(query.page ?? DEFAULT_PAGE, query.pageSize ?? DEFAULT_PAGE_SIZE, query.search);
   }
 

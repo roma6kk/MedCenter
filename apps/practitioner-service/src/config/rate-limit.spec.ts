@@ -1,9 +1,9 @@
-import { Logger, type ExecutionContext, type INestApplication } from '@nestjs/common';
+import { Logger, type ExecutionContext } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { RateLimitGuard, setRateLimitStore } from '@medcenter/common';
 import Redis from 'ioredis';
 
-import { applyTrustProxy, enableRateLimit } from './http-edge';
+import { enableRateLimit } from './rate-limit';
 import { FAIL_FAST_REDIS_OPTIONS } from './redis-options';
 
 interface FakeRedis {
@@ -29,7 +29,7 @@ const GUARD_ENV: NodeJS.ProcessEnv = {
 };
 
 function publicRequestContext(): ExecutionContext {
-  const request = { method: 'GET', originalUrl: '/api/v1/doctors/prac-1/slots', ip: '203.0.113.7' };
+  const request = { method: 'GET', originalUrl: '/api/v1/doctors', ip: '203.0.113.7' };
   return {
     switchToHttp: () => ({ getRequest: () => request, getResponse: () => ({ header: jest.fn() }) }),
     getHandler: () => enableRateLimit,
@@ -94,19 +94,5 @@ describe('enableRateLimit', () => {
     // Assert
     expect(boot).toThrow();
     expect(Redis).not.toHaveBeenCalled();
-  });
-});
-
-describe('applyTrustProxy', () => {
-  it('should set the Express trust proxy setting when the app is configured', () => {
-    // Arrange
-    const set = jest.fn();
-    const app = { getHttpAdapter: () => ({ getInstance: () => ({ set }) }) } as unknown as INestApplication;
-
-    // Act
-    applyTrustProxy(app, 1);
-
-    // Assert
-    expect(set).toHaveBeenCalledWith('trust proxy', 1);
   });
 });

@@ -148,6 +148,10 @@ describe('CACHE_KEYS', () => {
   it('should keep every services page under the prefix the services invalidation clears', () => {
     expect(CACHE_KEYS.SERVICES_PAGE(2, 20).startsWith(`${CACHE_KEYS.SERVICES}:`)).toBe(true);
   });
+
+  it('should version the services page key when the cached value is the pagination envelope', () => {
+    expect(CACHE_KEYS.SERVICES_PAGE(2, 20)).toBe('catalog:services:v2:2:20');
+  });
 });
 
 describe('RedisCacheService.invalidate', () => {

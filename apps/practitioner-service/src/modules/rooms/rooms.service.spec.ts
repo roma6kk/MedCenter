@@ -1,4 +1,5 @@
 import { ConflictException } from '@nestjs/common';
+import { ERROR_CODES } from '@medcenter/contracts';
 import { FhirClientError, type FhirClient } from '@medcenter/fhir';
 import { MEDCENTER_EXT } from '@medcenter/terminology';
 
@@ -32,7 +33,26 @@ describe('RoomsService', () => {
   it('should mark the conflict with the ROOM_IN_USE error code', async () => {
     fhirClient.search.mockResolvedValue({ entry: [{ resource: { resourceType: 'Schedule' } }] });
 
-    await expect(roomsService.remove(roomId)).rejects.toBeInstanceOf(ConflictException);
+    const error = await roomsService.remove(roomId).then(
+      () => undefined,
+      (e: unknown) => e,
+    );
+
+    expect(error).toBeInstanceOf(ConflictException);
+    expect((error as ConflictException).getResponse()).toMatchObject({ errorCode: 'ROOM_IN_USE' });
+  });
+
+  it('should throw an error code the contract catalogues when the room is in use', async () => {
+    fhirClient.search.mockResolvedValue({ entry: [{ resource: { resourceType: 'Schedule' } }] });
+
+    const error = await roomsService.remove(roomId).then(
+      () => undefined,
+      (e: unknown) => e as ConflictException,
+    );
+
+    // ProblemDetailsFilter only promotes catalogued codes; an unknown one degrades to CONFLICT.
+    const { errorCode } = error?.getResponse() as { errorCode: string };
+    expect(ERROR_CODES).toContain(errorCode);
   });
 
   it('should delete a Location when no schedule references it', async () => {

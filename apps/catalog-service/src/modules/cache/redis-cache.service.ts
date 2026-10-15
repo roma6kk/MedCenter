@@ -37,8 +37,12 @@ export const CACHE_KEYS = {
    * whole namespace — admin writes are rare and the TTL is 15 s anyway.
    */
   ALL_DOCTOR_SLOTS: 'catalog:doctor-slots:',
-  /** One page of the public services listing without a search term (API §5.1.1). */
-  SERVICES_PAGE: (page: number, pageSize: number): string => `catalog:services:${page}:${pageSize}`,
+  /**
+   * One page of the public services listing without a search term (API §5.1.1).
+   * The cached value is the `{ items, meta }` envelope; `v2` keeps a bare array
+   * cached by an earlier release from being served as one (it expires on its own).
+   */
+  SERVICES_PAGE: (page: number, pageSize: number): string => `catalog:services:v2:${page}:${pageSize}`,
 } as const;
 
 export const CACHE_TTLS = {

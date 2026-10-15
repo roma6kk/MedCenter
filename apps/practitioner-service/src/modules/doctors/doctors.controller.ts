@@ -2,7 +2,7 @@ import { Controller, Get, Param, Query } from '@nestjs/common';
 import { Public } from '@medcenter/common';
 import { DEFAULT_PAGE, DEFAULT_PAGE_SIZE } from '@medcenter/contracts';
 
-import { DoctorsService } from './doctors.service';
+import { DoctorsService, type DoctorPage } from './doctors.service';
 import { DoctorIdParamDto } from './dto/doctor-id-param.dto';
 import type { DoctorResponseDto } from './dto/doctor-response.dto';
 import { ListDoctorsQueryDto } from './dto/list-doctors-query.dto';
@@ -14,7 +14,7 @@ export class DoctorsController {
 
   @Public()
   @Get('doctors')
-  async list(@Query() query: ListDoctorsQueryDto): Promise<DoctorResponseDto[]> {
+  async list(@Query() query: ListDoctorsQueryDto): Promise<DoctorPage> {
     const { serviceId, specialty, search } = query;
     return this.doctorsService.list(
       { serviceId, specialty, search },

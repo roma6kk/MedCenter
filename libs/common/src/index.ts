@@ -13,3 +13,4 @@ export * from './lib/guards/rate-limit.guard';
 export * from './lib/guards/redis-rate-limit.store';
 export * from './lib/pipes/validation.pipe';
 export * from './lib/patient-compartment';
+export * from './lib/http';

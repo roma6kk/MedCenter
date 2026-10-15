@@ -1,21 +1,21 @@
 import type { INestApplication, Logger } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
-import { createValidationPipe } from '@medcenter/common';
+import { applyHttpEdge, createValidationPipe, parseTrustProxy, type TrustProxySetting } from '@medcenter/common';
 
 import { AppModule } from './app/app.module';
-import { applyTrustProxy, enableRateLimit } from './config/http-edge';
-import { parseTrustProxy, type TrustProxySetting } from './config/trust-proxy';
+import { enableRateLimit } from './config/rate-limit';
 
 /**
- * The HTTP pipeline every request goes through: the client address Express
- * reports (`trust proxy`, so the rate-limit bucket is per client and not per
- * Traefik) and the global validation pipe (without it every class-validator
- * decorator in the service is inert, see `libs/common` `validation.pipe.ts`).
+ * The HTTP pipeline every request goes through: the shared edge (`applyHttpEdge`:
+ * `trust proxy`, so the rate-limit bucket is per client and not per Traefik, and
+ * no `X-Powered-By`) and the global validation pipe (without it every
+ * class-validator decorator in the service is inert, see `libs/common`
+ * `validation.pipe.ts`).
  * `createApp` and the e2e suites call this same function, so the pipeline under
  * test is the pipeline that ships.
  */
 export function configureApp(app: INestApplication, trustProxy: TrustProxySetting): void {
-  applyTrustProxy(app, trustProxy);
+  applyHttpEdge(app, trustProxy);
   app.useGlobalPipes(createValidationPipe());
 }
 
