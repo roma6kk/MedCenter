@@ -1,4 +1,4 @@
-import { MiddlewareConsumer, Module, type NestModule } from '@nestjs/common';
+import { MiddlewareConsumer, Module, RequestMethod, type NestModule } from '@nestjs/common';
 import { APP_FILTER, APP_GUARD } from '@nestjs/core';
 import {
   JwtAuthGuard,
@@ -10,7 +10,11 @@ import {
 } from '@medcenter/common';
 
 import { AppController } from './app.controller';
+import { LOGIN_ROUTE, REGISTER_ROUTE, pinCredentialRouteBucket } from './credential-route.middleware';
+import { HealthModule } from '../modules/health/health.module';
 import { OAuthModule } from '../modules/oauth/oauth.module';
+import { TerminologyModule } from '../modules/terminology/terminology.module';
+import { UsersModule } from '../modules/users/users.module';
 
 function decodePemFromBase64Env(key: string): string {
   const encoded = process.env[key];
@@ -43,7 +47,7 @@ ensureSigningEnv();
  * rate-limit protection living behind Traefik.
  */
 @Module({
-  imports: [OAuthModule],
+  imports: [OAuthModule, UsersModule, TerminologyModule, HealthModule],
   controllers: [AppController],
   providers: [
     { provide: APP_GUARD, useClass: JwtAuthGuard },
@@ -56,5 +60,11 @@ ensureSigningEnv();
 export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer): void {
     consumer.apply(RequestIdMiddleware).forRoutes('*');
+    // Before the APP_GUARDs: the rate-limit key of the two credential routes is the client IP only.
+    for (const route of [LOGIN_ROUTE, REGISTER_ROUTE]) {
+      consumer
+        .apply(pinCredentialRouteBucket(route))
+        .forRoutes({ path: route.slice(1), method: RequestMethod.POST });
+    }
   }
 }

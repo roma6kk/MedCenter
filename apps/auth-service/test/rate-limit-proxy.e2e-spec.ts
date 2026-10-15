@@ -1,13 +1,8 @@
 import type { INestApplication } from '@nestjs/common';
-import { Test } from '@nestjs/testing';
-import {
-  createValidationPipe,
-  setRateLimitStore,
-  type RateLimitStore,
-} from '@medcenter/common';
+import { setRateLimitStore, type RateLimitStore } from '@medcenter/common';
 import request from 'supertest';
 
-import { AppModule } from '../src/app/app.module';
+import { startAuthApp } from './app-harness';
 import { E2E_CLIENT_ID, applyE2eEnv } from './e2e-env';
 
 // Same stub as `oauth.e2e-spec.ts`: `jose` is pure ESM and Jest's CJS runtime cannot load it.
@@ -34,15 +29,12 @@ class MemoryRateLimitStore implements RateLimitStore {
   }
 }
 
+/**
+ * Express reads `X-Forwarded-For` only when `trust proxy` is set; this is the
+ * knob a Traefik-fronted deployment turns on.
+ */
 async function bootApp(trustProxy: boolean | number): Promise<INestApplication> {
-  const moduleRef = await Test.createTestingModule({ imports: [AppModule] }).compile();
-  const app = moduleRef.createNestApplication();
-  app.useGlobalPipes(createValidationPipe());
-  // Express reads `X-Forwarded-For` only when `trust proxy` is set; this is the
-  // knob a Traefik-fronted deployment turns on.
-  app.getHttpAdapter().getInstance().set('trust proxy', trustProxy);
-  await app.init();
-  return app;
+  return (await startAuthApp({ trustProxy })).app;
 }
 
 /** An unknown refresh token: cheap, side-effect free, answered 400 below the limit. */

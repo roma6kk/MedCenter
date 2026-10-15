@@ -1,46 +1,12 @@
-import { OAuthError } from './oauth-error';
+import { Role } from '@medcenter/contracts';
 
-import { JwtService } from './jwt.service';
-import { OAuthService } from './oauth.service';
-import { PkceService } from './pkce.service';
 import {
-  InMemoryTokenDenylist,
-  InMemoryTokenStore,
-  TokenService,
-} from './token.service';
-import {
-  TEST_REDIRECT_URI,
-  createTestClient,
-  createTestKeys,
-} from './__tests__/test-keys';
-
-interface Harness {
-  readonly service: OAuthService;
-  readonly pkce: PkceService;
-  readonly tokens: TokenService;
-}
-
-function createHarness(): Harness {
-  const denylist = new InMemoryTokenDenylist();
-  const tokens = new TokenService(new InMemoryTokenStore(), denylist);
-  const pkce = new PkceService();
-  const service = new OAuthService(pkce, new JwtService(createTestKeys()), tokens);
-
-  return { service, pkce, tokens };
-}
-
-async function captureOAuthError(promise: Promise<unknown>): Promise<OAuthError> {
-  const error = await promise.then(
-    () => null,
-    (thrown: unknown) => thrown,
-  );
-  expect(error).toBeInstanceOf(OAuthError);
-  return error as OAuthError;
-}
-
-function cookieFromRedirect(redirectUrl: string, key: 'code' | 'state'): string {
-  return new URL(redirectUrl).searchParams.get(key) ?? '';
-}
+  captureOAuthError,
+  createOAuthHarness as createHarness,
+  decodeClaims,
+  readRedirectParam as cookieFromRedirect,
+} from './__tests__/oauth-harness';
+import { TEST_REDIRECT_URI, createTestClient } from './__tests__/test-keys';
 
 describe('OAuthService', () => {
   it('should return a redirect carrying the code and state when authorize succeeds', async () => {
@@ -128,7 +94,8 @@ describe('OAuthService', () => {
   });
 
   it('should issue a token pair when the code and PKCE verifier are valid', async () => {
-    const { service, pkce } = createHarness();
+    const { service, pkce, identities } = createHarness();
+    identities.set('u1', { role: Role.PATIENT, patientId: '1' });
     const { codeVerifier, codeChallenge } = pkce.generate();
     const redirect = await service.authorize({
       client: createTestClient(),
@@ -148,17 +115,16 @@ describe('OAuthService', () => {
     expect(response.token_type).toBe('Bearer');
     expect(response.expires_in).toBe(900);
     expect(response.scope).toBe('patient/*.read');
-    expect(response.patient).toBe('Patient/1');
+    expect(response.patient).toBe('1');
     expect(response.refresh_token.length).toBeGreaterThan(0);
-    const claims = JSON.parse(
-      Buffer.from(response.access_token.split('.')[1] ?? '', 'base64url').toString('utf8'),
-    ) as { readonly role?: string; readonly patient?: string; readonly sid?: string };
-    expect(claims.role).toBe('PATIENT');
-    expect(claims.patient).toBe('Patient/1');
+    const claims = decodeClaims(response.access_token);
+    expect(claims['role']).toBe('PATIENT');
+    expect(claims['patient']).toBe('1');
+    expect(claims['fhirUser']).toBe('Patient/1');
     // The access token's session id is the paired refresh token's `jti`, which is
     // what lets the guard layer treat a revocation of that refresh token as a
     // revocation of the pair (API error catalogue `TOKEN_REVOKED`).
-    expect(claims.sid).toBe(response.refresh_token);
+    expect(claims['sid']).toBe(response.refresh_token);
   });
 
   it('should mark the whole session as revoked when the owner revokes the refresh token', async () => {

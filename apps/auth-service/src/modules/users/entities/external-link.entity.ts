@@ -1,14 +1,17 @@
-import { Column, CreateDateColumn, Entity, PrimaryGeneratedColumn, Unique } from 'typeorm';
+import { Column, CreateDateColumn, Entity, Index, PrimaryGeneratedColumn, Unique } from 'typeorm';
 
 export type ExternalResourceType = 'Patient' | 'PractitionerRole';
 
 /**
  * FHIR bridge: links a local `User` to at most one `Patient` and at most one
  * `PractitionerRole` in HAPI (enforced by the unique index on
- * `(user_id, resource_type)` in migration `1700000000000-Init`).
+ * `(user_id, resource_type)` in migration `1700000000000-Init`), and a FHIR
+ * resource to at most one user (`uq_external_link_resource`, migration
+ * `1700000000001-RolesAndLinks`).
  */
 @Entity({ name: 'external_link', schema: 'auth' })
 @Unique('uq_external_link_user_id_resource_type', ['userId', 'resourceType'])
+@Index('uq_external_link_resource', ['resourceType', 'resourceId'], { unique: true })
 export class ExternalLink {
   @PrimaryGeneratedColumn('uuid')
   id!: string;

@@ -1,6 +1,7 @@
 import { Test } from '@nestjs/testing';
 import { TOKEN_REVOCATION, type TokenRevocationChecker } from '@medcenter/common';
 
+import { withInfrastructureFakes } from '../../__tests__/infrastructure-fakes';
 import { OAuthModule, loadRegisteredClients, loadSigningKeys } from './oauth.module';
 import { TokenService } from './token.service';
 
@@ -87,7 +88,7 @@ describe('OAuthModule wiring', () => {
   });
 
   it('should bind TOKEN_REVOCATION to the issuer denylist so the guard layer can see revocations', async () => {
-    const moduleRef = await Test.createTestingModule({ imports: [OAuthModule] }).compile();
+    const moduleRef = await withInfrastructureFakes(Test.createTestingModule({ imports: [OAuthModule] })).compile();
 
     try {
       const checker = moduleRef.get<TokenRevocationChecker>(TOKEN_REVOCATION);
@@ -111,7 +112,7 @@ describe('OAuthModule wiring', () => {
   });
 
   it('should resolve the guard-layer checker to the same revocation state as the token service', async () => {
-    const moduleRef = await Test.createTestingModule({ imports: [OAuthModule] }).compile();
+    const moduleRef = await withInfrastructureFakes(Test.createTestingModule({ imports: [OAuthModule] })).compile();
 
     try {
       const checker = moduleRef.get<TokenRevocationChecker>(TOKEN_REVOCATION);

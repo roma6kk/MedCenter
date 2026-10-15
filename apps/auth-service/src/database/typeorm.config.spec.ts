@@ -7,6 +7,7 @@ import { Role } from '../modules/users/entities/role.entity';
 import { User } from '../modules/users/entities/user.entity';
 import { UserRole } from '../modules/users/entities/user-role.entity';
 import { Init1700000000000 } from './migrations/1700000000000-Init';
+import { RolesAndLinks1700000000001 } from './migrations/1700000000001-RolesAndLinks';
 import {
   AUTH_SCHEMA,
   authEntities,
@@ -43,10 +44,10 @@ describe('auth data source factory', () => {
     expect(options.synchronize).toBe(false);
   });
 
-  it('should run the single Init migration instead of syncing the schema', () => {
+  it('should run the migrations in order instead of syncing the schema', () => {
     const options = buildDataSource(CONNECTION).options;
 
-    expect(options.migrations).toEqual([Init1700000000000]);
+    expect(options.migrations).toEqual([Init1700000000000, RolesAndLinks1700000000001]);
   });
 
   it('should pass the connection options straight through to postgres', () => {

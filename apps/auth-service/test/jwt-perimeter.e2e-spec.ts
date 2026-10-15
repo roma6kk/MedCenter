@@ -1,8 +1,7 @@
 import { Controller, Get, INestApplication } from '@nestjs/common';
-import { Test } from '@nestjs/testing';
 import request from 'supertest';
-import { AppModule } from '../src/app/app.module';
-import { applyE2eEnv } from './e2e-env';
+
+import { startAuthApp } from './app-harness';
 
 /**
  * Spec-only probe controller: it never ships with the application, it exists to
@@ -21,15 +20,9 @@ describe('JWT perimeter (distributed guard stack, ADR-009)', () => {
   let app: INestApplication;
 
   beforeAll(async () => {
-    // `AppModule` mounts the OAuth surface, whose signing keys are an eager provider
-    // factory, so the app cannot be instantiated without this environment.
-    applyE2eEnv();
-    const moduleRef = await Test.createTestingModule({
-      imports: [AppModule],
-      controllers: [PerimeterProbeController],
-    }).compile();
-    app = moduleRef.createNestApplication();
-    await app.init();
+    // The harness declares the signing environment the eager OAuth providers
+    // need and swaps PostgreSQL/HAPI/RabbitMQ for in-memory fakes.
+    app = (await startAuthApp({ controllers: [PerimeterProbeController] })).app;
   });
 
   afterAll(async () => {

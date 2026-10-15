@@ -1,7 +1,14 @@
-import { Injectable } from '@nestjs/common';
-import { Role } from '@medcenter/contracts';
+import { Inject, Injectable } from '@nestjs/common';
 
 import type { RegisteredClient } from './guards/client.guard';
+import {
+  IDENTITY_RESOLVER,
+  isRole,
+  restrictScopeToRole,
+  toIdentityClaims,
+  type IdentityClaims,
+  type IdentityResolver,
+} from './identity';
 import { ACCESS_TOKEN_TTL_SECONDS, JwtService } from './jwt.service';
 import { OAuthError } from './oauth-error';
 import { PkceService } from './pkce.service';
@@ -57,6 +64,7 @@ export interface TokenResponse {
   readonly expires_in: number;
   readonly refresh_token: string;
   readonly scope: string;
+  /** SMART launch context: the bare Patient id (PATIENT tokens only). */
   readonly patient?: string;
 }
 
@@ -79,17 +87,37 @@ function narrowScope(requested: string, allowed: ReadonlyArray<string>): string 
   return narrowed.join(' ');
 }
 
+/**
+ * A role never receives another role's SMART scopes (API §0 scope matrix):
+ * the browser client asks for every scope at once, so the grant is narrowed to
+ * the principal's role as well as to the client registration.
+ */
+function narrowScopeToPrincipal(scope: string, role: string | undefined): string {
+  if (!isRole(role)) {
+    return scope;
+  }
+  const narrowed = restrictScopeToRole(scope, role);
+  if (narrowed.length === 0) {
+    throw OAuthError.invalidScope('None of the requested scopes is allowed for this account');
+  }
+  return narrowed;
+}
+
 @Injectable()
 export class OAuthService {
   constructor(
     private readonly pkce: PkceService,
     private readonly jwt: JwtService,
     private readonly tokens: TokenService,
+    @Inject(IDENTITY_RESOLVER) private readonly identities: IdentityResolver,
   ) {}
 
   /** API 2.1.2 — issues a single-use authorization code and returns the redirect URL. */
   async authorize(params: AuthorizeParams): Promise<string> {
-    const scope = narrowScope(params.scope, params.client.scopes);
+    const scope = narrowScopeToPrincipal(
+      narrowScope(params.scope, params.client.scopes),
+      params.principal.role,
+    );
     const code = await this.tokens.issue({
       userId: params.principal.userId,
       clientId: params.client.clientId,
@@ -188,31 +216,32 @@ export class OAuthService {
    * The refresh token is minted **first**: its `jti` becomes the `sid` of the
    * access token, which is what lets `JwtAuthGuard` treat revoking the refresh
    * token (RFC 7009 / logout) as revoking the pair.
+   *
+   * Role, `patient` and `fhirUser` are resolved from the `auth` schema on every
+   * grant — never copied from the stored token — so a deactivated account
+   * cannot refresh, and a role change or a new `ExternalLink` applies at the
+   * next refresh. The scope is re-narrowed to the current role for the same
+   * reason.
    */
   private async issuePair(stored: StoredToken): Promise<TokenResponse> {
-    // N7: the default comes from the catalogue enum, so a rename of the role
-    // propagates instead of silently forking from it. `StoredToken.role` stays
-    // `string` — the store persists whatever the authorize call recorded, and
-    // only the fallback here is owned by this service.
-    const defaultRole: string = Role.PATIENT;
-    const role = stored.role ?? defaultRole;
+    const { scope, claims } = await this.resolveGrant(stored);
     const refresh = await this.tokens.issue({
       userId: stored.userId,
       clientId: stored.clientId,
-      scope: stored.scope,
+      scope,
       kind: 'refresh',
       ttlSeconds: REFRESH_TOKEN_TTL_SECONDS,
-      ...(stored.role !== undefined ? { role: stored.role } : {}),
-      ...(stored.patientRef !== undefined ? { patientRef: stored.patientRef } : {}),
-      ...(stored.fhirUser !== undefined ? { fhirUser: stored.fhirUser } : {}),
+      role: claims.role,
+      ...(claims.patient !== undefined ? { patientRef: claims.patient } : {}),
+      ...(claims.fhirUser !== undefined ? { fhirUser: claims.fhirUser } : {}),
     });
     const accessToken = this.jwt.signAccessToken({
       sub: stored.userId,
-      scope: stored.scope,
-      role,
+      scope,
+      role: claims.role,
       sid: refresh.jti,
-      ...(stored.patientRef !== undefined ? { patientRef: stored.patientRef } : {}),
-      ...(stored.fhirUser !== undefined ? { fhirUser: stored.fhirUser } : {}),
+      ...(claims.patient !== undefined ? { patientRef: claims.patient } : {}),
+      ...(claims.fhirUser !== undefined ? { fhirUser: claims.fhirUser } : {}),
     });
 
     return {
@@ -220,8 +249,20 @@ export class OAuthService {
       token_type: 'Bearer',
       expires_in: ACCESS_TOKEN_TTL_SECONDS,
       refresh_token: refresh.jti,
-      scope: stored.scope,
-      ...(stored.patientRef !== undefined ? { patient: stored.patientRef } : {}),
+      scope,
+      ...(claims.patient !== undefined ? { patient: claims.patient } : {}),
     };
+  }
+
+  private async resolveGrant(stored: StoredToken): Promise<{ readonly scope: string; readonly claims: IdentityClaims }> {
+    const identity = await this.identities.resolve(stored.userId);
+    if (identity === null) {
+      throw OAuthError.invalidGrant('The account is inactive or no longer exists');
+    }
+    const scope = restrictScopeToRole(stored.scope, identity.role);
+    if (scope.length === 0) {
+      throw OAuthError.invalidGrant('The granted scope is not allowed for the current role');
+    }
+    return { scope, claims: toIdentityClaims(identity) };
   }
 }

@@ -1,10 +1,11 @@
 import { Controller, Get, INestApplication, Req } from '@nestjs/common';
-import { Test } from '@nestjs/testing';
-import { createValidationPipe, type RequestWithClaims } from '@medcenter/common';
+import type { RequestWithClaims } from '@medcenter/common';
+import { Role } from '@medcenter/contracts';
 import request from 'supertest';
 
-import { AppModule } from '../src/app/app.module';
+import { StubIdentityResolver } from '../src/modules/oauth/__tests__/identity-stub';
 import { TokenService } from '../src/modules/oauth/token.service';
+import { startAuthApp } from './app-harness';
 import {
   E2E_CLIENT_ID,
   E2E_CONFIDENTIAL_CLIENT_ID,
@@ -13,7 +14,6 @@ import {
   E2E_ISSUER,
   E2E_KEY_ID,
   E2E_REDIRECT_URI,
-  applyE2eEnv,
 } from './e2e-env';
 
 // `jose` ships pure ESM and Jest's CJS runtime cannot load it at all, so the
@@ -58,17 +58,15 @@ describe('OAuth / SMART surface (API 2.1.1–2.1.5)', () => {
   let tokens: TokenService;
 
   beforeAll(async () => {
-    applyE2eEnv();
-    const moduleRef = await Test.createTestingModule({
-      imports: [AppModule],
+    // The synthetic users of this suite are minted codes for the confidential
+    // `user/*.read` client, so they resolve as staff (the scope matrix would
+    // strip `user/*` from a PATIENT and fail the grant).
+    const started = await startAuthApp({
       controllers: [RevocationProbeController],
-    }).compile();
-    tokens = moduleRef.get(TokenService);
-    app = moduleRef.createNestApplication();
-    // The same factory `main.ts` mounts, so this suite validates through the
-    // pipeline that ships rather than through an unvalidated handler.
-    app.useGlobalPipes(createValidationPipe());
-    await app.init();
+      identities: new StubIdentityResolver(Role.DOCTOR),
+    });
+    app = started.app;
+    tokens = started.moduleRef.get(TokenService);
   });
 
   afterAll(async () => {
@@ -208,7 +206,7 @@ describe('OAuth / SMART surface (API 2.1.1–2.1.5)', () => {
       expect(response.headers['location']).toBeUndefined();
     });
 
-    it('should bounce an authenticated-looking request to the registered redirect_uri with access_denied', async () => {
+    it('should render the login form instead of bouncing when the browser has no login session', async () => {
       const response = await request(app.getHttpServer())
         .get(
           `/oauth/authorize?${authorizeQuery({
@@ -221,19 +219,19 @@ describe('OAuth / SMART surface (API 2.1.1–2.1.5)', () => {
           })}`,
         )
         .redirects(0)
-        .expect(302);
+        .expect(200);
 
-      const target = new URL(String(response.headers['location']));
-      expect(target.origin + target.pathname).toBe(E2E_REDIRECT_URI);
-      expect(target.searchParams.get('error')).toBe('access_denied');
-      expect(target.searchParams.get('state')).toBe('state-1');
+      expect(response.headers['content-type']).toContain('text/html');
+      expect(response.headers['cache-control']).toBe('no-store');
+      expect(response.headers['content-security-policy']).toContain("default-src 'none'");
+      expect(response.text).toContain('action="/oauth/login"');
+      expect(response.headers['location']).toBeUndefined();
     });
 
-    it('should not issue an authorization code because the route never carries a principal', async () => {
-      // Assumption UI-1: the credential form is rendered inside this route. Until it
-      // exists nothing populates `request.user` — the route is `@Public()`, so the
-      // global JwtAuthGuard returns early and never attaches claims. The
-      // authorization_code grant is therefore unreachable over HTTP end to end.
+    it('should not issue an authorization code when only a Bearer token is presented', async () => {
+      // A SMART access token is not an interactive login: the route is
+      // `@Public()`, so the global JwtAuthGuard never attaches claims, and only
+      // the authorization server's own login session yields a principal.
       const response = await request(app.getHttpServer())
         .get(
           `/oauth/authorize?${authorizeQuery({
@@ -245,11 +243,10 @@ describe('OAuth / SMART surface (API 2.1.1–2.1.5)', () => {
         )
         .set('authorization', 'Bearer not.a.real.token')
         .redirects(0)
-        .expect(302);
+        .expect(200);
 
-      const target = new URL(String(response.headers['location']));
-      expect(target.searchParams.get('code')).toBeNull();
-      expect(target.searchParams.get('error')).toBe('access_denied');
+      expect(response.headers['location']).toBeUndefined();
+      expect(response.text).toContain('<form');
     });
   });
 
@@ -399,10 +396,9 @@ describe('OAuth / SMART surface (API 2.1.1–2.1.5)', () => {
 
     // Ownership (RFC 7009 §2.1) is asserted at the service and controller layers
     // (`oauth.service.spec.ts`, `oauth.controller.spec.ts`) for principals other
-    // than the owner. Minting a pair directly from `TokenService` is what makes
-    // the *owner's* path reachable over HTTP (see the revocation suite below),
-    // because the authorization_code grant itself is gated behind Assumption UI-1
-    // (the login form is not yet rendered inside `GET /oauth/authorize`).
+    // than the owner. The revocation suite below mints its pairs directly from
+    // `TokenService` to stay independent of the login form; the full browser
+    // flow (form → session → code → token) is `login-flow.e2e-spec.ts`.
   });
 
   describe('guard-layer revocation (TOKEN_REVOKED)', () => {

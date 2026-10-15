@@ -5,9 +5,9 @@ import { OAuthService } from './oauth.service';
 import { PkceService } from './pkce.service';
 import { OAuthError } from './oauth-error';
 import { InMemoryTokenDenylist, InMemoryTokenStore, TokenService } from './token.service';
-import { TEST_REDIRECT_URI, createTestClient, createTestKeys } from './__tests__/test-keys';
+import { StubIdentityResolver } from './__tests__/identity-stub';
+import { createTestKeys } from './__tests__/test-keys';
 
-type AuthorizeArgs = Parameters<OAuthController['authorize']>;
 type TokenArg = Parameters<OAuthController['token']>[0];
 type RevokeArg = Parameters<OAuthController['revoke']>[0];
 type RevokeRequest = Parameters<OAuthController['revoke']>[1];
@@ -27,7 +27,7 @@ function createHarness(): ControllerHarness {
   const keys = createTestKeys();
   const tokens = new TokenService(new InMemoryTokenStore(), new InMemoryTokenDenylist());
   const pkce = new PkceService();
-  const oauth = new OAuthService(pkce, new JwtService(keys), tokens);
+  const oauth = new OAuthService(pkce, new JwtService(keys), tokens, new StubIdentityResolver());
 
   return {
     controller: new OAuthController(oauth, new JwksService(keys), keys),
@@ -44,11 +44,6 @@ async function captureOAuthError(promise: Promise<unknown>): Promise<OAuthError>
   );
   expect(error).toBeInstanceOf(OAuthError);
   return error as OAuthError;
-}
-
-function makeRedirectSpy(): { redirect: jest.Mock; response: AuthorizeArgs[1] } {
-  const redirect = jest.fn();
-  return { redirect, response: { redirect } as unknown as AuthorizeArgs[1] };
 }
 
 describe('OAuthController', () => {
@@ -169,145 +164,5 @@ describe('OAuthController', () => {
       controller.revoke({ refreshToken: issued.jti }, revokeRequest('intruder-2')),
     ).resolves.toEqual({ revoked: false });
     await expect(tokens.isDenied(issued.jti)).resolves.toBe(false);
-  });
-
-  it('should let an infrastructure failure reach the global filter instead of reporting access_denied', async () => {
-    const { controller, oauth, pkce } = createHarness();
-    const { redirect, response } = makeRedirectSpy();
-    const { codeChallenge } = pkce.generate();
-    jest.spyOn(oauth, 'authorize').mockRejectedValue(new Error('token store unreachable'));
-    const request = {
-      query: {
-        client_id: 'medcenter-web',
-        redirect_uri: TEST_REDIRECT_URI,
-        state: 'st',
-        code_challenge: codeChallenge,
-      },
-      client: createTestClient(),
-      user: { sub: 'u1', role: 'PATIENT' },
-    } as unknown as AuthorizeArgs[0];
-
-    // An outage is not a consent decision: it must not be reported to the user as
-    // `access_denied` and must not be swallowed either (M4).
-    await expect(controller.authorize(request, response)).rejects.toThrow(
-      'token store unreachable',
-    );
-    expect(redirect).not.toHaveBeenCalled();
-  });
-
-  it('should bounce a token-endpoint-only failure to the client as access_denied', async () => {
-    // RFC 6749 §4.1.2.1 does not allow `invalid_grant` on the authorize redirect.
-    const { controller, oauth, pkce } = createHarness();
-    const { redirect, response } = makeRedirectSpy();
-    const { codeChallenge } = pkce.generate();
-    jest.spyOn(oauth, 'authorize').mockRejectedValue(OAuthError.invalidGrant('not allowed here'));
-    const request = {
-      query: {
-        client_id: 'medcenter-web',
-        redirect_uri: TEST_REDIRECT_URI,
-        state: 'st',
-        code_challenge: codeChallenge,
-      },
-      client: createTestClient(),
-      user: { sub: 'u1', role: 'PATIENT' },
-    } as unknown as AuthorizeArgs[0];
-
-    await controller.authorize(request, response);
-
-    expect(redirect).toHaveBeenCalledTimes(1);
-    const target = new URL(String(redirect.mock.calls[0]?.[0]));
-    expect(target.searchParams.get('error')).toBe('access_denied');
-    expect(target.searchParams.get('state')).toBe('st');
-  });
-
-  it('should forward invalid_request to the client instead of access_denied', async () => {
-    const { controller, oauth, pkce } = createHarness();
-    const { redirect, response } = makeRedirectSpy();
-    const { codeChallenge } = pkce.generate();
-    jest
-      .spyOn(oauth, 'authorize')
-      .mockRejectedValue(OAuthError.invalidRequest('redirect_uri was rejected'));
-    const request = {
-      query: {
-        client_id: 'medcenter-web',
-        redirect_uri: TEST_REDIRECT_URI,
-        state: 'st',
-        code_challenge: codeChallenge,
-      },
-      client: createTestClient(),
-      user: { sub: 'u1', role: 'PATIENT' },
-    } as unknown as AuthorizeArgs[0];
-
-    await controller.authorize(request, response);
-
-    const target = new URL(String(redirect.mock.calls[0]?.[0]));
-    expect(target.searchParams.get('error')).toBe('invalid_request');
-    expect(target.searchParams.get('state')).toBe('st');
-  });
-
-  it('should redirect with invalid_scope when no requested scope is granted to the client', async () => {
-    // M5: the real service raises `invalid_scope`; the SMART client must see it
-    // on the redirect (RFC 6749 §4.1.2.1), not a generic `access_denied`.
-    const { controller, pkce } = createHarness();
-    const { redirect, response } = makeRedirectSpy();
-    const { codeChallenge } = pkce.generate();
-    const request = {
-      query: {
-        client_id: 'medcenter-web',
-        redirect_uri: TEST_REDIRECT_URI,
-        state: 'st',
-        scope: 'system/*.write',
-        code_challenge: codeChallenge,
-      },
-      client: createTestClient(),
-      user: { sub: 'u1', role: 'PATIENT' },
-    } as unknown as AuthorizeArgs[0];
-
-    await controller.authorize(request, response);
-
-    expect(redirect).toHaveBeenCalledTimes(1);
-    const target = new URL(String(redirect.mock.calls[0]?.[0]));
-    expect(target.searchParams.get('error')).toBe('invalid_scope');
-    expect(target.searchParams.get('code')).toBeNull();
-    expect(target.searchParams.get('state')).toBe('st');
-  });
-
-  it('should bounce to the client with access_denied when no principal is present', async () => {
-    const { controller } = createHarness();
-    const { redirect, response } = makeRedirectSpy();
-    const request = {
-      query: { client_id: 'medcenter-web', redirect_uri: TEST_REDIRECT_URI, state: 'st' },
-      client: createTestClient(),
-    } as unknown as AuthorizeArgs[0];
-
-    await controller.authorize(request, response);
-
-    expect(redirect).toHaveBeenCalledTimes(1);
-    const target = new URL(String(redirect.mock.calls[0]?.[0]));
-    expect(target.searchParams.get('error')).toBe('access_denied');
-    expect(target.searchParams.get('state')).toBe('st');
-  });
-
-  it('should redirect with a code when the principal and PKCE challenge are valid', async () => {
-    const { controller, pkce } = createHarness();
-    const { redirect, response } = makeRedirectSpy();
-    const { codeChallenge } = pkce.generate();
-    const request = {
-      query: {
-        client_id: 'medcenter-web',
-        redirect_uri: TEST_REDIRECT_URI,
-        state: 'st',
-        scope: 'patient/*.read',
-        code_challenge: codeChallenge,
-      },
-      client: createTestClient(),
-      user: { sub: 'u1', role: 'PATIENT', patient: 'Patient/1' },
-    } as unknown as AuthorizeArgs[0];
-
-    await controller.authorize(request, response);
-
-    const target = new URL(String(redirect.mock.calls[0]?.[0]));
-    expect(target.searchParams.get('state')).toBe('st');
-    expect(target.searchParams.get('code')).toBeTruthy();
   });
 });

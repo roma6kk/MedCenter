@@ -2,6 +2,8 @@ import { Module } from '@nestjs/common';
 import { TOKEN_REVOCATION } from '@medcenter/common';
 import { z } from 'zod';
 
+import { UsersModule } from '../users/users.module';
+import { AuthorizeController } from './authorize.controller';
 import { OAuthErrorFilter } from './filters/oauth-error.filter';
 import { AuthorizePageGuard } from './guards/authorize-page.guard';
 import { TokenClientGuard } from './guards/token-client.guard';
@@ -13,6 +15,14 @@ import {
 } from './guards/client.guard';
 import { SIGNING_KEYS, JwtService, type SigningKeys } from './jwt.service';
 import { JwksService } from './jwks.service';
+import { LOGIN_ATTEMPT_STORE, createLoginAttemptStore } from './login/login-attempt-store';
+import { LOGIN_KEYS, loadLoginKeys } from './login/login-keys';
+import { LoginPageResponder } from './login/login-page.responder';
+import { LoginRateLimitFilter } from './login/login-rate-limit.filter';
+import { LoginSessionGuard } from './login/login-session.guard';
+import { LoginSessionService } from './login/login-session.service';
+import { LoginThrottle } from './login/login-throttle.service';
+import { LoginController } from './login/login.controller';
 import { OAuthController } from './oauth.controller';
 import { OAuthService } from './oauth.service';
 import { PkceService } from './pkce.service';
@@ -79,8 +89,15 @@ export function loadRegisteredClients(source: NodeJS.ProcessEnv = process.env): 
   return registeredClientsSchema.parse(parsed);
 }
 
+/**
+ * SMART / OAuth2 surface (API 2.1) plus the authorization server's own login
+ * step (assumption UI-1). `UsersModule` supplies the two answers it needs from
+ * the `auth` schema: credential verification and the identity a token is
+ * minted for (`IDENTITY_RESOLVER`).
+ */
 @Module({
-  controllers: [OAuthController],
+  imports: [UsersModule],
+  controllers: [OAuthController, AuthorizeController, LoginController],
   providers: [
     PkceService,
     JwtService,
@@ -91,6 +108,13 @@ export function loadRegisteredClients(source: NodeJS.ProcessEnv = process.env): 
     TokenClientGuard,
     AuthorizePageGuard,
     OAuthErrorFilter,
+    LoginSessionService,
+    LoginPageResponder,
+    LoginSessionGuard,
+    LoginThrottle,
+    LoginRateLimitFilter,
+    { provide: LOGIN_ATTEMPT_STORE, useFactory: createLoginAttemptStore },
+    { provide: LOGIN_KEYS, useFactory: loadLoginKeys },
     { provide: SIGNING_KEYS, useFactory: loadSigningKeys },
     { provide: TOKEN_STORE, useClass: InMemoryTokenStore },
     { provide: TOKEN_DENYLIST, useClass: InMemoryTokenDenylist },

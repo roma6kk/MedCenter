@@ -33,7 +33,9 @@ export function applyE2eEnv(): void {
     {
       clientId: E2E_CLIENT_ID,
       redirectUris: [E2E_REDIRECT_URI],
-      scopes: ['launch', 'patient/*.read', 'patient/*.write'],
+      // Like the real browser client: every role signs in through it, and the
+      // server narrows the grant to the account's role (API §0 scope matrix).
+      scopes: ['launch', 'patient/*.read', 'patient/*.write', 'user/*.read', 'user/*.write'],
       isPublic: true,
     },
     {
