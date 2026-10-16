@@ -35,32 +35,14 @@ describe('ERROR_CODES parity with the frontend copy', () => {
     expect(unknownToBackend).toEqual([]);
   });
 
-  /**
-   * KNOWN GAP (tasks/TASK-001/test-generator-platform-report.md): ROOM_IN_USE,
-   * SERVICE_IN_USE and SCHEDULE_IN_USE are emitted since the platform fixes but
-   * the client copy (17 codes) and its UX map do not list them. The case stays
-   * green while the gap exists; when the frontend adds the three codes it fails
-   * with "Failing test passed" - drop `.failing` then.
-   */
-  it.failing('should know every backend code when the client catalogue is compared with the backend one', () => {
+  it('should know every backend code when the client catalogue is compared with the backend one', () => {
     // Arrange
     const known = new Set<string>(client);
 
     // Act
     const missingOnClient = ERROR_CODES.filter((code) => !known.has(code));
 
-    // Assert
+    // Assert — a backend code without a client entry would have no UX mapping.
     expect(missingOnClient).toEqual([]);
-  });
-
-  it('should miss exactly the three in-use codes on the client when the gap is measured', () => {
-    // Arrange
-    const known = new Set<string>(client);
-
-    // Act
-    const missingOnClient = ERROR_CODES.filter((code) => !known.has(code));
-
-    // Assert — pins the size of the gap so it cannot grow unnoticed; delete this case together with `.failing` above.
-    expect([...missingOnClient].sort()).toEqual(['ROOM_IN_USE', 'SCHEDULE_IN_USE', 'SERVICE_IN_USE']);
   });
 });
