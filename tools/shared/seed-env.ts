@@ -1,3 +1,5 @@
+import { assertLocalTarget } from './local-target';
+
 /**
  * Environment of the seed tools. Variable *names* only — no value is read from
  * a file here: the tools run with whatever the shell exports.
@@ -29,7 +31,9 @@ export function resolveFhirBaseUrl(
         'Set SEED_FHIR_BASE_URL to seed another server.',
     );
   }
-  return configured ?? DEFAULT_FHIR_BASE_URL;
+  const baseUrl = configured ?? DEFAULT_FHIR_BASE_URL;
+  assertLocalTarget('SEED_FHIR_BASE_URL', baseUrl, 'SEED_ALLOW_REMOTE', env);
+  return baseUrl;
 }
 
 /** Reads an optional variable; an empty value counts as unset. */

@@ -50,3 +50,6 @@ Thumbs.db
 
 # ---- Scratch (orchestrator) ----
 /tmp/
+
+# ---- Local compose override (machine-specific dev tweaks) ----
+docker-compose.override.yml

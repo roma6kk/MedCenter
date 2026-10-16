@@ -1,14 +1,19 @@
 import type { FetchLike } from '../shared/fhir-http';
-import { DOCTORS, PATIENTS } from './demo-catalog';
+import { ADMINS, DOCTORS, PATIENTS } from './demo-catalog';
 import { resolvePassword } from './demo-credentials';
 import { demoIds } from './demo-ids';
 import type { DemoUserRecord, DemoUsersSection } from './demo-manifest';
-import { obtainAccessToken, type OAuthConfig } from './oauth-pkce-client';
+import { assertAdminGrant } from './demo-admin-grant';
+import { obtainTokenGrant, type OAuthConfig } from './oauth-pkce-client';
 
 /**
  * User part of the demo seed (separate step: `seed:demo -- --users`). It talks
  * to auth-service through its public API (API §2.2) as the bootstrap ADMIN:
  *
+ * - with `--with-admin` only: one demo ADMIN via `POST /api/v1/admin/users` (the bootstrap
+ *   admin's password lives only in `.env`; the stack smoke suite signs in as this generated
+ *   account instead). A persistent privileged account is opt-in; an admin an earlier run
+ *   made keeps its manifest record (and password) when a later run omits the flag;
  * - DOCTOR accounts via `POST /api/v1/admin/users` with `practitionerRoleId`
  *   (the seeded PractitionerRole), so the doctor's token carries `fhirUser`;
  * - PATIENT accounts via the public `POST /api/v1/auth/register`, which also
@@ -30,11 +35,14 @@ import { obtainAccessToken, type OAuthConfig } from './oauth-pkce-client';
  */
 
 export interface UsersSeedConfig {
+  /** Create the demo ADMIN too (`--with-admin`). */
+  readonly withDemoAdmin: boolean;
   readonly oauth: OAuthConfig;
   /** Origin of `/api/v1/*`, normally the same Traefik edge as `oauth.authBaseUrl`. */
   readonly apiBaseUrl: string;
   readonly admin: { readonly email: string; readonly password: string };
   readonly emailDomain: string;
+  readonly adminPasswordFromEnv?: string;
   readonly doctorPasswordFromEnv?: string;
   readonly patientPasswordFromEnv?: string;
   readonly previous?: DemoUsersSection;
@@ -42,7 +50,7 @@ export interface UsersSeedConfig {
 }
 
 export interface PlannedAccount {
-  readonly role: 'DOCTOR' | 'PATIENT';
+  readonly role: DemoUserRecord['role'];
   readonly email: string;
   /** Request path and JSON body (the body carries the password; it is never logged). */
   readonly path: string;
@@ -59,6 +67,20 @@ export function emailOf(local: string, domain: string): string {
 
 function previousPassword(config: UsersSeedConfig, email: string): string | undefined {
   return config.previous?.accounts.find((account) => account.email === email)?.password;
+}
+
+/**
+ * Demo ADMIN accounts. The bootstrap admin's password lives only in `.env`, so
+ * tools that must act as an administrator (the stack smoke suite) read this
+ * generated account from the manifest instead.
+ */
+export function planAdminAccounts(config: UsersSeedConfig): PlannedAccount[] {
+  return ADMINS.map((admin) => {
+    const email = emailOf(admin.emailLocal, config.emailDomain);
+    const password = resolvePassword({ fromEnv: config.adminPasswordFromEnv, fromManifest: previousPassword(config, email) });
+    const body = { email, password, firstName: admin.firstName, lastName: admin.lastName, roles: ['ADMIN'] };
+    return { role: 'ADMIN', email, path: '/api/v1/admin/users', password, body };
+  });
 }
 
 /** DOCTOR accounts, linked to the seeded PractitionerRoles by their deterministic ids. */
@@ -125,7 +147,7 @@ async function post(
       'content-type': 'application/json',
       accept: 'application/json',
       // Registration is public; only the admin endpoint needs the Bearer token.
-      ...(account.role === 'DOCTOR' ? { authorization: `Bearer ${token}` } : {}),
+      ...(account.role === 'PATIENT' ? {} : { authorization: `Bearer ${token}` }),
     },
     body: JSON.stringify(account.body),
   });
@@ -241,15 +263,26 @@ function sectionSoFar(config: UsersSeedConfig, done: readonly DemoUserRecord[]):
 /** Called with the section after every account, so the caller can persist it before the next request. */
 export type UsersProgress = (section: DemoUsersSection) => Promise<void>;
 
-/** Creates the demo doctors and patients; the admin account itself is the bootstrap one and is only listed. */
+/** Demo admins of an earlier `--with-admin` run: their records stay in the manifest, which holds their only password copy. */
+function earlierDemoAdmins(config: UsersSeedConfig): DemoUserRecord[] {
+  return (config.previous?.accounts ?? []).filter((record) => record.role === 'ADMIN' && record.email !== config.admin.email);
+}
+
+/**
+ * Creates the demo doctors and patients, and the demo admin when `withDemoAdmin` is set; the bootstrap
+ * admin itself is only listed.
+ */
 export async function seedDemoUsers(
   config: UsersSeedConfig,
   fetchImpl: FetchLike = (url, init) => fetch(url, init),
   onProgress?: UsersProgress,
 ): Promise<DemoUsersSection> {
-  const token = await obtainAccessToken(config.oauth, config.admin, fetchImpl);
-  const records: DemoUserRecord[] = [{ role: 'ADMIN', email: config.admin.email, status: 'exists' }];
-  for (const account of [...planDoctorAccounts(config), ...planPatientAccounts(config)]) {
+  const grant = await obtainTokenGrant(config.oauth, config.admin, fetchImpl);
+  assertAdminGrant(config.oauth.clientId, grant.scope);
+  const token = grant.accessToken;
+  const records: DemoUserRecord[] = [{ role: 'ADMIN', email: config.admin.email, status: 'exists' }, ...(config.withDemoAdmin ? [] : earlierDemoAdmins(config))];
+  const admins = config.withDemoAdmin ? planAdminAccounts(config) : [];
+  for (const account of [...admins, ...planDoctorAccounts(config), ...planPatientAccounts(config)]) {
     const record = await seedAccount(config, account, token, fetchImpl);
     console.log(`${record.status.padEnd(7)} ${record.role.padEnd(7)} ${record.email}`);
     records.push(record);

@@ -183,7 +183,14 @@ async function resumeAuthorization(context: FlowContext, location: string): Prom
   return readAuthorizationCode(redirectLocation(response, 'authorize'), config.redirectUri, state);
 }
 
-async function exchangeCode(context: FlowContext, code: string): Promise<string> {
+/** The access token and the scope the server actually granted (it may be narrower than the one requested). */
+export interface TokenGrant {
+  readonly accessToken: string;
+  /** Space-separated granted scope; `undefined` when the token response does not report one. */
+  readonly scope?: string;
+}
+
+async function exchangeCode(context: FlowContext, code: string): Promise<TokenGrant> {
   const { config, pkce, fetchImpl } = context;
   const response = await fetchImpl(`${config.authBaseUrl}/oauth/token`, {
     method: 'POST',
@@ -200,19 +207,19 @@ async function exchangeCode(context: FlowContext, code: string): Promise<string>
   if (!response.ok) {
     throw new OAuthFlowError('token', `HTTP ${response.status}: ${excerptOf(text)}`);
   }
-  const body = JSON.parse(text) as { access_token?: unknown };
+  const body = JSON.parse(text) as { access_token?: unknown; scope?: unknown };
   if (typeof body.access_token !== 'string' || body.access_token.length === 0) {
     throw new OAuthFlowError('token', 'response carries no access_token');
   }
-  return body.access_token;
+  return { accessToken: body.access_token, ...(typeof body.scope === 'string' ? { scope: body.scope } : {}) };
 }
 
-/** Runs the whole flow and returns the access token (a Bearer JWT). The password is never logged. */
-export async function obtainAccessToken(
+/** Runs the whole flow and returns the access token plus its granted scope. The password is never logged. */
+export async function obtainTokenGrant(
   config: OAuthConfig,
   credentials: LoginCredentials,
   fetchImpl: FetchLike = (url, init) => fetch(url, init),
-): Promise<string> {
+): Promise<TokenGrant> {
   const context: FlowContext = {
     config,
     pkce: createPkcePair(),
@@ -224,4 +231,13 @@ export async function obtainAccessToken(
   const location = await submitCredentials(context, form, credentials);
   const code = await resumeAuthorization(context, location);
   return exchangeCode(context, code);
+}
+
+/** Runs the whole flow and returns the access token (a Bearer JWT). The password is never logged. */
+export async function obtainAccessToken(
+  config: OAuthConfig,
+  credentials: LoginCredentials,
+  fetchImpl: FetchLike = (url, init) => fetch(url, init),
+): Promise<string> {
+  return (await obtainTokenGrant(config, credentials, fetchImpl)).accessToken;
 }

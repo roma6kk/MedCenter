@@ -67,6 +67,12 @@ export interface PatientDef {
   readonly gender: 'male' | 'female';
 }
 
+export interface AdminDef {
+  readonly emailLocal: string;
+  readonly firstName: string;
+  readonly lastName: string;
+}
+
 export const CLINIC = {
   key: 'medcenter',
   name: 'Медицинский центр',
@@ -131,6 +137,9 @@ export const PATIENTS: readonly PatientDef[] = [
   { emailLocal: 'patient.lebedeva', firstName: 'Анна', lastName: 'Лебедева', birthDate: '1992-11-02', gender: 'female' },
   { emailLocal: 'patient.novikov', firstName: 'Сергей', lastName: 'Новиков', birthDate: '1978-07-21', gender: 'male' },
 ];
+
+/** Demo administrators created by the users step; the bootstrap admin (from `.env`) is separate. */
+export const ADMINS: readonly AdminDef[] = [{ emailLocal: 'admin.demo', firstName: 'Демо', lastName: 'Администратор' }];
 
 /** Belarus abolished DST in 2011: Europe/Minsk is UTC+3 all year (same fixed offset as catalog-service `clinic-calendar.ts`). */
 export const CLINIC_UTC_OFFSET_MINUTES = 180;

@@ -19,6 +19,8 @@ export interface FakeAuthOptions {
   readonly accounts: Readonly<Record<string, string>>;
   /** Answer every login POST with this status instead of processing it (e.g. 429). */
   readonly loginStatus?: number;
+  /** Scope the token response reports (a real server reports what it granted); omitted when unset. */
+  readonly grantedScope?: string;
   /** Redirect the final authorize hop to this URL instead of the registered `redirect_uri`. */
   readonly redirectOverride?: string;
 }
@@ -148,6 +150,11 @@ export class FakeAuthServer {
       return json(400, { error: 'invalid_grant', error_description: 'Authorization code is invalid, expired or already used' });
     }
     this.codes.delete(form.get('code') ?? '');
-    return json(200, { access_token: `jwt.for.${stored.email}`, token_type: 'Bearer', expires_in: 900 });
+    return json(200, {
+      access_token: `jwt.for.${stored.email}`,
+      token_type: 'Bearer',
+      expires_in: 900,
+      ...(this.options.grantedScope === undefined ? {} : { scope: this.options.grantedScope }),
+    });
   }
 }

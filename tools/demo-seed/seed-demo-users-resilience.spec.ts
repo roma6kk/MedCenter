@@ -8,7 +8,7 @@ const NOW = new Date('2026-11-02T10:00:00.000Z');
 const PETROV = 'doctor.petrov@medcenter.test';
 
 function configOf(previous?: DemoUsersSection): UsersSeedConfig {
-  return readUsersConfig({ BOOTSTRAP_ADMIN_EMAIL: ADMIN_EMAIL, BOOTSTRAP_ADMIN_PASSWORD: ADMIN_PASSWORD }, previous, NOW);
+  return readUsersConfig({ BOOTSTRAP_ADMIN_EMAIL: ADMIN_EMAIL, BOOTSTRAP_ADMIN_PASSWORD: ADMIN_PASSWORD }, previous, NOW, true);
 }
 
 /** Forwards to the service, but a request for `email` rejects like a dropped connection; `afterSend` lets the account be created first. */
@@ -71,7 +71,7 @@ describe('seedDemoUsers when a request rejects', () => {
 
     // Assert
     const created = section.accounts.filter((account) => account.status === 'created');
-    expect(created).toHaveLength(6);
+    expect(created).toHaveLength(7);
     expect(created.every((account) => typeof account.password === 'string' && account.password.length >= 10)).toBe(true);
     expect(accountOf(section, PETROV)).toMatchObject({ status: 'failed' });
   });
@@ -114,7 +114,7 @@ describe('seedDemoUsers progress', () => {
     await seedDemoUsers(configOf(), service.fetchImpl, onProgress);
 
     // Assert
-    expect(sizes).toEqual([1, 2, 3, 4, 5, 6, 7]);
+    expect(sizes).toEqual([1, 2, 3, 4, 5, 6, 7, 8]);
   });
 
   it('should keep the previous passwords of accounts not reached yet when a re-run is interrupted', async () => {

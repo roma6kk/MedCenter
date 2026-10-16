@@ -37,6 +37,20 @@
 # read-model schema). The other BFFs verify tokens through the JWKS endpoint, so
 # a compromised BFF cannot mint tokens (ADR-009 guard isolation).
 #
+# OAUTH_CLIENTS_JSON: the `medcenter-web` client serves patients, doctors AND
+# administrators, so it must list all five scopes (launch, patient/*.read,
+# patient/*.write, user/*.read, user/*.write). With patient scopes only, every
+# ADMIN/DOCTOR token is narrowed to `launch` and each `user/*` route answers 403
+# FORBIDDEN_SCOPE. A machine-local, git-ignored `docker-compose.override.yml` may
+# replace the registry without touching `.env` (see tasks/TASK-001/verify-live-stack-report.md).
+# JWT_ISSUER: leave it unset in `.env` for the stack; the default below is the address
+# the browser and the web container both reach.
+#
+# Live check of the running stack: `npm run smoke:stack` (tools/stack-smoke), after the
+# seeds `npm run seed:terminology`, `npm run seed:demo` and `npm run seed:demo -- --users --with-admin`
+# (the demo ADMIN the suite signs in as is opt-in). Seeds and suite refuse a non-local host
+# unless SEED_ALLOW_REMOTE=true / SMOKE_ALLOW_REMOTE=true.
+#
 # Persistence: postgres (auth schema, analytics read-model, the whole HAPI clinical
 # store), redis (token denylist, idempotency keys) and rabbitmq live in NAMED
 # volumes (pgdata, redisdata, rabbitmqdata). `docker compose down` keeps them,

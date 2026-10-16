@@ -4,6 +4,7 @@ import { demoIds } from './demo-ids';
 import { ADMIN_EMAIL, ADMIN_PASSWORD, authService } from './fake-auth-api';
 import {
   emailOf,
+  planAdminAccounts,
   planDoctorAccounts,
   planPatientAccounts,
   seedDemoUsers,
@@ -17,7 +18,7 @@ const NOW = new Date('2026-11-02T10:00:00.000Z');
 const API = 'http://localhost:8081';
 
 function configOf(env: NodeJS.ProcessEnv = {}, previous?: UsersSeedConfig['previous']): UsersSeedConfig {
-  return readUsersConfig({ ...ADMIN_ENV, ...env }, previous, NOW);
+  return readUsersConfig({ ...ADMIN_ENV, ...env }, previous, NOW, true);
 }
 
 function accountFor(config: UsersSeedConfig, role: 'DOCTOR' | 'PATIENT'): PlannedAccount {
@@ -28,6 +29,21 @@ function accountFor(config: UsersSeedConfig, role: 'DOCTOR' | 'PATIENT'): Planne
 describe('emailOf', () => {
   it('should join the local part and the demo domain', () => {
     expect(emailOf('doctor.ivanova', 'medcenter.test')).toBe('doctor.ivanova@medcenter.test');
+  });
+});
+
+describe('planAdminAccounts', () => {
+  it('should create one demo ADMIN through the admin endpoint with the ADMIN role only', () => {
+    const [admin, ...rest] = planAdminAccounts(configOf());
+
+    expect(rest).toEqual([]);
+    expect(admin).toMatchObject({ role: 'ADMIN', email: 'admin.demo@medcenter.test', path: '/api/v1/admin/users' });
+    expect(Object.keys(admin?.body ?? {}).sort()).toEqual(['email', 'firstName', 'lastName', 'password', 'roles']);
+    expect(admin?.body['roles']).toEqual(['ADMIN']);
+  });
+
+  it('should use DEMO_ADMIN_PASSWORD when it is configured', () => {
+    expect(planAdminAccounts(configOf({ DEMO_ADMIN_PASSWORD: 'Adm1n!Demo1234' }))[0]?.password).toBe('Adm1n!Demo1234');
   });
 });
 
@@ -141,13 +157,14 @@ describe('seedDemoUsers', () => {
   beforeEach(() => jest.spyOn(console, 'log').mockImplementation(() => undefined));
   afterEach(() => jest.restoreAllMocks());
 
-  it('should create the doctors and patients and list the bootstrap admin without a password', async () => {
+  it('should create the demo admin, doctors and patients and list the bootstrap admin without a password', async () => {
     const service = authService();
 
     const section = await seedDemoUsers(configOf(), service.fetchImpl);
 
     expect(section.accounts.map((account) => [account.role, account.status])).toEqual([
       ['ADMIN', 'exists'],
+      ['ADMIN', 'created'],
       ...Array(4).fill(['DOCTOR', 'created']),
       ...Array(3).fill(['PATIENT', 'created']),
     ]);
@@ -165,7 +182,7 @@ describe('seedDemoUsers', () => {
     const register = service.calls.filter((call) => call.path === '/api/v1/auth/register');
     expect(admin.every((call) => call.authorization === 'Bearer jwt.for.admin@medcenter.test')).toBe(true);
     expect(register.every((call) => call.authorization === undefined)).toBe(true);
-    expect([admin.length, register.length]).toEqual([4, 3]);
+    expect([admin.length, register.length]).toEqual([5, 3]);
   });
 
   it('should record every account as existing and keep every password when the run is repeated', async () => {
@@ -176,7 +193,7 @@ describe('seedDemoUsers', () => {
 
     expect(second.accounts.slice(1).every((account) => account.status === 'exists')).toBe(true);
     expect(second.accounts.map((account) => account.password)).toEqual(first.accounts.map((account) => account.password));
-    expect(service.created).toHaveLength(7);
+    expect(service.created).toHaveLength(8);
   });
 
   it('should keep going after one account fails and report it as failed', async () => {
@@ -189,7 +206,7 @@ describe('seedDemoUsers', () => {
     expect(section.accounts.filter((account) => account.status === 'failed').map((account) => account.email)).toEqual([
       'doctor.petrov@medcenter.test',
     ]);
-    expect(section.accounts.filter((account) => account.status === 'created')).toHaveLength(6);
+    expect(section.accounts.filter((account) => account.status === 'created')).toHaveLength(7);
   });
 
   it('should never print a password', async () => {
@@ -200,6 +217,13 @@ describe('seedDemoUsers', () => {
     const printed = JSON.stringify((console.log as jest.Mock).mock.calls);
     expect(printed).not.toContain('D0ctor!Secret12');
     expect(printed).not.toContain(ADMIN_ENV.BOOTSTRAP_ADMIN_PASSWORD);
+  });
+
+  it('should stop before creating anything when the OAuth client narrowed the admin grant below user/*.write', async () => {
+    const service = authService(undefined, 'launch');
+
+    await expect(seedDemoUsers(configOf(), service.fetchImpl)).rejects.toThrow('user/*.write');
+    expect(service.created).toEqual([]);
   });
 
   it('should stop before creating anything when the admin cannot log in', async () => {

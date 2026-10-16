@@ -14,7 +14,7 @@ const ADMIN_ENV = { BOOTSTRAP_ADMIN_EMAIL: 'admin@medcenter.test', BOOTSTRAP_ADM
 
 describe('parseCliArgs', () => {
   it('should run the FHIR part for 14 days from today when called without arguments', () => {
-    expect(parseCliArgs([])).toEqual({ runFhir: true, runUsers: false, days: 14 });
+    expect(parseCliArgs([])).toEqual({ runFhir: true, runUsers: false, withAdmin: false, days: 14 });
   });
 
   it('should run only the users step for --users', () => {
@@ -23,6 +23,15 @@ describe('parseCliArgs', () => {
 
   it('should run both steps for --fhir --users', () => {
     expect(parseCliArgs(['--fhir', '--users'])).toMatchObject({ runFhir: true, runUsers: true });
+  });
+
+  it('should create no demo admin unless --with-admin is given', () => {
+    expect(parseCliArgs(['--users']).withAdmin).toBe(false);
+    expect(parseCliArgs(['--users', '--with-admin']).withAdmin).toBe(true);
+  });
+
+  it('should reject --with-admin without --users because the flag belongs to the users step', () => {
+    expect(() => parseCliArgs(['--with-admin'])).toThrow('--with-admin belongs to the users step');
   });
 
   it('should read the slot horizon from --days and --from', () => {
@@ -91,5 +100,26 @@ describe('readUsersConfig', () => {
     expect(config.previous).toBe(previous);
     expect(config.doctorPasswordFromEnv).toBe('D0ctor!Pass12');
     expect(config.patientPasswordFromEnv).toBeUndefined();
+  });
+});
+
+describe('readUsersConfig host guard', () => {
+  it('should not plan the demo admin by default', () => {
+    expect(readUsersConfig(ADMIN_ENV, undefined, NOW).withDemoAdmin).toBe(false);
+    expect(readUsersConfig(ADMIN_ENV, undefined, NOW, true).withDemoAdmin).toBe(true);
+  });
+
+  it('should refuse a non-local SEED_AUTH_BASE_URL because the step logs in as the admin and creates accounts', () => {
+    const env = { ...ADMIN_ENV, SEED_AUTH_BASE_URL: 'https://stand.example.com' };
+
+    expect(() => readUsersConfig(env, undefined, NOW)).toThrow('SEED_AUTH_BASE_URL points at stand.example.com');
+  });
+
+  it('should accept a non-local SEED_AUTH_BASE_URL when SEED_ALLOW_REMOTE=true says so', () => {
+    jest.spyOn(console, 'warn').mockImplementation();
+    const env = { ...ADMIN_ENV, SEED_AUTH_BASE_URL: 'https://stand.example.com', SEED_ALLOW_REMOTE: 'true' };
+
+    expect(readUsersConfig(env, undefined, NOW).oauth.authBaseUrl).toBe('https://stand.example.com');
+    jest.restoreAllMocks();
   });
 });

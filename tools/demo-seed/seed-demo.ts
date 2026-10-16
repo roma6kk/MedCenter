@@ -12,7 +12,8 @@ import { seedDemoUsers } from './seed-demo-users';
  * Demo data for the running stack (idempotent):
  *
  *   npm run seed:demo                 FHIR reference data + 14 days of free slots
- *   npm run seed:demo -- --users      demo accounts (run after auth-service is deployed)
+ *   npm run seed:demo -- --users      demo doctors and patients (run after auth-service is deployed)
+ *   npm run seed:demo -- --users --with-admin   the same plus the demo ADMIN the smoke suite signs in as
  *   npm run seed:demo -- --fhir --users   both, FHIR first
  *
  * Environment (names only; see `demo-cli-options.ts`): `SEED_FHIR_BASE_URL`
@@ -20,6 +21,8 @@ import { seedDemoUsers } from './seed-demo-users';
  * `SEED_AUTH_BASE_URL`, `BOOTSTRAP_ADMIN_EMAIL`, `BOOTSTRAP_ADMIN_PASSWORD`,
  * `OAUTH_CLIENT_ID`, `OAUTH_REDIRECT_URI`, `DEMO_EMAIL_DOMAIN`,
  * `DEMO_DOCTOR_PASSWORD`, `DEMO_PATIENT_PASSWORD`.
+ * Both steps refuse a non-local `SEED_FHIR_BASE_URL` / `SEED_AUTH_BASE_URL` unless
+ * `SEED_ALLOW_REMOTE=true` (they create accounts and rewrite reference data).
  * The manifest (ids, generated credentials) goes to the git-ignored
  * `tools/demo-seed/output/demo-manifest.json`.
  */
@@ -47,13 +50,13 @@ async function runFhirStep(options: CliOptions, now: Date): Promise<void> {
   console.log(`Manifest: ${MANIFEST_PATH}`);
 }
 
-async function runUsersStep(now: Date): Promise<void> {
+async function runUsersStep(now: Date, withAdmin: boolean): Promise<void> {
   const previous = (await readManifest(MANIFEST_PATH)).users;
   // The manifest is the only home of generated passwords: persist it after every account, not just at the end.
   const persist = async (progress: DemoUsersSection): Promise<void> => {
     await writeManifest(MANIFEST_PATH, { users: progress });
   };
-  const section = await seedDemoUsers(readUsersConfig(process.env, previous, now), undefined, persist);
+  const section = await seedDemoUsers(readUsersConfig(process.env, previous, now, withAdmin), undefined, persist);
   await writeManifest(MANIFEST_PATH, { users: section });
   console.log(`Manifest (accounts, generated passwords): ${MANIFEST_PATH}`);
   const failed = section.accounts.filter((account) => account.status === 'failed');
@@ -70,7 +73,7 @@ if (require.main === module) {
       await runFhirStep(options, now);
     }
     if (options.runUsers) {
-      await runUsersStep(now);
+      await runUsersStep(now, options.withAdmin);
     }
   });
 }

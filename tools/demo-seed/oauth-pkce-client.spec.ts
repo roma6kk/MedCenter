@@ -4,6 +4,7 @@ import {
   buildAuthorizeUrl,
   createPkcePair,
   obtainAccessToken,
+  obtainTokenGrant,
   OAuthFlowError,
   readAuthorizationCode,
   type OAuthConfig,
@@ -195,5 +196,21 @@ describe('obtainAccessToken', () => {
       new URL(url).pathname === '/oauth/token' ? new Response('{}', { status: 200 }) : server.fetch(url, init);
 
     await expect(obtainAccessToken(CONFIG, ADMIN, empty)).rejects.toThrow('no access_token');
+  });
+});
+
+describe('obtainTokenGrant', () => {
+  it('should return the scope the server reports next to the access token', async () => {
+    const server = authServer({ grantedScope: 'launch user/*.read' });
+
+    const grant = await obtainTokenGrant(CONFIG, ADMIN, server.fetch);
+
+    expect(grant).toEqual({ accessToken: `jwt.for.${ADMIN.email}`, scope: 'launch user/*.read' });
+  });
+
+  it('should leave the scope out when the token response reports none', async () => {
+    const grant = await obtainTokenGrant(CONFIG, ADMIN, authServer().fetch);
+
+    expect(grant).toEqual({ accessToken: `jwt.for.${ADMIN.email}` });
   });
 });
