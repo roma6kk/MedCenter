@@ -33,16 +33,9 @@ function protectedContext(): ReturnType<typeof createMockHttpContext> {
 }
 
 /**
- * API §1: an expired, forged or otherwise invalid JWT is `401 UNAUTHENTICATED`.
- *
- * KNOWN DEFECT (escalated in tasks/TASK-001/test-generator-platform-report.md,
- * first reported by coder-patient-service): `verifyBearerToken` lets the `jose`
- * error escape, `ProblemDetailsFilter` sees a non-HTTP exception and answers
- * `500 INTERNAL`, so a client cannot tell that its access token only needs a
- * refresh. The `it.failing` cases below state the contract and stay green while
- * the defect exists; once the guard maps these errors they fail with
- * "Failing test passed" - drop `.failing` then, and tighten the forged-signature
- * e2e of patient-service to 401.
+ * API §1: an expired, forged or otherwise invalid JWT is `401 UNAUTHENTICATED`, so
+ * a client can tell that its access token only needs a refresh. Found by the live
+ * stack smoke suite (`tools/stack-smoke`): such tokens used to surface as `500 INTERNAL`.
  */
 describe('JwtAuthGuard signature and claim verification errors', () => {
   const guard = new JwtAuthGuard(new Reflector());
@@ -53,12 +46,15 @@ describe('JwtAuthGuard signature and claim verification errors', () => {
     verifyMock.mockReset();
   });
 
-  it.failing.each([
+  it.each([
     ['an expired token', joseError('JWTExpired', 'ERR_JWT_EXPIRED')],
     ['a forged signature', joseError('JWSSignatureVerificationFailed', 'ERR_JWS_SIGNATURE_VERIFICATION_FAILED')],
     ['a key id the issuer does not publish', joseError('JWKSNoMatchingKey', 'ERR_JWKS_NO_MATCHING_KEY')],
     ['a token of another issuer', joseError('JWTClaimValidationFailed', 'ERR_JWT_CLAIM_VALIDATION_FAILED')],
     ['a malformed token', joseError('JWSInvalid', 'ERR_JWS_INVALID')],
+    ['a token that is not a JWT', joseError('JWTInvalid', 'ERR_JWT_INVALID')],
+    ['an algorithm the issuer does not use (alg=none)', joseError('JOSENotSupported', 'ERR_JOSE_NOT_SUPPORTED')],
+    ['an algorithm outside the allow-list', joseError('JOSEAlgNotAllowed', 'ERR_JOSE_ALG_NOT_ALLOWED')],
   ])('should reject with 401 UNAUTHENTICATED when jose reports %s', async (_label, failure) => {
     // Arrange
     verifyMock.mockRejectedValue(failure);
@@ -82,6 +78,22 @@ describe('JwtAuthGuard signature and claim verification errors', () => {
 
     // Assert
     await expect(outcome).rejects.toMatchObject({ code: 'ERR_JWKS_TIMEOUT' });
+  });
+
+  it('should leave the reason of the rejection out of the 401 body when the signature is forged', async () => {
+    verifyMock.mockRejectedValue(joseError('JWSSignatureVerificationFailed', 'ERR_JWS_SIGNATURE_VERIFICATION_FAILED'));
+    const { context } = protectedContext();
+
+    const error = await captureAsyncHttpException(() => guard.canActivate(context));
+
+    expect(JSON.stringify(error.getResponse())).not.toMatch(/signature/i);
+  });
+
+  it('should let the error surface as a server error when it is not a jose rejection', async () => {
+    verifyMock.mockRejectedValue(new TypeError('fetch failed'));
+    const { context } = protectedContext();
+
+    await expect(guard.canActivate(context)).rejects.toThrow('fetch failed');
   });
 
   it('should attach no claims to the request when verification fails', async () => {

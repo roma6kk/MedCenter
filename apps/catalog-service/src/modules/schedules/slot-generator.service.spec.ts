@@ -1,4 +1,4 @@
-import { BadRequestException } from '@nestjs/common';
+import { BadRequestException, ConflictException } from '@nestjs/common';
 import type { FhirClient } from '@medcenter/fhir';
 
 import { RedisCacheService } from '../cache/redis-cache.service';
@@ -54,6 +54,16 @@ describe('SlotGeneratorService', () => {
 
     expect(result.generated).toBe(0);
     expect(result.skipped).toBe(6);
+    expect(fhirClient.batch).not.toHaveBeenCalled();
+  });
+
+  it('should refuse with CONFLICT and write nothing when the schedule was deactivated by its removal', async () => {
+    fhirClient.read.mockResolvedValue({ resourceType: 'Schedule', id: scheduleId, active: false });
+
+    const attempt = generator.generate(scheduleId, { from: '2026-11-02', to: '2026-11-02' });
+
+    await expect(attempt).rejects.toBeInstanceOf(ConflictException);
+    await expect(attempt).rejects.toMatchObject({ response: { errorCode: 'CONFLICT' } });
     expect(fhirClient.batch).not.toHaveBeenCalled();
   });
 

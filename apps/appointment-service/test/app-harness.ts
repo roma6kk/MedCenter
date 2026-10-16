@@ -1,11 +1,10 @@
 import type { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
-import { createValidationPipe } from '@medcenter/common';
+import { createValidationPipe, IDEMPOTENCY_STORE, type IdempotencyStore } from '@medcenter/common';
 import { FHIR_CLIENT, type FhirClient, type FhirResource } from '@medcenter/fhir';
 import { EVENT_PUBLISHER } from '@medcenter/messaging';
 
 import { AppModule } from '../src/app/app.module';
-import { IDEMPOTENCY_STORE, type IdempotencyStore } from '../src/modules/idempotency/idempotency.service';
 import { applyE2eEnv } from './e2e-env';
 import { startTestIssuer, type TestIssuer } from './test-tokens';
 

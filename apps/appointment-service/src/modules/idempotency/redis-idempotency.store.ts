@@ -1,7 +1,6 @@
 import { Logger, type OnModuleDestroy } from '@nestjs/common';
+import type { IdempotencyStore } from '@medcenter/common';
 import Redis from 'ioredis';
-
-import type { IdempotencyStore } from './idempotency.service';
 
 /** The slice of an ioredis client the store uses; a fake in unit tests. */
 export interface RedisLikeClient {

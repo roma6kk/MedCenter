@@ -65,7 +65,8 @@ describe('JWT signature verification (e2e)', () => {
   });
 
   function expectRefusedBeforeFhir(response: request.Response): void {
-    expect(response.status).toBeGreaterThanOrEqual(400);
+    expect(response.status).toBe(401);
+    expect(response.body).toMatchObject({ errorCode: 'UNAUTHENTICATED' });
     expect(response.headers['content-type']).toContain('application/problem+json');
     for (const interaction of [fhir.search, fhir.read, fhir.update]) {
       expect(interaction).not.toHaveBeenCalled();

@@ -6,7 +6,6 @@ import {
   IsInt,
   IsOptional,
   IsString,
-  IsUUID,
   Matches,
   Max,
   MaxLength,
@@ -14,6 +13,10 @@ import {
   ValidateNested,
 } from 'class-validator';
 import { Type } from 'class-transformer';
+
+import { FHIR_ID_PATTERN } from '../../../common/fhir-id';
+
+const FHIR_ID_MESSAGE = '$property must be a FHIR resource id';
 
 /**
  * One weekly availability window inside a `Schedule.planningHorizon`.
@@ -38,15 +41,21 @@ export class WeeklyWindowDto {
   endTime!: string;
 }
 
-/** API §5.2.1 `CreateScheduleDto` (FR-020, ADR-015). */
+/**
+ * API §5.2.1 `CreateScheduleDto` (FR-020, ADR-015). The three actor ids are
+ * validated as FHIR `id`s, not as UUIDs (deviation from the spec's `@IsUUID()`):
+ * HAPI assigns sequential numeric ids to rooms and services created through
+ * `POST /admin/rooms` and `POST /admin/services`, so `@IsUUID()` made every room
+ * and service created through the API unusable in a schedule (found by the stack smoke).
+ */
 export class CreateScheduleDto {
-  @IsUUID()
+  @Matches(FHIR_ID_PATTERN, { message: FHIR_ID_MESSAGE })
   practitionerRoleId!: string;
 
-  @IsUUID()
+  @Matches(FHIR_ID_PATTERN, { message: FHIR_ID_MESSAGE })
   roomId!: string;
 
-  @IsUUID()
+  @Matches(FHIR_ID_PATTERN, { message: FHIR_ID_MESSAGE })
   serviceId!: string;
 
   @IsDateString()

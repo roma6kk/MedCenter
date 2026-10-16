@@ -31,6 +31,17 @@ describe('toSlotResponseDto', () => {
     expect(dto.status).toBe('busy');
   });
 
+  it('should keep entered-in-error apart from free when a slot was retired by a schedule removal', () => {
+    const dto = toSlotResponseDto({
+      resourceType: 'Slot',
+      id: 'slot-3',
+      schedule: { reference: 'Schedule/sched-9' },
+      status: 'entered-in-error',
+    });
+
+    expect(dto.status).toBe('entered-in-error');
+  });
+
   it('should default missing fields to empty strings', () => {
     const dto = toSlotResponseDto({ resourceType: 'Slot' });
 

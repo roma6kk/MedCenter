@@ -55,6 +55,54 @@ describe('ProblemDetailsFilter', () => {
     );
   });
 
+  it('should carry the details[] of a validation failure into the problem body', () => {
+    const filter = new ProblemDetailsFilter();
+    const response = createResponse();
+    const host = createHost(response, { originalUrl: '/api/v1/appointments', requestId: 'req-3' });
+    const exception = new HttpException(
+      {
+        errorCode: 'VALIDATION_ERROR',
+        message: 'slotId: must be a FHIR id',
+        details: [{ field: 'slotId', message: 'must be a FHIR id' }, { field: 7 }, 'junk'],
+      },
+      400,
+    );
+
+    filter.catch(exception, host);
+
+    expect(response.send).toHaveBeenCalledWith(
+      expect.objectContaining({
+        errorCode: 'VALIDATION_ERROR',
+        detail: 'slotId: must be a FHIR id',
+        details: [{ field: 'slotId', message: 'must be a FHIR id' }],
+      }),
+    );
+  });
+
+  it.each([
+    ['an explicit non-validation errorCode', { errorCode: 'SLOT_CONFLICT', message: 'slot is not free' }, 409],
+    ['no errorCode, derived from a 500 status', { message: 'boom' }, 500],
+  ])('should drop details[] when the exception has %s', (_label, payload, status) => {
+    const filter = new ProblemDetailsFilter();
+    const response = createResponse();
+    const host = createHost(response, { originalUrl: '/api/v1/x', requestId: 'req-5' });
+    const exception = new HttpException({ ...payload, details: [{ field: 'internalColumn', message: 'secret state' }] }, status);
+
+    filter.catch(exception, host);
+
+    expect(response.send).toHaveBeenCalledWith(expect.not.objectContaining({ details: expect.anything() }));
+  });
+
+  it('should leave details out when the exception carries none', () => {
+    const filter = new ProblemDetailsFilter();
+    const response = createResponse();
+    const host = createHost(response, { originalUrl: '/api/v1/x', requestId: 'req-4' });
+
+    filter.catch(new NotFoundException('missing'), host);
+
+    expect(response.send).toHaveBeenCalledWith(expect.not.objectContaining({ details: expect.anything() }));
+  });
+
   it('should derive the errorCode from a plain NestJS exception status', () => {
     const filter = new ProblemDetailsFilter();
     const response = createResponse();

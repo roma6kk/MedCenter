@@ -98,4 +98,24 @@ describe('buildCompletionPlan', () => {
       investigation: [{ item: [{ reference: expect.stringMatching(/^urn:uuid:/) }] }],
     });
   });
+
+  it('should record the request id in both AuditEvents when the completion carries one', () => {
+    const plan = buildCompletionPlan(contextWith({ requestId: 'req-42' }), validCompleteDto());
+
+    const audits = plan.writes.filter((write) => write.resource.resourceType === 'AuditEvent').map((write) => write.resource);
+    expect(audits).toHaveLength(2);
+    for (const audit of audits) {
+      expect(audit['entity']).toContainEqual({
+        what: { identifier: { value: 'req-42' } },
+        type: { system: 'https://profiles.ihe.net/ITI/BALP/CodeSystem/BasicAuditEntityType', code: 'XrequestId' },
+      });
+    }
+  });
+
+  it('should leave the request id entity out when the completion carries none', () => {
+    const plan = buildCompletionPlan(contextWith(), validCompleteDto());
+
+    const audit = plan.writes.find((write) => write.resource.resourceType === 'AuditEvent')?.resource;
+    expect(JSON.stringify(audit?.['entity'])).not.toContain('XrequestId');
+  });
 });

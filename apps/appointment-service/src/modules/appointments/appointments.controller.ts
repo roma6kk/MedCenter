@@ -10,11 +10,10 @@ import {
   Query,
   Req,
 } from '@nestjs/common';
-import { claimsOf, RequiresRoles, RequiresScopes, type RequestWithClaims } from '@medcenter/common';
+import { claimsOf, IdempotencyService, RequiresRoles, RequiresScopes, type RequestWithClaims } from '@medcenter/common';
 import { Role, SMART_SCOPES } from '@medcenter/contracts';
 import type { AppointmentResponseDto } from '@medcenter/fhir-mappers';
 
-import { IdempotencyService } from '../idempotency/idempotency.service';
 import { AppointmentQueriesService, type AppointmentPage } from './appointment-queries.service';
 import { AppointmentsService } from './appointments.service';
 import type { AuditedRequest } from './audit';

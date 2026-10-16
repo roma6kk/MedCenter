@@ -36,6 +36,13 @@ describe('EncountersService.open / findOne', () => {
     service = new EncountersService(fhir, new TerminologyValidatorService(fhir), publisher);
   });
 
+  it('should write the request id of the opening call into the AuditEvent of the new encounter', async () => {
+    await service.open(doctorClaims, { appointmentId: APPOINTMENT_ID }, 'req-7');
+
+    const audit = committedEntries(fhir).find((entry) => entry.resource?.['resourceType'] === 'AuditEvent')?.resource;
+    expect(JSON.stringify(audit?.['entity'])).toContain('req-7');
+  });
+
   it('should create an in-progress ambulatory encounter with a conditional create when the appointment is booked', async () => {
     const result = await service.open(doctorClaims, { appointmentId: APPOINTMENT_ID });
 

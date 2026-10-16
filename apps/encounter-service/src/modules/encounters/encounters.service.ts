@@ -81,7 +81,7 @@ export class EncountersService {
    * 7.1 — one encounter per appointment: a repeated open of an in-progress
    * encounter returns it (`created=false`, 200); a finished one is `409`.
    */
-  async open(claims: JwtClaims, dto: OpenEncounterDto): Promise<OpenEncounterResult> {
+  async open(claims: JwtClaims, dto: OpenEncounterDto, requestId?: string): Promise<OpenEncounterResult> {
     const roleRef = practitionerRoleRefFromClaims(claims);
     const appointment = await this.fhir.read('Appointment', dto.appointmentId);
     const parties = appointmentParties(appointment);
@@ -104,6 +104,7 @@ export class EncountersService {
       practitionerRoleRef: roleRef,
       serviceType: await this.serviceTypeFor(parties.serviceRef),
       actorSub: claims.sub,
+      requestId,
       now: new Date().toISOString(),
       fullUrl: `urn:uuid:${randomUUID()}`,
     });
@@ -123,7 +124,7 @@ export class EncountersService {
   }
 
   /** 7.3 — state and terminology are checked before any write; then one atomic transaction. */
-  async complete(claims: JwtClaims, encounterId: string, dto: CompleteEncounterDto): Promise<EncounterResponseDto> {
+  async complete(claims: JwtClaims, encounterId: string, dto: CompleteEncounterDto, requestId?: string): Promise<EncounterResponseDto> {
     const roleRef = practitionerRoleRefFromClaims(claims);
     const { encounter, patientRef } = await this.loadCompletable(roleRef, encounterId);
     await this.terminology.assertIcd10Codes(dto.diagnoses.map((diagnosis) => diagnosis.code));
@@ -134,6 +135,7 @@ export class EncountersService {
       patientRef,
       practitionerRoleRef: roleRef,
       actorSub: claims.sub,
+      requestId,
       now: new Date().toISOString(),
       displays,
       newFullUrl: (): string => `urn:uuid:${randomUUID()}`,

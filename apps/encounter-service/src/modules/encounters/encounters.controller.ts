@@ -1,5 +1,5 @@
 import { Body, Controller, Get, HttpCode, HttpStatus, Param, Post, Req, Res } from '@nestjs/common';
-import { claimsOf, RequiresRoles, RequiresScopes, type RequestWithClaims } from '@medcenter/common';
+import { claimsOf, RequiresRoles, RequiresScopes, type RequestWithClaims, type RequestWithRequestId } from '@medcenter/common';
 import { Role, SMART_SCOPES } from '@medcenter/contracts';
 import type { Response } from 'express';
 
@@ -8,6 +8,9 @@ import { CompleteEncounterDto } from './dto/complete-encounter.dto';
 import type { EncounterDetailsDto, EncounterResponseDto } from './dto/encounter-response.dto';
 import { OpenEncounterDto } from './dto/open-encounter.dto';
 import { EncountersService } from './encounters.service';
+
+/** An authenticated request after `RequestIdMiddleware` has assigned its correlation id. */
+type AuditedRequest = RequestWithClaims & Pick<RequestWithRequestId, 'requestId'>;
 
 /**
  * API §7.1–7.3 — the doctor opens and completes an encounter (FR-010…FR-014).
@@ -23,11 +26,11 @@ export class EncountersController {
   @RequiresRoles(Role.DOCTOR)
   @RequiresScopes(SMART_SCOPES.USER_WRITE)
   async open(
-    @Req() request: RequestWithClaims,
+    @Req() request: AuditedRequest,
     @Body() dto: OpenEncounterDto,
     @Res({ passthrough: true }) response: Response,
   ): Promise<EncounterResponseDto> {
-    const result = await this.encounters.open(claimsOf(request), dto);
+    const result = await this.encounters.open(claimsOf(request), dto, request.requestId);
     response.status(result.created ? HttpStatus.CREATED : HttpStatus.OK);
     return result.encounter;
   }
@@ -46,10 +49,10 @@ export class EncountersController {
   @RequiresRoles(Role.DOCTOR)
   @RequiresScopes(SMART_SCOPES.USER_WRITE)
   async complete(
-    @Req() request: RequestWithClaims,
+    @Req() request: AuditedRequest,
     @Param('id', FhirIdPipe) id: string,
     @Body() dto: CompleteEncounterDto,
   ): Promise<EncounterResponseDto> {
-    return this.encounters.complete(claimsOf(request), id, dto);
+    return this.encounters.complete(claimsOf(request), id, dto, request.requestId);
   }
 }

@@ -11,6 +11,7 @@ import {
   buildBookedAppointment,
   createdAppointmentId,
   missingReference,
+  rolePractitionerId,
   scheduleActorId,
   stringOf,
   type BookableSlot,
@@ -176,6 +177,7 @@ export class AppointmentsService {
     if (dto.serviceId !== undefined && dto.serviceId !== serviceId) {
       throw new BadRequestException({ errorCode: 'VALIDATION_ERROR', message: 'serviceId does not match the schedule of this slot' });
     }
-    return { slotId: dto.slotId, slot, practitionerRoleId, serviceId };
+    const role = await this.fhir.read('PractitionerRole', practitionerRoleId);
+    return { slotId: dto.slotId, slot, practitionerRoleId, practitionerId: rolePractitionerId(role), serviceId };
   }
 }

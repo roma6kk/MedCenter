@@ -3,19 +3,21 @@ import {
   Controller,
   Delete,
   Get,
+  Headers,
   HttpCode,
   HttpStatus,
   Param,
   Patch,
   Post,
   Query,
+  Req,
 } from '@nestjs/common';
-import { RequiresRoles } from '@medcenter/common';
-import { Role } from '@medcenter/contracts';
-import type { FhirResource } from '@medcenter/fhir';
+import { claimsOf, IdempotencyService, RequiresRoles, type RequestWithClaims } from '@medcenter/common';
+import { DEFAULT_PAGE, DEFAULT_PAGE_SIZE, Role } from '@medcenter/contracts';
 import type { SlotResponseDto } from '@medcenter/fhir-mappers';
 
 import { FhirIdParamDto } from '../../common/fhir-id-param.dto';
+import type { ScheduleSummaryDto } from '../slots/dto/doctor-schedule-response.dto';
 import { CreateScheduleDto } from './dto/create-schedule.dto';
 import { DeleteScheduleDto } from './dto/delete-schedule.dto';
 import { GenerateSlotsDto } from './dto/generate-slots.dto';
@@ -24,7 +26,7 @@ import { ScheduleSlotsQueryDto } from './dto/schedule-slots-query.dto';
 import { UpdateScheduleDto } from './dto/update-schedule.dto';
 import type { GenerateSlotsResult } from './slot-generator.service';
 import { SlotGeneratorService } from './slot-generator.service';
-import { SchedulesService } from './schedules.service';
+import { SchedulesService, type SchedulePage } from './schedules.service';
 
 /** API §5.2 — schedules are admin-only (BR-007). */
 @Controller('api/v1/admin/schedules')
@@ -32,18 +34,19 @@ export class SchedulesController {
   constructor(
     private readonly schedulesService: SchedulesService,
     private readonly slotGenerator: SlotGeneratorService,
+    private readonly idempotency: IdempotencyService,
   ) {}
 
   @Post()
   @RequiresRoles(Role.ADMIN)
-  async create(@Body() dto: CreateScheduleDto): Promise<FhirResource> {
+  async create(@Body() dto: CreateScheduleDto): Promise<ScheduleSummaryDto> {
     return this.schedulesService.create(dto);
   }
 
   @Get()
   @RequiresRoles(Role.ADMIN)
-  async list(@Query() query: ListSchedulesQueryDto): Promise<FhirResource[]> {
-    return this.schedulesService.list(query.doctorId, query.active);
+  async list(@Query() query: ListSchedulesQueryDto): Promise<SchedulePage> {
+    return this.schedulesService.list(query.page ?? DEFAULT_PAGE, query.pageSize ?? DEFAULT_PAGE_SIZE, query.doctorId, query.active);
   }
 
   @Patch(':id')
@@ -51,7 +54,7 @@ export class SchedulesController {
   async update(
     @Param() params: FhirIdParamDto,
     @Body() dto: UpdateScheduleDto,
-  ): Promise<FhirResource> {
+  ): Promise<ScheduleSummaryDto> {
     return this.schedulesService.update(params.id, dto);
   }
 
@@ -65,10 +68,14 @@ export class SchedulesController {
   @Post(':id/generate')
   @RequiresRoles(Role.ADMIN)
   async generate(
+    @Req() request: RequestWithClaims,
+    @Headers('idempotency-key') idempotencyKey: string | undefined,
     @Param() params: FhirIdParamDto,
     @Body() dto: GenerateSlotsDto,
   ): Promise<GenerateSlotsResult> {
-    return this.slotGenerator.generate(params.id, dto);
+    // API §0: a replayed `Idempotency-Key` is answered from the cache (24 h), per caller and schedule.
+    const scope = `generate:${claimsOf(request).sub}:${params.id}`;
+    return this.idempotency.run(scope, idempotencyKey, dto, () => this.slotGenerator.generate(params.id, dto));
   }
 
   @Get(':id/slots')

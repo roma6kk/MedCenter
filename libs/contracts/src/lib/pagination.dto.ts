@@ -13,6 +13,8 @@ export interface PaginatedResponseDto<TItem> {
 export const DEFAULT_PAGE = 1;
 export const DEFAULT_PAGE_SIZE = 20;
 export const MAX_PAGE_SIZE = 100;
+/** Upper bound of `page`: a huge page becomes a huge HAPI `_offset` that the server would still have to scan. */
+export const MAX_PAGE = 1000;
 
 export function buildPaginatedResponse<TItem>(
   items: TItem[],

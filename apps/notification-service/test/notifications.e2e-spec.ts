@@ -71,11 +71,13 @@ describe('Notifications (e2e)', () => {
         recipient: 'Patient/pat-1',
         _sort: '-sent',
         _count: 20,
-        _getpagesoffset: 0,
+        _offset: 0,
+        _total: 'accurate',
       });
-      expect(response.body).toEqual([
-        { id: 'c-1', category: 'appointment', text: 'Вы записаны на приём.', sent: '2026-11-02T09:00:00.000Z', read: false },
-      ]);
+      expect(response.body).toEqual({
+        items: [{ id: 'c-1', category: 'appointment', text: 'Вы записаны на приём.', sent: '2026-11-02T09:00:00.000Z', read: false }],
+        meta: { page: 1, pageSize: 20, totalItems: 1, totalPages: 1 },
+      });
     });
 
     it('should filter on the unread status and page the HAPI offset when unread, page and pageSize are given', async () => {
@@ -87,7 +89,8 @@ describe('Notifications (e2e)', () => {
         recipient: 'Patient/pat-1',
         _sort: '-sent',
         _count: 5,
-        _getpagesoffset: 10,
+        _offset: 10,
+        _total: 'accurate',
         status: 'in-progress',
       });
     });
@@ -108,12 +111,13 @@ describe('Notifications (e2e)', () => {
       const response = await request(app.getHttpServer()).get(NOTIFICATIONS).set('Authorization', patient).expect(200);
 
       // Assert
-      expect(response.body[0]).toMatchObject({ id: 'c-1', read: true });
+      expect(response.body.items[0]).toMatchObject({ id: 'c-1', read: true });
     });
 
     it.each([
       ['page=0', 'page=0'],
       ['page=abc', 'page=abc'],
+      ['page=1001', 'page=1001'],
       ['pageSize=0', 'pageSize=0'],
       ['pageSize=101', 'pageSize=101'],
       ['pageSize=1.5', 'pageSize=1.5'],

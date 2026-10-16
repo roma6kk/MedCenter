@@ -26,10 +26,6 @@ function withPayload(token: string, claims: Record<string, unknown>): string {
  * The perimeter with real RS256 verification (ADR-009): the guard stack checks
  * every token against the issuer's JWKS, exactly as in the stack. A refused call
  * must never reach HAPI.
- *
- * Refusals are asserted as "an error problem+json, nothing written" rather than
- * 401: `libs/common` `JwtAuthGuard` still lets `jose` errors escape as 500
- * (see tasks/TASK-001/test-generator-platform-report.md). Tighten to 401 once it maps them.
  */
 describe('JWT signature verification (e2e)', () => {
   let issuer: TestIssuer;
@@ -73,7 +69,8 @@ describe('JWT signature verification (e2e)', () => {
   });
 
   function expectRefusedBeforeFhir(response: request.Response): void {
-    expect(response.status).toBeGreaterThanOrEqual(400);
+    expect(response.status).toBe(401);
+    expect(response.body).toMatchObject({ errorCode: 'UNAUTHENTICATED' });
     expect(response.headers['content-type']).toContain('application/problem+json');
     for (const interaction of [fhir.search, fhir.read, fhir.create, fhir.update, fhir.delete]) {
       expect(interaction).not.toHaveBeenCalled();

@@ -48,12 +48,35 @@ describe('Admin schedule queries (e2e)', () => {
       .expect(200);
 
     // Assert
-    expect(fhir.search).toHaveBeenCalledWith('Schedule', { actor: 'PractitionerRole/role-7', active: 'true' });
+    expect(fhir.search).toHaveBeenCalledWith('Schedule', {
+      actor: 'PractitionerRole/role-7',
+      active: 'true',
+      _sort: '_id',
+      _count: 20,
+      _offset: 0,
+      _total: 'accurate',
+    });
+  });
+
+  it('should answer the schedule list in the paginated envelope with ScheduleSummaryDto items when the admin lists schedules', async () => {
+    // Arrange
+    fhir.search.mockResolvedValue({ total: 1, entry: [{ resource: { resourceType: 'Schedule', id: 's-1', active: true } }] });
+
+    // Act
+    const response = await request(app.getHttpServer()).get('/api/v1/admin/schedules?page=1&pageSize=5').set('Authorization', admin).expect(200);
+
+    // Assert
+    expect(response.body).toEqual({
+      items: [{ id: 's-1', isActive: true, windows: [] }],
+      meta: { page: 1, pageSize: 5, totalItems: 1, totalPages: 1 },
+    });
   });
 
   it.each([
     ['a comma-separated doctorId', 'doctorId=role-1,role-2'],
     ['an active flag that is not a boolean', 'active=maybe'],
+    ['a page below 1', 'page=0'],
+    ['a pageSize above 100', 'pageSize=101'],
   ])('should answer 400 VALIDATION_ERROR before HAPI is called when the schedule list has %s', async (_label, query) => {
     // Act
     const response = await request(app.getHttpServer())

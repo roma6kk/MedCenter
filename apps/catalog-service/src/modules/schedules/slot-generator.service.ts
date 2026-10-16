@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 
-import { BadGatewayException, BadRequestException, Inject, Injectable, Logger } from '@nestjs/common';
+import { BadGatewayException, BadRequestException, ConflictException, Inject, Injectable, Logger } from '@nestjs/common';
 import { FHIR_CLIENT, type FhirClient, type FhirResource } from '@medcenter/fhir';
 import { MEDCENTER_EXT } from '@medcenter/terminology';
 
@@ -64,6 +64,7 @@ export class SlotGeneratorService {
     this.assertWithinHorizon(dto);
 
     const schedule = await this.fhirClient.read('Schedule', scheduleId);
+    this.assertActive(scheduleId, schedule);
     const fromMs = Date.parse(dto.from);
     const toMs = Date.parse(dto.to);
     const planned = planSlots(
@@ -171,6 +172,16 @@ export class SlotGeneratorService {
         ? {}
         : { extension: [{ url: MEDCENTER_EXT.SLOT_ACTORS, valueString: JSON.stringify(actors) }] }),
     };
+  }
+
+  /** A schedule that was removed but kept for the appointment history (`active=false`) takes no new slots. */
+  private assertActive(scheduleId: string, schedule: FhirResource): void {
+    if (schedule['active'] === false) {
+      throw new ConflictException({
+        errorCode: 'CONFLICT',
+        message: `CONFLICT: schedule ${scheduleId} is deactivated (removed); create a new schedule to generate slots`,
+      });
+    }
   }
 
   private assertWithinHorizon(dto: GenerateSlotsDto): void {

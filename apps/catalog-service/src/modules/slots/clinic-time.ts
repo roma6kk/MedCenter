@@ -1,3 +1,5 @@
+import type { SlotResponseDto } from '@medcenter/fhir-mappers';
+
 import { CLINIC_TIME_ZONE } from '../../common/clinic-calendar';
 
 /** Slots are stored as UTC/offset instants; labels show them in clinic time (`CLINIC_TIME_ZONE`). */
@@ -45,11 +47,13 @@ export function formatSlotPeriod(start: string, end: string): string {
   return `${from.date} ${from.time}–${endText}`;
 }
 
+const STATUS_LABELS: Readonly<Record<SlotResponseDto['status'], string>> = {
+  free: 'свободен',
+  busy: 'занят',
+  'entered-in-error': 'снят',
+};
+
 /** Human-readable slot line for the doctor's own schedule (API §5.2.7). */
-export function slotLabel(slot: {
-  readonly start: string;
-  readonly end: string;
-  readonly status: 'free' | 'busy';
-}): string {
-  return `${formatSlotPeriod(slot.start, slot.end)} · ${slot.status === 'busy' ? 'занят' : 'свободен'}`;
+export function slotLabel(slot: Pick<SlotResponseDto, 'start' | 'end' | 'status'>): string {
+  return `${formatSlotPeriod(slot.start, slot.end)} · ${STATUS_LABELS[slot.status]}`;
 }

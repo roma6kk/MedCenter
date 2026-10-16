@@ -12,6 +12,8 @@ export interface OpeningContext {
   /** `HealthcareService.type[0]` of the booked service, when known. */
   readonly serviceType?: Readonly<Record<string, unknown>>;
   readonly actorSub: string;
+  /** `X-Request-Id` of the opening request, recorded in the AuditEvent. */
+  readonly requestId?: string;
   readonly now: string;
   /** `urn:uuid:` of the new Encounter inside the bundle. */
   readonly fullUrl: string;
@@ -78,6 +80,7 @@ export function buildOpeningWrites(context: OpeningContext): readonly Transactio
         actorSub: context.actorSub,
         entityRefs: [context.fullUrl],
         patientRef: context.patientRef,
+        requestId: context.requestId,
       }),
     },
   ];

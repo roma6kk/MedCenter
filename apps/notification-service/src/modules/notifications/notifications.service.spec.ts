@@ -41,7 +41,8 @@ describe('NotificationsService', () => {
         recipient: PATIENT,
         _sort: '-sent',
         _count: 10,
-        _getpagesoffset: 10,
+        _offset: 10,
+        _total: 'accurate',
       });
     });
 
@@ -60,7 +61,7 @@ describe('NotificationsService', () => {
       });
 
       // Act
-      const items = await service.list(PATIENT, { page: 1, pageSize: 20, unreadOnly: false });
+      const { items } = await service.list(PATIENT, { page: 1, pageSize: 20, unreadOnly: false });
 
       // Assert
       expect(items).toEqual([
@@ -74,21 +75,45 @@ describe('NotificationsService', () => {
       fhir.search.mockResolvedValue({ entry: [{ resource: { resourceType: 'Communication', id: 'c-3', status: 'in-progress' } }] });
 
       // Act
-      const items = await service.list(PATIENT, { page: 1, pageSize: 20, unreadOnly: false });
+      const { items } = await service.list(PATIENT, { page: 1, pageSize: 20, unreadOnly: false });
 
       // Assert
       expect(items).toEqual([{ id: 'c-3', category: '', text: '', sent: '', read: false }]);
     });
 
-    it('should return an empty list when HAPI answers a Bundle without entries', async () => {
+    it('should return an empty page when HAPI answers a Bundle without entries', async () => {
       // Arrange
       fhir.search.mockResolvedValue({});
 
       // Act
-      const items = await service.list(PATIENT, { page: 1, pageSize: 20, unreadOnly: false });
+      const page = await service.list(PATIENT, { page: 1, pageSize: 20, unreadOnly: false });
 
       // Assert
-      expect(items).toEqual([]);
+      expect(page).toEqual({ items: [], meta: { page: 1, pageSize: 20, totalItems: 0, totalPages: 0 } });
+    });
+
+    it('should wrap the items in the listing envelope with the accurate total when more notifications exist than one page holds', async () => {
+      // Arrange
+      fhir.search.mockResolvedValue({ total: 45, entry: [{ resource: communication() }] });
+
+      // Act
+      const page = await service.list(PATIENT, { page: 2, pageSize: 20, unreadOnly: false });
+
+      // Assert
+      expect(page.meta).toEqual({ page: 2, pageSize: 20, totalItems: 45, totalPages: 3 });
+    });
+  });
+
+  describe('list without a total from HAPI', () => {
+    it('should count the items of the earlier pages in totalItems when HAPI sends no total on page 3', async () => {
+      // Arrange
+      fhir.search.mockResolvedValue({ entry: [{ resource: communication() }, { resource: communication({ id: 'c-2' }) }] });
+
+      // Act
+      const page = await service.list(PATIENT, { page: 3, pageSize: 20, unreadOnly: false });
+
+      // Assert
+      expect(page.meta).toEqual({ page: 3, pageSize: 20, totalItems: 42, totalPages: 3 });
     });
   });
 

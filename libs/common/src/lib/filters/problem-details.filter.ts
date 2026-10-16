@@ -89,6 +89,8 @@ export class ProblemDetailsFilter implements ExceptionFilter {
     const status = exception.getStatus();
     const payload = exception.getResponse();
     const errorCode = this.readExplicitErrorCode(payload) ?? this.toErrorCode(status);
+    // `details[]` is the VALIDATION_ERROR contract (API §1); another error never carries field data.
+    const details = errorCode === 'VALIDATION_ERROR' ? this.readFieldDetails(payload) : [];
     return {
       type: `https://api.medcenter.by/errors/${errorCode.toLowerCase().replace(/_/g, '-')}`,
       title: exception.name,
@@ -97,7 +99,23 @@ export class ProblemDetailsFilter implements ExceptionFilter {
       instance,
       requestId,
       errorCode,
+      ...(details.length > 0 ? { details } : {}),
     };
+  }
+
+  /** `details[]` of a validation failure; anything that is not a `{ field, message }` pair is dropped. */
+  private readFieldDetails(payload: unknown): FieldErrorDetail[] {
+    if (typeof payload !== 'object' || payload === null || !('details' in payload)) {
+      return [];
+    }
+    const { details } = payload as { details?: unknown };
+    if (!Array.isArray(details)) {
+      return [];
+    }
+    return details.flatMap((entry: unknown): FieldErrorDetail[] => {
+      const { field, message } = (entry ?? {}) as { field?: unknown; message?: unknown };
+      return typeof field === 'string' && typeof message === 'string' ? [{ field, message }] : [];
+    });
   }
 
   private readExplicitErrorCode(payload: unknown): ErrorCode | null {

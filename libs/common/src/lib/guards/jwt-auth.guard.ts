@@ -68,6 +68,33 @@ async function getJwks(uri: string): Promise<RemoteJWKSet> {
   return cachedJwks;
 }
 
+/**
+ * `jose` error codes that mean "this token is unacceptable": expired, forged,
+ * malformed, foreign issuer/key, unsupported algorithm. They are the caller's
+ * problem (401 `UNAUTHENTICATED`, API §1) and let the client refresh its token.
+ * An unreachable or broken JWKS endpoint (`ERR_JWKS_TIMEOUT`, `ERR_JWKS_INVALID`,
+ * a network error) is ours and is deliberately not listed: it stays a server error.
+ */
+const REJECTED_TOKEN_CODES: ReadonlySet<string> = new Set([
+  'ERR_JWT_EXPIRED',
+  'ERR_JWT_INVALID',
+  'ERR_JWT_CLAIM_VALIDATION_FAILED',
+  'ERR_JWS_INVALID',
+  'ERR_JWS_SIGNATURE_VERIFICATION_FAILED',
+  'ERR_JWKS_NO_MATCHING_KEY',
+  'ERR_JWKS_MULTIPLE_MATCHING_KEYS',
+  'ERR_JOSE_ALG_NOT_ALLOWED',
+  'ERR_JOSE_NOT_SUPPORTED',
+]);
+
+function rejectionCodeOf(error: unknown): string | null {
+  if (typeof error !== 'object' || error === null || !('code' in error)) {
+    return null;
+  }
+  const { code } = error as { code: unknown };
+  return typeof code === 'string' && REJECTED_TOKEN_CODES.has(code) ? code : null;
+}
+
 async function verifyBearerToken(token: string): Promise<JwtClaims> {
   const env = parseJwtEnv(process.env);
   const { jwtVerify } = await import('jose');
@@ -112,10 +139,24 @@ export class JwtAuthGuard implements CanActivate {
       });
     }
 
-    const claims = await verifyBearerToken(token);
+    const claims = await this.verify(token);
     await this.assertNotRevoked(claims);
     request.user = claims;
     return true;
+  }
+
+  /** A token `jose` rejects is `401 UNAUTHENTICATED`; the reason (which could help a forger) stays in the debug log. */
+  private async verify(token: string): Promise<JwtClaims> {
+    try {
+      return await verifyBearerToken(token);
+    } catch (error: unknown) {
+      const code = rejectionCodeOf(error);
+      if (code === null) {
+        throw error;
+      }
+      this.logger.debug({ code }, 'Bearer token rejected');
+      throw new UnauthorizedException({ errorCode: 'UNAUTHENTICATED', message: 'Bearer token is invalid or expired' });
+    }
   }
 
   /**

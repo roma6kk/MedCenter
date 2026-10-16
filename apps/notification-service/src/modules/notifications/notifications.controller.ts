@@ -1,13 +1,10 @@
 import { BadRequestException, Controller, Get, HttpCode, HttpStatus, Param, Post, Query, Req } from '@nestjs/common';
 import { RequiresRoles, RequiresScopes, type RequestWithClaims } from '@medcenter/common';
-import { Role, SMART_SCOPES } from '@medcenter/contracts';
+import { DEFAULT_PAGE_SIZE, MAX_PAGE, MAX_PAGE_SIZE, Role, SMART_SCOPES, type PaginatedResponseDto } from '@medcenter/contracts';
 
 import type { NotificationResponseDto } from './dto/notification-response.dto';
 import { NotificationsService } from './notifications.service';
 import { FhirIdPipe, patientReferenceOf } from './patient-reference';
-
-const MAX_PAGE_SIZE = 100;
-const DEFAULT_PAGE_SIZE = 20;
 
 function parsePositiveInt(raw: string | undefined, fallback: number, max: number, name: string): number {
   if (raw === undefined || raw === '') {
@@ -33,10 +30,10 @@ export class NotificationsController {
     @Query('page') page?: string,
     @Query('pageSize') pageSize?: string,
     @Query('unread') unread?: string,
-  ): Promise<NotificationResponseDto[]> {
+  ): Promise<PaginatedResponseDto<NotificationResponseDto>> {
     const patientRef = patientReferenceOf(request);
     return this.notifications.list(patientRef, {
-      page: parsePositiveInt(page, 1, Number.MAX_SAFE_INTEGER, 'page'),
+      page: parsePositiveInt(page, 1, MAX_PAGE, 'page'),
       pageSize: parsePositiveInt(pageSize, DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE, 'pageSize'),
       unreadOnly: unread === 'true',
     });

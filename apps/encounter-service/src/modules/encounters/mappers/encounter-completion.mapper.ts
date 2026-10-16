@@ -24,6 +24,8 @@ export interface CompletionContext {
   readonly patientRef: string;
   readonly practitionerRoleRef: string;
   readonly actorSub: string;
+  /** `X-Request-Id` of the completing request, recorded in both AuditEvents. */
+  readonly requestId?: string;
   readonly now: string;
   readonly displays: TerminologyDisplays;
   /** `urn:uuid:` generator for resources created in the bundle (injectable for tests). */
@@ -119,6 +121,7 @@ function auditWrites(context: CompletionContext, created: readonly CreateWrite[]
       actorSub: context.actorSub,
       entityRefs,
       patientRef: context.patientRef,
+      requestId: context.requestId,
     }),
   });
   return [audit('update', [`Encounter/${context.encounterId}`]), audit('create', created.map((write) => write.fullUrl))];

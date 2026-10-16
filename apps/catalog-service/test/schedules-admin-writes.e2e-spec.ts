@@ -54,7 +54,7 @@ describe('Schedules admin writes (e2e)', () => {
       const response = await post(VALID_BODY).expect(201);
 
       // Assert
-      expect(harness.fhir.search).toHaveBeenCalledWith('Schedule', { actor: `PractitionerRole/${ROLE_ID}`, active: 'true' });
+      expect(harness.fhir.search).toHaveBeenCalledWith('Schedule', expect.objectContaining({ actor: `PractitionerRole/${ROLE_ID}`, active: 'true' }));
       expect(harness.fhir.create).toHaveBeenCalledWith('Schedule', {
         resourceType: 'Schedule',
         active: true,
@@ -70,7 +70,26 @@ describe('Schedules admin writes (e2e)', () => {
         ],
         comment: 'Осенний график',
       });
-      expect(response.body).toMatchObject({ resourceType: 'Schedule', id: 'sched-new', active: true });
+      expect(response.body).toEqual({
+        id: 'sched-new',
+        isActive: true,
+        practitionerRoleId: ROLE_ID,
+        roomId: ROOM_ID,
+        serviceId: SERVICE_ID,
+        horizonFrom: '2026-11-01',
+        horizonTo: '2026-11-30',
+        slotDurationMin: 30,
+        windows: MORNING,
+        comment: 'Осенний график',
+      });
+    });
+
+    it('should accept the numeric ids HAPI assigns to rooms and services created through the API', async () => {
+      // Act
+      const response = await post({ ...VALID_BODY, roomId: '1469', serviceId: '1470' }).expect(201);
+
+      // Assert
+      expect(response.body).toMatchObject({ roomId: '1469', serviceId: '1470' });
     });
 
     it('should answer 409 SCHEDULE_OVERLAP and create nothing when the role already has an overlapping window', async () => {
@@ -81,7 +100,10 @@ describe('Schedules admin writes (e2e)', () => {
             resource: {
               resourceType: 'Schedule',
               id: 'sched-old',
-              extension: [{ url: WEEKLY_WINDOWS_EXT, valueString: JSON.stringify([{ dayOfWeek: 'MO', startTime: '12:00', endTime: '15:00' }]) }],
+              extension: [
+                { url: WEEKLY_WINDOWS_EXT, valueString: JSON.stringify([{ dayOfWeek: 'MO', startTime: '12:00', endTime: '15:00' }]) },
+                { url: PLANNING_HORIZON_EXT, valuePeriod: { start: '2026-11-15', end: '2026-12-15' } },
+              ],
             },
           },
         ],
@@ -93,6 +115,30 @@ describe('Schedules admin writes (e2e)', () => {
       // Assert
       expect(response.body).toMatchObject({ status: 409, errorCode: 'SCHEDULE_OVERLAP' });
       expect(harness.fhir.create).not.toHaveBeenCalled();
+    });
+
+    it('should create the schedule when the same weekday window of the role belongs to a disjoint horizon', async () => {
+      // Arrange
+      harness.fhir.search.mockResolvedValue({
+        entry: [
+          {
+            resource: {
+              resourceType: 'Schedule',
+              id: 'sched-old',
+              extension: [
+                { url: WEEKLY_WINDOWS_EXT, valueString: JSON.stringify(MORNING) },
+                { url: PLANNING_HORIZON_EXT, valuePeriod: { start: '2026-09-01', end: '2026-09-30' } },
+              ],
+            },
+          },
+        ],
+      });
+
+      // Act
+      await post(VALID_BODY).expect(201);
+
+      // Assert
+      expect(harness.fhir.create).toHaveBeenCalledTimes(1);
     });
 
     it('should answer 409 SCHEDULE_OVERLAP before searching HAPI when two windows of the body intersect', async () => {
@@ -111,8 +157,8 @@ describe('Schedules admin writes (e2e)', () => {
     });
 
     it.each([
-      ['a practitionerRoleId that is not a UUID', { ...VALID_BODY, practitionerRoleId: 'role-7' }],
-      ['a roomId that is not a UUID', { ...VALID_BODY, roomId: 'room-204' }],
+      ['a practitionerRoleId that is not a FHIR id', { ...VALID_BODY, practitionerRoleId: 'role,7' }],
+      ['a roomId that is not a FHIR id', { ...VALID_BODY, roomId: 'room/204' }],
       ['a horizon that is not a date', { ...VALID_BODY, horizonFrom: 'tomorrow' }],
       ['no windows', { ...VALID_BODY, windows: [] }],
       ['a window on an unknown weekday', { ...VALID_BODY, windows: [{ dayOfWeek: 'XX', startTime: '09:00', endTime: '13:00' }] }],
@@ -145,12 +191,12 @@ describe('Schedules admin writes (e2e)', () => {
       harness.store.entries.set(CACHE_KEYS.DOCTOR_SLOTS_DAY('doc-1', '2026-11-02'), '[]');
     });
 
-    it('should delete the Schedule and clear its slot caches when no busy slot exists and no body is sent', async () => {
+    it('should delete the Schedule and clear its slot caches when it has no slots and no body is sent', async () => {
       // Act
       await remove().expect(204);
 
       // Assert
-      expect(harness.fhir.search).toHaveBeenCalledWith('Slot', { schedule: 'Schedule/sched-1', status: 'busy' });
+      expect(harness.fhir.search).toHaveBeenCalledWith('Slot', { schedule: 'Schedule/sched-1', status: 'busy', _count: 1 });
       expect(harness.fhir.delete).toHaveBeenCalledWith('Schedule', 'sched-1');
       expect(harness.store.entries.has(slotKey)).toBe(false);
       expect(harness.store.entries.size).toBe(0);
@@ -176,16 +222,76 @@ describe('Schedules admin writes (e2e)', () => {
       expect(harness.store.entries.has(slotKey)).toBe(true);
     });
 
-    it('should delete the Schedule when busy slots exist and the admin confirms with cascade', async () => {
+    it('should keep answering 409 SCHEDULE_IN_USE when busy slots exist, even if the admin confirms with cascade', async () => {
       // Arrange
       harness.fhir.search.mockResolvedValue(busySlots);
+
+      // Act
+      const response = await remove({ cascade: true }).expect(409);
+
+      // Assert
+      expect(response.body).toMatchObject({ errorCode: 'SCHEDULE_IN_USE' });
+      expect(harness.fhir.delete).not.toHaveBeenCalled();
+    });
+
+    it('should delete the free slots and then the Schedule when the admin confirms with cascade', async () => {
+      // Arrange
+      const freeSlots = { entry: [{ resource: { resourceType: 'Slot', id: 'slot-1', status: 'free' } }] };
+      harness.fhir.search.mockImplementation(async (_type, params) => {
+        const asked = (params ?? {}) as { status?: string };
+        const deleted = harness.fhir.batch.mock.calls.length > 0;
+        return asked.status === 'busy' || deleted ? { entry: [] } : freeSlots;
+      });
+      harness.fhir.batch.mockResolvedValue({ resourceType: 'Bundle', entry: [{ response: { status: '204 No Content' } }] } as never);
 
       // Act
       await remove({ cascade: true }).expect(204);
 
       // Assert
+      expect(harness.fhir.batch).toHaveBeenCalledWith(expect.objectContaining({ type: 'batch', entry: [{ request: { method: 'DELETE', url: 'Slot/slot-1' } }] }));
       expect(harness.fhir.delete).toHaveBeenCalledWith('Schedule', 'sched-1');
       expect(harness.store.entries.size).toBe(0);
+    });
+
+    it('should retire the slot a cancelled appointment references and deactivate the Schedule instead of deleting it', async () => {
+      // Arrange: HAPI refuses `DELETE Slot` (409) because `Appointment.slot` still names it.
+      const slot = { resourceType: 'Slot', id: 'slot-1', status: 'free', meta: { versionId: '2' } };
+      harness.fhir.search.mockImplementation(async (_type, params) => {
+        const asked = (params ?? {}) as { status?: string };
+        const retired = harness.fhir.batch.mock.calls.length > 1;
+        if (asked.status === 'busy') return { entry: [] };
+        return { entry: asked.status === 'free' && retired ? [] : [{ resource: retired ? { ...slot, status: 'entered-in-error' } : slot }] };
+      });
+      harness.fhir.batch
+        .mockResolvedValueOnce({ resourceType: 'Bundle', entry: [{ response: { status: '409 Conflict' } }] } as never)
+        .mockResolvedValueOnce({ resourceType: 'Bundle', entry: [{ response: { status: '200 OK' } }] } as never);
+      harness.fhir.read.mockResolvedValue({ resourceType: 'Schedule', id: 'sched-1', active: true });
+
+      // Act
+      await remove({ cascade: true }).expect(204);
+
+      // Assert
+      const retire = (harness.fhir.batch.mock.calls[1]?.[0] as unknown as { entry: Array<{ request: object; resource: object }> }).entry[0];
+      expect(retire?.request).toEqual({ method: 'PUT', url: 'Slot/slot-1', ifMatch: 'W/"2"' });
+      expect(retire?.resource).toMatchObject({ id: 'slot-1', status: 'entered-in-error' });
+      expect(harness.fhir.update).toHaveBeenCalledWith('Schedule', 'sched-1', expect.objectContaining({ active: false }));
+      expect(harness.fhir.delete).not.toHaveBeenCalled();
+      expect(harness.store.entries.has(slotKey)).toBe(false);
+    });
+
+    it('should answer 409 SCHEDULE_IN_USE when free slots exist and the admin does not confirm with cascade', async () => {
+      // Arrange
+      harness.fhir.search.mockImplementation(async (_type, params) => ({
+        entry: (params as { status?: string }).status === 'busy' ? [] : [{ resource: { resourceType: 'Slot', id: 'slot-1', status: 'free' } }],
+      }));
+
+      // Act
+      const response = await remove({ cascade: false }).expect(409);
+
+      // Assert
+      expect(response.body).toMatchObject({ errorCode: 'SCHEDULE_IN_USE' });
+      expect(harness.fhir.batch).not.toHaveBeenCalled();
+      expect(harness.fhir.delete).not.toHaveBeenCalled();
     });
 
     it('should answer 400 VALIDATION_ERROR before HAPI is called when cascade is not a boolean', async () => {

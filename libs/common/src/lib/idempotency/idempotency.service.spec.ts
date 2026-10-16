@@ -1,4 +1,4 @@
-import { BadRequestException, ConflictException } from '@nestjs/common';
+import { BadRequestException, ConflictException, Logger } from '@nestjs/common';
 
 import { fingerprintOf, IdempotencyService, type IdempotencyStore } from './idempotency.service';
 
@@ -87,5 +87,37 @@ describe('IdempotencyService', () => {
   it('should fingerprint the body the same when an optional field is absent or undefined', () => {
     expect(fingerprintOf({ slotId: 'a', reason: undefined })).toBe(fingerprintOf({ slotId: 'a' }));
     expect(fingerprintOf({ slotId: 'a', reason: 'x' })).not.toBe(fingerprintOf({ slotId: 'a' }));
+  });
+
+  describe('when the store is down', () => {
+    let failing: jest.Mocked<IdempotencyStore>;
+
+    beforeEach(() => {
+      jest.spyOn(Logger.prototype, 'warn').mockImplementation();
+      failing = { get: jest.fn().mockResolvedValue(null), set: jest.fn().mockRejectedValue(new Error('redis down')) };
+      service = new IdempotencyService(failing);
+    });
+
+    afterEach(() => {
+      jest.restoreAllMocks();
+    });
+
+    it('should still return the result of an operation that succeeded when the store refuses the write', async () => {
+      const operation = jest.fn().mockResolvedValue({ id: 'apt-1' });
+
+      await expect(service.run('user-1', KEY, BODY, operation)).resolves.toEqual({ id: 'apt-1' });
+
+      expect(operation).toHaveBeenCalledTimes(1);
+      expect(Logger.prototype.warn).toHaveBeenCalledWith(expect.objectContaining({ scope: 'user-1', err: 'redis down' }), expect.any(String));
+    });
+
+    it('should fail the request before the operation runs when the store cannot be read', async () => {
+      failing.get.mockRejectedValue(new Error('redis down'));
+      const operation = jest.fn();
+
+      await expect(service.run('user-1', KEY, BODY, operation)).rejects.toThrow('redis down');
+
+      expect(operation).not.toHaveBeenCalled();
+    });
   });
 });

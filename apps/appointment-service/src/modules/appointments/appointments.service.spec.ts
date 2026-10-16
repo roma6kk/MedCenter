@@ -34,6 +34,12 @@ const schedule: FhirResource = {
   ],
 };
 
+const practitionerRole: FhirResource = {
+  resourceType: 'PractitionerRole',
+  id: 'role-1',
+  practitioner: { reference: 'Practitioner/doc-1' },
+};
+
 const bookedAppointment: FhirResource = {
   resourceType: 'Appointment',
   id: 'apt-1',
@@ -126,6 +132,19 @@ describe('AppointmentsService', () => {
       const bundle = fhir.batch.mock.calls[0]?.[0] as unknown as { entry: Array<{ resource: FhirResource }> };
       const participants = bundle.entry[1]?.resource['participant'] as Array<{ actor: { reference: string } }>;
       expect(participants.map((participant) => participant.actor.reference)).toContain('Patient/9f2c');
+    });
+
+    it('should answer with the doctor id of the Practitioner behind the role when the booking succeeds', async () => {
+      fhir.read.mockImplementation(async (type) => (type === 'Slot' ? freeSlot : type === 'PractitionerRole' ? practitionerRole : schedule));
+      fhir.batch.mockResolvedValue({
+        resourceType: 'Bundle',
+        type: 'transaction-response',
+        entry: [{}, { response: { status: '201', location: 'Appointment/apt-1/_history/1' } }, {}],
+      });
+
+      const result = await service.book(patientClaims, { slotId: 'slot-1' });
+
+      expect(result).toMatchObject({ doctorId: 'doc-1', practitionerRoleId: 'role-1' });
     });
 
     it('should throw SLOT_CONFLICT without writing when the slot is already busy', async () => {

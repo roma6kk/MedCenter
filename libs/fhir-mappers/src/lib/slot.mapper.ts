@@ -2,14 +2,16 @@ import type { FhirResource } from '@medcenter/fhir';
 
 /**
  * Response DTO for `GET /api/v1/doctors/{id}/slots` (API §5.2.8).
- * `status` is narrowed to the only two values the catalog read side exposes.
+ * `status` is `free` or `busy`; `entered-in-error` is a slot retired by a schedule
+ * removal (it stays because an Appointment still references it) and only shows up
+ * when an admin asks for that status explicitly.
  */
 export interface SlotResponseDto {
   readonly id: string;
   readonly scheduleId: string;
   readonly start: string;
   readonly end: string;
-  readonly status: 'free' | 'busy';
+  readonly status: 'free' | 'busy' | 'entered-in-error';
 }
 
 function readReferenceId(resource: FhirResource, key: string): string {
@@ -21,6 +23,13 @@ function readReferenceId(resource: FhirResource, key: string): string {
   return typeof reference === 'string' ? reference.split('/').pop() ?? '' : '';
 }
 
+function toSlotStatus(status: unknown): SlotResponseDto['status'] {
+  if (status === 'entered-in-error') {
+    return 'entered-in-error';
+  }
+  return status === 'busy' ? 'busy' : 'free';
+}
+
 /** FHIR `Slot` -> `SlotResponseDto` (ADR-002 mapper pair). */
 export function toSlotResponseDto(slot: FhirResource): SlotResponseDto {
   return {
@@ -28,7 +37,7 @@ export function toSlotResponseDto(slot: FhirResource): SlotResponseDto {
     scheduleId: readReferenceId(slot, 'schedule'),
     start: typeof slot['start'] === 'string' ? slot['start'] : '',
     end: typeof slot['end'] === 'string' ? slot['end'] : '',
-    status: slot['status'] === 'busy' ? 'busy' : 'free',
+    status: toSlotStatus(slot['status']),
   };
 }
 

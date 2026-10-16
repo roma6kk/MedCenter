@@ -115,12 +115,7 @@ describe('GET /api/v1/me/patient (e2e)', () => {
     expect(JSON.stringify(response.body)).not.toContain('hapi:8080');
   });
 
-  /**
-   * The request must be refused before HAPI is touched. The status is 500
-   * INTERNAL instead of the contractual 401 UNAUTHENTICATED: `libs/common`
-   * `JwtAuthGuard` does not map `jose` verification errors (shared-lib defect,
-   * see tasks/TASK-001/coder-patient-service-report.md). Tighten to 401 once fixed.
-   */
+  /** The request must be refused with 401 UNAUTHENTICATED before HAPI is touched. */
   it('should refuse the request without reading FHIR when the token signature is forged', async () => {
     const [header, payload] = patientToken().split('.');
     const forged = `${header}.${payload}.${Buffer.from('forged').toString('base64url')}`;
@@ -129,8 +124,9 @@ describe('GET /api/v1/me/patient (e2e)', () => {
       .get(ME_PATIENT)
       .set('Authorization', `Bearer ${forged}`);
 
-    expect(response.status).toBeGreaterThanOrEqual(400);
+    expect(response.status).toBe(401);
     expect(response.headers['content-type']).toContain('application/problem+json');
+    expect(response.body).toMatchObject({ errorCode: 'UNAUTHENTICATED' });
     expect(response.body).not.toHaveProperty('id');
     expect(booted.fhir.read).not.toHaveBeenCalled();
   });

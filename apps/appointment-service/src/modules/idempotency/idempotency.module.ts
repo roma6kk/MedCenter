@@ -1,6 +1,6 @@
 import { Module } from '@nestjs/common';
+import { IDEMPOTENCY_STORE, IdempotencyService } from '@medcenter/common';
 
-import { IDEMPOTENCY_STORE, IdempotencyService } from './idempotency.service';
 import { createRedisIdempotencyStore } from './redis-idempotency.store';
 
 @Module({

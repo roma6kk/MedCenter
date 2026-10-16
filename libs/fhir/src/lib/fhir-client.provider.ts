@@ -59,6 +59,12 @@ export interface FhirResource {
 
 export const FHIR_CLIENT = Symbol('FHIR_CLIENT');
 
+/** What one request asks of the HTTP layer beyond method, path and body. */
+interface RequestOptions {
+  /** Send `Cache-Control: no-cache` so HAPI answers a search from live data, not from its result cache. */
+  readonly bypassSearchCache?: boolean;
+}
+
 export interface FhirClientConfig {
   readonly baseUrl: string;
   readonly clientId?: string;
@@ -85,7 +91,7 @@ export class HttpClient implements FhirClient {
   constructor(private readonly config: FhirClientConfig) {}
 
   async search(resourceType: string, params: Record<string, unknown> = {}): Promise<FhirSearchResult> {
-    return this.request<FhirSearchResult>('GET', withQuery(resourceType, params));
+    return this.request<FhirSearchResult>('GET', withQuery(resourceType, params), undefined, { bypassSearchCache: true });
   }
 
   async read(resourceType: string, id: string): Promise<FhirResource> {
@@ -120,29 +126,43 @@ export class HttpClient implements FhirClient {
     return this.request<FhirResource>('POST', '', bundle);
   }
 
-  private async request<T>(
-    method: string,
-    path: string,
-    body?: FhirResource,
-  ): Promise<T> {
+  private async request<T>(method: string, path: string, body?: FhirResource, options: RequestOptions = {}): Promise<T> {
     const url = `${this.config.baseUrl.replace(/\/$/, '')}/${path}`;
-    const headers: Record<string, string> = {
-      Accept: 'application/fhir+json',
-    };
-    if (body !== undefined) {
+    const response = await this.send(method, url, body, options);
+    if (!response.ok) {
+      throw await this.failureOf(method, url, response);
+    }
+    if (response.status === 204) {
+      return undefined as T;
+    }
+    return this.readJson<T>(method, url, response);
+  }
+
+  private headersFor(options: RequestOptions, hasBody: boolean): Record<string, string> {
+    const headers: Record<string, string> = { Accept: 'application/fhir+json' };
+    if (options.bypassSearchCache === true) {
+      // HAPI serves an identical search from its own result cache for a minute. A service that
+      // decides "does this exist yet?" before writing (replayed `POST /encounters`, slot lookups)
+      // must see the live state, so every search opts out of that cache. Only searches: a read by
+      // id, an operation and a write never touch the search cache. (Alternative: the HAPI server
+      // setting `reuse_cached_search_results_millis`, which would change it for every client.)
+      headers['Cache-Control'] = 'no-cache';
+    }
+    if (hasBody) {
       headers['Content-Type'] = 'application/fhir+json';
     }
     if (this.config.clientId !== undefined && this.config.clientSecret !== undefined) {
-      headers['Authorization'] = `Basic ${Buffer.from(
-        `${this.config.clientId}:${this.config.clientSecret}`,
-      ).toString('base64')}`;
+      const credentials = Buffer.from(`${this.config.clientId}:${this.config.clientSecret}`).toString('base64');
+      headers['Authorization'] = `Basic ${credentials}`;
     }
+    return headers;
+  }
 
-    let response: Response;
+  private async send(method: string, url: string, body: FhirResource | undefined, options: RequestOptions): Promise<Response> {
     try {
-      response = await fetch(url, {
+      return await fetch(url, {
         method,
-        headers,
+        headers: this.headersFor(options, body !== undefined),
         body: body === undefined ? undefined : JSON.stringify(body),
         signal: AbortSignal.timeout(this.config.timeoutMs ?? DEFAULT_FHIR_TIMEOUT_MS),
       });
@@ -152,29 +172,29 @@ export class HttpClient implements FhirClient {
       this.logger.warn({ method, url, timedOut, err: error }, 'FHIR request failed');
       throw new FhirClientError(method, url, undefined, undefined, { timedOut, cause: error });
     }
+  }
 
-    if (!response.ok) {
-      // Keep the response body (usually an OperationOutcome) for diagnostics.
-      // The same timeout signal covers this read, so a stalled error body is a
-      // timeout (504), not a silently dropped body.
-      let detail: string | undefined;
-      let bodyTimedOut = false;
-      try {
-        detail = await response.text();
-      } catch (readError) {
-        bodyTimedOut = isTimeoutError(readError);
-      }
-      const error = new FhirClientError(method, url, response.status, detail, {
-        timedOut: bodyTimedOut,
-      });
-      if (error.getStatus() >= 500) {
-        this.logger.warn({ method, url, status: response.status, body: detail }, 'FHIR request failed');
-      }
-      throw error;
+  /**
+   * Keeps the response body (usually an OperationOutcome) for diagnostics. The same timeout
+   * signal covers this read, so a stalled error body is a timeout (504), not a silently
+   * dropped body.
+   */
+  private async failureOf(method: string, url: string, response: Response): Promise<FhirClientError> {
+    let detail: string | undefined;
+    let bodyTimedOut = false;
+    try {
+      detail = await response.text();
+    } catch (readError) {
+      bodyTimedOut = isTimeoutError(readError);
     }
-    if (response.status === 204) {
-      return undefined as T;
+    const error = new FhirClientError(method, url, response.status, detail, { timedOut: bodyTimedOut });
+    if (error.getStatus() >= 500) {
+      this.logger.warn({ method, url, status: response.status, body: detail }, 'FHIR request failed');
     }
+    return error;
+  }
+
+  private async readJson<T>(method: string, url: string, response: Response): Promise<T> {
     try {
       return (await response.json()) as T;
     } catch (error) {

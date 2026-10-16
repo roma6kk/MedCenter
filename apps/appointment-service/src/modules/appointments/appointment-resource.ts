@@ -11,7 +11,16 @@ export interface BookableSlot {
   readonly slotId: string;
   readonly slot: FhirResource;
   readonly practitionerRoleId: string;
+  /** `Practitioner.id` behind the role; `''` when the role does not name one. */
+  readonly practitionerId: string;
   readonly serviceId: string;
+}
+
+/** The `Practitioner` a PractitionerRole stands for, as a bare id (`''` when the role has none). */
+export function rolePractitionerId(role: FhirResource): string {
+  const reference = (role['practitioner'] as { reference?: unknown } | undefined)?.reference;
+  const parsed = parseReference(reference);
+  return parsed?.type === 'Practitioner' ? parsed.id : '';
 }
 
 export function stringOf(resource: FhirResource, key: string): string {
@@ -37,9 +46,14 @@ export function missingReference(detail: string): InternalServerErrorException {
   return new InternalServerErrorException({ errorCode: 'INTERNAL', message: `INTERNAL: ${detail}` });
 }
 
-/** The `Appointment(status=booked)` a booking creates: Patient, PractitionerRole and service participants. */
+/**
+ * The `Appointment(status=booked)` a booking creates: Patient, PractitionerRole,
+ * the Practitioner behind the role and the service as participants. The Practitioner
+ * is stored so that every answer built from the Appointment alone (booking, cancel,
+ * no-show) carries the `doctorId` API §6 promises, without a second FHIR read.
+ */
 export function buildBookedAppointment(bookable: BookableSlot, patientRef: string, reason: string | undefined): FhirResource {
-  const { slotId, slot, practitionerRoleId, serviceId } = bookable;
+  const { slotId, slot, practitionerRoleId, practitionerId, serviceId } = bookable;
   return {
     resourceType: 'Appointment',
     status: BOOKED,
@@ -50,6 +64,7 @@ export function buildBookedAppointment(bookable: BookableSlot, patientRef: strin
     participant: [
       { actor: { reference: patientRef }, status: 'accepted' },
       { actor: { reference: `PractitionerRole/${practitionerRoleId}` }, status: 'accepted' },
+      ...(practitionerId === '' ? [] : [{ actor: { reference: `Practitioner/${practitionerId}` }, status: 'accepted' }]),
       { actor: { reference: `HealthcareService/${serviceId}` }, status: 'accepted' },
     ],
     ...(reason === undefined ? {} : { reasonCode: [{ text: reason }] }),

@@ -1,9 +1,12 @@
-import { BadRequestException, ConflictException, Inject, Injectable } from '@nestjs/common';
+import { BadRequestException, Inject, Injectable } from '@nestjs/common';
+import { buildPaginatedResponse, type PaginatedResponseDto } from '@medcenter/contracts';
 import { FHIR_CLIENT, type FhirClient, type FhirResource } from '@medcenter/fhir';
 import { toSlotResponseDto, type SlotResponseDto } from '@medcenter/fhir-mappers';
 
 import { CACHE_KEYS, CACHE_TTLS, RedisCacheService } from '../cache/redis-cache.service';
-import { CreateScheduleDto, type WeeklyWindowDto } from './dto/create-schedule.dto';
+import type { ScheduleSummaryDto } from '../slots/dto/doctor-schedule-response.dto';
+import { toScheduleSummaryDto } from '../slots/schedule-summary.mapper';
+import { CreateScheduleDto } from './dto/create-schedule.dto';
 import { UpdateScheduleDto } from './dto/update-schedule.dto';
 import {
   PLANNING_HORIZON_DAYS,
@@ -11,15 +14,21 @@ import {
   SLOT_DURATION_EXT,
   WEEKLY_WINDOWS_EXT,
 } from './schedule.constants';
-import { hasCrossOverlap, hasInternalOverlap } from './window-overlap';
+import { assertNoScheduleOverlap } from './schedule-overlap';
+import { removeScheduleWithSlots } from './schedule-removal';
 
 type Extension = Record<string, unknown>;
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
+/** One page of the admin schedule list in the API §0 envelope. */
+export type SchedulePage = PaginatedResponseDto<ScheduleSummaryDto>;
+
 /**
- * Schedule CRUD (API §5.2.1–5.2.4). Creation rejects overlapping weekly
- * windows for the same practitioner role with `409 SCHEDULE_OVERLAP` (BR-007).
+ * Schedule CRUD (API §5.2.1–5.2.4). Creation rejects a schedule whose horizon
+ * and weekly windows overlap another one of the same practitioner role with
+ * `409 SCHEDULE_OVERLAP` (BR-007). Answers are `ScheduleSummaryDto`s, never raw
+ * FHIR resources.
  */
 @Injectable()
 export class SchedulesService {
@@ -28,8 +37,12 @@ export class SchedulesService {
     private readonly cache: RedisCacheService,
   ) {}
 
-  async create(dto: CreateScheduleDto): Promise<FhirResource> {
-    await this.assertNoOverlap(dto.practitionerRoleId, dto.windows);
+  async create(dto: CreateScheduleDto): Promise<ScheduleSummaryDto> {
+    await assertNoScheduleOverlap(this.fhirClient, {
+      practitionerRoleId: dto.practitionerRoleId,
+      windows: dto.windows,
+      horizon: { start: dto.horizonFrom, end: dto.horizonTo },
+    });
 
     const schedule: FhirResource = {
       resourceType: 'Schedule',
@@ -49,14 +62,11 @@ export class SchedulesService {
       ],
       ...(dto.comment === undefined ? {} : { comment: dto.comment }),
     };
-    return this.fhirClient.create('Schedule', schedule);
+    return toScheduleSummaryDto(await this.fhirClient.create('Schedule', schedule));
   }
 
-  async update(id: string, dto: UpdateScheduleDto): Promise<FhirResource> {
+  async update(id: string, dto: UpdateScheduleDto): Promise<ScheduleSummaryDto> {
     const existing = await this.fhirClient.read('Schedule', id);
-    if (dto.windows !== undefined) {
-      await this.assertNoOverlap(this.readRoleId(existing), dto.windows, id);
-    }
     // Partial PATCH semantics: a supplied horizon bound replaces its half of
     // the stored valuePeriod, the other half survives. The 90-day guard runs
     // on the merged period — checking the DTO alone let a single-bound PATCH
@@ -66,6 +76,15 @@ export class SchedulesService {
     const end = dto.horizonTo ?? storedPeriod?.end;
     if (dto.horizonFrom !== undefined || dto.horizonTo !== undefined) {
       this.assertHorizonSpan(start, end);
+    }
+    if (dto.windows !== undefined || dto.horizonFrom !== undefined || dto.horizonTo !== undefined) {
+      const current = toScheduleSummaryDto(existing);
+      await assertNoScheduleOverlap(this.fhirClient, {
+        practitionerRoleId: current.practitionerRoleId ?? '',
+        windows: dto.windows ?? current.windows,
+        horizon: { start, end },
+        excludeScheduleId: id,
+      });
     }
 
     const merged: Record<string, unknown> = { ...existing };
@@ -80,7 +99,7 @@ export class SchedulesService {
       delete merged['extension'];
     }
     delete merged['slotDurationMin'];
-    return this.fhirClient.update('Schedule', id, merged as FhirResource);
+    return toScheduleSummaryDto(await this.fhirClient.update('Schedule', id, merged as FhirResource));
   }
 
   /**
@@ -144,33 +163,31 @@ export class SchedulesService {
     }
   }
 
-  /** API §5.2.2 — schedule list, optionally filtered by doctor / active flag. */
-  async list(doctorId?: string, active?: string): Promise<FhirResource[]> {
+  /** API §5.2.2 — schedule list, optionally filtered by doctor / active flag, in the API §0 envelope. */
+  async list(page: number, pageSize: number, doctorId?: string, active?: string): Promise<SchedulePage> {
     const result = await this.fhirClient.search('Schedule', {
       ...(doctorId === undefined ? {} : { actor: `PractitionerRole/${doctorId}` }),
       ...(active === undefined ? {} : { active }),
+      _sort: '_id',
+      _count: pageSize,
+      _offset: (page - 1) * pageSize,
+      _total: 'accurate',
     });
-    return (result.entry ?? []).map((entry) => entry.resource);
+    const items = (result.entry ?? []).map((entry) => toScheduleSummaryDto(entry.resource));
+    const totalItems = result.total ?? (page - 1) * pageSize + items.length;
+    return buildPaginatedResponse(items, { page, pageSize, totalItems, totalPages: Math.ceil(totalItems / pageSize) });
   }
 
+  /** API §5.2.4: busy slots protect the schedule, free ones go with `cascade` (see `removeScheduleWithSlots`). */
   async remove(id: string, cascade: boolean): Promise<void> {
-    const busy = await this.fhirClient.search('Slot', {
-      schedule: `Schedule/${id}`,
-      status: 'busy',
-    });
-    if ((busy.entry ?? []).length > 0 && !cascade) {
-      throw new ConflictException({
-        errorCode: 'SCHEDULE_IN_USE',
-        message: `SCHEDULE_IN_USE: schedule ${id} has busy slots`,
-      });
-    }
-    await this.fhirClient.delete('Schedule', id);
+    await removeScheduleWithSlots(this.fhirClient, id, cascade);
     await this.cache.invalidate([CACHE_KEYS.SCHEDULE_SLOTS(id), CACHE_KEYS.ALL_DOCTOR_SLOTS]);
   }
 
-  /** Free slots of a schedule, cached for 15 s (NFR-005). The cache key
-   *  includes the status filter — otherwise the first filtered query caches a
-   *  free-only slice under the shared key and unfiltered callers receive it. */
+  /** Slots of a schedule, cached for 15 s (NFR-005). Without a `status` the answer is free and busy
+   *  slots only (the two-state contract): a slot retired by a schedule removal (`entered-in-error`)
+   *  appears only when asked for. The cache key includes the status filter — otherwise the first
+   *  filtered query caches a free-only slice under the shared key and unfiltered callers receive it. */
   async listSlots(
     scheduleId: string,
     from: string,
@@ -182,75 +199,12 @@ export class SchedulesService {
       const result = await this.fhirClient.search('Slot', {
         schedule: `Schedule/${scheduleId}`,
         start: [`ge${from}`, `le${to}`],
-        ...(status === undefined ? {} : { status }),
+        status: status ?? 'free,busy',
       });
       return (result.entry ?? [])
         .map((entry) => toSlotResponseDto(entry.resource))
         .sort((a, b) => a.start.localeCompare(b.start));
     });
-  }
-
-  /**
-   * BR-007: no two active windows of the same practitioner role may overlap.
-   * Overlap is checked per day-of-week, minute-range intersection.
-   */
-  private async assertNoOverlap(
-    practitionerRoleId: string,
-    windows: readonly WeeklyWindowDto[],
-    excludeScheduleId?: string,
-  ): Promise<void> {
-    if (hasInternalOverlap(windows)) {
-      throw new ConflictException({
-        errorCode: 'SCHEDULE_OVERLAP',
-        message: 'SCHEDULE_OVERLAP: weekly windows intersect',
-      });
-    }
-
-    const existing = await this.fhirClient.search('Schedule', {
-      actor: `PractitionerRole/${practitionerRoleId}`,
-      active: 'true',
-    });
-    for (const entry of existing.entry ?? []) {
-      if (entry.resource.id === excludeScheduleId) {
-        continue;
-      }
-      const existingWindows = this.readWindows(entry.resource);
-      if (hasCrossOverlap(windows, existingWindows)) {
-        throw new ConflictException({
-          errorCode: 'SCHEDULE_OVERLAP',
-          message: `SCHEDULE_OVERLAP: practitioner role ${practitionerRoleId} already has a schedule`,
-        });
-      }
-    }
-  }
-
-  private readWindows(schedule: FhirResource): WeeklyWindowDto[] {
-    const extensions = schedule['extension'];
-    if (!Array.isArray(extensions)) {
-      return [];
-    }
-    const horizon = (extensions as Array<Record<string, unknown>>).find(
-      (ext) => ext['url'] === WEEKLY_WINDOWS_EXT && typeof ext['valueString'] === 'string',
-    );
-    if (horizon === undefined) {
-      return [];
-    }
-    try {
-      return JSON.parse(horizon['valueString'] as string) as WeeklyWindowDto[];
-    } catch {
-      return [];
-    }
-  }
-
-  private readRoleId(schedule: FhirResource): string {
-    const actors = schedule['actor'];
-    if (!Array.isArray(actors)) {
-      return '';
-    }
-    const role = (actors as Array<{ reference?: string }>).find((actor) =>
-      actor.reference?.startsWith('PractitionerRole/'),
-    );
-    return role?.reference?.split('/')[1] ?? '';
   }
 
   /** Reads the planning-horizon valuePeriod stored on a schedule, if any. */

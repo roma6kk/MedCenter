@@ -50,4 +50,12 @@ describe('slotLabel', () => {
     // Assert
     expect(label).toBe('02.11.2026 12:00–12:30 · занят');
   });
+
+  it('should mark a slot retired by a schedule removal as снят when its status is entered-in-error', () => {
+    // Act
+    const label = slotLabel({ start: '2026-11-02T09:00:00.000Z', end: '2026-11-02T09:30:00.000Z', status: 'entered-in-error' });
+
+    // Assert
+    expect(label).toBe('02.11.2026 12:00–12:30 · снят');
+  });
 });

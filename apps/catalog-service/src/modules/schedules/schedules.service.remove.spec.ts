@@ -6,62 +6,62 @@ import { RedisCacheService } from '../cache/redis-cache.service';
 import { SchedulesService } from './schedules.service';
 
 const SCHEDULE_ID = 'sched-1';
-const BUSY_SLOTS = { entry: [{ resource: { resourceType: 'Slot', status: 'busy' } }] };
 
 describe('SchedulesService.remove', () => {
   let schedulesService: SchedulesService;
   let fhirClient: jest.Mocked<FhirClient>;
+  let cache: RedisCacheService;
 
   beforeEach(() => {
     fhirClient = {
-      search: jest.fn(),
+      search: jest.fn().mockResolvedValue({ entry: [] }),
       read: jest.fn(),
       create: jest.fn(),
       update: jest.fn(),
       delete: jest.fn(),
       batch: jest.fn(),
     } as unknown as jest.Mocked<FhirClient>;
-    schedulesService = new SchedulesService(fhirClient, new RedisCacheService());
+    cache = new RedisCacheService();
+    schedulesService = new SchedulesService(fhirClient, cache);
   });
 
-  it('should throw the catalogued SCHEDULE_IN_USE error code when busy slots exist and cascade is off', async () => {
-    // Arrange
-    fhirClient.search.mockResolvedValue(BUSY_SLOTS);
+  it('should delete the schedule and drop its cached slot pages when it has no slots', async () => {
+    const invalidate = jest.spyOn(cache, 'invalidate');
 
-    // Act
-    const error = await schedulesService.remove(SCHEDULE_ID, false).then(
-      () => undefined,
-      (e: unknown) => e,
-    );
-
-    // Assert — ProblemDetailsFilter promotes only catalogued codes; an unknown one would degrade to CONFLICT.
-    expect(error).toBeInstanceOf(ConflictException);
-    const { errorCode } = (error as ConflictException).getResponse() as { errorCode: string };
-    expect(errorCode).toBe('SCHEDULE_IN_USE');
-    expect(ERROR_CODES).toContain(errorCode);
-    expect(fhirClient.delete).not.toHaveBeenCalled();
-  });
-
-  it('should delete the schedule when busy slots exist and cascade is on', async () => {
-    // Arrange
-    fhirClient.search.mockResolvedValue(BUSY_SLOTS);
-
-    // Act
-    await schedulesService.remove(SCHEDULE_ID, true);
-
-    // Assert
-    expect(fhirClient.delete).toHaveBeenCalledWith('Schedule', SCHEDULE_ID);
-  });
-
-  it('should look up busy slots of the schedule when the delete is checked', async () => {
-    // Arrange
-    fhirClient.search.mockResolvedValue({ entry: [] });
-
-    // Act
     await schedulesService.remove(SCHEDULE_ID, false);
 
-    // Assert
-    expect(fhirClient.search).toHaveBeenCalledWith('Slot', { schedule: `Schedule/${SCHEDULE_ID}`, status: 'busy' });
     expect(fhirClient.delete).toHaveBeenCalledWith('Schedule', SCHEDULE_ID);
+    expect(invalidate).toHaveBeenCalledWith([`slots:${SCHEDULE_ID}:`, 'catalog:doctor-slots:']);
+  });
+
+  it('should refuse with a catalogued SCHEDULE_IN_USE and keep the cache and the schedule when a slot is busy', async () => {
+    fhirClient.search.mockResolvedValue({ entry: [{ resource: { resourceType: 'Slot', status: 'busy' } }] });
+    const invalidate = jest.spyOn(cache, 'invalidate');
+
+    const refusal = await schedulesService.remove(SCHEDULE_ID, true).then(
+      () => undefined,
+      (reason: unknown) => reason,
+    );
+
+    expect(refusal).toBeInstanceOf(ConflictException);
+    const { errorCode } = (refusal as ConflictException).getResponse() as { errorCode: string };
+    expect(ERROR_CODES).toContain(errorCode);
+    expect(errorCode).toBe('SCHEDULE_IN_USE');
+    expect(fhirClient.delete).not.toHaveBeenCalled();
+    expect(fhirClient.batch).not.toHaveBeenCalled();
+    expect(invalidate).not.toHaveBeenCalled();
+  });
+
+  it('should drop the cached slot pages when the schedule is deactivated because retired slots remain', async () => {
+    fhirClient.search.mockImplementation(async (_type, params) => ({
+      entry: params?.['status'] === undefined ? [{ resource: { resourceType: 'Slot', id: 'x', status: 'entered-in-error' } }] : [],
+    }));
+    fhirClient.read.mockResolvedValue({ resourceType: 'Schedule', id: SCHEDULE_ID, active: true });
+    const invalidate = jest.spyOn(cache, 'invalidate');
+
+    await schedulesService.remove(SCHEDULE_ID, true);
+
+    expect(fhirClient.update).toHaveBeenCalledWith('Schedule', SCHEDULE_ID, expect.objectContaining({ active: false }));
+    expect(invalidate).toHaveBeenCalledWith([`slots:${SCHEDULE_ID}:`, 'catalog:doctor-slots:']);
   });
 });

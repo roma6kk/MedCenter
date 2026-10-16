@@ -168,3 +168,6 @@ describe('encounter-service main', () => {
     expect(mockCreate).not.toHaveBeenCalled();
   });
 });
+
+// Module scope: keeps these test-local declarations out of the global script scope (root tsc).
+export {};

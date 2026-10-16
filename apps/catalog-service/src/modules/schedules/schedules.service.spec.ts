@@ -62,7 +62,81 @@ describe('SchedulesService', () => {
         slotDurationMin: 30,
         windows: [{ dayOfWeek: 'MO', startTime: '09:00', endTime: '10:00' }],
       }),
-    ).resolves.toMatchObject({ resourceType: 'Schedule' });
+    ).resolves.toMatchObject({ id: 'sched-9', isActive: true });
+  });
+
+  it('should answer with the ScheduleSummaryDto, not the raw FHIR resource, when a schedule is created', async () => {
+    fhirClient.search.mockResolvedValue({ entry: [] });
+    fhirClient.create.mockImplementation(async (_type, resource) => ({ ...resource, id: 'sched-9' }));
+
+    const created = await schedulesService.create({
+      practitionerRoleId: 'role-1',
+      roomId: '1469',
+      serviceId: '1470',
+      horizonFrom: '2026-12-19',
+      horizonTo: '2026-12-26',
+      slotDurationMin: 30,
+      windows: [{ dayOfWeek: 'SA', startTime: '09:00', endTime: '12:00' }],
+    });
+
+    expect(created).toEqual({
+      id: 'sched-9',
+      isActive: true,
+      practitionerRoleId: 'role-1',
+      roomId: '1469',
+      serviceId: '1470',
+      horizonFrom: '2026-12-19',
+      horizonTo: '2026-12-26',
+      slotDurationMin: 30,
+      windows: [{ dayOfWeek: 'SA', startTime: '09:00', endTime: '12:00' }],
+    });
+    expect(created).not.toHaveProperty('resourceType');
+  });
+
+  it('should list schedules as a page with the accurate total and the requested window', async () => {
+    fhirClient.search.mockResolvedValue({ total: 45, entry: [{ resource: { resourceType: 'Schedule', id: 's-1', active: true } }] });
+
+    const page = await schedulesService.list(2, 20, 'role-1', 'true');
+
+    expect(fhirClient.search).toHaveBeenCalledWith('Schedule', {
+      actor: 'PractitionerRole/role-1',
+      active: 'true',
+      _sort: '_id',
+      _count: 20,
+      _offset: 20,
+      _total: 'accurate',
+    });
+    expect(page.meta).toEqual({ page: 2, pageSize: 20, totalItems: 45, totalPages: 3 });
+    expect(page.items.map((item) => item.id)).toEqual(['s-1']);
+  });
+
+  it('should re-check the overlap with the merged horizon when only the horizon is patched', async () => {
+    fhirClient.read.mockResolvedValue({
+      resourceType: 'Schedule',
+      id: 'sched-1',
+      actor: [{ reference: 'PractitionerRole/role-1' }],
+      extension: [
+        { url: WEEKLY_WINDOWS_EXT, valueString: JSON.stringify([{ dayOfWeek: 'MO', startTime: '09:00', endTime: '12:00' }]) },
+        { url: PLANNING_HORIZON_EXT, valuePeriod: { start: '2026-11-01', end: '2026-11-30' } },
+      ],
+    });
+    fhirClient.search.mockResolvedValue({
+      entry: [
+        {
+          resource: {
+            resourceType: 'Schedule',
+            id: 'sched-2',
+            extension: [
+              { url: WEEKLY_WINDOWS_EXT, valueString: JSON.stringify([{ dayOfWeek: 'MO', startTime: '10:00', endTime: '11:00' }]) },
+              { url: PLANNING_HORIZON_EXT, valuePeriod: { start: '2026-12-01', end: '2026-12-31' } },
+            ],
+          },
+        },
+      ],
+    });
+
+    await expect(schedulesService.update('sched-1', { horizonTo: '2026-12-15' })).rejects.toThrow('SCHEDULE_OVERLAP');
+    expect(fhirClient.update).not.toHaveBeenCalled();
   });
 
   it('should persist slotDurationMin as a valueInteger extension, not a top-level element', async () => {
@@ -155,6 +229,7 @@ describe('SchedulesService', () => {
   });
 
   it('should merge horizonFrom/horizonTo into the planningHorizon valuePeriod extension', async () => {
+    fhirClient.search.mockResolvedValue({ entry: [] });
     fhirClient.read.mockResolvedValue({
       resourceType: 'Schedule',
       id: 'sched-1',

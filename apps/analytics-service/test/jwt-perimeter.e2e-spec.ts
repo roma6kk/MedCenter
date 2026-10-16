@@ -35,12 +35,7 @@ describe('JWT perimeter (distributed guard stack, ADR-009)', () => {
     expect(response.body.requestId).toBeDefined();
   });
 
-  // Known defect of the shared guard (not this service): `JwtAuthGuard.canActivate`
-  // (libs/common/src/lib/guards/jwt-auth.guard.ts) lets `jose`'s
-  // `JWSSignatureVerificationFailed` / `JWTExpired` escape, so ProblemDetailsFilter
-  // answers 500 INTERNAL instead of the catalogued 401 UNAUTHENTICATED (API §1).
-  // Reported in tasks/TASK-001/coder-m5-analytics-report.md; unskip once the guard maps them.
-  it.skip('should reject a token signed by a foreign key with 401 when the signature does not verify', async () => {
+  it('should reject a token signed by a foreign key with 401 when the signature does not verify', async () => {
     const foreign = `${harness.adminToken().split('.').slice(0, 2).join('.')}.c2lnbmF0dXJl`;
 
     const response = await request(harness.app.getHttpServer())
