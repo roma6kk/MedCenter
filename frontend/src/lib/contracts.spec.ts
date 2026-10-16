@@ -72,3 +72,39 @@ describe('contracts', () => {
     expect(result.success).toBe(true);
   });
 });
+
+describe('registerPatientSchema password policy parity with class-validator IsStrongPassword', () => {
+  const base = { email: 'ivanov@example.by', firstName: 'Иван', lastName: 'Иванов', birthDate: '1990-05-12' };
+
+  it.each([['Str0ng!Pass'], ['Str0ng Pass1'], ['Str0ng_Pass1'], ['Passw0rd#xx'], ['Passw0rd£xx'], ['Passw0rd\\xxx']])(
+    'should accept the ASCII symbol password %s',
+    (password) => {
+      expect(registerPatientSchema.safeParse({ ...base, password }).success).toBe(true);
+    },
+  );
+
+  it.each([['Пароль1234Aa'], ['Passw0rd№№xx'], ['Passw0rd😀xx'], ['Passw0rd€€xx'], ['Passw0rdéééx']])(
+    'should reject %s because a non-ASCII character is not a symbol for the server',
+    (password) => {
+      expect(registerPatientSchema.safeParse({ ...base, password }).success).toBe(false);
+    },
+  );
+
+  it('should reject a password longer than the server maximum of 128 characters', () => {
+    const password = `Aa1!${'x'.repeat(125)}`;
+
+    expect(registerPatientSchema.safeParse({ ...base, password }).success).toBe(false);
+    expect(registerPatientSchema.safeParse({ ...base, password: password.slice(0, 128) }).success).toBe(true);
+  });
+
+  it('should reject a birth date that is not a real calendar day', () => {
+    expect(registerPatientSchema.safeParse({ ...base, password: 'Str0ng!Pass', birthDate: '1990-02-30' }).success).toBe(false);
+    expect(registerPatientSchema.safeParse({ ...base, password: 'Str0ng!Pass', birthDate: '1990-13-01' }).success).toBe(false);
+    expect(registerPatientSchema.safeParse({ ...base, password: 'Str0ng!Pass', birthDate: '2000-02-29' }).success).toBe(true);
+  });
+
+  it('should accept the optional gender values the server knows and refuse others', () => {
+    expect(registerPatientSchema.safeParse({ ...base, password: 'Str0ng!Pass', gender: 'female' }).success).toBe(true);
+    expect(registerPatientSchema.safeParse({ ...base, password: 'Str0ng!Pass', gender: 'other' }).success).toBe(false);
+  });
+});

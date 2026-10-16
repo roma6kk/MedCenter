@@ -60,4 +60,66 @@ describe('PaginatedTable', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Предыдущая страница' }));
     expect(onPage).toHaveBeenCalledWith(1);
   });
+
+  it('should show page 1 of 1 and disable both buttons for an empty list', () => {
+    render(<PaginatedTable<Row> columns={COLUMNS} rows={[]} meta={meta({ page: 1, totalItems: 0, totalPages: 0 })} onPage={jest.fn()} rowKey={(r) => r.id} />);
+
+    expect(screen.getByText('1 / 1')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Предыдущая страница' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Следующая страница' })).toBeDisabled();
+  });
+
+  it('should name the pager landmark and announce the page change politely', () => {
+    render(<PaginatedTable<Row> columns={COLUMNS} rows={ROWS} meta={meta()} onPage={jest.fn()} rowKey={(r) => r.id} />);
+
+    expect(screen.getByRole('navigation', { name: 'Пагинация' })).toBeInTheDocument();
+    expect(screen.getByText('1 / 3')).toHaveAttribute('aria-live', 'polite');
+  });
+
+  it('should give the table an accessible caption when one is passed', () => {
+    render(<PaginatedTable<Row> columns={COLUMNS} rows={ROWS} meta={meta()} onPage={jest.fn()} rowKey={(r) => r.id} caption="Услуги клиники" />);
+
+    expect(screen.getByRole('table', { name: 'Услуги клиники' })).toBeInTheDocument();
+  });
+
+  it('should render a plain header for a column without a sortKey', () => {
+    render(<PaginatedTable<Row> columns={COLUMNS} rows={ROWS} meta={meta()} onPage={jest.fn()} rowKey={(r) => r.id} onSort={jest.fn()} />);
+
+    expect(screen.getByRole('columnheader', { name: 'Название' })).not.toHaveAttribute('aria-sort');
+    expect(screen.queryByRole('button', { name: /Название/ })).not.toBeInTheDocument();
+  });
+
+  describe('sorting', () => {
+    const SORTABLE = [{ key: 'name', header: 'Название', sortKey: 'name', render: (row: Row) => row.name }];
+
+    it('should ask for ascending order when an unsorted column is clicked', async () => {
+      const onSort = jest.fn();
+      render(<PaginatedTable<Row> columns={SORTABLE} rows={ROWS} meta={meta()} onPage={jest.fn()} rowKey={(r) => r.id} onSort={onSort} />);
+
+      await userEvent.click(screen.getByRole('button', { name: /Название/ }));
+
+      expect(onSort).toHaveBeenCalledWith({ sortBy: 'name', sortOrder: 'asc' });
+    });
+
+    it('should toggle to descending when the column is already sorted ascending', async () => {
+      const onSort = jest.fn();
+      render(<PaginatedTable<Row> columns={SORTABLE} rows={ROWS} meta={meta()} onPage={jest.fn()} rowKey={(r) => r.id} sort={{ sortBy: 'name', sortOrder: 'asc' }} onSort={onSort} />);
+
+      await userEvent.click(screen.getByRole('button', { name: /Название/ }));
+
+      expect(onSort).toHaveBeenCalledWith({ sortBy: 'name', sortOrder: 'desc' });
+    });
+
+    it('should expose the sort direction to assistive technology', () => {
+      render(<PaginatedTable<Row> columns={SORTABLE} rows={ROWS} meta={meta()} onPage={jest.fn()} rowKey={(r) => r.id} sort={{ sortBy: 'name', sortOrder: 'desc' }} onSort={jest.fn()} />);
+
+      expect(screen.getByRole('columnheader', { name: /Название/ })).toHaveAttribute('aria-sort', 'descending');
+    });
+
+    it('should mark a sortable column that is not the active sort as none', () => {
+      render(<PaginatedTable<Row> columns={SORTABLE} rows={ROWS} meta={meta()} onPage={jest.fn()} rowKey={(r) => r.id} sort={{ sortBy: 'other', sortOrder: 'asc' }} onSort={jest.fn()} />);
+
+      expect(screen.getByRole('columnheader', { name: /Название/ })).toHaveAttribute('aria-sort', 'none');
+    });
+  });
 });

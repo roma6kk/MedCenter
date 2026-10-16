@@ -1,9 +1,12 @@
-import { errorCodeMap, errorCodeToUx } from './error-code-map';
-import { ERROR_CODES } from './problem';
+import { errorCodeMap, errorCodeToUx, errorMessageKey, isToastUx } from './error-code-map';
+import { ERROR_CODES, type ErrorCode } from './problem';
+import { LOCALES } from '@/lib/i18n/locale';
+import { hasMessage } from '@/lib/i18n/translate';
 
 describe('errorCodeMap', () => {
-  it('should have exactly one UX entry per catalog errorCode (17/17)', () => {
+  it('should have exactly one UX entry per catalogue errorCode (20/20)', () => {
     expect(Object.keys(errorCodeMap).sort()).toEqual([...ERROR_CODES].sort());
+    expect(ERROR_CODES).toHaveLength(20);
   });
 
   it('should return the same entry from errorCodeToUx as from the map', () => {
@@ -25,9 +28,27 @@ describe('errorCodeMap', () => {
     expect(errorCodeToUx('SLOT_CONFLICT')).toEqual({ kind: 'slot-conflict' });
   });
 
-  it('should carry a non-empty logout message on TOKEN_REVOKED', () => {
-    const ux = errorCodeToUx('TOKEN_REVOKED');
-    expect(ux.kind).toBe('logout-toast');
-    if (ux.kind === 'logout-toast') expect(ux.message.length).toBeGreaterThan(0);
+  it.each([
+    ['ROOM_IN_USE', 'room'],
+    ['SERVICE_IN_USE', 'service'],
+    ['SCHEDULE_IN_USE', 'schedule'],
+  ] as const)('should map %s to an in-use conflict of the %s resource', (code, resource) => {
+    expect(errorCodeToUx(code)).toEqual({ kind: 'in-use-conflict', resource });
+  });
+
+  it('should degrade an unknown code to the generic banner when the backend is newer than the client', () => {
+    expect(errorCodeToUx('SOMETHING_NEW' as ErrorCode)).toEqual({ kind: 'banner-generic' });
+  });
+
+  it('should treat only the toast kinds as toasts', () => {
+    const toastCodes = ERROR_CODES.filter((code) => isToastUx(errorCodeToUx(code))).sort();
+
+    expect(toastCodes).toEqual(['RATE_LIMITED', 'SLOT_CONFLICT', 'TOKEN_REVOKED']);
+  });
+
+  it.each(LOCALES)('should have a %s message for every catalogue code', (locale) => {
+    const missing = ERROR_CODES.filter((code) => !hasMessage(locale, errorMessageKey(code)));
+
+    expect(missing).toEqual([]);
   });
 });

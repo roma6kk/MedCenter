@@ -12,9 +12,10 @@ export const API_BASE: string = process.env.NEXT_PUBLIC_API_URL ?? 'http://local
 const PUBLIC_FETCH_TIMEOUT_MS = 5000;
 const PUBLIC_REVALIDATE_SECONDS = 300;
 
+/** `status` is the HTTP status of a refused call; it is absent when the API could not be reached at all. */
 export type FetchResult<T> =
   | { readonly ok: true; readonly data: T }
-  | { readonly ok: false };
+  | { readonly ok: false; readonly status?: number };
 
 export async function publicApiFetch<T>(path: string): Promise<FetchResult<T>> {
   try {
@@ -22,7 +23,7 @@ export async function publicApiFetch<T>(path: string): Promise<FetchResult<T>> {
       next: { revalidate: PUBLIC_REVALIDATE_SECONDS },
       signal: AbortSignal.timeout(PUBLIC_FETCH_TIMEOUT_MS),
     });
-    if (!res.ok) return { ok: false };
+    if (!res.ok) return { ok: false, status: res.status };
     return { ok: true, data: (await res.json()) as T };
   } catch {
     return { ok: false };

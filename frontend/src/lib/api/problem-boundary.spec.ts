@@ -14,6 +14,9 @@ const EXPECTED_UX: Record<ErrorCode, string> = {
   APPOINTMENT_NOT_CANCELLABLE: 'appointment-refresh',
   ENCOUNTER_STATE_INVALID: 'encounter-readonly',
   SCHEDULE_OVERLAP: 'schedule-highlight',
+  SCHEDULE_IN_USE: 'in-use-conflict',
+  ROOM_IN_USE: 'in-use-conflict',
+  SERVICE_IN_USE: 'in-use-conflict',
   INVALID_ICD10_CODE: 'focus-icd10',
   TERMINOLOGY_NOT_FOUND: 'focus-terminology',
   RATE_LIMITED: 'rate-limit-toast',
@@ -21,8 +24,8 @@ const EXPECTED_UX: Record<ErrorCode, string> = {
 };
 
 describe('errorCodeToUx full catalog', () => {
-  it('should expose exactly 17 catalog codes', () => {
-    expect(ERROR_CODES).toHaveLength(17);
+  it('should expose exactly 20 catalogue codes', () => {
+    expect(ERROR_CODES).toHaveLength(20);
   });
 
   it.each(Object.entries(EXPECTED_UX))('should map %s to %s', (code, kind) => {
@@ -33,9 +36,7 @@ describe('errorCodeToUx full catalog', () => {
     expect(errorCodeToUx('COMPARTMENT_VIOLATION')).toEqual(errorCodeToUx('NOT_FOUND'));
   });
 
-  it('should surface TOKEN_REVOKED with a logout toast message', () => {
-    const ux = errorCodeToUx('TOKEN_REVOKED');
-    expect(ux.kind).toBe('logout-toast');
-    if (ux.kind === 'logout-toast') expect(ux.message.length).toBeGreaterThan(0);
+  it('should surface TOKEN_REVOKED as a logout toast', () => {
+    expect(errorCodeToUx('TOKEN_REVOKED')).toEqual({ kind: 'logout-toast' });
   });
 });

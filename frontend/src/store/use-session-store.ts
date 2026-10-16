@@ -1,6 +1,7 @@
 import { create } from 'zustand';
+import type { UserRole } from '@/lib/auth/user-role';
 
-export type UserRole = 'PATIENT' | 'DOCTOR' | 'ADMIN';
+export type { UserRole };
 
 export interface SessionState {
   readonly accessToken: string | null;

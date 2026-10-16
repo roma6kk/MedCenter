@@ -4,7 +4,7 @@
  * Role gating in the UI is UX only: the BFF guard layer (ADR-009) is the authority.
  * Kept free of React and router imports so the decision table is unit-testable.
  */
-import type { UserRole } from '@/store/use-session-store';
+import type { UserRole } from './user-role';
 
 export type RoleAccess = 'wait' | 'allow' | 'login' | 'forbidden';
 

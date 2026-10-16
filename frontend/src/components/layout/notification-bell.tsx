@@ -1,26 +1,52 @@
 'use client';
 
 import type { ReactNode } from 'react';
-import { useQuery } from '@tanstack/react-query';
 import Link from 'next/link';
 import { Bell } from 'lucide-react';
-import { apiFetch } from '@/lib/api/api-fetch';
+import { useUnreadCount } from '@/lib/notifications/use-notifications';
+import { useT } from '@/lib/i18n/use-t';
+import { useSessionStore } from '@/store/use-session-store';
 
-export function NotificationBell(): ReactNode {
-  const { data } = useQuery({
-    queryKey: ['notifications', 'unreadCount'],
-    queryFn: () => apiFetch<{ unread: number }>('/api/v1/me/notifications/unread-count'),
-    refetchInterval: 30_000,
-  });
-  const unread = data?.unread ?? 0;
+const BADGE_CAP = 99;
+
+function UnreadBadge({ count }: { readonly count: number }): ReactNode {
+  const t = useT('layout.notifications');
+  if (count <= 0) return null;
   return (
-    <Link href="/notifications" aria-label={`Уведомления, непрочитанных: ${unread}`} className="relative rounded-[6px] border border-[var(--border)] p-2">
-      <Bell size={18} strokeWidth={1.5} />
-      {unread > 0 ? (
-        <span data-testid="unread-badge" className="absolute -right-1 -top-1 rounded-full bg-[var(--destructive)] px-1 text-[10px] text-white">
-          {unread}
-        </span>
-      ) : null}
-    </Link>
+    <span
+      data-testid="unread-badge"
+      aria-hidden="true"
+      className="absolute -right-1 -top-1 rounded-full bg-[var(--destructive)] px-1 text-[10px] text-white"
+    >
+      {count > BADGE_CAP ? t('overflow') : count}
+    </span>
+  );
+}
+
+/**
+ * Unread-notification bell (patient only). Polls `GET /api/v1/notifications/unread-count` every 30 s (ADR-015) through
+ * `useUnreadCount`; renders nothing for doctors and administrators, who have no notification endpoints.
+ */
+export function NotificationBell(): ReactNode {
+  const t = useT('layout.notifications');
+  const role = useSessionStore((state) => state.role);
+  const { data } = useUnreadCount();
+  if (role !== 'PATIENT') return null;
+
+  const count: number = data ?? 0;
+  return (
+    <span className="relative inline-flex">
+      <Link
+        href="/notifications"
+        aria-label={t('label', { count })}
+        className="relative inline-flex min-h-[44px] min-w-[44px] items-center justify-center rounded-[6px] border border-[var(--border)] p-2"
+      >
+        <Bell size={18} strokeWidth={1.5} aria-hidden="true" />
+        <UnreadBadge count={count} />
+      </Link>
+      <span role="status" className="sr-only">
+        {t('announce', { count })}
+      </span>
+    </span>
   );
 }

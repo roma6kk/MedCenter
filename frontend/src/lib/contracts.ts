@@ -5,12 +5,32 @@ export const NAME_MAX = 100;
 export const REASON_MIN = 3;
 export const REASON_MAX = 500;
 
+export const PASSWORD_MIN = 10;
+export const PASSWORD_MAX = 128;
+
+/**
+ * Mirrors class-validator `IsStrongPassword` (validator.js): letters and digits are ASCII only, and a "symbol" is one of
+ * this fixed ASCII set. Cyrillic letters or emoji do NOT count as a symbol, so a password without one of these is
+ * rejected by the server (400) even though a looser client rule would have accepted it.
+ */
+export const PASSWORD_PATTERN = /^(?=.*[a-z])(?=.*[A-Z])(?=.*[0-9])(?=.*[-#!$@£%^&*()_+|~=`{}[\]:";'<>?,./\\ ]).+$/;
+
+const DATE_ONLY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+
+/** `YYYY-MM-DD` that is a real calendar day (the server runs `IsDateString({ strict: true })`). */
+export function isCalendarDate(value: string): boolean {
+  if (!DATE_ONLY_PATTERN.test(value)) return false;
+  const parsed = new Date(`${value}T00:00:00.000Z`);
+  return !Number.isNaN(parsed.getTime()) && parsed.toISOString().startsWith(value);
+}
+
 export const registerPatientSchema = z.object({
   email: z.string().email().max(EMAIL_MAX),
   firstName: z.string().min(1).max(NAME_MAX),
   lastName: z.string().min(1).max(NAME_MAX),
-  password: z.string().min(10).regex(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).+$/),
-  birthDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  password: z.string().min(PASSWORD_MIN).max(PASSWORD_MAX).regex(PASSWORD_PATTERN),
+  birthDate: z.string().refine(isCalendarDate),
+  gender: z.enum(['male', 'female']).optional(),
 });
 
 export type RegisterPatientForm = z.infer<typeof registerPatientSchema>;

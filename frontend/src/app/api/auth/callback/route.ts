@@ -1,45 +1,38 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-import { sanitizeReturnTo, parsePkceCookie } from '@/lib/auth/return-to';
+import { isSecureOrigin, publicUrl, resolvePublicOrigin } from '@/lib/auth/auth-config';
+import { exchangeAuthorizationCode, parseCallback, type CallbackInput } from '@/lib/auth/callback-flow';
+import { buildSessionPayload } from '@/lib/auth/session-broker';
+import { PKCE_COOKIE, clearPkceCookie, setSessionCookies } from '@/lib/auth/session-cookies';
+import type { TokenSet } from '@/lib/auth/token-response';
+import { ROLE_LANDING, resolvePostLoginPath } from '@/lib/auth/user-role';
 
+export const dynamic = 'force-dynamic';
+
+const FALLBACK_LANDING = ROLE_LANDING.PATIENT;
+
+function failure(): NextResponse {
+  const response: NextResponse = NextResponse.redirect(publicUrl('/login?error=access_denied'));
+  clearPkceCookie(response);
+  return response;
+}
+
+function successTarget(tokens: TokenSet, input: CallbackInput): string {
+  const { role } = buildSessionPayload(tokens);
+  const requested: string = input.returnTo ?? (role === null ? FALLBACK_LANDING : ROLE_LANDING[role]);
+  return resolvePostLoginPath(role, requested);
+}
+
+/** PKCE callback: verifies state, exchanges the code, stores the refresh token and redirects (public origin only). */
 export async function GET(request: NextRequest): Promise<NextResponse> {
-  const code = request.nextUrl.searchParams.get('code');
-  const stateParam = request.nextUrl.searchParams.get('state') ?? '';
-  const raw = request.cookies.get('mc_pkce')?.value;
-  const home = new URL('/login?error=access_denied', request.url);
-  if (!code || !raw) return NextResponse.redirect(home);
-  const parsed = parsePkceCookie(raw);
-  if (parsed === null) return NextResponse.redirect(home);
-  const { verifier, state } = parsed;
-  const dotIndex = stateParam.indexOf('.');
-  const returnedState = dotIndex === -1 ? stateParam : stateParam.slice(0, dotIndex);
-  const encodedReturnTo = dotIndex === -1 ? '' : stateParam.slice(dotIndex + 1);
-  if (returnedState !== state || returnedState.length === 0) return NextResponse.redirect(home);
-  const backend = process.env.AUTH_BACKEND_URL ?? 'http://auth-service:3000';
-  const tokenRes = await fetch(`${backend}/oauth/token`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: new URLSearchParams({
-      grant_type: 'authorization_code', code,
-      redirect_uri: `${request.nextUrl.origin}/api/auth/callback`,
-      code_verifier: verifier,
-      client_id: process.env.OAUTH_CLIENT_ID ?? 'medcenter-web',
-    }),
-  });
-  if (!tokenRes.ok) return NextResponse.redirect(home);
-  const tokens = (await tokenRes.json()) as { access_token: string; refresh_token: string; expires_in: number };
-  let returnTo = '/booking';
-  if (encodedReturnTo) {
-    try {
-      returnTo = sanitizeReturnTo(decodeURIComponent(encodedReturnTo), '/booking');
-    } catch {
-      returnTo = '/booking';
-    }
-  }
-  const isSecure: boolean = process.env.NODE_ENV === 'production' || request.nextUrl.protocol === 'https:';
-  const response = NextResponse.redirect(new URL(returnTo, request.url));
-  response.cookies.set('mc_rt', tokens.refresh_token, { httpOnly: true, secure: isSecure, sameSite: 'lax', path: '/', maxAge: 14 * 24 * 3600 });
-  response.cookies.set('mc_session', '1', { httpOnly: true, secure: isSecure, sameSite: 'lax', path: '/', maxAge: 14 * 24 * 3600 });
-  response.cookies.delete('mc_pkce');
+  const input: CallbackInput | null = parseCallback(request.nextUrl.searchParams, request.cookies.get(PKCE_COOKIE)?.value);
+  if (input === null) return failure();
+
+  const tokens: TokenSet | null = await exchangeAuthorizationCode(input);
+  if (tokens === null) return failure();
+
+  const response: NextResponse = NextResponse.redirect(publicUrl(successTarget(tokens, input)));
+  setSessionCookies(response, tokens, isSecureOrigin(resolvePublicOrigin()));
+  clearPkceCookie(response);
   return response;
 }

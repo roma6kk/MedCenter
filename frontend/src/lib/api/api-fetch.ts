@@ -1,5 +1,7 @@
+import { networkProblem, parseProblem } from './problem-parse';
 import type { ProblemDetails } from './problem';
-import { getAccessToken, setAccessToken, clearAccessToken } from '@/lib/auth/access-token';
+import { getAccessToken } from '@/lib/auth/access-token';
+import { endRevokedSession, redirectToLogin, refreshSession } from '@/lib/auth/session-client';
 
 export class ApiError extends Error {
   readonly problem: ProblemDetails;
@@ -7,70 +9,86 @@ export class ApiError extends Error {
 
   constructor(problem: ProblemDetails) {
     super(problem.detail ?? problem.title);
+    this.name = 'ApiError';
     this.problem = problem;
     this.status = problem.status;
   }
+
+  get errorCode(): ProblemDetails['errorCode'] {
+    return this.problem.errorCode;
+  }
+}
+
+export function isApiError(error: unknown): error is ApiError {
+  return error instanceof ApiError;
 }
 
 interface ApiFetchOptions extends RequestInit {
+  /** Set `false` to handle a 401 yourself (no silent refresh, no redirect). */
   readonly retry?: boolean;
 }
 
-let refreshInFlight: Promise<boolean> | null = null;
-
-async function singleFlightRefresh(): Promise<boolean> {
-  if (refreshInFlight) return refreshInFlight;
-  refreshInFlight = fetch('/api/auth/refresh', { method: 'POST' })
-    .then(async (res) => {
-      if (!res.ok) return false;
-      const data = (await res.json()) as { accessToken?: string };
-      if (typeof data.accessToken === 'string' && data.accessToken.length > 0) {
-        setAccessToken(data.accessToken);
-      }
-      return true;
-    })
-    .catch(() => false)
-    .finally(() => {
-      refreshInFlight = null;
-    });
-  return refreshInFlight;
+async function readJson(response: Response): Promise<unknown> {
+  try {
+    return await response.json();
+  } catch {
+    // An empty or non-JSON body (204-like 200, an HTML error page from the edge) carries no payload.
+    return undefined;
+  }
 }
 
-function redirectToLogin(): void {
-  const returnTo = window.location.pathname + window.location.search;
-  window.location.assign(`/login?returnTo=${encodeURIComponent(returnTo)}`);
-}
-
-export async function apiFetch<T>(path: string, options: ApiFetchOptions = {}): Promise<T> {
-  const { retry = true, ...init } = options;
+function buildHeaders(init: RequestInit): Headers {
   const headers = new Headers(init.headers);
-  if (!headers.has('Content-Type')) headers.set('Content-Type', 'application/json');
-  const token = getAccessToken();
-  if (token !== null) headers.set('Authorization', `Bearer ${token}`);
-  const response = await fetch(path, { ...init, headers, credentials: 'same-origin' });
+  const hasBody: boolean = init.body !== undefined && init.body !== null;
+  if (hasBody && !headers.has('Content-Type')) headers.set('Content-Type', 'application/json');
+  const token: string | null = getAccessToken();
+  if (token !== null && !headers.has('Authorization')) headers.set('Authorization', `Bearer ${token}`);
+  return headers;
+}
 
+async function send(path: string, init: RequestInit): Promise<Response> {
+  try {
+    return await fetch(path, { ...init, headers: buildHeaders(init), credentials: 'same-origin' });
+  } catch (error: unknown) {
+    if (error instanceof DOMException && error.name === 'AbortError') throw error;
+    throw new ApiError(networkProblem());
+  }
+}
+
+/** 401 handling: a revoked session ends at once; otherwise one silent refresh and one retry. */
+async function recoverFromUnauthorized<T>(path: string, init: ApiFetchOptions, problem: ProblemDetails, canRefresh: boolean): Promise<T> {
+  if (problem.errorCode === 'TOKEN_REVOKED') {
+    await endRevokedSession();
+    throw new ApiError(problem);
+  }
+  if (init.retry === false) throw new ApiError(problem);
+  if (canRefresh && (await refreshSession())) return execute<T>(path, init, false);
+  redirectToLogin();
+  throw new ApiError(problem);
+}
+
+async function execute<T>(path: string, init: ApiFetchOptions, canRefresh: boolean): Promise<T> {
+  const { retry: _retry, ...requestInit } = init;
+  const response: Response = await send(path, requestInit);
   if (response.ok) {
     if (response.status === 204) return undefined as T;
-    return (await response.json()) as T;
+    return (await readJson(response)) as T;
   }
 
-  const problem = (await response.json()) as ProblemDetails;
-
-  if (response.status === 401 && problem.errorCode === 'TOKEN_REVOKED') {
-    clearAccessToken();
-    await fetch('/api/auth/logout', { method: 'POST' });
-    redirectToLogin();
-    throw new ApiError(problem);
-  }
-
-  if (response.status === 401 && retry) {
-    const refreshed = await singleFlightRefresh();
-    if (refreshed) return apiFetch<T>(path, { ...options, retry: false });
-    redirectToLogin();
-    throw new ApiError(problem);
-  }
-
+  const problem: ProblemDetails = parseProblem(response, await readJson(response));
+  if (response.status === 401) return recoverFromUnauthorized<T>(path, init, problem, canRefresh);
   throw new ApiError(problem);
+}
+
+/**
+ * JSON fetch against the BFF (`/api/v1/*`, proxied by Next to the Traefik edge).
+ *
+ * - attaches the in-memory Bearer token; sends `Content-Type: application/json` only when there is a body;
+ * - errors become `ApiError` carrying an RFC 7807 `ProblemDetails` (also for non-JSON edge errors and network failures);
+ * - `401 TOKEN_REVOKED` ends the session; any other 401 triggers a single-flight refresh and one retry.
+ */
+export async function apiFetch<T>(path: string, options: ApiFetchOptions = {}): Promise<T> {
+  return execute<T>(path, options, true);
 }
 
 export function idempotencyKey(): string {
