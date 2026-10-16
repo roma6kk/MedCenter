@@ -25,6 +25,11 @@ SMART/OAuth2, DTO с `class-validator`, каталог ошибок, Swagger-к�
 **Форматы.** Запросы/ответы: `application/json; charset=utf-8`. FHIR-взаимодействие внутри
 периметра: `application/fhir+json`. Даты — RFC 3339 (UTC); идентификаторы — UUID v4
 (FHIR `Resource.id`, `Location`/`Appointment`/… и сущности схемы `auth`).
+**Отклонение (live-стенд, 2026-10-15):** ресурсы, созданные через REST HAPI (`Location`, `HealthcareService`,
+`Appointment`, `Encounter`), получают от HAPI **числовые** id; `Slot` — детерминированный sha256-id. Поэтому
+идентификаторы FHIR-ресурсов в параметрах и телах валидируются как FHIR `id` (`[A-Za-z0-9\-.]{1,64}`), а не
+`@IsUUID()`; UUID остаются у сущностей схемы `auth` и у `Idempotency-Key`. Альтернатива (не выбрана) — создавать
+ресурсы `PUT` с клиентским UUID.
 
 **Аутентификация.** Все эндпоинты, кроме явно помеченных `public`, требуют
 `Authorization: Bearer <JWT>`. Проверка JWT по JWKS, SMART-scopes, RBAC и rate-limit —
@@ -414,7 +419,7 @@ description?; isActive }`. Инвалидация Redis-кэша `catalog:servic
 | 5.2.1 | `POST /api/v1/admin/schedules` | создать `Schedule` (`planningHorizon` ≤ 90 дней) | `ADMIN` |
 | 5.2.2 | `GET /api/v1/admin/schedules?doctorId=&active=true&page=` | список расписаний | `ADMIN` |
 | 5.2.3 | `PATCH /api/v1/admin/schedules/{id}` | изменить окно/горизонт (проверка `SCHEDULE_OVERLAP`) | `ADMIN` |
-| 5.2.4 | `DELETE /api/v1/admin/schedules/{id}` | удалить расписание: busy-слоты защищены; free slots удаляются | `ADMIN` |
+| 5.2.4 | `DELETE /api/v1/admin/schedules/{id}` | удалить расписание: busy-слоты защищают его всегда; free-слоты удаляются при `cascade:true`; расписание со слотами, на которые ссылаются записи, деактивируется (см. ниже) | `ADMIN` |
 | 5.2.5 | `POST /api/v1/admin/schedules/{id}/generate` | сгенерировать `Slot` на период | `ADMIN` |
 | 5.2.6 | `GET /api/v1/admin/schedules/{id}/slots?from=&to=&status=` | слоты расписания | `ADMIN` |
 | 5.2.7 | `GET /api/v1/doctor/schedule?from=&to=` | своё расписание + слоты | `user/*.read` (DOCTOR) |
@@ -492,11 +497,31 @@ export class CreateScheduleDto {
 **5.2.5 `POST /admin/schedules/{id}/generate`** — тело `GenerateSlotsDto`:
 `{ from: date; to: date }` (`to-from` ≤ 90 дней, в пределах `planningHorizon`) → **201** с
 `{ generated: number; skipped: number }` (существующие слоты не дублируются). Поддерживает
-`Idempotency-Key` (§0). **5.2.4** — тело `{ "cascade": false }`: при `false` → 409
-`SCHEDULE_IN_USE`, при `true` → 204 (busy-слоты защищены: только отменённые удаления, BR-001).
+`Idempotency-Key` (§0). Для расписания с `active=false` (см. 5.2.4) → 409 `CONFLICT`.
 
-**5.2.8 `SlotResponseDto`:** `{ id; scheduleId; start; end; status: 'free' | 'busy' }` —
-пагинация отключена (данные компактны), сортировка по `start` обязательна.
+**5.2.4** — тело `{ "cascade": false }` (по умолчанию). Фактическая семантика (live-стенд, 2026-10-15):
+
+| Состояние расписания | `cascade:false` | `cascade:true` |
+| --- | --- | --- |
+| нет слотов | 204, расписание удалено | 204, расписание удалено |
+| есть любые слоты | 409 `SCHEDULE_IN_USE` | см. ниже |
+| есть `busy`-слот (живая запись, BR-001) | 409 `SCHEDULE_IN_USE` | **409 `SCHEDULE_IN_USE`** (а не 204: busy-слоты защищены всегда) |
+| только `free`-слоты | 409 `SCHEDULE_IN_USE` | 204, слоты и расписание удалены |
+| `free`-слот, на который ссылается отменённая запись | 409 `SCHEDULE_IN_USE` | 204, см. ниже |
+
+Отмена записи возвращает слот в `free`, но `Appointment.slot` остаётся (история приёма), а HAPI по умолчанию
+проверяет ссылочную целостность и отвечает `409` на `DELETE Slot` (проверено на стенде). Такой слот не удаляется:
+он переводится в `entered-in-error` (запись с `If-Match` на прочитанную версию: если запись успела забронировать
+слот, запись проваливается и ответ — 409 `SCHEDULE_IN_USE`), а `Schedule` деактивируется (`active=false`) вместо
+физического удаления: слот ссылается на расписание, расписание — на кабинет и услугу, поэтому их `DELETE` тоже
+остаётся `ROOM_IN_USE`/`SERVICE_IN_USE`. Ответ тот же 204, повторный `DELETE` безопасен (204). Деактивированное
+расписание не участвует в проверке `SCHEDULE_OVERLAP`, в `GET /doctors/{id}/slots` и `GET /doctor/schedule`, виден
+администратору как `isActive=false` (`GET /admin/schedules?active=false`) и не принимает `generate`.
+
+**5.2.8 `SlotResponseDto`:** `{ id; scheduleId; start; end; status: 'free' | 'busy' | 'entered-in-error' }` —
+пагинация отключена (данные компактны), сортировка по `start` обязательна. `entered-in-error` — слот, снятый при
+удалении расписания (5.2.4); он виден только в `GET /admin/schedules/{id}/slots?status=entered-in-error`:
+без `status` этот эндпоинт отдаёт только `free` и `busy`.
 
 #### 6. `appointment-service` — Запись на приём (FR-004/005/006, BR-001/002, ADR-012)
 
