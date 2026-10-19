@@ -1,5 +1,6 @@
-import { endSession, ensureSession, loadSession, logout, refreshSession } from './session-client';
+import { endRevokedSession, endSession, ensureSession, loadSession, logout, refreshSession } from './session-client';
 import { getAccessToken, clearAccessToken, setAccessToken } from './access-token';
+import { useBookingDraftStore } from '@/store/use-booking-draft-store';
 import { useSessionStore } from '@/store/use-session-store';
 
 function resetStore(): void {
@@ -220,6 +221,7 @@ describe('endSession and logout', () => {
     assignSpy.mockReset();
     clearAccessToken();
     resetStore();
+    useBookingDraftStore.getState().clearDraft();
     Object.defineProperty(window, 'location', { value: { pathname: '/appointments', search: '', assign: assignSpy }, writable: true });
   });
 
@@ -253,5 +255,24 @@ describe('endSession and logout', () => {
     await logout();
 
     expect(assignSpy).toHaveBeenCalledWith('/login');
+  });
+
+  it('should forget the booking draft when the user signs out', async () => {
+    useBookingDraftStore.getState().updateDraft({ doctorId: 'doc-1', reason: 'Болит спина', step: 4 });
+    jest.spyOn(global, 'fetch').mockResolvedValueOnce(jsonResponse({ loggedOut: true }, 200));
+
+    await logout();
+
+    expect(useBookingDraftStore.getState().reason).toBe('');
+    expect(useBookingDraftStore.getState().doctorId).toBeNull();
+  });
+
+  it('should keep the booking draft when the session was revoked, so the visitor returns to it after signing in', async () => {
+    useBookingDraftStore.getState().updateDraft({ doctorId: 'doc-1', step: 3 });
+    jest.spyOn(global, 'fetch').mockResolvedValueOnce(jsonResponse({ loggedOut: true }, 200));
+
+    await endRevokedSession();
+
+    expect(useBookingDraftStore.getState().doctorId).toBe('doc-1');
   });
 });

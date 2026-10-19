@@ -1,153 +1,105 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
+const mockPush = jest.fn();
+jest.mock('next/navigation', () => ({ useRouter: () => ({ push: mockPush, replace: jest.fn() }) }));
 jest.mock('@/lib/api/api-fetch', () => {
   const actual = jest.requireActual('@/lib/api/api-fetch');
   return { ...actual, apiFetch: jest.fn() };
 });
 
-import { BookingWizard } from './booking-wizard';
-import { apiFetch, ApiError } from '@/lib/api/api-fetch';
 import { useBookingDraftStore } from '@/store/use-booking-draft-store';
-import type { ProblemDetails } from '@/lib/api/problem';
+import { useToastStore } from '@/store/use-toast-store';
+import { apiFetchMock, chooseSlotStep, renderWizard, serveApi } from './booking-test-utils';
 
-import type { ReactNode } from 'react';
 
-const apiFetchMock = apiFetch as jest.MockedFunction<(path: string, options?: RequestInit) => Promise<unknown>>;
-
-function slotResponse(): { items: ReadonlyArray<{ id: string; start: string; status: string }> } {
-  return { items: [{ id: 'slot-1', start: '2026-06-01T07:00:00.000Z', status: 'free' }] };
-}
-
-function renderWizard(): ReturnType<typeof render> {
-  const client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
-  function Wrapper({ children }: { readonly children: ReactNode }): ReactNode {
-    return <QueryClientProvider client={client}>{children}</QueryClientProvider>;
-  }
-  return render(<BookingWizard />, { wrapper: Wrapper });
-}
-
-function postIdempotencyKeys(): ReadonlyArray<unknown> {
-  return apiFetchMock.mock.calls
-    .filter((call) => call[1]?.method === 'POST')
-    .map((call) => (call[1]?.headers as Record<string, string> | undefined)?.['Idempotency-Key']);
-}
-
-describe('BookingWizard idempotency', () => {
+describe('BookingWizard steps', () => {
   beforeEach(() => {
     jest.resetAllMocks();
     useBookingDraftStore.getState().clearDraft();
+    useToastStore.getState().clear();
+    serveApi();
   });
 
-  it('should send a single Idempotency-Key header when booking a selected slot', async () => {
-    apiFetchMock.mockImplementation((path: string, options?: RequestInit) => {
-      if (options?.method === 'POST') return Promise.resolve({ id: 'appt-1' });
-      return Promise.resolve(slotResponse());
-    });
+  it('should offer the services and an "any service" choice first when the wizard opens', async () => {
     renderWizard();
 
-    await userEvent.click(await screen.findByTestId('slot-slot-1'));
-    await userEvent.click(screen.getByRole('button', { name: 'Подтвердить запись' }));
-
-    await waitFor(() => expect(postIdempotencyKeys()).toHaveLength(1));
-    expect(postIdempotencyKeys()[0]).toMatch(/^[0-9a-f-]{36}$/i);
+    expect(await screen.findByText('Приём терапевта (первичный)')).toBeInTheDocument();
+    expect(screen.getByTestId('service-any')).toBeInTheDocument();
+    expect(screen.getByRole('navigation', { name: 'Шаги записи' })).toBeInTheDocument();
   });
 
-  it('should persist the generated key into the draft so a retry reuses it', async () => {
-    apiFetchMock.mockImplementation((path: string, options?: RequestInit) => {
-      if (options?.method === 'POST') return Promise.reject(new ApiError({ title: 'Conflict', status: 409, errorCode: 'SLOT_CONFLICT' } as ProblemDetails));
-      return Promise.resolve(slotResponse());
-    });
+  it('should list the doctors of the chosen service when a service is chosen', async () => {
     renderWizard();
 
-    await userEvent.click(await screen.findByTestId('slot-slot-1'));
-    const confirm = screen.getByRole('button', { name: 'Подтвердить запись' });
-    await userEvent.click(confirm);
-    await waitFor(() => expect(postIdempotencyKeys()).toHaveLength(1));
+    await userEvent.click(await screen.findByTestId('service-svc-30'));
 
-    const persisted = useBookingDraftStore.getState().idempotencyKey;
-    expect(persisted).not.toBeNull();
-
-    await userEvent.click(confirm);
-    await waitFor(() => expect(postIdempotencyKeys()).toHaveLength(2));
-    expect(postIdempotencyKeys()[1]).toBe(persisted);
-    expect(new Set(postIdempotencyKeys()).size).toBe(1);
+    expect(await screen.findByRole('heading', { name: 'Врачи для услуги «Приём терапевта (первичный)»' })).toBeInTheDocument();
+    expect(apiFetchMock).toHaveBeenCalledWith(expect.stringMatching(/\/api\/v1\/doctors\?.*serviceId=svc-30/));
   });
 
-  it('should show the conflict toast and keep the draft on SLOT_CONFLICT', async () => {
-    apiFetchMock.mockImplementation((path: string, options?: RequestInit) => {
-      if (options?.method === 'POST') return Promise.reject(new ApiError({ title: 'Conflict', status: 409, errorCode: 'SLOT_CONFLICT' } as ProblemDetails));
-      return Promise.resolve(slotResponse());
-    });
+  it('should list every doctor when no service is chosen', async () => {
     renderWizard();
 
-    await userEvent.click(await screen.findByTestId('slot-slot-1'));
-    await userEvent.click(screen.getByRole('button', { name: 'Подтвердить запись' }));
+    await userEvent.click(await screen.findByTestId('service-any'));
 
-    expect(await screen.findByTestId('slot-conflict-toast')).toBeInTheDocument();
-    expect(useBookingDraftStore.getState().slotId).toBe('slot-1');
+    expect(await screen.findByRole('heading', { name: 'Выберите врача' })).toBeInTheDocument();
+    expect(apiFetchMock).not.toHaveBeenCalledWith(expect.stringContaining('serviceId'));
   });
 
-  it('should clear the draft and show success after a created appointment', async () => {
-    apiFetchMock.mockImplementation((path: string, options?: RequestInit) => {
-      if (options?.method === 'POST') return Promise.resolve({ id: 'appt-1' });
-      return Promise.resolve(slotResponse());
-    });
+  it('should offer only the slots as long as the chosen service when a service is chosen', async () => {
     renderWizard();
 
-    await userEvent.click(await screen.findByTestId('slot-slot-1'));
-    await userEvent.click(screen.getByRole('button', { name: 'Подтвердить запись' }));
+    await chooseSlotStep();
 
-    expect(await screen.findByTestId('booking-success')).toBeInTheDocument();
-    expect(useBookingDraftStore.getState().idempotencyKey).toBeNull();
-    expect(useBookingDraftStore.getState().slotId).toBeNull();
+    expect(await screen.findByTestId('slot-slot-30')).toBeInTheDocument();
+    expect(screen.queryByTestId('slot-slot-20')).not.toBeInTheDocument();
+    expect(apiFetchMock).toHaveBeenCalledWith(expect.stringMatching(/\/api\/v1\/doctors\/doc-1\/slots\?from=\d{4}-\d{2}-\d{2}&to=\d{4}-\d{2}-\d{2}/));
   });
 
-  it('should keep the confirm button disabled until a slot is selected', async () => {
-    apiFetchMock.mockImplementation(() => Promise.resolve(slotResponse()));
+  it('should show the summary of the booking on the confirmation step when a slot is chosen', async () => {
     renderWizard();
 
-    await screen.findByTestId('slot-slot-1');
-    expect(screen.getByRole('button', { name: 'Подтвердить запись' })).toBeDisabled();
-    expect(apiFetchMock.mock.calls.some((call) => call[1]?.method === 'POST')).toBe(false);
+    await chooseSlotStep();
+    await userEvent.click(await screen.findByTestId('slot-slot-30'));
+
+    const summary = await screen.findByTestId('booking-summary');
+    await waitFor(() => expect(summary).toHaveTextContent('Мария Иванова'));
+    expect(summary).toHaveTextContent('Приём терапевта (первичный)');
+    expect(summary).toHaveTextContent('30 мин');
   });
 
-  it('should reuse the persisted key after a remount so a reloaded retry stays idempotent', async () => {
-    apiFetchMock.mockImplementation((path: string, options?: RequestInit) => {
-      if (options?.method === 'POST') return Promise.reject(new ApiError({ title: 'Conflict', status: 409, errorCode: 'SLOT_CONFLICT' } as ProblemDetails));
-      return Promise.resolve(slotResponse());
-    });
-    const first = renderWizard();
-
-    await userEvent.click(await screen.findByTestId('slot-slot-1'));
-    await userEvent.click(screen.getByRole('button', { name: 'Подтвердить запись' }));
-    await waitFor(() => expect(postIdempotencyKeys()).toHaveLength(1));
-    const persisted = postIdempotencyKeys()[0];
-
-    first.unmount();
+  it('should go back to an earlier step when its button in the step list is activated', async () => {
     renderWizard();
+    await chooseSlotStep();
+    await screen.findByTestId('slot-slot-30');
 
-    await userEvent.click(await screen.findByTestId('slot-slot-1'));
-    await userEvent.click(screen.getByRole('button', { name: 'Подтвердить запись' }));
-    await waitFor(() => expect(postIdempotencyKeys()).toHaveLength(2));
-    expect(postIdempotencyKeys()[1]).toBe(persisted);
+    await userEvent.click(screen.getByRole('button', { name: /1.*Услуга/ }));
+
+    expect(await screen.findByRole('heading', { name: 'Выберите услугу' })).toBeInTheDocument();
   });
 
-  it('should generate a fresh key for a new booking once the previous draft cleared', async () => {
-    apiFetchMock.mockImplementation((path: string, options?: RequestInit) => {
-      if (options?.method === 'POST') return Promise.resolve({ id: 'appt-1' });
-      return Promise.resolve(slotResponse());
-    });
+  it('should open the slot step of the doctor when the URL names the doctor', async () => {
+    renderWizard('doc-1');
+
+    expect(await screen.findByRole('heading', { name: 'Выберите время' })).toBeInTheDocument();
+    expect(await screen.findByTestId('slot-slot-30')).toBeInTheDocument();
+  });
+
+  it('should move keyboard focus to the heading of the new step when the wizard moves to another step', async () => {
     renderWizard();
 
-    await userEvent.click(await screen.findByTestId('slot-slot-1'));
-    await userEvent.click(screen.getByRole('button', { name: 'Подтвердить запись' }));
-    await waitFor(() => expect(postIdempotencyKeys()).toHaveLength(1));
+    await userEvent.click(await screen.findByTestId('service-svc-30'));
 
-    await userEvent.click(await screen.findByTestId('slot-slot-1'));
-    await userEvent.click(screen.getByRole('button', { name: 'Подтвердить запись' }));
-    await waitFor(() => expect(postIdempotencyKeys()).toHaveLength(2));
-    expect(postIdempotencyKeys()[1]).not.toBe(postIdempotencyKeys()[0]);
+    const heading = await screen.findByRole('heading', { name: /Врачи для услуги/ });
+    await waitFor(() => expect(heading).toHaveFocus());
+  });
+
+  it('should not steal focus when the wizard first opens', async () => {
+    renderWizard();
+
+    await screen.findByRole('heading', { name: 'Выберите услугу' });
+
+    expect(screen.getByRole('heading', { name: 'Выберите услугу' })).not.toHaveFocus();
   });
 });

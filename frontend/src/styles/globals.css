@@ -15,7 +15,9 @@
   --warning: #b45309;
   --success: #2f6b4f;
   --border: #e5e2d9;
-  --input: #e5e2d9;
+  /* Border of input/select/textarea: >= 3:1 against --card (3.7), --background (3.5) and --secondary (3.2), WCAG 1.4.11.
+     The hairline --border (1.3:1) stays for cards and dividers: fields have no other visual edge. */
+  --input: #85857b;
   --ring: #0f766e;
   --radius: 6px;
 }

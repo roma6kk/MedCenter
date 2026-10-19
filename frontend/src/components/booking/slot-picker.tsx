@@ -1,42 +1,84 @@
 'use client';
-import { useQuery } from '@tanstack/react-query';
-import { apiFetch } from '@/lib/api/api-fetch';
-import { StampBadge } from '@/components/feedback/stamp-badge';
-import { EmptyState, TableSkeleton } from '@/components/feedback/states';
-import { ProblemBanner } from '@/components/feedback/problem-banner';
-import { ApiError } from '@/lib/api/api-fetch';
-import { formatMinskDateTime } from '@/lib/utils';
 
-interface Slot { id: string; start: string; status: 'free' | 'busy'; }
+import { useMemo, type ReactNode } from 'react';
+import { useDoctorSlots } from '@/components/catalog/use-catalog';
+import type { DoctorSlots, Slot } from '@/components/catalog/catalog-types';
+import { QueryFailed } from '@/components/catalog/query-failed';
+import { EmptyState } from '@/components/feedback/states';
+import { useT } from '@/lib/i18n/use-t';
+import { SlotDayList } from './slot-day-list';
+import { slotsForDuration, withTakenSlot } from './slot-list';
+import { SlotPeriodControl } from './slot-period-control';
+import { useSlotWindow } from './use-slot-window';
 
-export function SlotPicker({ scheduleId, selectedSlotId, onSelect }: { readonly scheduleId: string; readonly selectedSlotId: string | null; readonly onSelect: (id: string) => void }): React.JSX.Element {
-  const { data, isPending, error, refetch } = useQuery({
-    queryKey: ['slots', scheduleId],
-    queryFn: () => apiFetch<{ items: Slot[] }>(`/api/v1/schedules/${scheduleId}/slots?status=free`),
-    staleTime: 15_000,
-    refetchOnWindowFocus: true,
-  });
-  if (isPending) return <TableSkeleton />;
-  if (error && error instanceof ApiError && error.problem.errorCode === 'SLOT_CONFLICT') {
-    return (
-      <div>
-        <div role="alert" aria-live="assertive" data-testid="slot-conflict-toast" className="rounded-[6px] border border-[var(--destructive)] p-3">Слот только что заняли</div>
-        <button type="button" onClick={() => void refetch()} className="mt-2 underline">Обновить</button>
-      </div>
-    );
-  }
-  if (error) return <ProblemBanner title="Не удалось загрузить слоты" errorCode="INTERNAL" />;
-  if (!data || data.items.length === 0) return <EmptyState title="Нет свободных слотов" description="Выберите другую дату." />;
+export interface SlotPickerProps {
+  readonly doctorId: string;
+  readonly selectedSlotId: string | null;
+  readonly onSelect: (slot: Slot) => void;
+  /** Length of the chosen service: only slots of that length are offered (the slot search knows no service). */
+  readonly durationMin?: number | null;
+  /** The slot the server has just refused (SLOT_CONFLICT): shown as taken. */
+  readonly takenSlot?: Slot | null;
+  /** First day of the picked period when it is known (a restored draft), else today. */
+  readonly initialFrom?: string;
+}
+
+function SlotSkeleton(): ReactNode {
+  const t = useT('booking');
   return (
-    <ul className="grid gap-2" aria-label="Свободные слоты">
-      {data.items.map((slot) => (
-        <li key={slot.id}>
-          <button type="button" aria-pressed={selectedSlotId === slot.id} onClick={() => onSelect(slot.id)} data-testid={`slot-${slot.id}`} className={`flex w-full items-center justify-between rounded-[6px] border p-3 ${selectedSlotId === slot.id ? 'border-[var(--primary)]' : 'border-[var(--border)]'}`}>
-            <span className="mono">{formatMinskDateTime(slot.start)}</span>
-            <StampBadge status={slot.status} />
-          </button>
-        </li>
+    <div role="status" aria-busy="true" data-testid="slot-skeleton" className="animate-pulse space-y-2">
+      <span className="sr-only">{t('slotsLoading')}</span>
+      {[0, 1, 2].map((row) => (
+        <div key={row} aria-hidden="true" className="h-11 rounded-[6px] bg-[var(--secondary)]" />
       ))}
-    </ul>
+    </div>
+  );
+}
+
+function SlotsEmpty({ hasOtherServices }: { readonly hasOtherServices: boolean }): ReactNode {
+  const t = useT('booking');
+  return hasOtherServices ? (
+    <EmptyState title={t('noSlotsForService')} description={t('noSlotsForServiceHint')} />
+  ) : (
+    <EmptyState title={t('noSlots')} description={t('noSlotsHint')} />
+  );
+}
+
+interface SlotResultsProps extends Pick<SlotPickerProps, 'selectedSlotId' | 'onSelect' | 'durationMin' | 'takenSlot'> {
+  readonly data: DoctorSlots;
+}
+
+function SlotResults({ data, selectedSlotId, onSelect, durationMin = null, takenSlot = null }: SlotResultsProps): ReactNode {
+  const t = useT('booking');
+  // Memoised so the list below keeps the same `slots` (and its day grouping) across the renders a selection causes.
+  const visible: ReadonlyArray<Slot> = useMemo(() => withTakenSlot(slotsForDuration(data.items, durationMin), takenSlot), [data.items, durationMin, takenSlot]);
+  if (visible.length === 0) return <SlotsEmpty hasOtherServices={data.items.length > 0} />;
+  const freeCount: number = visible.filter((slot) => slot.status === 'free').length;
+  return (
+    <>
+      <p role="status" className="sr-only">{t('slotsFound', { count: freeCount })}</p>
+      {durationMin !== null ? <p className="mb-3 text-sm text-[var(--muted-foreground)]">{t('slotsFiltered', { minutes: durationMin })}</p> : null}
+      <SlotDayList slots={visible} selectedSlotId={selectedSlotId} takenSlotId={takenSlot?.id ?? null} showDuration={durationMin === null} onSelect={onSelect} />
+      {data.truncated === true ? <p className="mt-3 text-sm text-[var(--warning)]">{t('slotsTruncated')}</p> : null}
+    </>
+  );
+}
+
+/**
+ * Free slots of one doctor for a period (`GET /doctors/{id}/slots?from=&to=`, API 5.2.8): two weeks from today by
+ * default, movable by period or by date. Slots go stale in 15 s and refresh when the tab regains focus (BR-001).
+ */
+export function SlotPicker({ doctorId, selectedSlotId, onSelect, durationMin = null, takenSlot = null, initialFrom }: SlotPickerProps): ReactNode {
+  const windowState = useSlotWindow(initialFrom);
+  const { data, isPending, error, refetch } = useDoctorSlots(doctorId, windowState.window);
+  return (
+    <div className="space-y-4">
+      <SlotPeriodControl state={windowState} />
+      {isPending ? <SlotSkeleton /> : null}
+      {!isPending && data === undefined ? <QueryFailed error={error} onRetry={() => void refetch()} /> : null}
+      {data === undefined ? null : (
+        <SlotResults data={data} selectedSlotId={selectedSlotId} onSelect={onSelect} durationMin={durationMin} takenSlot={takenSlot} />
+      )}
+    </div>
   );
 }

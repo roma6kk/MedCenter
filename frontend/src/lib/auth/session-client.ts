@@ -11,6 +11,7 @@
 import { setAccessToken, clearAccessToken, getAccessToken } from './access-token';
 import { parseUserRole } from './user-role';
 import { setFlash } from '@/lib/ui/flash-message';
+import { useBookingDraftStore } from '@/store/use-booking-draft-store';
 import { useSessionStore } from '@/store/use-session-store';
 
 interface SessionResponse {
@@ -110,6 +111,8 @@ export async function endSession(): Promise<void> {
 /** User-initiated sign-out: ends the session and returns to the login screen with a clean in-memory state. */
 export async function logout(): Promise<void> {
   await endSession();
+  // The booking draft carries the visit reason (health data) in this tab's sessionStorage: it must not outlive a sign-out.
+  useBookingDraftStore.getState().clearDraft();
   window.location.assign('/login');
 }
 

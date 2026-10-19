@@ -1,48 +1,71 @@
 'use client';
-import { useState } from 'react';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { apiFetch, idempotencyKey, ApiError } from '@/lib/api/api-fetch';
-import { useBookingDraftStore } from '@/store/use-booking-draft-store';
-import { SlotPicker } from './slot-picker';
 
-export function BookingWizard(): React.JSX.Element {
+import type { ReactNode } from 'react';
+import { useBookingDraftStore, type BookingDraft, type BookingStep } from '@/store/use-booking-draft-store';
+import type { Slot } from '@/components/catalog/catalog-types';
+import { useT } from '@/lib/i18n/use-t';
+import { BookingStepper } from './booking-stepper';
+import { selectDoctor, selectService, selectSlot } from './booking-steps';
+import { BookingSuccess } from './booking-success';
+import { ConfirmStep } from './confirm-step';
+import { DoctorStep } from './doctor-step';
+import { ServiceStep } from './service-step';
+import { SlotStep } from './slot-step';
+import { useBookingSubmit, type BookingSubmit } from './use-booking-submit';
+import { useDraftRepair } from './use-draft-repair';
+import { useStepFocus } from './use-step-focus';
+
+interface StepViewProps {
+  readonly draft: BookingDraft;
+  readonly booking: BookingSubmit;
+  readonly update: (patch: Partial<BookingDraft>) => void;
+}
+
+function StepView({ draft, booking, update }: StepViewProps): ReactNode {
+  const choose = (patch: Partial<BookingDraft>): void => {
+    booking.reset();
+    update(patch);
+  };
+  if (draft.step === 1) return <ServiceStep selectedServiceId={draft.serviceId} onSelect={(id) => choose(selectService(draft, id))} />;
+  if (draft.step === 2 || draft.doctorId === null) {
+    return <DoctorStep serviceId={draft.serviceId} selectedDoctorId={draft.doctorId} onSelect={(id) => choose(selectDoctor(draft, id))} />;
+  }
+  if (draft.step === 3 || draft.slotId === null) {
+    return (
+      <SlotStep
+        doctorId={draft.doctorId}
+        serviceId={draft.serviceId}
+        selectedSlotId={draft.slotId}
+        selectedSlotStart={draft.slotStart}
+        notice={booking.notice}
+        takenSlot={booking.takenSlot}
+        onSelect={(slot: Slot) => choose(selectSlot(slot))}
+      />
+    );
+  }
+  return <ConfirmStep draft={draft} booking={booking} onReasonChange={(reason) => update({ reason })} />;
+}
+
+/**
+ * Booking wizard (FR-003/004): service → doctor → slot → confirmation. The draft lives in `sessionStorage`, so a guest
+ * who picked a slot on a doctor page comes back from the login on the confirmation step with everything in place.
+ */
+export function BookingWizard({ presetDoctorId }: { readonly presetDoctorId?: string }): ReactNode {
+  const t = useT('booking');
   const draft = useBookingDraftStore();
-  const queryClient = useQueryClient();
-  const [conflict, setConflict] = useState(false);
-  const booking = useMutation({
-    mutationFn: (slotId: string) => {
-      const key = draft.idempotencyKey ?? idempotencyKey();
-      if (!draft.idempotencyKey) draft.updateDraft({ idempotencyKey: key });
-      return apiFetch<{ id: string }>('/api/v1/appointments', { method: 'POST', headers: { 'Idempotency-Key': key }, body: JSON.stringify({ slotId }) });
-    },
-    onSuccess: () => {
-      setConflict(false);
-      draft.clearDraft();
-      void queryClient.invalidateQueries({ queryKey: ['slots'] });
-      void queryClient.invalidateQueries({ queryKey: ['appointments'] });
-      void queryClient.invalidateQueries({ queryKey: ['notifications', 'unreadCount'] });
-    },
-    onError: (error) => {
-      if (error instanceof ApiError && error.problem.errorCode === 'SLOT_CONFLICT') {
-        setConflict(true);
-        void queryClient.invalidateQueries({ queryKey: ['slots'] });
-      }
-    },
-  });
+  const isRestored: boolean = useDraftRepair(presetDoctorId);
+  const booking = useBookingSubmit();
+  const container = useStepFocus(draft.step, booking.notice !== null);
+  if (booking.created !== null) return <BookingSuccess appointmentId={booking.created.id} />;
+  const goTo = (step: BookingStep): void => {
+    booking.reset();
+    draft.updateDraft({ step });
+  };
   return (
-    <section aria-label="Мастер записи">
-      <ol className="flex gap-2 text-sm">
-        <li aria-current={draft.step === 1 ? 'step' : undefined}>1. Врач</li>
-        <li aria-current={draft.step === 2 ? 'step' : undefined}>2. Услуга</li>
-        <li aria-current={draft.step === 3 ? 'step' : undefined}>3. Время</li>
-        <li aria-current={draft.step === 4 ? 'step' : undefined}>4. Подтверждение</li>
-      </ol>
-      <div className="mt-4">
-        <SlotPicker scheduleId={draft.doctorId ?? 'default'} selectedSlotId={draft.slotId} onSelect={(id) => draft.updateDraft({ slotId: id, step: 4 })} />
-      </div>
-      {conflict ? <p role="alert" aria-live="assertive" data-testid="slot-conflict-toast" className="mt-3 rounded-[6px] border border-[var(--destructive)] p-3">Слот только что заняли. Выберите другое время.</p> : null}
-      {booking.isSuccess ? <p data-testid="booking-success">Запись создана.</p> : null}
-      <button type="button" disabled={!draft.slotId || booking.isPending} onClick={() => { if (draft.slotId) booking.mutate(draft.slotId); }} className="no-print mt-4 rounded-[6px] bg-[var(--primary)] px-4 py-2 text-[var(--primary-foreground)] disabled:opacity-50">Подтвердить запись</button>
+    <section ref={container} aria-label={t('title')} className="space-y-5">
+      <BookingStepper current={draft.step} onGo={goTo} />
+      {isRestored && draft.step === 4 ? <p role="status" className="text-sm text-[var(--muted-foreground)]">{t('draftRestored')}</p> : null}
+      <StepView draft={draft} booking={booking} update={draft.updateDraft} />
     </section>
   );
 }

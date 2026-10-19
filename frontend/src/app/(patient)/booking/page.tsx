@@ -1,11 +1,19 @@
+import type { Metadata } from 'next';
+import { BookingScreen } from '@/components/booking/booking-screen';
+import { parseFhirId } from '@/components/catalog/doctor-directory';
 import { PatientShell } from '@/components/layout/patient-shell';
-import { BookingWizard } from '@/components/booking/booking-wizard';
 
-export default function BookingPage(): React.JSX.Element {
+export const metadata: Metadata = { title: 'Запись на приём — МедЦентр' };
+
+interface BookingPageProps {
+  readonly searchParams?: Promise<{ doctorId?: string | string[] }>;
+}
+
+export default async function BookingPage({ searchParams }: BookingPageProps): Promise<React.JSX.Element> {
+  const doctorId: string | undefined = parseFhirId((await searchParams)?.doctorId);
   return (
     <PatientShell>
-      <h1 className="serif text-2xl font-bold">Запись на приём</h1>
-      <div className="mt-4"><BookingWizard /></div>
+      <BookingScreen {...(doctorId === undefined ? {} : { presetDoctorId: doctorId })} />
     </PatientShell>
   );
 }

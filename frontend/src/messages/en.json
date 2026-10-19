@@ -506,14 +506,16 @@
     "noSlotsForService": "No times for the chosen service",
     "noSlotsForServiceHint": "The doctor has times of another length — they belong to other services. Pick other dates or another service.",
     "slotsFiltered": "Showing times for the chosen service ({minutes} min).",
-    "slotsTruncated": "Not every slot is shown. Pick an earlier period.",
+    "slotsTruncated": "Not every slot is shown. Pick a date to see the rest.",
     "slotTaken": "just taken",
     "slotMinutes": "{minutes} min",
     "slotsLoading": "Loading available times…",
     "periodNav": "Search period",
     "stepBack": "{step} {label}: back to this step",
     "chooseDoctor": "Choose doctor",
-    "slotsFound": "Available times: {count}"
+    "slotsFound": "Available times: {count}",
+    "retryIn": "Try again in {seconds} s",
+    "nextPeriodLimit": "This is the last available period: you can search up to a year ahead."
   },
   "layout": {
     "skipToContent": "Skip to content",
@@ -937,7 +939,9 @@
       "signIn": "Sign in",
       "successTitle": "Registration complete",
       "successLead": "Your account is ready. You can sign in now.",
-      "successCta": "Sign in"
+      "successCta": "Sign in",
+      "requiredNote": "All fields except gender are required.",
+      "retryIn": "Try again in {seconds} s"
     }
   },
   "appointments": {

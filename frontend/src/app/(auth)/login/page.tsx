@@ -1,14 +1,15 @@
-import Link from 'next/link';
+import type { Metadata } from 'next';
+import { LoginEntry } from '@/components/auth/login-entry';
+import { parseLoginError } from '@/components/auth/login-error';
+import { sanitizeReturnTo } from '@/lib/auth/return-to';
 
-export default async function LoginPage({ searchParams }: { readonly searchParams?: Promise<{ returnTo?: string }> }): Promise<React.JSX.Element> {
-  const resolved = (await searchParams) ?? {};
-  const returnTo = resolved.returnTo ?? '/booking';
-  return (
-    <div>
-      <h1 className="serif text-2xl font-bold">Вход</h1>
-      <p className="mt-2 text-sm text-[var(--muted-foreground)]">Безопасный вход через SMART on FHIR.</p>
-      <a href={`/api/auth/authorize?returnTo=${encodeURIComponent(returnTo)}`} className="mt-6 block rounded-[6px] bg-[var(--primary)] px-4 py-2 text-center text-[var(--primary-foreground)]">Войти</a>
-      <p className="mt-4 text-sm">Нет аккаунта? <Link href="/register" className="underline">Зарегистрироваться</Link></p>
-    </div>
-  );
+export const metadata: Metadata = { title: 'Вход — МедЦентр' };
+
+interface LoginPageProps {
+  readonly searchParams?: Promise<{ returnTo?: string; error?: string | string[] }>;
+}
+
+export default async function LoginPage({ searchParams }: LoginPageProps): Promise<React.JSX.Element> {
+  const { returnTo, error } = (await searchParams) ?? {};
+  return <LoginEntry returnTo={sanitizeReturnTo(returnTo)} error={parseLoginError(error)} />;
 }

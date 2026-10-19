@@ -1,14 +1,20 @@
-import Link from 'next/link';
+import type { Metadata } from 'next';
+import { loadDoctors, loadServices } from '@/components/catalog/catalog-server';
+import { HomeView } from '@/components/catalog/home-view';
 
-export default function HomePage(): React.JSX.Element {
+export const metadata: Metadata = { title: 'Медицинский центр' };
+
+// Rendered per request, never at build time: `next build` runs where the API is unreachable (docker build), and a
+// prerendered page would bake the error banner into the static HTML.
+export const dynamic = 'force-dynamic';
+
+export default async function HomePage(): Promise<React.JSX.Element> {
+  const [services, doctors] = await Promise.all([loadServices(), loadDoctors()]);
   return (
-    <main className="mx-auto max-w-3xl p-8">
-      <h1 className="serif text-3xl font-bold">Медицинский центр</h1>
-      <p className="mt-2 text-[var(--muted-foreground)]">Запись на приём и ведение клинической документации.</p>
-      <div className="mt-6 flex gap-3">
-        <Link href="/doctors" className="rounded-[6px] bg-[var(--primary)] px-4 py-2 text-[var(--primary-foreground)]">Найти врача</Link>
-        <Link href="/login" className="rounded-[6px] border border-[var(--border)] px-4 py-2">Войти</Link>
-      </div>
-    </main>
+    <HomeView
+      services={services.ok ? services.data : []}
+      doctors={doctors.ok ? doctors.data : []}
+      isFailed={!services.ok && !doctors.ok}
+    />
   );
 }

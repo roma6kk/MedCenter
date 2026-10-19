@@ -1,26 +1,23 @@
-import Link from 'next/link';
-import { NotFoundState } from '@/components/feedback/states';
-import { publicApiFetch } from '@/lib/server-fetch';
+import type { Metadata } from 'next';
+import { loadDoctor } from '@/components/catalog/catalog-server';
+import { CatalogUnavailable } from '@/components/catalog/catalog-unavailable';
+import { parseFhirId } from '@/components/catalog/doctor-directory';
+import { DoctorNotFound } from '@/components/catalog/doctor-not-found';
+import { DoctorProfile } from '@/components/catalog/doctor-profile';
 
-interface Doctor { id: string; name: string; specialty: string; }
+export const metadata: Metadata = { title: 'Врач — МедЦентр' };
 
-async function getDoctor(doctorId: string): Promise<Doctor | null> {
-  const result = await publicApiFetch<Doctor>(`/api/v1/doctors/${encodeURIComponent(doctorId)}`);
-  return result.ok ? result.data : null;
-}
+export const dynamic = 'force-dynamic';
+
+/** An id the API refuses (400) or does not know (404) is "no such doctor"; any other failure is a banner, not a "not found". */
+const MISSING_STATUSES: ReadonlyArray<number> = [400, 404];
 
 export default async function DoctorProfilePage({ params }: { readonly params: Promise<{ doctorId: string }> }): Promise<React.JSX.Element> {
   const { doctorId } = await params;
-  const doctor = await getDoctor(doctorId);
-  if (doctor === null) {
-    return <NotFoundState title="Врач не найден" description="Возможно, профиль недоступен или был удалён." />;
-  }
-  return (
-    <main className="mx-auto max-w-3xl p-6">
-      <h1 className="serif text-2xl font-bold">{doctor.name}</h1>
-      <p className="text-sm text-[var(--muted-foreground)]">{doctor.specialty}</p>
-      <p className="mono mt-2 text-sm">{doctor.id}</p>
-      <Link href={`/booking?doctorId=${encodeURIComponent(doctor.id)}`} className="mt-4 inline-block rounded-[6px] bg-[var(--primary)] px-4 py-2 text-[var(--primary-foreground)]">Записаться</Link>
-    </main>
-  );
+  // `..` would be folded into the API path by the URL parser: no request for something that cannot be an id.
+  if (parseFhirId(doctorId) === undefined) return <DoctorNotFound />;
+  const result = await loadDoctor(doctorId);
+  if (result.ok) return <DoctorProfile doctor={result.data} />;
+  if (result.status !== undefined && MISSING_STATUSES.includes(result.status)) return <DoctorNotFound />;
+  return <CatalogUnavailable namespace="catalog" retryHref={`/doctors/${encodeURIComponent(doctorId)}`} />;
 }
