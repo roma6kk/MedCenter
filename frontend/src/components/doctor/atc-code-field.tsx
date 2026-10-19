@@ -1,30 +1,51 @@
+'use client';
+
 import { forwardRef } from 'react';
-import type { ChangeEvent, InputHTMLAttributes } from 'react';
+import type { ReactNode } from 'react';
+import { ATC_PATTERN } from '@/lib/contracts';
+import { useT } from '@/lib/i18n/use-t';
+import { ATC_VALUE_SET } from './doctor-api';
+import type { Term } from './doctor-types';
+import { TerminologyCombobox } from './terminology-combobox';
+
+interface AtcCodeFieldProps {
+  readonly value: string;
+  readonly onChange: (code: string) => void;
+  readonly onSelectTerm?: (term: Term) => void;
+  readonly onBlur?: () => void;
+  readonly id: string;
+  readonly labelSuffix?: string;
+  readonly error?: string;
+}
+
+const ATC_LENGTH = 7;
 
 /**
- * АТХ (ATC) code input: monospace, upper-cased as typed. Format validation stays in the
- * zod schema (`ATC_PATTERN` in lib/contracts); this field only shapes the input.
- * Forwards its ref and props so it works with react-hook-form `register`.
+ * АТХ (ATC) code of a drug (FR-014, BR-009): monospace, upper-cased as typed, suggestions with the drug name from the
+ * `atc` ValueSet. The service checks the code against the seeded ValueSet on submit.
  */
-export const AtcCodeField = forwardRef<HTMLInputElement, InputHTMLAttributes<HTMLInputElement>>(function AtcCodeField(
-  { onChange, className, ...rest },
+export const AtcCodeField = forwardRef<HTMLInputElement, AtcCodeFieldProps>(function AtcCodeField(
+  { value, onChange, onSelectTerm, onBlur, id, labelSuffix, error },
   ref,
-) {
-  const handleChange = (event: ChangeEvent<HTMLInputElement>): void => {
-    event.target.value = event.target.value.toUpperCase();
-    onChange?.(event);
-  };
-
+): ReactNode {
+  const t = useT('doctor.atc');
   return (
-    <input
+    <TerminologyCombobox
       ref={ref}
-      {...rest}
-      onChange={handleChange}
-      maxLength={7}
-      spellCheck={false}
-      autoComplete="off"
-      autoCapitalize="characters"
-      className={`mono mt-1 w-full rounded-[6px] border border-[var(--input)] p-2 ${className ?? ''}`.trim()}
+      id={id}
+      label={labelSuffix ? `${t('label')} · ${labelSuffix}` : t('label')}
+      valueSet={ATC_VALUE_SET}
+      value={value}
+      onChange={onChange}
+      onSelectTerm={onSelectTerm}
+      onBlur={onBlur}
+      pattern={ATC_PATTERN}
+      invalidMessage={t('invalid')}
+      listLabel={t('options')}
+      placeholder={t('placeholder')}
+      maxLength={ATC_LENGTH}
+      normalize={(raw) => raw.toUpperCase()}
+      error={error}
     />
   );
 });

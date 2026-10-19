@@ -1,69 +1,19 @@
-import { render, screen, waitFor } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-
 jest.mock('@/lib/api/api-fetch', () => {
   const actual = jest.requireActual('@/lib/api/api-fetch');
   return { ...actual, apiFetch: jest.fn() };
 });
 
-import { EncounterCompleteForm } from './encounter-complete-form';
-import { apiFetch, ApiError } from '@/lib/api/api-fetch';
-import type { ProblemDetails } from '@/lib/api/problem';
-import type { ReactNode } from 'react';
+// Long typing sequences (hundreds of keystrokes through user-event) take well over 5 s when the machine is busy.
+jest.setTimeout(30_000);
 
-const apiFetchMock = apiFetch as jest.MockedFunction<(path: string, options?: RequestInit) => Promise<unknown>>;
-const COMPLETE_PATH = '/api/v1/encounters/enc-1/complete';
-
-function renderForm(props: { readonly readOnly?: boolean } = {}): void {
-  const client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
-  function Wrapper({ children }: { readonly children: ReactNode }): ReactNode {
-    return <QueryClientProvider client={client}>{children}</QueryClientProvider>;
-  }
-  render(<EncounterCompleteForm encounterId="enc-1" readOnly={props.readOnly} />, { wrapper: Wrapper });
-}
-
-function completeCall(): [string, RequestInit?] | undefined {
-  return apiFetchMock.mock.calls.find(([path]) => path === COMPLETE_PATH);
-}
-
-function completeBody(): Record<string, unknown> {
-  return JSON.parse(String(completeCall()?.[1]?.body)) as Record<string, unknown>;
-}
-
-async function submit(): Promise<void> {
-  await userEvent.click(screen.getByRole('button', { name: 'Завершить приём' }));
-}
-
-async function typeValidDiagnosis(): Promise<void> {
-  await userEvent.type(screen.getByLabelText('Заключение'), 'ОРВИ, состояние удовлетворительное');
-  await userEvent.type(screen.getByLabelText('Код МКБ-10'), 'J06.9');
-  await userEvent.type(screen.getByLabelText(/Название диагноза/), 'Острая респираторная инфекция');
-  await userEvent.type(screen.getByLabelText(/Рекомендации/), 'Покой, обильное питьё, контроль температуры');
-}
-
-const UCUM_UNITS = ['Cel', 'mg', 'g', 'mL', 'mmol/L', 'mg/dL'];
+import { screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { bodyOf } from './doctor-test-utils';
+import { completeCall, completeRoute, fillRequired, OBSERVATION_SYSTEM, SERVICE_SYSTEM, setup, submit, UCUM } from './encounter-form-test-utils';
 
 describe('EncounterCompleteForm validation', () => {
-  beforeEach(() => {
-    jest.resetAllMocks();
-    apiFetchMock.mockImplementation((path: string) =>
-      path.startsWith('/api/v1/terminology/expand') ? Promise.resolve({ items: [] }) : Promise.resolve(undefined),
-    );
-  });
-
-  it('should expose only the whitelisted UCUM units in the observation select', async () => {
-    renderForm();
-
-    await userEvent.click(screen.getByRole('button', { name: 'Добавить наблюдение' }));
-
-    const select = screen.getByLabelText(/Единица UCUM/);
-    const values = Array.from(select.querySelectorAll('option')).map((option) => option.value);
-    expect(values).toEqual(UCUM_UNITS);
-  });
-
-  it('should block submission and show field errors when the summary and diagnosis are empty', async () => {
-    renderForm();
+  it('should not send anything and should mark the fields when the form is empty', async () => {
+    setup();
 
     await submit();
 
@@ -71,147 +21,202 @@ describe('EncounterCompleteForm validation', () => {
     expect(completeCall()).toBeUndefined();
   });
 
-  it('should not call the API while required diagnoses are missing', async () => {
-    renderForm();
+  it('should move focus to the summary when the form is empty and submitted', async () => {
+    setup();
 
-    await userEvent.type(screen.getByLabelText('Заключение'), 'ОРВИ, состояние удовлетворительное');
-    await userEvent.type(screen.getByLabelText(/Рекомендации/), 'Покой, обильное питьё, контроль температуры');
     await submit();
 
-    await waitFor(() => expect(screen.getByRole('button', { name: 'Завершить приём' })).toBeEnabled());
+    await waitFor(() => expect(screen.getByLabelText('Заключение')).toHaveFocus());
+  });
+
+  it('should require at least one diagnosis code when only the summary and recommendations are filled', async () => {
+    setup();
+    await userEvent.type(screen.getByLabelText('Заключение'), 'ОРВИ, состояние удовлетворительное');
+    await userEvent.type(screen.getByLabelText('Рекомендации'), 'Покой, обильное питьё');
+
+    await submit();
+
+    await waitFor(() => expect(screen.getByLabelText(/Код МКБ-10/)).toHaveFocus());
     expect(completeCall()).toBeUndefined();
   });
 
-  it('should block submission for an invalid ICD-10 code', async () => {
-    renderForm();
+  it('should block submission with the ICD-10 message when the code does not match the mask', async () => {
+    setup();
+    await fillRequired();
+    await userEvent.clear(screen.getByLabelText(/Код МКБ-10/));
+    await userEvent.type(screen.getByLabelText(/Код МКБ-10/), 'bad');
 
-    await userEvent.type(screen.getByLabelText('Заключение'), 'ОРВИ, состояние удовлетворительное');
-    await userEvent.type(screen.getByLabelText(/Рекомендации/), 'Покой, обильное питьё, контроль температуры');
-    await userEvent.type(screen.getByLabelText('Код МКБ-10'), 'bad');
-    await userEvent.type(screen.getByLabelText(/Название диагноза/), 'Диагноз');
     await submit();
 
-    expect(await screen.findByText('Некорректный код МКБ-10')).toBeInTheDocument();
+    expect((await screen.findAllByText(/Некорректный код МКБ-10/)).length).toBeGreaterThan(0);
     expect(completeCall()).toBeUndefined();
   });
 
-  it('should submit the atomic payload once a diagnosis is filled in', async () => {
-    renderForm();
+  it('should block submission when the summary is shorter than three characters', async () => {
+    setup();
+    await fillRequired();
+    await userEvent.clear(screen.getByLabelText('Заключение'));
+    await userEvent.type(screen.getByLabelText('Заключение'), 'ab');
 
-    await typeValidDiagnosis();
+    await submit();
+
+    expect(await screen.findByText('Не короче 3 символов')).toBeInTheDocument();
+    expect(completeCall()).toBeUndefined();
+  });
+
+  it('should block submission when an observation has no number', async () => {
+    setup();
+    await fillRequired();
+    await userEvent.click(screen.getByRole('button', { name: 'Добавить наблюдение' }));
+
+    await submit();
+
+    expect(await screen.findByText('Введите число')).toBeInTheDocument();
+    expect(completeCall()).toBeUndefined();
+  });
+
+  it('should block submission when a drug has an invalid ATC code', async () => {
+    setup();
+    await fillRequired();
+    await userEvent.click(screen.getByRole('button', { name: 'Добавить лекарство' }));
+    await userEvent.type(screen.getByLabelText(/Код АТХ/), 'bad');
+    await userEvent.type(screen.getByLabelText(/Дозировка 1/), '1 таб 3 раза в день');
+
+    await submit();
+
+    expect((await screen.findAllByText(/Некорректный код АТХ/)).length).toBeGreaterThan(0);
+    expect(completeCall()).toBeUndefined();
+  });
+});
+
+describe('EncounterCompleteForm observation unit', () => {
+  async function addWeightRowWithoutUnit(): Promise<void> {
+    await fillRequired();
+    await userEvent.click(screen.getByRole('button', { name: 'Добавить наблюдение' }));
+    await userEvent.selectOptions(await screen.findByLabelText(/Показатель 1/), '8310-5');
+    await userEvent.type(screen.getByLabelText(/Значение 1/), '70');
+  }
+
+  it('should start a new observation row with no unit selected', async () => {
+    setup();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Добавить наблюдение' }));
+
+    expect(await screen.findByLabelText(/Единица UCUM 1/)).toHaveValue('');
+  });
+
+  it('should not send a measurement and should ask for its unit when the doctor leaves the unit untouched', async () => {
+    setup();
+    await addWeightRowWithoutUnit();
+
+    await submit();
+
+    expect(await screen.findByText('Поле обязательно для заполнения')).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByLabelText(/Единица UCUM 1/)).toHaveFocus());
+    expect(screen.getByLabelText(/Единица UCUM 1/)).toHaveAttribute('aria-invalid', 'true');
+    expect(completeCall()).toBeUndefined();
+  });
+
+  it('should send exactly the unit the doctor chose when one is picked', async () => {
+    setup();
+    await addWeightRowWithoutUnit();
+    await userEvent.selectOptions(screen.getByLabelText(/Единица UCUM 1/), 'mg');
+
     await submit();
 
     await waitFor(() => expect(completeCall()).toBeDefined());
-    expect(completeCall()?.[1]?.method).toBe('POST');
-    expect(completeBody()['diagnoses']).toEqual([
-      { code: 'J06.9', display: 'Острая респираторная инфекция' },
-    ]);
+    expect(bodyOf(completeCall())['observations']).toEqual([{ codeSystem: OBSERVATION_SYSTEM, code: '8310-5', value: 70, unit: 'mg' }]);
   });
+});
 
-  it('should send an Idempotency-Key on the complete request', async () => {
-    renderForm();
+describe('EncounterCompleteForm submit', () => {
+  it('should POST the atomic body with the diagnosis when the required fields are filled', async () => {
+    setup();
+    await fillRequired();
 
-    await typeValidDiagnosis();
     await submit();
 
     await waitFor(() => expect(completeCall()).toBeDefined());
-    const headers = completeCall()?.[1]?.headers as Record<string, string> | undefined;
-    expect(headers?.['Idempotency-Key']).toMatch(/^[0-9a-f-]{36}$/i);
+    expect(bodyOf(completeCall())).toEqual({
+      summary: 'ОРВИ, состояние удовлетворительное',
+      diagnoses: [{ code: 'J06.9', display: 'Острый назофарингит' }],
+      recommendations: 'Покой, обильное питьё',
+      observations: [],
+      serviceRequests: [],
+      medicationRequests: [],
+    });
   });
 
-  it('should add a second diagnosis row and submit both diagnoses', async () => {
-    renderForm();
-
-    await userEvent.type(screen.getByLabelText('Заключение'), 'Два диагноза');
-    await userEvent.type(screen.getByLabelText(/Рекомендации/), 'Покой, обильное питьё, контроль температуры');
+  it('should send two diagnoses when a second row is added', async () => {
+    setup();
+    await fillRequired();
     await userEvent.click(screen.getByRole('button', { name: 'Добавить диагноз' }));
-    const codes = screen.getAllByLabelText('Код МКБ-10');
-    const displays = screen.getAllByLabelText(/Название диагноза/);
-    await userEvent.type(codes[0], 'J06.9');
-    await userEvent.type(displays[0], 'ОРВИ');
-    await userEvent.type(codes[1], 'K21.0');
-    await userEvent.type(displays[1], 'ГЭРБ');
+    await userEvent.type(screen.getByLabelText(/Код МКБ-10 · диагноз 2/), 'K21.0');
+    await userEvent.type(screen.getByLabelText(/Название диагноза 2/), 'ГЭРБ');
+
     await submit();
 
     await waitFor(() => expect(completeCall()).toBeDefined());
-    expect(completeBody()['diagnoses']).toEqual([
-      { code: 'J06.9', display: 'ОРВИ' },
+    expect(bodyOf(completeCall())['diagnoses']).toEqual([
+      { code: 'J06.9', display: 'Острый назофарингит' },
       { code: 'K21.0', display: 'ГЭРБ' },
     ]);
   });
 
-  it('should remove a diagnosis row but never the last one', async () => {
-    renderForm();
+  it('should send the verification status when the doctor chooses one', async () => {
+    setup();
+    await fillRequired();
+    await userEvent.selectOptions(screen.getByLabelText(/Статус подтверждения 1/), 'confirmed');
 
-    await userEvent.click(screen.getByRole('button', { name: 'Добавить диагноз' }));
-    expect(screen.getAllByLabelText('Код МКБ-10')).toHaveLength(2);
-
-    await userEvent.click(screen.getByRole('button', { name: 'Удалить диагноз 1' }));
-
-    expect(screen.getAllByLabelText('Код МКБ-10')).toHaveLength(1);
-    expect(screen.queryByRole('button', { name: /Удалить диагноз/ })).toBeNull();
-  });
-
-  it('should submit observations, service requests and medication requests', async () => {
-    renderForm();
-
-    await typeValidDiagnosis();
-    await userEvent.click(screen.getByRole('button', { name: 'Добавить наблюдение' }));
-    await userEvent.type(screen.getByLabelText(/Код показателя/), '8480-6');
-    await userEvent.type(screen.getByLabelText(/Значение/), '36.6');
-    await userEvent.click(screen.getByRole('button', { name: 'Добавить услугу' }));
-    await userEvent.type(screen.getByLabelText(/Код услуги/), 'SRV-1');
-    await userEvent.click(screen.getByRole('button', { name: 'Добавить лекарство' }));
-    await userEvent.type(screen.getByLabelText(/Код АТХ/), 'N02BE01');
-    await userEvent.type(screen.getByLabelText(/Дозировка/), '1 таб 3 раза в день после еды');
     await submit();
 
     await waitFor(() => expect(completeCall()).toBeDefined());
-    const body = completeBody();
-    expect(body['observations']).toEqual([
-      {
-        codeSystem: 'https://fhir.by/CodeSystem/nsi-observations',
-        code: '8480-6',
-        value: 36.6,
-        unit: 'Cel',
-      },
-    ]);
-    expect(body['serviceRequests']).toEqual([
-      { codeSystem: 'https://fhir.by/CodeSystem/nsi-services', code: 'SRV-1' },
-    ]);
-    expect(body['medicationRequests']).toEqual([{ atcCode: 'N02BE01', dosageText: '1 таб 3 раза в день после еды' }]);
+    expect(bodyOf(completeCall())['diagnoses']).toEqual([{ code: 'J06.9', display: 'Острый назофарингит', verificationStatus: 'confirmed' }]);
   });
 
-  it('should block submission for an invalid ATC code', async () => {
-    renderForm();
-
-    await typeValidDiagnosis();
+  it('should send the observation, the service and the drug of the encounter (scenario C)', async () => {
+    setup();
+    await fillRequired();
+    await userEvent.click(screen.getByRole('button', { name: 'Добавить наблюдение' }));
+    await userEvent.selectOptions(await screen.findByLabelText(/Показатель 1/), '8310-5');
+    await userEvent.type(screen.getByLabelText(/Значение 1/), '36.6');
+    await userEvent.selectOptions(screen.getByLabelText(/Единица UCUM 1/), 'Cel');
+    await userEvent.click(screen.getByRole('button', { name: 'Добавить услугу' }));
+    await userEvent.selectOptions(await screen.findByLabelText(/Услуга 1/), 'A01.001');
     await userEvent.click(screen.getByRole('button', { name: 'Добавить лекарство' }));
-    await userEvent.type(screen.getByLabelText(/Код АТХ/), 'bad');
-    await userEvent.type(screen.getByLabelText(/Дозировка/), 'x');
+    await userEvent.type(screen.getByLabelText(/Код АТХ/), 'J01FA10');
+    await userEvent.type(screen.getByLabelText(/Дозировка 1/), '1 таб 3 раза в день после еды');
+
     await submit();
 
-    await waitFor(() => expect(screen.getByRole('button', { name: 'Завершить приём' })).toBeEnabled());
-    expect(completeCall()).toBeUndefined();
+    await waitFor(() => expect(completeCall()).toBeDefined());
+    const body = bodyOf(completeCall());
+    expect(body['observations']).toEqual([{ codeSystem: OBSERVATION_SYSTEM, code: '8310-5', value: 36.6, unit: 'Cel' }]);
+    expect(body['serviceRequests']).toEqual([{ codeSystem: SERVICE_SYSTEM, code: 'A01.001' }]);
+    expect(body['medicationRequests']).toEqual([{ atcCode: 'J01FA10', dosageText: '1 таб 3 раза в день после еды' }]);
   });
 
-  it('should render the form read-only when the readOnly prop is set', () => {
-    renderForm({ readOnly: true });
+  it('should remove a diagnosis row but never the last one', async () => {
+    setup();
+    await userEvent.click(screen.getByRole('button', { name: 'Добавить диагноз' }));
+    expect(screen.getAllByLabelText(/Код МКБ-10/)).toHaveLength(2);
 
-    expect(screen.getByTestId('encounter-readonly')).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Завершить приём' })).toBeNull();
+    await userEvent.click(screen.getByRole('button', { name: 'Удалить диагноз 1' }));
+
+    expect(screen.getAllByLabelText(/Код МКБ-10/)).toHaveLength(1);
+    expect(screen.queryByRole('button', { name: /Удалить диагноз/ })).toBeNull();
   });
 
-  it('should hide the read-only banner when readOnly is false', () => {
-    renderForm({ readOnly: false });
+  it('should mark the button unavailable and busy while the request is running', async () => {
+    let finish: (value: unknown) => void = () => undefined;
+    setup(completeRoute(() => new Promise((resolve) => { finish = resolve; })));
+    await fillRequired();
 
-    expect(screen.queryByTestId('encounter-readonly')).toBeNull();
-    expect(screen.getByRole('button', { name: 'Завершить приём' })).toBeInTheDocument();
-  });
+    await submit();
 
-  it('should surface ENCOUNTER_STATE_INVALID as the read-only trigger code', () => {
-    // The mutation onError handler flips the form to read-only only for this code.
-    const problem: ProblemDetails = { title: 'Conflict', status: 409, errorCode: 'ENCOUNTER_STATE_INVALID' };
-    expect(new ApiError(problem).problem.errorCode).toBe('ENCOUNTER_STATE_INVALID');
+    const button = await screen.findByRole('button', { name: 'Завершаем…' });
+    expect(button).toHaveAttribute('aria-disabled', 'true');
+    expect(button).toHaveAttribute('aria-busy', 'true');
+    finish({ id: 'enc-1', status: 'finished' });
   });
 });

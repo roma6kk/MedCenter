@@ -1,6 +1,7 @@
-import { PatientHistoryView } from '@/components/doctor/patient-history-view';
+import type { ReactNode } from 'react';
+import { PatientCardView } from '@/components/doctor/patient-card-view';
 
-export default async function DoctorPatientPage({ params }: { readonly params: Promise<{ patientId: string }> }): Promise<React.JSX.Element> {
+export default async function DoctorPatientPage({ params }: { readonly params: Promise<{ patientId: string }> }): Promise<ReactNode> {
   const { patientId } = await params;
-  return <PatientHistoryView patientId={patientId} />;
+  return <PatientCardView patientId={patientId} />;
 }

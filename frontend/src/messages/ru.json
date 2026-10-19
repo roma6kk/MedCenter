@@ -511,7 +511,7 @@
     "slotMinutes": "{minutes} мин",
     "slotsLoading": "Загружаем свободное время…",
     "periodNav": "Период поиска времени",
-    "stepBack": "Вернуться к шагу {step}: {label}",
+    "stepBack": "{step} {label}: вернуться к этому шагу",
     "chooseDoctor": "Выбрать врача",
     "slotsFound": "Свободного времени: {count}"
   },

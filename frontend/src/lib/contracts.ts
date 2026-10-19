@@ -41,8 +41,9 @@ export const cancelAppointmentSchema = z.object({
 
 export type CancelAppointmentForm = z.infer<typeof cancelAppointmentSchema>;
 
-export const ICD10_PATTERN = /^[A-Z][0-9]{2}(\.[0-9A-Z]{1,4})?$/;
-export const ATC_PATTERN = /^[A-Z][0-9]{2}[A-Z]{1,2}([0-9]{2})?$/;
+/** Same grammar as the server's `libs/terminology` guards (`isValidIcd10Code`, `isValidAtcCode`): J06, J06.9, J06.99 / J01FA, J01FA10. */
+export const ICD10_PATTERN = /^[A-Z][0-9]{2}(\.[0-9]{1,2})?$/;
+export const ATC_PATTERN = /^[A-Z][0-9]{2}[A-Z]{2}([0-9]{2})?$/;
 
 export const SUMMARY_MIN = 3;
 export const SUMMARY_MAX = 4000;

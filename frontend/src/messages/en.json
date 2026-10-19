@@ -511,7 +511,7 @@
     "slotMinutes": "{minutes} min",
     "slotsLoading": "Loading available times…",
     "periodNav": "Search period",
-    "stepBack": "Back to step {step}: {label}",
+    "stepBack": "{step} {label}: back to this step",
     "chooseDoctor": "Choose doctor",
     "slotsFound": "Available times: {count}"
   },
