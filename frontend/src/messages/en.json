@@ -4,11 +4,14 @@
       "empty": "Nothing found",
       "find": "Search",
       "search": "Search form",
-      "saving": "Saving…"
+      "saving": "Saving…",
+      "requiredNote": "Fields marked with an asterisk (*) are required.",
+      "refreshing": "Refreshing the data…"
     },
     "problems": {
       "EMAIL_TAKEN": "A user with this email already exists",
       "PRACTITIONER_ROLE_TAKEN": "This practitioner role is already linked to another account",
+      "PRACTITIONER_ROLE_NOT_FOUND": "No practitioner role with this identifier was found. Check the PractitionerRole id.",
       "SELF_LOCKOUT": "You cannot deactivate your own account or drop your own administrator role",
       "IMPORT_RUNNING": "A terminology import is already running. Wait for it to finish.",
       "SNAPSHOT_NOT_BUNDLED": "This snapshot version is not bundled with the service",
@@ -60,7 +63,9 @@
       },
       "hints": {
         "password": "At least 10 characters: lower and upper case Latin letters, a digit and a symbol",
-        "practitionerRoleId": "Id of the PractitionerRole the doctor is linked to. Without it the doctor sees no schedule."
+        "practitionerRoleId": "Id of the PractitionerRole the doctor is linked to. Without it the doctor sees no schedule.",
+        "patientLocked": "The Patient role is unavailable: this account has no patient record. Create a separate user with the patient role.",
+        "linkReleased": "The PractitionerRole link will be released: after saving, the doctor will not see their schedule."
       },
       "filters": {
         "label": "User filters",
@@ -143,7 +148,11 @@
         "freeHint": "No schedule refers to it, so the room can be deleted.",
         "inUse": "The room is in use: it cannot be deleted while schedules refer to it",
         "inactive": "(inactive)",
-        "truncated": "Not all upcoming bookings are listed."
+        "truncated": "Not all upcoming bookings are listed.",
+        "types": {
+          "Schedule": "Schedule",
+          "Slot": "Slot"
+        }
       }
     },
     "services": {
@@ -177,12 +186,10 @@
         "typeSystem": "Code system",
         "typeCode": "Service reference code",
         "defaultDurationMin": "Duration, min",
-        "description": "Description",
-        "specialtyCodes": "Specialty codes"
+        "description": "Description"
       },
       "hints": {
-        "typeCode": "Service code from the reference catalogue, for example 10001",
-        "specialtyCodes": "Comma separated, for example 394579002, 419192003"
+        "typeCode": "Service code from the reference catalogue, for example 10001"
       },
       "validation": {
         "duration": "Duration: a whole number from 5 to 240 minutes"
@@ -268,7 +275,8 @@
         "start": "Start, window {n}",
         "end": "End, window {n}",
         "remove": "Remove window {n}",
-        "overlapsAnother": "The window overlaps another window of the same day"
+        "overlapsAnother": "The window overlaps another window of the same day",
+        "overlapsSchedule": "May overlap another schedule of the doctor"
       },
       "preview": {
         "label": "The whole week"
@@ -288,7 +296,11 @@
         "created": "Schedule created",
         "updated": "Schedule updated",
         "deleted": "Schedule deleted"
-      }
+      },
+      "doctorInactive": "{name} (account disabled)",
+      "pickersTruncated": "The pickers list at most 100 doctors, rooms and services: some entries may be missing.",
+      "emptyFiltered": "No schedules match the filters",
+      "emptyFilteredHint": "Change the doctor or the status, or clear the filters."
     },
     "slots": {
       "generate": {
@@ -305,7 +317,8 @@
           "order": "The end date is before the start date",
           "span": "The period must not exceed 90 days",
           "outsideHorizon": "The period is outside the schedule horizon"
-        }
+        },
+        "done": "Slot generation finished"
       },
       "grid": {
         "title": "Schedule slots",
@@ -321,6 +334,13 @@
           "free": "Free only",
           "busy": "Busy only",
           "entered-in-error": "Invalid"
+        },
+        "truncated": "The server returned exactly 20 slots, so the list may be incomplete. Narrow the period to see the rest.",
+        "countsPartial": "Slots shown: {total} · free: {free} · busy: {busy} · invalid: {error}",
+        "errors": {
+          "invalid": "Enter valid dates",
+          "order": "The end date is before the start date",
+          "span": "The period must not exceed 90 days"
         }
       }
     },
