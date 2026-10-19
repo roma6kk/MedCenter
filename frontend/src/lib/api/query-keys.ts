@@ -29,6 +29,8 @@ export const queryKeys = {
   history: (patientId: string = 'me', params?: Params) => ['patientHistory', patientId, normalise(params)] as const,
   prescriptions: (patientId: string = 'me', params?: Params) => ['prescriptions', patientId, normalise(params)] as const,
   profile: ['profile'] as const,
+  /** The FHIR patient card of the caller (API 3.1); lives under `profile`, so one invalidation refreshes both. */
+  patientProfile: ['profile', 'patient'] as const,
 
   // notifications (patient)
   notifications: (params?: Params) => ['notifications', 'list', normalise(params)] as const,

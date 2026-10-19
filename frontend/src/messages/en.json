@@ -1,4 +1,446 @@
 {
+  "admin": {
+    "common": {
+      "empty": "Nothing found",
+      "find": "Search",
+      "search": "Search form",
+      "saving": "Saving…"
+    },
+    "problems": {
+      "EMAIL_TAKEN": "A user with this email already exists",
+      "PRACTITIONER_ROLE_TAKEN": "This practitioner role is already linked to another account",
+      "SELF_LOCKOUT": "You cannot deactivate your own account or drop your own administrator role",
+      "IMPORT_RUNNING": "A terminology import is already running. Wait for it to finish.",
+      "SNAPSHOT_NOT_BUNDLED": "This snapshot version is not bundled with the service",
+      "TERMINOLOGY_NOT_FOUND": "This code is not in the reference catalogue",
+      "ROOM_IN_USE": "A room cannot be deleted while schedules refer to it. Open Occupancy to see which.",
+      "SERVICE_IN_USE": "A service cannot be deleted while schedules or appointments refer to it.",
+      "SCHEDULE_IN_USE": "The schedule has slots. Slots with bookings always protect it; free slots can be deleted with the schedule by ticking the option Also delete the free slots.",
+      "SCHEDULE_OVERLAP": "The doctor already has a schedule whose period overlaps the chosen one. Change the horizon or edit the existing schedule."
+    },
+    "validation": {
+      "fhirId": "Identifier: Latin letters, digits, hyphen and dot, up to 64 characters"
+    },
+    "users": {
+      "title": "Users",
+      "description": "Accounts of patients, doctors and administrators.",
+      "create": "Create user",
+      "createTitle": "New user",
+      "edit": "Edit",
+      "editAria": "Edit user {name}",
+      "editTitle": "Edit user",
+      "save": "Save",
+      "activate": "Activate",
+      "activateAria": "Activate the account of {name}",
+      "deactivate": "Deactivate",
+      "deactivateAria": "Deactivate the account of {name}",
+      "deactivateTitle": "Deactivate account",
+      "deactivateMessage": "Deactivate the account of {name}? The user will not be able to sign in, the data is kept.",
+      "active": "Active",
+      "inactive": "Deactivated",
+      "empty": "No users found",
+      "emptyHint": "Change the filters or create an account.",
+      "columns": {
+        "name": "User",
+        "role": "Role",
+        "status": "Status",
+        "links": "Links",
+        "actions": "Actions"
+      },
+      "fields": {
+        "lastName": "Last name",
+        "firstName": "First name",
+        "email": "Email",
+        "roles": "Roles",
+        "practitionerRoleId": "Practitioner role (PractitionerRole)",
+        "password": "Password",
+        "birthDate": "Birth date",
+        "gender": "Gender",
+        "isActive": "Account is active"
+      },
+      "hints": {
+        "password": "At least 10 characters: lower and upper case Latin letters, a digit and a symbol",
+        "practitionerRoleId": "Id of the PractitionerRole the doctor is linked to. Without it the doctor sees no schedule."
+      },
+      "filters": {
+        "label": "User filters",
+        "search": "Search",
+        "role": "Role",
+        "anyRole": "Any role",
+        "apply": "Apply"
+      },
+      "roleNames": {
+        "PATIENT": "Patient",
+        "DOCTOR": "Doctor",
+        "ADMIN": "Administrator"
+      },
+      "genderNames": {
+        "unset": "Not set",
+        "female": "Female",
+        "male": "Male"
+      },
+      "toast": {
+        "created": "User created",
+        "updated": "Changes saved",
+        "activated": "Account activated",
+        "deactivated": "Account deactivated"
+      },
+      "validation": {
+        "rolesRequired": "Choose at least one role",
+        "birthDateRequired": "A patient needs a birth date",
+        "practitionerOnlyDoctor": "A practitioner role can only be linked to a user with the Doctor role"
+      }
+    },
+    "rooms": {
+      "title": "Rooms",
+      "description": "Clinic rooms and how schedules occupy them.",
+      "create": "Create room",
+      "createTitle": "New room",
+      "edit": "Edit",
+      "editAria": "Edit room {name}",
+      "editTitle": "Edit room",
+      "save": "Save",
+      "delete": "Delete",
+      "deleteAria": "Delete room {name}",
+      "deleteTitle": "Delete room",
+      "deleteMessage": "Delete room {name}? This cannot be undone.",
+      "active": "Active",
+      "inactive": "Inactive",
+      "empty": "No rooms yet",
+      "emptyHint": "Create the first room.",
+      "usageAria": "Occupancy of room {name}",
+      "columns": {
+        "identifier": "Number",
+        "name": "Name",
+        "floor": "Floor",
+        "description": "Description",
+        "status": "Status",
+        "actions": "Actions"
+      },
+      "fields": {
+        "identifier": "Identifier",
+        "name": "Name",
+        "floor": "Floor",
+        "description": "Description"
+      },
+      "hints": {
+        "identifier": "Unique room number, for example 204-X"
+      },
+      "validation": {
+        "floor": "Floor: a whole number from 1 to 10"
+      },
+      "toast": {
+        "created": "Room created",
+        "updated": "Room updated",
+        "deleted": "Room deleted"
+      },
+      "usage": {
+        "open": "Occupancy",
+        "title": "Room occupancy",
+        "close": "Close",
+        "free": "The room is free: no schedules or slots",
+        "freeTitle": "The room is free",
+        "freeHint": "No schedule refers to it, so the room can be deleted.",
+        "inUse": "The room is in use: it cannot be deleted while schedules refer to it",
+        "inactive": "(inactive)",
+        "truncated": "Not all upcoming bookings are listed."
+      }
+    },
+    "services": {
+      "title": "Services",
+      "description": "The clinic service catalogue with reference codes.",
+      "create": "Create service",
+      "createTitle": "New service",
+      "edit": "Edit",
+      "editAria": "Edit service {name}",
+      "editTitle": "Edit service",
+      "save": "Save",
+      "delete": "Delete",
+      "deleteAria": "Delete service {name}",
+      "deleteTitle": "Delete service",
+      "deleteMessage": "Delete service {name}? This cannot be undone.",
+      "active": "Active",
+      "inactive": "Inactive",
+      "minutes": "{count} min",
+      "searchLabel": "Search by name",
+      "empty": "No services found",
+      "emptyHint": "Change the query or create a service.",
+      "columns": {
+        "name": "Name",
+        "type": "Reference code",
+        "duration": "Duration",
+        "status": "Status",
+        "actions": "Actions"
+      },
+      "fields": {
+        "name": "Name",
+        "typeSystem": "Code system",
+        "typeCode": "Service reference code",
+        "defaultDurationMin": "Duration, min",
+        "description": "Description",
+        "specialtyCodes": "Specialty codes"
+      },
+      "hints": {
+        "typeCode": "Service code from the reference catalogue, for example 10001",
+        "specialtyCodes": "Comma separated, for example 394579002, 419192003"
+      },
+      "validation": {
+        "duration": "Duration: a whole number from 5 to 240 minutes"
+      },
+      "toast": {
+        "created": "Service created",
+        "updated": "Service updated",
+        "deleted": "Service deleted"
+      }
+    },
+    "schedules": {
+      "title": "Schedules",
+      "description": "Weekly working windows of doctors and slot generation for booking.",
+      "create": "Create schedule",
+      "createTitle": "New schedule",
+      "editTitle": "Edit schedule",
+      "save": "Save",
+      "choose": "Choose…",
+      "active": "Active",
+      "inactive": "Inactive",
+      "minutes": "{count} min",
+      "empty": "No schedules",
+      "emptyHint": "Create a schedule so patients can book.",
+      "overlapTitle": "The schedule overlaps another schedule of this doctor",
+      "deleteTitle": "Delete schedule",
+      "deleteMessage": "Delete the schedule \"{label}\"?",
+      "cascadeLabel": "Also delete the free slots",
+      "cascadeHint": "Slots with bookings protect the schedule either way.",
+      "actions": {
+        "slots": "Slots",
+        "generate": "Generate slots",
+        "edit": "Edit",
+        "delete": "Delete",
+        "slotsAria": "Slots of the schedule: {label}",
+        "generateAria": "Generate slots: {label}",
+        "editAria": "Edit the schedule: {label}",
+        "deleteAria": "Delete the schedule: {label}"
+      },
+      "days": {
+        "MO": "Mon",
+        "TU": "Tue",
+        "WE": "Wed",
+        "TH": "Thu",
+        "FR": "Fri",
+        "SA": "Sat",
+        "SU": "Sun"
+      },
+      "columns": {
+        "doctor": "Doctor",
+        "room": "Room",
+        "service": "Service",
+        "horizon": "Horizon",
+        "windows": "Weekly windows",
+        "duration": "Slot",
+        "status": "Status",
+        "actions": "Actions"
+      },
+      "fields": {
+        "doctor": "Doctor",
+        "room": "Room",
+        "service": "Service",
+        "horizonFrom": "Horizon from",
+        "horizonTo": "Horizon to",
+        "slotDurationMin": "Slot length, min",
+        "comment": "Comment"
+      },
+      "hints": {
+        "horizon": "At most 90 days from the start date"
+      },
+      "filters": {
+        "label": "Schedule filters",
+        "doctor": "Doctor",
+        "anyDoctor": "All doctors",
+        "status": "Status",
+        "anyStatus": "Any status",
+        "activeOnly": "Active only",
+        "inactiveOnly": "Inactive only"
+      },
+      "windows": {
+        "legend": "Weekly working windows",
+        "add": "Add window",
+        "day": "Weekday, window {n}",
+        "start": "Start, window {n}",
+        "end": "End, window {n}",
+        "remove": "Remove window {n}",
+        "overlapsAnother": "The window overlaps another window of the same day"
+      },
+      "preview": {
+        "label": "The whole week"
+      },
+      "validation": {
+        "doctorRequired": "Choose a doctor",
+        "roomRequired": "Choose a room",
+        "serviceRequired": "Choose a service",
+        "duration": "Slot: a whole number from 5 to 120 minutes",
+        "horizonOrder": "The end date is before the start date",
+        "horizonSpan": "The horizon must not exceed 90 days",
+        "windowsRequired": "Add at least one window",
+        "windowTimes": "The end must be after the start (HH:MM)",
+        "windowsOverlap": "Windows of the same day overlap"
+      },
+      "toast": {
+        "created": "Schedule created",
+        "updated": "Schedule updated",
+        "deleted": "Schedule deleted"
+      }
+    },
+    "slots": {
+      "generate": {
+        "title": "Slot generation",
+        "from": "From",
+        "to": "To",
+        "horizon": "Schedule horizon: {from} – {to}",
+        "run": "Generate",
+        "running": "Generating…",
+        "close": "Close",
+        "result": "Slots created: {generated}, skipped (already existed): {skipped}",
+        "errors": {
+          "invalid": "Enter valid dates",
+          "order": "The end date is before the start date",
+          "span": "The period must not exceed 90 days",
+          "outsideHorizon": "The period is outside the schedule horizon"
+        }
+      },
+      "grid": {
+        "title": "Schedule slots",
+        "from": "From",
+        "to": "To",
+        "status": "Slot status",
+        "close": "Close",
+        "empty": "No slots in the period",
+        "emptyHint": "Generate slots or change the period.",
+        "counts": "Slots in total: {total} · free: {free} · busy: {busy} · invalid: {error}",
+        "statusFilter": {
+          "default": "Free and busy",
+          "free": "Free only",
+          "busy": "Busy only",
+          "entered-in-error": "Invalid"
+        }
+      }
+    },
+    "analytics": {
+      "title": "Analytics",
+      "description": "Appointments, completed encounters and service popularity for the chosen period.",
+      "period": "Report period: {from} – {to}",
+      "empty": "No data for the chosen period",
+      "share": "Share",
+      "totalLine": "Total: {count}",
+      "errors": {
+        "invalid": "Enter valid dates",
+        "order": "The start date is after the end date",
+        "span": "The period must not exceed 366 days"
+      },
+      "filters": {
+        "label": "Period and top size",
+        "from": "From",
+        "to": "To",
+        "top": "Top services",
+        "apply": "Show"
+      },
+      "appointments": {
+        "title": "Appointments",
+        "total": "Appointments in total",
+        "booked": "Booked",
+        "cancelled": "Cancelled",
+        "noshow": "No-shows"
+      },
+      "encounters": {
+        "title": "Completed encounters by specialty",
+        "specialty": "Specialty",
+        "count": "Encounters",
+        "unknown": "Specialty not set"
+      },
+      "services": {
+        "title": "Top {top} services by bookings",
+        "service": "Service",
+        "count": "Bookings",
+        "unknown": "Service deleted or unavailable"
+      }
+    },
+    "audit": {
+      "title": "Audit journal",
+      "description": "Who changed what: creation and update events of resources.",
+      "empty": "No events found",
+      "emptyHint": "Change the period or the filters.",
+      "total": "Events found: {count}",
+      "noRequestId": "no request id recorded",
+      "copyAria": "Copy request id {requestId}",
+      "filters": {
+        "label": "Journal filters",
+        "from": "From",
+        "to": "To",
+        "entity": "Resource",
+        "entityHint": "Resource type or Type/id, for example Appointment or Appointment/123",
+        "userId": "User",
+        "apply": "Apply",
+        "reset": "Reset"
+      },
+      "errors": {
+        "invalid": "Enter valid dates",
+        "order": "The start date is after the end date",
+        "span": "The period must not exceed 366 days",
+        "entity": "Enter a resource type starting with a capital letter, or Type/id",
+        "userId": "The identifier contains unsupported characters"
+      },
+      "columns": {
+        "occurredAt": "Time",
+        "userId": "User",
+        "action": "Action",
+        "resource": "Resource",
+        "requestId": "Request ID"
+      },
+      "actions": {
+        "create": "Create",
+        "update": "Update",
+        "delete": "Delete"
+      }
+    },
+    "terminology": {
+      "title": "Terminology",
+      "description": "The clinic reference catalogues and the terminology snapshot import.",
+      "toast": {
+        "accepted": "Terminology import started"
+      },
+      "status": {
+        "draft": "Draft",
+        "retired": "Retired",
+        "unknown": "Unknown"
+      },
+      "valueSets": {
+        "title": "Value sets (ValueSet)",
+        "empty": "No value sets",
+        "emptyHint": "Run the snapshot import below.",
+        "columns": {
+          "title": "Title",
+          "url": "Canonical URL",
+          "version": "Version",
+          "status": "Status"
+        }
+      },
+      "import": {
+        "title": "Reference snapshot import",
+        "description": "Loads the bundled reference snapshot into the terminology store. The import runs in the background.",
+        "versionLabel": "Snapshot version",
+        "versionHint": "Release number, for example 1.4.463",
+        "run": "Start import",
+        "running": "Sending…",
+        "accepted": "The import was accepted and runs in the background",
+        "acceptedDetail": "Version {version}, accepted {time}. Progress is recorded in the audit journal.",
+        "importId": "Import id:",
+        "alreadyRunning": "An import is already running",
+        "alreadyRunningHint": "Wait for the current import to finish, then start it again."
+      },
+      "validation": {
+        "version": "Enter a release number: numbers separated by dots, for example 1.4.463"
+      }
+    }
+  },
   "common": {
     "appName": "MedCenter",
     "loading": "Loading…",
@@ -67,7 +509,11 @@
     "slotsTruncated": "Not every slot is shown. Pick an earlier period.",
     "slotTaken": "just taken",
     "slotMinutes": "{minutes} min",
-    "slotsLoading": "Loading available times…"
+    "slotsLoading": "Loading available times…",
+    "periodNav": "Search period",
+    "stepBack": "Back to step {step}: {label}",
+    "chooseDoctor": "Choose doctor",
+    "slotsFound": "Available times: {count}"
   },
   "layout": {
     "skipToContent": "Skip to content",
@@ -142,6 +588,240 @@
   },
   "session": {
     "ended": "Your session has ended, please sign in again"
+  },
+  "doctor": {
+    "journal": {
+      "title": "Appointments journal",
+      "caption": "Appointments on {date}",
+      "date": "Date",
+      "previousDay": "Previous day",
+      "nextDay": "Next day",
+      "today": "Today",
+      "statusFilter": "Status",
+      "statusAll": "All statuses",
+      "total": "Appointments on this day: {count}",
+      "empty": "No appointments on this day",
+      "filterPageHint": "The filter applies to page {page} of {pages} only: the other appointments of the day are on other pages.",
+      "emptyFiltered": "No appointments with the selected status",
+      "loadError": "Could not load the journal",
+      "unknownPatient": "Patient {id}",
+      "patientCard": "Open the patient card",
+      "open": "Open encounter",
+      "opening": "Opening…",
+      "openFor": "Open encounter: {label}",
+      "alreadyCompleted": "This appointment already has a completed encounter, but it could not be found. Open the patient card and look for it in the history.",
+      "columns": {
+        "time": "Time",
+        "patient": "Patient",
+        "service": "Service",
+        "reason": "Reason for visit",
+        "status": "Status",
+        "actions": "Actions"
+      }
+    },
+    "noshow": {
+      "button": "No-show",
+      "markFor": "Mark as no-show: {name}",
+      "confirmGroup": "Confirm the no-show",
+      "confirm": "Confirm no-show",
+      "cancel": "Cancel",
+      "notBooked": "The appointment is no longer booked: it cannot be marked as a no-show",
+      "done": "No-show recorded"
+    },
+    "schedule": {
+      "title": "My schedule",
+      "from": "From date",
+      "previousPeriod": "Earlier",
+      "nextPeriod": "Later",
+      "today": "Today",
+      "period": "Period: {from} — {to}",
+      "empty": "No schedule found",
+      "emptyHint": "The doctor's schedule is created by an administrator.",
+      "loadError": "Could not load the schedule",
+      "windowsTitle": "Weekly working windows",
+      "windowsCaption": "Working windows by day of the week",
+      "scheduleFallback": "Schedule",
+      "slotDuration": "Slot {minutes} min",
+      "horizon": "horizon {from} — {to}",
+      "dayOff": "day off",
+      "slotsTitle": "Slots of the period",
+      "truncated": "Not all slots are shown. Choose a shorter period.",
+      "noSlots": "There are no slots in this period",
+      "dayCounts": "{busy} of {total} taken",
+      "weekdays": {
+        "MO": "Monday",
+        "TU": "Tuesday",
+        "WE": "Wednesday",
+        "TH": "Thursday",
+        "FR": "Friday",
+        "SA": "Saturday",
+        "SU": "Sunday"
+      }
+    },
+    "encounter": {
+      "title": "Encounter",
+      "backToJournal": "Back to the journal",
+      "patient": "Patient",
+      "patientFallback": "Patient {id}",
+      "started": "Started",
+      "ended": "Ended",
+      "service": "Service",
+      "notFound": "Encounter not found",
+      "finishedTitle": "The encounter is completed.",
+      "finishedHint": "The record is read-only.",
+      "notEditable": "An encounter with the status \"{status}\" cannot be completed.",
+      "formLabel": "Complete the encounter",
+      "diagnosesLegend": "Summary and diagnoses",
+      "summary": "Summary",
+      "diagnosesHint": "Diagnoses (ICD-10): at least one",
+      "diagnosisN": "diagnosis {n}",
+      "diagnosisName": "Diagnosis name {n}",
+      "verificationLabel": "Verification status {n}",
+      "verificationNone": "Not specified",
+      "addDiagnosis": "Add a diagnosis",
+      "removeDiagnosis": "Remove",
+      "removeDiagnosisN": "Remove diagnosis {n}",
+      "recommendationsLegend": "Recommendations",
+      "recommendations": "Recommendations",
+      "complete": "Complete the encounter",
+      "completing": "Completing…",
+      "completedToast": "Encounter completed",
+      "fixMarkedFields": "Correct the marked fields and try again.",
+      "unknownIcd10": "The code is not in the ICD-10 value set",
+      "unknownTerm": "The code was not found in the terminology",
+      "unknownUnit": "The unit was not found in UCUM",
+      "unknownAtc": "The ATC code was not found in the terminology"
+    },
+    "verification": {
+      "working": "Working",
+      "provisional": "Provisional",
+      "confirmed": "Confirmed"
+    },
+    "readonly": {
+      "summary": "Summary",
+      "diagnoses": "Diagnoses",
+      "observations": "Observations",
+      "services": "Ordered services",
+      "medications": "Prescribed drugs",
+      "recommendations": "Recommendations",
+      "none": "Not specified",
+      "noObservations": "No observations recorded",
+      "noServices": "No services ordered",
+      "noMedications": "No drugs prescribed"
+    },
+    "observations": {
+      "legend": "Observations (vital signs)",
+      "empty": "No observations added.",
+      "add": "Add an observation",
+      "remove": "Remove",
+      "removeN": "Remove observation {n}",
+      "code": "Measurement {n}",
+      "codePlaceholder": "Choose a measurement",
+      "value": "Value {n}",
+      "unit": "UCUM unit {n}"
+    },
+    "services": {
+      "legend": "Ordered services",
+      "empty": "No services ordered.",
+      "add": "Add a service",
+      "remove": "Remove",
+      "removeN": "Remove service {n}",
+      "code": "Service {n}",
+      "codePlaceholder": "Choose a service",
+      "note": "Note for service {n}"
+    },
+    "medications": {
+      "legend": "Prescribed drugs",
+      "empty": "No drugs prescribed.",
+      "add": "Add a drug",
+      "remove": "Remove",
+      "removeN": "Remove drug {n}",
+      "medicationN": "drug {n}",
+      "dosage": "Dosage {n}",
+      "dosagePlaceholder": "1 tablet 3 times a day after meals",
+      "note": "Note for drug {n}"
+    },
+    "icd10": {
+      "label": "ICD-10 code",
+      "placeholder": "J06.9 or a diagnosis name",
+      "invalid": "Invalid ICD-10 code, e.g. J06.9",
+      "options": "ICD-10 code suggestions"
+    },
+    "atc": {
+      "label": "ATC code",
+      "placeholder": "N02BE01",
+      "invalid": "Invalid ATC code, e.g. J01FA10",
+      "options": "ATC code suggestions"
+    },
+    "ucum": {
+      "placeholder": "Choose a unit"
+    },
+    "valueSet": {
+      "loading": "Loading the value set…",
+      "typeCode": "Enter a code"
+    },
+    "combobox": {
+      "unavailable": "The value set is unavailable: type the code, the server will check it on save."
+    },
+    "validation": {
+      "icd10": "Invalid ICD-10 code, e.g. J06.9",
+      "atc": "Invalid ATC code, e.g. J01FA10",
+      "diagnosesRequired": "Add at least one diagnosis",
+      "valueMin": "The value must be at least {min}",
+      "valueMax": "The value must be at most {max}",
+      "minLength": "At least {count} characters",
+      "maxLength": "At most {count} characters"
+    },
+    "patient": {
+      "cardLabel": "Patient card",
+      "unnamed": "No name",
+      "inactive": "Inactive",
+      "notFound": "Patient not found",
+      "birthDate": "Date of birth",
+      "age": "{years, plural, one {# year} other {# years}}",
+      "genderLabel": "Sex",
+      "gender": {
+        "male": "Male",
+        "female": "Female",
+        "other": "Other",
+        "unknown": "Not specified"
+      },
+      "unknown": "Not specified",
+      "contacts": "Contacts",
+      "noContacts": "No contacts on file",
+      "recordId": "Identifier",
+      "relatedTitle": "Trusted persons",
+      "relatedEmpty": "No trusted persons",
+      "relatedUnavailable": "Trusted persons are unavailable",
+      "telecom": {
+        "phone": "Phone",
+        "email": "Email",
+        "fax": "Fax",
+        "pager": "Pager",
+        "url": "Website",
+        "sms": "SMS",
+        "other": "Other"
+      }
+    },
+    "history": {
+      "title": "Visit history",
+      "empty": "No completed encounters yet",
+      "unavailable": "The visit history is unavailable",
+      "noDiagnoses": "No diagnoses recorded",
+      "summary": "Summary",
+      "recommendations": "Recommendations",
+      "openEncounter": "Open the encounter",
+      "openEncounterOn": "Open the encounter of {date}"
+    },
+    "prescriptions": {
+      "title": "Prescriptions",
+      "empty": "No prescriptions",
+      "unavailable": "Prescriptions are unavailable",
+      "medication": "Drug",
+      "service": "Service",
+      "openEncounter": "Open the encounter",
+      "openEncounterOn": "Open the encounter with the order: {name}"
+    }
   },
   "validation": {
     "required": "This field is required",
@@ -223,7 +903,8 @@
     "slotsTitle": "Available times",
     "slotsLead": "Pick a time and press “Book”. You can sign in on the next step, your choice is kept.",
     "bookSelected": "Book {time}",
-    "bookDisabled": "Pick a time"
+    "bookDisabled": "Pick a time",
+    "patientsOnly": "Booking is available to patients."
   },
   "auth": {
     "login": {
@@ -232,7 +913,8 @@
       "submit": "Sign in",
       "noAccount": "No account yet?",
       "register": "Register",
-      "denied": "Sign-in failed. Please try again."
+      "denied": "Sign-in failed. Please try again.",
+      "unavailable": "The sign-in service is temporarily unavailable. Please try again in a minute."
     },
     "register": {
       "title": "Patient registration",
@@ -277,12 +959,18 @@
     "fieldCancelReason": "Cancellation reason",
     "fieldCreated": "Created",
     "open": "Details",
+    "openFor": "Details of the appointment: {when}",
     "back": "Back to appointments",
     "notFoundTitle": "Appointment not found",
     "notFoundHint": "The appointment is unavailable or was removed.",
     "doctorUnknown": "Doctor not specified",
     "serviceUnknown": "Service not specified",
     "cancel": "Cancel appointment",
+    "cancelFor": "Cancel appointment: {when}, {doctor}",
+    "cancelLead": "Give the reason for cancelling. The time becomes available to other patients.",
+    "reasonRequired": "Enter the reason for cancelling",
+    "reasonTooShort": "The reason must be at least 3 characters long",
+    "reasonTooLong": "The reason must not exceed 500 characters",
     "cancelTitle": "Cancel the appointment",
     "cancelReasonLabel": "Cancellation reason",
     "cancelReasonHint": "3 to 500 characters",
@@ -290,7 +978,8 @@
     "cancelBusy": "Cancelling…",
     "cancelKeep": "Keep the appointment",
     "cancelled": "Appointment cancelled",
-    "notCancellable": "This appointment can no longer be cancelled: it is cancelled or already took place."
+    "notCancellable": "This appointment can no longer be cancelled: it is cancelled or already took place.",
+    "upcomingCancelledHint": "Cancelled appointments are listed among the upcoming ones too. On each page, active appointments come first."
   },
   "patient": {
     "history": {
@@ -302,7 +991,13 @@
       "noDiagnosis": "No diagnosis recorded",
       "summary": "Summary",
       "recommendations": "Recommendations",
-      "openAppointment": "Appointment"
+      "openAppointment": "Appointment",
+      "print": "Print summary",
+      "verification": {
+        "working": "working",
+        "provisional": "provisional",
+        "confirmed": "confirmed"
+      }
     },
     "prescriptions": {
       "title": "Prescriptions",
@@ -336,6 +1031,7 @@
       "emptyUnread": "No unread notifications",
       "listLabel": "Notification list",
       "markRead": "Mark as read",
+      "marking": "Marking…",
       "markedRead": "Notification marked as read",
       "unread": "New",
       "categoryAppointment": "Appointment",
