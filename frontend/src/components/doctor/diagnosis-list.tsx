@@ -16,7 +16,7 @@ export function DiagnosisList({ diagnoses }: { readonly diagnoses: ReadonlyArray
         <li key={diagnosis.code} className="flex flex-wrap items-baseline gap-2 text-sm">
           <CodeChip code={diagnosis.code} system={ICD10_CODE_SYSTEM} />
           <span>{diagnosis.display}</span>
-          {diagnosis.verificationStatus ? <span className="text-xs text-[var(--muted-foreground)]">{t(diagnosis.verificationStatus)}</span> : null}
+          {diagnosis.verificationStatus ? <span className="text-xs text-muted-foreground">{t(diagnosis.verificationStatus)}</span> : null}
         </li>
       ))}
     </ul>

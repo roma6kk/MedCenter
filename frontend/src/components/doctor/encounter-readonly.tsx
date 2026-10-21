@@ -9,7 +9,7 @@ import { ATC_SYSTEM, UCUM_SYSTEM } from './encounter-problem-fields';
 
 function Section({ title, children }: { readonly title: string; readonly children: ReactNode }): ReactNode {
   return (
-    <section className="rounded-[6px] border border-[var(--border)] bg-[var(--card)] p-4">
+    <section className="rounded-card border border-border bg-card p-4">
       <h2 className="text-base font-semibold">{title}</h2>
       <div className="mt-2 text-sm">{children}</div>
     </section>
@@ -17,7 +17,7 @@ function Section({ title, children }: { readonly title: string; readonly childre
 }
 
 function Empty({ children }: { readonly children: ReactNode }): ReactNode {
-  return <p className="text-[var(--muted-foreground)]">{children}</p>;
+  return <p className="text-muted-foreground">{children}</p>;
 }
 
 function Observations({ items }: { readonly items: EncounterDetails['observations'] }): ReactNode {
@@ -46,7 +46,7 @@ function Services({ items }: { readonly items: EncounterDetails['serviceRequests
         <li key={`${item.code}-${index}`} className="flex flex-wrap items-baseline gap-2">
           <CodeChip code={item.code} system={item.codeSystem} />
           <span>{item.display ?? item.code}</span>
-          {item.note ? <span className="text-[var(--muted-foreground)]">· {item.note}</span> : null}
+          {item.note ? <span className="text-muted-foreground">· {item.note}</span> : null}
         </li>
       ))}
     </ul>
@@ -65,7 +65,7 @@ function Medications({ items }: { readonly items: EncounterDetails['medicationRe
             {item.atcDisplay ? <span className="font-semibold">{item.atcDisplay}</span> : null}
           </p>
           <p className="mt-1">{item.dosageText}</p>
-          {item.note ? <p className="text-[var(--muted-foreground)]">{item.note}</p> : null}
+          {item.note ? <p className="text-muted-foreground">{item.note}</p> : null}
         </li>
       ))}
     </ul>

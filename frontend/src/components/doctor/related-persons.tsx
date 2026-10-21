@@ -19,9 +19,9 @@ function PersonCard({ person }: { readonly person: RelatedPerson }): ReactNode {
   const t = useT('doctor.patient');
   const relationship: string | undefined = relationshipOf(person);
   return (
-    <li className="rounded-[6px] border border-[var(--border)] bg-[var(--card)] p-3 text-sm">
+    <li className="rounded-card border border-border bg-card p-3 text-sm">
       <p className="font-semibold">{person.fullName || t('unnamed')}</p>
-      {relationship ? <p className="text-[var(--muted-foreground)]">{relationship}</p> : null}
+      {relationship ? <p className="text-muted-foreground">{relationship}</p> : null}
       {person.telecom.length > 0 ? <div className="mt-2"><ContactList telecom={person.telecom} /></div> : null}
     </li>
   );
@@ -37,7 +37,7 @@ export function RelatedPersons({ patientId }: { readonly patientId: string }): R
       <div id="related-title"><SectionTitle>{t('relatedTitle')}</SectionTitle></div>
       <div className="mt-3" aria-busy={related.isFetching}>
         {related.data === undefined ? <QueryFailure query={related} embedded notFoundText={t('relatedUnavailable')} pending={<TableSkeleton />} /> : null}
-        {related.data && related.data.items.length === 0 ? <p className="text-sm text-[var(--muted-foreground)]">{t('relatedEmpty')}</p> : null}
+        {related.data && related.data.items.length === 0 ? <p className="text-sm text-muted-foreground">{t('relatedEmpty')}</p> : null}
         {related.data && related.data.items.length > 0 ? (
           <>
             <ul className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">{related.data.items.map((person) => <PersonCard key={person.id} person={person} />)}</ul>

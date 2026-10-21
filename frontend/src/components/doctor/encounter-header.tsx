@@ -3,6 +3,7 @@
 import type { ReactNode } from 'react';
 import Link from 'next/link';
 import { StampBadge, type StampStatus } from '@/components/feedback/stamp-badge';
+import { Card } from '@/components/ui/card';
 import { useT } from '@/lib/i18n/use-t';
 import { formatClinicDateTime } from '@/lib/clinic-time';
 import type { EncounterDetails, EncounterState } from './doctor-types';
@@ -20,7 +21,7 @@ function PatientLink({ patientId }: { readonly patientId: string }): ReactNode {
   const tCommon = useT('common');
   const patient = usePatient(patientId);
   // The id is shown only when the card cannot be read; while it loads a placeholder avoids flashing a number as the name.
-  if (patient.isPending) return <span className="text-[var(--muted-foreground)]">{tCommon('loading')}</span>;
+  if (patient.isPending) return <span className="text-muted-foreground">{tCommon('loading')}</span>;
   const name: string = patient.data?.fullName || t('patientFallback', { id: patientId });
   return <Link href={`/patients/${encodeURIComponent(patientId)}`} className="underline">{name}</Link>;
 }
@@ -38,10 +39,10 @@ function Fact({ label, children }: { readonly label: string; readonly children: 
 export function EncounterHeader({ encounter }: { readonly encounter: EncounterDetails }): ReactNode {
   const t = useT('doctor.encounter');
   return (
-    <section aria-labelledby="encounter-title" className="rounded-[8px] border border-[var(--border)] bg-[var(--card)] p-5">
+    <Card as="section" radius="panel" padding="lg" aria-labelledby="encounter-title">
       <p className="form-label no-print"><Link href="/doctor/appointments" className="underline">{t('backToJournal')}</Link></p>
       <div className="mt-1 flex flex-wrap items-center gap-3">
-        <h1 id="encounter-title" className="serif text-2xl font-bold">{t('title')}</h1>
+        <h1 id="encounter-title" className="text-[30px] font-bold leading-tight tracking-[-0.02em]">{t('title')}</h1>
         <StampBadge status={stampOf(encounter.status)} />
       </div>
       <dl className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -50,6 +51,6 @@ export function EncounterHeader({ encounter }: { readonly encounter: EncounterDe
         <Fact label={t('ended')}>{encounter.period.end ? formatClinicDateTime(encounter.period.end) : '—'}</Fact>
         <Fact label={t('service')}>{encounter.serviceType?.display ?? '—'}</Fact>
       </dl>
-    </section>
+    </Card>
   );
 }

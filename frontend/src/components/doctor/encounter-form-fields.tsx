@@ -15,7 +15,7 @@ export function FieldRow({ id, label, error, children }: FieldRowProps): ReactNo
     <div>
       <label htmlFor={id} className="form-label block">{label}</label>
       {children}
-      {error ? <p id={`${id}-error`} role="alert" className="mt-1 text-sm text-[var(--destructive)]">{error}</p> : null}
+      {error ? <p id={`${id}-error`} role="alert" className="mt-1 text-sm text-destructive">{error}</p> : null}
     </div>
   );
 }

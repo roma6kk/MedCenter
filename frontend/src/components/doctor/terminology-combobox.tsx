@@ -85,9 +85,9 @@ function ComboboxMessages({ id, error, hint, isFailed }: ComboboxMessagesProps):
   const t = useT('doctor.combobox');
   return (
     <>
-      {error !== undefined ? <p id={`${id}-error`} role="alert" className="mt-1 text-sm text-[var(--destructive)]">{error}</p> : null}
-      {hint ? <p className="mt-1 text-sm text-[var(--muted-foreground)]">{hint}</p> : null}
-      {isFailed ? <p role="status" className="mt-1 text-sm text-[var(--warning)]">{t('unavailable')}</p> : null}
+      {error !== undefined ? <p id={`${id}-error`} role="alert" className="mt-1 text-sm text-destructive">{error}</p> : null}
+      {hint ? <p className="mt-1 text-sm text-muted-foreground">{hint}</p> : null}
+      {isFailed ? <p role="status" className="mt-1 text-sm text-warning">{t('unavailable')}</p> : null}
     </>
   );
 }
@@ -127,7 +127,7 @@ function ComboboxInput({ props, inputRef, isListVisible, activeIndex, shownError
         onChange={(event) => onType(event.target.value)}
         onKeyDown={onKeyDown}
         onBlur={onLeave}
-        className="mono mt-1 min-h-[44px] w-full rounded-[6px] border border-[var(--input)] bg-[var(--card)] p-2"
+        className="mono mt-1 min-h-[44px] w-full rounded-control border border-input bg-card p-2"
       />
     </>
   );
@@ -216,7 +216,7 @@ interface SuggestionsProps {
 function Suggestions({ id, optionPrefix, label, items, isVisible, activeIndex, onActive, onPick }: SuggestionsProps): ReactNode {
   if (!isVisible) return <ul id={id} role="listbox" aria-label={label} hidden />;
   return (
-    <ul id={id} role="listbox" aria-label={label} className="mt-1 max-h-64 overflow-y-auto rounded-[6px] border border-[var(--border)] bg-[var(--card)]">
+    <ul id={id} role="listbox" aria-label={label} className="mt-1 max-h-64 overflow-y-auto rounded-card border border-border bg-card">
       {items.map((term, index) => (
         <li
           key={term.code}
@@ -226,7 +226,7 @@ function Suggestions({ id, optionPrefix, label, items, isVisible, activeIndex, o
           onMouseDown={(event) => event.preventDefault()}
           onClick={() => onPick(term)}
           onMouseEnter={() => onActive(index)}
-          className={`cursor-pointer px-2 py-1.5 text-sm hover:bg-[var(--secondary)] ${index === activeIndex ? 'bg-[var(--secondary)]' : ''}`}
+          className={`cursor-pointer px-2 py-1.5 text-sm hover:bg-secondary ${index === activeIndex ? 'bg-secondary' : ''}`}
         >
           <span className="mono">{term.code}</span>
           {term.display ? <span> — {term.display}</span> : null}

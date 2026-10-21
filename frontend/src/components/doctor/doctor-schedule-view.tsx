@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import type { ChangeEvent, ReactNode } from 'react';
 import { EmptyState, TableSkeleton } from '@/components/feedback/states';
+import { buttonVariants } from '@/components/ui/button-variants';
 import { useDocumentTitle } from '@/hooks/use-document-title';
 import { useT } from '@/lib/i18n/use-t';
 import { formatDateKey, isDateKey, shiftDateKey } from '@/lib/clinic-time';
@@ -15,7 +16,7 @@ import { useMinskToday } from './use-minsk-today';
 /** The window the page shows at once. The service accepts at most 31 days per request. */
 export const SCHEDULE_DAYS = 14;
 
-const STEP_BUTTON = 'min-h-[44px] rounded-[6px] border border-[var(--border)] px-3 py-1 text-sm aria-disabled:opacity-50';
+const STEP_BUTTON = buttonVariants({ variant: 'secondary' });
 
 interface PeriodControlsProps {
   readonly fromKey: string;
@@ -37,7 +38,7 @@ function PeriodControls({ fromKey, today, onChange }: PeriodControlsProps): Reac
       </button>
       <div>
         <label htmlFor="schedule-from" className="form-label block">{t('from')}</label>
-        <input id="schedule-from" type="date" value={fromKey} onChange={handleDateInput} className="mt-1 block min-h-[44px] rounded-[6px] border border-[var(--input)] bg-[var(--card)] px-2" />
+        <input id="schedule-from" type="date" value={fromKey} onChange={handleDateInput} className="mt-1 block min-h-[44px] rounded-control border border-input bg-card px-3" />
       </div>
       <button type="button" className={STEP_BUTTON} onClick={() => onChange(shiftDateKey(fromKey, SCHEDULE_DAYS))}>
         {t('nextPeriod')}<span aria-hidden="true"> →</span>
@@ -59,9 +60,9 @@ export function DoctorScheduleView(): ReactNode {
 
   return (
     <section aria-labelledby="schedule-title">
-      <h1 id="schedule-title" className="serif text-2xl font-bold">{t('title')}</h1>
+      <h1 id="schedule-title" className="text-[30px] font-bold leading-tight tracking-[-0.02em]">{t('title')}</h1>
       <PeriodControls fromKey={fromKey} today={today} onChange={setFromKey} />
-      <p className="mt-2 text-sm text-[var(--muted-foreground)]">{t('period', { from: formatDateKey(fromKey), to: formatDateKey(toKey) })}</p>
+      <p className="mt-2 text-sm text-muted-foreground">{t('period', { from: formatDateKey(fromKey), to: formatDateKey(toKey) })}</p>
       <div className="mt-4" aria-busy={schedule.isFetching}>
         {schedule.data === undefined ? <QueryFailure query={schedule} embedded notFoundText={t('loadError')} pending={<TableSkeleton />} /> : null}
         {schedule.data ? <ScheduleBody data={schedule.data} /> : null}
@@ -78,8 +79,8 @@ function ScheduleBody({ data }: { readonly data: NonNullable<ReturnType<typeof u
       <ScheduleWindows schedules={data.schedules} />
       <section aria-labelledby="schedule-slots-title" className="mt-6">
         <h2 id="schedule-slots-title" className="serif text-xl font-semibold">{t('slotsTitle')}</h2>
-        {data.truncated ? <p role="status" className="mt-2 text-sm text-[var(--warning)]">{t('truncated')}</p> : null}
-        {data.items.length === 0 ? <p className="mt-2 text-sm text-[var(--muted-foreground)]">{t('noSlots')}</p> : <ScheduleSlotDays slots={data.items} />}
+        {data.truncated ? <p role="status" className="mt-2 text-sm text-warning">{t('truncated')}</p> : null}
+        {data.items.length === 0 ? <p className="mt-2 text-sm text-muted-foreground">{t('noSlots')}</p> : <ScheduleSlotDays slots={data.items} />}
       </section>
     </>
   );

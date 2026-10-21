@@ -18,9 +18,9 @@ export function InlineProblem({ error, overrides }: InlineProblemProps): ReactNo
   const code: ErrorCode = isApiError(error) ? error.problem.errorCode : 'INTERNAL';
   const requestId: string | undefined = isApiError(error) ? error.problem.requestId : undefined;
   return (
-    <span role="alert" className="text-sm text-[var(--destructive)]">
+    <span role="alert" className="text-sm text-destructive">
       {overrides?.[code] ?? tErrors(errorMessageKey(code))}
-      {requestId ? <span className="mono ml-1 text-xs text-[var(--muted-foreground)]">{requestId}</span> : null}
+      {requestId ? <span className="mono ml-1 text-xs text-muted-foreground">{requestId}</span> : null}
     </span>
   );
 }

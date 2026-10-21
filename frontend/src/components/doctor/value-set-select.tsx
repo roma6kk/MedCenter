@@ -21,7 +21,7 @@ export interface ValueSetSelectProps {
   readonly 'aria-describedby'?: string;
 }
 
-const FIELD_CLASS = 'mt-1 w-full min-h-[44px] rounded-[6px] border border-[var(--input)] bg-[var(--card)] p-2';
+const FIELD_CLASS = 'mt-1 w-full min-h-[44px] rounded-control border border-input bg-card p-2';
 
 function termFor(items: ReadonlyArray<Term>, code: string): Term | null {
   return items.find((item) => item.code === code) ?? null;

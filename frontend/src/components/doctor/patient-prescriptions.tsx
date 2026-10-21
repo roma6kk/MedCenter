@@ -49,10 +49,10 @@ function PrescriptionCard({ item }: { readonly item: Prescription }): ReactNode 
   const t = useT('doctor.prescriptions');
   return (
     <li>
-      <article className="h-full rounded-[6px] border border-[var(--border)] bg-[var(--card)] p-3">
+      <article className="h-full rounded-card border border-border bg-card p-3">
         <PrescriptionBody item={item} />
-        {item.note ? <p className="mt-2 text-sm text-[var(--muted-foreground)]">{item.note}</p> : null}
-        <p className="mt-3 flex flex-wrap items-center justify-between gap-2 text-xs text-[var(--muted-foreground)]">
+        {item.note ? <p className="mt-2 text-sm text-muted-foreground">{item.note}</p> : null}
+        <p className="mt-3 flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
           <span>{item.authoredOn ? formatClinicDate(item.authoredOn) : null}</span>
           {item.encounterId ? <Link href={`/encounters/${encodeURIComponent(item.encounterId)}`} aria-label={t('openEncounterOn', { name: orderName(item) })} className="underline">{t('openEncounter')}</Link> : null}
         </p>
@@ -71,7 +71,7 @@ export function PatientPrescriptions({ patientId }: { readonly patientId: string
       <div id="prescriptions-title"><SectionTitle>{t('title')}</SectionTitle></div>
       <div className="mt-3" aria-busy={prescriptions.isFetching}>
         {prescriptions.data === undefined ? <QueryFailure query={prescriptions} embedded notFoundText={t('unavailable')} pending={<TableSkeleton />} /> : null}
-        {prescriptions.data && prescriptions.data.items.length === 0 ? <p className="text-sm text-[var(--muted-foreground)]">{t('empty')}</p> : null}
+        {prescriptions.data && prescriptions.data.items.length === 0 ? <p className="text-sm text-muted-foreground">{t('empty')}</p> : null}
         {prescriptions.data && prescriptions.data.items.length > 0 ? (
           <>
             <ul className="grid gap-3 sm:grid-cols-2">{prescriptions.data.items.map((item) => <PrescriptionCard key={item.id} item={item} />)}</ul>

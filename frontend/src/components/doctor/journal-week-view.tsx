@@ -63,7 +63,7 @@ function Block({ block }: { readonly block: WeekBlock }): ReactNode {
         href={`/patients/${encodeURIComponent(visit.patientId)}`}
         aria-label={`${formatClinicTime(visit.start)} ${name}, ${tStamp(visit.status)}. ${t('patientCard')}`}
         title={`${name} · ${tStamp(visit.status)}`}
-        className={cn('flex h-full flex-col justify-center overflow-hidden rounded-[8px] border px-2 no-underline', BLOCK_STYLE[visit.status])}
+        className={cn('flex h-full flex-col justify-center overflow-hidden rounded-card border px-2 no-underline', BLOCK_STYLE[visit.status])}
       >
         <span className="truncate text-xs font-semibold">{label}</span>
       </Link>

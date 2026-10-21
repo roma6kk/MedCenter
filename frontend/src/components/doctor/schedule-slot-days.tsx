@@ -13,7 +13,7 @@ function upperFirst(text: string): string {
 
 function SlotTile({ slot }: { readonly slot: ScheduleSlot }): ReactNode {
   return (
-    <li className="flex items-center justify-between gap-2 rounded-[6px] border border-[var(--border)] bg-[var(--card)] px-3 py-2 text-sm">
+    <li className="flex items-center justify-between gap-2 rounded-card border border-border bg-card px-3 py-2 text-sm">
       <span className="mono">{formatClinicTime(slot.start)}–{formatClinicTime(slot.end)}</span>
       <StampBadge status={slot.status} />
     </li>
@@ -33,7 +33,7 @@ export function ScheduleSlotDays({ slots }: { readonly slots: ReadonlyArray<Sche
           <section key={day.day} aria-labelledby={`day-${day.day}`}>
             <h3 id={`day-${day.day}`} className="text-base font-semibold">
               {upperFirst(formatDayHeading(day.day))}{' '}
-              <span className="ml-2 text-sm font-normal text-[var(--muted-foreground)]">{t('dayCounts', { busy, total: day.slots.length })}</span>
+              <span className="ml-2 text-sm font-normal text-muted-foreground">{t('dayCounts', { busy, total: day.slots.length })}</span>
             </h3>
             <ul className="mt-2 grid gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
               {day.slots.map((slot) => <SlotTile key={slot.id} slot={slot} />)}

@@ -3,13 +3,14 @@
  * Kept out of the component file (`encounter-form-fields.tsx`): a file that exports both components and values breaks Fast Refresh.
  */
 import type { KeyboardEvent } from 'react';
+import { buttonVariants } from '@/components/ui/button-variants';
 import { get, type FieldErrors } from 'react-hook-form';
 import type { CompleteEncounterForm } from '@/lib/contracts';
 
-export const INPUT_CLASS = 'mt-1 min-h-[44px] w-full rounded-[6px] border border-[var(--input)] bg-[var(--card)] p-2';
-export const ADD_BUTTON_CLASS = 'mt-3 min-h-[44px] rounded-[6px] border border-[var(--border)] px-3 py-1 text-sm';
-export const FIELDSET_CLASS = 'rounded-[6px] border border-[var(--border)] p-4';
-export const ROW_CLASS = 'mt-3 rounded-[6px] border border-[var(--border)] p-3';
+export const INPUT_CLASS = 'mt-1 min-h-[44px] w-full rounded-control border border-input bg-card p-2';
+export const ADD_BUTTON_CLASS = `mt-3 ${buttonVariants({ variant: 'secondary' })}`;
+export const FIELDSET_CLASS = 'rounded-card border border-border p-4';
+export const ROW_CLASS = 'mt-3 rounded-control border border-border p-3';
 
 /** The `message` of a react-hook-form / zod error node at `path` (`diagnoses.0.code`), if there is one. */
 export function errorAt(errors: FieldErrors<CompleteEncounterForm>, path: string): string | undefined {

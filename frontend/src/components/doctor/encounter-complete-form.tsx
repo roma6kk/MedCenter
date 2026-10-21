@@ -6,6 +6,7 @@ import { ProblemBanner } from '@/components/feedback/problem-banner';
 import { isApiError } from '@/lib/api/api-fetch';
 import type { ProblemDetails } from '@/lib/api/problem';
 import { RECOMMENDATIONS_MAX, type CompleteEncounterForm } from '@/lib/contracts';
+import { buttonVariants } from '@/components/ui/button-variants';
 import { useT } from '@/lib/i18n/use-t';
 import { DiagnosesEditor } from './diagnoses-editor';
 import { a11yOf, blockImplicitSubmit, errorAt, FIELDSET_CLASS, INPUT_CLASS } from './encounter-form-helpers';
@@ -66,7 +67,7 @@ export function EncounterCompleteForm({ encounterId }: { readonly encounterId: s
         <MedicationsEditor />
         <RecommendationsSection />
         {complete.isError && isApiError(complete.error) ? <CompletionFailure problem={complete.error.problem} foreignMessages={foreignMessages} isMarked={isMarked} /> : null}
-        <button type="submit" aria-disabled={complete.isPending} aria-busy={complete.isPending} className="mt-4 min-h-[44px] rounded-[6px] bg-[var(--primary)] px-4 py-2 text-[var(--primary-foreground)] aria-disabled:opacity-60">
+        <button type="submit" aria-disabled={complete.isPending} aria-busy={complete.isPending} className={`mt-4 ${buttonVariants({ variant: 'primary', size: 'lg' })}`}>
           {complete.isPending ? t('completing') : t('complete')}
         </button>
       </form>
