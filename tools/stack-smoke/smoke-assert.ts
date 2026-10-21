@@ -132,3 +132,13 @@ export function expectProblem(response: ApiResponse, status: number, errorCode: 
   const problem = expectShape(response.body, { type: 'string', title: 'string', detail: 'string', instance: 'string', requestId: 'string', errorCode: 'string' }, 'problem');
   expectEqual(problem['errorCode'], errorCode, `errorCode of ${describe(response)}`);
 }
+
+/** The `details[]` entry of a problem that names `field` (API §1: request path such as `diagnoses.1.code`). */
+export function expectDetailField(response: ApiResponse, field: string): JsonObject {
+  const details = asArray(bodyObject(response)['details'], 'details').map((entry, index) => expectShape(entry, { field: 'string', message: 'string' }, `details[${index}]`));
+  const entry = details.find((candidate) => candidate['field'] === field);
+  if (entry === undefined) {
+    throw new SmokeAssertionError(`details[] has no field ${JSON.stringify(field)} (got ${details.map((candidate) => String(candidate['field'])).join(', ') || 'none'})`);
+  }
+  return entry;
+}

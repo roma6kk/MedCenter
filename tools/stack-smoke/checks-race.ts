@@ -1,7 +1,7 @@
 import { isoDay } from './checks-catalog-read';
 import { pollUntil } from './polling';
-import { asArray, bodyObject, expectDefined, expectEqual, expectProblem, expectShape, expectStatus, expectTrue } from './smoke-assert';
-import { APPOINTMENT_SHAPE } from './smoke-shapes';
+import { asArray, bodyObject, expectDefined, expectEqual, expectPage, expectProblem, expectShape, expectStatus, expectTrue } from './smoke-assert';
+import { APPOINTMENT_SHAPE, APPOINTMENT_VIEW_SHAPE } from './smoke-shapes';
 import type { SmokeStep } from './smoke-runner';
 import type { ApiResponse, JsonObject, Session } from './smoke-types';
 import { newKey, type Suite } from './suite';
@@ -64,6 +64,20 @@ function cancelSteps(suite: Suite, race: Race): SmokeStep[] {
       name: 'cancelling again -> 409 APPOINTMENT_NOT_CANCELLABLE',
       run: async () => expectProblem(await cancel(suite, race.winnerSession, race.winner), 409, 'APPOINTMENT_NOT_CANCELLABLE'),
     },
+    {
+      name: 'GET /appointments?status=cancelled lists the cancelled appointment; status=booked&upcoming=true does not',
+      run: async () => {
+        const list = async (query: Record<string, string | number | boolean>): Promise<readonly JsonObject[]> =>
+          expectPage(await suite.api.get('/api/v1/appointments', { session: race.winnerSession, query: { ...query, sortOrder: 'desc', pageSize: 100 } }), APPOINTMENT_VIEW_SHAPE);
+        const cancelled = await list({ status: 'cancelled' });
+        expectTrue(cancelled.some((item) => item['id'] === race.winner), 'the cancelled appointment is not listed under status=cancelled');
+        expectTrue(cancelled.every((item) => item['status'] === 'cancelled'), 'status=cancelled returned another status');
+        const booked = await list({ status: 'booked', upcoming: true });
+        expectTrue(!booked.some((item) => item['id'] === race.winner), 'the cancelled appointment is listed under status=booked');
+        const unfiltered = await list({ upcoming: true });
+        expectTrue(unfiltered.some((item) => item['id'] === race.winner), 'upcoming=true alone no longer includes the cancelled appointment (semantics changed)');
+      },
+    },
   ];
 }
 
@@ -118,9 +132,9 @@ export async function noShowChecks(suite: Suite, slots: readonly JsonObject[]): 
       },
     },
     {
-      name: 'a no-show cannot be marked twice or cancelled -> 409',
+      name: 'a no-show cannot be marked twice (409 ENCOUNTER_STATE_INVALID) or cancelled (409 APPOINTMENT_NOT_CANCELLABLE)',
       run: async () => {
-        expectProblem(await api.post(`/api/v1/doctor/appointments/${appointment}/noshow`, { session: sessions.doctor }), 409, 'CONFLICT');
+        expectProblem(await api.post(`/api/v1/doctor/appointments/${appointment}/noshow`, { session: sessions.doctor }), 409, 'ENCOUNTER_STATE_INVALID');
         expectProblem(await cancel(suite, sessions.thirdPatient, appointment), 409, 'APPOINTMENT_NOT_CANCELLABLE');
       },
     },

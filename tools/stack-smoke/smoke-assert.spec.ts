@@ -1,6 +1,7 @@
 import {
   SmokeAssertionError,
   describe as describeResponse,
+  expectDetailField,
   expectEqual,
   expectPage,
   expectProblem,
@@ -130,5 +131,24 @@ describe('expectEqual and describe', () => {
   it('should say only the status when the answer has no body', () => {
     expect(describeResponse(response(204, undefined))).toBe('HTTP 204');
     expect(new SmokeAssertionError('m')).toBeInstanceOf(Error);
+  });
+});
+
+describe('expectDetailField', () => {
+  const problem = (details: unknown): ApiResponse =>
+    response(422, { ...PROBLEM, errorCode: 'INVALID_ICD10_CODE', details }, 'application/problem+json');
+
+  it('should return the details entry that names the field', () => {
+    const entry = expectDetailField(problem([{ field: 'diagnoses.0.code', message: 'a' }, { field: 'diagnoses.1.code', message: 'Z99 is not in ValueSet' }]), 'diagnoses.1.code');
+
+    expect(entry['message']).toBe('Z99 is not in ValueSet');
+  });
+
+  it('should name the fields that were reported when the wanted one is missing', () => {
+    expect(() => expectDetailField(problem([{ field: 'diagnoses.0.code', message: 'a' }]), 'diagnoses.1.code')).toThrow('details[] has no field "diagnoses.1.code" (got diagnoses.0.code)');
+  });
+
+  it('should fail when the problem carries no details[]', () => {
+    expect(() => expectDetailField(response(422, PROBLEM, 'application/problem+json'), 'diagnoses.0.code')).toThrow('details is not a JSON array');
   });
 });

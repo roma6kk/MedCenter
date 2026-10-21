@@ -43,4 +43,48 @@ describe('toDoctorDto', () => {
     // Assert
     expect(doctor).toMatchObject({ name: 'Иван Петров', specialty: 'Терапевт' });
   });
+
+  it('should expose the specialty coding as a token usable in the specialty filter when the qualification is coded', () => {
+    // Act
+    const doctor = toDoctorDto({
+      resourceType: 'Practitioner',
+      id: 'p4',
+      qualification: [{ code: { coding: [{ system: 'http://snomed.info/sct', code: '419192003', display: 'Терапия' }], text: 'Терапевт' } }],
+    } as FhirResource);
+
+    // Assert
+    expect(doctor).toMatchObject({ specialty: 'Терапевт', specialtyCode: '419192003', specialtySystem: 'http://snomed.info/sct' });
+  });
+
+  it('should leave the code without a system when the coding carries none', () => {
+    // Act
+    const doctor = toDoctorDto({
+      resourceType: 'Practitioner',
+      id: 'p5',
+      qualification: [{ code: { coding: [{ code: 'THER' }] } }],
+    } as FhirResource);
+
+    // Assert
+    expect(doctor.specialtyCode).toBe('THER');
+    expect(doctor.specialtySystem).toBeUndefined();
+  });
+
+  it('should expose no specialty token when the qualification is free text only', () => {
+    // Act
+    const doctor = toDoctorDto({ resourceType: 'Practitioner', id: 'p6', qualification: [{ code: { text: 'Терапевт' } }] } as FhirResource);
+
+    // Assert
+    expect(doctor.specialtyCode).toBeUndefined();
+    expect(doctor.specialtySystem).toBeUndefined();
+  });
+
+  it('should carry the given role ids and default to none', () => {
+    // Act
+    const withRoles = toDoctorDto({ resourceType: 'Practitioner', id: 'p7' }, ['r1', 'r2']);
+    const without = toDoctorDto({ resourceType: 'Practitioner', id: 'p8' });
+
+    // Assert
+    expect(withRoles.practitionerRoleIds).toEqual(['r1', 'r2']);
+    expect(without.practitionerRoleIds).toEqual([]);
+  });
 });

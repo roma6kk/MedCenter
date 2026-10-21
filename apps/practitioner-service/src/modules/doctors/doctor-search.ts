@@ -94,6 +94,29 @@ export function practitionersOfRoles(entries: ReadonlyArray<FhirBundleEntry>): F
   return practitioners;
 }
 
+/** The most roles one page of doctors can bring back; a page holds at most 100 doctors with a handful of roles each. */
+export const ROLE_LOOKUP_LIMIT = 200;
+
+/** `PractitionerRole` search over all roles of the given doctors (a comma ORs the references). */
+export function practitionerRolesQuery(practitionerIds: readonly string[]): Readonly<Record<string, unknown>> {
+  return { practitioner: practitionerIds.map((id) => `Practitioner/${id}`).join(','), _count: ROLE_LOOKUP_LIMIT };
+}
+
+/**
+ * Ids of the active roles per practitioner id, ascending. A role without an explicit `active=false`
+ * counts as active (the element is optional in FHIR); one without a practitioner reference is skipped.
+ */
+export function roleIdsByPractitioner(entries: ReadonlyArray<FhirBundleEntry>): ReadonlyMap<string, readonly string[]> {
+  const grouped = new Map<string, string[]>();
+  for (const { resource } of entries) {
+    const practitionerId = resource.resourceType === 'PractitionerRole' ? practitionerIdOf(resource) : undefined;
+    if (practitionerId !== undefined && resource.id !== undefined && resource['active'] !== false) {
+      grouped.set(practitionerId, [...(grouped.get(practitionerId) ?? []), resource.id]);
+    }
+  }
+  return new Map([...grouped].map(([id, roleIds]) => [id, [...roleIds].sort()]));
+}
+
 function practitionerIdOf(role: FhirResource): string | undefined {
   const { practitioner } = role as { practitioner?: { reference?: unknown } };
   const reference = practitioner?.reference;

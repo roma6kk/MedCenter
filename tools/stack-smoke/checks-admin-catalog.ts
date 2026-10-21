@@ -13,9 +13,34 @@ const API_PREFIX = '/api/v1/admin';
 /** Ids that the steps of one lifecycle hand to each other. */
 interface Ids {
   room: string;
+  /** A second room, made only to prove that a rename to a taken identifier is refused. */
+  otherRoom: string;
   service: string;
   schedule: string;
   futureSchedule: string;
+}
+
+/** API §4.4/4.5: `Location.identifier` of a room is unique -> 409 CONFLICT on create and on rename. */
+function duplicateRoomStep(suite: Suite, ids: Ids, tag: string): SmokeStep {
+  const { api, sessions } = suite;
+  const session = sessions.admin;
+  return {
+    name: 'POST /admin/rooms with a taken identifier -> 409 CONFLICT; PATCH of another room to it -> 409 CONFLICT (also in another letter case)',
+    run: async () => {
+      const identifier = `smoke-${tag}`;
+      const duplicate = await api.post(`${API_PREFIX}/rooms`, { session, body: { identifier, name: `Smoke ${tag} duplicate` } });
+      expectProblem(duplicate, 409, 'CONFLICT');
+      expectTrue(String(bodyObject(duplicate)['detail']).includes(identifier), 'the 409 detail does not name the identifier');
+      expectProblem(await api.post(`${API_PREFIX}/rooms`, { session, body: { identifier: identifier.toUpperCase(), name: `Smoke ${tag} upper` } }), 409, 'CONFLICT');
+      const other = await api.post(`${API_PREFIX}/rooms`, { session, body: { identifier: `smoke-${tag}-b`, name: `Smoke ${tag} b` } });
+      expectStatus(other, 201);
+      ids.otherRoom = String(expectShape(other.body, ROOM_SHAPE, 'room')['id']);
+      expectProblem(await api.patch(`${API_PREFIX}/rooms/${ids.otherRoom}`, { session, body: { identifier } }), 409, 'CONFLICT');
+      expectStatus(await api.patch(`${API_PREFIX}/rooms/${ids.otherRoom}`, { session, body: { identifier: `smoke-${tag}-b`, name: `Smoke ${tag} b2` } }), 200);
+      expectStatus(await api.delete(`${API_PREFIX}/rooms/${ids.otherRoom}`, { session }), 204);
+      ids.otherRoom = '';
+    },
+  };
 }
 
 function roomSteps(suite: Suite, ids: Ids, tag: string): SmokeStep[] {
@@ -31,6 +56,7 @@ function roomSteps(suite: Suite, ids: Ids, tag: string): SmokeStep[] {
         ids.room = String(expectShape(response.body, ROOM_SHAPE, 'room')['id']);
       },
     },
+    duplicateRoomStep(suite, ids, tag),
     {
       name: 'PATCH /admin/rooms/{id} -> 200; GET /admin/rooms/{id}/usage -> not in use',
       run: async () => {
@@ -221,6 +247,7 @@ async function removeLeftovers(suite: Suite, ids: Ids): Promise<void> {
     [`${API_PREFIX}/schedules/${ids.futureSchedule}`, ids.futureSchedule, { cascade: true }],
     [`${API_PREFIX}/services/${ids.service}`, ids.service],
     [`${API_PREFIX}/rooms/${ids.room}`, ids.room],
+    [`${API_PREFIX}/rooms/${ids.otherRoom}`, ids.otherRoom],
   ];
   for (const [path, id, body] of leftovers.filter(([, id]) => id !== '')) {
     const response = await suite.api.delete(path, { session: suite.sessions.admin, ...(body === undefined ? {} : { body }) });
@@ -232,7 +259,7 @@ async function removeLeftovers(suite: Suite, ids: Ids): Promise<void> {
 
 /** The admin's catalog lifecycle in one chain: every step needs what the previous one made. */
 export async function adminCatalogChecks(suite: Suite): Promise<void> {
-  const ids: Ids = { room: '', service: '', schedule: '', futureSchedule: '' };
+  const ids: Ids = { room: '', otherRoom: '', service: '', schedule: '', futureSchedule: '' };
   await suite.runner.chain(GROUP, [
     ...roomSteps(suite, ids, runTag()),
     serviceStep(suite, ids, runTag()),

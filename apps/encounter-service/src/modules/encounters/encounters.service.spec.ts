@@ -93,6 +93,7 @@ describe('EncountersService.complete', () => {
     expect(entries[0]?.resource['status']).toBe('finished');
     expect(entries.map((entry) => entry.resource.resourceType)).toEqual([
       'Encounter',
+      'Appointment',
       'Condition',
       'ClinicalImpression',
       'CarePlan',
@@ -101,9 +102,29 @@ describe('EncountersService.complete', () => {
       'MedicationRequest',
       'AuditEvent',
       'AuditEvent',
+      'AuditEvent',
     ]);
     expect(result).toMatchObject({ id: ENCOUNTER_ID, status: 'finished', diagnosisCodes: ['J06.9'] });
     expect(result.period.end).toEqual(expect.any(String));
+  });
+
+  it('should set the appointment to fulfilled in the same If-Match guarded transaction when the encounter is completed', async () => {
+    await service.complete(doctorClaims, ENCOUNTER_ID, validCompleteDto());
+
+    const appointment = committedEntries(fhir).find((entry) => entry.resource.resourceType === 'Appointment');
+    expect(appointment?.request).toEqual({ method: 'PUT', url: `Appointment/${APPOINTMENT_ID}`, ifMatch: 'W/"2"' });
+    expect(appointment?.resource['status']).toBe('fulfilled');
+    expect(fhir.update).not.toHaveBeenCalled();
+    expect(fhir.batch).toHaveBeenCalledTimes(1);
+  });
+
+  it('should report ENCOUNTER_STATE_INVALID and publish nothing when the appointment changed after it was read', async () => {
+    fhir.batch.mockRejectedValue(new FhirClientError('POST', 'http://hapi/fhir', 412, '{}'));
+
+    expect(await errorPayloadOf(service.complete(doctorClaims, ENCOUNTER_ID, validCompleteDto()))).toMatchObject({
+      errorCode: 'ENCOUNTER_STATE_INVALID',
+    });
+    expect(publisher.publishCompleted).not.toHaveBeenCalled();
   });
 
   it('should report ENCOUNTER_STATE_INVALID and publish nothing when a concurrent completion wins the If-Match race', async () => {

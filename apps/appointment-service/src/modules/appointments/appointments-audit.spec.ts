@@ -53,7 +53,11 @@ describe('AppointmentsService audit trail (ADR-014, FR-021)', () => {
   let service: AppointmentsService;
 
   beforeEach(() => {
-    fhir = { read: jest.fn(), batch: jest.fn().mockResolvedValue(COMMITTED) } as unknown as jest.Mocked<FhirClient>;
+    fhir = {
+      read: jest.fn(),
+      search: jest.fn().mockResolvedValue({ entry: [] }),
+      batch: jest.fn().mockResolvedValue(COMMITTED),
+    } as unknown as jest.Mocked<FhirClient>;
     const publisher = {
       publishBooked: jest.fn().mockResolvedValue(undefined),
       publishCancelled: jest.fn().mockResolvedValue(undefined),

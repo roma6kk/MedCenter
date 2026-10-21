@@ -16,7 +16,7 @@ import { canonicalReference, referenceIdOf } from '../../common/fhir/fhir-refere
 import { resourcesOf, resourcesOfType } from '../../common/fhir/fhir-search';
 import { commitTransaction, idFromLocation, transactionOutcomes } from '../../common/fhir/fhir-transaction';
 import { EncounterPublisherService } from '../events/encounter-publisher.service';
-import { TerminologyValidatorService } from '../terminology/terminology-validator.service';
+import { TerminologyValidatorService, type TerminologyDisplays } from '../terminology/terminology-validator.service';
 import type { CompleteEncounterDto } from './dto/complete-encounter.dto';
 import type { EncounterDetailsDto, EncounterResponseDto, OpenEncounterResult } from './dto/encounter-response.dto';
 import type { OpenEncounterDto } from './dto/open-encounter.dto';
@@ -27,7 +27,7 @@ import {
   assertViewerSeesEncounter,
   resolveEncounterViewer,
 } from './encounter-access';
-import { buildCompletionPlan, terminologyRefsOf } from './mappers/encounter-completion.mapper';
+import { buildCompletionPlan, icd10RefsOf, terminologyRefsOf, type CompletionContext } from './mappers/encounter-completion.mapper';
 import {
   buildOpeningWrites,
   encounterOfAppointmentQuery,
@@ -50,6 +50,37 @@ const ENCOUNTER_REVINCLUDES: readonly string[] = [
   'MedicationRequest:encounter',
 ];
 
+/** What `complete` needs from HAPI before it writes: the in-progress encounter and its booked appointment. */
+interface CompletableEncounter {
+  readonly encounter: FhirResource;
+  readonly appointment: FhirResource;
+  readonly patientRef: string;
+}
+
+interface CompletionInputs extends CompletableEncounter {
+  readonly encounterId: string;
+  readonly roleRef: string;
+  readonly actorSub: string;
+  readonly requestId?: string;
+  readonly displays: TerminologyDisplays;
+}
+
+function completionContextOf(inputs: CompletionInputs): CompletionContext {
+  return {
+    encounter: inputs.encounter,
+    encounterId: inputs.encounterId,
+    appointment: inputs.appointment,
+    appointmentId: appointmentIdOf(inputs.encounter),
+    patientRef: inputs.patientRef,
+    practitionerRoleRef: inputs.roleRef,
+    actorSub: inputs.actorSub,
+    requestId: inputs.requestId,
+    now: new Date().toISOString(),
+    displays: inputs.displays,
+    newFullUrl: (): string => `urn:uuid:${randomUUID()}`,
+  };
+}
+
 function stateInvalid(message: string): ConflictException {
   return new ConflictException({ errorCode: 'ENCOUNTER_STATE_INVALID', message: `ENCOUNTER_STATE_INVALID: ${message}` });
 }
@@ -63,9 +94,11 @@ function internal(message: string): InternalServerErrorException {
  *
  * Concurrency: HAPI has no row locks over REST. Opening uses a conditional
  * create (`ifNoneExist` on the appointment); completing writes every resource
- * in one `transaction` Bundle whose `PUT Encounter` carries `If-Match` on the
- * version that was read, so a concurrent or replayed completion loses with
- * `409 ENCOUNTER_STATE_INVALID` and nothing of it is stored.
+ * in one `transaction` Bundle whose `PUT Encounter` and `PUT Appointment`
+ * (`fulfilled`, BR-008) carry `If-Match` on the versions that were read, so a
+ * concurrent or replayed completion, or an appointment cancelled / marked as a
+ * no-show meanwhile, loses with `409 ENCOUNTER_STATE_INVALID` and nothing of it
+ * is stored.
  */
 @Injectable()
 export class EncountersService {
@@ -126,31 +159,16 @@ export class EncountersService {
   /** 7.3 — state and terminology are checked before any write; then one atomic transaction. */
   async complete(claims: JwtClaims, encounterId: string, dto: CompleteEncounterDto, requestId?: string): Promise<EncounterResponseDto> {
     const roleRef = practitionerRoleRefFromClaims(claims);
-    const { encounter, patientRef } = await this.loadCompletable(roleRef, encounterId);
-    await this.terminology.assertIcd10Codes(dto.diagnoses.map((diagnosis) => diagnosis.code));
+    const loaded = await this.loadCompletable(roleRef, encounterId);
+    await this.terminology.assertIcd10Codes(icd10RefsOf(dto));
     const displays = await this.terminology.assertCodesExist(terminologyRefsOf(dto));
-    const context = {
-      encounter,
-      encounterId,
-      patientRef,
-      practitionerRoleRef: roleRef,
-      actorSub: claims.sub,
-      requestId,
-      now: new Date().toISOString(),
-      displays,
-      newFullUrl: (): string => `urn:uuid:${randomUUID()}`,
-    };
-    const plan = buildCompletionPlan(context, dto);
+    const plan = buildCompletionPlan(completionContextOf({ ...loaded, encounterId, roleRef, actorSub: claims.sub, requestId, displays }), dto);
     await commitTransaction(this.fhir, plan.writes, 'ENCOUNTER_STATE_INVALID');
 
     // After the commit: a broker failure is logged by the publisher and cannot undo the completion.
-    await this.events.publishCompleted({
-      encounterId,
-      patientRef,
-      practitionerRef: roleRef,
-      diagnoses: dto.diagnoses.map((diagnosis) => ({ code: diagnosis.code, display: diagnosis.display })),
-    });
-    return toEncounterResponse({ ...plan.finishedEncounter, id: encounterId }, dto.diagnoses.map((diagnosis) => diagnosis.code));
+    const diagnoses = dto.diagnoses.map((diagnosis) => ({ code: diagnosis.code, display: diagnosis.display }));
+    await this.events.publishCompleted({ encounterId, patientRef: loaded.patientRef, practitionerRef: roleRef, diagnoses });
+    return toEncounterResponse({ ...plan.finishedEncounter, id: encounterId }, diagnoses.map((diagnosis) => diagnosis.code));
   }
 
   /**
@@ -159,7 +177,7 @@ export class EncountersService {
    * encounter that is not in progress (409, BR-003) and an appointment that is
    * no longer booked (409, BR-008).
    */
-  private async loadCompletable(roleRef: string, encounterId: string): Promise<{ encounter: FhirResource; patientRef: string }> {
+  private async loadCompletable(roleRef: string, encounterId: string): Promise<CompletableEncounter> {
     const encounter = await this.fhir.read('Encounter', encounterId);
     assertEncounterParticipant(roleRef, encounter);
     if (encounter['status'] !== IN_PROGRESS) {
@@ -169,8 +187,8 @@ export class EncountersService {
     if (patientRef === undefined) {
       throw internal(`Encounter ${encounterId} has no Patient subject`);
     }
-    await this.assertAppointmentStillBooked(encounter);
-    return { encounter, patientRef };
+    const appointment = await this.readStillBookedAppointment(encounter);
+    return { encounter, appointment, patientRef };
   }
 
   private async encounterOfAppointment(appointmentId: string): Promise<FhirResource | undefined> {
@@ -218,8 +236,11 @@ export class EncountersService {
     }
   }
 
-  /** BR-008: a cancelled or no-show appointment cannot get a completed encounter. */
-  private async assertAppointmentStillBooked(encounter: FhirResource): Promise<void> {
+  /**
+   * BR-008: a cancelled or no-show appointment cannot get a completed encounter.
+   * The appointment is returned as read: its version guards the `fulfilled` update.
+   */
+  private async readStillBookedAppointment(encounter: FhirResource): Promise<FhirResource> {
     const appointmentId = appointmentIdOf(encounter);
     if (appointmentId === '') {
       throw stateInvalid('encounter is not linked to an appointment');
@@ -228,5 +249,6 @@ export class EncountersService {
     if (appointment['status'] !== BOOKED) {
       throw stateInvalid(`appointment is ${String(appointment['status'])}`);
     }
+    return appointment;
   }
 }

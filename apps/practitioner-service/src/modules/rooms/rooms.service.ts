@@ -7,6 +7,7 @@ import { toPage } from '../../common/page-envelope';
 import { CreateRoomDto } from './dto/create-room.dto';
 import { UpdateRoomDto } from './dto/update-room.dto';
 import type { RoomResponseDto } from './dto/room-response.dto';
+import { roomUsingIdentifier } from './room-identifier';
 import { roomScheduleQuery } from './room-schedules';
 import { findAllRooms, LOCATION_PHYSICAL_TYPE_SYSTEM, ROOM_PHYSICAL_TYPE_CODE } from './room-search';
 
@@ -42,12 +43,16 @@ export class RoomsService {
   }
 
   async create(dto: CreateRoomDto): Promise<RoomResponseDto> {
+    await this.assertIdentifierFree(dto.identifier);
     const created = await this.fhirClient.create('Location', this.toLocation(dto));
     return this.toResponseDto(created);
   }
 
   async update(id: string, dto: UpdateRoomDto): Promise<RoomResponseDto> {
     const existing = await this.fhirClient.read('Location', id);
+    if (dto.identifier !== undefined) {
+      await this.assertIdentifierFree(dto.identifier, id);
+    }
     // Merge skips undefined: absent DTO fields must not blank existing values.
     // `floor` is excluded from the plain merge: it lives inside an extension,
     // and the whole `extension` array of the patch would overwrite unrelated
@@ -99,6 +104,22 @@ export class RoomsService {
       });
     }
     await this.fhirClient.delete('Location', id);
+  }
+
+  /**
+   * `409 CONFLICT` when another room already has `identifier` (API §4.4/4.5, compared trimmed and
+   * case-insensitively). HAPI has no unique constraint over `Location.identifier`, so the rooms are
+   * read and compared here; two admins creating the same identifier in the same instant is the one
+   * case this check cannot see (admin-only, low-frequency writes).
+   */
+  private async assertIdentifierFree(identifier: string, roomId?: string): Promise<void> {
+    const taken = roomUsingIdentifier(await findAllRooms(this.fhirClient), identifier, roomId);
+    if (taken !== undefined) {
+      throw new ConflictException({
+        errorCode: 'CONFLICT',
+        message: `CONFLICT: room identifier "${identifier}" is already used by room ${taken.id ?? ''}`,
+      });
+    }
   }
 
   private toLocation(dto: Partial<CreateRoomDto>): FhirResource {

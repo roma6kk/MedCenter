@@ -5,7 +5,7 @@ import { FHIR_BY } from '@medcenter/terminology';
 import { buildAuditEvent } from '../../../common/audit/audit-event';
 import { arrayField, isRecord, stringField } from '../../../common/fhir/fhir-read';
 import { versionOf, type TransactionWrite } from '../../../common/fhir/fhir-transaction';
-import type { TerminologyDisplays, TerminologyRef } from '../../terminology/terminology-validator.service';
+import type { Icd10Ref, TerminologyDisplays, TerminologyRef } from '../../terminology/terminology-validator.service';
 import type { CompleteEncounterDto } from '../dto/complete-encounter.dto';
 import {
   carePlanResource,
@@ -21,6 +21,9 @@ export interface CompletionContext {
   /** The encounter as read; its `meta.versionId` becomes the `If-Match` of the update. */
   readonly encounter: FhirResource;
   readonly encounterId: string;
+  /** The Appointment of the encounter as read (still `booked`); its `meta.versionId` becomes the `If-Match` of its update. */
+  readonly appointment: FhirResource;
+  readonly appointmentId: string;
   readonly patientRef: string;
   readonly practitionerRoleRef: string;
   readonly actorSub: string;
@@ -41,15 +44,31 @@ interface CreateWrite extends TransactionWrite {
   readonly fullUrl: string;
 }
 
-/** Codes of the DTO that must exist in the terminology seed (ATC, UCUM, НСИ), ICD-10 aside. */
+/** ICD-10 codes of the DTO with their request paths (`diagnoses.0.code`), for the 422 `details[].field`. */
+export function icd10RefsOf(dto: CompleteEncounterDto): Icd10Ref[] {
+  return dto.diagnoses.map((diagnosis, index) => ({ code: diagnosis.code, field: `diagnoses.${index}.code` }));
+}
+
+/**
+ * Codes of the DTO that must exist in the terminology seed (ATC, UCUM, НСИ),
+ * ICD-10 aside, each with its request path (`medicationRequests.1.atcCode`).
+ */
 export function terminologyRefsOf(dto: CompleteEncounterDto): TerminologyRef[] {
   return [
-    ...(dto.medicationRequests ?? []).map((request) => ({ system: FHIR_BY.ATC_CODE_SYSTEM, code: request.atcCode })),
-    ...(dto.observations ?? []).flatMap((observation) => [
-      { system: observation.codeSystem, code: observation.code },
-      { system: FHIR_BY.UCUM_SYSTEM, code: observation.unit },
+    ...(dto.medicationRequests ?? []).map((request, index) => ({
+      system: FHIR_BY.ATC_CODE_SYSTEM,
+      code: request.atcCode,
+      field: `medicationRequests.${index}.atcCode`,
+    })),
+    ...(dto.observations ?? []).flatMap((observation, index) => [
+      { system: observation.codeSystem, code: observation.code, field: `observations.${index}.code` },
+      { system: FHIR_BY.UCUM_SYSTEM, code: observation.unit, field: `observations.${index}.unit` },
     ]),
-    ...(dto.serviceRequests ?? []).map((request) => ({ system: request.codeSystem, code: request.code })),
+    ...(dto.serviceRequests ?? []).map((request, index) => ({
+      system: request.codeSystem,
+      code: request.code,
+      field: `serviceRequests.${index}.code`,
+    })),
   ];
 }
 
@@ -106,10 +125,21 @@ function clinicalWrites(context: CompletionContext, dto: CompleteEncounterDto): 
   return { created, conditionRefs };
 }
 
+/** BR-008: the visit took place, so the booked Appointment becomes `fulfilled` (FHIR R4 `AppointmentStatus`). */
+function appointmentFulfilment(context: CompletionContext): TransactionWrite {
+  return {
+    method: 'PUT',
+    url: `Appointment/${context.appointmentId}`,
+    resource: { ...context.appointment, status: 'fulfilled' },
+    ifMatch: versionOf(context.appointment),
+  };
+}
+
 /**
- * ADR-014 / FR-021: the `update` of the Encounter (`finished`) and the `create`
- * of the clinical record (API §7.3 `AuditEvent(create)`) are two journal rows,
- * because the audit journal keys each AuditEvent on its first entity.
+ * ADR-014 / FR-021: the `update` of the Encounter (`finished`), the `update` of
+ * the Appointment (`fulfilled`) and the `create` of the clinical record (API
+ * §7.3 `AuditEvent(create)`) are three journal rows, because the audit journal
+ * keys each AuditEvent on its first entity.
  */
 function auditWrites(context: CompletionContext, created: readonly CreateWrite[]): TransactionWrite[] {
   const audit = (interaction: 'create' | 'update', entityRefs: readonly string[]): TransactionWrite => ({
@@ -124,15 +154,21 @@ function auditWrites(context: CompletionContext, created: readonly CreateWrite[]
       requestId: context.requestId,
     }),
   });
-  return [audit('update', [`Encounter/${context.encounterId}`]), audit('create', created.map((write) => write.fullUrl))];
+  return [
+    audit('update', [`Encounter/${context.encounterId}`]),
+    audit('update', [`Appointment/${context.appointmentId}`]),
+    audit('create', created.map((write) => write.fullUrl)),
+  ];
 }
 
 /**
  * API §7.3 as one FHIR `transaction` (FR-011…FR-014): `PUT Encounter` guarded by
- * `If-Match`, then `POST` of Condition[], ClinicalImpression, CarePlan,
- * Observation[], ServiceRequest[], MedicationRequest[] (each prescription
- * references the encounter and the primary diagnosis, BR-005) and the two
- * AuditEvents (ADR-014). New resources reference each other through `urn:uuid:` fullUrls.
+ * `If-Match`, `PUT Appointment` (`fulfilled`, also under `If-Match`, so a
+ * concurrent no-show or cancellation fails the whole bundle), then `POST` of
+ * Condition[], ClinicalImpression, CarePlan, Observation[], ServiceRequest[],
+ * MedicationRequest[] (each prescription references the encounter and the
+ * primary diagnosis, BR-005) and the three AuditEvents (ADR-014). New
+ * resources reference each other through `urn:uuid:` fullUrls.
  */
 export function buildCompletionPlan(context: CompletionContext, dto: CompleteEncounterDto): CompletionPlan {
   const { created, conditionRefs } = clinicalWrites(context, dto);
@@ -143,5 +179,5 @@ export function buildCompletionPlan(context: CompletionContext, dto: CompleteEnc
     resource: finishedEncounter,
     ifMatch: versionOf(context.encounter),
   };
-  return { finishedEncounter, writes: [encounterUpdate, ...created, ...auditWrites(context, created)] };
+  return { finishedEncounter, writes: [encounterUpdate, appointmentFulfilment(context), ...created, ...auditWrites(context, created)] };
 }

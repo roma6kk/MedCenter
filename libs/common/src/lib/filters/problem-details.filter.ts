@@ -25,6 +25,13 @@ function isErrorCode(value: string): value is ErrorCode {
 }
 
 /**
+ * The only errors whose `details[]` reaches the client (API §1): a failed DTO
+ * validation, and the two `422` terminology refusals of `POST /encounters/{id}/complete`,
+ * which name the offending request field (`diagnoses.0.code`) next to `detail`.
+ */
+const FIELD_DETAIL_CODES: ReadonlySet<ErrorCode> = new Set<ErrorCode>(['VALIDATION_ERROR', 'INVALID_ICD10_CODE', 'TERMINOLOGY_NOT_FOUND']);
+
+/**
  * Boundary filter (OWASP A05/A09): every error leaves a service as
  * `application/problem+json` with a catalogued `errorCode`. The 500 branch
  * never echoes `exception.message` — internal detail goes to the log keyed
@@ -89,8 +96,8 @@ export class ProblemDetailsFilter implements ExceptionFilter {
     const status = exception.getStatus();
     const payload = exception.getResponse();
     const errorCode = this.readExplicitErrorCode(payload) ?? this.toErrorCode(status);
-    // `details[]` is the VALIDATION_ERROR contract (API §1); another error never carries field data.
-    const details = errorCode === 'VALIDATION_ERROR' ? this.readFieldDetails(payload) : [];
+    // `details[]` is the contract of FIELD_DETAIL_CODES only (API §1); another error never carries field data.
+    const details = FIELD_DETAIL_CODES.has(errorCode) ? this.readFieldDetails(payload) : [];
     return {
       type: `https://api.medcenter.by/errors/${errorCode.toLowerCase().replace(/_/g, '-')}`,
       title: exception.name,

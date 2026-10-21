@@ -55,6 +55,28 @@ describe('Appointment reads (e2e)', () => {
     });
   });
 
+  it('should pass the status filter to the search as one token and keep upcoming when a patient asks for booked ones', async () => {
+    await request(harness.app.getHttpServer())
+      .get('/api/v1/appointments?upcoming=true&status=booked,noshow')
+      .set('Authorization', bearer(PATIENT))
+      .expect(200);
+
+    expect(harness.fhir.search).toHaveBeenCalledWith(
+      'Appointment',
+      expect.objectContaining({ patient: 'Patient/pat-1', status: 'booked,noshow', date: [expect.stringMatching(/^ge/)] }),
+    );
+  });
+
+  it('should answer 400 VALIDATION_ERROR naming status without searching when the status is unknown', async () => {
+    const response = await request(harness.app.getHttpServer())
+      .get('/api/v1/appointments?status=booked,done')
+      .set('Authorization', bearer(PATIENT))
+      .expect(400);
+
+    expect(response.body).toMatchObject({ errorCode: 'VALIDATION_ERROR', details: [{ field: 'status', message: expect.stringContaining('booked') }] });
+    expect(harness.fhir.search).not.toHaveBeenCalled();
+  });
+
   it('should answer 400 VALIDATION_ERROR without searching when pageSize exceeds 100', async () => {
     const response = await request(harness.app.getHttpServer())
       .get('/api/v1/appointments?pageSize=500')

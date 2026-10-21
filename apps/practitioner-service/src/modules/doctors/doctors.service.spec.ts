@@ -49,8 +49,8 @@ describe('DoctorsService', () => {
 
       // Assert
       expect(result.items.map((doc) => doc.id)).toEqual(['201']);
-      expect(fhirClient.search).toHaveBeenCalledTimes(1);
-      expect(fhirClient.search).toHaveBeenCalledWith('Practitioner', { _count: 20, _offset: 0, _total: 'accurate' });
+      expect(fhirClient.search).toHaveBeenCalledTimes(2); // the page, then the roles of its doctors (see doctors.service.roles.spec.ts)
+      expect(fhirClient.search).toHaveBeenNthCalledWith(1, 'Practitioner', { _count: 20, _offset: 0, _total: 'accurate' });
     });
 
     it('should search Practitioner by name and page when only a search term is supplied', async () => {
@@ -85,8 +85,8 @@ describe('DoctorsService', () => {
       const result = await doctorsService.list({ specialty: '419192003' });
 
       // Assert — R4 has no `Practitioner?qualification-code` (HAPI answers 400 HAPI-0524).
-      expect(fhirClient.search).toHaveBeenCalledTimes(1);
-      expect(fhirClient.search).toHaveBeenCalledWith('PractitionerRole', {
+      expect(fhirClient.search).toHaveBeenCalledTimes(2); // the role search, then the roles of its doctors
+      expect(fhirClient.search).toHaveBeenNthCalledWith(1, 'PractitionerRole', {
         specialty: '419192003',
         _include: 'PractitionerRole:practitioner',
         _count: 20,
@@ -94,7 +94,7 @@ describe('DoctorsService', () => {
         _total: 'accurate',
       });
       expect(result.items).toEqual([
-        { id: '101', name: 'Ivan Ivanov', firstName: 'Ivan', lastName: 'Ivanov', specialty: undefined },
+        { id: '101', name: 'Ivan Ivanov', firstName: 'Ivan', lastName: 'Ivanov', specialty: undefined, practitionerRoleIds: ['r1'] },
       ]);
     });
 
@@ -136,9 +136,9 @@ describe('DoctorsService', () => {
       // Act
       const result = await doctorsService.list({ serviceId: 'svc-1' });
 
-      // Assert — one request, no second Practitioner search; the order is the role order.
-      expect(fhirClient.search).toHaveBeenCalledTimes(1);
-      expect(fhirClient.search).toHaveBeenCalledWith('PractitionerRole', {
+      // Assert — one role search, no Practitioner search (then the roles of the doctors); the order is the role order.
+      expect(fhirClient.search).toHaveBeenCalledTimes(2);
+      expect(fhirClient.search).toHaveBeenNthCalledWith(1, 'PractitionerRole', {
         service: 'HealthcareService/svc-1',
         _include: 'PractitionerRole:practitioner',
         _count: 20,
@@ -277,6 +277,7 @@ describe('DoctorsService', () => {
     it('should read the Practitioner and map it when the id is known', async () => {
       // Arrange
       fhirClient.read.mockResolvedValue(practitioner('101', 'Ivanov'));
+      fhirClient.search.mockResolvedValue({ entry: [] });
 
       // Act
       const result = await doctorsService.findById('101');

@@ -113,13 +113,13 @@ export class PaginatedResponseDto<TItem> {
 | `COMPARTMENT_VIOLATION` | 403 | обращение к чужим данным (ADR-013) |
 | `NOT_FOUND` | 404 | ресурс не найден |
 | `METHOD_NOT_ALLOWED` | 405 | — |
-| `CONFLICT` | 409 | конфликт версии или дубликат при записи в FHIR-хранилище (HAPI 409/412) |
+| `CONFLICT` | 409 | конфликт версии или дубликат при записи в FHIR-хранилище (HAPI 409/412); дубликат e-mail (`EMAIL_TAKEN` в `detail`, 2.2.1/2.2.6) и дубликат `identifier` кабинета (4.4/4.5) — причина в `detail` |
 | `SLOT_CONFLICT` | 409 | BR-001: слот уже занят (гонка, ADR-012) |
 | `APPOINTMENT_NOT_CANCELLABLE` | 409 | BR-002: статус не позволяет отмену |
-| `ENCOUNTER_STATE_INVALID` | 409 | BR-003/BR-008: приём уже оформлен / запись cancelled/noshow |
+| `ENCOUNTER_STATE_INVALID` | 409 | BR-003/BR-008: приём уже оформлен / запись не `booked` (cancelled/noshow/fulfilled); неявка (6.6) для записи, у которой уже есть приём |
 | `SCHEDULE_OVERLAP` | 409 | пересечение `Schedule.planningHorizon` одного `PractitionerRole` |
-| `INVALID_ICD10_CODE` | 422 | код не входит в ValueSet `https://fhir.by/ValueSet/InternClassificDiseases10` |
-| `TERMINOLOGY_NOT_FOUND` | 422 | код отсутствует в локальном seed НСИ (ADR-002/016) |
+| `INVALID_ICD10_CODE` | 422 | код не входит в ValueSet `https://fhir.by/ValueSet/InternClassificDiseases10`; `details[]` называет поля запроса (`diagnoses.1.code`), `detail` сохраняет список кодов |
+| `TERMINOLOGY_NOT_FOUND` | 422 | код отсутствует в локальном seed НСИ (ADR-002/016); `details[]` называет поля запроса (`medicationRequests.0.atcCode`, `observations.0.unit`), `detail` сохраняет список кодов |
 | `RATE_LIMITED` | 429 | превышение лимита |
 | `INTERNAL` | 500 | необработанная ошибка (детали только в логе `pino` + `request-id`) |
 
@@ -271,8 +271,8 @@ export class RegisterPatientDto {
 ```
 
 **Response 201** `UserResponseDto`: `{ id: UUID; email; firstName; lastName; roles: string[];
-patientRef: string | null; isActive: boolean }` · **409** email занят (`VALIDATION_ERROR` →
-код `EMAIL_TAKEN` в `detail`).
+patientRef: string | null; isActive: boolean }` · **409** email занят: `errorCode=CONFLICT`, код
+`EMAIL_TAKEN` в начале `detail` (`EMAIL_TAKEN: a user with this email already exists`); сравнение без учёта регистра.
 
 **2.2.4 `PATCH /api/v1/admin/users/{id}`** — `UpdateUserDto = PartialType(OmitType(RegisterPatientDto, ['password'] as const))`
 + `@IsOptional() @IsArray() roles?: string[]` + `@IsOptional() @IsBoolean() isActive?: boolean`.
@@ -311,6 +311,36 @@ patientRef: string | null; isActive: boolean }` · **409** email занят (`VA
 | 4.5 | `PATCH /api/v1/admin/rooms/{id}` | обновить кабинет | `ADMIN` |
 | 4.6 | `DELETE /api/v1/admin/rooms/{id}` | удалить (если нет активных `Schedule`) → иначе 409 `ROOM_IN_USE` | `ADMIN` |
 | 4.7 | `GET /api/v1/admin/rooms/{id}/usage` | занятость кабинета (`Schedule`/`Slot` references) | `ADMIN` |
+
+**4.1/4.2 `DoctorResponseDto`** (`apps/practitioner-service/src/modules/doctors/dto/doctor-response.dto.ts`):
+
+```typescript
+export interface DoctorResponseDto {
+  id: string;                      // Practitioner id
+  name: string;                    // «Имя Фамилия»
+  firstName: string;
+  lastName: string;
+  specialty?: string;              // отображаемый текст специальности («Терапевт»)
+  specialtyCode?: string;          // код специальности — значение для ?specialty= (4.1): `419192003`
+  specialtySystem?: string;        // система кода: `http://snomed.info/sct`; ?specialty=system|code
+  roomId?: string;
+  practitionerRoleIds: string[];   // id активных PractitionerRole врача по возрастанию; [] если ролей нет
+}
+```
+
+`specialtyCode`/`specialtySystem` — первый `coding` с `code` из `Practitioner.qualification[0].code` (тот же концепт,
+что хранит `PractitionerRole.specialty`, по которому фильтрует `?specialty=`); без кодированной квалификации (только
+текст) они отсутствуют. `practitionerRoleIds` — **все** активные роли врача (`active != false`), а не только подошедшие
+под фильтр `serviceId`/`specialty`; на них ссылается `practitionerRoleId` DOCTOR-аккаунта (2.2.1). Это один
+дополнительный поиск `PractitionerRole?practitioner=Practitioner/{id},…` на страницу (не больше 200 ролей); поля
+добавлены без изменения прежних, `specialty` остаётся текстом.
+
+**4.4/4.5 — уникальность `identifier`:** `identifier` кабинета уникален среди кабинетов
+(`Location.physicalType=ro`); он сравнивается без учёта регистра и крайних пробелов. Создание (4.4) с занятым
+`identifier` или переименование (4.5) в занятый → **409** `CONFLICT`, в `detail`:
+`CONFLICT: room identifier "204-Х" is already used by room {id}`. PATCH с `identifier`, равным собственному, допустим.
+HAPI не имеет unique-ограничения, проверка выполняется сервисом перед записью; гонка двух одновременных `POST` с
+одинаковым идентификатором не отслеживается (админские записи, низкая частота).
 
 ```typescript
 // apps/practitioner-service/src/modules/rooms/dto/create-room.dto.ts
@@ -528,11 +558,18 @@ export class CreateScheduleDto {
 | # | Метод и путь | Назначение | Доступ |
 | --- | --- | --- | --- |
 | 6.1 | `POST /api/v1/appointments` | записаться: слот → busy, `Appointment(status=booked)` | `patient/*.write` |
-| 6.2 | `GET /api/v1/appointments?upcoming=true&page=` | свои записи (компартмент) | `patient/*.read` |
+| 6.2 | `GET /api/v1/appointments?upcoming=true&status=booked,noshow&page=` | свои записи (компартмент); `status` — фильтр по статусу (см. ниже) | `patient/*.read` |
 | 6.3 | `GET /api/v1/appointments/{id}` | детали записи | владелец / DOCTOR / ADMIN |
 | 6.4 | `POST /api/v1/appointments/{id}/cancel` | отмена: `status=cancelled` + `statusReason` | владелец-пациент / ADMIN |
 | 6.5 | `GET /api/v1/doctor/appointments?from=&to=&page=` | записи врача как участника | `user/*.read` (DOCTOR) |
-| 6.6 | `POST /api/v1/doctor/appointments/{id}/noshow` | пометить неявку (`status=noshow`) | `user/*.write` (DOCTOR) |
+| 6.6 | `POST /api/v1/doctor/appointments/{id}/noshow` | пометить неявку (`status=noshow`); только `booked` без приёма, иначе 409 `ENCOUNTER_STATE_INVALID` | `user/*.write` (DOCTOR) |
+
+**6.2 фильтр `status`:** необязательный параметр `status` — один статус или список через запятую
+(`booked|cancelled|noshow|fulfilled`; допустим и повтор параметра `?status=a&status=b`), ИЛИ между значениями;
+дубликаты и пробелы вокруг значений отбрасываются, пустое значение = «без фильтра». Неизвестное значение → **400**
+`VALIDATION_ERROR` (`details[{field:'status'}]`). Соединяется по И с `upcoming` и компартментом; семантика
+`upcoming=true` (`start >= now`) не меняется — без `status` он по-прежнему отдаёт и отменённые записи, поэтому для
+«предстоящих активных» нужно `upcoming=true&status=booked`. Поиск идёт токеном `Appointment?status=booked,noshow`.
 
 **6.1 `CreateAppointmentDto`** — плюс заголовок `Idempotency-Key` (§0):
 
@@ -586,6 +623,13 @@ export class AppointmentResponseDto {
 **6.4 `CancelAppointmentDto`:** `{ reason: string (3…500) }` → `statusReason` (BR-002):
 отменять может пациент-владелец или ADMIN; врач не отменяет (использует 6.6). Повторная отмена →
 409 `APPOINTMENT_NOT_CANCELLABLE`. Publish `appointment.cancelled.v1`, слот → `free`.
+**6.6 неявка (BR-008):** `Appointment.status=noshow` ставится только для записи со `status=booked`, у которой **нет**
+`Encounter` (`Encounter?appointment=Appointment/{id}`: ни `in-progress`, ни `finished`). Запись не `booked`
+(cancelled/noshow/fulfilled) или с приёмом → **409** `ENCOUNTER_STATE_INVALID` (раньше для не-`booked` отвечал `CONFLICT`,
+а для записи с завершённым приёмом — 200). Проверка владельца (403 `COMPARTMENT_VIOLATION`) идёт раньше проверки
+состояния. Запись приёма, открытого в тот же момент между проверкой и коммитом, 6.6 не видит; такой приём завершить уже
+нельзя (7.3 требует `booked`).
+
 **Status:** 201 (6.1) · 200 (6.2–6.6) · 400/401/403/404/409 — §1.
 
 #### 7. `encounter-service` — Приём и клинические данные (FR-010…FR-014, BR-003…BR-005/008/009)
@@ -704,11 +748,29 @@ export class CompleteEncounterDto {
 ```
 
 **Транзакция 7.3** (атомарно; все ресурсы создаются через `fhir-kit-client`, повторная
-отправка → 409 `ENCOUNTER_STATE_INVALID`): `Encounter.status=finished` → `ClinicalImpression`
+отправка → 409 `ENCOUNTER_STATE_INVALID`): `Encounter.status=finished` → **`Appointment.status=fulfilled`**
+(BR-008) → `ClinicalImpression`
 (summary, findings=Condition[]) → `Condition[]` (BR-004) → `CarePlan` (recommendations) →
 `Observation[]` (UCUM) → `ServiceRequest[]`/`MedicationRequest[]` (BR-005: ссылки на `Encounter`
-и `Condition`) → publish `encounter.completed.v1` → `AuditEvent(create)`. **Status:** 200 с
+и `Condition`) → publish `encounter.completed.v1` → `AuditEvent` (три записи журнала: `update` Encounter,
+`update` Appointment, `create` клинических ресурсов). **Status:** 200 с
 `EncounterResponseDto { id; status: 'finished'; period: { start; end }; diagnosisCodes: string[] }`.
+
+**`Appointment` → `fulfilled`:** запись приёма переводится в `fulfilled` в **той же** FHIR `transaction` Bundle, что и
+клинические ресурсы (ADR-011: истина в HAPI): `PUT Encounter` и `PUT Appointment` несут `If-Match` на версии,
+прочитанные до записи (оптимистичная блокировка, как у слота при записи, ADR-012). Если запись за это время изменена
+(отмена, неявка) или приём уже завершён конкурентным запросом — вся Bundle откатывается, ответ **409**
+`ENCOUNTER_STATE_INVALID`, ничего не сохранено, событие не публикуется. Внешнего контракта ответа это не меняет:
+`GET /appointments/{id}` и списки 6.2/6.3/6.5 после завершения приёма отдают `status='fulfilled'`.
+
+**422 `INVALID_ICD10_CODE` / `TERMINOLOGY_NOT_FOUND`** (проверка идёт до любой записи): помимо `detail` (список кодов,
+как раньше) ответ несёт `details[{ field, message }]` — по записи на каждое поле запроса с неверным кодом; `field` —
+путь в DTO в той же записи, что и у `details[].field` для 400 (`diagnoses.1.code`, `medicationRequests.0.atcCode`,
+`observations.0.code`, `observations.0.unit`, `serviceRequests.0.code`), `message` — например
+`Z99 is not in ValueSet https://fhir.by/ValueSet/InternClassificDiseases10`. Один и тот же код в нескольких строках
+отмечается в каждой; коды вне seed и неизвестные коды сообщаются одним ответом. Тексты грамматических проверок
+`@MatchesICD10` / `@MatchesATC` (400 `VALIDATION_ERROR`) имеют вид `<property> must be an ICD-10 code such as J06.9` /
+`<property> must be an ATC code such as J01FA10`.
 
 #### 8. `notification-service` — Уведомления (FR-008, KDR-7)
 

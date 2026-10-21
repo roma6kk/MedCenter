@@ -79,6 +79,34 @@ describe('ProblemDetailsFilter', () => {
     );
   });
 
+  it.each(['INVALID_ICD10_CODE', 'TERMINOLOGY_NOT_FOUND'])(
+    'should carry the details[] of a 422 %s into the problem body next to its detail',
+    (errorCode) => {
+      const filter = new ProblemDetailsFilter();
+      const response = createResponse();
+      const host = createHost(response, { originalUrl: '/api/v1/encounters/e1/complete', requestId: 'req-6' });
+      const exception = new HttpException(
+        {
+          errorCode,
+          message: `${errorCode}: Z99`,
+          details: [{ field: 'diagnoses.1.code', message: 'Z99 is not in ValueSet' }, { field: 7 }, 'junk'],
+        },
+        422,
+      );
+
+      filter.catch(exception, host);
+
+      expect(response.send).toHaveBeenCalledWith(
+        expect.objectContaining({
+          status: 422,
+          errorCode,
+          detail: `${errorCode}: Z99`,
+          details: [{ field: 'diagnoses.1.code', message: 'Z99 is not in ValueSet' }],
+        }),
+      );
+    },
+  );
+
   it.each([
     ['an explicit non-validation errorCode', { errorCode: 'SLOT_CONFLICT', message: 'slot is not free' }, 409],
     ['no errorCode, derived from a 500 status', { message: 'boom' }, 500],

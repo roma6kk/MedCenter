@@ -1,5 +1,5 @@
-import { bodyObject, expectEqual, expectProblem, expectShape, expectStatus, expectTrue, asArray } from './smoke-assert';
-import { ENCOUNTER_DETAILS_SHAPE, ENCOUNTER_SHAPE } from './smoke-shapes';
+import { bodyObject, expectDetailField, expectEqual, expectProblem, expectShape, expectStatus, expectTrue, asArray } from './smoke-assert';
+import { APPOINTMENT_SHAPE, ENCOUNTER_DETAILS_SHAPE, ENCOUNTER_SHAPE } from './smoke-shapes';
 import type { SmokeStep } from './smoke-runner';
 import type { JsonObject } from './smoke-types';
 import type { Suite } from './suite';
@@ -60,9 +60,18 @@ function reopenAndReadSteps(suite: Suite): SmokeStep[] {
   ];
 }
 
+/** BR-008: an appointment that already has an encounter (here: in progress) cannot become a no-show. */
+function noShowWhileOpenStep(suite: Suite): SmokeStep {
+  const { api, sessions, chain } = suite;
+  return {
+    name: 'POST /doctor/appointments/{id}/noshow while the encounter is in progress -> 409 ENCOUNTER_STATE_INVALID',
+    run: async () => expectProblem(await api.post(`/api/v1/doctor/appointments/${chain.appointmentId}/noshow`, { session: sessions.doctor }), 409, 'ENCOUNTER_STATE_INVALID'),
+  };
+}
+
 /** Steps 8-10: the doctor opens the encounter for the booked appointment. */
 export function openingSteps(suite: Suite): SmokeStep[] {
-  return [openStep(suite), ...reopenAndReadSteps(suite)];
+  return [openStep(suite), ...reopenAndReadSteps(suite), noShowWhileOpenStep(suite)];
 }
 
 /** Step 11: terminology validation of the completion body (API §1: 422 INVALID_ICD10_CODE / TERMINOLOGY_NOT_FOUND). */
@@ -80,6 +89,7 @@ export function invalidCodeSteps(suite: Suite): SmokeStep[] {
     refused('an observation code that is not in НСИ (99999)', { observations: [{ codeSystem: OBSERVATIONS, code: '99999', value: 36.6, unit: 'Cel' }] }, 422, 'TERMINOLOGY_NOT_FOUND'),
     refused('a unit outside UCUM (xyz)', { observations: [{ codeSystem: OBSERVATIONS, code: '20006', value: 36.6, unit: 'xyz' }] }, 422, 'TERMINOLOGY_NOT_FOUND'),
     refused('an ATC code that is not in the seed (Z99ZZ99)', { medicationRequests: [{ atcCode: 'Z99ZZ99', dosageText: 'по схеме' }] }, 422, 'TERMINOLOGY_NOT_FOUND'),
+    detailsStep(suite),
     {
       name: 'the encounter is still open after the refused completions',
       run: async () => {
@@ -88,6 +98,28 @@ export function invalidCodeSteps(suite: Suite): SmokeStep[] {
       },
     },
   ];
+}
+
+/** API §1: a 422 names the offending request fields in `details[]` next to the unchanged `detail`. */
+function detailsStep(suite: Suite): SmokeStep {
+  const { api, sessions, chain } = suite;
+  const complete = (overrides: JsonObject): ReturnType<typeof api.post> =>
+    api.post(`/api/v1/encounters/${chain.encounterId}/complete`, { session: sessions.doctor, body: completionBody(overrides) });
+  return {
+    name: '422 names the offending fields in details[] (diagnoses.1.code, medicationRequests.1.atcCode, observations.0.unit) and keeps detail',
+    run: async () => {
+      const icd = await complete({ diagnoses: [{ code: 'J06.9', display: 'ОРВИ' }, { code: 'Z99.99', display: 'нет такого кода' }] });
+      expectProblem(icd, 422, 'INVALID_ICD10_CODE');
+      expectTrue(String(bodyObject(icd)['detail']).includes('Z99.99'), 'detail no longer lists the code');
+      expectTrue(String(expectDetailField(icd, 'diagnoses.1.code')['message']).includes('Z99.99'), 'details[] message does not name the code');
+      const atc = await complete({ medicationRequests: [{ atcCode: 'J01FA10', dosageText: 'по схеме' }, { atcCode: 'Z99ZZ99', dosageText: 'по схеме' }] });
+      expectProblem(atc, 422, 'TERMINOLOGY_NOT_FOUND');
+      expectDetailField(atc, 'medicationRequests.1.atcCode');
+      const unit = await complete({ observations: [{ codeSystem: OBSERVATIONS, code: '20006', value: 36.6, unit: 'xyz' }] });
+      expectProblem(unit, 422, 'TERMINOLOGY_NOT_FOUND');
+      expectDetailField(unit, 'observations.0.unit');
+    },
+  };
 }
 
 function completeStep(suite: Suite): SmokeStep {
@@ -122,11 +154,43 @@ function clinicalContentStep(suite: Suite): SmokeStep {
   };
 }
 
-/** Steps 12-14: the valid completion, its replay and the clinical content it left. */
+/** BR-008: completing the encounter set the appointment to `fulfilled`, in every view of it. */
+function fulfilledStep(suite: Suite): SmokeStep {
+  const { api, sessions, chain } = suite;
+  return {
+    name: 'GET /appointments/{id} (patient, doctor, admin) -> status fulfilled after the encounter was completed',
+    run: async () => {
+      for (const session of [sessions.patient, sessions.doctor, sessions.admin]) {
+        const response = await api.get(`/api/v1/appointments/${chain.appointmentId}`, { session });
+        expectStatus(response, 200);
+        expectEqual(bodyObject(response)['status'], 'fulfilled', `status seen by ${session.role}`);
+      }
+    },
+  };
+}
+
+/** BR-008: a visit that took place can be neither marked as a no-show nor cancelled. */
+function afterVisitStep(suite: Suite): SmokeStep {
+  const { api, sessions, chain } = suite;
+  return {
+    name: 'noshow after the finished encounter -> 409 ENCOUNTER_STATE_INVALID; cancel -> 409 APPOINTMENT_NOT_CANCELLABLE; still fulfilled',
+    run: async () => {
+      expectProblem(await api.post(`/api/v1/doctor/appointments/${chain.appointmentId}/noshow`, { session: sessions.doctor }), 409, 'ENCOUNTER_STATE_INVALID');
+      const cancel = await api.post(`/api/v1/appointments/${chain.appointmentId}/cancel`, { session: sessions.patient, body: { reason: 'Приём уже состоялся (smoke)' } });
+      expectProblem(cancel, 409, 'APPOINTMENT_NOT_CANCELLABLE');
+      const response = await api.get(`/api/v1/appointments/${chain.appointmentId}`, { session: sessions.patient });
+      expectEqual(expectShape(response.body, APPOINTMENT_SHAPE, 'appointment')['status'], 'fulfilled', 'status after the refused noshow and cancel');
+    },
+  };
+}
+
+/** Steps 12-16: the valid completion, the fulfilled appointment, its replay and the clinical content it left. */
 export function completionSteps(suite: Suite): SmokeStep[] {
   const { api, sessions, chain } = suite;
   return [
     completeStep(suite),
+    fulfilledStep(suite),
+    afterVisitStep(suite),
     {
       name: 'completing it again -> 409 ENCOUNTER_STATE_INVALID',
       run: async () => {

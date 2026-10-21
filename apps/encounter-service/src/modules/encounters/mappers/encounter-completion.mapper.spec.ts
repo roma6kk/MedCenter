@@ -2,9 +2,9 @@ import type { FhirResource } from '@medcenter/fhir';
 import { FHIR_BY } from '@medcenter/terminology';
 
 import { displayKey } from '../../terminology/terminology-validator.service';
-import { ENCOUNTER_ID, inProgressEncounter, validCompleteDto } from '../__tests__/encounter.fixtures';
+import { APPOINTMENT_ID, ENCOUNTER_ID, bookedAppointment, inProgressEncounter, validCompleteDto } from '../__tests__/encounter.fixtures';
 import type { CompleteEncounterDto } from '../dto/complete-encounter.dto';
-import { buildCompletionPlan, type CompletionContext } from './encounter-completion.mapper';
+import { buildCompletionPlan, icd10RefsOf, terminologyRefsOf, type CompletionContext } from './encounter-completion.mapper';
 
 const NOW = '2026-11-02T06:25:00.000Z';
 
@@ -13,6 +13,8 @@ function contextWith(overrides: Partial<CompletionContext> = {}): CompletionCont
   return {
     encounter: inProgressEncounter,
     encounterId: ENCOUNTER_ID,
+    appointment: bookedAppointment,
+    appointmentId: APPOINTMENT_ID,
     patientRef: 'Patient/pat-1',
     practitionerRoleRef: 'PractitionerRole/role-1',
     actorSub: 'doctor-user',
@@ -72,20 +74,31 @@ describe('buildCompletionPlan', () => {
     });
   });
 
-  it('should audit the encounter update and the creation of the clinical record separately when the plan is built', () => {
+  it('should audit the encounter update, the appointment update and the creation of the clinical record separately when the plan is built', () => {
     const plan = buildCompletionPlan(contextWith(), validCompleteDto());
     const audits = plan.writes.filter((write) => write.resource.resourceType === 'AuditEvent').map((write) => write.resource);
     const created = plan.writes.filter((write) => write.method === 'POST' && write.fullUrl !== undefined).map((write) => write.fullUrl);
     const entitiesOf = (audit: FhirResource | undefined): string[] =>
       ((audit?.['entity'] as Array<{ what: { reference: string } }> | undefined) ?? []).map((entity) => entity.what.reference);
 
-    const [update, create] = audits;
+    const [encounterUpdate, appointmentUpdate, create] = audits;
 
-    expect(audits).toHaveLength(2);
-    expect(update).toMatchObject({ action: 'U', subtype: [{ code: 'update' }] });
-    expect(entitiesOf(update)).toEqual([`Encounter/${ENCOUNTER_ID}`, 'Patient/pat-1']);
+    expect(audits).toHaveLength(3);
+    expect(encounterUpdate).toMatchObject({ action: 'U', subtype: [{ code: 'update' }] });
+    expect(entitiesOf(encounterUpdate)).toEqual([`Encounter/${ENCOUNTER_ID}`, 'Patient/pat-1']);
+    expect(appointmentUpdate).toMatchObject({ action: 'U', subtype: [{ code: 'update' }] });
+    expect(entitiesOf(appointmentUpdate)).toEqual([`Appointment/${APPOINTMENT_ID}`, 'Patient/pat-1']);
     expect(create).toMatchObject({ action: 'C', subtype: [{ code: 'create' }] });
     expect(entitiesOf(create)).toEqual([...created, 'Patient/pat-1']);
+  });
+
+  it('should fulfil the appointment under If-Match on the version that was read when the plan is built', () => {
+    const plan = buildCompletionPlan(contextWith(), validCompleteDto());
+
+    const write = plan.writes.find((candidate) => candidate.resource.resourceType === 'Appointment');
+
+    expect(write).toMatchObject({ method: 'PUT', url: `Appointment/${APPOINTMENT_ID}`, ifMatch: 'W/"2"' });
+    expect(write?.resource).toEqual({ ...bookedAppointment, status: 'fulfilled' });
   });
 
   it('should reference the observations from the clinical impression investigation', () => {
@@ -103,7 +116,7 @@ describe('buildCompletionPlan', () => {
     const plan = buildCompletionPlan(contextWith({ requestId: 'req-42' }), validCompleteDto());
 
     const audits = plan.writes.filter((write) => write.resource.resourceType === 'AuditEvent').map((write) => write.resource);
-    expect(audits).toHaveLength(2);
+    expect(audits).toHaveLength(3);
     for (const audit of audits) {
       expect(audit['entity']).toContainEqual({
         what: { identifier: { value: 'req-42' } },
@@ -117,5 +130,32 @@ describe('buildCompletionPlan', () => {
 
     const audit = plan.writes.find((write) => write.resource.resourceType === 'AuditEvent')?.resource;
     expect(JSON.stringify(audit?.['entity'])).not.toContain('XrequestId');
+  });
+
+  it('should locate every ICD-10 code by its diagnoses path when the refs are listed', () => {
+    const dto = { ...validCompleteDto(), diagnoses: [{ code: 'J06.9', display: 'ОРВИ' }, { code: 'Z99', display: 'Иное' }] };
+
+    expect(icd10RefsOf(dto)).toEqual([
+      { code: 'J06.9', field: 'diagnoses.0.code' },
+      { code: 'Z99', field: 'diagnoses.1.code' },
+    ]);
+  });
+
+  it('should locate the ATC code, observation code, unit and service code by their request paths when the refs are listed', () => {
+    const dto = {
+      ...validCompleteDto(),
+      medicationRequests: [
+        { atcCode: 'J01FA10', dosageText: '1 таб' },
+        { atcCode: 'R05CB01', dosageText: '2 таб' },
+      ],
+    };
+
+    expect(terminologyRefsOf(dto)).toEqual([
+      { system: FHIR_BY.ATC_CODE_SYSTEM, code: 'J01FA10', field: 'medicationRequests.0.atcCode' },
+      { system: FHIR_BY.ATC_CODE_SYSTEM, code: 'R05CB01', field: 'medicationRequests.1.atcCode' },
+      { system: 'https://fhir.by/CodeSystem/nsi-observations', code: '20006', field: 'observations.0.code' },
+      { system: FHIR_BY.UCUM_SYSTEM, code: 'Cel', field: 'observations.0.unit' },
+      { system: 'https://fhir.by/CodeSystem/nsi-services', code: '10008', field: 'serviceRequests.0.code' },
+    ]);
   });
 });

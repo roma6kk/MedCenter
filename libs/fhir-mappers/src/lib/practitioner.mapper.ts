@@ -4,7 +4,11 @@ export interface DoctorResponseDto {
   readonly id: string;
   readonly firstName: string;
   readonly lastName: string;
+  /** Display text of the specialty (`qualification[0].code`). */
   readonly specialty?: string;
+  /** Code of the specialty coding: the token the `specialty` filter of `GET /doctors` takes (`code`, or `system|code` with {@link specialtySystem}). */
+  readonly specialtyCode?: string;
+  readonly specialtySystem?: string;
   readonly roomId?: string;
 }
 
@@ -25,15 +29,29 @@ function readHumanName(resource: FhirResource): { firstName: string; lastName: s
 export function toDoctorResponseDto(practitioner: FhirResource): DoctorResponseDto {
   const { firstName, lastName } = readHumanName(practitioner);
   const specialty = practitioner['qualification'];
+  const qualification = Array.isArray(specialty) && specialty.length > 0 ? specialty[0] : undefined;
+  const coding = readQualificationCoding(qualification);
   return {
     id: practitioner.id ?? '',
     firstName,
     lastName,
-    specialty:
-      Array.isArray(specialty) && specialty.length > 0
-        ? readQualificationCode(specialty[0])
-        : undefined,
+    specialty: qualification === undefined ? undefined : readQualificationCode(qualification),
+    specialtyCode: coding?.code,
+    specialtySystem: coding?.system,
   };
+}
+
+/** The first coding of the qualification that carries a `code`; the same concept `PractitionerRole.specialty` is searched by. */
+function readQualificationCoding(qualification: unknown): { code: string; system?: string } | undefined {
+  const { code } = (qualification ?? {}) as { code?: { coding?: unknown } };
+  const codings: readonly unknown[] = Array.isArray(code?.coding) ? code.coding : [];
+  for (const coding of codings) {
+    const { code: value, system } = (coding ?? {}) as { code?: unknown; system?: unknown };
+    if (typeof value === 'string' && value !== '') {
+      return { code: value, ...(typeof system === 'string' && system !== '' ? { system } : {}) };
+    }
+  }
+  return undefined;
 }
 
 function readQualificationCode(qualification: unknown): string | undefined {

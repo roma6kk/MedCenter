@@ -1,6 +1,6 @@
 import { Inject, Injectable } from '@nestjs/common';
 import type { PaginatedResponseDto } from '@medcenter/contracts';
-import { FHIR_CLIENT, type FhirClient } from '@medcenter/fhir';
+import { FHIR_CLIENT, type FhirClient, type FhirResource } from '@medcenter/fhir';
 
 import { toPage } from '../../common/page-envelope';
 import { toDoctorDto } from './doctor.mapper';
@@ -9,7 +9,9 @@ import {
   pageWindow,
   practitionerQuery,
   practitionerRoleQuery,
+  practitionerRolesQuery,
   practitionersOfRoles,
+  roleIdsByPractitioner,
   type DoctorFilters,
 } from './doctor-search';
 import type { DoctorResponseDto } from './dto/doctor-response.dto';
@@ -27,22 +29,36 @@ export class DoctorsService {
    * `Practitioner` search parameter for either), so they are asked of the role
    * with the practitioner `_include`d; paging then runs over the roles and the
    * total is the number of matching roles. Without them the list is a plain
-   * `Practitioner` search.
+   * `Practitioner` search. Either way every listed doctor carries all of its
+   * active roles (one more `PractitionerRole` search for the page), not only
+   * the ones the filter matched.
    */
   async list(filters: DoctorFilters, page = 1, pageSize = 20): Promise<DoctorPage> {
     const window = pageWindow(page, pageSize);
     if (needsRoleSearch(filters)) {
       const roles = await this.fhirClient.search('PractitionerRole', practitionerRoleQuery(filters, window));
-      const doctors = practitionersOfRoles(roles.entry ?? []).map(toDoctorDto);
-      return toPage(doctors, page, pageSize, roles.total);
+      const practitioners = practitionersOfRoles(roles.entry ?? []);
+      return toPage(await this.withRoles(practitioners), page, pageSize, roles.total);
     }
     const result = await this.fhirClient.search('Practitioner', practitionerQuery(filters, window));
-    const doctors = (result.entry ?? []).map((entry) => toDoctorDto(entry.resource));
-    return toPage(doctors, page, pageSize, result.total);
+    const practitioners = (result.entry ?? []).map((entry) => entry.resource);
+    return toPage(await this.withRoles(practitioners), page, pageSize, result.total);
   }
 
   async findById(id: string): Promise<DoctorResponseDto> {
     const practitioner = await this.fhirClient.read('Practitioner', id);
-    return toDoctorDto(practitioner);
+    const [doctor] = await this.withRoles([practitioner]);
+    return doctor ?? toDoctorDto(practitioner);
+  }
+
+  /** The doctors as DTOs with their `practitionerRoleIds`; no `PractitionerRole` search when there is no doctor. */
+  private async withRoles(practitioners: readonly FhirResource[]): Promise<DoctorResponseDto[]> {
+    const ids = practitioners.flatMap((practitioner) => (practitioner.id === undefined ? [] : [practitioner.id]));
+    if (ids.length === 0) {
+      return practitioners.map((practitioner) => toDoctorDto(practitioner));
+    }
+    const roles = await this.fhirClient.search('PractitionerRole', practitionerRolesQuery(ids));
+    const roleIds = roleIdsByPractitioner(roles.entry ?? []);
+    return practitioners.map((practitioner) => toDoctorDto(practitioner, roleIds.get(practitioner.id ?? '') ?? []));
   }
 }

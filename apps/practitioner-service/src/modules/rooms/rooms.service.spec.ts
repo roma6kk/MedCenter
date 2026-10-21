@@ -140,6 +140,7 @@ describe('RoomsService', () => {
 
   describe('floor round-trip', () => {
     it('persists floor as a valueInteger extension on create', async () => {
+      fhirClient.search.mockResolvedValue({ entry: [] });
       fhirClient.create.mockResolvedValue({ resourceType: 'Location', id: roomId });
 
       await roomsService.create({ identifier: '204', name: 'Cabinet 204', floor: 2 });

@@ -168,6 +168,52 @@ describe('Doctors read side (e2e)', () => {
     });
   });
 
+  describe('GET /api/v1/doctors with the specialty token and the role ids', () => {
+    it('should list the specialty token and the role ids of each doctor when the plain catalog is read', async () => {
+      // Arrange
+      fhir.search
+        .mockResolvedValueOnce({
+          total: 2,
+          entry: [
+            { resource: practitioner('doc-1', 'Иванова', 'Мария', 'Терапия') },
+            { resource: practitioner('doc-2', 'Козлов', 'Пётр') },
+          ],
+        })
+        .mockResolvedValueOnce({ entry: [{ resource: role('role-b', 'doc-1') }, { resource: role('role-a', 'doc-1') }] });
+
+      // Act
+      const response = await request(app.getHttpServer()).get(`${DOCTORS}?page=1&pageSize=2`).expect(200);
+
+      // Assert
+      expect(fhir.search).toHaveBeenNthCalledWith(2, 'PractitionerRole', { practitioner: 'Practitioner/doc-1,Practitioner/doc-2', _count: 200 });
+      expect(response.body.items).toEqual([
+        {
+          id: 'doc-1',
+          name: 'Мария Иванова',
+          firstName: 'Мария',
+          lastName: 'Иванова',
+          specialty: 'Терапия',
+          specialtyCode: '419192003',
+          specialtySystem: SNOMED,
+          practitionerRoleIds: ['role-a', 'role-b'],
+        },
+        { id: 'doc-2', name: 'Пётр Козлов', firstName: 'Пётр', lastName: 'Козлов', practitionerRoleIds: [] },
+      ]);
+    });
+
+    it('should add the role ids to the doctor card when the doctor is read by id', async () => {
+      // Arrange
+      fhir.read.mockResolvedValue(practitioner('doc-1', 'Иванова', 'Мария', 'Терапия'));
+      fhir.search.mockResolvedValue({ entry: [{ resource: role('role-1', 'doc-1') }] });
+
+      // Act
+      const response = await request(app.getHttpServer()).get(`${DOCTORS}/doc-1`).expect(200);
+
+      // Assert
+      expect(response.body).toMatchObject({ id: 'doc-1', specialtyCode: '419192003', specialtySystem: SNOMED, practitionerRoleIds: ['role-1'] });
+    });
+  });
+
   describe('GET /api/v1/doctors when HAPI fails', () => {
     it('should answer 502 INTERNAL without the HAPI address when the FHIR server is down', async () => {
       // Arrange

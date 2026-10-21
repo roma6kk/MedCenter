@@ -39,6 +39,22 @@ async function doctorChecks(suite: Suite): Promise<void> {
     expectEqual(expectShape(response.body, DOCTOR_SHAPE, 'doctor')['id'], accounts.doctorId, 'id');
     expectProblem(await api.get('/api/v1/doctors/00000000-0000-4000-8000-000000000000'), 404, 'NOT_FOUND');
   });
+  await runner.check(GROUP, 'GET /doctors -> specialtyCode/specialtySystem and the practitionerRoleIds of the doctor, and ?specialty= takes that same token', async () => {
+    const doctor = expectDefined(expectPage(await api.get('/api/v1/doctors', { query: { pageSize: 100 } }), DOCTOR_SHAPE).find((item) => item['id'] === accounts.doctorId), 'the suite doctor in the catalog');
+    const roleIds = asArray(doctor['practitionerRoleIds'], 'practitionerRoleIds');
+    expectTrue(roleIds.includes(accounts.doctorRoleId), `practitionerRoleIds ${JSON.stringify(roleIds)} lacks the doctor's role`);
+    expectTrue(typeof doctor['specialtyCode'] === 'string' && typeof doctor['specialtySystem'] === 'string', 'the doctor card has no specialtyCode/specialtySystem');
+    for (const token of [String(doctor['specialtyCode']), `${String(doctor['specialtySystem'])}|${String(doctor['specialtyCode'])}`]) {
+      const matches = expectPage(await api.get('/api/v1/doctors', { query: { specialty: token, pageSize: 100 } }), DOCTOR_SHAPE);
+      expectTrue(matches.some((item) => item['id'] === accounts.doctorId), `?specialty=${token} does not list the doctor`);
+      expectTrue(matches.every((item) => item['specialtyCode'] === doctor['specialtyCode']), `?specialty=${token} listed a doctor of another specialty`);
+    }
+  });
+  await runner.check(GROUP, 'GET /doctors/{id} -> the same practitionerRoleIds and specialty token as the catalog', async () => {
+    const card = expectShape((await api.get(`/api/v1/doctors/${accounts.doctorId}`)).body, DOCTOR_SHAPE, 'doctor');
+    expectTrue(asArray(card['practitionerRoleIds'], 'practitionerRoleIds').includes(accounts.doctorRoleId), 'the card lacks the doctor role id');
+    expectTrue(typeof card['specialtyCode'] === 'string', 'the card has no specialtyCode');
+  });
   await runner.check(GROUP, 'GET /doctors/{id}/slots (public) -> free slots, sorted by start', async () => {
     const response = await api.get(`/api/v1/doctors/${accounts.doctorId}/slots`, { query: { from: isoDay(0), to: isoDay(14) } });
     expectStatus(response, 200);

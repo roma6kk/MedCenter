@@ -105,7 +105,7 @@ describe('Rooms and doctors queries (e2e)', () => {
 
     // Assert
     expect(response.body).toEqual({
-      items: [{ id: 'p1', name: 'Мария Иванова', firstName: 'Мария', lastName: 'Иванова' }],
+      items: [{ id: 'p1', name: 'Мария Иванова', firstName: 'Мария', lastName: 'Иванова', practitionerRoleIds: [] }],
       meta: { page: 1, pageSize: 2, totalItems: 3, totalPages: 2 },
     });
   });

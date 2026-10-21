@@ -51,7 +51,7 @@ export class AppointmentsController {
   @RequiresRoles(Role.PATIENT)
   @RequiresScopes(SMART_SCOPES.PATIENT_READ)
   async list(@Req() request: RequestWithClaims, @Query() query: ListAppointmentsQueryDto): Promise<AppointmentPage> {
-    return this.queries.listForPatient(claimsOf(request), { ...toPageQuery(query), upcoming: query.upcoming === 'true' });
+    return this.queries.listForPatient(claimsOf(request), { ...toPageQuery(query), upcoming: query.upcoming === 'true', status: query.status });
   }
 
   /** 6.3 — owner patient (`patient/*.read`), participant doctor or admin (`user/*.read`). */

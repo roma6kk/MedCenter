@@ -1,7 +1,7 @@
-import { bodyObject, expectDefined, expectEqual, expectPage, expectShape, expectStatus, expectTrue } from './smoke-assert';
-import { HISTORY_ITEM_SHAPE, PATIENT_SHAPE, PRESCRIPTION_SHAPE } from './smoke-shapes';
+import { bodyObject, expectDefined, expectDetailField, expectEqual, expectPage, expectProblem, expectShape, expectStatus, expectTrue } from './smoke-assert';
+import { APPOINTMENT_VIEW_SHAPE, HISTORY_ITEM_SHAPE, PATIENT_SHAPE, PRESCRIPTION_SHAPE } from './smoke-shapes';
 import type { SmokeStep } from './smoke-runner';
-import type { Session } from './smoke-types';
+import type { JsonObject, Session } from './smoke-types';
 import type { Suite } from './suite';
 
 type Reader = readonly [string, Session];
@@ -63,9 +63,37 @@ function patientCardStep(suite: Suite, readers: readonly Reader[]): SmokeStep {
   };
 }
 
+/** The patient's own appointments with a `status` filter, newest first so a long demo history cannot push the new one off the page. */
+async function listByStatus(suite: Suite, status: string, upcoming = false): Promise<readonly JsonObject[]> {
+  const query = { status, sortOrder: 'desc', pageSize: 100, ...(upcoming ? { upcoming: true } : {}) };
+  return expectPage(await suite.api.get('/api/v1/appointments', { session: suite.sessions.patient, query }), APPOINTMENT_VIEW_SHAPE);
+}
+
+/** API §6.2 `status` filter against the appointment the chain just fulfilled. */
+function statusFilterStep(suite: Suite): SmokeStep {
+  const { api, sessions, chain } = suite;
+  return {
+    name: 'GET /appointments?status= -> only the listed statuses (fulfilled has the visit, booked and upcoming do not); a bad status -> 400',
+    run: async () => {
+      const fulfilled = await listByStatus(suite, 'fulfilled');
+      expectTrue(fulfilled.some((item) => item['id'] === chain.appointmentId), 'the finished appointment is not listed under status=fulfilled');
+      expectTrue(fulfilled.every((item) => item['status'] === 'fulfilled'), 'status=fulfilled returned another status');
+      const booked = await listByStatus(suite, 'booked', true);
+      expectTrue(booked.every((item) => item['status'] === 'booked'), 'status=booked returned another status');
+      expectTrue(!booked.some((item) => item['id'] === chain.appointmentId), 'the finished appointment is still listed under status=booked');
+      const both = await listByStatus(suite, 'booked,fulfilled');
+      expectTrue(both.some((item) => item['id'] === chain.appointmentId), 'status=booked,fulfilled lost the finished appointment');
+      expectTrue(both.every((item) => item['status'] === 'booked' || item['status'] === 'fulfilled'), 'the comma list returned another status');
+      const bad = await api.get('/api/v1/appointments', { session: sessions.patient, query: { status: 'booked,done' } });
+      expectProblem(bad, 400, 'VALIDATION_ERROR');
+      expectDetailField(bad, 'status');
+    },
+  };
+}
+
 /** Steps 15-17: what the finished encounter left in the patient's record, read by each party that may read it. */
 export function readbackSteps(suite: Suite): SmokeStep[] {
   const { sessions } = suite;
   const readers: readonly Reader[] = [['patient', sessions.patient], ['doctor', sessions.doctor], ['admin', sessions.admin]];
-  return [...ownRecordSteps(suite), sharedRecordStep(suite, readers), patientCardStep(suite, readers)];
+  return [...ownRecordSteps(suite), sharedRecordStep(suite, readers), patientCardStep(suite, readers), statusFilterStep(suite)];
 }

@@ -2,7 +2,18 @@ import type { FieldSpec } from './smoke-assert';
 
 /** Response shapes of specs/api-designer-spec.md, as the field specs the suite asserts. */
 
-export const DOCTOR_SHAPE: FieldSpec = { id: 'string', name: 'string', firstName: 'string', lastName: 'string', specialty: 'string?', roomId: 'string?' };
+/** API §4.1/4.2 `DoctorResponseDto`. */
+export const DOCTOR_SHAPE: FieldSpec = {
+  id: 'string',
+  name: 'string',
+  firstName: 'string',
+  lastName: 'string',
+  specialty: 'string?',
+  specialtyCode: 'string?',
+  specialtySystem: 'string?',
+  roomId: 'string?',
+  practitionerRoleIds: 'array',
+};
 
 export const SERVICE_SHAPE: FieldSpec = {
   id: 'string',

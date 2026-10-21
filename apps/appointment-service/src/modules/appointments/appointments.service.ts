@@ -125,7 +125,10 @@ export class AppointmentsService {
 
   /**
    * Doctor marks a booked appointment as a no-show (API §6.6). The slot stays
-   * `busy`: the time has passed and cannot be booked again.
+   * `busy`: the time has passed and cannot be booked again. BR-008: only an
+   * appointment that is still `booked` and has no encounter yet can be a
+   * no-show, otherwise `409 ENCOUNTER_STATE_INVALID` — a patient who was seen
+   * (an in-progress or finished encounter, a `fulfilled` appointment) did show up.
    */
   async markNoShow(claims: JwtClaims, appointmentId: string, requestId?: string): Promise<AppointmentResponseDto> {
     // Fail closed before HAPI: a token without `fhirUser = PractitionerRole/{id}` never triggers a read.
@@ -133,7 +136,8 @@ export class AppointmentsService {
     const appointment = await this.fhir.read('Appointment', appointmentId);
     // Ownership before state: a non-participant must not learn the appointment's status.
     assertDoctorParticipates(callerRef, appointment);
-    assertBooked(appointment, 'CONFLICT', 'marked as no-show');
+    assertBooked(appointment, 'ENCOUNTER_STATE_INVALID', 'marked as no-show');
+    await this.assertNoEncounter(appointmentId);
 
     const updated: FhirResource = { ...appointment, status: 'noshow' };
     const patientRef = patientRefOf(appointment);
@@ -146,6 +150,22 @@ export class AppointmentsService {
       'CONFLICT',
     );
     return toAppointmentResponseDto(updated);
+  }
+
+  /**
+   * `409 ENCOUNTER_STATE_INVALID` when an Encounter (in progress or finished) refers to the appointment.
+   * The `If-Match` on the Appointment cannot cover this check: opening an encounter does not change the
+   * appointment, so an encounter opened in the instant between this search and the commit is not seen
+   * here — completing it is still refused later, because the appointment is no longer `booked`.
+   */
+  private async assertNoEncounter(appointmentId: string): Promise<void> {
+    const encounters = await this.fhir.search('Encounter', { appointment: `Appointment/${appointmentId}`, _count: 1 });
+    if ((encounters.entry ?? []).length > 0) {
+      throw new ConflictException({
+        errorCode: 'ENCOUNTER_STATE_INVALID',
+        message: 'ENCOUNTER_STATE_INVALID: the appointment already has an encounter, it cannot be marked as no-show (BR-008)',
+      });
+    }
   }
 
   /** The Slot an Appointment occupies; a stored Appointment without one is an internal data error. */

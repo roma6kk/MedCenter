@@ -1,4 +1,5 @@
 import { Inject, Injectable, Logger, UnprocessableEntityException } from '@nestjs/common';
+import type { FieldErrorDetail } from '@medcenter/contracts';
 import { FHIR_CLIENT, FhirClientError, type FhirClient, type FhirResource } from '@medcenter/fhir';
 import { FHIR_BY } from '@medcenter/terminology';
 
@@ -14,8 +15,19 @@ const UCUM_SYNTAX = /^[!-~]{1,20}$/;
 const NOT_FOUND_STATUSES: ReadonlySet<number> = new Set([400, 404, 422]);
 const LOOKUP_CONCURRENCY = 6;
 
-export interface TerminologyRef {
+/** Where a code sits in the request: its path is what a 422 reports in `details[].field`. */
+export interface CodeLocation {
+  /** Request path of the code, e.g. `diagnoses.0.code` (same syntax as the `details[].field` of a 400). */
+  readonly field?: string;
+}
+
+export interface TerminologyRef extends CodeLocation {
   readonly system: string;
+  readonly code: string;
+}
+
+/** An ICD-10 code of the request (the system is always {@link ICD10_CODE_SYSTEM}). */
+export interface Icd10Ref extends CodeLocation {
   readonly code: string;
 }
 
@@ -54,6 +66,11 @@ function isOutsideSeed(ref: TerminologyRef): boolean {
   return ref.system === FHIR_BY.UCUM_SYSTEM && !UCUM_SYNTAX.test(ref.code);
 }
 
+/** One `details[]` entry per request field that carries an offending code, in request order; refs without a path are skipped. */
+function fieldDetails<TRef extends CodeLocation>(refs: readonly TRef[], describe: (ref: TRef) => string): FieldErrorDetail[] {
+  return refs.flatMap((ref) => (ref.field === undefined ? [] : [{ field: ref.field, message: describe(ref) }]));
+}
+
 function collectDisplays(refs: readonly TerminologyRef[], checks: readonly CodeCheck[]): TerminologyDisplays {
   const displays = new Map<string, string>();
   refs.forEach((ref, index) => {
@@ -84,35 +101,42 @@ export class TerminologyValidatorService {
 
   constructor(@Inject(FHIR_CLIENT) private readonly fhir: FhirClient) {}
 
-  async assertIcd10Codes(codes: readonly string[]): Promise<void> {
-    const distinct = [...new Set(codes)];
+  async assertIcd10Codes(refs: readonly Icd10Ref[]): Promise<void> {
+    const distinct = [...new Set(refs.map((ref) => ref.code))];
     const checks = await mapWithConcurrency(distinct, LOOKUP_CONCURRENCY, (code) =>
       this.validate({ system: ICD10_CODE_SYSTEM, code }, FHIR_BY.ICD10_VALUE_SET),
     );
     const unknown = distinct.filter((_code, index) => checks[index]?.isKnown !== true);
     if (unknown.length > 0) {
+      const details = fieldDetails(
+        refs.filter((ref) => unknown.includes(ref.code)),
+        (ref) => `${ref.code} is not in ValueSet ${FHIR_BY.ICD10_VALUE_SET}`,
+      );
       throw new UnprocessableEntityException({
         errorCode: 'INVALID_ICD10_CODE',
         message: `INVALID_ICD10_CODE: not in ${FHIR_BY.ICD10_VALUE_SET}: ${unknown.join(', ')}`,
+        ...(details.length > 0 ? { details } : {}),
       });
     }
   }
 
-  /** Every ref must be in the seeded ValueSet of its system; returns the displays HAPI resolved. */
+  /**
+   * Every ref must be in the seeded ValueSet of its system; returns the displays
+   * HAPI resolved. Codes of systems outside the seed are refused without a
+   * lookup, the rest is looked up, and the refusal names all of them at once.
+   */
   async assertCodesExist(refs: readonly TerminologyRef[]): Promise<TerminologyDisplays> {
     const distinct = uniqueRefs(refs);
     const outside = distinct.filter(isOutsideSeed);
-    if (outside.length > 0) {
-      throw this.notFound(outside);
-    }
-    const checks = await mapWithConcurrency(distinct, LOOKUP_CONCURRENCY, (ref) =>
+    const lookedUp = distinct.filter((ref) => !isOutsideSeed(ref));
+    const checks = await mapWithConcurrency(lookedUp, LOOKUP_CONCURRENCY, (ref) =>
       this.validate(ref, SEEDED_VALUE_SETS[ref.system] ?? ''),
     );
-    const unknown = distinct.filter((_ref, index) => checks[index]?.isKnown !== true);
-    if (unknown.length > 0) {
-      throw this.notFound(unknown);
+    const unknown = lookedUp.filter((_ref, index) => checks[index]?.isKnown !== true);
+    if (outside.length + unknown.length > 0) {
+      throw this.notFound([...outside, ...unknown], refs);
     }
-    return collectDisplays(distinct, checks);
+    return collectDisplays(lookedUp, checks);
   }
 
   private async validate(ref: TerminologyRef, valueSetUrl: string): Promise<CodeCheck> {
@@ -130,11 +154,18 @@ export class TerminologyValidatorService {
     }
   }
 
-  private notFound(refs: readonly TerminologyRef[]): UnprocessableEntityException {
-    const listed = refs.map((ref) => `${ref.system}#${ref.code}`).join(', ');
+  /** `missing` are the distinct refs to name in the message; `requested` are all refs, so every field that carries one is reported. */
+  private notFound(missing: readonly TerminologyRef[], requested: readonly TerminologyRef[]): UnprocessableEntityException {
+    const listed = missing.map((ref) => `${ref.system}#${ref.code}`).join(', ');
+    const missingKeys = new Set(missing.map((ref) => displayKey(ref.system, ref.code)));
+    const details = fieldDetails(
+      requested.filter((ref) => missingKeys.has(displayKey(ref.system, ref.code))),
+      (ref) => `${ref.code} is not in the terminology seed (${ref.system})`,
+    );
     return new UnprocessableEntityException({
       errorCode: 'TERMINOLOGY_NOT_FOUND',
       message: `TERMINOLOGY_NOT_FOUND: not in the terminology seed: ${listed}`,
+      ...(details.length > 0 ? { details } : {}),
     });
   }
 }

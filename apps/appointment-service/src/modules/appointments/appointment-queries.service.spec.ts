@@ -86,6 +86,45 @@ describe('AppointmentQueriesService', () => {
       }));
     });
 
+    it('should filter by one status token when a single status is requested', async () => {
+      // Arrange
+      const query = { page: 1, pageSize: 20, sortOrder: 'asc' as const, upcoming: false, status: ['booked'] as const };
+
+      // Act
+      await service.listForPatient(patient, query);
+
+      // Assert
+      expect(fhir.search).toHaveBeenCalledWith('Appointment', expect.objectContaining({ patient: 'Patient/9f2c', status: 'booked' }));
+    });
+
+    it('should OR several statuses in one token and keep the upcoming date bound when both filters are set', async () => {
+      // Arrange
+      const query = { page: 1, pageSize: 20, sortOrder: 'asc' as const, upcoming: true, status: ['booked', 'noshow'] as const };
+
+      // Act
+      await service.listForPatient(patient, query);
+
+      // Assert
+      expect(fhir.search).toHaveBeenCalledWith('Appointment', expect.objectContaining({
+        status: 'booked,noshow',
+        date: [`ge${NOW.toISOString()}`],
+      }));
+    });
+
+    it('should send no status parameter when the filter is absent or empty', async () => {
+      // Arrange
+      const base = { page: 1, pageSize: 20, sortOrder: 'asc' as const, upcoming: true };
+
+      // Act
+      await service.listForPatient(patient, base);
+      await service.listForPatient(patient, { ...base, status: [] });
+
+      // Assert
+      for (const [, params] of fhir.search.mock.calls) {
+        expect(params).not.toHaveProperty('status');
+      }
+    });
+
     it('should not restrict the date and should sort descending when upcoming is off and sortOrder is desc', async () => {
       // Arrange
       const query = { page: 1, pageSize: 20, sortOrder: 'desc' as const, upcoming: false };

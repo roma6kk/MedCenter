@@ -54,13 +54,40 @@ describe('Complete encounter (API §7.1–7.3)', () => {
     expect(response.body).toMatchObject({ id: encounterId, status: 'finished', diagnosisCodes: ['J06.9'], appointmentId: APPOINTMENT_ID });
     expect(response.body.period.end).toEqual(expect.any(String));
     const completion = harness.hapi.transactions[1]?.['entry'] as Array<{ resource: { resourceType: string } }>;
-    expect(new Set(completion.map((entry) => entry.resource.resourceType))).toEqual(new Set(['Encounter', 'AuditEvent', ...CLINICAL_TYPES]));
+    expect(new Set(completion.map((entry) => entry.resource.resourceType))).toEqual(new Set(['Encounter', 'Appointment', 'AuditEvent', ...CLINICAL_TYPES]));
     for (const type of CLINICAL_TYPES) {
       expect(harness.hapi.stored(type)).toHaveLength(1);
     }
     expect(harness.publisher.publish).toHaveBeenCalledWith(
       expect.objectContaining({ type: 'encounter.completed.v1', encounterId, patientRef: 'Patient/pat-1', diagnoses: [expect.objectContaining({ code: 'J06.9' })] }),
     );
+  });
+
+  it('should set the appointment to fulfilled in the completion transaction when the encounter is finished', async () => {
+    const encounterId = await openEncounter();
+    expect(harness.hapi.stored('Appointment')[0]).toMatchObject({ id: APPOINTMENT_ID, status: 'booked' });
+
+    await as(DOCTOR).post(`/api/v1/encounters/${encounterId}/complete`, completeBody()).expect(200);
+
+    expect(harness.hapi.stored('Appointment')[0]).toMatchObject({ id: APPOINTMENT_ID, status: 'fulfilled' });
+    expect(harness.hapi.stored('Encounter')[0]).toMatchObject({ status: 'finished' });
+  });
+
+  it('should write nothing and keep the encounter in progress when the appointment changed after the completion read it', async () => {
+    const encounterId = await openEncounter();
+    harness.hapi.holdTransactions();
+
+    const completing = Promise.resolve(as(DOCTOR).post(`/api/v1/encounters/${encounterId}/complete`, completeBody()));
+    await harness.hapi.waitForHeldTransactions(1);
+    harness.hapi.seed({ ...bookedAppointment(), status: 'noshow' });
+    harness.hapi.releaseTransactions();
+    const response = await completing;
+
+    expect(response.status).toBe(409);
+    expect(response.body).toMatchObject({ errorCode: 'ENCOUNTER_STATE_INVALID' });
+    expect(harness.hapi.stored('Encounter')[0]).toMatchObject({ status: 'in-progress' });
+    expect(harness.hapi.stored('Appointment')[0]).toMatchObject({ status: 'noshow' });
+    expect(harness.hapi.stored('Condition')).toHaveLength(0);
   });
 
   it('should link the stored prescriptions to the encounter and the stored diagnosis when the transaction commits', async () => {
@@ -121,6 +148,41 @@ describe('Complete encounter (API §7.1–7.3)', () => {
 
     expect(response.body).toMatchObject({ errorCode: 'INVALID_ICD10_CODE' });
     expect(harness.hapi.transactions).toHaveLength(1);
+  });
+
+  it('should name the offending diagnosis row in details[] and keep the detail text when the ICD-10 code is unknown', async () => {
+    const encounterId = await openEncounter();
+    const body = completeBody();
+    body['diagnoses'] = [
+      { code: 'J06.9', display: 'ОРВИ' },
+      { code: 'X99.1', display: 'Неизвестный' },
+    ];
+
+    const response = await as(DOCTOR).post(`/api/v1/encounters/${encounterId}/complete`, body).expect(422);
+
+    expect(response.body).toMatchObject({
+      errorCode: 'INVALID_ICD10_CODE',
+      detail: expect.stringContaining('X99.1'),
+      details: [{ field: 'diagnoses.1.code', message: expect.stringContaining('X99.1') }],
+    });
+  });
+
+  it('should name the offending medication row in details[] when the ATC code is not in the seed', async () => {
+    const encounterId = await openEncounter();
+    const body = completeBody();
+    body['medicationRequests'] = [
+      { atcCode: 'J01FA10', dosageText: '1 таб 1 раз в день 3 дня' },
+      { atcCode: 'R05CB01', dosageText: '2 таб 1 раз в день 3 дня' },
+    ];
+
+    const response = await as(DOCTOR).post(`/api/v1/encounters/${encounterId}/complete`, body).expect(422);
+
+    expect(response.body).toMatchObject({
+      errorCode: 'TERMINOLOGY_NOT_FOUND',
+      detail: expect.stringContaining('R05CB01'),
+      details: [{ field: 'medicationRequests.1.atcCode', message: expect.stringContaining('R05CB01') }],
+    });
+    expect(harness.hapi.stored('Condition')).toHaveLength(0);
   });
 
   it('should reject a malformed ICD-10 code with 400 VALIDATION_ERROR', async () => {

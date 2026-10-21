@@ -256,6 +256,13 @@ describe('AppointmentsService', () => {
   });
 
   describe('markNoShow', () => {
+    const doctorClaims: JwtClaims = { ...patientClaims, role: 'DOCTOR', sub: 'doc-1', patient: undefined, fhirUser: 'PractitionerRole/role-1' };
+    const encounterOf = (status: string): FhirResource => ({ resourceType: 'Encounter', id: 'enc-1', status });
+
+    beforeEach(() => {
+      fhir.search.mockResolvedValue({ entry: [] });
+    });
+
     it('should mark noshow and keep the slot busy when the participant doctor calls it', async () => {
       fhir.read.mockResolvedValue(bookedAppointment);
       fhir.batch.mockResolvedValue({ resourceType: 'Bundle', type: 'transaction-response', entry: [] });
@@ -293,13 +300,48 @@ describe('AppointmentsService', () => {
       expect(await errorPayloadOf(service.markNoShow(other, 'apt-1'))).toMatchObject({ errorCode: 'COMPARTMENT_VIOLATION' });
     });
 
-    it('should reject with CONFLICT when the appointment is not booked', async () => {
-      fhir.read.mockResolvedValue({ ...bookedAppointment, status: 'cancelled' });
+    it.each(['cancelled', 'noshow', 'fulfilled'])(
+      'should reject with 409 ENCOUNTER_STATE_INVALID when the appointment is %s instead of booked',
+      async (status) => {
+        fhir.read.mockResolvedValue({ ...bookedAppointment, status });
 
-      const doctor: JwtClaims = { ...patientClaims, role: 'DOCTOR', patient: undefined, fhirUser: 'PractitionerRole/role-1' };
+        const failure = service.markNoShow(doctorClaims, 'apt-1');
 
-      await expect(service.markNoShow(doctor, 'apt-1')).rejects.toBeInstanceOf(ConflictException);
-      expect(fhir.batch).not.toHaveBeenCalled();
+        await expect(failure).rejects.toBeInstanceOf(ConflictException);
+        expect(await errorPayloadOf(service.markNoShow(doctorClaims, 'apt-1'))).toMatchObject({ errorCode: 'ENCOUNTER_STATE_INVALID' });
+        expect(fhir.batch).not.toHaveBeenCalled();
+      },
+    );
+
+    it.each(['in-progress', 'finished'])(
+      'should reject with 409 ENCOUNTER_STATE_INVALID and write nothing when a %s encounter exists for the booked appointment',
+      async (status) => {
+        fhir.read.mockResolvedValue(bookedAppointment);
+        fhir.search.mockResolvedValue({ entry: [{ resource: encounterOf(status) }] });
+
+        const payload = await errorPayloadOf(service.markNoShow(doctorClaims, 'apt-1'));
+
+        expect(payload).toMatchObject({ errorCode: 'ENCOUNTER_STATE_INVALID' });
+        expect(fhir.batch).not.toHaveBeenCalled();
+      },
+    );
+
+    it('should look the encounter up through its appointment reference when the no-show is checked', async () => {
+      fhir.read.mockResolvedValue(bookedAppointment);
+      fhir.batch.mockResolvedValue({ resourceType: 'Bundle', type: 'transaction-response', entry: [] });
+
+      await service.markNoShow(doctorClaims, 'apt-1');
+
+      expect(fhir.search).toHaveBeenCalledWith('Encounter', { appointment: 'Appointment/apt-1', _count: 1 });
+    });
+
+    it('should not ask for encounters when another practitioner calls no-show', async () => {
+      fhir.read.mockResolvedValue(bookedAppointment);
+      const other: JwtClaims = { ...doctorClaims, fhirUser: 'PractitionerRole/role-9' };
+
+      await errorPayloadOf(service.markNoShow(other, 'apt-1'));
+
+      expect(fhir.search).not.toHaveBeenCalled();
     });
   });
 });

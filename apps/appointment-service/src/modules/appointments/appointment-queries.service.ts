@@ -15,9 +15,10 @@ export interface PageQuery {
   readonly sortOrder: 'asc' | 'desc';
 }
 
-/** API §6.2 — `upcoming` keeps appointments that start now or later. */
+/** API §6.2 — `upcoming` keeps appointments that start now or later; `status` keeps any of the listed statuses. */
 export interface PatientListQuery extends PageQuery {
   readonly upcoming: boolean;
+  readonly status?: readonly string[];
 }
 
 /** API §6.5 — inclusive `Appointment.start` range (RFC 3339 date or date-time). */
@@ -45,6 +46,11 @@ function dateRange(from: string | undefined, to: string | undefined): Record<str
     (bound): bound is string => bound !== undefined,
   );
   return bounds.length === 0 ? {} : { date: bounds };
+}
+
+/** `status=booked,noshow` is one FHIR token parameter whose comma ORs the values; an empty list adds none. */
+function statusFilter(statuses: readonly string[] | undefined): Record<string, unknown> {
+  return statuses === undefined || statuses.length === 0 ? {} : { status: statuses.join(',') };
 }
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -76,6 +82,7 @@ export class AppointmentQueriesService {
     const result = await this.fhir.search('Appointment', {
       patient: patientRef,
       ...(query.upcoming ? dateRange(new Date().toISOString(), undefined) : {}),
+      ...statusFilter(query.status),
       ...searchParams(query),
     });
     return this.toPage(result, query);

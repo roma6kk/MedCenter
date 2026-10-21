@@ -45,7 +45,9 @@ describe('Appointment write access (e2e)', () => {
 
   beforeEach(() => {
     harness.fhir.read.mockReset();
+    harness.fhir.search.mockReset();
     harness.fhir.batch.mockReset();
+    harness.fhir.search.mockResolvedValue({ entry: [] });
     harness.fhir.read.mockImplementation(async (type) =>
       type === 'Appointment' ? BOOKED_APPOINTMENT : { resourceType: 'Slot', id: 'slot-1', status: 'busy', meta: { versionId: '3' } },
     );
@@ -87,6 +89,31 @@ describe('Appointment write access (e2e)', () => {
 
     expect(response.body).toMatchObject({ id: 'apt-1', status: 'noshow' });
     expect(harness.fhir.batch).toHaveBeenCalledTimes(1);
+  });
+
+  it('should answer 409 ENCOUNTER_STATE_INVALID without writing when the appointment already has a finished encounter', async () => {
+    harness.fhir.search.mockResolvedValue({ entry: [{ resource: { resourceType: 'Encounter', id: 'enc-1', status: 'finished' } }] });
+
+    const response = await request(harness.app.getHttpServer())
+      .post('/api/v1/doctor/appointments/apt-1/noshow')
+      .set('Authorization', bearer(DOCTOR))
+      .expect(409);
+
+    expect(response.headers['content-type']).toContain('application/problem+json');
+    expect(response.body).toMatchObject({ status: 409, errorCode: 'ENCOUNTER_STATE_INVALID' });
+    expect(harness.fhir.batch).not.toHaveBeenCalled();
+  });
+
+  it('should answer 409 ENCOUNTER_STATE_INVALID when the appointment is already fulfilled', async () => {
+    harness.fhir.read.mockResolvedValue({ ...BOOKED_APPOINTMENT, status: 'fulfilled' });
+
+    const response = await request(harness.app.getHttpServer())
+      .post('/api/v1/doctor/appointments/apt-1/noshow')
+      .set('Authorization', bearer(DOCTOR))
+      .expect(409);
+
+    expect(response.body).toMatchObject({ errorCode: 'ENCOUNTER_STATE_INVALID' });
+    expect(harness.fhir.batch).not.toHaveBeenCalled();
   });
 
   it('should record the X-Request-Id and the patient in the AuditEvent when a doctor marks a no-show', async () => {
