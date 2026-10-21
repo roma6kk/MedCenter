@@ -7,13 +7,13 @@ import { createAppQueryClient } from '@/lib/api/query-client';
 import type { ProblemDetails } from '@/lib/api/problem';
 import type { Slot } from '@/components/catalog/catalog-types';
 import { BookingWizard } from './booking-wizard';
-import { shiftDay, todayInClinic } from './slot-time';
+import { clinicDateKey, shiftDateKey } from '@/lib/clinic-time';
 
 /** Shared fixtures of the wizard specs. Each spec mocks `@/lib/api/api-fetch` and `next/navigation` itself (jest hoisting). */
 type Handler = (path: string, options?: RequestInit) => Promise<unknown>;
 export const apiFetchMock = apiFetch as jest.MockedFunction<Handler>;
 
-export const DAY: string = shiftDay(todayInClinic(), 2);
+export const DAY: string = shiftDateKey(clinicDateKey(), 2);
 export const SERVICE_30 = { id: 'svc-30', name: 'Приём терапевта (первичный)', defaultDurationMin: 30, description: 'Первичная консультация' };
 export const SERVICE_20 = { id: 'svc-20', name: 'Приём терапевта (повторный)', defaultDurationMin: 20 };
 export const DOCTOR = { id: 'doc-1', firstName: 'Мария', lastName: 'Иванова', name: 'Мария Иванова', specialty: 'Терапевт' };

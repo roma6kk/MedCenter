@@ -1,7 +1,8 @@
 'use client';
 
 import type { ReactNode } from 'react';
-import { QueryFailed, QueryLoading } from '@/components/catalog/query-failed';
+import { QueryLoading } from '@/components/catalog/query-loading';
+import { QueryFailure } from '@/components/feedback/query-error-state';
 import { useServices } from '@/components/catalog/use-catalog';
 import type { CatalogService } from '@/components/catalog/catalog-types';
 import { EmptyState } from '@/components/feedback/states';
@@ -57,14 +58,16 @@ function ServiceList({ services, selectedServiceId, onSelect }: ServiceStepProps
 /** Step 1: the service decides the doctors offered next and the length of the visit. */
 export function ServiceStep({ selectedServiceId, onSelect }: ServiceStepProps): ReactNode {
   const t = useT('booking');
-  const { data, isPending, error, refetch } = useServices();
+  const query = useServices();
   return (
     <div>
       <h2 className="serif text-xl font-semibold">{t('serviceTitle')}</h2>
       <p className="mb-4 mt-1 text-sm text-[var(--muted-foreground)]">{t('serviceLead')}</p>
-      {isPending ? <QueryLoading /> : null}
-      {!isPending && data === undefined ? <QueryFailed error={error} onRetry={() => void refetch()} /> : null}
-      {data === undefined ? null : <ServiceList services={data.items} selectedServiceId={selectedServiceId} onSelect={onSelect} />}
+      {query.data === undefined ? (
+        <QueryFailure query={query} embedded pending={<QueryLoading />} />
+      ) : (
+        <ServiceList services={query.data.items} selectedServiceId={selectedServiceId} onSelect={onSelect} />
+      )}
     </div>
   );
 }

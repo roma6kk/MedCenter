@@ -7,14 +7,13 @@ jest.mock('next/navigation', () => ({ useRouter: () => ({ push: jest.fn() }), us
 import { act, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { apiFetch } from '@/lib/api/api-fetch';
-import { minskDateKey } from '@/lib/utils';
-import { shiftDateKey } from './clinic-time';
+import { clinicDateKey, shiftDateKey } from '@/lib/clinic-time';
 import { DoctorJournal } from './doctor-journal';
 import { appointment, callsTo, pageOf, problem, renderWithClient, routeApi, type ApiMock } from './doctor-test-utils';
 
 const apiFetchMock = apiFetch as ApiMock;
 const JOURNAL = '/api/v1/doctor/appointments';
-const TODAY: string = minskDateKey();
+const TODAY: string = clinicDateKey();
 
 const ROWS = [
   appointment({ id: 'a1', start: '2026-10-20T06:00:00Z', patientName: 'Кузнецов Алексей', status: 'booked' }),

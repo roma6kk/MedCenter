@@ -8,9 +8,9 @@ import type { Translate } from '@/lib/i18n/translate';
 import { useT } from '@/lib/i18n/use-t';
 import { DefinitionList, DefinitionRow } from './definition-list';
 import type { AccountProfile, ContactPoint, PatientProfile } from './patient-types';
-import { QueryErrorState } from './query-error-state';
-import { useClinicFormat } from './use-clinic-format';
-import { useDocumentTitle } from './use-document-title';
+import { QueryFailure } from '@/components/feedback/query-error-state';
+import { useClinicFormat } from '@/hooks/use-clinic-format';
+import { useDocumentTitle } from '@/hooks/use-document-title';
 import { useAccount, usePatientProfile } from './use-patient-queries';
 
 const GENDER_KEYS: Readonly<Record<string, string>> = { male: 'genderMale', female: 'genderFemale', other: 'genderOther' };
@@ -74,8 +74,7 @@ function PatientRows({ patient }: { readonly patient: PatientProfile }): ReactNo
 
 function AccountCard(): ReactNode {
   const query = useAccount();
-  if (query.isPending) return <TableSkeleton />;
-  if (query.data === undefined) return <QueryErrorState error={query.error} embedded onRetry={() => void query.refetch()} />;
+  if (query.data === undefined) return <QueryFailure query={query} embedded pending={<TableSkeleton />} />;
   return <AccountRows account={query.data} />;
 }
 
@@ -83,19 +82,17 @@ function AccountCard(): ReactNode {
 function PatientCard(): ReactNode {
   const t = useT('patient.profile');
   const query = usePatientProfile();
-  if (query.isPending) return <TableSkeleton />;
   if (query.data !== undefined) return <PatientRows patient={query.data} />;
-  if (isApiError(query.error) && errorCodeToUx(query.error.problem.errorCode).kind === 'not-found') {
+  if (query.isError && isApiError(query.error) && errorCodeToUx(query.error.problem.errorCode).kind === 'not-found') {
     return <p data-testid="no-patient" className="text-sm text-[var(--muted-foreground)]">{t('noPatient')}</p>;
   }
-  return <QueryErrorState error={query.error} embedded onRetry={() => void query.refetch()} />;
+  return <QueryFailure query={query} embedded pending={<TableSkeleton />} />;
 }
 
 /** The patient's own profile (FR-001): the account (API 2.2.7) and the FHIR patient card (API 3.1), read-only. */
 export function ProfileView(): ReactNode {
   const t = useT('patient.profile');
-  const tBrand = useT('layout');
-  useDocumentTitle(t('title'), tBrand('brand'));
+  useDocumentTitle(t('title'));
   return (
     <div>
       <h1 className="serif text-2xl font-bold">{t('title')}</h1>

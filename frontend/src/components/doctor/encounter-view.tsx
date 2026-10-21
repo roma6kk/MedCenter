@@ -3,12 +3,13 @@
 import { useEffect, useRef } from 'react';
 import type { ReactNode, RefObject } from 'react';
 import { TableSkeleton } from '@/components/feedback/states';
+import { useDocumentTitle } from '@/hooks/use-document-title';
 import { useT } from '@/lib/i18n/use-t';
 import type { EncounterDetails } from './doctor-types';
 import { EncounterCompleteForm } from './encounter-complete-form';
 import { EncounterHeader } from './encounter-header';
 import { EncounterReadOnly } from './encounter-readonly';
-import { QueryErrorState } from './query-error-state';
+import { QueryFailure } from '@/components/feedback/query-error-state';
 import { useEncounter } from './use-doctor-queries';
 
 /**
@@ -57,10 +58,10 @@ function EncounterBody({ encounter }: { readonly encounter: EncounterDetails }):
 export function EncounterView({ encounterId }: { readonly encounterId: string }): ReactNode {
   const t = useT('doctor.encounter');
   const encounter = useEncounter(encounterId);
+  useDocumentTitle(t('title'));
   return (
     <>
-      {encounter.isPending ? <TableSkeleton /> : null}
-      {encounter.isError ? <QueryErrorState error={encounter.error} notFoundText={t('notFound')} onRetry={() => void encounter.refetch()} /> : null}
+      {encounter.data === undefined ? <QueryFailure query={encounter} notFoundText={t('notFound')} pending={<TableSkeleton />} /> : null}
       {encounter.data ? (
         <>
           <EncounterHeader encounter={encounter.data} />

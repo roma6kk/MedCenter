@@ -4,8 +4,8 @@ import { useCallback, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import Link from 'next/link';
 import { NotFoundState, TableSkeleton } from '@/components/feedback/states';
-import { isMissingError, QueryErrorState } from '@/components/patient/query-error-state';
-import { useDocumentTitle } from '@/components/patient/use-document-title';
+import { isMissingError, QueryFailure } from '@/components/feedback/query-error-state';
+import { useDocumentTitle } from '@/hooks/use-document-title';
 import { useFocusFallback } from '@/components/patient/use-focus-fallback';
 import { useT } from '@/lib/i18n/use-t';
 import { AppointmentDetails } from './appointment-details';
@@ -53,21 +53,19 @@ interface BodyProps {
 function DetailBody({ query, onCancel }: BodyProps): ReactNode {
   const t = useT('appointments');
   if (query.data !== undefined) return <LoadedAppointment appointment={query.data} onCancel={onCancel} />;
-  if (query.isError) return <QueryErrorState error={query.error} notFoundText={t('notFoundTitle')} badRequestIsNotFound onRetry={() => void query.refetch()} />;
-  return <TableSkeleton />;
+  return <QueryFailure query={query} notFoundText={t('notFoundTitle')} badRequestIsNotFound pending={<TableSkeleton />} />;
 }
 
 /** One appointment with its cancel action (FR-005, FR-006); a foreign or unknown id looks exactly like a missing one (BR-006). */
 export function AppointmentDetailView({ appointmentId }: { readonly appointmentId: string }): ReactNode {
   const t = useT('appointments');
-  const tBrand = useT('layout');
   const query = useAppointment(appointmentId);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const heading = useRef<HTMLHeadingElement>(null);
   const closeDialog = useCallback(() => setIsDialogOpen(false), []);
   // The cancel button is gone once the status changed: keep the keyboard user at the top of the record.
   useFocusFallback(isDialogOpen, heading);
-  useDocumentTitle(t('detailTitle'), tBrand('brand'));
+  useDocumentTitle(t('detailTitle'));
   if (query.data === undefined && isMissingError(query.error, true)) return <MissingAppointment />;
   return (
     <section aria-busy={query.isFetching}>

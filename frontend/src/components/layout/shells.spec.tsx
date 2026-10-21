@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { ReactNode } from 'react';
 import { useSessionStore } from '@/store/use-session-store';
@@ -36,9 +36,31 @@ describe('PatientShell', () => {
     render(<PatientShell><p>x</p></PatientShell>, { wrapper: Wrapper });
 
     const nav = screen.getByRole('navigation', { name: 'Пациент' });
-    ['Запись', 'Мои записи', 'История', 'Назначения', 'Профиль', 'Уведомления'].forEach((label) => {
+    ['Запись', 'Мои записи', 'История', 'Назначения', 'Профиль'].forEach((label) => {
       expect(nav).toHaveTextContent(label);
     });
+  });
+
+  it('should offer exactly one link to the notifications when the patient shell is shown', async () => {
+    render(<PatientShell><p>x</p></PatientShell>, { wrapper: Wrapper });
+
+    await screen.findByRole('link', { name: /Уведомления, непрочитанных/ });
+
+    expect(screen.getAllByRole('link').filter((link) => link.getAttribute('href') === '/notifications')).toHaveLength(1);
+  });
+
+  it('should mark the notifications entry as the current page when the patient is on /notifications', async () => {
+    mockPathname.mockReturnValue('/notifications');
+
+    render(<PatientShell><p>x</p></PatientShell>, { wrapper: Wrapper });
+
+    expect(await screen.findByRole('link', { name: /Уведомления, непрочитанных/ })).toHaveAttribute('aria-current', 'page');
+  });
+
+  it('should keep every navigation link at least 44 px tall when the shell is shown', () => {
+    render(<PatientShell><p>x</p></PatientShell>, { wrapper: Wrapper });
+
+    within(screen.getByRole('navigation', { name: 'Пациент' })).getAllByRole('link').forEach((link) => expect(link.className).toContain('min-h-[44px]'));
   });
 
   it('should mark the current section with aria-current', () => {
@@ -106,6 +128,25 @@ describe('StaffShell', () => {
     render(<StaffShell links={DOCTOR_LINKS}><p>x</p></StaffShell>, { wrapper: Wrapper });
 
     expect(screen.queryByRole('link', { name: /Уведомления/ })).not.toBeInTheDocument();
+  });
+
+  it('should keep every navigation link at least 44 px tall and let the links wrap on a phone when the shell is shown', () => {
+    useSessionStore.setState({ ...SESSION, role: 'ADMIN' });
+
+    render(<StaffShell links={ADMIN_LINKS}><p>x</p></StaffShell>, { wrapper: Wrapper });
+
+    const nav = screen.getByRole('navigation', { name: 'Администрирование' });
+    nav.querySelectorAll('a').forEach((link) => expect(link.className).toContain('min-h-[44px]'));
+    expect(nav.className).toContain('flex-wrap');
+    expect(nav.className).not.toContain('overflow-x-auto');
+  });
+
+  it('should render exactly one skip link when the shell is shown', () => {
+    useSessionStore.setState({ ...SESSION, role: 'ADMIN' });
+
+    render(<StaffShell links={ADMIN_LINKS}><p>x</p></StaffShell>, { wrapper: Wrapper });
+
+    expect(screen.getAllByRole('link', { name: 'Перейти к содержимому' })).toHaveLength(1);
   });
 
   it('should offer the logout button and a skip link', () => {

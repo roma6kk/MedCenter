@@ -6,12 +6,13 @@ import { useSearchParams } from 'next/navigation';
 import type { UseQueryResult } from '@tanstack/react-query';
 import { PaginatedTable } from '@/components/data-display/paginated-table';
 import { EmptyState, TableSkeleton } from '@/components/feedback/states';
+import { useDocumentTitle } from '@/hooks/use-document-title';
 import { useT } from '@/lib/i18n/use-t';
-import { formatDayHeading, isDateKey } from './clinic-time';
+import { formatDayHeading, isDateKey } from '@/lib/clinic-time';
 import type { DoctorJournalPage, JournalAppointment } from './doctor-types';
 import { JournalControls, type StatusFilter } from './journal-controls';
 import { useJournalColumns } from './journal-columns';
-import { QueryErrorState } from './query-error-state';
+import { QueryFailure } from '@/components/feedback/query-error-state';
 import { useDoctorJournal } from './use-doctor-queries';
 import { useMinskToday } from './use-minsk-today';
 
@@ -91,6 +92,7 @@ function useJournalState(): JournalState {
 export function DoctorJournal(): ReactNode {
   const t = useT('doctor.journal');
   const { dateKey, today, status, journal, rows, setPage, setStatus, changeDate } = useJournalState();
+  useDocumentTitle(t('title'));
 
   return (
     <section aria-labelledby="journal-title">
@@ -98,8 +100,7 @@ export function DoctorJournal(): ReactNode {
       <p className="mt-1 text-sm text-[var(--muted-foreground)]">{formatDayHeading(dateKey)}</p>
       <JournalControls dateKey={dateKey} today={today} onDateChange={changeDate} status={status} onStatusChange={setStatus} />
       <div className="mt-4" aria-busy={journal.isFetching}>
-        {journal.isPending ? <TableSkeleton /> : null}
-        {journal.isError && journal.data === undefined ? <QueryErrorState error={journal.error} notFoundText={t('loadError')} onRetry={() => void journal.refetch()} /> : null}
+        {journal.data === undefined ? <QueryFailure query={journal} embedded notFoundText={t('loadError')} pending={<TableSkeleton />} /> : null}
         {journal.data ? (
           <>
             <p role="status" className="mb-2 text-sm text-[var(--muted-foreground)]">{t('total', { count: journal.data.meta.totalItems })}</p>

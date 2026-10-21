@@ -10,11 +10,12 @@ import { useT } from '@/lib/i18n/use-t';
 import { showToast } from '@/lib/ui/toast';
 import { useMarkNotificationRead, useNotifications } from '@/lib/notifications/use-notifications';
 import type { NotificationItem } from '@/lib/notifications/notification-api';
-import { MutationProblem, QueryErrorState } from './query-error-state';
+import { ProblemBanner } from '@/components/feedback/problem-banner';
+import { QueryFailure } from '@/components/feedback/query-error-state';
 import { SegmentedTabs, tabPanelProps, type TabOption } from './segmented-tabs';
 import { useClampedPage } from './use-clamped-page';
-import { useClinicFormat } from './use-clinic-format';
-import { useDocumentTitle } from './use-document-title';
+import { useClinicFormat } from '@/hooks/use-clinic-format';
+import { useDocumentTitle } from '@/hooks/use-document-title';
 import { useRestoreFocus } from './use-restore-focus';
 import { WRAP_TEXT } from './wrap-text';
 
@@ -163,9 +164,8 @@ function PanelBody({ state }: { readonly state: CenterState }): ReactNode {
   const { query, tab, failure } = state;
   return (
     <>
-      {isApiError(failure) ? <div className="mb-3"><MutationProblem problem={failure.problem} /></div> : null}
-      {query.data === undefined && query.isError ? <QueryErrorState error={query.error} embedded onRetry={() => void query.refetch()} /> : null}
-      {query.data === undefined && !query.isError ? <TableSkeleton /> : null}
+      {isApiError(failure) ? <div className="mb-3"><ProblemBanner problem={failure.problem} /></div> : null}
+      {query.data === undefined ? <QueryFailure query={query} embedded pending={<TableSkeleton />} /> : null}
       {query.data && query.data.items.length > 0 ? (
         <NotificationItems page={query.data} markingId={state.markingId} listRef={state.listRef} onMarkRead={state.markRead} onPage={state.setPage} />
       ) : null}
@@ -177,10 +177,9 @@ function PanelBody({ state }: { readonly state: CenterState }): ReactNode {
 /** The patient's in-app notifications (FR-008, scenario E): all or only unread, mark as read, refreshed every 30 s. */
 export function NotificationCenter(): ReactNode {
   const t = useT('patient.notifications');
-  const tBrand = useT('layout');
   const state = useCenterState();
   const options: ReadonlyArray<TabOption<NotificationTab>> = [{ value: 'all', label: t('tabAll') }, { value: 'unread', label: t('tabUnread') }];
-  useDocumentTitle(t('title'), tBrand('brand'));
+  useDocumentTitle(t('title'));
   return (
     <section>
       <h1 className="serif text-2xl font-bold">{t('title')}</h1>

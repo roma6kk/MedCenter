@@ -1,7 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import { MAX_LOOKAHEAD_DAYS, SLOT_WINDOW_DAYS, clampToHorizon, isIsoDay, shiftDay, slotWindow, todayInClinic, type SlotWindow } from './slot-time';
+import { clinicDateKey, isDateKey, shiftDateKey } from '@/lib/clinic-time';
+import { MAX_LOOKAHEAD_DAYS, SLOT_WINDOW_DAYS, clampToHorizon, slotWindow, type SlotWindow } from './slot-time';
 
 export interface SlotWindowState {
   readonly window: SlotWindow;
@@ -21,20 +22,20 @@ export interface SlotWindowState {
  * and never beyond the API's look-ahead (a `from` over 366 days ahead is a 400).
  */
 export function useSlotWindow(initialFrom?: string): SlotWindowState {
-  const today: string = todayInClinic();
+  const today: string = clinicDateKey();
   const [from, setFrom] = useState<string>(() => clampToHorizon(initialFrom, today));
   const current: string = clampToHorizon(from, today);
-  const lastDay: string = shiftDay(today, MAX_LOOKAHEAD_DAYS);
+  const lastDay: string = shiftDateKey(today, MAX_LOOKAHEAD_DAYS);
   return {
     window: slotWindow(current),
     today,
     lastDay,
     canGoBack: current > today,
     canGoForward: current < lastDay,
-    goBack: () => setFrom(clampToHorizon(shiftDay(current, -SLOT_WINDOW_DAYS), today)),
-    goForward: () => setFrom(clampToHorizon(shiftDay(current, SLOT_WINDOW_DAYS), today)),
+    goBack: () => setFrom(clampToHorizon(shiftDateKey(current, -SLOT_WINDOW_DAYS), today)),
+    goForward: () => setFrom(clampToHorizon(shiftDateKey(current, SLOT_WINDOW_DAYS), today)),
     jumpTo: (day) => {
-      if (isIsoDay(day)) setFrom(clampToHorizon(day, today));
+      if (isDateKey(day)) setFrom(clampToHorizon(day, today));
     },
   };
 }

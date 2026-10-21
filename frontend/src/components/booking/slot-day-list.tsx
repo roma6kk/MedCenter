@@ -3,10 +3,11 @@
 import { memo, useMemo, type ReactNode } from 'react';
 import type { Slot } from '@/components/catalog/catalog-types';
 import { StampBadge } from '@/components/feedback/stamp-badge';
+import { formatClinicTime, formatDayHeading, groupSlotsByDay, type SlotDay } from '@/lib/clinic-time';
 import { useT } from '@/lib/i18n/use-t';
 import { useUiStore } from '@/store/use-ui-store';
 import { isSelectable } from './slot-list';
-import { formatDayHeading, formatSlotTime, groupSlotsByDay, slotDurationMin, type SlotDay } from './slot-time';
+import { slotDurationMin } from './slot-time';
 import { useStableCallback } from './use-stable-callback';
 
 interface SlotDayListProps {
@@ -55,7 +56,7 @@ const SlotTile = memo(function SlotTile({ slot, selected, taken, showDuration, o
       }}
       className={tileClass(isSelected, taken, selectable)}
     >
-      <span className="mono text-sm">{formatSlotTime(slot.start, locale)}</span>
+      <span className="mono text-sm">{formatClinicTime(slot.start, locale)}</span>
       {selectable && showDuration ? <span className="text-xs">{t('slotMinutes', { minutes: slotDurationMin(slot) })}</span> : null}
       {taken ? <span className="text-xs">{t('slotTaken')}</span> : null}
       {!selectable && !taken ? <StampBadge status={slot.status} /> : null}
@@ -63,7 +64,7 @@ const SlotTile = memo(function SlotTile({ slot, selected, taken, showDuration, o
   );
 });
 
-function SlotDaySection({ day, selectedSlotId, takenSlotId, showDuration, onSelect }: { readonly day: SlotDay } & Omit<SlotDayListProps, 'slots'>): ReactNode {
+function SlotDaySection({ day, selectedSlotId, takenSlotId, showDuration, onSelect }: { readonly day: SlotDay<Slot> } & Omit<SlotDayListProps, 'slots'>): ReactNode {
   const t = useT('booking');
   const locale = useUiStore((state) => state.locale);
   const heading: string = formatDayHeading(day.day, locale);
@@ -86,7 +87,7 @@ function SlotDaySection({ day, selectedSlotId, takenSlotId, showDuration, onSele
  * The grouping is computed once per list of slots, not on every render (a selection changes none of them).
  */
 export function SlotDayList({ slots, onSelect, ...rest }: SlotDayListProps): ReactNode {
-  const days: ReadonlyArray<SlotDay> = useMemo(() => groupSlotsByDay(slots), [slots]);
+  const days: ReadonlyArray<SlotDay<Slot>> = useMemo(() => groupSlotsByDay(slots), [slots]);
   const stableSelect = useStableCallback(onSelect);
   return (
     <div className="space-y-5">

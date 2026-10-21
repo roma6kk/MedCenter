@@ -2,8 +2,9 @@ import type { Metadata } from 'next';
 import { loadDoctors, loadServices } from '@/components/catalog/catalog-server';
 import { DoctorCatalog } from '@/components/catalog/doctor-catalog';
 import { buildDirectory, parseDirectoryParams, type DirectoryParams } from '@/components/catalog/doctor-directory';
+import { pageMetadata } from '@/lib/i18n/page-metadata';
 
-export const metadata: Metadata = { title: 'Врачи — МедЦентр' };
+export const metadata: Metadata = pageMetadata('catalog.doctorsTitle');
 
 // Rendered per request (the filters live in the URL, and `next build` cannot reach the API).
 export const dynamic = 'force-dynamic';

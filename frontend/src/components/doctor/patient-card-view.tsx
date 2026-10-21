@@ -3,11 +3,12 @@
 import type { ReactNode } from 'react';
 import { isApiError } from '@/lib/api/api-fetch';
 import { errorCodeToUx } from '@/lib/api/error-code-map';
+import { useDocumentTitle } from '@/hooks/use-document-title';
 import { useT } from '@/lib/i18n/use-t';
 import { PatientHeader } from './patient-header';
 import { PatientHistoryTimeline } from './patient-history-timeline';
 import { PatientPrescriptions } from './patient-prescriptions';
-import { QueryErrorState } from './query-error-state';
+import { QueryErrorState } from '@/components/feedback/query-error-state';
 import { RelatedPersons } from './related-persons';
 import { usePatient } from './use-doctor-queries';
 
@@ -26,6 +27,7 @@ function isUnreachable(error: unknown): boolean {
 export function PatientCardView({ patientId }: { readonly patientId: string }): ReactNode {
   const t = useT('doctor.patient');
   const patient = usePatient(patientId);
+  useDocumentTitle(t('cardLabel'));
   if (patient.isError && isUnreachable(patient.error)) return <QueryErrorState error={patient.error} notFoundText={t('notFound')} />;
   return (
     <>

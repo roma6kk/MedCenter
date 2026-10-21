@@ -5,13 +5,13 @@ import type { ReactNode } from 'react';
 import { StampBadge, type SlotStatus } from '@/components/feedback/stamp-badge';
 import { useT } from '@/lib/i18n/use-t';
 import { useUiStore } from '@/store/use-ui-store';
-import { clinicTimeOf, formatDayHeading } from '../shared/admin-dates';
+import { formatClinicTime, formatDayHeading, groupSlotsByDay, type SlotDay } from '@/lib/clinic-time';
 import type { AdminSchedule, ScheduleSlot } from './schedule-types';
 import { CONTROL_CLASS } from '../shared/admin-styles';
 import { Field } from '../shared/form-field';
 import { QueryState } from '../shared/query-state';
 import { defaultGenerationRange, validatePeriod, type PeriodError } from './generation-range';
-import { countSlots, groupSlotsByDay, mayBeTruncated, type SlotCounts, type SlotDay } from './slot-grouping';
+import { countSlots, mayBeTruncated, type SlotCounts } from './slot-grouping';
 import { useScheduleSlots, type SlotsQuery } from './use-admin-schedules';
 
 const STATUS_FILTERS: ReadonlyArray<SlotStatus | ''> = ['', 'free', 'busy', 'entered-in-error'];
@@ -22,7 +22,7 @@ function SlotTile({ slot }: { readonly slot: ScheduleSlot }): ReactNode {
   return (
     <li data-testid={`slot-${slot.status}`} className="flex items-center justify-between gap-2 rounded-[6px] border border-[var(--border)] px-2 py-1 text-sm">
       <span className="mono">
-        {clinicTimeOf(slot.start)}–{clinicTimeOf(slot.end)}
+        {formatClinicTime(slot.start)}–{formatClinicTime(slot.end)}
       </span>
       <StampBadge status={slot.status} />
     </li>
@@ -45,13 +45,13 @@ function SlotCountsLine({ counts, isPartial }: { readonly counts: SlotCounts; re
   );
 }
 
-function SlotDays({ days }: { readonly days: ReadonlyArray<SlotDay> }): ReactNode {
+function SlotDays({ days }: { readonly days: ReadonlyArray<SlotDay<ScheduleSlot>> }): ReactNode {
   const locale = useUiStore((state) => state.locale);
   return (
     <div className="mt-3 grid gap-4">
       {days.map(({ day, slots: daySlots }) => (
-        <section key={day} aria-label={formatDayHeading(day, locale)}>
-          <h3 className="serif text-base font-semibold">{formatDayHeading(day, locale)}</h3>
+        <section key={day} aria-label={formatDayHeading(day, locale, 'compact')}>
+          <h3 className="serif text-base font-semibold">{formatDayHeading(day, locale, 'compact')}</h3>
           <ul className="mt-2 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
             {daySlots.map((slot) => (
               <SlotTile key={slot.id} slot={slot} />

@@ -1,10 +1,9 @@
+import type { Metadata } from 'next';
+import { pageMetadata } from '@/lib/i18n/page-metadata';
 import { AppointmentList } from '@/components/appointments/appointment-list';
-import { PatientShell } from '@/components/layout/patient-shell';
+
+export const metadata: Metadata = pageMetadata('appointments.title');
 
 export default function AppointmentsPage(): React.JSX.Element {
-  return (
-    <PatientShell>
-      <AppointmentList />
-    </PatientShell>
-  );
+  return <AppointmentList />;
 }

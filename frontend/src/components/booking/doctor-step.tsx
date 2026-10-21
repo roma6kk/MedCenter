@@ -2,7 +2,8 @@
 
 import type { ReactNode } from 'react';
 import { DoctorCard } from '@/components/catalog/doctor-card';
-import { QueryFailed, QueryLoading } from '@/components/catalog/query-failed';
+import { QueryLoading } from '@/components/catalog/query-loading';
+import { QueryFailure } from '@/components/feedback/query-error-state';
 import { useDoctors, useService } from '@/components/catalog/use-catalog';
 import type { Doctor } from '@/components/catalog/catalog-types';
 import { EmptyState } from '@/components/feedback/states';
@@ -43,15 +44,17 @@ function DoctorList({ doctors, selectedDoctorId, onSelect }: Omit<DoctorStepProp
 export function DoctorStep({ serviceId, selectedDoctorId, onSelect }: DoctorStepProps): ReactNode {
   const t = useT('booking');
   const service = useService(serviceId);
-  const { data, isPending, error, refetch } = useDoctors(serviceId === null ? {} : { serviceId });
+  const query = useDoctors(serviceId === null ? {} : { serviceId });
   const heading: string = service.data === undefined ? t('doctorTitle') : t('doctorForService', { service: service.data.name });
   return (
     <div>
       <h2 className="serif text-xl font-semibold">{heading}</h2>
       <div className="mt-4">
-        {isPending ? <QueryLoading /> : null}
-        {!isPending && data === undefined ? <QueryFailed error={error} onRetry={() => void refetch()} /> : null}
-        {data === undefined ? null : <DoctorList doctors={data.items} selectedDoctorId={selectedDoctorId} onSelect={onSelect} />}
+        {query.data === undefined ? (
+          <QueryFailure query={query} embedded pending={<QueryLoading />} />
+        ) : (
+          <DoctorList doctors={query.data.items} selectedDoctorId={selectedDoctorId} onSelect={onSelect} />
+        )}
       </div>
     </div>
   );

@@ -1,26 +1,8 @@
-/** slot-grouping — slots of a schedule grouped by clinic day for the slot grid, with the counts per status. */
+/** slot-grouping — the counts per status of a schedule's slots and the «may be truncated» rule (the grouping by clinic day is `lib/clinic-time`). */
 import type { SlotStatus } from '@/components/feedback/stamp-badge';
-import { clinicDayOf } from '../shared/admin-dates';
 import type { ScheduleSlot } from './schedule-types';
 
-export interface SlotDay {
-  readonly day: string;
-  readonly slots: ReadonlyArray<ScheduleSlot>;
-}
-
 export type SlotCounts = Readonly<Record<SlotStatus, number>> & { readonly total: number };
-
-/** Days in ascending order, slots of a day by start time. The day is the clinic day (Europe/Minsk), not the UTC one. */
-export function groupSlotsByDay(slots: ReadonlyArray<ScheduleSlot>): ReadonlyArray<SlotDay> {
-  const byDay = new Map<string, ScheduleSlot[]>();
-  [...slots]
-    .sort((a, b) => a.start.localeCompare(b.start))
-    .forEach((slot) => {
-      const day: string = clinicDayOf(slot.start);
-      byDay.set(day, [...(byDay.get(day) ?? []), slot]);
-    });
-  return [...byDay.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([day, daySlots]) => ({ day, slots: daySlots }));
-}
 
 export function countSlots(slots: ReadonlyArray<ScheduleSlot>): SlotCounts {
   const counts = { free: 0, busy: 0, 'entered-in-error': 0 };

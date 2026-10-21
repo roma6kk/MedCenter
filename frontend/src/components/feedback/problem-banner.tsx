@@ -25,17 +25,25 @@ interface ProblemView {
   readonly retryAfter: number | undefined;
 }
 
+/** A request that never got a response (offline, DNS, aborted) carries status 0 and `INTERNAL` only as a stand-in code. */
+function isOffline(problem: ProblemDetails | undefined): boolean {
+  return problem?.status === 0;
+}
+
 function useProblemView(props: ProblemBannerProps): ProblemView {
-  const tErrors = useT();
+  const t = useT();
   const { problem } = props;
-  const errorCode: ErrorCode | undefined = props.errorCode ?? problem?.errorCode;
-  const headline: string = props.title ?? (errorCode === undefined ? problem?.title ?? '' : tErrors(errorMessageKey(errorCode)));
+  // A lost connection says so ("No connection to the server") instead of the "Internal error" its stand-in code stands for,
+  // and shows no code chip: there is no server answer to name. This is also what the central error effect toasts for it.
+  const offline: boolean = isOffline(problem) && props.errorCode === undefined;
+  const errorCode: ErrorCode | undefined = offline ? undefined : props.errorCode ?? problem?.errorCode;
+  const fallbackHeadline: string = offline ? t('errors.NETWORK') : errorCode === undefined ? problem?.title ?? '' : t(errorMessageKey(errorCode));
   // Field messages are shown next to the inputs; repeating the joined server text here would only add noise.
   const hasFieldErrors: boolean = (problem?.details?.length ?? 0) > 0;
   return {
-    headline,
+    headline: props.title ?? fallbackHeadline,
     errorCode,
-    detail: props.detail ?? (hasFieldErrors ? undefined : problem?.detail),
+    detail: props.detail ?? (hasFieldErrors || offline ? undefined : problem?.detail),
     requestId: props.requestId ?? problem?.requestId,
     retryAfter: problem?.retryAfter,
   };

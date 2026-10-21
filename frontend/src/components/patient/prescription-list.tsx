@@ -10,10 +10,10 @@ import { hasMessage } from '@/lib/i18n/translate';
 import { useT } from '@/lib/i18n/use-t';
 import type { MedicationPrescription, Prescription, ServicePrescription } from './patient-types';
 import { PrintButton } from './print-button';
-import { QueryErrorState } from './query-error-state';
+import { QueryFailure } from '@/components/feedback/query-error-state';
 import { useClampedPage } from './use-clamped-page';
-import { useClinicFormat } from './use-clinic-format';
-import { useDocumentTitle } from './use-document-title';
+import { useClinicFormat } from '@/hooks/use-clinic-format';
+import { useDocumentTitle } from '@/hooks/use-document-title';
 import { useMyPrescriptions } from './use-patient-queries';
 import { WRAP_TEXT } from './wrap-text';
 
@@ -91,9 +91,7 @@ interface PanelProps {
 
 function PrescriptionPanel({ query, onPage }: PanelProps): ReactNode {
   const t = useT('patient.prescriptions');
-  if (query.data === undefined) {
-    return query.isError ? <QueryErrorState error={query.error} embedded onRetry={() => void query.refetch()} /> : <TableSkeleton />;
-  }
+  if (query.data === undefined) return <QueryFailure query={query} embedded pending={<TableSkeleton />} />;
   if (query.data.items.length === 0) return <EmptyState title={t('empty')} description={t('emptyHint')} />;
   return (
     <>
@@ -108,11 +106,10 @@ function PrescriptionPanel({ query, onPage }: PanelProps): ReactNode {
 /** The patient's prescriptions (FR-007, API 7.7): drugs with their ATC code and dosage, and ordered services. */
 export function PrescriptionList(): ReactNode {
   const t = useT('patient.prescriptions');
-  const tBrand = useT('layout');
   const [page, setPage] = useState(1);
   const query = useMyPrescriptions({ page, pageSize: PRESCRIPTIONS_PAGE_SIZE });
   useClampedPage(query.data?.meta, page, setPage);
-  useDocumentTitle(t('title'), tBrand('brand'));
+  useDocumentTitle(t('title'));
   return (
     <section>
       <div className="flex flex-wrap items-center justify-between gap-3">

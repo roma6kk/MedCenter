@@ -1,13 +1,13 @@
 'use client';
 
 import { useEffect, useRef, type ReactNode } from 'react';
-import { QueryLoading } from '@/components/catalog/query-failed';
+import { QueryLoading } from '@/components/catalog/query-loading';
 import { useDoctor, useService } from '@/components/catalog/use-catalog';
 import type { Slot } from '@/components/catalog/catalog-types';
+import { clinicDayOf } from '@/lib/clinic-time';
 import { useT } from '@/lib/i18n/use-t';
 import type { BookingNotice } from './use-booking-submit';
 import { SlotPicker } from './slot-picker';
-import { minskDayOf } from './slot-time';
 
 interface SlotStepProps {
   readonly doctorId: string;
@@ -71,7 +71,7 @@ export function SlotStep({ doctorId, serviceId, selectedSlotId, selectedSlotStar
             onSelect={onSelect}
             durationMin={service.data?.defaultDurationMin ?? null}
             takenSlot={takenSlot}
-            {...(selectedSlotStart === null ? {} : { initialFrom: minskDayOf(selectedSlotStart) })}
+            {...(selectedSlotStart === null ? {} : { initialFrom: clinicDayOf(selectedSlotStart) })}
           />
         )}
       </div>

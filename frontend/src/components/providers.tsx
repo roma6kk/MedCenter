@@ -7,11 +7,10 @@ import { NextIntlClientProvider } from 'next-intl';
 import { Toaster } from '@/components/feedback/toaster';
 import { createAppQueryClient } from '@/lib/api/query-client';
 import { ensureSession } from '@/lib/auth/session-client';
+import { CLINIC_TIME_ZONE } from '@/lib/clinic-time';
 import { readStoredLocale } from '@/lib/i18n/locale';
 import { MESSAGES } from '@/lib/i18n/translate';
 import { useUiStore } from '@/store/use-ui-store';
-
-const CLINIC_TIME_ZONE = 'Europe/Minsk';
 
 function SessionHydrator(): null {
   useEffect(() => {

@@ -5,7 +5,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { SlotPicker } from '@/components/booking/slot-picker';
 import { draftFromSlot } from '@/components/booking/booking-steps';
-import { formatSlotDateTime } from '@/components/booking/slot-time';
+import { formatClinicDateTime } from '@/lib/clinic-time';
 import { useT } from '@/lib/i18n/use-t';
 import { useBookingDraftStore } from '@/store/use-booking-draft-store';
 import { useSessionStore } from '@/store/use-session-store';
@@ -27,7 +27,7 @@ function BookButton({ selected, onBook }: BookButtonProps): ReactNode {
       disabled={selected === null}
       className="min-h-[44px] w-full rounded-[6px] bg-[var(--primary)] px-6 py-2 text-[var(--primary-foreground)] disabled:opacity-60 md:w-auto"
     >
-      {selected === null ? t('bookDisabled') : t('bookSelected', { time: formatSlotDateTime(selected.start, locale) })}
+      {selected === null ? t('bookDisabled') : t('bookSelected', { time: formatClinicDateTime(selected.start, locale) })}
     </button>
   );
 }

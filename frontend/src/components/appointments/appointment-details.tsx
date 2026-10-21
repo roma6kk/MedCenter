@@ -3,7 +3,7 @@
 import type { ReactNode } from 'react';
 import { StampBadge } from '@/components/feedback/stamp-badge';
 import { DefinitionList, DefinitionRow } from '@/components/patient/definition-list';
-import { useClinicFormat } from '@/components/patient/use-clinic-format';
+import { useClinicFormat } from '@/hooks/use-clinic-format';
 import { useT } from '@/lib/i18n/use-t';
 import type { AppointmentView } from './appointment-types';
 

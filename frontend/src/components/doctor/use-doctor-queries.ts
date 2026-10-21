@@ -8,7 +8,7 @@ import { keepPreviousData, useQuery, type QueryClient, type UseQueryResult } fro
 import type { PaginatedResponse } from '@/lib/api/pagination';
 import { DEFAULT_STALE_TIME_MS, STALE_TIME_MS } from '@/lib/api/query-config';
 import { queryKeys } from '@/lib/api/query-keys';
-import { minskDayBounds } from './clinic-time';
+import { clinicDayBounds } from '@/lib/clinic-time';
 import {
   CARD_PAGE_SIZE,
   EXPAND_COUNT,
@@ -49,7 +49,7 @@ function journalFrom(query: { readonly queryKey: ReadonlyArray<unknown> } | unde
  * Turning the page keeps the old rows on screen meanwhile; switching the day does not (rows of another day would mislead).
  */
 export function useDoctorJournal(dateKey: string, page: number): UseQueryResult<DoctorJournalPage> {
-  const range: JournalRange = minskDayBounds(dateKey);
+  const range: JournalRange = clinicDayBounds(dateKey);
   return useQuery({
     queryKey: queryKeys.doctorAppointments({ ...range, page, pageSize: JOURNAL_PAGE_SIZE }),
     queryFn: ({ signal }) => fetchDoctorJournal(range, { page, pageSize: JOURNAL_PAGE_SIZE }, signal),

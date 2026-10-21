@@ -1,14 +1,16 @@
-import { render } from '@testing-library/react';
+import { act, render } from '@testing-library/react';
 import type { ReactNode } from 'react';
+import { useUiStore } from '@/store/use-ui-store';
 import { useDocumentTitle } from './use-document-title';
 
-function Page({ title }: { readonly title: string }): ReactNode {
-  useDocumentTitle(title, 'МедЦентр');
+function Page({ title, withBrand }: { readonly title: string; readonly withBrand?: boolean }): ReactNode {
+  useDocumentTitle(title, withBrand);
   return null;
 }
 
 describe('useDocumentTitle', () => {
   beforeEach(() => {
+    useUiStore.setState({ locale: 'ru' });
     document.title = 'Медицинский центр';
   });
 
@@ -30,6 +32,20 @@ describe('useDocumentTitle', () => {
     const { unmount } = render(<Page title="Мои записи" />);
 
     unmount();
+
+    expect(document.title).toBe('Медицинский центр');
+  });
+
+  it('should use the English brand when the interface is switched to English', () => {
+    render(<Page title="My appointments" />);
+
+    act(() => useUiStore.setState({ locale: 'en' }));
+
+    expect(document.title).toBe('My appointments — MedCenter');
+  });
+
+  it('should show the bare title when the page asks for no brand', () => {
+    render(<Page title="Медицинский центр" withBrand={false} />);
 
     expect(document.title).toBe('Медицинский центр');
   });

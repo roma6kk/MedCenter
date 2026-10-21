@@ -2,7 +2,7 @@
 
 import type { ReactNode } from 'react';
 import { useT } from '@/lib/i18n/use-t';
-import { formatDateKey } from './clinic-time';
+import { formatDateKey } from '@/lib/clinic-time';
 import type { ScheduleSummary, WeekDay, WeeklyWindow } from './doctor-types';
 
 const WEEK_ORDER: ReadonlyArray<WeekDay> = ['MO', 'TU', 'WE', 'TH', 'FR', 'SA', 'SU'];

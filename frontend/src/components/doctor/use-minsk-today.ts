@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { minskDateKey } from '@/lib/utils';
+import { clinicDateKey } from '@/lib/clinic-time';
 
 /** How often a page left open looks at the clock; a day boundary is noticed within this time. */
 export const TODAY_CHECK_MS = 60_000;
@@ -11,9 +11,9 @@ export const TODAY_CHECK_MS = 60_000;
  * instead of keeping yesterday as "today". Re-renders only when the day changes.
  */
 export function useMinskToday(): string {
-  const [today, setToday] = useState<string>(() => minskDateKey());
+  const [today, setToday] = useState<string>(() => clinicDateKey());
   useEffect(() => {
-    const refresh = (): void => setToday(minskDateKey());
+    const refresh = (): void => setToday(clinicDateKey());
     const timer = window.setInterval(refresh, TODAY_CHECK_MS);
     document.addEventListener('visibilitychange', refresh);
     refresh();

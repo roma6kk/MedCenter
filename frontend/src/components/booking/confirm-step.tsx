@@ -6,11 +6,12 @@ import { useDoctor, useService } from '@/components/catalog/use-catalog';
 import { ProblemBanner } from '@/components/feedback/problem-banner';
 import { FormField, INPUT_CLASS } from '@/components/patient/form-field';
 import { useRetryCooldown } from '@/lib/api/use-retry-cooldown';
+import { formatClinicDateTime } from '@/lib/clinic-time';
 import { useT } from '@/lib/i18n/use-t';
 import { useUiStore } from '@/store/use-ui-store';
 import type { BookingDraft } from '@/store/use-booking-draft-store';
 import { reasonProblem } from './book-appointment';
-import { formatSlotDateTime, slotDurationMin } from './slot-time';
+import { slotDurationMin } from './slot-time';
 import type { BookingSubmit } from './use-booking-submit';
 
 interface ConfirmStepProps {
@@ -42,7 +43,7 @@ function Summary({ draft }: Pick<ConfirmStepProps, 'draft'>): ReactNode {
         {doctor.data?.name ?? '…'}
         {doctor.data?.specialty === undefined ? null : <span className="text-[var(--muted-foreground)]"> · {doctor.data.specialty}</span>}
       </SummaryRow>
-      <SummaryRow label={t('summaryTime')}><span className="mono">{start === null ? '' : formatSlotDateTime(start, locale)}</span></SummaryRow>
+      <SummaryRow label={t('summaryTime')}><span className="mono">{start === null ? '' : formatClinicDateTime(start, locale)}</span></SummaryRow>
       {minutes > 0 ? <SummaryRow label={t('summaryDuration')}>{t('slotMinutes', { minutes })}</SummaryRow> : null}
     </dl>
   );

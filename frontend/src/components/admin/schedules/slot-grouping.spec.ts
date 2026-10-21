@@ -1,28 +1,9 @@
-import { countSlots, groupSlotsByDay, mayBeTruncated, SLOT_PAGE_LIMIT } from './slot-grouping';
+import { countSlots, mayBeTruncated, SLOT_PAGE_LIMIT } from './slot-grouping';
 import type { ScheduleSlot } from './schedule-types';
 
 function slot(id: string, start: string, status: ScheduleSlot['status'] = 'free'): ScheduleSlot {
   return { id, scheduleId: 's1', start, end: start, status };
 }
-
-describe('groupSlotsByDay', () => {
-  it('should group by clinic day in ascending order with the slots of a day by start time when the slots are unordered', () => {
-    const days = groupSlotsByDay([slot('c', '2026-10-25T07:00:00Z'), slot('b', '2026-10-18T08:00:00Z'), slot('a', '2026-10-18T07:00:00Z')]);
-
-    expect(days.map((d) => d.day)).toEqual(['2026-10-18', '2026-10-25']);
-    expect(days[0]?.slots.map((s) => s.id)).toEqual(['a', 'b']);
-  });
-
-  it('should put a late evening UTC slot on the next clinic day when the clinic zone is ahead', () => {
-    const days = groupSlotsByDay([slot('late', '2026-10-17T22:30:00Z')]);
-
-    expect(days[0]?.day).toBe('2026-10-18');
-  });
-
-  it('should return nothing when there are no slots', () => {
-    expect(groupSlotsByDay([])).toEqual([]);
-  });
-});
 
 describe('countSlots', () => {
   it('should count each status and the total when the slots are mixed', () => {

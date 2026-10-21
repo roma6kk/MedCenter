@@ -6,6 +6,7 @@ import { LocaleSwitcher } from './locale-switcher';
 import { LogoutButton } from './logout-button';
 import { NavLink } from './nav-link';
 import { NotificationBell } from './notification-bell';
+import { MAIN_CONTENT_ID, SkipLink } from './skip-link';
 
 const PATIENT_LINKS: ReadonlyArray<{ readonly href: string; readonly key: string }> = [
   { href: '/booking', key: 'booking' },
@@ -13,17 +14,15 @@ const PATIENT_LINKS: ReadonlyArray<{ readonly href: string; readonly key: string
   { href: '/history', key: 'history' },
   { href: '/prescriptions', key: 'prescriptions' },
   { href: '/profile', key: 'profile' },
-  { href: '/notifications', key: 'notifications' },
 ];
 
 export function PatientShell({ children }: { readonly children: ReactNode }): ReactNode {
-  const tLayout = useT('layout');
   const t = useT('layout.patient');
   return (
     <div className="min-h-screen">
-      <a href="#main-content" className="skip-link">{tLayout('skipToContent')}</a>
+      <SkipLink />
       <header className="border-b border-[var(--border)] bg-[var(--card)]">
-        <nav aria-label={t('navLabel')} className="mx-auto flex max-w-5xl flex-wrap items-center gap-4 px-4 py-3">
+        <nav aria-label={t('navLabel')} className="mx-auto flex max-w-5xl flex-wrap items-center gap-x-4 gap-y-1 px-4 py-2">
           {PATIENT_LINKS.map((link) => (
             <NavLink key={link.href} href={link.href} className="text-sm font-medium hover:underline">
               {t(link.key)}
@@ -36,7 +35,7 @@ export function PatientShell({ children }: { readonly children: ReactNode }): Re
           </span>
         </nav>
       </header>
-      <main id="main-content" tabIndex={-1} className="focus:outline-none mx-auto max-w-5xl px-4 py-6">{children}</main>
+      <main id={MAIN_CONTENT_ID} tabIndex={-1} className="focus:outline-none mx-auto max-w-5xl px-4 py-6">{children}</main>
     </div>
   );
 }

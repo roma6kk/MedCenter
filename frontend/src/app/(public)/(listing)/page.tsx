@@ -1,8 +1,5 @@
-import type { Metadata } from 'next';
 import { loadDoctors, loadServices } from '@/components/catalog/catalog-server';
 import { HomeView } from '@/components/catalog/home-view';
-
-export const metadata: Metadata = { title: 'Медицинский центр' };
 
 // Rendered per request, never at build time: `next build` runs where the API is unreachable (docker build), and a
 // prerendered page would bake the error banner into the static HTML.

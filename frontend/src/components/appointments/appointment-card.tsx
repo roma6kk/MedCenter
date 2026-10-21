@@ -3,7 +3,7 @@
 import type { ReactNode } from 'react';
 import Link from 'next/link';
 import { StampBadge } from '@/components/feedback/stamp-badge';
-import { useClinicFormat } from '@/components/patient/use-clinic-format';
+import { useClinicFormat } from '@/hooks/use-clinic-format';
 import { WRAP_TEXT } from '@/components/patient/wrap-text';
 import { useT } from '@/lib/i18n/use-t';
 import { isCancellable, type AppointmentView } from './appointment-types';

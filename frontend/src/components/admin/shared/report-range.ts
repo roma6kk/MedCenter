@@ -5,7 +5,7 @@
  * date-only `to` as the whole day, so a period of N days has `daysBetween(from, to) === N - 1` and may span at most 366 days.
  */
 import { isCalendarDate } from '@/lib/contracts';
-import { addDays, daysBetween, todayKey } from './admin-dates';
+import { clinicDateKey, daysBetween, shiftDateKey } from '@/lib/clinic-time';
 
 export interface ReportRange {
   readonly from: string;
@@ -21,14 +21,14 @@ export const MAX_REPORT_DAYS = 366;
 export const DEFAULT_AUDIT_DAYS = 30;
 
 /** 1 January – 31 December of the clinic's current year: the natural scope of the dashboard. */
-export function currentYearRange(today: string = todayKey()): ReportRange {
+export function currentYearRange(today: string = clinicDateKey()): ReportRange {
   const year: string = today.slice(0, 4);
   return { from: `${year}-01-01`, to: `${year}-12-31` };
 }
 
 /** The last `days` days up to and including `today`. */
-export function lastDaysRange(days: number, today: string = todayKey()): ReportRange {
-  return { from: addDays(today, -(days - 1)), to: today };
+export function lastDaysRange(days: number, today: string = clinicDateKey()): ReportRange {
+  return { from: shiftDateKey(today, -(days - 1)), to: today };
 }
 
 /** `null` when the period can be sent; otherwise why not (the message key is `admin.<screen>.errors.<reason>`). */

@@ -94,4 +94,36 @@ describe('ProblemBanner', () => {
 
     expect(screen.getByRole('alert')).toHaveTextContent('The slot is already taken');
   });
+
+  describe('when the request never got an answer', () => {
+    const OFFLINE: ProblemDetails = { title: 'Нет связи с сервером', status: 0, errorCode: 'INTERNAL' };
+
+    it('should say there is no connection and not "Internal error" when the problem has status 0', () => {
+      render(<ProblemBanner problem={OFFLINE} />);
+
+      expect(screen.getByRole('alert')).toHaveTextContent('Нет связи с сервером');
+      expect(screen.getByRole('alert')).not.toHaveTextContent('Внутренняя ошибка');
+    });
+
+    it('should show no INTERNAL code chip when the problem has status 0', () => {
+      render(<ProblemBanner problem={OFFLINE} />);
+
+      expect(screen.queryByTestId('code-chip')).not.toBeInTheDocument();
+    });
+
+    it('should say the server cannot be reached in English when the interface is English', () => {
+      useUiStore.setState({ locale: 'en' });
+
+      render(<ProblemBanner problem={OFFLINE} />);
+
+      expect(screen.getByRole('alert')).toHaveTextContent('Cannot reach the server');
+    });
+
+    it('should keep the INTERNAL chip when the server really answered 500', () => {
+      render(<ProblemBanner problem={{ title: 'Internal', status: 500, errorCode: 'INTERNAL', requestId: 'req-1' }} />);
+
+      expect(screen.getByRole('alert')).toHaveTextContent('Внутренняя ошибка');
+      expect(screen.getByTestId('code-chip')).toHaveTextContent('INTERNAL');
+    });
+  });
 });

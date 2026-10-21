@@ -1,3 +1,4 @@
+import { useUiStore } from '@/store/use-ui-store';
 import { applyProblemToForm, groupFieldErrors, hasDetailCode, isValidationProblem, localizeFieldMessage } from './field-errors';
 import type { ProblemDetails } from './problem';
 
@@ -43,6 +44,33 @@ describe('localizeFieldMessage', () => {
   });
 });
 
+describe('localizeFieldMessage in English', () => {
+  beforeEach(() => useUiStore.setState({ locale: 'en' }));
+  afterEach(() => useUiStore.setState({ locale: 'ru' }));
+
+  it.each([
+    ['email should not be empty', 'This field is required'],
+    ['email must be an email', 'Enter a valid email'],
+    ['summary must be longer than or equal to 3 characters', 'The value is too short'],
+    ['summary must be shorter than or equal to 4000 characters', 'The value is too long'],
+    ['birthDate must be a valid ISO 8601 date string', 'Enter a valid date'],
+    ['gender must be one of the following values: male, female', 'Choose one of the allowed values'],
+    ['code must match /^[A-Z]/ regular expression', 'The value has an invalid format'],
+  ])('should show "%s" in English when the interface is English', (message, expected) => {
+    expect(localizeFieldMessage(message)).toBe(expected);
+  });
+
+  it('should explain the password rules in English when the server says the password is weak', () => {
+    expect(localizeFieldMessage('password is not strong enough')).toMatch(/10\+ characters/);
+  });
+
+  it('should group the English texts under the field when the details are grouped', () => {
+    const grouped = groupFieldErrors([{ field: 'email', message: 'email must be an email' }]);
+
+    expect(grouped['email']).toEqual(['Enter a valid email']);
+  });
+});
+
 describe('applyProblemToForm', () => {
   it('should set one server error per known field', () => {
     const setError = jest.fn();
@@ -76,10 +104,10 @@ describe('applyProblemToForm', () => {
   it('should hand back messages for fields that are not part of the form instead of dropping them', () => {
     const setError = jest.fn();
 
-    const unmatched = applyProblemToForm(validationProblem([{ field: 'gender', message: 'gender must be one of the following values: male, female' }]), setError, ['email']);
+    const unmatched = applyProblemToForm(validationProblem([{ field: 'gender', message: 'gender is not supported' }]), setError, ['email']);
 
     expect(setError).not.toHaveBeenCalled();
-    expect(unmatched).toEqual(['gender must be one of the following values: male, female']);
+    expect(unmatched).toEqual(['gender is not supported']);
   });
 });
 

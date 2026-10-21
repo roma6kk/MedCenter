@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import type { FormEvent, ReactNode } from 'react';
 import type { UseMutationResult } from '@tanstack/react-query';
-import { formatDateKey } from '../shared/admin-dates';
+import { formatDateKey } from '@/lib/clinic-time';
 import { useT } from '@/lib/i18n/use-t';
 import { defaultGenerationRange, validateGenerationRange, type GenerationRange, type GenerationRangeError } from './generation-range';
 import type { AdminSchedule, GenerateSlotsResult } from './schedule-types';
@@ -72,7 +72,7 @@ export function SlotGenerationDialog({ schedule, scheduleLabel, onClose }: SlotG
   const t = useT('admin.slots');
   const { range, rangeError, generate, change, handleSubmit } = useGenerationForm(schedule);
   const error: string | undefined = rangeError === null ? undefined : t(`generate.errors.${rangeError}`);
-  const horizon: string = schedule.horizonFrom && schedule.horizonTo ? t('generate.horizon', { from: formatDateKey(schedule.horizonFrom), to: formatDateKey(schedule.horizonTo) }) : '';
+  const horizon: string = schedule.horizonFrom && schedule.horizonTo ? t('generate.horizon', { from: formatDateKey(schedule.horizonFrom, 'numeric'), to: formatDateKey(schedule.horizonTo, 'numeric') }) : '';
   return (
     <Modal title={t('generate.title')} onClose={onClose} size="sm">
       {scheduleLabel ? <p className="text-sm text-[var(--muted-foreground)]">{scheduleLabel}</p> : null}

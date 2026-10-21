@@ -8,10 +8,10 @@ import { CodeChip } from '@/components/feedback/code-chip';
 import { SectionTitle } from '@/components/feedback/section-title';
 import { TableSkeleton } from '@/components/feedback/states';
 import { useT } from '@/lib/i18n/use-t';
-import { formatMinskDate } from './clinic-time';
+import { formatClinicDate } from '@/lib/clinic-time';
 import type { Prescription } from './doctor-types';
 import { ATC_SYSTEM } from './encounter-problem-fields';
-import { QueryErrorState } from './query-error-state';
+import { QueryFailure } from '@/components/feedback/query-error-state';
 import { usePatientPrescriptions } from './use-doctor-queries';
 
 /** `ServiceRequest` and `MedicationRequest` share one list (API 7.5): the `kind` decides what the card shows. */
@@ -53,7 +53,7 @@ function PrescriptionCard({ item }: { readonly item: Prescription }): ReactNode 
         <PrescriptionBody item={item} />
         {item.note ? <p className="mt-2 text-sm text-[var(--muted-foreground)]">{item.note}</p> : null}
         <p className="mt-3 flex flex-wrap items-center justify-between gap-2 text-xs text-[var(--muted-foreground)]">
-          <span>{item.authoredOn ? formatMinskDate(item.authoredOn) : null}</span>
+          <span>{item.authoredOn ? formatClinicDate(item.authoredOn) : null}</span>
           {item.encounterId ? <Link href={`/encounters/${encodeURIComponent(item.encounterId)}`} aria-label={t('openEncounterOn', { name: orderName(item) })} className="underline">{t('openEncounter')}</Link> : null}
         </p>
       </article>
@@ -70,8 +70,7 @@ export function PatientPrescriptions({ patientId }: { readonly patientId: string
     <section aria-labelledby="prescriptions-title" className="mt-6">
       <div id="prescriptions-title"><SectionTitle>{t('title')}</SectionTitle></div>
       <div className="mt-3" aria-busy={prescriptions.isFetching}>
-        {prescriptions.isPending ? <TableSkeleton /> : null}
-        {prescriptions.isError && prescriptions.data === undefined ? <QueryErrorState error={prescriptions.error} notFoundText={t('unavailable')} onRetry={() => void prescriptions.refetch()} /> : null}
+        {prescriptions.data === undefined ? <QueryFailure query={prescriptions} embedded notFoundText={t('unavailable')} pending={<TableSkeleton />} /> : null}
         {prescriptions.data && prescriptions.data.items.length === 0 ? <p className="text-sm text-[var(--muted-foreground)]">{t('empty')}</p> : null}
         {prescriptions.data && prescriptions.data.items.length > 0 ? (
           <>

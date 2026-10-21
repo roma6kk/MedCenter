@@ -3,7 +3,7 @@
  * calendar days, `to - from` ≤ 90 days, and the period stays inside the schedule's planning horizon.
  */
 import { isCalendarDate } from '@/lib/contracts';
-import { addDays, daysBetween, todayKey } from '../shared/admin-dates';
+import { clinicDateKey, daysBetween, shiftDateKey } from '@/lib/clinic-time';
 import { MAX_HORIZON_DAYS } from './schedule-windows';
 import type { AdminSchedule } from './schedule-types';
 
@@ -18,11 +18,11 @@ export type GenerationRangeError = PeriodError | 'outsideHorizon';
 /** The next two weeks, clipped to the horizon of the schedule (a schedule that starts later opens at its first day). */
 export const DEFAULT_GENERATION_DAYS = 14;
 
-export function defaultGenerationRange(schedule: AdminSchedule, today: string = todayKey()): GenerationRange {
+export function defaultGenerationRange(schedule: AdminSchedule, today: string = clinicDateKey()): GenerationRange {
   const horizonFrom: string | undefined = schedule.horizonFrom;
   const horizonTo: string | undefined = schedule.horizonTo;
   const from: string = horizonFrom !== undefined && horizonFrom > today ? horizonFrom : today;
-  const wanted: string = addDays(from, DEFAULT_GENERATION_DAYS);
+  const wanted: string = shiftDateKey(from, DEFAULT_GENERATION_DAYS);
   const to: string = horizonTo !== undefined && horizonTo < wanted ? horizonTo : wanted;
   return { from, to: to < from ? from : to };
 }

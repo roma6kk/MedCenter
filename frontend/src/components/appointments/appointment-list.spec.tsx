@@ -90,6 +90,19 @@ describe('AppointmentList', () => {
     expect(await screen.findByRole('list', { name: 'Записи на приём' })).toBeInTheDocument();
   });
 
+  it('should keep the banner and the focus on the retry button while the failed first read is repeated', async () => {
+    listMock.mockRejectedValueOnce(apiProblem(0, 'INTERNAL'));
+    listMock.mockReturnValue(new Promise(() => undefined));
+    renderWithClient(<AppointmentList />);
+    await userEvent.click(await screen.findByRole('button', { name: 'Повторить' }));
+
+    const retrying = await screen.findByRole('button', { name: 'Повторяем…' });
+
+    expect(screen.getByTestId('problem-banner')).toHaveTextContent('Нет связи с сервером');
+    expect(screen.queryByTestId('table-skeleton')).not.toBeInTheDocument();
+    expect(retrying).toHaveFocus();
+  });
+
   it('should page through the server pages when there is more than one', async () => {
     listMock.mockResolvedValue(pageOf([BOOKED], { page: 1, totalItems: 25 }));
     renderWithClient(<AppointmentList />);

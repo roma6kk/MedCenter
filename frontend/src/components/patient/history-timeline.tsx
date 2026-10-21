@@ -9,10 +9,10 @@ import { EmptyState, TableSkeleton } from '@/components/feedback/states';
 import { useT } from '@/lib/i18n/use-t';
 import { PrintButton } from './print-button';
 import type { DiagnosisView, HistoryEntry } from './patient-types';
-import { QueryErrorState } from './query-error-state';
+import { QueryFailure } from '@/components/feedback/query-error-state';
 import { useClampedPage } from './use-clamped-page';
-import { useClinicFormat } from './use-clinic-format';
-import { useDocumentTitle } from './use-document-title';
+import { useClinicFormat } from '@/hooks/use-clinic-format';
+import { useDocumentTitle } from '@/hooks/use-document-title';
 import { useMyHistory } from './use-patient-queries';
 import { WRAP_TEXT } from './wrap-text';
 
@@ -87,9 +87,7 @@ interface TimelineProps {
 
 function Timeline({ query, onPage }: TimelineProps): ReactNode {
   const t = useT('patient.history');
-  if (query.data === undefined) {
-    return query.isError ? <QueryErrorState error={query.error} embedded onRetry={() => void query.refetch()} /> : <TableSkeleton />;
-  }
+  if (query.data === undefined) return <QueryFailure query={query} embedded pending={<TableSkeleton />} />;
   if (query.data.items.length === 0) return <EmptyState title={t('empty')} description={t('emptyHint')} />;
   return (
     <>
@@ -104,11 +102,10 @@ function Timeline({ query, onPage }: TimelineProps): ReactNode {
 /** The patient's finished visits (FR-006, API 7.6): newest first, a diagnosis chip and the doctor's words for each. */
 export function HistoryTimeline(): ReactNode {
   const t = useT('patient.history');
-  const tBrand = useT('layout');
   const [page, setPage] = useState(1);
   const query = useMyHistory({ page, pageSize: HISTORY_PAGE_SIZE });
   useClampedPage(query.data?.meta, page, setPage);
-  useDocumentTitle(t('title'), tBrand('brand'));
+  useDocumentTitle(t('title'));
   return (
     <section>
       <div className="flex flex-wrap items-center justify-between gap-3">

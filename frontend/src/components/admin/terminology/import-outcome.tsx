@@ -2,7 +2,7 @@
 
 import type { ReactNode } from 'react';
 import { useT } from '@/lib/i18n/use-t';
-import { formatClinicDateTime } from '../shared/admin-dates';
+import { formatClinicDateTime } from '@/lib/clinic-time';
 import { FormProblem } from '../shared/admin-problem';
 import { detailCodeOf, problemOf } from '../shared/problem-of';
 import type { FormBanner } from '../shared/use-form-banner';

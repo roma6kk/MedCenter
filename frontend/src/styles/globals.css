@@ -58,6 +58,9 @@ h1, h2, h3, .serif {
   left: 1rem;
   top: 1rem;
   z-index: 50;
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
   background: var(--card);
   border: 1px solid var(--border);
   padding: 0.5rem 1rem;

@@ -2,8 +2,9 @@ import type { Metadata } from 'next';
 import { LoginEntry } from '@/components/auth/login-entry';
 import { parseLoginError } from '@/components/auth/login-error';
 import { sanitizeReturnTo } from '@/lib/auth/return-to';
+import { pageMetadata } from '@/lib/i18n/page-metadata';
 
-export const metadata: Metadata = { title: 'Вход — МедЦентр' };
+export const metadata: Metadata = pageMetadata('auth.login.title');
 
 interface LoginPageProps {
   readonly searchParams?: Promise<{ returnTo?: string; error?: string | string[] }>;

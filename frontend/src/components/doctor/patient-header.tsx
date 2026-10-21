@@ -4,11 +4,11 @@ import type { ReactNode } from 'react';
 import { CodeChip } from '@/components/feedback/code-chip';
 import { StampBadge } from '@/components/feedback/stamp-badge';
 import { useT } from '@/lib/i18n/use-t';
-import { ageInYears, formatDateKey } from './clinic-time';
+import { ageInYears, formatDateKey } from '@/lib/clinic-time';
 import { ContactList } from './contact-list';
 import type { PatientCard } from './doctor-types';
 import { TableSkeleton } from '@/components/feedback/states';
-import { QueryErrorState } from './query-error-state';
+import { QueryFailure } from '@/components/feedback/query-error-state';
 import { usePatient } from './use-doctor-queries';
 
 function Fact({ label, children }: { readonly label: string; readonly children: ReactNode }): ReactNode {
@@ -40,8 +40,7 @@ function PatientFacts({ patient }: { readonly patient: PatientCard }): ReactNode
 export function PatientHeader({ patientId }: { readonly patientId: string }): ReactNode {
   const t = useT('doctor.patient');
   const patient = usePatient(patientId);
-  if (patient.isPending) return <TableSkeleton />;
-  if (patient.isError) return <QueryErrorState error={patient.error} notFoundText={t('notFound')} onRetry={() => void patient.refetch()} />;
+  if (patient.data === undefined) return <QueryFailure query={patient} notFoundText={t('notFound')} pending={<TableSkeleton />} />;
   return (
     <section aria-labelledby="patient-title" className="rounded-[8px] border border-[var(--border)] bg-[var(--card)] p-5">
       <p className="form-label">{t('cardLabel')}</p>

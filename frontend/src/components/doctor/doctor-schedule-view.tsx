@@ -3,9 +3,10 @@
 import { useState } from 'react';
 import type { ChangeEvent, ReactNode } from 'react';
 import { EmptyState, TableSkeleton } from '@/components/feedback/states';
+import { useDocumentTitle } from '@/hooks/use-document-title';
 import { useT } from '@/lib/i18n/use-t';
-import { formatDateKey, isDateKey, shiftDateKey } from './clinic-time';
-import { QueryErrorState } from './query-error-state';
+import { formatDateKey, isDateKey, shiftDateKey } from '@/lib/clinic-time';
+import { QueryFailure } from '@/components/feedback/query-error-state';
 import { ScheduleSlotDays } from './schedule-slot-days';
 import { ScheduleWindows } from './schedule-windows';
 import { useDoctorSchedule } from './use-doctor-queries';
@@ -50,6 +51,7 @@ function PeriodControls({ fromKey, today, onChange }: PeriodControlsProps): Reac
 /** The signed-in doctor's own schedule (API 5.2.7, FR-009): weekly windows plus the slots of a 14-day period. */
 export function DoctorScheduleView(): ReactNode {
   const t = useT('doctor.schedule');
+  useDocumentTitle(t('title'));
   const today: string = useMinskToday();
   const [fromKey, setFromKey] = useState<string>(today);
   const toKey: string = shiftDateKey(fromKey, SCHEDULE_DAYS - 1);
@@ -61,8 +63,7 @@ export function DoctorScheduleView(): ReactNode {
       <PeriodControls fromKey={fromKey} today={today} onChange={setFromKey} />
       <p className="mt-2 text-sm text-[var(--muted-foreground)]">{t('period', { from: formatDateKey(fromKey), to: formatDateKey(toKey) })}</p>
       <div className="mt-4" aria-busy={schedule.isFetching}>
-        {schedule.isPending ? <TableSkeleton /> : null}
-        {schedule.isError ? <QueryErrorState error={schedule.error} notFoundText={t('loadError')} onRetry={() => void schedule.refetch()} /> : null}
+        {schedule.data === undefined ? <QueryFailure query={schedule} embedded notFoundText={t('loadError')} pending={<TableSkeleton />} /> : null}
         {schedule.data ? <ScheduleBody data={schedule.data} /> : null}
       </div>
     </section>

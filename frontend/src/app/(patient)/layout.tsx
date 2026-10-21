@@ -1,11 +1,12 @@
 import type { ReactNode } from 'react';
-import { Providers } from '@/components/providers';
+import { PatientShell } from '@/components/layout/patient-shell';
 import { RoleGuard } from '@/components/layout/role-guard';
 
+/** One shell for every cabinet page: the header, the unread bell and the skip link stay mounted while the patient moves between sections. */
 export default function PatientGroupLayout({ children }: { readonly children: ReactNode }): ReactNode {
   return (
-    <Providers>
-      <RoleGuard required="PATIENT">{children}</RoleGuard>
-    </Providers>
+    <RoleGuard required="PATIENT">
+      <PatientShell>{children}</PatientShell>
+    </RoleGuard>
   );
 }

@@ -2,21 +2,21 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useState, type ReactNode } from 'react';
 
-jest.mock('./slot-time', () => {
-  const actual = jest.requireActual('./slot-time');
-  return { ...actual, groupSlotsByDay: jest.fn(actual.groupSlotsByDay), formatSlotTime: jest.fn(actual.formatSlotTime) };
+jest.mock('@/lib/clinic-time', () => {
+  const actual = jest.requireActual('@/lib/clinic-time');
+  return { ...actual, groupSlotsByDay: jest.fn(actual.groupSlotsByDay), formatClinicTime: jest.fn(actual.formatClinicTime) };
 });
 
 import type { Slot } from '@/components/catalog/catalog-types';
 import { SlotDayList } from './slot-day-list';
-import { formatSlotTime, groupSlotsByDay, shiftDay } from './slot-time';
+import { formatClinicTime, groupSlotsByDay, shiftDateKey } from '@/lib/clinic-time';
 
 const groupMock = groupSlotsByDay as jest.MockedFunction<typeof groupSlotsByDay>;
-const formatMock = formatSlotTime as jest.MockedFunction<typeof formatSlotTime>;
+const formatMock = formatClinicTime as jest.MockedFunction<typeof formatClinicTime>;
 
 /** 14 days of 16 half-hour slots: what a doctor page shows for two weeks. */
 const SLOTS: ReadonlyArray<Slot> = Array.from({ length: 224 }, (_, index) => {
-  const dayStart: number = Date.parse(`${shiftDay('2026-10-19', Math.floor(index / 16))}T05:00:00.000Z`);
+  const dayStart: number = Date.parse(`${shiftDateKey('2026-10-19', Math.floor(index / 16))}T05:00:00.000Z`);
   const start: number = dayStart + (index % 16) * 30 * 60_000;
   return { id: `s-${index}`, start: new Date(start).toISOString(), end: new Date(start + 30 * 60_000).toISOString(), status: 'free' };
 });

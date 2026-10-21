@@ -1,7 +1,13 @@
 import { render, screen } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
-jest.mock('next/navigation', () => ({ useRouter: () => ({ push: jest.fn() }) }));
+const NOT_FOUND = new Error('NEXT_NOT_FOUND');
+jest.mock('next/navigation', () => ({
+  useRouter: () => ({ push: jest.fn() }),
+  notFound: (): never => {
+    throw NOT_FOUND;
+  },
+}));
 jest.mock('@/components/catalog/catalog-server', () => ({ loadDoctor: jest.fn() }));
 jest.mock('@/lib/api/api-fetch', () => {
   const actual = jest.requireActual('@/lib/api/api-fetch');
@@ -30,13 +36,16 @@ describe('DoctorProfilePage', () => {
     expect(screen.getByRole('heading', { level: 2, name: 'Свободное время' })).toBeInTheDocument();
   });
 
-  it.each([404, 400])('should say the doctor was not found when the API answers %s', async (status) => {
+  it.each([404, 400])('should answer not found (a real 404) when the API answers %s', async (status) => {
     loadDoctorMock.mockResolvedValue({ ok: false, status });
 
-    await renderPage('nope');
+    await expect(renderPage('nope')).rejects.toBe(NOT_FOUND);
+  });
 
-    expect(screen.getByTestId('not-found-state')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'К списку врачей' })).toHaveAttribute('href', '/doctors');
+  it('should answer not found without asking the API when the id cannot be an id', async () => {
+    await expect(renderPage('..')).rejects.toBe(NOT_FOUND);
+
+    expect(loadDoctorMock).not.toHaveBeenCalled();
   });
 
   it('should show a retryable banner, not "not found", when the API is down', async () => {

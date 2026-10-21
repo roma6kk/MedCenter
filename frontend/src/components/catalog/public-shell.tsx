@@ -4,6 +4,7 @@ import type { ReactNode } from 'react';
 import Link from 'next/link';
 import { LocaleSwitcher } from '@/components/layout/locale-switcher';
 import { NavLink } from '@/components/layout/nav-link';
+import { MAIN_CONTENT_ID, SkipLink } from '@/components/layout/skip-link';
 import { ROLE_LANDING } from '@/lib/auth/user-role';
 import { useT } from '@/lib/i18n/use-t';
 import { useSessionStore } from '@/store/use-session-store';
@@ -31,7 +32,7 @@ export function PublicShell({ children }: { readonly children: ReactNode }): Rea
   const t = useT('public');
   return (
     <div className="min-h-screen">
-      <a href="#main-content" className="skip-link">{tLayout('skipToContent')}</a>
+      <SkipLink />
       <header className="border-b border-[var(--border)] bg-[var(--card)]">
         <nav aria-label={t('navLabel')} className="mx-auto flex max-w-5xl flex-wrap items-center gap-3 px-4 py-2">
           <Link href="/" className="serif mr-2 inline-flex min-h-[44px] items-center text-lg font-bold">{tLayout('brand')}</Link>
@@ -42,7 +43,7 @@ export function PublicShell({ children }: { readonly children: ReactNode }): Rea
           </span>
         </nav>
       </header>
-      <main id="main-content" tabIndex={-1} className="mx-auto max-w-5xl px-4 py-8 focus:outline-none">{children}</main>
+      <main id={MAIN_CONTENT_ID} tabIndex={-1} className="mx-auto max-w-5xl px-4 py-8 focus:outline-none">{children}</main>
     </div>
   );
 }

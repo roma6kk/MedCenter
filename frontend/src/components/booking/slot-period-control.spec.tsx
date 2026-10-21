@@ -1,10 +1,10 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import type { ReactNode } from 'react';
 import { SlotPeriodControl } from './slot-period-control';
-import { shiftDay, todayInClinic } from './slot-time';
+import { clinicDateKey, shiftDateKey } from '@/lib/clinic-time';
 import { useSlotWindow } from './use-slot-window';
 
-const TODAY: string = todayInClinic();
+const TODAY: string = clinicDateKey();
 
 function Harness(): ReactNode {
   const state = useSlotWindow();
@@ -23,7 +23,7 @@ function dateField(): HTMLInputElement {
 describe('SlotPeriodControl date field', () => {
   it('should keep the day typed so far when it is a past day that the search clamps to today', () => {
     render(<Harness />);
-    const past: string = shiftDay(TODAY, -3);
+    const past: string = shiftDateKey(TODAY, -3);
 
     fireEvent.change(dateField(), { target: { value: past } });
 
@@ -33,9 +33,9 @@ describe('SlotPeriodControl date field', () => {
 
   it('should search the day when typing ends on a later day', () => {
     render(<Harness />);
-    const target: string = shiftDay(TODAY, 12);
+    const target: string = shiftDateKey(TODAY, 12);
 
-    fireEvent.change(dateField(), { target: { value: shiftDay(TODAY, -3) } });
+    fireEvent.change(dateField(), { target: { value: shiftDateKey(TODAY, -3) } });
     fireEvent.change(dateField(), { target: { value: target } });
 
     expect(screen.getByTestId('searched-from')).toHaveTextContent(target);
@@ -45,7 +45,7 @@ describe('SlotPeriodControl date field', () => {
   it('should show the searched day again when the field loses focus after a past day was typed', () => {
     render(<Harness />);
 
-    fireEvent.change(dateField(), { target: { value: shiftDay(TODAY, -3) } });
+    fireEvent.change(dateField(), { target: { value: shiftDateKey(TODAY, -3) } });
     fireEvent.blur(dateField());
 
     expect(dateField().value).toBe(TODAY);
@@ -56,6 +56,6 @@ describe('SlotPeriodControl date field', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Позже' }));
 
-    expect(dateField().value).toBe(shiftDay(TODAY, 14));
+    expect(dateField().value).toBe(shiftDateKey(TODAY, 14));
   });
 });

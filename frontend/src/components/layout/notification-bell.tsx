@@ -1,8 +1,8 @@
 'use client';
 
 import type { ReactNode } from 'react';
-import Link from 'next/link';
 import { Bell } from 'lucide-react';
+import { NavLink } from './nav-link';
 import { useUnreadCount } from '@/lib/notifications/use-notifications';
 import { useT } from '@/lib/i18n/use-t';
 import { useSessionStore } from '@/store/use-session-store';
@@ -24,8 +24,9 @@ function UnreadBadge({ count }: { readonly count: number }): ReactNode {
 }
 
 /**
- * Unread-notification bell (patient only). Polls `GET /api/v1/notifications/unread-count` every 30 s (ADR-015) through
- * `useUnreadCount`; renders nothing for doctors and administrators, who have no notification endpoints.
+ * The patient's one entry to the notifications (patient only): a bell with the unread count, current-page aware like the
+ * other links. Polls `GET /api/v1/notifications/unread-count` every 30 s (ADR-015) through `useUnreadCount`; renders
+ * nothing for doctors and administrators, who have no notification endpoints.
  */
 export function NotificationBell(): ReactNode {
   const t = useT('layout.notifications');
@@ -36,14 +37,10 @@ export function NotificationBell(): ReactNode {
   const count: number = data ?? 0;
   return (
     <span className="relative inline-flex">
-      <Link
-        href="/notifications"
-        aria-label={t('label', { count })}
-        className="relative inline-flex min-h-[44px] min-w-[44px] items-center justify-center rounded-[6px] border border-[var(--border)] p-2"
-      >
+      <NavLink href="/notifications" label={t('label', { count })} className="relative min-w-[44px] justify-center rounded-[6px] border border-[var(--border)] p-2">
         <Bell size={18} strokeWidth={1.5} aria-hidden="true" />
         <UnreadBadge count={count} />
-      </Link>
+      </NavLink>
       <span role="status" className="sr-only">
         {t('announce', { count })}
       </span>

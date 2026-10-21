@@ -5,7 +5,7 @@
  */
 import { z } from 'zod';
 import { isCalendarDate } from '@/lib/contracts';
-import { addDays, daysBetween, todayKey } from '../shared/admin-dates';
+import { clinicDateKey, daysBetween, shiftDateKey } from '@/lib/clinic-time';
 import { MAX_HORIZON_DAYS, findOverlappingWindows, isWindowValid, sortWindows } from './schedule-windows';
 import type { AdminSchedule, CreateSchedulePayload, UpdateSchedulePayload, WeekDay, WeeklyWindow } from './schedule-types';
 import { WEEK_DAYS } from './schedule-types';
@@ -106,13 +106,13 @@ export type ScheduleFormValues = z.infer<ReturnType<typeof scheduleSchemaFor>>;
 export const DEFAULT_WINDOW: WeeklyWindow = { dayOfWeek: 'MO', startTime: '09:00', endTime: '13:00' };
 
 export function emptyScheduleValues(now: Date = new Date()): ScheduleFormValues {
-  const from: string = todayKey(now);
+  const from: string = clinicDateKey(now);
   return {
     practitionerRoleId: '',
     roomId: '',
     serviceId: '',
     horizonFrom: from,
-    horizonTo: addDays(from, DEFAULT_HORIZON_DAYS),
+    horizonTo: shiftDateKey(from, DEFAULT_HORIZON_DAYS),
     slotDurationMin: '30',
     comment: '',
     windows: [DEFAULT_WINDOW],
@@ -124,8 +124,8 @@ export function scheduleValuesOf(schedule: AdminSchedule): ScheduleFormValues {
     practitionerRoleId: schedule.practitionerRoleId ?? '',
     roomId: schedule.roomId ?? '',
     serviceId: schedule.serviceId ?? '',
-    horizonFrom: schedule.horizonFrom ?? todayKey(),
-    horizonTo: schedule.horizonTo ?? addDays(todayKey(), DEFAULT_HORIZON_DAYS),
+    horizonFrom: schedule.horizonFrom ?? clinicDateKey(),
+    horizonTo: schedule.horizonTo ?? shiftDateKey(clinicDateKey(), DEFAULT_HORIZON_DAYS),
     slotDurationMin: String(schedule.slotDurationMin ?? 30),
     comment: schedule.comment ?? '',
     windows: schedule.windows.length > 0 ? schedule.windows.map((window) => ({ ...window })) : [DEFAULT_WINDOW],

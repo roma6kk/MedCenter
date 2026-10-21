@@ -9,7 +9,7 @@ import type { MeasureReport } from './analytics-types';
 
 interface ReportSectionProps<TReport extends MeasureReport> {
   readonly title: string;
-  readonly query: Pick<UseQueryResult<TReport, Error>, 'data' | 'isPending' | 'isError' | 'error' | 'refetch'>;
+  readonly query: Pick<UseQueryResult<TReport, Error>, 'data' | 'isPending' | 'isError' | 'error' | 'errorUpdatedAt' | 'refetch'>;
   readonly emptyTitle: string;
   readonly children: (report: TReport) => ReactNode;
 }

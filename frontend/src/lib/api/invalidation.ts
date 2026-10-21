@@ -22,13 +22,28 @@ export type MutationKind =
   | 'terminology-import';
 
 export const INVALIDATION: Readonly<Record<MutationKind, ReadonlyArray<QueryKey>>> = {
-  booking: [queryRoots.slots, queryRoots.appointments, queryKeys.unreadCount],
-  'cancel-appointment': [queryRoots.appointments, queryRoots.appointmentDetail, queryRoots.doctorAppointments, queryKeys.unreadCount, queryRoots.slots],
+  booking: [queryRoots.slots, queryRoots.appointments, queryRoots.doctorAppointments, queryRoots.doctorSchedule, queryKeys.unreadCount],
+  'cancel-appointment': [
+    queryRoots.appointments,
+    queryRoots.appointmentDetail,
+    queryRoots.doctorAppointments,
+    queryRoots.doctorSchedule,
+    queryRoots.slots,
+    queryKeys.unreadCount,
+  ],
   noshow: [queryRoots.appointments, queryRoots.appointmentDetail, queryRoots.doctorAppointments, queryKeys.unreadCount],
   'open-encounter': [queryRoots.doctorAppointments, queryRoots.encounters],
-  'complete-encounter': [queryRoots.encounters, queryRoots.history, queryRoots.prescriptions, queryRoots.doctorAppointments],
+  'complete-encounter': [
+    queryRoots.encounters,
+    queryRoots.history,
+    queryRoots.prescriptions,
+    queryRoots.doctorAppointments,
+    queryRoots.appointments,
+    queryRoots.appointmentDetail,
+  ],
   'read-notification': [queryRoots.notifications],
-  'admin-users': [queryRoots.adminUsers],
+  // A new doctor account is a new entry of the public catalogue too.
+  'admin-users': [queryRoots.adminUsers, queryRoots.doctors],
   'admin-services': [queryRoots.services],
   'admin-rooms': [queryRoots.rooms, queryRoots.roomUsage],
   'admin-schedules': [queryRoots.adminSchedules, queryRoots.roomUsage, queryRoots.doctorSchedule],

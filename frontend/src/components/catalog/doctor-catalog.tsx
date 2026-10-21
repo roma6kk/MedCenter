@@ -3,6 +3,7 @@
 import type { ReactNode } from 'react';
 import Link from 'next/link';
 import { EmptyState } from '@/components/feedback/states';
+import { useDocumentTitle } from '@/hooks/use-document-title';
 import { useT } from '@/lib/i18n/use-t';
 import { CatalogUnavailable } from './catalog-unavailable';
 import type { CatalogService, Doctor } from './catalog-types';
@@ -47,6 +48,7 @@ function DoctorResults({ directory, params }: { readonly directory: Directory; r
 /** `/doctors`: the catalog with filters by service, specialty and name, server-side pagination (frontend-design-spec §3). */
 export function DoctorCatalog({ params, services, directory }: DoctorCatalogProps): ReactNode {
   const t = useT('catalog');
+  useDocumentTitle(t('doctorsTitle'));
   return (
     <div>
       <h1 className="serif text-[32px] font-bold leading-tight">{t('doctorsTitle')}</h1>

@@ -32,7 +32,7 @@ describe('invalidateFor', () => {
 
     await invalidateFor(client, 'booking');
 
-    expect(invalidatedKeys(client)).toEqual(['appointments', 'notifications.unreadCount', 'slots']);
+    expect(invalidatedKeys(client)).toEqual(['appointments', 'doctorAppointments', 'notifications.unreadCount', 'slots']);
   });
 
   it('should refresh the appointment views and the counter after a cancellation', async () => {
@@ -48,7 +48,7 @@ describe('invalidateFor', () => {
 
     await invalidateFor(client, 'complete-encounter');
 
-    expect(invalidatedKeys(client)).toEqual(expect.arrayContaining(['encounter', 'patientHistory', 'prescriptions']));
+    expect(invalidatedKeys(client)).toEqual(expect.arrayContaining(['appointments', 'doctorAppointments', 'encounter', 'patientHistory', 'prescriptions']));
   });
 
   it('should leave unrelated queries fresh', async () => {

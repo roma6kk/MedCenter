@@ -5,7 +5,7 @@ import { StampBadge } from '@/components/feedback/stamp-badge';
 import { useT } from '@/lib/i18n/use-t';
 import { sortWindows } from './schedule-windows';
 import type { AdminSchedule, WeekDay } from './schedule-types';
-import { formatDateKey } from '../shared/admin-dates';
+import { formatDateKey } from '@/lib/clinic-time';
 import { ROW_ACTION_CLASS } from '../shared/admin-styles';
 import { labelOf, type SchedulePickers } from './use-schedule-pickers';
 
@@ -56,7 +56,7 @@ function WindowsCell({ schedule, dayLabel }: { readonly schedule: AdminSchedule;
 
 function horizonOf(schedule: AdminSchedule): string {
   if (schedule.horizonFrom === undefined || schedule.horizonTo === undefined) return '—';
-  return `${formatDateKey(schedule.horizonFrom)} – ${formatDateKey(schedule.horizonTo)}`;
+  return `${formatDateKey(schedule.horizonFrom, 'numeric')} – ${formatDateKey(schedule.horizonTo, 'numeric')}`;
 }
 
 function useScheduleColumns(pickers: SchedulePickers, handlers: ScheduleHandlers): ReadonlyArray<TableColumn<AdminSchedule>> {

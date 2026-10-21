@@ -2,6 +2,7 @@
 
 import type { ReactNode } from 'react';
 import Link from 'next/link';
+import { useDocumentTitle } from '@/hooks/use-document-title';
 import { useT } from '@/lib/i18n/use-t';
 import type { Doctor } from './catalog-types';
 import { DoctorCard } from './doctor-card';
@@ -10,6 +11,7 @@ import { DoctorSlotsBooking } from './doctor-slots-booking';
 /** `/doctors/[doctorId]`: the doctor's card and the free time to book (frontend-design-spec §3). */
 export function DoctorProfile({ doctor }: { readonly doctor: Doctor }): ReactNode {
   const t = useT('catalog');
+  useDocumentTitle(doctor.name);
   return (
     <div>
       <Link href="/doctors" className="inline-flex min-h-[44px] items-center text-sm underline">{t('backToList')}</Link>

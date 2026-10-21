@@ -5,9 +5,9 @@ import Link from 'next/link';
 import { FormField, INPUT_CLASS } from '@/components/patient/form-field';
 import { ProblemBanner } from '@/components/feedback/problem-banner';
 import type { Translate } from '@/lib/i18n/translate';
-import { useDocumentTitle } from '@/components/patient/use-document-title';
+import { useDocumentTitle } from '@/hooks/use-document-title';
 import { useT } from '@/lib/i18n/use-t';
-import { minskDateKey } from '@/lib/utils';
+import { clinicDateKey } from '@/lib/clinic-time';
 import { useRegisterForm, type RegisterFormState } from './use-register-form';
 
 const LOGIN_HREF = '/api/auth/authorize?returnTo=%2Fbooking';
@@ -49,7 +49,7 @@ function PersonalFields({ state }: { readonly state: RegisterFormState }): React
   return (
     <>
       <FormField id="birthDate" label={t('birthDate')} error={errors.birthDate?.message}>
-        {(control) => <input {...control} type="date" max={minskDateKey()} autoComplete="bday" aria-required="true" {...register('birthDate')} className={INPUT_CLASS} />}
+        {(control) => <input {...control} type="date" max={clinicDateKey()} autoComplete="bday" aria-required="true" {...register('birthDate')} className={INPUT_CLASS} />}
       </FormField>
       <FormField id="gender" label={t('gender')} error={errors.gender?.message}>
         {(control) => (
@@ -75,8 +75,7 @@ function submitLabel(state: RegisterFormState, t: Translate): string {
 /** Patient self-registration (`POST /api/v1/auth/register`, FR-001). Server field errors land on their fields. */
 export function RegisterForm(): ReactNode {
   const t = useT('auth.register');
-  const tLayout = useT('layout');
-  useDocumentTitle(t('title'), tLayout('brand'));
+  useDocumentTitle(t('title'));
   const state: RegisterFormState = useRegisterForm();
   if (state.isSuccess) return <RegisterSuccess />;
   return (

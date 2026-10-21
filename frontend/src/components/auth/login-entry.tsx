@@ -2,7 +2,7 @@
 
 import type { ReactNode } from 'react';
 import Link from 'next/link';
-import { useDocumentTitle } from '@/components/patient/use-document-title';
+import { useDocumentTitle } from '@/hooks/use-document-title';
 import { useT } from '@/lib/i18n/use-t';
 import type { LoginErrorKind } from './login-error';
 
@@ -19,9 +19,8 @@ interface LoginEntryProps {
  */
 export function LoginEntry({ returnTo, error = null }: LoginEntryProps): ReactNode {
   const t = useT('auth.login');
-  const tLayout = useT('layout');
   // The static `metadata.title` is Russian (the locale lives in the browser): the tab follows the chosen language.
-  useDocumentTitle(t('title'), tLayout('brand'));
+  useDocumentTitle(t('title'));
   return (
     <div>
       <h1 className="serif text-2xl font-bold">{t('title')}</h1>

@@ -6,7 +6,7 @@ import { apiProblem } from './test-utils';
 type Query = Parameters<typeof QueryState<string[]>>[0]['query'];
 
 function query(partial: Partial<Query>): Query {
-  return { data: undefined, isPending: false, isError: false, error: null, refetch: jest.fn(), ...partial } as Query;
+  return { data: undefined, isPending: false, isError: false, error: null, errorUpdatedAt: 0, refetch: jest.fn(), ...partial } as Query;
 }
 
 describe('QueryState', () => {

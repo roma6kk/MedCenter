@@ -11,14 +11,14 @@ jest.mock('@/lib/api/api-fetch', () => {
 });
 
 import { apiFetch } from '@/lib/api/api-fetch';
-import { shiftDay, todayInClinic } from '@/components/booking/slot-time';
+import { clinicDateKey, shiftDateKey } from '@/lib/clinic-time';
 import { useBookingDraftStore } from '@/store/use-booking-draft-store';
 import { useSessionStore } from '@/store/use-session-store';
 import type { Slot } from './catalog-types';
 import { DoctorSlotsBooking } from './doctor-slots-booking';
 
 const apiFetchMock = apiFetch as jest.MockedFunction<(path: string) => Promise<unknown>>;
-const DAY: string = shiftDay(todayInClinic(), 2);
+const DAY: string = shiftDateKey(clinicDateKey(), 2);
 const SLOT: Slot = { id: 'slot-1', start: `${DAY}T08:00:00.000Z`, end: `${DAY}T08:30:00.000Z`, status: 'free' };
 
 function renderBooking(): void {

@@ -6,10 +6,10 @@ import type { UseQueryResult } from '@tanstack/react-query';
 import Link from 'next/link';
 import { Pager } from '@/components/data-display/paginated-table';
 import { EmptyState, TableSkeleton } from '@/components/feedback/states';
-import { QueryErrorState } from '@/components/patient/query-error-state';
+import { QueryFailure } from '@/components/feedback/query-error-state';
 import { SegmentedTabs, tabPanelProps, type TabOption } from '@/components/patient/segmented-tabs';
 import { useClampedPage } from '@/components/patient/use-clamped-page';
-import { useDocumentTitle } from '@/components/patient/use-document-title';
+import { useDocumentTitle } from '@/hooks/use-document-title';
 import { useFocusFallback } from '@/components/patient/use-focus-fallback';
 import type { PaginatedResponse } from '@/lib/api/pagination';
 import { useT } from '@/lib/i18n/use-t';
@@ -63,10 +63,7 @@ interface PanelProps {
 /** What the list shows for every state of the read: skeleton, error with retry, empty with a way forward, or the cards. */
 function AppointmentsPanel({ tab, query, onCancel, onPage }: PanelProps): ReactNode {
   const page: PaginatedResponse<AppointmentView> | undefined = query.data;
-  if (page === undefined) {
-    if (query.isError) return <QueryErrorState error={query.error} embedded onRetry={() => void query.refetch()} />;
-    return <TableSkeleton />;
-  }
+  if (page === undefined) return <QueryFailure query={query} embedded pending={<TableSkeleton />} />;
   return page.items.length === 0 ? <EmptyAppointments tab={tab} /> : <AppointmentItems tab={tab} page={page} onCancel={onCancel} onPage={onPage} />;
 }
 
@@ -92,7 +89,6 @@ function useListState(): {
 /** The patient's appointments (FR-006): upcoming and the whole history, server-paged, with cancellation from the list (FR-005). */
 export function AppointmentList(): ReactNode {
   const t = useT('appointments');
-  const tBrand = useT('layout');
   const { tab, page, target, setTab, setPage, setTarget } = useListState();
   const panel = useRef<HTMLDivElement>(null);
   const query = useAppointments({ tab, page, pageSize: APPOINTMENTS_PAGE_SIZE });
@@ -101,7 +97,7 @@ export function AppointmentList(): ReactNode {
   useClampedPage(query.data?.meta, page, setPage);
   // The card that opened the dialog may lose its cancel button (cancelled, or found not cancellable): keep the focus in the list.
   useFocusFallback(target !== null, panel);
-  useDocumentTitle(t('title'), tBrand('brand'));
+  useDocumentTitle(t('title'));
   return (
     <section>
       <h1 className="serif text-2xl font-bold">{t('title')}</h1>

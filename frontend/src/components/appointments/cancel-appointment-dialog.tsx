@@ -3,8 +3,8 @@
 import { useCallback, useEffect, useId, useRef } from 'react';
 import type { ReactNode } from 'react';
 import { FormField, INPUT_CLASS } from '@/components/patient/form-field';
-import { MutationProblem } from '@/components/patient/query-error-state';
-import { useClinicFormat } from '@/components/patient/use-clinic-format';
+import { ProblemBanner } from '@/components/feedback/problem-banner';
+import { useClinicFormat } from '@/hooks/use-clinic-format';
 import { useDialogFocus } from '@/hooks/use-dialog-focus';
 import { useT } from '@/lib/i18n/use-t';
 import type { AppointmentView } from './appointment-types';
@@ -49,7 +49,7 @@ function ReasonForm({ form, onClose }: { readonly form: CancelFormState; readonl
       <FormField id="cancel-reason" label={t('cancelReasonLabel')} hint={t('cancelReasonHint')} error={error}>
         {(control) => <textarea rows={4} {...control} {...form.register('reason')} className={INPUT_CLASS} />}
       </FormField>
-      {form.problem !== null ? <div className="mt-3"><MutationProblem problem={form.problem} /></div> : null}
+      {form.problem !== null ? <div className="mt-3"><ProblemBanner problem={form.problem} /></div> : null}
       <div className="mt-4 flex flex-wrap gap-2">
         {/* aria-disabled, not disabled: a control that loses the focus to the body would let Tab walk out of the dialog. */}
         <button type="submit" aria-disabled={form.pending} className={`${BUTTON_CLASS} bg-[var(--destructive)] text-white`}>{form.pending ? t('cancelBusy') : t('cancelSubmit')}</button>

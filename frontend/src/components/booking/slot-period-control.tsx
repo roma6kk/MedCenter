@@ -3,9 +3,9 @@
 import type { ReactNode } from 'react';
 import { useId } from 'react';
 import { SECONDARY_BUTTON_CLASS } from '@/components/catalog/catalog-styles';
+import { formatDayShort } from '@/lib/clinic-time';
 import { useT } from '@/lib/i18n/use-t';
 import { useUiStore } from '@/store/use-ui-store';
-import { formatDayShort } from './slot-time';
 import { useDateDraft } from './use-date-draft';
 import type { SlotWindowState } from './use-slot-window';
 

@@ -6,6 +6,7 @@ import { useSessionStore } from '@/store/use-session-store';
 import { LocaleSwitcher } from './locale-switcher';
 import { LogoutButton } from './logout-button';
 import { NavLink } from './nav-link';
+import { MAIN_CONTENT_ID, SkipLink } from './skip-link';
 
 export interface StaffLink {
   readonly href: string;
@@ -42,12 +43,12 @@ export function StaffShell({ children, links }: StaffShellProps): ReactNode {
   const navLabel: string = role === 'DOCTOR' ? t('doctor.navLabel') : t('admin.navLabel');
   return (
     <div className="min-h-screen lg:grid lg:grid-cols-[240px_1fr]">
-      <a href="#main-content" className="skip-link">{t('skipToContent')}</a>
+      <SkipLink />
       <aside className="border-b border-[var(--border)] bg-[var(--card)] p-4 lg:border-b-0 lg:border-r">
         <p className="serif text-lg font-bold">{t('brand')}</p>
-        <nav aria-label={navLabel} className="mt-4 flex gap-3 overflow-x-auto lg:flex-col">
+        <nav aria-label={navLabel} className="mt-2 flex flex-wrap gap-x-2 gap-y-1 lg:flex-col">
           {links.map((link) => (
-            <NavLink key={link.href} href={link.href} className="rounded-[6px] px-2 py-1 text-sm hover:bg-[var(--secondary)]">
+            <NavLink key={link.href} href={link.href} className="rounded-[6px] px-3 text-sm hover:bg-[var(--secondary)]">
               {t(link.labelKey)}
             </NavLink>
           ))}
@@ -58,7 +59,7 @@ export function StaffShell({ children, links }: StaffShellProps): ReactNode {
           <LocaleSwitcher />
           <LogoutButton />
         </header>
-        <main id="main-content" tabIndex={-1} className="focus:outline-none p-4 lg:p-6">{children}</main>
+        <main id={MAIN_CONTENT_ID} tabIndex={-1} className="focus:outline-none p-4 lg:p-6">{children}</main>
       </div>
     </div>
   );

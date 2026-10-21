@@ -4,7 +4,7 @@ import type { ReactNode } from 'react';
 import Link from 'next/link';
 import { StampBadge, type StampStatus } from '@/components/feedback/stamp-badge';
 import { useT } from '@/lib/i18n/use-t';
-import { formatMinskDateTime } from './clinic-time';
+import { formatClinicDateTime } from '@/lib/clinic-time';
 import type { EncounterDetails, EncounterState } from './doctor-types';
 import { usePatient } from './use-doctor-queries';
 
@@ -46,8 +46,8 @@ export function EncounterHeader({ encounter }: { readonly encounter: EncounterDe
       </div>
       <dl className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Fact label={t('patient')}><PatientLink patientId={encounter.patientId} /></Fact>
-        <Fact label={t('started')}>{formatMinskDateTime(encounter.period.start)}</Fact>
-        <Fact label={t('ended')}>{encounter.period.end ? formatMinskDateTime(encounter.period.end) : '—'}</Fact>
+        <Fact label={t('started')}>{formatClinicDateTime(encounter.period.start)}</Fact>
+        <Fact label={t('ended')}>{encounter.period.end ? formatClinicDateTime(encounter.period.end) : '—'}</Fact>
         <Fact label={t('service')}>{encounter.serviceType?.display ?? '—'}</Fact>
       </dl>
     </section>

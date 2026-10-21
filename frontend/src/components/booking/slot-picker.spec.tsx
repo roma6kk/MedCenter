@@ -12,12 +12,13 @@ import { ApiError, apiFetch } from '@/lib/api/api-fetch';
 import type { ProblemDetails } from '@/lib/api/problem';
 import type { Slot } from '@/components/catalog/catalog-types';
 import { SlotPicker, type SlotPickerProps } from './slot-picker';
-import { MAX_LOOKAHEAD_DAYS, SLOT_WINDOW_DAYS, shiftDay, todayInClinic } from './slot-time';
+import { clinicDateKey, shiftDateKey } from '@/lib/clinic-time';
+import { MAX_LOOKAHEAD_DAYS, SLOT_WINDOW_DAYS } from './slot-time';
 
 const apiFetchMock = apiFetch as jest.MockedFunction<(path: string) => Promise<unknown>>;
 
-const TODAY: string = todayInClinic();
-const DAY_AFTER: string = shiftDay(TODAY, 2);
+const TODAY: string = clinicDateKey();
+const DAY_AFTER: string = shiftDateKey(TODAY, 2);
 
 function slot(id: string, day: string, hour: number, minutes: number, status: Slot['status'] = 'free'): Slot {
   const start: number = Date.parse(`${day}T00:00:00.000Z`) + hour * 3_600_000;
@@ -49,7 +50,7 @@ describe('SlotPicker', () => {
 
     await screen.findByTestId('slot-s-1');
 
-    const to: string = shiftDay(TODAY, SLOT_WINDOW_DAYS - 1);
+    const to: string = shiftDateKey(TODAY, SLOT_WINDOW_DAYS - 1);
     expect(apiFetchMock).toHaveBeenCalledWith(`/api/v1/doctors/doc-1/slots?from=${TODAY}&to=${to}`);
   });
 
@@ -165,7 +166,7 @@ describe('SlotPicker', () => {
 
     await userEvent.click(screen.getByRole('button', { name: 'Позже' }));
 
-    const from: string = shiftDay(TODAY, SLOT_WINDOW_DAYS);
+    const from: string = shiftDateKey(TODAY, SLOT_WINDOW_DAYS);
     await waitFor(() => expect(apiFetchMock).toHaveBeenCalledWith(expect.stringContaining(`from=${from}`)));
   });
 
@@ -189,7 +190,7 @@ describe('SlotPicker', () => {
   });
 
   it('should close later periods and say why when the picker is at the last day the API accepts', async () => {
-    const last: string = shiftDay(TODAY, MAX_LOOKAHEAD_DAYS);
+    const last: string = shiftDateKey(TODAY, MAX_LOOKAHEAD_DAYS);
     answer([slot('s-last', last, 9, 30)]);
     renderPicker({ initialFrom: last });
     await screen.findByTestId('slot-s-last');
@@ -199,7 +200,7 @@ describe('SlotPicker', () => {
 
     expect(later).toHaveAttribute('aria-disabled', 'true');
     expect(later).toHaveAccessibleDescription('Это последний доступный период: поиск возможен не более чем на год вперёд.');
-    expect(apiFetchMock.mock.calls.every(([path]) => !String(path).includes(`from=${shiftDay(last, SLOT_WINDOW_DAYS)}`))).toBe(true);
+    expect(apiFetchMock.mock.calls.every(([path]) => !String(path).includes(`from=${shiftDateKey(last, SLOT_WINDOW_DAYS)}`))).toBe(true);
   });
 
   it('should keep focus on the earlier button when the visitor presses it at the first period', async () => {
@@ -218,11 +219,11 @@ describe('SlotPicker', () => {
     renderPicker();
     await screen.findByTestId('slot-s-1');
 
-    expect(screen.getByLabelText('Перейти к дате')).toHaveAttribute('max', shiftDay(TODAY, MAX_LOOKAHEAD_DAYS));
+    expect(screen.getByLabelText('Перейти к дате')).toHaveAttribute('max', shiftDateKey(TODAY, MAX_LOOKAHEAD_DAYS));
   });
 
   it('should open the period of a restored selection when the selected slot lies in a later period', async () => {
-    const later: string = shiftDay(TODAY, 20);
+    const later: string = shiftDateKey(TODAY, 20);
     answer([slot('s-far', later, 9, 30)]);
     renderPicker({ initialFrom: later });
 
@@ -235,7 +236,7 @@ describe('SlotPicker', () => {
     answer(SLOTS);
     renderPicker();
     await screen.findByTestId('slot-s-1');
-    const target: string = shiftDay(TODAY, 10);
+    const target: string = shiftDateKey(TODAY, 10);
 
     fireEvent.change(screen.getByLabelText('Перейти к дате'), { target: { value: target } });
 

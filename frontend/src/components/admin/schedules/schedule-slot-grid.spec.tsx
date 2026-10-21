@@ -9,7 +9,7 @@ jest.mock('@/lib/api/api-fetch', () => {
   return { ...actual, apiFetch: jest.fn() };
 });
 
-jest.mock('../shared/admin-dates', () => ({ ...jest.requireActual('../shared/admin-dates'), todayKey: () => '2026-10-16' }));
+jest.mock('@/lib/clinic-time', () => ({ ...jest.requireActual('@/lib/clinic-time'), clinicDateKey: () => '2026-10-16' }));
 
 const apiFetchMock = apiFetch as jest.MockedFunction<(path: string, options?: RequestInit) => Promise<unknown>>;
 const schedule: AdminSchedule = { id: '2572', isActive: true, windows: [] };

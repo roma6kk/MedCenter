@@ -470,7 +470,8 @@
     "close": "Close",
     "backHome": "Back home",
     "copy": "Copy",
-    "copied": "Copied"
+    "copied": "Copied",
+    "retrying": "Retrying…"
   },
   "booking": {
     "title": "Book an appointment",
@@ -554,8 +555,7 @@
       "appointments": "My appointments",
       "history": "History",
       "prescriptions": "Prescriptions",
-      "profile": "Profile",
-      "notifications": "Notifications"
+      "profile": "Profile"
     },
     "doctor": {
       "navLabel": "Doctor",
@@ -571,7 +571,8 @@
       "schedules": "Schedules",
       "terminology": "Terminology",
       "audit": "Audit"
-    }
+    },
+    "description": "Appointment booking and clinical records"
   },
   "feedback": {
     "forbiddenTitle": "Access denied",
@@ -582,7 +583,10 @@
       "requestId": "Request id",
       "copyRequestId": "Copy request id {requestId}",
       "retryAfter": "Try again in {seconds} s."
-    }
+    },
+    "errorTitle": "Something went wrong",
+    "notFoundPage": "Page not found",
+    "forbiddenPage": "This section is not available for your role."
   },
   "pagination": {
     "label": "Pagination",
@@ -854,7 +858,10 @@
     "date": "Enter a valid date",
     "text": "Enter a text value",
     "number": "Enter a number",
-    "identifier": "Invalid identifier"
+    "identifier": "Invalid identifier",
+    "choice": "Choose one of the allowed values",
+    "boolean": "Choose yes or no",
+    "format": "The value has an invalid format"
   },
   "errors": {
     "VALIDATION_ERROR": "Check the highlighted fields",

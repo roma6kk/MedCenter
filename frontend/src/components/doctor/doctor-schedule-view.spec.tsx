@@ -9,15 +9,14 @@ jest.setTimeout(30_000);
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { apiFetch } from '@/lib/api/api-fetch';
-import { minskDateKey } from '@/lib/utils';
-import { formatDateKey, shiftDateKey } from './clinic-time';
+import { clinicDateKey, formatDateKey, shiftDateKey } from '@/lib/clinic-time';
 import { DoctorScheduleView, SCHEDULE_DAYS } from './doctor-schedule-view';
 import { callsTo, problem, renderWithClient, routeApi, type ApiMock } from './doctor-test-utils';
 import type { DoctorScheduleResponse, ScheduleSlot } from './doctor-types';
 
 const apiFetchMock = apiFetch as ApiMock;
 const SCHEDULE = '/api/v1/doctor/schedule';
-const TODAY: string = minskDateKey();
+const TODAY: string = clinicDateKey();
 
 function slot(id: string, start: string, end: string, status: ScheduleSlot['status']): ScheduleSlot {
   return { id, scheduleId: 'sch-1', start, end, status, label: `${start} ${status}` };

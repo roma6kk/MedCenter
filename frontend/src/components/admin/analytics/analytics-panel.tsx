@@ -4,7 +4,7 @@ import { useState } from 'react';
 import type { ReactNode } from 'react';
 import { useT } from '@/lib/i18n/use-t';
 import { AdminPageHeader } from '../shared/admin-page-header';
-import { formatDateKey } from '../shared/admin-dates';
+import { formatDateKey } from '@/lib/clinic-time';
 import { currentYearRange, type ReportRange } from '../shared/report-range';
 import { AnalyticsFilters } from './analytics-filters';
 import { DEFAULT_TOP } from './analytics-types';
@@ -48,7 +48,7 @@ export function AnalyticsPanel(): ReactNode {
     <>
       <AdminPageHeader title={t('title')} description={t('description')} />
       <AnalyticsFilters range={scope.range} top={scope.top} onApply={(range, top) => setScope({ range, top })} />
-      <p className="mb-3 text-sm text-[var(--muted-foreground)]">{t('period', { from: formatDateKey(scope.range.from), to: formatDateKey(scope.range.to) })}</p>
+      <p className="mb-3 text-sm text-[var(--muted-foreground)]">{t('period', { from: formatDateKey(scope.range.from, 'numeric'), to: formatDateKey(scope.range.to, 'numeric') })}</p>
       <Reports range={scope.range} top={scope.top} />
     </>
   );

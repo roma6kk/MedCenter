@@ -2,7 +2,7 @@
 
 import type { ChangeEvent, ReactNode } from 'react';
 import { useT } from '@/lib/i18n/use-t';
-import { isDateKey, shiftDateKey } from './clinic-time';
+import { isDateKey, shiftDateKey } from '@/lib/clinic-time';
 import type { AppointmentState } from './doctor-types';
 
 export type StatusFilter = 'all' | AppointmentState;

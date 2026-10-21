@@ -3,7 +3,7 @@
 import { useMemo, type ReactNode } from 'react';
 import { useDoctorSlots } from '@/components/catalog/use-catalog';
 import type { DoctorSlots, Slot } from '@/components/catalog/catalog-types';
-import { QueryFailed } from '@/components/catalog/query-failed';
+import { QueryFailure } from '@/components/feedback/query-error-state';
 import { EmptyState } from '@/components/feedback/states';
 import { useT } from '@/lib/i18n/use-t';
 import { SlotDayList } from './slot-day-list';
@@ -70,14 +70,14 @@ function SlotResults({ data, selectedSlotId, onSelect, durationMin = null, taken
  */
 export function SlotPicker({ doctorId, selectedSlotId, onSelect, durationMin = null, takenSlot = null, initialFrom }: SlotPickerProps): ReactNode {
   const windowState = useSlotWindow(initialFrom);
-  const { data, isPending, error, refetch } = useDoctorSlots(doctorId, windowState.window);
+  const query = useDoctorSlots(doctorId, windowState.window);
   return (
     <div className="space-y-4">
       <SlotPeriodControl state={windowState} />
-      {isPending ? <SlotSkeleton /> : null}
-      {!isPending && data === undefined ? <QueryFailed error={error} onRetry={() => void refetch()} /> : null}
-      {data === undefined ? null : (
-        <SlotResults data={data} selectedSlotId={selectedSlotId} onSelect={onSelect} durationMin={durationMin} takenSlot={takenSlot} />
+      {query.data === undefined ? (
+        <QueryFailure query={query} embedded pending={<SlotSkeleton />} />
+      ) : (
+        <SlotResults data={query.data} selectedSlotId={selectedSlotId} onSelect={onSelect} durationMin={durationMin} takenSlot={takenSlot} />
       )}
     </div>
   );

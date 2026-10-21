@@ -8,7 +8,7 @@ import { TableSkeleton } from '@/components/feedback/states';
 import { useT } from '@/lib/i18n/use-t';
 import { ContactList } from './contact-list';
 import type { RelatedPerson } from './doctor-types';
-import { QueryErrorState } from './query-error-state';
+import { QueryFailure } from '@/components/feedback/query-error-state';
 import { useRelatedPersons } from './use-doctor-queries';
 
 function relationshipOf(person: RelatedPerson): string | undefined {
@@ -36,8 +36,7 @@ export function RelatedPersons({ patientId }: { readonly patientId: string }): R
     <section aria-labelledby="related-title" className="mt-6">
       <div id="related-title"><SectionTitle>{t('relatedTitle')}</SectionTitle></div>
       <div className="mt-3" aria-busy={related.isFetching}>
-        {related.isPending ? <TableSkeleton /> : null}
-        {related.isError && related.data === undefined ? <QueryErrorState error={related.error} notFoundText={t('relatedUnavailable')} onRetry={() => void related.refetch()} /> : null}
+        {related.data === undefined ? <QueryFailure query={related} embedded notFoundText={t('relatedUnavailable')} pending={<TableSkeleton />} /> : null}
         {related.data && related.data.items.length === 0 ? <p className="text-sm text-[var(--muted-foreground)]">{t('relatedEmpty')}</p> : null}
         {related.data && related.data.items.length > 0 ? (
           <>

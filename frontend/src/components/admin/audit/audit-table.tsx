@@ -4,7 +4,7 @@ import { PaginatedTable, type PageMeta, type TableColumn } from '@/components/da
 import { CodeChip } from '@/components/feedback/code-chip';
 import { useT } from '@/lib/i18n/use-t';
 import { useUiStore } from '@/store/use-ui-store';
-import { formatClinicDateTime } from '../shared/admin-dates';
+import { formatClinicDateTime } from '@/lib/clinic-time';
 import type { AuditEvent } from './audit-types';
 import { CopyRequestId } from './copy-request-id';
 

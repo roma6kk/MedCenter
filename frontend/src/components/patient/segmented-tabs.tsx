@@ -78,7 +78,7 @@ export function SegmentedTabs<TValue extends string>({ idPrefix, label, options,
     buttons.current[target]?.focus();
   };
   return (
-    <div role="tablist" aria-label={label} className="no-print flex gap-1 border-b border-[var(--border)]">
+    <div role="tablist" aria-label={label} className="no-print flex flex-wrap gap-1 border-b border-[var(--border)]">
       {options.map((option, index) => (
         <TabButton
           key={option.value}

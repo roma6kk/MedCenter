@@ -2,6 +2,7 @@
 
 import type { ReactNode } from 'react';
 import Link from 'next/link';
+import { useDocumentTitle } from '@/hooks/use-document-title';
 import { useT } from '@/lib/i18n/use-t';
 import { CatalogUnavailable } from './catalog-unavailable';
 import type { CatalogService, Doctor } from './catalog-types';
@@ -55,6 +56,7 @@ function DoctorsTeaser({ doctors }: { readonly doctors: ReadonlyArray<Doctor> })
 /** Landing page: what the clinic offers and a way to the doctors and the booking (frontend-design-spec §C.1). */
 export function HomeView({ services, doctors, isFailed }: HomeViewProps): ReactNode {
   const t = useT('home');
+  useDocumentTitle(t('title'), false);
   return (
     <div>
       <Hero />

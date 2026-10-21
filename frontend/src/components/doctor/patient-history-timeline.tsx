@@ -7,10 +7,10 @@ import { Pager } from '@/components/data-display/paginated-table';
 import { SectionTitle } from '@/components/feedback/section-title';
 import { TableSkeleton } from '@/components/feedback/states';
 import { useT } from '@/lib/i18n/use-t';
-import { formatMinskDateTime } from './clinic-time';
+import { formatClinicDateTime } from '@/lib/clinic-time';
 import { DiagnosisList } from './diagnosis-list';
 import type { HistoryItem } from './doctor-types';
-import { QueryErrorState } from './query-error-state';
+import { QueryFailure } from '@/components/feedback/query-error-state';
 import { usePatientHistory } from './use-doctor-queries';
 
 function VisitText({ label, text }: { readonly label: string; readonly text: string }): ReactNode {
@@ -29,14 +29,14 @@ function VisitEntry({ item }: { readonly item: HistoryItem }): ReactNode {
       <span aria-hidden="true" className="absolute -left-[21px] top-1.5 h-2 w-2 rounded-full bg-[var(--primary)]" />
       <article className="rounded-[6px] border border-[var(--border)] bg-[var(--card)] p-3">
         <div className="flex flex-wrap items-baseline justify-between gap-2">
-          <p className="mono text-sm">{formatMinskDateTime(item.date)}</p>
+          <p className="mono text-sm">{formatClinicDateTime(item.date)}</p>
           {item.serviceType?.display ? <p className="text-sm text-[var(--muted-foreground)]">{item.serviceType.display}</p> : null}
         </div>
         <div className="mt-2">{item.diagnoses.length > 0 ? <DiagnosisList diagnoses={item.diagnoses} /> : <p className="text-sm text-[var(--muted-foreground)]">{t('noDiagnoses')}</p>}</div>
         {item.summary ? <VisitText label={t('summary')} text={item.summary} /> : null}
         {item.recommendations ? <VisitText label={t('recommendations')} text={item.recommendations} /> : null}
         <p className="mt-3 text-sm">
-          <Link href={`/encounters/${encodeURIComponent(item.id)}`} aria-label={t('openEncounterOn', { date: formatMinskDateTime(item.date) })} className="underline">{t('openEncounter')}</Link>
+          <Link href={`/encounters/${encodeURIComponent(item.id)}`} aria-label={t('openEncounterOn', { date: formatClinicDateTime(item.date) })} className="underline">{t('openEncounter')}</Link>
         </p>
       </article>
     </li>
@@ -52,8 +52,7 @@ export function PatientHistoryTimeline({ patientId }: { readonly patientId: stri
     <section aria-labelledby="history-title" className="mt-6">
       <div id="history-title"><SectionTitle>{t('title')}</SectionTitle></div>
       <div className="mt-3" aria-busy={history.isFetching}>
-        {history.isPending ? <TableSkeleton /> : null}
-        {history.isError && history.data === undefined ? <QueryErrorState error={history.error} notFoundText={t('unavailable')} onRetry={() => void history.refetch()} /> : null}
+        {history.data === undefined ? <QueryFailure query={history} embedded notFoundText={t('unavailable')} pending={<TableSkeleton />} /> : null}
         {history.data && history.data.items.length === 0 ? <p className="text-sm text-[var(--muted-foreground)]">{t('empty')}</p> : null}
         {history.data && history.data.items.length > 0 ? (
           <>

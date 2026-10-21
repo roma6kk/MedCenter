@@ -1,7 +1,7 @@
 'use client';
 
 import type { ReactNode } from 'react';
-import { useDocumentTitle } from '@/components/patient/use-document-title';
+import { useDocumentTitle } from '@/hooks/use-document-title';
 import { useT } from '@/lib/i18n/use-t';
 
 interface AdminPageHeaderProps {
@@ -13,8 +13,7 @@ interface AdminPageHeaderProps {
 
 /** The `h1` of an admin screen; it also names the browser tab, so the seven screens are told apart (WCAG 2.4.2). */
 export function AdminPageHeader({ title, description, action }: AdminPageHeaderProps): ReactNode {
-  const tLayout = useT('layout');
-  useDocumentTitle(title, tLayout('brand'));
+  useDocumentTitle(title);
   return (
     <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
       <div>

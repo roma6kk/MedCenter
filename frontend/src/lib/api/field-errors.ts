@@ -6,24 +6,32 @@
  * messages. Unknown server fields are returned so the form can show them in a banner instead of dropping them.
  */
 import type { FieldPath, FieldValues, UseFormSetError } from 'react-hook-form';
+import { translate } from '@/lib/i18n/translate';
 import type { FieldErrorDetail, ProblemDetails } from './problem';
 
+/** class-validator wording → key under `validation.*` of the messages catalogue (both languages). */
 const VALIDATION_MESSAGES: ReadonlyArray<readonly [RegExp, string]> = [
-  [/should not be empty|must be longer than or equal to 1 characters/, 'Поле обязательно для заполнения'],
-  [/must be an email/, 'Введите корректный email'],
-  [/is not strong enough/, 'Пароль недостаточно надёжный: от 10 символов, строчные и прописные латинские буквы, цифра и спецсимвол'],
-  [/must be shorter than or equal to (\d+) characters/, 'Слишком длинное значение'],
-  [/must be longer than or equal to (\d+) characters/, 'Слишком короткое значение'],
-  [/must be a valid ISO 8601 date string|must be a date/, 'Введите корректную дату'],
-  [/must be a string/, 'Введите текстовое значение'],
-  [/must be a number|must be an integer/, 'Введите число'],
-  [/must be a uuid|must be a UUID/, 'Некорректный идентификатор'],
+  [/should not be empty|must be longer than or equal to 1 characters/, 'validation.required'],
+  [/must be an email/, 'validation.email'],
+  [/is not strong enough/, 'validation.passwordStrength'],
+  [/must be shorter than or equal to (\d+) characters/, 'validation.tooLong'],
+  [/must be longer than or equal to (\d+) characters/, 'validation.tooShort'],
+  [/must be a valid ISO 8601 date string|must be a date/, 'validation.date'],
+  [/must be a string/, 'validation.text'],
+  [/must be a number|must be an integer/, 'validation.number'],
+  [/must be a uuid|must be a UUID/, 'validation.identifier'],
+  [/must be one of the following values/, 'validation.choice'],
+  [/must be a boolean/, 'validation.boolean'],
+  [/must match .* regular expression/, 'validation.format'],
 ];
 
-/** Russian copy for the class-validator messages the forms meet; anything else is shown as the server wrote it. */
+/**
+ * The class-validator messages the forms meet, in the language of the interface (the server always writes English);
+ * anything else is shown as the server wrote it.
+ */
 export function localizeFieldMessage(message: string): string {
   const match = VALIDATION_MESSAGES.find(([pattern]) => pattern.test(message));
-  return match === undefined ? message : match[1];
+  return match === undefined ? message : translate(match[1]);
 }
 
 /** `{ field: [messages…] }` with `[0]` / `[0].x` normalised to dotted paths. */
