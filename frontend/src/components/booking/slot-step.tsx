@@ -43,7 +43,7 @@ function RefusedNotice({ notice }: { readonly notice: BookingNotice }): ReactNod
       role="alert"
       tabIndex={-1}
       data-testid="slot-conflict-notice"
-      className="mt-3 rounded-[6px] border border-[var(--destructive)] p-3 text-sm text-[var(--destructive)]"
+      className="mt-3 rounded-control border border-destructive bg-destructive-soft p-3 text-sm text-destructive"
     >
       {t(NOTICE_KEY[notice])}
     </p>
@@ -58,8 +58,8 @@ export function SlotStep({ doctorId, serviceId, selectedSlotId, selectedSlotStar
   const waitingForService: boolean = serviceId !== null && service.isPending;
   return (
     <div>
-      <h2 className="serif text-xl font-semibold">{t('slotTitle')}</h2>
-      {doctor.data === undefined ? null : <p className="mt-1 text-sm text-[var(--muted-foreground)]">{t('slotDoctor', { doctor: doctor.data.name })}</p>}
+      <h2 className="text-[22px] font-bold">{t('slotTitle')}</h2>
+      {doctor.data === undefined ? null : <p className="mt-1 text-[15px] text-muted-foreground">{t('slotDoctor', { doctor: doctor.data.name })}</p>}
       {notice === null ? null : <RefusedNotice notice={notice} />}
       <div className="mt-4">
         {waitingForService ? (

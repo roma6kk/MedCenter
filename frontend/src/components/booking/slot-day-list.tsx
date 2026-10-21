@@ -28,11 +28,11 @@ interface SlotTileProps {
 }
 
 function tileClass(selected: boolean, taken: boolean, selectable: boolean): string {
-  const base = 'flex min-h-[44px] w-full items-center justify-between gap-2 rounded-[6px] border px-3 py-2 text-left';
-  if (taken) return `${base} border-[1.5px] border-[var(--destructive)] text-[var(--muted-foreground)] line-through`;
-  if (!selectable) return `${base} border-[var(--border)] text-[var(--muted-foreground)] line-through`;
-  if (selected) return `${base} border-[var(--primary)] bg-[var(--primary)] text-[var(--primary-foreground)]`;
-  return `${base} border-[var(--border)] bg-[var(--card)] hover:bg-[var(--secondary)]`;
+  const base = 'flex min-h-[44px] w-full items-center justify-between gap-2 rounded-control border px-3 py-2 text-left';
+  if (taken) return `${base} border-[1.5px] border-destructive text-muted-foreground line-through`;
+  if (!selectable) return `${base} border-border text-muted-foreground line-through`;
+  if (selected) return `${base} border-primary bg-primary text-primary-foreground`;
+  return `${base} border-border bg-card hover:bg-primary-soft`;
 }
 
 /**
@@ -70,7 +70,7 @@ function SlotDaySection({ day, selectedSlotId, takenSlotId, showDuration, onSele
   const heading: string = formatDayHeading(day.day, locale);
   return (
     <section aria-label={t('slotsFor', { day: heading })} data-testid={`slot-day-${day.day}`}>
-      <h3 className="serif text-lg font-semibold">{heading}</h3>
+      <h3 className="text-base font-semibold text-muted-foreground">{heading}</h3>
       <ul className="mt-2 grid grid-cols-1 gap-2 min-[480px]:grid-cols-3 md:grid-cols-5">
         {day.slots.map((slot) => (
           <li key={slot.id}>

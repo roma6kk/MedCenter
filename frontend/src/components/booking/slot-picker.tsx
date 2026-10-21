@@ -29,7 +29,7 @@ function SlotSkeleton(): ReactNode {
     <div role="status" aria-busy="true" data-testid="slot-skeleton" className="animate-pulse space-y-2">
       <span className="sr-only">{t('slotsLoading')}</span>
       {[0, 1, 2].map((row) => (
-        <div key={row} aria-hidden="true" className="h-11 rounded-[6px] bg-[var(--secondary)]" />
+        <div key={row} aria-hidden="true" className="h-11 rounded-control bg-secondary" />
       ))}
     </div>
   );

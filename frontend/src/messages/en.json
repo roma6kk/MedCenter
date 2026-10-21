@@ -481,6 +481,10 @@
     "stepConfirm": "Confirm",
     "confirm": "Confirm booking",
     "slotConflict": "Slot was just taken",
+    "subtitle": "Four steps, about two minutes",
+    "summaryTitle": "Your appointment",
+    "summaryNone": "Not chosen yet",
+    "draftNote": "Your draft is kept while this tab stays open.",
     "stepsLabel": "Booking steps",
     "back": "Back",
     "next": "Next",
@@ -1010,6 +1014,10 @@
     "cancelKeep": "Keep the appointment",
     "cancelled": "Appointment cancelled",
     "notCancellable": "This appointment can no longer be cancelled: it is cancelled or already took place.",
+    "newBooking": "New appointment",
+    "nextTitle": "Next appointment",
+    "cancelShort": "Cancel",
+    "minutes": "{minutes} min",
     "upcomingCancelledHint": "Cancelled appointments are listed among the upcoming ones too. On each page, active appointments come first."
   },
   "patient": {

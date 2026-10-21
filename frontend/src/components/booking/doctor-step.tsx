@@ -7,6 +7,7 @@ import { QueryFailure } from '@/components/feedback/query-error-state';
 import { useDoctors, useService } from '@/components/catalog/use-catalog';
 import type { Doctor } from '@/components/catalog/catalog-types';
 import { EmptyState } from '@/components/feedback/states';
+import { Button } from '@/components/ui/button';
 import { useT } from '@/lib/i18n/use-t';
 
 interface DoctorStepProps {
@@ -19,20 +20,18 @@ function DoctorList({ doctors, selectedDoctorId, onSelect }: Omit<DoctorStepProp
   const t = useT('booking');
   if (doctors.length === 0) return <EmptyState title={t('doctorEmpty')} description={t('doctorEmptyHint')} />;
   return (
-    <ul className="grid gap-3 md:grid-cols-2">
+    <ul className="grid gap-3 lg:grid-cols-2">
       {doctors.map((doctor) => (
         <li key={doctor.id}>
           <DoctorCard doctor={doctor} headingLevel={3}>
-            <button
-              type="button"
+            <Button
               aria-pressed={doctor.id === selectedDoctorId}
               aria-label={`${t('chooseDoctor')}: ${doctor.name}`}
               onClick={() => onSelect(doctor.id)}
               data-testid={`doctor-${doctor.id}`}
-              className="min-h-[44px] rounded-[6px] bg-[var(--primary)] px-4 py-2 text-sm text-[var(--primary-foreground)]"
             >
               {t('chooseDoctor')}
-            </button>
+            </Button>
           </DoctorCard>
         </li>
       ))}
@@ -48,7 +47,7 @@ export function DoctorStep({ serviceId, selectedDoctorId, onSelect }: DoctorStep
   const heading: string = service.data === undefined ? t('doctorTitle') : t('doctorForService', { service: service.data.name });
   return (
     <div>
-      <h2 className="serif text-xl font-semibold">{heading}</h2>
+      <h2 className="text-[22px] font-bold">{heading}</h2>
       <div className="mt-4">
         {query.data === undefined ? (
           <QueryFailure query={query} embedded pending={<QueryLoading />} />

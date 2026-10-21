@@ -2,6 +2,8 @@
 
 import type { ReactNode, RefObject } from 'react';
 import { useRef, useState } from 'react';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
 import { useDoctor, useService } from '@/components/catalog/use-catalog';
 import { ProblemBanner } from '@/components/feedback/problem-banner';
 import { FormField, INPUT_CLASS } from '@/components/patient/form-field';
@@ -22,8 +24,8 @@ interface ConfirmStepProps {
 
 function SummaryRow({ label, children }: { readonly label: string; readonly children: ReactNode }): ReactNode {
   return (
-    <div className="flex flex-col gap-0.5 border-b border-[var(--border)] py-2 sm:flex-row sm:gap-4">
-      <dt className="form-label w-36 flex-none pt-0.5">{label}</dt>
+    <div className="flex flex-col gap-0.5 border-t border-border py-3 first:border-t-0 sm:flex-row sm:gap-4">
+      <dt className="w-36 flex-none pt-0.5 text-[13px] text-muted-foreground">{label}</dt>
       <dd>{children}</dd>
     </div>
   );
@@ -92,16 +94,16 @@ function ConfirmButton({ isPending, cooldown, onConfirm }: ConfirmButtonProps): 
   const closed: boolean = isPending || cooldown > 0;
   return (
     <div className="no-print sticky bottom-0 -mx-4 mt-4 border-t border-[var(--border)] bg-[var(--background)] p-4 md:static md:mx-0 md:border-0 md:p-0">
-      <button
-        type="button"
+      <Button
+        size="lg"
         onClick={() => (closed ? undefined : onConfirm())}
         aria-disabled={closed ? true : undefined}
         aria-busy={isPending}
         data-testid="booking-confirm"
-        className="min-h-[44px] w-full rounded-[6px] bg-[var(--primary)] px-6 py-2 text-[var(--primary-foreground)] aria-disabled:cursor-not-allowed aria-disabled:opacity-60 md:w-auto"
+        className="w-full md:w-auto"
       >
         {isPending ? t('submitting') : cooldown > 0 ? t('retryIn', { seconds: cooldown }) : t('confirm')}
-      </button>
+      </Button>
     </div>
   );
 }
@@ -123,8 +125,8 @@ export function ConfirmStep({ draft, onReasonChange, booking }: ConfirmStepProps
   };
   return (
     <div>
-      <h2 className="serif text-xl font-semibold">{t('confirmTitle')}</h2>
-      <div className="mt-3"><Summary draft={draft} /></div>
+      <h2 className="text-[22px] font-bold">{t('confirmTitle')}</h2>
+      <Card radius="card" padding="none" className="mt-3 px-5"><Summary draft={draft} /></Card>
       <div className={field.error === undefined ? 'mt-4 md:pb-6' : 'mt-4'}>
         <ReasonField value={draft.reason} error={field.error} inputRef={reasonRef} onChange={onReasonChange} onBlur={field.touch} />
       </div>
