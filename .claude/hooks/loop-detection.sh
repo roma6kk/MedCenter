@@ -5,18 +5,34 @@
 # Exit codes: 0 = pass, 1 = warn (continue), 2 = block
 #
 # Currently: warn at 7, block at 10.
+#
+# Counts are kept per session and per agent (session_id + agent_id from the hook input), so parallel subagents and
+# later sessions do not inherit each other's edits. Files that many agents append to by design (the i18n message
+# catalogues) are not counted. Messages go to stderr: that is the stream Claude sees when the hook blocks.
 
 INPUT=$(cat)
 
-# Extract file path from JSON input (POSIX-compatible, no grep -P)
-FILE_PATH=$(echo "$INPUT" | sed -n 's/.*"file_path"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1)
+# Extract a string field from the JSON input (POSIX-compatible, no grep -P, no jq dependency)
+json_field() {
+  echo "$INPUT" | sed -n "s/.*\"$1\"[[:space:]]*:[[:space:]]*\"\([^\"]*\)\".*/\1/p" | head -1
+}
+
+FILE_PATH=$(json_field file_path)
 
 if [ -z "$FILE_PATH" ]; then
   exit 0
 fi
 
-# Use a temp directory for tracking edit counts
-TRACK_DIR="/tmp/claude-loop-detection"
+# Append-only shared catalogues: every frontend area adds its keys here, many edits are expected.
+case "$FILE_PATH" in
+  */frontend/src/messages/*.json) exit 0 ;;
+esac
+
+SESSION_ID=$(json_field session_id)
+AGENT_ID=$(json_field agent_id)
+
+# Use a temp directory for tracking edit counts, one subdirectory per session and agent
+TRACK_DIR="/tmp/claude-loop-detection/${SESSION_ID:-no-session}/${AGENT_ID:-main}"
 mkdir -p "$TRACK_DIR"
 
 # Create a safe filename from the path (portable: md5sum on Linux, md5 on macOS)
@@ -41,14 +57,18 @@ echo "$COUNT" > "$TRACK_FILE"
 
 # Check thresholds
 if [ "$COUNT" -ge 10 ]; then
-  echo "🚫 BLOCKED: File '$FILE_PATH' edited $COUNT times this session."
-  echo "   This looks like a doom loop. Consider:"
-  echo "   - /debugger to investigate the root cause"
-  echo "   - Reassessing your approach"
+  {
+    echo "🚫 BLOCKED: File '$FILE_PATH' edited $COUNT times by this agent in this session."
+    echo "   This looks like a doom loop. Consider:"
+    echo "   - /debugger to investigate the root cause"
+    echo "   - Reassessing your approach"
+  } >&2
   exit 2
 elif [ "$COUNT" -ge 7 ]; then
-  echo "⚠️  WARNING: File '$FILE_PATH' edited $COUNT times this session."
-  echo "   If you're stuck in a loop, consider using /debugger."
+  {
+    echo "⚠️  WARNING: File '$FILE_PATH' edited $COUNT times by this agent in this session."
+    echo "   If you're stuck in a loop, consider using /debugger."
+  } >&2
   exit 1
 fi
 
