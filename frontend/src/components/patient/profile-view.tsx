@@ -18,8 +18,8 @@ const CONTACT_KEYS: Readonly<Record<string, string>> = { email: 'contactEmail', 
 
 function ProfileSection({ id, title, children }: { readonly id: string; readonly title: string; readonly children: ReactNode }): ReactNode {
   return (
-    <section aria-labelledby={id} className="mt-6">
-      <h2 id={id} className="serif text-xl font-semibold">{title}</h2>
+    <section aria-labelledby={id}>
+      <h2 id={id} className="text-[22px] font-bold">{title}</h2>
       <div className="mt-3">{children}</div>
     </section>
   );
@@ -94,11 +94,11 @@ export function ProfileView(): ReactNode {
   const t = useT('patient.profile');
   useDocumentTitle(t('title'));
   return (
-    <div>
-      <h1 className="serif text-2xl font-bold">{t('title')}</h1>
+    <div className="flex flex-col gap-7">
+      <h1 className="text-[28px] font-bold tracking-tight sm:text-[34px]">{t('title')}</h1>
       <ProfileSection id="profile-account" title={t('accountTitle')}><AccountCard /></ProfileSection>
       <ProfileSection id="profile-patient" title={t('patientTitle')}><PatientCard /></ProfileSection>
-      <p className="mt-4 text-sm text-[var(--muted-foreground)]">{t('readOnly')}</p>
+      <p className="text-sm text-muted-foreground">{t('readOnly')}</p>
     </div>
   );
 }

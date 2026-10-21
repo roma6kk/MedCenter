@@ -3,6 +3,8 @@
 import { useState } from 'react';
 import type { ReactNode } from 'react';
 import Link from 'next/link';
+import { buttonVariants } from '@/components/ui/button-variants';
+import { Card } from '@/components/ui/card';
 import { Pager } from '@/components/data-display/paginated-table';
 import { CodeChip } from '@/components/feedback/code-chip';
 import { EmptyState, TableSkeleton } from '@/components/feedback/states';
@@ -63,19 +65,19 @@ function VisitEntry({ entry }: { readonly entry: HistoryEntry }): ReactNode {
   const titleId = `visit-${entry.id}`;
   return (
     <li className="relative min-w-0">
-      <span aria-hidden="true" className="absolute -left-[21px] top-2 h-2 w-2 rounded-full bg-[var(--primary)]" />
-      <article aria-labelledby={titleId} className="min-w-0 rounded-[6px] border border-[var(--border)] bg-[var(--card)] p-4">
+      <span aria-hidden="true" className="absolute -left-[21px] top-6 h-2.5 w-2.5 rounded-full bg-primary ring-4 ring-background" />
+      <Card as="article" aria-labelledby={titleId} padding="lg" className="min-w-0">
         <div className="flex flex-wrap items-baseline justify-between gap-2">
-          <time id={titleId} dateTime={entry.date} className="serif text-[20px] font-semibold">{format.dateTime(entry.date)}</time>
+          <time id={titleId} dateTime={entry.date} className="text-[20px] font-bold">{format.dateTime(entry.date)}</time>
           {entry.serviceType?.display ? <p className={`text-sm text-[var(--muted-foreground)] ${WRAP_TEXT}`}>{entry.serviceType.display}</p> : null}
         </div>
         <Diagnoses entry={entry} />
         {entry.summary ? <VisitText label={t('summary')} text={entry.summary} /> : null}
         {entry.recommendations ? <VisitText label={t('recommendations')} text={entry.recommendations} /> : null}
-        <p className="no-print mt-3 text-sm">
-          <Link href={`/appointments/${encodeURIComponent(entry.appointmentId)}`} className="inline-flex min-h-[44px] items-center underline">{t('openAppointment')}</Link>
+        <p className="no-print mt-4">
+          <Link href={`/appointments/${encodeURIComponent(entry.appointmentId)}`} className={buttonVariants({ variant: 'secondary' })}>{t('openAppointment')}</Link>
         </p>
-      </article>
+      </Card>
     </li>
   );
 }
@@ -91,7 +93,7 @@ function Timeline({ query, onPage }: TimelineProps): ReactNode {
   if (query.data.items.length === 0) return <EmptyState title={t('empty')} description={t('emptyHint')} />;
   return (
     <>
-      <ol aria-label={t('listLabel')} className="grid grid-cols-1 gap-3 border-l border-[var(--border)] pl-4">
+      <ol aria-label={t('listLabel')} className="grid grid-cols-1 gap-4 border-l-2 border-border pl-5">
         {query.data.items.map((entry) => <VisitEntry key={entry.id} entry={entry} />)}
       </ol>
       {query.data.meta.totalPages > 1 ? <Pager meta={query.data.meta} onPage={onPage} /> : null}
@@ -107,12 +109,12 @@ export function HistoryTimeline(): ReactNode {
   useClampedPage(query.data?.meta, page, setPage);
   useDocumentTitle(t('title'));
   return (
-    <section>
+    <section className="flex flex-col gap-7">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="serif text-2xl font-bold">{t('title')}</h1>
+        <h1 className="text-[28px] font-bold tracking-tight sm:text-[34px]">{t('title')}</h1>
         {query.data !== undefined && query.data.items.length > 0 ? <PrintButton label={t('print')} /> : null}
       </div>
-      <div className="mt-4" aria-busy={query.isFetching}><Timeline query={query} onPage={setPage} /></div>
+      <div aria-busy={query.isFetching}><Timeline query={query} onPage={setPage} /></div>
     </section>
   );
 }
