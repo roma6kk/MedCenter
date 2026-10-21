@@ -3,7 +3,7 @@ title: Accelerator Skill Flow
 type: index
 description: Master navigation for the command → agent → skill workflow.
 ---
-# Skill Flow Reference
+# ..Skill Flow Reference
 
 This document defines the recommended order of skills. Each skill stops after completion and suggests the next step - the user decides whether to continue.
 

@@ -3,7 +3,6 @@ name: agent-browser
 description: Browser automation CLI for AI agents. Use when the user needs to interact with websites, including navigating pages, filling forms, clicking buttons, taking screenshots, extracting data, testing web apps, or automating any browser task. Triggers include requests to "open a website", "fill out a form", "click a button", "take a screenshot", "scrape data from a page", "test this web app", "login to a site", "automate browser actions", or any task requiring programmatic web interaction.
 allowed-tools: Bash(npx agent-browser:*), Bash(agent-browser:*)
 ---
-
 # Browser Automation with agent-browser
 
 The CLI uses Chrome/Chromium via CDP directly. Install via `npm i -g agent-browser`, `brew install agent-browser`, or `cargo install agent-browser`. Run `agent-browser install` to download Chrome. Existing Chrome, Brave, Playwright, and Puppeteer installations are detected automatically. Run `agent-browser upgrade` to update to the latest version.
@@ -733,8 +732,8 @@ Priority (lowest to highest): `~/.agent-browser/config.json` < `./agent-browser.
 
 ## Deep-Dive Documentation
 
-| Reference                                                            | When to Use                                               |
-| -------------------------------------------------------------------- | --------------------------------------------------------- |
+| Reference                                                           | When to Use                                               |
+| ------------------------------------------------------------------- | --------------------------------------------------------- |
 | [references/commands.md](references/commands.md)                     | Full command reference with all options                   |
 | [references/snapshot-refs.md](references/snapshot-refs.md)           | Ref lifecycle, invalidation rules, troubleshooting        |
 | [references/session-management.md](references/session-management.md) | Parallel sessions, state persistence, concurrent scraping |
@@ -779,6 +778,7 @@ agent-browser --engine lightpanda --executable-path /path/to/lightpanda open exa
 ```
 
 Supported engines:
+
 - `chrome` (default) -- Chrome/Chromium via CDP
 - `lightpanda` -- Lightpanda headless browser via CDP (10x faster, 10x less memory than Chrome)
 
@@ -815,8 +815,8 @@ The Chat tab is always visible in the dashboard. Set `AI_GATEWAY_API_KEY` to ena
 
 ## Ready-to-Use Templates
 
-| Template                                                                 | Description                         |
-| ------------------------------------------------------------------------ | ----------------------------------- |
+| Template                                                                | Description                         |
+| ----------------------------------------------------------------------- | ----------------------------------- |
 | [templates/form-automation.sh](templates/form-automation.sh)             | Form filling with validation        |
 | [templates/authenticated-session.sh](templates/authenticated-session.sh) | Login once, reuse state             |
 | [templates/capture-workflow.sh](templates/capture-workflow.sh)           | Content extraction with screenshots |
