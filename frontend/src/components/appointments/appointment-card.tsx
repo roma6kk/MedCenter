@@ -2,11 +2,14 @@
 
 import type { ReactNode } from 'react';
 import Link from 'next/link';
-import { StampBadge } from '@/components/feedback/stamp-badge';
+import { buttonVariants } from '@/components/ui/button-variants';
+import { Button } from '@/components/ui/button';
 import { useClinicFormat } from '@/hooks/use-clinic-format';
 import { WRAP_TEXT } from '@/components/patient/wrap-text';
 import { useT } from '@/lib/i18n/use-t';
+import { cn } from '@/lib/ui/cn';
 import { isCancellable, type AppointmentView } from './appointment-types';
+import { StatusBadge } from './status-badge';
 
 interface AppointmentCardProps {
   readonly appointment: AppointmentView;
@@ -14,42 +17,51 @@ interface AppointmentCardProps {
   readonly onCancel?: (appointment: AppointmentView) => void;
 }
 
-const ACTION_CLASS = 'inline-flex min-h-[44px] items-center rounded-[6px] border px-4 text-sm';
-
-function CardActions({ appointment, when, onCancel }: AppointmentCardProps & { readonly when: string }): ReactNode {
+/** The "details" link and the "cancel" button of one appointment; the hero card and the list rows share them. */
+export function AppointmentActions({ appointment, onCancel, hero = false }: AppointmentCardProps & { readonly hero?: boolean }): ReactNode {
   const t = useT('appointments');
+  const format = useClinicFormat();
+  const when: string = format.dateTime(appointment.start);
   const doctor: string = appointment.doctorName ?? t('doctorUnknown');
+  const size = hero ? 'lg' : 'md';
   return (
-    <div className="no-print mt-3 flex flex-wrap gap-2">
-      <Link href={`/appointments/${encodeURIComponent(appointment.id)}`} aria-label={t('openFor', { when })} className={`${ACTION_CLASS} border-[var(--border)] hover:bg-[var(--secondary)]`}>
+    <div className={cn('no-print flex flex-none gap-2', hero ? 'flex-col' : 'justify-end')}>
+      <Link
+        href={`/appointments/${encodeURIComponent(appointment.id)}`}
+        aria-label={t('openFor', { when })}
+        className={cn(buttonVariants({ variant: 'secondary', size }), 'font-medium', hero && 'font-semibold')}
+      >
         {t('open')}
       </Link>
       {onCancel !== undefined && isCancellable(appointment.status) ? (
-        <button type="button" aria-label={t('cancelFor', { when, doctor })} onClick={() => onCancel(appointment)} className={`${ACTION_CLASS} border-[var(--destructive)] text-[var(--destructive)] hover:bg-[var(--secondary)]`}>
-          {t('cancel')}
-        </button>
+        <Button variant={hero ? 'danger' : 'ghost'} size={size} aria-label={t('cancelFor', { when, doctor })} onClick={() => onCancel(appointment)} className={hero ? '' : 'font-semibold text-destructive hover:bg-destructive-soft'}>
+          {hero ? t('cancel') : t('cancelShort')}
+        </Button>
       ) : null}
     </div>
   );
 }
 
-/** One appointment of the list: the date as a serif headline, the status as a stamp, then who and what. */
+/**
+ * One appointment as a row of the list: the clock time in mono type, what and who, the status as a soft pill, then the
+ * actions. The day itself is the heading of the group the row sits in.
+ */
 export function AppointmentCard({ appointment, onCancel }: AppointmentCardProps): ReactNode {
   const t = useT('appointments');
   const format = useClinicFormat();
   const when: string = format.dateTime(appointment.start);
-  const titleId = `appointment-${appointment.id}-when`;
   return (
-    <article aria-labelledby={titleId} className="min-w-0 rounded-[6px] border border-[var(--border)] bg-[var(--card)] p-4">
-      <div className="flex items-start justify-between gap-3">
-        <time id={titleId} dateTime={appointment.start} className="serif text-[20px] font-semibold">{when}</time>
-        <StampBadge status={appointment.status} />
+    <article aria-label={when} className="flex min-w-0 flex-wrap items-center gap-x-5 gap-y-3 px-5 py-4">
+      <time dateTime={appointment.start} className="mono w-16 flex-none text-[17px] font-medium">{format.time(appointment.start)}</time>
+      <div className="flex min-w-0 flex-[999_1_240px] flex-col gap-0.5">
+        <p className={cn('text-base font-semibold', WRAP_TEXT)}>{appointment.serviceName ?? t('serviceUnknown')}</p>
+        <p className={cn('text-sm text-muted-foreground', WRAP_TEXT)}>{appointment.doctorName ?? t('doctorUnknown')}</p>
+        {appointment.status === 'cancelled' && appointment.cancelReason ? (
+          <p className={cn('text-sm text-muted-foreground', WRAP_TEXT)}>{t('fieldCancelReason')}: {appointment.cancelReason}</p>
+        ) : null}
       </div>
-      <p className={`mt-1 text-sm ${WRAP_TEXT}`}>{appointment.doctorName ?? t('doctorUnknown')} · {appointment.serviceName ?? t('serviceUnknown')}</p>
-      {appointment.status === 'cancelled' && appointment.cancelReason ? (
-        <p className={`mt-1 text-sm text-[var(--muted-foreground)] ${WRAP_TEXT}`}>{t('fieldCancelReason')}: {appointment.cancelReason}</p>
-      ) : null}
-      <CardActions appointment={appointment} when={when} onCancel={onCancel} />
+      <StatusBadge status={appointment.status} />
+      <AppointmentActions appointment={appointment} onCancel={onCancel} />
     </article>
   );
 }

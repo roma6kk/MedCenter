@@ -29,13 +29,14 @@ describe('AppointmentList', () => {
     expect(screen.getByTestId('table-skeleton')).toBeInTheDocument();
   });
 
-  it('should request the first page of upcoming appointments and show them as cards', async () => {
+  it('should request the first page of upcoming appointments, lead with the nearest one and list the rest as cards', async () => {
     listMock.mockResolvedValue(pageOf([BOOKED, CANCELLED]));
 
     renderWithClient(<AppointmentList />);
 
     const list = await screen.findByRole('list', { name: 'Записи на приём' });
-    expect(within(list).getAllByRole('article')).toHaveLength(2);
+    expect(within(screen.getByTestId('next-appointment')).getByTestId('stamp-booked')).toBeInTheDocument();
+    expect(within(list).getAllByRole('article')).toHaveLength(1);
     expect(listMock).toHaveBeenCalledWith({ tab: 'upcoming', page: 1, pageSize: 10 });
   });
 
@@ -46,7 +47,7 @@ describe('AppointmentList', () => {
 
     expect(screen.getByRole('heading', { level: 1, name: 'Мои записи' })).toBeInTheDocument();
     expect(document.title).toBe('Мои записи — МедЦентр');
-    await screen.findByRole('list');
+    await screen.findByTestId('next-appointment');
   });
 
   it('should invite to book when there are no upcoming appointments', async () => {
@@ -61,7 +62,7 @@ describe('AppointmentList', () => {
   it('should read the whole history when the all tab is chosen, and start again from page 1', async () => {
     listMock.mockResolvedValue(pageOf([BOOKED]));
     renderWithClient(<AppointmentList />);
-    await screen.findByRole('list');
+    await screen.findByTestId('next-appointment');
 
     await userEvent.click(screen.getByRole('tab', { name: 'Все записи' }));
 
@@ -87,7 +88,7 @@ describe('AppointmentList', () => {
     expect(await screen.findByTestId('problem-banner')).toHaveTextContent('req-9');
     await userEvent.click(screen.getByRole('button', { name: 'Повторить' }));
 
-    expect(await screen.findByRole('list', { name: 'Записи на приём' })).toBeInTheDocument();
+    expect(await screen.findByTestId('next-appointment')).toBeInTheDocument();
   });
 
   it('should keep the banner and the focus on the retry button while the failed first read is repeated', async () => {
@@ -106,7 +107,7 @@ describe('AppointmentList', () => {
   it('should page through the server pages when there is more than one', async () => {
     listMock.mockResolvedValue(pageOf([BOOKED], { page: 1, totalItems: 25 }));
     renderWithClient(<AppointmentList />);
-    await screen.findByRole('list');
+    await screen.findByTestId('next-appointment');
 
     await userEvent.click(screen.getByRole('button', { name: 'Следующая страница' }));
 
@@ -116,7 +117,7 @@ describe('AppointmentList', () => {
   it('should hide the pager when everything fits on one page', async () => {
     listMock.mockResolvedValue(pageOf([BOOKED]));
     renderWithClient(<AppointmentList />);
-    await screen.findByRole('list');
+    await screen.findByTestId('next-appointment');
 
     expect(screen.queryByRole('navigation', { name: 'Пагинация' })).not.toBeInTheDocument();
   });
@@ -177,25 +178,25 @@ describe('AppointmentList', () => {
   it('should not show the cards of the previous tab under the new one while it is loading', async () => {
     listMock.mockResolvedValueOnce(pageOf([BOOKED]));
     renderWithClient(<AppointmentList />);
-    await screen.findByRole('list', { name: 'Записи на приём' });
+    await screen.findByTestId('next-appointment');
     listMock.mockReturnValue(new Promise(() => undefined));
 
     await userEvent.click(screen.getByRole('tab', { name: 'Все записи' }));
 
     expect(await screen.findByTestId('table-skeleton')).toBeInTheDocument();
-    expect(screen.queryByRole('article')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('next-appointment')).not.toBeInTheDocument();
   });
 
   it('should keep the previous page on screen while the next page of the same tab is loading', async () => {
     listMock.mockResolvedValueOnce(pageOf([BOOKED], { page: 1, totalItems: 25 }));
     renderWithClient(<AppointmentList />);
-    await screen.findByRole('list', { name: 'Записи на приём' });
+    await screen.findByTestId('next-appointment');
     listMock.mockReturnValue(new Promise(() => undefined));
 
     await userEvent.click(screen.getByRole('button', { name: 'Следующая страница' }));
 
     await waitFor(() => expect(listMock).toHaveBeenCalledWith({ tab: 'upcoming', page: 2, pageSize: 10 }));
-    expect(screen.getAllByRole('article')).toHaveLength(1);
+    expect(screen.getByTestId('next-appointment')).toBeInTheDocument();
     expect(screen.queryByTestId('table-skeleton')).not.toBeInTheDocument();
   });
 
@@ -205,8 +206,10 @@ describe('AppointmentList', () => {
 
     renderWithClient(<AppointmentList />);
 
+    // The nearest booked one (`later`) is the hero card; the rest of the page follows with the cancelled one last.
     const cards = await screen.findAllByRole('article');
-    expect(cards.map((card) => within(card).queryByTestId('stamp-cancelled') !== null)).toEqual([false, false, true]);
+    expect(screen.getByTestId('next-appointment')).toBeInTheDocument();
+    expect(cards.map((card) => within(card).queryByTestId('stamp-cancelled') !== null)).toEqual([false, true]);
     expect(screen.getByText(/Среди предстоящих записей показаны и отменённые/)).toBeInTheDocument();
   });
 
@@ -215,7 +218,7 @@ describe('AppointmentList', () => {
 
     renderWithClient(<AppointmentList />);
 
-    await screen.findByRole('list');
+    await screen.findByTestId('next-appointment');
     expect(screen.queryByText(/Среди предстоящих записей показаны и отменённые/)).not.toBeInTheDocument();
   });
 

@@ -21,7 +21,7 @@ interface FormFieldProps {
 
 const VALIDATION_KEY_PREFIX = 'validation.';
 
-export const INPUT_CLASS = 'mt-1 w-full min-h-[44px] rounded-[6px] border border-[var(--input)] bg-[var(--card)] p-2';
+export const INPUT_CLASS = 'mt-1 w-full min-h-[44px] rounded-control border border-input bg-card px-3 py-2';
 
 /** Space-separated ids of the elements that describe the control, or `undefined` when there are none. */
 export function describedBy(...ids: ReadonlyArray<string | false | undefined>): string | undefined {
