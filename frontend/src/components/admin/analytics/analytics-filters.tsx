@@ -47,7 +47,7 @@ export function AnalyticsFilters({ range, top, onApply }: AnalyticsFiltersProps)
   const { draft, setDraft, draftTop, setDraftTop, rangeError, handleSubmit } = useFilterDraft(range, top, onApply);
   const error: string | undefined = rangeError === null ? undefined : t(`errors.${rangeError}`);
   return (
-    <form role="search" aria-label={t('filters.label')} onSubmit={handleSubmit} noValidate className="mb-5 flex flex-wrap items-end gap-3">
+    <form role="search" aria-label={t('filters.label')} onSubmit={handleSubmit} noValidate className="no-print mb-6 flex flex-wrap items-end gap-3 rounded-card border border-[var(--border)] bg-[var(--card)] p-4">
       <Field id="analytics-from" label={t('filters.from')} error={error}>
         <input {...controlProps('analytics-from', error)} type="date" value={draft.from} onChange={(event) => setDraft({ ...draft, from: event.target.value })} className={CONTROL_CLASS} />
       </Field>

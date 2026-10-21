@@ -178,4 +178,49 @@ describe('AnalyticsPanel', () => {
 
     expect(table.parentElement).toHaveAttribute('tabindex', '0');
   });
+  it('should state the main finding as the heading and compute the cancellation card from the report when most appointments are cancelled', async () => {
+    apiFetchMock.mockImplementation((path) => (path.includes('/appointments') ? Promise.resolve({ ...appointments, total: 117, groups: [{ code: 'booked', count: 34 }, { code: 'cancelled', count: 62 }, { code: 'noshow', count: 21 }] }) : answer(path)));
+    renderWithClient(<AnalyticsPanel />);
+
+    expect(await screen.findByRole('heading', { level: 1, name: 'Больше половины записей отменяется до приёма' })).toBeInTheDocument();
+    const cards = await screen.findAllByTestId('insight');
+    expect(cards[0]).toHaveTextContent('53%');
+    expect(cards[0]).toHaveTextContent('62 из 117. Это больше, чем записанные и неявки вместе.');
+    expect(cards[1]).toHaveTextContent('Неявки · 18%');
+    expect(cards[2]).toHaveTextContent('94%');
+    expect(within(cards[0] as HTMLElement).getByRole('link', { name: 'Посмотреть отмены в аудите' })).toHaveAttribute('href', '/admin/audit');
+  });
+
+  it('should merge the deleted services into one row with the ids behind a disclosure and link to the service catalogue when the report has nameless groups', async () => {
+    apiFetchMock.mockImplementation((path) => (path.includes('/services-popularity') ? Promise.resolve({ ...services, total: 20, groups: [{ code: 'svc-1', display: 'Приём терапевта', count: 17 }, { code: 'gone-a', count: 2 }, { code: 'gone-b', count: 1 }] }) : answer(path)));
+    renderWithClient(<AnalyticsPanel />);
+
+    const table = within(await screen.findByRole('table', { name: 'Топ-10 услуг по записям' }));
+
+    expect(await table.findByText('Удалённые или недоступные услуги (2)')).toBeInTheDocument();
+    expect(table.getAllByTestId('unnamed-row')).toHaveLength(1);
+    expect(table.getByText('gone-a').closest('details')).toBeInTheDocument();
+    expect(await screen.findByRole('link', { name: 'каталоге услуг' })).toHaveAttribute('href', '/admin/services');
+  });
+
+  it('should show no insight card, no check list and a plain heading when the period has no appointments or encounters', async () => {
+    const none = { ...appointments, total: 0, groups: [], booked: 0, cancelled: 0, noshow: 0 };
+    apiFetchMock.mockImplementation((path) => Promise.resolve(path.includes('/appointments') ? none : { ...encounters, total: 0, groups: [] }));
+    renderWithClient(<AnalyticsPanel />);
+
+    expect(await screen.findByRole('heading', { level: 1, name: 'Аналитика' })).toBeInTheDocument();
+    await waitFor(() => expect(screen.getAllByTestId('empty-state').length).toBeGreaterThan(0));
+    expect(screen.queryByTestId('insight')).not.toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Что стоит проверить' })).not.toBeInTheDocument();
+  });
+
+  it('should draw only the statuses that occurred when a single appointment is booked', async () => {
+    apiFetchMock.mockImplementation((path) => (path.includes('/appointments') ? Promise.resolve({ ...appointments, total: 1, groups: [{ code: 'booked', count: 1 }], booked: 1, cancelled: 0, noshow: 0 }) : answer(path)));
+    renderWithClient(<AnalyticsPanel />);
+
+    expect(await screen.findByTestId('bar-booked')).toBeInTheDocument();
+    expect(screen.queryByTestId('bar-cancelled')).not.toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 1, name: 'Записанных больше, чем отмен и неявок' })).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Посмотреть отмены в аудите' })).not.toBeInTheDocument();
+  });
 });

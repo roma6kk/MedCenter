@@ -347,10 +347,9 @@
     "analytics": {
       "title": "Analytics",
       "description": "Appointments, completed encounters and service popularity for the chosen period.",
-      "period": "Report period: {from} – {to}",
+      "period": "Report · {from} – {to}",
       "empty": "No data for the chosen period",
       "share": "Share",
-      "totalLine": "Total: {count}",
       "errors": {
         "invalid": "Enter valid dates",
         "order": "The start date is after the end date",
@@ -368,19 +367,73 @@
         "total": "Appointments in total",
         "booked": "Booked",
         "cancelled": "Cancelled",
-        "noshow": "No-shows"
+        "noshow": "No-shows",
+        "barLabel": "Booked {booked}, cancelled {cancelled}, no-shows {noshow}"
       },
       "encounters": {
         "title": "Completed encounters by specialty",
         "specialty": "Specialty",
         "count": "Encounters",
-        "unknown": "Specialty not set"
+        "unknown": "Specialty not set",
+        "unknownMany": "Specialty not set ({count})",
+        "unknownNote": "The doctor’s specialty is not set or not found in the reference for these encounters. The codes are below."
       },
       "services": {
         "title": "Top {top} services by bookings",
         "service": "Service",
         "count": "Bookings",
-        "unknown": "Service deleted or unavailable"
+        "unknown": "Service deleted or unavailable",
+        "unknownMany": "Deleted or unavailable services ({count})",
+        "unknownNote": "These services were removed from the catalogue, so the appointments kept only an identifier. The identifiers are below."
+      },
+      "print": "Print",
+      "headline": {
+        "cancelledMajority": "More than half of the appointments are cancelled before the visit",
+        "cancelledTop": "Cancelled appointments outnumber booked ones and no-shows",
+        "noshowTop": "No-shows outnumber cancellations and booked appointments",
+        "bookedTop": "Booked appointments outnumber cancellations and no-shows",
+        "balanced": "The appointment outcomes are evenly split"
+      },
+      "insights": {
+        "label": "Key findings",
+        "cancelled": {
+          "title": "of appointments cancelled",
+          "text": "{count} of {total}.",
+          "overOthers": "That is more than booked appointments and no-shows together.",
+          "overEach": "More than booked ({booked}) and no-shows ({noshow}) taken separately.",
+          "other": "Booked: {booked}, no-shows: {noshow}.",
+          "link": "See the cancellations in the audit"
+        },
+        "noshow": {
+          "title": "No-shows · {percent}%",
+          "text": "Patients booked but did not come — those slots could have gone to others.",
+          "link": "Open the schedules"
+        },
+        "specialty": {
+          "title": "of encounters — {name}",
+          "text": "{count} of {total} completed.",
+          "single": "There are no other specialties among the completed encounters.",
+          "link": "Check the doctors’ schedules"
+        }
+      },
+      "check": {
+        "title": "What to check",
+        "audit": {
+          "text": "See the reasons for cancellations in the",
+          "link": "audit log"
+        },
+        "schedules": {
+          "text": "Check free slots and doctor load in the",
+          "link": "schedules"
+        },
+        "services": {
+          "text": "Services missing from the catalogue ({count}) — see the",
+          "link": "service catalogue"
+        }
+      },
+      "table": {
+        "total": "Total",
+        "details": "Details"
       }
     },
     "audit": {
