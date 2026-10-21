@@ -96,7 +96,7 @@ interface RowsProps<TRow> {
 
 function DesktopTable<TRow>({ columns, rows, rowKey, caption, sort, onSort }: RowsProps<TRow> & Pick<PaginatedTableProps<TRow>, 'caption' | 'sort' | 'onSort'>): ReactNode {
   return (
-    <div className="overflow-x-auto rounded-card border border-[var(--border)] max-md:hidden">
+    <div className="overflow-x-auto rounded-card border border-[var(--border)] bg-[var(--card)] max-md:hidden">
       <table className="w-full text-sm">
         {caption ? <caption className="sr-only">{caption}</caption> : null}
         <thead className="sticky top-0 bg-[var(--secondary)]">
