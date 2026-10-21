@@ -15,7 +15,7 @@ function Accepted({ accepted }: { readonly accepted: ImportAccepted }): ReactNod
   const t = useT('admin.terminology.import');
   const locale = useUiStore((state) => state.locale);
   return (
-    <div role="status" data-testid="import-accepted" className={`${OUTCOME_CLASS} border-[var(--success)]`}>
+    <div role="status" data-testid="import-accepted" className={`${OUTCOME_CLASS} border-transparent bg-success-soft`}>
       <p className="font-semibold">{t('accepted')}</p>
       <p className="mt-1 text-[var(--muted-foreground)]">{t('acceptedDetail', { version: accepted.snapshotVersion, time: formatClinicDateTime(accepted.acceptedAt, locale) })}</p>
       <p className="mt-1">
@@ -28,7 +28,7 @@ function Accepted({ accepted }: { readonly accepted: ImportAccepted }): ReactNod
 function AlreadyRunning(): ReactNode {
   const t = useT('admin.terminology.import');
   return (
-    <div role="status" data-testid="import-running" className={`${OUTCOME_CLASS} border-[var(--warning)]`}>
+    <div role="status" data-testid="import-running" className={`${OUTCOME_CLASS} border-transparent bg-warning-soft`}>
       <p className="font-semibold">{t('alreadyRunning')}</p>
       <p className="mt-1 text-[var(--muted-foreground)]">{t('alreadyRunningHint')}</p>
     </div>

@@ -56,9 +56,9 @@ function HeaderCell<TRow>({ column, sort, onSort }: HeaderCellProps<TRow>): Reac
   const suffix: string = direction === 'ascending' ? ' ↑' : direction === 'descending' ? ' ↓' : '';
   const hint: string = direction === 'ascending' ? t('sortAscending') : direction === 'descending' ? t('sortDescending') : '';
   return (
-    <th scope="col" aria-sort={direction} className="h-11 px-3 text-left font-medium">
+    <th scope="col" aria-sort={direction} className="h-11 px-4 text-left text-[13px] font-semibold text-[var(--muted-foreground)]">
       {isSortable && sortKey !== undefined ? (
-        <button type="button" onClick={() => onSort?.(nextSort(sortKey, sort))} className="min-h-[24px] font-medium hover:underline">
+        <button type="button" onClick={() => onSort?.(nextSort(sortKey, sort))} className="min-h-[24px] font-semibold hover:underline">
           {column.header}
           <span aria-hidden="true">{suffix}</span>
           {hint ? <span className="sr-only">, {hint}</span> : null}
@@ -74,7 +74,7 @@ function HeaderCell<TRow>({ column, sort, onSort }: HeaderCellProps<TRow>): Reac
 export function Pager({ meta, onPage }: { readonly meta: PageMeta; readonly onPage: (page: number) => void }): ReactNode {
   const t = useT('pagination');
   const { current, total } = pageLabel(meta);
-  const buttonClass = 'min-h-[44px] min-w-[44px] rounded-control border border-[var(--border)] px-3 py-1 disabled:opacity-50';
+  const buttonClass = 'min-h-[44px] min-w-[44px] rounded-control border border-[var(--border)] bg-[var(--card)] px-3 py-1 hover:bg-secondary disabled:opacity-50';
   return (
     <nav aria-label={t('label')} className="mt-3 flex items-center gap-2">
       <button type="button" aria-label={t('previous')} disabled={current <= 1} onClick={() => onPage(current - 1)} className={buttonClass}>
@@ -99,13 +99,13 @@ function DesktopTable<TRow>({ columns, rows, rowKey, caption, sort, onSort }: Ro
     <div className="overflow-x-auto rounded-card border border-[var(--border)] max-md:hidden">
       <table className="w-full text-sm">
         {caption ? <caption className="sr-only">{caption}</caption> : null}
-        <thead className="sticky top-0 bg-[var(--card)]">
+        <thead className="sticky top-0 bg-[var(--secondary)]">
           <tr>{columns.map((column) => <HeaderCell key={column.key} column={column} sort={sort} onSort={onSort} />)}</tr>
         </thead>
         <tbody>
           {rows.map((row) => (
             <tr key={rowKey(row)} className="border-t border-[var(--border)] hover:bg-secondary">
-              {columns.map((column) => <td key={column.key} className="h-11 px-3">{column.render(row)}</td>)}
+              {columns.map((column) => <td key={column.key} className="h-12 px-4">{column.render(row)}</td>)}
             </tr>
           ))}
         </tbody>

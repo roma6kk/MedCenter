@@ -21,7 +21,7 @@ export function SearchForm({ label, value, onApply }: SearchFormProps): ReactNod
     onApply(draft.trim());
   };
   return (
-    <form role="search" aria-label={t('search')} onSubmit={handleSubmit} className="mb-4 flex flex-wrap items-end gap-3">
+    <form role="search" aria-label={t('search')} onSubmit={handleSubmit} className="no-print mb-5 flex flex-wrap items-end gap-3 rounded-card border border-[var(--border)] bg-[var(--card)] p-4">
       <div className="grid gap-1">
         <label htmlFor={inputId} className="form-label">{label}</label>
         <input id={inputId} type="search" value={draft} maxLength={100} onChange={(event) => setDraft(event.target.value)} className={`${CONTROL_CLASS} w-64`} />

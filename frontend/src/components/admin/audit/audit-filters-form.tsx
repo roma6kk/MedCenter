@@ -60,7 +60,7 @@ export function AuditFiltersForm({ filter, onApply }: AuditFiltersFormProps): Re
   const entityError: string | undefined = errors.entity === true ? t('errors.entity') : undefined;
   const userError: string | undefined = errors.userId === true ? t('errors.userId') : undefined;
   return (
-    <form role="search" aria-label={t('filters.label')} onSubmit={handleSubmit} noValidate className="mb-4 flex flex-wrap items-end gap-3">
+    <form role="search" aria-label={t('filters.label')} onSubmit={handleSubmit} noValidate className="no-print mb-5 flex flex-wrap items-end gap-3 rounded-card border border-[var(--border)] bg-[var(--card)] p-4">
       <Field id="audit-from" label={t('filters.from')} error={rangeError}>
         <input {...controlProps('audit-from', rangeError)} type="date" value={draft.from} onChange={(event) => setDraft({ ...draft, from: event.target.value })} className={CONTROL_CLASS} />
       </Field>
