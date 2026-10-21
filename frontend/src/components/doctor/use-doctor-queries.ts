@@ -4,7 +4,7 @@
  * use-doctor-queries — TanStack Query reads of the doctor area. Keys come from the shared factory
  * (`lib/api/query-keys`, frontend-design-spec §5.1), lifetimes from `query-config`.
  */
-import { keepPreviousData, useQuery, type QueryClient, type UseQueryResult } from '@tanstack/react-query';
+import { keepPreviousData, useQueries, useQuery, type QueryClient, type UseQueryResult } from '@tanstack/react-query';
 import type { PaginatedResponse } from '@/lib/api/pagination';
 import { DEFAULT_STALE_TIME_MS, STALE_TIME_MS } from '@/lib/api/query-config';
 import { queryKeys } from '@/lib/api/query-keys';
@@ -55,6 +55,23 @@ export function useDoctorJournal(dateKey: string, page: number): UseQueryResult<
     queryFn: ({ signal }) => fetchDoctorJournal(range, { page, pageSize: JOURNAL_PAGE_SIZE }, signal),
     staleTime: STALE_TIME_MS.appointments,
     placeholderData: (previous, previousQuery) => (journalFrom(previousQuery) === range.from ? previous : undefined),
+  });
+}
+
+/**
+ * The first journal page of each of several clinic days, fetched in parallel (the week view). Every query has the key of the
+ * day view's first page, so a day opened from the week is already cached and the other way round.
+ */
+export function useDoctorWeekJournal(dateKeys: ReadonlyArray<string>): ReadonlyArray<UseQueryResult<DoctorJournalPage>> {
+  return useQueries({
+    queries: dateKeys.map((dateKey) => {
+      const range: JournalRange = clinicDayBounds(dateKey);
+      return {
+        queryKey: queryKeys.doctorAppointments({ ...range, page: 1, pageSize: JOURNAL_PAGE_SIZE }),
+        queryFn: ({ signal }: { readonly signal: AbortSignal }) => fetchDoctorJournal(range, { page: 1, pageSize: JOURNAL_PAGE_SIZE }, signal),
+        staleTime: STALE_TIME_MS.appointments,
+      };
+    }),
   });
 }
 

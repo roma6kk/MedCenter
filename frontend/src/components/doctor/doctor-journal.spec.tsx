@@ -28,9 +28,9 @@ function setup(respond: () => unknown = () => pageOf(ROWS)): void {
   renderWithClient(<DoctorJournal />);
 }
 
-/** The desktop table: `PaginatedTable` also renders the same rows as mobile cards (hidden by CSS only). */
+/** The timeline of the day: a labelled region that holds one list item per visit. */
 async function findTable(): Promise<HTMLElement> {
-  return screen.findByRole('table');
+  return screen.findByRole('region', { name: 'Приёмы по времени' });
 }
 
 function lastJournalPath(): string {
@@ -57,12 +57,43 @@ jest.setTimeout(30_000);
   it('should show the Minsk time of each visit with the patient and the booked service', async () => {
     setup();
 
-    const row = within(await findTable()).getByText('Кузнецов Алексей').closest('tr');
+    const row = within(await findTable()).getByText('Кузнецов Алексей').closest('li');
 
     expect(row).not.toBeNull();
     expect(within(row as HTMLElement).getByText('09:00')).toBeInTheDocument();
     expect(within(row as HTMLElement).getByText('Консультация терапевта')).toBeInTheDocument();
-    expect(within(row as HTMLElement).getByText('Боль в горле')).toBeInTheDocument();
+  });
+
+  it('should show the reason of the next patient in the side panel and leave out what the API does not have', async () => {
+    setup();
+
+    const panel = within(await screen.findByRole('region', { name: 'Кузнецов Алексей' }));
+
+    expect(panel.getByText('Боль в горле')).toBeInTheDocument();
+    expect(panel.getByText('30 мин')).toBeInTheDocument();
+    expect(panel.queryByText(/Прошлые визиты|Последний диагноз/)).toBeNull();
+  });
+
+  it('should mark the first booked visit as the next patient and strike the cancelled one through', async () => {
+    setup();
+    const timeline = within(await findTable());
+
+    expect(within(timeline.getByTestId('journal-visit-a1')).getByText('Следующий пациент')).toBeInTheDocument();
+    expect(timeline.getByTestId('journal-visit-a4').querySelector('.line-through')).not.toBeNull();
+    expect(timeline.getByTestId('journal-visit-a2')).toHaveTextContent('Неявка');
+  });
+
+  it('should summarise the day by status', async () => {
+    setup();
+    await findTable();
+
+    expect(screen.getByRole('img', { name: 'Из 4: ожидает 1, состоялось 1, неявка 1, отменено 1' })).toBeInTheDocument();
+  });
+
+  it('should collapse a long pause between two visits into one line', async () => {
+    setup(() => pageOf([ROWS[0] as ReturnType<typeof appointment>, appointment({ id: 'late', patientId: 'p9', patientName: 'Орлов Иван', start: '2026-10-20T11:00:00Z', end: '2026-10-20T11:30:00Z' })]));
+
+    expect(await within(await findTable()).findByText('4 ч 30 мин без записей')).toBeInTheDocument();
   });
 
   it('should link the patient name to the patient card', async () => {
@@ -73,10 +104,10 @@ jest.setTimeout(30_000);
 
   it('should offer opening and no-show only for the booked visit (BR-008)', async () => {
     setup();
-    const table = within(await findTable());
+    await findTable();
 
-    expect(table.getAllByRole('button', { name: /Открыть приём/ })).toHaveLength(1);
-    expect(table.getAllByRole('button', { name: /Отметить неявку/ })).toHaveLength(1);
+    expect(screen.getAllByRole('button', { name: /Открыть приём/ })).toHaveLength(1);
+    expect(screen.getAllByRole('button', { name: /Отметить неявку/ })).toHaveLength(1);
   });
 
   it('should fall back to the patient id when the service sent no name', async () => {
@@ -97,7 +128,7 @@ jest.setTimeout(30_000);
 
     await userEvent.selectOptions(screen.getByLabelText('Статус'), 'noshow');
 
-    const table = within(screen.getByRole('table'));
+    const table = within(screen.getByRole('region', { name: 'Приёмы по времени' }));
     expect(table.queryByText('Кузнецов Алексей')).toBeNull();
     expect(table.getByText('Лебедева Ирина')).toBeInTheDocument();
   });
@@ -273,5 +304,51 @@ jest.setTimeout(30_000);
     } finally {
       jest.useRealTimers();
     }
+  });
+
+  describe('week view', () => {
+    async function openWeek(): Promise<void> {
+      setup();
+      await findTable();
+      await userEvent.click(screen.getByRole('button', { name: 'Неделя' }));
+    }
+
+    it('should request the five working days at once and show each visit as a block at its time', async () => {
+      await openWeek();
+
+      await screen.findAllByRole('link', { name: /09:00 Кузнецов Алексей, Записан/ });
+      const froms = new Set(callsTo(apiFetchMock, JOURNAL).map(([path]) => new URL(path, 'http://x').searchParams.get('from')));
+      expect(froms.size).toBe(5);
+      expect(screen.getAllByRole('list', { name: /\d{1,2}/ }).length).toBeGreaterThanOrEqual(5);
+    });
+
+    it('should apply the status filter to the blocks', async () => {
+      await openWeek();
+      await screen.findAllByRole('link', { name: /Кузнецов Алексей/ });
+
+      await userEvent.selectOptions(screen.getByLabelText('Статус'), 'noshow');
+
+      expect(screen.queryAllByRole('link', { name: /Кузнецов Алексей/ })).toHaveLength(0);
+      expect(screen.getAllByRole('link', { name: /Лебедева Ирина/ }).length).toBeGreaterThan(0);
+    });
+
+    it('should open the day in the day view when its heading is pressed', async () => {
+      await openWeek();
+      await screen.findAllByRole('link', { name: /Кузнецов Алексей/ });
+
+      await userEvent.click(screen.getAllByRole('button', { name: /^Открыть день:/ })[1] as HTMLElement);
+
+      expect(await findTable()).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'День' })).toHaveAttribute('aria-pressed', 'true');
+    });
+
+    it('should move by a week when the next button is pressed', async () => {
+      await openWeek();
+      await screen.findAllByRole('link', { name: /Кузнецов Алексей/ });
+
+      await userEvent.click(screen.getByRole('button', { name: 'Следующая неделя' }));
+
+      expect(window.location.search).toBe(`?date=${shiftDateKey(TODAY, 7)}`);
+    });
   });
 });

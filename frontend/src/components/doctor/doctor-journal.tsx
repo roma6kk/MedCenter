@@ -4,16 +4,17 @@ import { useState } from 'react';
 import type { ReactNode } from 'react';
 import { useSearchParams } from 'next/navigation';
 import type { UseQueryResult } from '@tanstack/react-query';
-import { PaginatedTable } from '@/components/data-display/paginated-table';
-import { EmptyState, TableSkeleton } from '@/components/feedback/states';
+import { TableSkeleton } from '@/components/feedback/states';
+import { QueryFailure } from '@/components/feedback/query-error-state';
 import { useDocumentTitle } from '@/hooks/use-document-title';
 import { useT } from '@/lib/i18n/use-t';
 import { formatDayHeading, isDateKey } from '@/lib/clinic-time';
 import type { DoctorJournalPage, JournalAppointment } from './doctor-types';
-import { JournalControls, type StatusFilter } from './journal-controls';
-import { useJournalColumns } from './journal-columns';
-import { QueryFailure } from '@/components/feedback/query-error-state';
-import { useDoctorJournal } from './use-doctor-queries';
+import { JournalControls, type JournalView, type StatusFilter } from './journal-controls';
+import { JournalDayView } from './journal-day-view';
+import { rangeLabel, workingDays } from './journal-model';
+import { JournalWeekView, type DayColumn } from './journal-week-view';
+import { useDoctorJournal, useDoctorWeekJournal } from './use-doctor-queries';
 import { useMinskToday } from './use-minsk-today';
 
 const JOURNAL_PATH = '/doctor/appointments';
@@ -26,18 +27,6 @@ function dayFromUrl(raw: string | null): string | null {
 /** Mirrors the chosen day into the address bar without a navigation (Next syncs `useSearchParams` with `replaceState`). */
 function writeDayToUrl(day: string | null): void {
   window.history.replaceState(null, '', day === null ? JOURNAL_PATH : `${JOURNAL_PATH}?date=${day}`);
-}
-
-function rowKey(row: JournalAppointment): string {
-  return row.id;
-}
-
-function JournalTable({ data, rows, onPage, caption }: { readonly data: DoctorJournalPage; readonly rows: ReadonlyArray<JournalAppointment>; readonly onPage: (page: number) => void; readonly caption: string }): ReactNode {
-  const t = useT('doctor.journal');
-  const columns = useJournalColumns();
-  if (data.items.length === 0) return <EmptyState title={t('empty')} />;
-  if (rows.length === 0) return <EmptyState title={t('emptyFiltered')} />;
-  return <PaginatedTable columns={columns} rows={rows} meta={data.meta} onPage={onPage} rowKey={rowKey} caption={caption} />;
 }
 
 interface JournalState {
@@ -88,26 +77,77 @@ function useJournalState(): JournalState {
   return { dateKey, today, status, journal, rows, setPage, setStatus, changeDate };
 }
 
-/** The doctor's day (FR-009): appointments of one clinic day, a status filter, the actions of a booked visit. */
+function passesFilter(item: JournalAppointment, status: StatusFilter): boolean {
+  return status === 'all' || item.status === status;
+}
+
+/** The week view's columns: five working days from the chosen day, each with the rows of its first journal page that pass the filter. */
+function useWeekColumns(dateKey: string, status: StatusFilter, enabled: boolean): ReadonlyArray<DayColumn> {
+  const dateKeys: ReadonlyArray<string> = workingDays(dateKey);
+  // Parallel per-day queries (no waterfall); they share their cache keys with the day view's first page.
+  const queries: ReadonlyArray<UseQueryResult<DoctorJournalPage>> = useDoctorWeekJournal(enabled ? dateKeys : []);
+  return enabled
+    ? dateKeys.map((day, index) => {
+        const query = queries[index] as UseQueryResult<DoctorJournalPage>;
+        return { dateKey: day, query, visits: (query.data?.items ?? []).filter((item) => passesFilter(item, status)) };
+      })
+    : [];
+}
+
+function DayBody({ journal, rows, status, setPage }: { readonly journal: UseQueryResult<DoctorJournalPage>; readonly rows: ReadonlyArray<JournalAppointment>; readonly status: StatusFilter; readonly setPage: (page: number) => void }): ReactNode {
+  const t = useT('doctor.journal');
+  if (journal.data === undefined) return <QueryFailure query={journal} embedded notFoundText={t('loadError')} pending={<TableSkeleton />} />;
+  return (
+    <>
+      {status !== 'all' && journal.data.meta.totalPages > 1 ? <p className="mb-3 text-sm text-warning">{t('filterPageHint', { page: journal.data.meta.page, pages: journal.data.meta.totalPages })}</p> : null}
+      <JournalDayView data={journal.data} rows={rows} onPage={setPage} emptyText={t('empty')} emptyFilteredText={t('emptyFiltered')} />
+    </>
+  );
+}
+
+function WeekBody({ columns, today, onOpenDay }: { readonly columns: ReadonlyArray<DayColumn>; readonly today: string; readonly onOpenDay: (dateKey: string) => void }): ReactNode {
+  const t = useT('doctor.journal');
+  const failed: DayColumn | undefined = columns.find((column) => column.query.isError);
+  const loading: boolean = columns.every((column) => column.query.isPending);
+  return (
+    <>
+      {failed ? <div className="mb-3"><QueryFailure query={failed.query} embedded notFoundText={t('loadError')} pending={null} /></div> : null}
+      {loading ? <TableSkeleton /> : <JournalWeekView days={columns} today={today} onOpenDay={onOpenDay} />}
+    </>
+  );
+}
+
+/** The doctor's journal (FR-009): one clinic day as a timeline or five working days as a grid, a status filter, the actions of a booked visit. */
 export function DoctorJournal(): ReactNode {
   const t = useT('doctor.journal');
   const { dateKey, today, status, journal, rows, setPage, setStatus, changeDate } = useJournalState();
+  const [view, setView] = useState<JournalView>('day');
+  const isWeek: boolean = view === 'week';
+  const columns: ReadonlyArray<DayColumn> = useWeekColumns(dateKey, status, isWeek);
   useDocumentTitle(t('title'));
 
+  const loaded: ReadonlyArray<JournalAppointment> = columns.flatMap((column) => column.visits);
+  const heading: string = isWeek ? t('weekHeading') : formatDayHeading(dateKey);
+  const eyebrow: string = isWeek
+    ? t('weekSummary', { total: loaded.length, pending: loaded.filter((item) => item.status === 'booked').length })
+    : dateKey === today ? t('todayEyebrow') : t('title');
+  const openDay = (day: string): void => {
+    changeDate(day);
+    setView('day');
+  };
+
   return (
-    <section aria-labelledby="journal-title">
-      <h1 id="journal-title" className="serif text-2xl font-bold">{t('title')}</h1>
-      <p className="mt-1 text-sm text-[var(--muted-foreground)]">{formatDayHeading(dateKey)}</p>
-      <JournalControls dateKey={dateKey} today={today} onDateChange={changeDate} status={status} onStatusChange={setStatus} />
-      <div className="mt-4" aria-busy={journal.isFetching}>
-        {journal.data === undefined ? <QueryFailure query={journal} embedded notFoundText={t('loadError')} pending={<TableSkeleton />} /> : null}
-        {journal.data ? (
-          <>
-            <p role="status" className="mb-2 text-sm text-[var(--muted-foreground)]">{t('total', { count: journal.data.meta.totalItems })}</p>
-            {status !== 'all' && journal.data.meta.totalPages > 1 ? <p className="mb-2 text-sm text-[var(--warning)]">{t('filterPageHint', { page: journal.data.meta.page, pages: journal.data.meta.totalPages })}</p> : null}
-            <JournalTable data={journal.data} rows={rows} onPage={setPage} caption={t('caption', { date: formatDayHeading(dateKey) })} />
-          </>
-        ) : null}
+    <section aria-labelledby="journal-title" className="flex flex-col gap-6">
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <div>
+          <p className="text-sm font-semibold uppercase tracking-[0.06em] text-primary-soft-foreground">{eyebrow}</p>
+          <h1 id="journal-title" className="mt-1 text-[30px] font-bold leading-tight tracking-[-0.02em]">{heading}</h1>
+          {isWeek ? <p className="mono mt-1 text-sm text-muted-foreground">{rangeLabel(columns.map((column) => column.dateKey))}</p> : null}
+        </div>
+        <JournalControls dateKey={dateKey} today={today} view={view} onViewChange={setView} onDateChange={changeDate} status={status} onStatusChange={setStatus} />
+      </div>
+      <div aria-busy={isWeek ? columns.some((column) => column.query.isFetching) : journal.isFetching}>
+        {isWeek ? <WeekBody columns={columns} today={today} onOpenDay={openDay} /> : <DayBody journal={journal} rows={rows} status={status} setPage={setPage} />}
       </div>
     </section>
   );

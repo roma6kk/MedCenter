@@ -2,7 +2,9 @@
 
 import { useEffect, useRef, useState } from 'react';
 import type { ReactNode, RefObject } from 'react';
+import { buttonVariants } from '@/components/ui/button-variants';
 import { useT } from '@/lib/i18n/use-t';
+import { cn } from '@/lib/ui/cn';
 import { InlineProblem } from './inline-problem';
 import { useNoshow } from './use-doctor-mutations';
 
@@ -10,9 +12,10 @@ interface NoshowButtonProps {
   readonly appointmentId: string;
   /** Names the patient for assistive technology, so the same "No-show" button in every row is distinguishable. */
   readonly patientName?: string;
+  readonly className?: string;
 }
 
-const BUTTON_CLASS = 'min-h-[44px] rounded-[6px] border px-3 py-1 text-sm disabled:opacity-50';
+const BUTTON_CLASS = buttonVariants({ variant: 'secondary' });
 
 interface FocusHandoff {
   readonly triggerRef: RefObject<HTMLButtonElement>;
@@ -79,11 +82,11 @@ function NoshowConfirmation({ appointmentId, confirmRef, onDismiss, onDone }: Co
         type="button"
         onClick={() => noshow.mutate(appointmentId, { onSuccess: onDone })}
         disabled={noshow.isPending}
-        className={`${BUTTON_CLASS} border-[var(--destructive)] text-[var(--destructive)]`}
+        className={cn(BUTTON_CLASS, 'border-destructive text-destructive')}
       >
         {t('confirm')}
       </button>
-      <button type="button" onClick={onDismiss} disabled={noshow.isPending} className="min-h-[44px] px-2 text-sm underline">
+      <button type="button" onClick={onDismiss} disabled={noshow.isPending} className="min-h-[44px] px-2 text-sm underline disabled:opacity-50">
         {t('cancel')}
       </button>
       {noshow.isError ? <InlineProblem error={noshow.error} overrides={{ CONFLICT: t('notBooked') }} /> : null}
@@ -92,7 +95,7 @@ function NoshowConfirmation({ appointmentId, confirmRef, onDismiss, onDone }: Co
 }
 
 /** Marks a booked appointment as a no-show (API 6.6). Two steps: a confirm before the POST, so a stray click costs nothing. */
-export function NoshowButton({ appointmentId, patientName }: NoshowButtonProps): ReactNode {
+export function NoshowButton({ appointmentId, patientName, className }: NoshowButtonProps): ReactNode {
   const t = useT('doctor.noshow');
   const [isConfirming, setIsConfirming] = useState(false);
   const { triggerRef, confirmRef, dismiss } = useFocusHandoff(isConfirming, setIsConfirming);
@@ -104,7 +107,7 @@ export function NoshowButton({ appointmentId, patientName }: NoshowButtonProps):
       type="button"
       onClick={() => setIsConfirming(true)}
       aria-label={patientName ? t('markFor', { name: patientName }) : undefined}
-      className={`${BUTTON_CLASS} border-[var(--border)]`}
+      className={cn(BUTTON_CLASS, 'text-warning', className)}
     >
       {t('button')}
     </button>
