@@ -26,7 +26,7 @@ interface SlotGenerationDialogProps {
 function GenerationResult({ result }: { readonly result: GenerateSlotsResult }): ReactNode {
   const t = useT('admin.slots');
   return (
-    <p role="status" data-testid="generation-result" className="mt-3 rounded-[6px] border border-[var(--success)] p-3 text-sm">
+    <p role="status" data-testid="generation-result" className="mt-3 rounded-control border border-[var(--success)] p-3 text-sm">
       {t('generate.result', { generated: result.generated, skipped: result.skipped })}
     </p>
   );

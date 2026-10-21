@@ -54,7 +54,7 @@ function GroupRow({ group, total, unknownLabel, showCode }: GroupRowProps): Reac
 export function GroupTable({ report, caption, nameHeader, countHeader, unknownLabel, showCodes = true }: GroupTableProps): ReactNode {
   const t = useT('admin.analytics');
   return (
-    <div tabIndex={0} className="overflow-x-auto rounded-[6px] border border-[var(--border)]">
+    <div tabIndex={0} className="overflow-x-auto rounded-control border border-[var(--border)]">
       <table className="w-full text-sm">
         <caption className="sr-only">{caption}</caption>
         <thead>

@@ -8,7 +8,7 @@ import { APPOINTMENT_STATUSES, type AppointmentsReport } from './analytics-types
 
 function Kpi({ value, children }: { readonly value: number; readonly children: ReactNode }): ReactNode {
   return (
-    <div className="rounded-[6px] border border-[var(--border)] p-4" data-testid="kpi">
+    <div className="rounded-control border border-[var(--border)] p-4" data-testid="kpi">
       <p className="serif text-3xl font-bold">{value}</p>
       <p className="mt-1 text-sm text-[var(--muted-foreground)]">{children}</p>
     </div>

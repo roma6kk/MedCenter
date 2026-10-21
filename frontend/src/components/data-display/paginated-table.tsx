@@ -74,7 +74,7 @@ function HeaderCell<TRow>({ column, sort, onSort }: HeaderCellProps<TRow>): Reac
 export function Pager({ meta, onPage }: { readonly meta: PageMeta; readonly onPage: (page: number) => void }): ReactNode {
   const t = useT('pagination');
   const { current, total } = pageLabel(meta);
-  const buttonClass = 'min-h-[44px] min-w-[44px] rounded-[6px] border border-[var(--border)] px-3 py-1 disabled:opacity-50';
+  const buttonClass = 'min-h-[44px] min-w-[44px] rounded-control border border-[var(--border)] px-3 py-1 disabled:opacity-50';
   return (
     <nav aria-label={t('label')} className="mt-3 flex items-center gap-2">
       <button type="button" aria-label={t('previous')} disabled={current <= 1} onClick={() => onPage(current - 1)} className={buttonClass}>
@@ -96,7 +96,7 @@ interface RowsProps<TRow> {
 
 function DesktopTable<TRow>({ columns, rows, rowKey, caption, sort, onSort }: RowsProps<TRow> & Pick<PaginatedTableProps<TRow>, 'caption' | 'sort' | 'onSort'>): ReactNode {
   return (
-    <div className="overflow-x-auto rounded-[6px] border border-[var(--border)] max-md:hidden">
+    <div className="overflow-x-auto rounded-card border border-[var(--border)] max-md:hidden">
       <table className="w-full text-sm">
         {caption ? <caption className="sr-only">{caption}</caption> : null}
         <thead className="sticky top-0 bg-[var(--card)]">
@@ -104,7 +104,7 @@ function DesktopTable<TRow>({ columns, rows, rowKey, caption, sort, onSort }: Ro
         </thead>
         <tbody>
           {rows.map((row) => (
-            <tr key={rowKey(row)} className="border-t border-[var(--border)] hover:bg-[#F7F5EF]">
+            <tr key={rowKey(row)} className="border-t border-[var(--border)] hover:bg-secondary">
               {columns.map((column) => <td key={column.key} className="h-11 px-3">{column.render(row)}</td>)}
             </tr>
           ))}
@@ -118,7 +118,7 @@ function MobileCards<TRow>({ columns, rows, rowKey }: RowsProps<TRow>): ReactNod
   return (
     <div className="grid gap-2 md:hidden">
       {rows.map((row) => (
-        <div key={rowKey(row)} className="rounded-[6px] border border-[var(--border)] bg-[var(--card)] p-3">
+        <div key={rowKey(row)} className="rounded-card border border-[var(--border)] bg-[var(--card)] p-3">
           {columns.map((column) => (
             <p key={column.key} className="text-sm"><span className="text-[var(--muted-foreground)]">{column.header}: </span>{column.render(row)}</p>
           ))}

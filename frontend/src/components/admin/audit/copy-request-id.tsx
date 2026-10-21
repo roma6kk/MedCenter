@@ -56,7 +56,7 @@ export function CopyRequestId({ requestId }: { readonly requestId: string }): Re
   return (
     <span className="flex flex-wrap items-center gap-2">
       <span title={requestId} className="mono text-xs">{shortId(requestId)}</span>
-      <button type="button" onClick={() => void handleCopy()} aria-label={t('copyAria', { requestId })} className="min-h-[44px] rounded-[6px] px-2 text-xs underline underline-offset-2 hover:text-[var(--primary)]">
+      <button type="button" onClick={() => void handleCopy()} aria-label={t('copyAria', { requestId })} className="min-h-[44px] rounded-control px-2 text-xs underline underline-offset-2 hover:text-[var(--primary)]">
         {tCommon('copy')}
       </button>
       {isCopied ? <span role="status" className="text-xs text-[var(--muted-foreground)]">{tCommon('copied')}</span> : null}

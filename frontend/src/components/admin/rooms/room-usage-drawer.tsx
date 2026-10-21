@@ -18,7 +18,7 @@ function UsageList({ usage }: { readonly usage: RoomUsage }): ReactNode {
       </p>
       <ul className="mt-3 grid gap-2">
         {usage.items.map((reference) => (
-          <li key={`${reference.resourceType}-${reference.id}`} className="rounded-[6px] border border-[var(--border)] p-3 text-sm">
+          <li key={`${reference.resourceType}-${reference.id}`} className="rounded-control border border-[var(--border)] p-3 text-sm">
             <CodeChip code={reference.resourceType}>{t(`usage.types.${reference.resourceType}`)}</CodeChip>{' '}
             {reference.display}
             {reference.isActive === false ? <span className="ml-1 text-xs text-[var(--muted-foreground)]">{t('usage.inactive')}</span> : null}

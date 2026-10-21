@@ -93,7 +93,7 @@ function RetryButton({ problem, isRetrying, onRetry }: RetryButtonProps): ReactN
         type="button"
         onClick={handleClick}
         aria-disabled={isClosed || undefined}
-        className="mt-3 min-h-[44px] rounded-[6px] border border-[var(--border)] px-4 py-2 text-sm aria-disabled:cursor-not-allowed aria-disabled:opacity-60"
+        className="mt-3 min-h-[44px] rounded-control border border-[var(--border)] px-4 py-2 text-sm aria-disabled:cursor-not-allowed aria-disabled:opacity-60"
       >
         {label}
       </button>

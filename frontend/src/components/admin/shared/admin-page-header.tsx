@@ -15,9 +15,9 @@ interface AdminPageHeaderProps {
 export function AdminPageHeader({ title, description, action }: AdminPageHeaderProps): ReactNode {
   useDocumentTitle(title);
   return (
-    <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+    <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
       <div>
-        <h1 className="serif text-2xl font-bold">{title}</h1>
+        <h1 className="serif text-[28px] font-bold leading-tight tracking-tight">{title}</h1>
         {description ? <p className="mt-1 max-w-2xl text-sm text-[var(--muted-foreground)]">{description}</p> : null}
       </div>
       {action}

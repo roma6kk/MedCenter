@@ -9,7 +9,7 @@ import type { FormBanner } from '../shared/use-form-banner';
 import { useUiStore } from '@/store/use-ui-store';
 import type { ImportAccepted } from './terminology-types';
 
-const OUTCOME_CLASS = 'mt-3 rounded-[6px] border p-3 text-sm';
+const OUTCOME_CLASS = 'mt-3 rounded-control border p-3 text-sm';
 
 function Accepted({ accepted }: { readonly accepted: ImportAccepted }): ReactNode {
   const t = useT('admin.terminology.import');

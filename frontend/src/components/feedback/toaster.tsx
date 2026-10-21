@@ -26,14 +26,14 @@ function ToastItem({ toast, dismissLabel }: { readonly toast: Toast; readonly di
     <div
       data-testid={`toast-${toast.tone}`}
       style={{ borderLeftColor: TONE_BORDER[toast.tone] }}
-      className="pointer-events-auto flex items-start gap-3 rounded-[6px] border border-l-4 border-[var(--border)] bg-[var(--card)] p-3 text-sm"
+      className="pointer-events-auto flex items-start gap-3 rounded-control border border-l-4 border-[var(--border)] bg-[var(--card)] p-3 text-sm"
     >
       <p className="flex-1">{toast.message}</p>
       <button
         type="button"
         aria-label={dismissLabel}
         onClick={() => dismiss(toast.id)}
-        className="min-h-[24px] min-w-[24px] rounded-[6px] px-1 text-[var(--muted-foreground)] hover:bg-[var(--secondary)]"
+        className="min-h-[24px] min-w-[24px] rounded-control px-1 text-[var(--muted-foreground)] hover:bg-[var(--secondary)]"
       >
         ×
       </button>

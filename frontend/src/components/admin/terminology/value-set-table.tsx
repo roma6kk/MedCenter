@@ -27,7 +27,7 @@ function ValueSetCards({ rows }: { readonly rows: ReadonlyArray<ValueSetSummary>
   return (
     <ul className="grid gap-2 md:hidden">
       {rows.map((row) => (
-        <li key={row.url} className="grid gap-1 rounded-[6px] border border-[var(--border)] bg-[var(--card)] p-3 text-sm">
+        <li key={row.url} className="grid gap-1 rounded-card border border-[var(--border)] bg-[var(--card)] p-3 text-sm">
           <p className="font-medium">{row.title ?? row.name}</p>
           <p>
             <span className="text-[var(--muted-foreground)]">{t('valueSets.columns.url')}: </span>
@@ -50,7 +50,7 @@ function ValueSetCards({ rows }: { readonly rows: ReadonlyArray<ValueSetSummary>
 function ValueSetDesktopTable({ rows }: { readonly rows: ReadonlyArray<ValueSetSummary> }): ReactNode {
   const t = useT('admin.terminology');
   return (
-    <div tabIndex={0} className="overflow-x-auto rounded-[6px] border border-[var(--border)] max-md:hidden">
+    <div tabIndex={0} className="overflow-x-auto rounded-card border border-[var(--border)] max-md:hidden">
       <table className="w-full text-sm">
         <caption className="sr-only">{t('valueSets.title')}</caption>
         <thead>
@@ -63,7 +63,7 @@ function ValueSetDesktopTable({ rows }: { readonly rows: ReadonlyArray<ValueSetS
         </thead>
         <tbody>
           {rows.map((row) => (
-            <tr key={row.url} className="border-t border-[var(--border)] hover:bg-[#F7F5EF]">
+            <tr key={row.url} className="border-t border-[var(--border)] hover:bg-secondary">
               <td className="px-3 py-2">{row.title ?? row.name}</td>
               <td className="px-3 py-2"><CodeChip code={row.url} /></td>
               <td className="mono px-3 py-2 text-xs">{row.version ?? '—'}</td>

@@ -85,7 +85,7 @@ export function ProblemBanner(props: ProblemBannerProps): ReactNode {
   const t = useT('feedback.problem');
   const { headline, detail, errorCode, requestId, retryAfter } = useProblemView(props);
   return (
-    <div role="alert" data-testid="problem-banner" className="rounded-[6px] border border-[var(--border)] bg-[var(--card)] p-4">
+    <div role="alert" data-testid="problem-banner" className="rounded-card border border-[var(--border)] bg-[var(--card)] p-4">
       <p className="font-semibold">{headline}</p>
       {detail ? <p className="mt-1 text-sm text-[var(--muted-foreground)]">{detail}</p> : null}
       {retryAfter !== undefined && retryAfter > 0 ? (
