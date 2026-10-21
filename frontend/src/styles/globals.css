@@ -2,39 +2,85 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Design tokens of the redesign (design canvas «Токены и компоненты»). The dark set is opt-in through
+   `data-theme="dark"`: it is not bound to `prefers-color-scheme` until every screen has been checked on a dark ground. */
 :root {
-  --background: #faf9f6;
+  --font-sans: 'Onest Variable', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono Variable', ui-monospace, monospace;
+  --background: #f5f7f7;
   --card: #ffffff;
-  --foreground: #1c2b33;
-  --muted-foreground: #5b6770;
+  --foreground: #13252b;
+  --muted-foreground: #4c5f66;
   --primary: #0f766e;
-  --primary-foreground: #ecfdf5;
-  --secondary: #f1efe9;
-  --accent: #f1efe9;
+  --primary-foreground: #ffffff;
+  --primary-soft: #e2f1ee;
+  --primary-soft-foreground: #0b5a53;
+  --secondary: #edf2f2;
+  --accent: #edf2f2;
   --destructive: #b3261e;
-  --warning: #b45309;
+  --destructive-soft: #fbe9e7;
+  --warning: #9a4a06;
+  --warning-soft: #fceedf;
   --success: #2f6b4f;
-  --border: #e5e2d9;
-  /* Border of input/select/textarea: >= 3:1 against --card (3.7), --background (3.5) and --secondary (3.2), WCAG 1.4.11.
-     The hairline --border (1.3:1) stays for cards and dividers: fields have no other visual edge. */
-  --input: #85857b;
+  --success-soft: #e3f1e9;
+  --border: #dce4e5;
+  /* Border of input/select/textarea: >= 3:1 against --card, --background and --secondary, WCAG 1.4.11.
+     The hairline --border stays for cards and dividers: fields have no other visual edge. */
+  --input: #7a8a8f;
   --ring: #0f766e;
+  /* A dark band on a light page (audiences block): its own ground, text, hairline and link colour. */
+  --inverse: #13252b;
+  --inverse-foreground: #ffffff;
+  --inverse-muted: #c9d6d8;
+  --inverse-border: #2e4449;
+  --inverse-accent: #8fddd3;
   --radius: 6px;
+  --radius-control: 10px;
+  --radius-card: 16px;
+  --radius-panel: 20px;
+}
+
+:root[data-theme='dark'] {
+  --background: #0d181b;
+  --card: #142328;
+  --foreground: #e4eced;
+  --muted-foreground: #9db0b4;
+  --primary: #34b3a5;
+  --primary-foreground: #04211e;
+  --primary-soft: #123b37;
+  --primary-soft-foreground: #8fddd3;
+  --secondary: #1b2e33;
+  --accent: #1b2e33;
+  --destructive: #f28b82;
+  --destructive-soft: #3d1d1b;
+  --warning: #f0a35e;
+  --warning-soft: #3a2613;
+  --success: #7fc9a1;
+  --success-soft: #163126;
+  --border: #25393e;
+  --input: #6e868b;
+  --ring: #34b3a5;
+  --inverse: #1b2e33;
+  --inverse-foreground: #e4eced;
+  --inverse-muted: #9db0b4;
+  --inverse-border: #2e4449;
+  --inverse-accent: #8fddd3;
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Inter, system-ui, sans-serif;
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
 }
 
 h1, h2, h3, .serif {
-  font-family: 'PT Serif', Georgia, serif;
-  letter-spacing: -0.01em;
+  font-family: var(--font-sans);
+  letter-spacing: -0.015em;
 }
 
 .mono {
-  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-family: var(--font-mono);
 }
 
 .form-label {

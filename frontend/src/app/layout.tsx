@@ -2,6 +2,8 @@ import type { ReactNode } from 'react';
 import type { Metadata } from 'next';
 import { Providers } from '@/components/providers';
 import { rootMetadata } from '@/lib/i18n/page-metadata';
+import '@fontsource-variable/onest';
+import '@fontsource-variable/jetbrains-mono';
 import '../styles/globals.css';
 
 export const metadata: Metadata = rootMetadata();
