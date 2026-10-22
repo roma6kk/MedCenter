@@ -4,120 +4,113 @@ import { useState } from 'react';
 import type { ReactNode } from 'react';
 import { Card } from '@/components/ui/card';
 import { Pager } from '@/components/data-display/paginated-table';
-import { CodeChip } from '@/components/feedback/code-chip';
 import { EmptyState, TableSkeleton } from '@/components/feedback/states';
-import { StampBadge, type StampStatus } from '@/components/feedback/stamp-badge';
-import { hasMessage } from '@/lib/i18n/translate';
 import { useT } from '@/lib/i18n/use-t';
 import type { MedicationPrescription, Prescription, ServicePrescription } from './patient-types';
 import { PrintButton } from './print-button';
 import { QueryFailure } from '@/components/feedback/query-error-state';
+import { SegmentedTabs, tabPanelProps, type TabOption } from './segmented-tabs';
 import { useClampedPage } from './use-clamped-page';
 import { useClinicFormat } from '@/hooks/use-clinic-format';
 import { useDocumentTitle } from '@/hooks/use-document-title';
 import { useMyPrescriptions } from './use-patient-queries';
-import { WRAP_TEXT } from './wrap-text';
+import { MedicationCard, ServiceCard } from './prescriptions/prescription-cards';
+import { activeCounts, filterByStatus, groupByEncounter, type PrescriptionGroup, type StatusFilter } from './prescriptions/prescription-logic';
+import { PrescriptionSide } from './prescriptions/prescription-side';
 
+export { ATC_SYSTEM } from './prescriptions/prescription-cards';
 export const PRESCRIPTIONS_PAGE_SIZE = 10;
-export const ATC_SYSTEM = 'http://www.whocc.no/atc';
 
-/** The stamp colour of a FHIR request status; the words come from the catalogue, the colour from what the status means. */
-const STATUS_STAMP: Readonly<Record<string, StampStatus>> = {
-  active: 'active',
-  completed: 'completed',
-  cancelled: 'cancelled',
-  revoked: 'cancelled',
-  stopped: 'cancelled',
-  'entered-in-error': 'entered-in-error',
-  draft: 'pending',
-  'on-hold': 'pending',
-};
+const LIST_CLASS = 'grid list-none grid-cols-1 gap-3 p-0 sm:grid-cols-[repeat(auto-fill,minmax(280px,1fr))]';
 
-function StatusStamp({ status }: { readonly status: string }): ReactNode {
-  const t = useT('patient.prescriptions.status');
-  const { locale } = useClinicFormat();
-  const known: boolean = hasMessage(locale, `patient.prescriptions.status.${status}`);
-  return <StampBadge status={STATUS_STAMP[status] ?? 'pending'}>{known ? t(status) : t('unknown')}</StampBadge>;
-}
-
-function MedicationBody({ item }: { readonly item: MedicationPrescription }): ReactNode {
-  const t = useT('patient.prescriptions');
-  return (
-    <>
-      <p className="form-label">{t('medication')}</p>
-      <p className="mt-1 flex flex-wrap items-baseline gap-2 text-sm">
-        <CodeChip code={item.atcCode} system={ATC_SYSTEM} />
-        {item.atcDisplay ? <span className={`font-semibold ${WRAP_TEXT}`}>{item.atcDisplay}</span> : null}
-      </p>
-      <p className={`mt-2 text-sm ${WRAP_TEXT}`}><span className="text-[var(--muted-foreground)]">{t('dosage')}: </span>{item.dosageText}</p>
-    </>
-  );
-}
-
-/** A referral or an ordered service has a national-catalogue code and no ATC code, so it gets no ATC chip. */
-function ServiceBody({ item }: { readonly item: ServicePrescription }): ReactNode {
-  const t = useT('patient.prescriptions');
-  return (
-    <>
-      <p className="form-label">{t('service')}</p>
-      <p className="mt-1 flex flex-wrap items-baseline gap-2 text-sm">
-        <CodeChip code={item.code} system={item.codeSystem} />
-        {item.display ? <span className={`font-semibold ${WRAP_TEXT}`}>{item.display}</span> : null}
-      </p>
-    </>
-  );
-}
-
-function PrescriptionCard({ item }: { readonly item: Prescription }): ReactNode {
-  const t = useT('patient.prescriptions');
+function GroupSection({ group, index }: { readonly group: PrescriptionGroup; readonly index: number }): ReactNode {
+  const t = useT('patientPrescriptions');
   const format = useClinicFormat();
+  const id = `rx-group-${index}`;
+  let title: string = t('groupOther');
+  if (group.encounterId !== null) title = group.date === undefined ? t('groupNoDate') : t('groupTitle', { date: format.date(group.date) });
   return (
-    <li className="min-w-0">
-      <Card as="article" data-kind={item.kind} padding="lg" className="h-full">
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0">{item.kind === 'medication' ? <MedicationBody item={item} /> : <ServiceBody item={item} />}</div>
-          <StatusStamp status={item.status} />
-        </div>
-        {item.note ? <p className={`mt-2 text-sm ${WRAP_TEXT}`}><span className="text-[var(--muted-foreground)]">{t('note')}: </span>{item.note}</p> : null}
-        {item.authoredOn ? <p className="mt-3 text-xs text-[var(--muted-foreground)]">{t('authored')}: {format.date(item.authoredOn)}</p> : null}
-      </Card>
-    </li>
+    <Card as="section" radius="panel" padding="lg" aria-labelledby={id} className="flex flex-col gap-3.5">
+      <h2 id={id} className="text-lg font-bold">{title}</h2>
+      <ul aria-labelledby={id} className={LIST_CLASS}>
+        {group.items.map((item) => <MedicationCard key={item.id} item={item as MedicationPrescription} />)}
+      </ul>
+    </Card>
   );
 }
 
-interface PanelProps {
-  readonly query: ReturnType<typeof useMyPrescriptions>;
-  readonly onPage: (page: number) => void;
+function ReferralsSection({ items, filter }: { readonly items: ReadonlyArray<ServicePrescription>; readonly filter: StatusFilter }): ReactNode {
+  const t = useT('patientPrescriptions');
+  return (
+    <Card as="section" radius="panel" padding="lg" aria-labelledby="rx-ref" className="flex flex-col gap-3">
+      <h2 id="rx-ref" className="text-lg font-bold">{t('referralsTitle')}</h2>
+      {items.length > 0 ? (
+        <ul aria-labelledby="rx-ref" className={LIST_CLASS}>{items.map((item) => <ServiceCard key={item.id} item={item} />)}</ul>
+      ) : (
+        <div className="flex flex-col gap-0.5 rounded-card border border-dashed border-input p-4">
+          <span className="text-[15px] font-semibold">{filter === 'all' ? t('referralsEmpty') : t('referralsEmptyActive')}</span>
+          <span className="text-sm text-muted-foreground">{t('referralsEmptyHint')}</span>
+        </div>
+      )}
+    </Card>
+  );
 }
 
-function PrescriptionPanel({ query, onPage }: PanelProps): ReactNode {
-  const t = useT('patient.prescriptions');
-  if (query.data === undefined) return <QueryFailure query={query} embedded pending={<TableSkeleton />} />;
-  if (query.data.items.length === 0) return <EmptyState title={t('empty')} description={t('emptyHint')} />;
+function ListBody({ items, filter }: { readonly items: ReadonlyArray<Prescription>; readonly filter: StatusFilter }): ReactNode {
+  const t = useT('patientPrescriptions');
+  const shown = filterByStatus(items, filter);
+  if (shown.length === 0 && filter !== 'all') {
+    const key = filter === 'active' ? 'emptyActive' : 'emptyClosed';
+    return <EmptyState title={t(key)} description={t(`${key}Hint`)} />;
+  }
+  const medications = shown.filter((item): item is MedicationPrescription => item.kind === 'medication');
+  const services = shown.filter((item): item is ServicePrescription => item.kind === 'service');
   return (
     <>
-      <ul aria-label={t('listLabel')} className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        {query.data.items.map((item) => <PrescriptionCard key={`${item.kind}-${item.id}`} item={item} />)}
-      </ul>
-      {query.data.meta.totalPages > 1 ? <Pager meta={query.data.meta} onPage={onPage} /> : null}
+      {groupByEncounter(medications).map((group, index) => <GroupSection key={group.encounterId ?? 'other'} group={group} index={index} />)}
+      <ReferralsSection items={services} filter={filter} />
     </>
   );
 }
 
 /** The patient's prescriptions (FR-007, API 7.7): drugs with their ATC code and dosage, and ordered services. */
 export function PrescriptionList(): ReactNode {
-  const t = useT('patient.prescriptions');
+  const t = useT('patientPrescriptions');
+  const tp = useT('patient.prescriptions');
   const [page, setPage] = useState(1);
+  const [filter, setFilter] = useState<StatusFilter>('all');
   const query = useMyPrescriptions({ page, pageSize: PRESCRIPTIONS_PAGE_SIZE });
   useClampedPage(query.data?.meta, page, setPage);
-  useDocumentTitle(t('title'));
+  useDocumentTitle(tp('title'));
+  const data = query.data;
+  const options: ReadonlyArray<TabOption<StatusFilter>> = [
+    { value: 'active', label: t('tabs.active') },
+    { value: 'closed', label: t('tabs.closed') },
+    { value: 'all', label: t('tabs.all') },
+  ];
   return (
-    <section className="flex flex-col gap-7">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-[28px] font-bold tracking-tight sm:text-[34px]">{t('title')}</h1>
-        {query.data !== undefined && query.data.items.length > 0 ? <PrintButton label={t('print')} /> : null}
+    <section className="flex flex-col gap-6">
+      <div className="flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <h1 className="text-[28px] font-bold tracking-tight sm:text-[34px]">{tp('title')}</h1>
+          <p className="mt-1.5 text-base text-muted-foreground">{t('subtitle')}</p>
+        </div>
+        {data !== undefined && data.items.length > 0 ? <PrintButton label={t('print')} /> : null}
       </div>
-      <div aria-busy={query.isFetching}><PrescriptionPanel query={query} onPage={setPage} /></div>
+      {data === undefined ? <QueryFailure query={query} embedded pending={<TableSkeleton />} /> : null}
+      {data !== undefined && data.items.length === 0 ? <EmptyState title={tp('empty')} description={tp('emptyHint')} /> : null}
+      {data !== undefined && data.items.length > 0 ? (
+        <>
+          <SegmentedTabs idPrefix="rx" label={t('tabsLabel')} options={options} value={filter} onChange={setFilter} />
+          <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
+            <div {...tabPanelProps('rx', filter)} aria-busy={query.isFetching} className="flex min-w-0 flex-1 flex-col gap-5">
+              <ListBody items={data.items} filter={filter} />
+              {data.meta.totalPages > 1 ? <Pager meta={data.meta} onPage={setPage} /> : null}
+            </div>
+            <PrescriptionSide counts={activeCounts(data.items)} />
+          </div>
+        </>
+      ) : null}
     </section>
   );
 }
