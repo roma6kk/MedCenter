@@ -32,6 +32,15 @@ describe('envSchema', () => {
     expect(env.TERMINOLOGY_UPSTREAM_URL).toBeUndefined();
   });
 
+  it('should default CONSENT_ENFORCEMENT to warn and accept block', () => {
+    expect(parseEnv(validSource).CONSENT_ENFORCEMENT).toBe('warn');
+    expect(parseEnv({ ...validSource, CONSENT_ENFORCEMENT: 'block' }).CONSENT_ENFORCEMENT).toBe('block');
+  });
+
+  it('should reject a CONSENT_ENFORCEMENT value other than warn or block', () => {
+    expect(() => parseEnv({ ...validSource, CONSENT_ENFORCEMENT: 'off' })).toThrow();
+  });
+
   it('should reject configuration that omits a secret', () => {
     const incomplete: NodeJS.ProcessEnv = { ...validSource };
     delete incomplete['FHIR_CLIENT_SECRET'];

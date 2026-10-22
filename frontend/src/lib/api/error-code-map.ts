@@ -1,5 +1,5 @@
 /**
- * error-code-map — the 20/20 errorCode → UX contract from frontend-design-spec §5.4.
+ * error-code-map — the 22/22 errorCode → UX contract from frontend-design-spec §5.4.
  *
  * Pure data. Components decide how to render each `kind`; this module only pins which UX each catalogue code
  * receives. `Record<ErrorCode, …>` makes a new or missing code a compile error, so the catalogue
@@ -40,6 +40,9 @@ export const errorCodeMap: Readonly<Record<ErrorCode, ErrorUx>> = {
   CONFLICT: { kind: 'banner-generic' },
   SLOT_CONFLICT: { kind: 'slot-conflict' },
   APPOINTMENT_NOT_CANCELLABLE: { kind: 'appointment-refresh' },
+  // ADR-019: the screens that raise these get their own handling in a later stage; until then the generic banner.
+  CONSENT_REQUIRED: { kind: 'banner-generic' },
+  CONSENT_ALREADY_ACTIVE: { kind: 'banner-generic' },
   ENCOUNTER_STATE_INVALID: { kind: 'encounter-readonly' },
   SCHEDULE_OVERLAP: { kind: 'schedule-highlight' },
   SCHEDULE_IN_USE: { kind: 'in-use-conflict', resource: 'schedule' },

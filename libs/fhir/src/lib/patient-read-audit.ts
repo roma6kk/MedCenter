@@ -19,14 +19,15 @@ export interface PatientReadAuditParams {
   readonly requestId?: string;
 }
 
-const PATIENT_OBJECT_ROLE = {
+/** `AuditEvent.entity.role` of the patient whose data was touched (shared with the consent events). */
+export const PATIENT_OBJECT_ROLE = {
   system: 'http://terminology.hl7.org/CodeSystem/object-role',
   code: '1',
   display: 'Patient',
 } as const;
 
 /** IHE BALP entity type the analytics journal reads the request id from (same as the write-side builders). */
-const REQUEST_ID_TYPE = {
+export const REQUEST_ID_TYPE = {
   system: 'https://profiles.ihe.net/ITI/BALP/CodeSystem/BasicAuditEntityType',
   code: 'XrequestId',
 } as const;

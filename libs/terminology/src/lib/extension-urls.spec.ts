@@ -12,3 +12,11 @@ describe('MEDCENTER_EXT', () => {
     expect(new Set(urls).size).toBe(urls.length);
   });
 });
+
+describe('MEDCENTER_EXT consent extensions', () => {
+  it('should declare the three Consent extensions under the MedCenter StructureDefinition base', () => {
+    expect(MEDCENTER_EXT.CONSENT_CONSENTER_TYPE).toBe('https://api.medcenter.by/fhir/StructureDefinition/consent-consenter-type');
+    expect(MEDCENTER_EXT.CONSENT_REPRESENTATIVE_DOCUMENT).toContain('/consent-representative-document');
+    expect(MEDCENTER_EXT.CONSENT_REVOCATION_NUMBER).toContain('/consent-revocation-number');
+  });
+});

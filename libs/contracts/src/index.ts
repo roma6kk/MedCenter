@@ -1,5 +1,6 @@
 export * from './lib/error-code';
 export * from './lib/pagination.dto';
+export * from './lib/consent.dto';
 export * from './lib/problem-details';
 export * from './lib/role.enum';
 export * from './lib/smart-scopes';

@@ -1,8 +1,8 @@
 import { ERROR_CODE_HTTP_STATUS, ERROR_CODES, ErrorCode } from './error-code';
 
 describe('ERROR_CODES', () => {
-  it('should expose exactly the 20 API error codes when the catalogue is read', () => {
-    expect(ERROR_CODES).toHaveLength(20);
+  it('should expose exactly the 22 API error codes when the catalogue is read', () => {
+    expect(ERROR_CODES).toHaveLength(22);
   });
 
   it('should declare no duplicate code when every entry is collected', () => {
@@ -47,6 +47,14 @@ describe('ERROR_CODES', () => {
 
   it.each(['ROOM_IN_USE', 'SERVICE_IN_USE', 'SCHEDULE_IN_USE'] as const)(
     'should list %s and map it to 409 when an admin delete hits a referenced resource',
+    (code) => {
+      expect(ERROR_CODES).toContain(code);
+      expect(ERROR_CODE_HTTP_STATUS[code]).toBe(409);
+    },
+  );
+
+  it.each(['CONSENT_REQUIRED', 'CONSENT_ALREADY_ACTIVE'] as const)(
+    'should list %s and map it to 409 when the consent rules refuse a request',
     (code) => {
       expect(ERROR_CODES).toContain(code);
       expect(ERROR_CODE_HTTP_STATUS[code]).toBe(409);

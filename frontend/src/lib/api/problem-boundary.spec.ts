@@ -12,6 +12,8 @@ const EXPECTED_UX: Record<ErrorCode, string> = {
   CONFLICT: 'banner-generic',
   SLOT_CONFLICT: 'slot-conflict',
   APPOINTMENT_NOT_CANCELLABLE: 'appointment-refresh',
+  CONSENT_REQUIRED: 'banner-generic',
+  CONSENT_ALREADY_ACTIVE: 'banner-generic',
   ENCOUNTER_STATE_INVALID: 'encounter-readonly',
   SCHEDULE_OVERLAP: 'schedule-highlight',
   SCHEDULE_IN_USE: 'in-use-conflict',
@@ -24,8 +26,8 @@ const EXPECTED_UX: Record<ErrorCode, string> = {
 };
 
 describe('errorCodeToUx full catalog', () => {
-  it('should expose exactly 20 catalogue codes', () => {
-    expect(ERROR_CODES).toHaveLength(20);
+  it('should expose exactly 22 catalogue codes', () => {
+    expect(ERROR_CODES).toHaveLength(22);
   });
 
   it.each(Object.entries(EXPECTED_UX))('should map %s to %s', (code, kind) => {

@@ -21,4 +21,10 @@ export const MEDCENTER_EXT = {
   SCHEDULE_PLANNING_HORIZON: `${EXTENSION_BASE}/schedule-planning-horizon`,
   /** `Slot` copy of the schedule actors — valueString (JSON array). */
   SLOT_ACTORS: `${EXTENSION_BASE}/slot-actors`,
+  /** `Consent` who signed the paper form: self / legal-representative / guardian / relative — valueCode (ADR-019). */
+  CONSENT_CONSENTER_TYPE: `${EXTENSION_BASE}/consent-consenter-type`,
+  /** `Consent` document proving the representative's authority — valueString (ADR-019). */
+  CONSENT_REPRESENTATIVE_DOCUMENT: `${EXTENSION_BASE}/consent-representative-document`,
+  /** `Consent` number of the written application that revoked it — valueString (ADR-019). */
+  CONSENT_REVOCATION_NUMBER: `${EXTENSION_BASE}/consent-revocation-number`,
 } as const;

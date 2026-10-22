@@ -980,6 +980,8 @@
     "CONFLICT": "Conflicts with existing data",
     "SLOT_CONFLICT": "The slot is already taken",
     "APPOINTMENT_NOT_CANCELLABLE": "The appointment cannot be cancelled",
+    "CONSENT_REQUIRED": "The patient has no active consent to the electronic record",
+    "CONSENT_ALREADY_ACTIVE": "The patient already has an active consent",
     "ENCOUNTER_STATE_INVALID": "The encounter is already completed",
     "SCHEDULE_OVERLAP": "Schedule windows overlap",
     "SCHEDULE_IN_USE": "The schedule is in use: it has linked slots or appointments",
