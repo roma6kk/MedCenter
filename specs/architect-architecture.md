@@ -295,6 +295,18 @@ real-time (SSE/WebSocket) **вне объёма**. *Обоснование:* у�
 `api-designer-spec.md` §0 (D-5). *Следствие:* ADR-013 не меняется, а сужается для `ADMIN`. Нормы N1–N7 и
 решения D-1…D-5 — `tasks/TASK-003/architect-pdn-access-decision.md`.
 
+**ADR-019 · Согласие пациента на ЭМК (FHIR `Consent`) · Accepted (NFR-006; владелец, 2026-10-22)** —
+*Контекст:* письменное согласие на внесение сведений в электронную медкарту требует ст. 44 ч. 13 Закона «О здравоохранении» и
+постановление Минздрава № 74 (2021); система согласия не знала (D-4). *Решение:* ресурс `Consent` R4 (`scope=patient-privacy`,
+категория `emr-processing` в `urn:medcenter:consent-category`, `status` `active`/`inactive`/`rejected`), владелец — `patient-service`
+(модуль `consents`); скан бумажной формы — `Binary` с `securityContext=Patient/{id}` и SHA-1 в `sourceAttachment.hash`; подписавший
+медработник — в `Consent.note` (Annotation), а не в extension; тип подписанта и документ полномочий — extension `MEDCENTER_EXT`.
+`appointment-/encounter-service` читают `Consent` из HAPI своим `FHIR_CLIENT` через `assertActiveConsent` (`libs/fhir`), без вызова
+patient-service. Без действующего согласия 7.1/7.3 отвечают 409 `CONSENT_REQUIRED`; режим `CONSENT_ENFORCEMENT=warn|block`
+(по умолчанию `warn`), экстренный обход — `emergencyReason` с отдельным `AuditEvent`. Отзыв ничего не удаляет. *Следствие:* флажок
+саморегистрации — только согласие на учётную запись (ст. 5 № 99-З) и `Consent` не создаёт. Модель, варианты и правовые ответы —
+`tasks/TASK-003/brainstorming-consent-design.md`, `tasks/TASK-003/architect-consent-legal-answers.md`; контракт — `api-designer-spec.md` §3.4–3.11.
+
 #### 9. Трассируемость
 
 **NFR → архитектурный механизм** (ID по `requirements-analyst-requirements.md` §5):

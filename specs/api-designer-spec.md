@@ -57,10 +57,11 @@ ADR-013; BR-006). Параметр `patient` в query игнорируется �
 | Доверенные лица (3.3) | да | да | да |
 | История обращений, диагнозы (7.4 / 7.6) | да | да | нет |
 | Назначения (7.5 / 7.7) | да | да | нет |
+| Согласие на ЭМК: статус и история (3.4, 3.7), внесение и отзыв (3.6, 3.8, 3.9), скан формы | да, отзыв только своего (3.6) | да, чтение и внесение бумажного согласия | да, чтение и внесение бумажного согласия |
 | Аналитика 9.1–9.3 (агрегаты) | — | — | да |
 | Журнал аудита 9.4 | — | — | да |
 
-Чтение чужих данных пациента (3.2, 3.3, 7.4, 7.5) врачом и администратором и каждый отказ журналируются (`read`/`denied`, ADR-018).
+Чтение чужих данных пациента (3.2, 3.3, 3.7, 7.4, 7.5) врачом и администратором и каждый отказ журналируются (`read`/`denied`, ADR-018). Чтение скана согласия журналируется всегда, любым пользователем (ADR-019). Состав согласия — административные данные (регистратор допустим, N7); компартмент врача — ADR-013.
 
 **Пагинация и сортировка** (листинги `GET`):
 
@@ -128,6 +129,8 @@ export class PaginatedResponseDto<TItem> {
 | `METHOD_NOT_ALLOWED` | 405 | — |
 | `CONFLICT` | 409 | конфликт версии или дубликат при записи в FHIR-хранилище (HAPI 409/412); дубликат e-mail (`EMAIL_TAKEN` в `detail`, 2.2.1/2.2.6) и дубликат `identifier` кабинета (4.4/4.5) — причина в `detail` |
 | `SLOT_CONFLICT` | 409 | BR-001: слот уже занят (гонка, ADR-012) |
+| `CONSENT_REQUIRED` | 409 | у пациента нет действующего согласия на электронную медкарту (7.1, 7.3; ADR-019); при `CONSENT_ENFORCEMENT=warn` не возвращается |
+| `CONSENT_ALREADY_ACTIVE` | 409 | 3.8: у пациента уже есть действующее согласие; сначала отзыв (3.9) |
 | `APPOINTMENT_NOT_CANCELLABLE` | 409 | BR-002: статус не позволяет отмену |
 | `ENCOUNTER_STATE_INVALID` | 409 | BR-003/BR-008: приём уже оформлен / запись не `booked` (cancelled/noshow/fulfilled); неявка (6.6) для записи, у которой уже есть приём |
 | `SCHEDULE_OVERLAP` | 409 | пересечение `Schedule.planningHorizon` одного `PractitionerRole` |
@@ -309,9 +312,68 @@ patientRef: string | null; isActive: boolean }` · **409** email занят: `er
 | 3.1 | `GET /api/v1/me/patient` | FHIR-профиль текущего пациента (по `ExternalLink`) | `patient/*.read` |
 | 3.2 | `GET /api/v1/patients/{id}` | карточка пациента | `user/*.read` (DOCTOR/ADMIN) |
 | 3.3 | `GET /api/v1/patients/{id}/related` | доверенные лица (`RelatedPerson`) | `user/*.read` (DOCTOR/ADMIN) |
+| 3.4 | `GET /api/v1/me/consent` | своё действующее согласие на ЭМК и история | `patient/*.read` |
+| 3.5 | — | не вводится: электронное согласие на ЭМК без ЭЦП не даётся (ADR-019) | — |
+| 3.6 | `POST /api/v1/me/consent/revoke` | отозвать своё согласие (сразу блокирует новые записи, ничего не удаляет) | `patient/*.write` |
+| 3.7 | `GET /api/v1/patients/{id}/consent` | статус и история согласия пациента | `user/*.read` (DOCTOR со связью / ADMIN) |
+| 3.8 | `POST /api/v1/patients/{id}/consent` | внести бумажное согласие или письменный отказ (скан обязателен) | `user/*.write` (DOCTOR со связью / ADMIN) |
+| 3.9 | `POST /api/v1/patients/{id}/consent/revoke` | зафиксировать письменный отзыв (номер заявления) | `user/*.write` (DOCTOR со связью / ADMIN) |
+| 3.10 | `POST /api/v1/patients/{id}/consent/scan` | загрузить скан формы (`multipart/form-data`, поле `file`) → `Binary` | `user/*.write` (DOCTOR со связью / ADMIN) |
+| 3.11 | `GET /api/v1/patients/{id}/consent/scan/{scanId}` | скачать скан; каждое чтение журналируется | `user/*.read` (DOCTOR со связью / ADMIN) |
 
 Маппинг: `Patient` R4 ↔ `PatientResponseDto` (`FhirToXMapper`); компартмент: врач видит только
 пациентов с активным `Encounter`/`Appointment` вместе (defence-in-depth, ADR-013).
+
+##### 3.4–3.11 Согласие на электронную медкарту (ADR-019)
+
+Основание и модель — `tasks/TASK-003/brainstorming-consent-design.md` §2–§5, `tasks/TASK-003/architect-consent-legal-answers.md`
+(ст. 44 ч. 13 Закона «О здравоохранении», постановление Минздрава № 74 (2021)); здесь только контракт. Ресурс — FHIR R4 `Consent`
+(`scope=patient-privacy`, `category=emr-processing`), владелец — `patient-service`, модуль `consents`.
+
+```typescript
+// apps/patient-service/src/modules/consents/dto/create-consent.dto.ts
+export class CreateConsentDto {
+  status?: 'active' | 'rejected';        // по умолчанию active; rejected — письменный отказ
+  formNumber: string;                    // 1…64, номер бумажной формы → Consent.identifier
+  signedAt: string;                      // YYYY-MM-DD или RFC 3339, не в будущем → Consent.dateTime
+  scanId: string;                        // id из 3.10 (обязателен, иначе 400 VALIDATION_ERROR)
+  consenterType: 'self' | 'legal-representative' | 'guardian' | 'relative';
+  relatedPersonId?: string;              // обязателен при consenterType ≠ self → performer=RelatedPerson
+  representativeDocument?: string;       // ≤ 500, обязателен при consenterType ≠ self (документ полномочий)
+  signedByName?: string;                 // ≤ 200, ФИО медработника; обязателен для ADMIN, у DOCTOR берётся из токена
+}
+export class RevokeConsentDto {          // 3.9; для 3.6 тело пустое
+  applicationNumber: string;             // 1…64, номер письменного заявления
+  revokedAt?: string;                    // по умолчанию сегодня
+}
+export class ConsentResponseDto {
+  id: string; status: 'active' | 'inactive' | 'rejected' | 'entered-in-error';
+  formNumber?: string; signedAt: string; consenterType?: string;
+  performer: { type: 'Patient' | 'RelatedPerson'; id: string };
+  signedBy?: string; representativeDocument?: string;
+  scan?: { id: string; contentType: string; hash: string };
+  period: { start?: string; end?: string }; revocationNumber?: string; recordedAt?: string;
+}
+export class PatientConsentDto {         // 3.4, 3.7
+  active: ConsentResponseDto | null;     // действует и срок не истёк
+  history: ConsentResponseDto[];         // от новых к старым, включая действующее
+}
+```
+
+- **3.4 / 3.7** → 200 `PatientConsentDto`. 3.7 врачом и администратором журналируется как чтение (`read`/`denied`); 3.4 — нет.
+- **3.8** → 201 `ConsentResponseDto`. Второе действующее согласие (или отказ при действующем) → **409** `CONSENT_ALREADY_ACTIVE`;
+  чужой или неизвестный `scanId` → 400; `relatedPersonId` не этого пациента → 400. `Consent` и `AuditEvent` (`create`, `entity=Consent/{id}`)
+  пишутся одной `transaction` Bundle. После `rejected` новое согласие вносится как обычно.
+- **3.6 / 3.9** → 200 `ConsentResponseDto` (`status=inactive`, `provision.period.end`=дата отзыва); без действующего согласия → **404** `NOT_FOUND`.
+  `Consent` обновляется с `If-Match`, `AuditEvent` (`update`) — в той же Bundle. Данные пациента не удаляются, блокируются только новые записи.
+- **3.10** → 201 `{ scanId, contentType, size, hash }`. Типы `application/pdf`, `image/jpeg`, `image/png`, до **10 МБ**; тип проверяется
+  по сигнатуре файла, а не по заголовку; `hash` — SHA-1 в base64 (`Consent.sourceAttachment.hash`). Нарушение → **400** `VALIDATION_ERROR`.
+  `Binary.securityContext=Patient/{id}`; запись журналируется (`create`, `entity=Binary/{id}`).
+- **3.11** → 200 байты с `Content-Type` скана; скан другого пациента → 404. Каждое чтение (успех и отказ) — `AuditEvent` (`read`, `entity=Binary/{id}`).
+- Роли и компартмент: ADMIN — любой пациент; DOCTOR — только пациент со связью (ADR-013, как 3.2) → иначе 403 `COMPARTMENT_VIOLATION`;
+  PATIENT — только 3.4 и 3.6 и только своя запись.
+- Блокировка: 7.1 и 7.3 без действующего согласия → **409** `CONSENT_REQUIRED`; 6.1 разрешена с предупреждением, но свободный текст
+  причины без согласия отклоняется; экстренный обход — `emergencyReason` (см. 7.1). Режим — `CONSENT_ENFORCEMENT=warn|block`.
 
 #### 4. `practitioner-service` — Врачи, кабинеты, организация (FR-002, FR-017)
 
@@ -661,6 +723,9 @@ export class AppointmentResponseDto {
 
 **7.1** — тело `{ appointmentId: UUID }`; проверка BR-008 (запись `booked`), создаётся
 `Encounter(status=in-progress, class=AMB)`; `AuditEvent`. **409** `ENCOUNTER_STATE_INVALID`.
+Без действующего согласия на ЭМК (3.8, ADR-019) — **409** `CONSENT_REQUIRED` (проверка до записи). Опционально
+`emergencyReason: string` (10…500): пациент не может дать согласие, приём открывается без него, и отдельный `AuditEvent`
+(`emergency-bypass`) фиксирует причину; согласие оформляется при первой возможности. Тот же параметр — у 7.3.
 
 **7.3 `CompleteEncounterDto`** — одно тело, атомарное оформление приёма (FR-011…FR-014):
 
@@ -759,6 +824,10 @@ export class CompleteEncounterDto {
   @IsOptional() @IsArray() @ArrayMaxSize(20)
   @ValidateNested({ each: true }) @Type(() => MedicationRequestDto)
   medicationRequests?: MedicationRequestDto[];
+
+  @ApiPropertyOptional({ minLength: 10, maxLength: 500 })
+  @IsOptional() @IsString() @MinLength(10) @MaxLength(500)
+  emergencyReason?: string;             // экстренный обход отсутствующего согласия (ADR-019)
 }
 ```
 
