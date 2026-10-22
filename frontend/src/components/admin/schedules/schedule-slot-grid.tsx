@@ -20,7 +20,7 @@ const RANGE_ERROR_ID = 'slots-from-error';
 
 function SlotTile({ slot }: { readonly slot: ScheduleSlot }): ReactNode {
   return (
-    <li data-testid={`slot-${slot.status}`} className="flex items-center justify-between gap-2 rounded-[6px] border border-[var(--border)] px-2 py-1 text-sm">
+    <li data-testid={`slot-${slot.status}`} className="flex items-center justify-between gap-2 rounded-control border border-[var(--border)] px-2 py-1 text-sm">
       <span className="mono">
         {formatClinicTime(slot.start)}–{formatClinicTime(slot.end)}
       </span>
@@ -37,7 +37,7 @@ function SlotCountsLine({ counts, isPartial }: { readonly counts: SlotCounts; re
     <div role="status" className="grid gap-2">
       <p className="text-sm text-[var(--muted-foreground)]">{t(isPartial ? 'grid.countsPartial' : 'grid.counts', values)}</p>
       {isPartial ? (
-        <p data-testid="slots-truncated" className="rounded-[6px] border border-[var(--warning)] p-2 text-sm">
+        <p data-testid="slots-truncated" className="rounded-control border border-[var(--warning)] p-2 text-sm">
           {t('grid.truncated')}
         </p>
       ) : null}

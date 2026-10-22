@@ -49,7 +49,7 @@ export function TableSkeleton(): ReactNode {
     <div data-testid="table-skeleton" role="status" aria-busy="true" className="animate-pulse space-y-2">
       <span className="sr-only">{t('loading')}</span>
       {[0, 1, 2, 3].map((row) => (
-        <div key={row} aria-hidden="true" className="h-11 rounded-[6px] bg-[var(--secondary)]" />
+        <div key={row} aria-hidden="true" className="h-11 rounded-control bg-[var(--secondary)]" />
       ))}
     </div>
   );

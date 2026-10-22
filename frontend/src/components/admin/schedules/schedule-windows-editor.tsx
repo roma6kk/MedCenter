@@ -24,7 +24,7 @@ interface WindowRowProps extends WindowsEditorProps {
 
 function rowClass(isMarked: boolean): string {
   const border: string = isMarked ? 'border-[var(--destructive)]' : 'border-[var(--border)]';
-  return `grid gap-2 rounded-[6px] border ${border} p-2 sm:grid-cols-[1fr_1fr_1fr_auto] sm:items-center`;
+  return `grid gap-2 rounded-control border ${border} p-2 sm:grid-cols-[1fr_1fr_1fr_auto] sm:items-center`;
 }
 
 function WindowRow({ form, index, isOverlapping, serverOverlap, onRemove, canRemove }: WindowRowProps): ReactNode {

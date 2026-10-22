@@ -19,7 +19,7 @@ interface ModalProps {
 const SIZE_CLASS: Readonly<Record<ModalSize, string>> = { sm: 'max-w-md', md: 'max-w-xl', lg: 'max-w-4xl' };
 
 const PANEL_CLASS: Readonly<Record<ModalVariant, string>> = {
-  dialog: 'my-8 w-full rounded-[8px] border border-[var(--border)] bg-[var(--card)] p-5',
+  dialog: 'my-8 w-full rounded-panel border border-[var(--border)] bg-[var(--card)] p-5',
   drawer: 'fixed inset-y-0 right-0 w-full max-w-sm overflow-y-auto border-l border-[var(--border)] bg-[var(--card)] p-5',
 };
 

@@ -42,7 +42,7 @@ export function StampBadge({ status, children }: StampBadgeProps): ReactNode {
     <span
       data-testid={`stamp-${status}`}
       style={{ borderColor: color, color }}
-      className="inline-block rounded-[6px] border-[1.5px] bg-transparent px-2 py-0.5 text-xs font-semibold uppercase tracking-[0.08em]"
+      className="inline-block rounded-full border-[1.5px] bg-transparent px-2 py-0.5 text-xs font-semibold uppercase tracking-[0.08em]"
     >
       {children ?? (hasMessage(locale, `stamp.${status}`) ? t(status) : status)}
     </span>

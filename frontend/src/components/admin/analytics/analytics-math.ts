@@ -20,3 +20,17 @@ export function statusCounts(report: AppointmentsReport): Readonly<Record<Appoin
 export function rankGroups(groups: ReadonlyArray<MeasureGroup>): ReadonlyArray<MeasureGroup> {
   return [...groups].sort((a, b) => b.count - a.count || (a.display ?? a.code).localeCompare(b.display ?? b.code));
 }
+
+export interface SplitGroups {
+  /** Groups that have a name, largest first. */
+  readonly named: ReadonlyArray<MeasureGroup>;
+  /** Groups that kept only a code (a deleted service, an unset specialty): the table merges them into one row. */
+  readonly unnamed: ReadonlyArray<MeasureGroup>;
+}
+
+export function splitGroups(groups: ReadonlyArray<MeasureGroup>): SplitGroups {
+  return {
+    named: rankGroups(groups.filter((group) => group.display !== undefined)),
+    unnamed: groups.filter((group) => group.display === undefined),
+  };
+}

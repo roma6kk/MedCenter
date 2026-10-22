@@ -13,7 +13,7 @@ export function ScheduleWeekPreview({ windows }: { readonly windows: ReadonlyArr
   return (
     <div aria-label={t('preview.label')} role="group" className="grid grid-cols-7 gap-1 text-center text-xs">
       {WEEK_DAYS.map((day) => (
-        <div key={day} className="rounded-[6px] border border-[var(--border)] p-1">
+        <div key={day} className="rounded-control border border-[var(--border)] p-1">
           <p className="font-semibold">{t(`days.${day}`)}</p>
           {windowsOfDay(windows.filter(isWindowValid), day).map((window, position) => (
             <p key={`${window.startTime}-${window.endTime}-${position}`} className={`mono ${marked.has(window) ? 'text-[var(--destructive)]' : ''}`}>
