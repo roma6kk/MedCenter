@@ -3,7 +3,8 @@
 import type { ReactNode } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Phone, Plus } from 'lucide-react';
+import { Phone } from 'lucide-react';
+import { BrandMark } from '@/components/brand/brand-mark';
 import { LocaleSwitcher } from '@/components/layout/locale-switcher';
 import { NavLink } from '@/components/layout/nav-link';
 import { MAIN_CONTENT_ID, SkipLink } from '@/components/layout/skip-link';
@@ -44,9 +45,7 @@ export function PublicShell({ children }: { readonly children: ReactNode }): Rea
       <header className="border-b border-border bg-card">
         <nav aria-label={t('navLabel')} className={`${SECTION_CLASS} flex flex-wrap items-center gap-x-4 gap-y-1 py-3`}>
           <Link href="/" className="mr-4 inline-flex min-h-[44px] items-center gap-2.5 text-[19px] font-bold">
-            <span aria-hidden="true" className="flex h-9 w-9 items-center justify-center rounded-control bg-primary text-primary-foreground">
-              <Plus className="h-5 w-5" strokeWidth={2.4} />
-            </span>
+            <BrandMark size={40} />
             {tLayout('brand')}
           </Link>
           <span className="flex flex-wrap gap-0.5">

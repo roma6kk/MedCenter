@@ -14,7 +14,7 @@ relocation is deferred). The remaining seven BFF services are not yet built — 
 ports and answers 502 for backends that are not up yet.
 
 
-Nx monorepo for the МедЦентр backend: NestJS BFF services (`apps/*`) over shared libraries (`libs/*`), with a
+Nx monorepo for the Лайфлайн backend: NestJS BFF services (`apps/*`) over shared libraries (`libs/*`), with a
 local Docker Compose stack (PostgreSQL, Redis, RabbitMQ, HAPI FHIR, Traefik). Per
 `architect-architecture.md` the target is **8 BFF services**; **only `auth-service` is implemented so far**, and
 only three shared libs (`common`, `config`, `contracts`). The Traefik router file already declares the planned

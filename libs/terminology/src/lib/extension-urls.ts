@@ -1,5 +1,5 @@
 /**
- * Canonical URLs of MedCenter's own FHIR extensions.
+ * Canonical URLs of Lifeline's own FHIR extensions.
  *
  * FHIR R4 `Extension.url` identifies the StructureDefinition of the extension
  * and must be an absolute URL — bare names such as `floor` are rejected by a

@@ -81,7 +81,7 @@ function stringField<K extends string>(key: K, value: unknown): Partial<Record<K
   return typeof value === 'string' && value !== '' ? ({ [key]: value } as Record<K, string>) : {};
 }
 
-/** FHIR `Schedule` (with MedCenter extensions) → the doctor-facing summary of API §5.2.7. */
+/** FHIR `Schedule` (with Lifeline extensions) → the doctor-facing summary of API §5.2.7. */
 export function toScheduleSummaryDto(schedule: FhirResource): ScheduleSummaryDto {
   const horizon = readHorizon(schedule);
   const duration = findExtension(schedule, SLOT_DURATION_EXT)?.['valueInteger'];

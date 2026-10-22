@@ -46,7 +46,7 @@ describe('AppointmentList', () => {
     renderWithClient(<AppointmentList />);
 
     expect(screen.getByRole('heading', { level: 1, name: 'Мои записи' })).toBeInTheDocument();
-    expect(document.title).toBe('Мои записи — МедЦентр');
+    expect(document.title).toBe('Мои записи — Лайфлайн');
     await screen.findByTestId('next-appointment');
   });
 

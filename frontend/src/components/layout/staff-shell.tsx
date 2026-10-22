@@ -14,6 +14,7 @@ import {
   Users,
   type LucideIcon,
 } from 'lucide-react';
+import { BrandMark } from '@/components/brand/brand-mark';
 import { useT } from '@/lib/i18n/use-t';
 import { cn } from '@/lib/ui/cn';
 import { useSessionStore } from '@/store/use-session-store';
@@ -60,16 +61,6 @@ const NAV_PILL = cn(
   'aria-[current=page]:bg-primary-soft aria-[current=page]:font-semibold aria-[current=page]:text-primary-soft-foreground aria-[current=page]:no-underline',
 );
 
-function LogoMark(): ReactNode {
-  return (
-    <span aria-hidden="true" className="inline-flex size-[34px] shrink-0 items-center justify-center rounded-control bg-primary text-primary-foreground">
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round">
-        <path d="M12 6v12M6 12h12" />
-      </svg>
-    </span>
-  );
-}
-
 /** Doctors and administrators have no notification endpoints, so this shell carries no bell. */
 export function StaffShell({ children, links }: StaffShellProps): ReactNode {
   const t = useT('layout');
@@ -80,7 +71,7 @@ export function StaffShell({ children, links }: StaffShellProps): ReactNode {
       <SkipLink />
       <aside className="flex flex-col gap-4 border-b border-border bg-card px-4 py-4 lg:sticky lg:top-0 lg:h-screen lg:gap-6 lg:overflow-y-auto lg:border-b-0 lg:border-r lg:py-5">
         <p className="flex items-center gap-2.5 px-2">
-          <LogoMark />
+          <BrandMark size={36} />
           <span className="flex flex-col leading-tight">
             <span className="text-[17px] font-bold">{t('brand')}</span>
             <span className="text-xs text-muted-foreground">{t(`${prefix}.caption`)}</span>

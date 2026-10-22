@@ -522,7 +522,7 @@
     }
   },
   "common": {
-    "appName": "MedCenter",
+    "appName": "Lifeline",
     "loading": "Loading…",
     "retry": "Retry",
     "save": "Save",
@@ -604,7 +604,7 @@
   },
   "layout": {
     "skipToContent": "Skip to content",
-    "brand": "MedCenter",
+    "brand": "Lifeline",
     "language": "Language",
     "logout": "Sign out",
     "loggingOut": "Signing out…",
@@ -1005,7 +1005,7 @@
     "contacts": "Contacts"
   },
   "home": {
-    "title": "Medical center",
+    "title": "Lifeline — medical center",
     "eyebrow": "Multidisciplinary medical center",
     "heroTitle": "Consultation, diagnostics and follow-up in one center",
     "lead": "Therapy, cardiology, neurology and surgery, with functional diagnostics on site. Visit results, diagnoses and prescriptions are kept in your electronic health record.",
@@ -1088,7 +1088,7 @@
     "contactEmail": "E-mail",
     "contactHours": "Opening hours",
     "contactHoursValue": "Mon–Fri 08:00–20:00, Sat 09:00–15:00",
-    "footerLegal": "© MedCenter · {name}, tax ID {unp}",
+    "footerLegal": "© Lifeline · {name}, tax ID {unp}",
     "footerLicense": "License No. {number} of {date}",
     "loadError": "Could not load the catalog",
     "loadErrorHint": "Check your connection and try again."

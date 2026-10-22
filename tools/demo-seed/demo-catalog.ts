@@ -90,10 +90,10 @@ export function patientPhotoUrl(patient: Pick<PatientDef, 'emailLocal'>): string
 
 export const CLINIC = {
   key: 'medcenter',
-  name: 'Медицинский центр',
-  alias: 'МедЦентр',
+  name: 'Лайфлайн',
+  alias: 'Лайфлайн — медицинский центр',
   phone: '+375 17 000-00-00',
-  email: 'info@medcenter.example',
+  email: 'info@lifeline.example',
   addressLine: 'ул. Свободы, 1',
   city: 'Минск',
   postalCode: '220000',

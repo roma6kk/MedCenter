@@ -88,6 +88,6 @@ describe('HomeView', () => {
     render(<HomeView services={SERVICES} doctors={DOCTORS} isFailed={false} />);
 
     expect(screen.getByRole('link', { name: '+375 17 000-00-00' })).toHaveAttribute('href', 'tel:+375170000000');
-    expect(screen.getByRole('link', { name: 'info@medcenter.example' })).toHaveAttribute('href', 'mailto:info@medcenter.example');
+    expect(screen.getByRole('link', { name: 'info@lifeline.example' })).toHaveAttribute('href', 'mailto:info@lifeline.example');
   });
 });

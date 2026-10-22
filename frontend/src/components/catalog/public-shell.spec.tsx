@@ -55,7 +55,7 @@ describe('PublicShell', () => {
     render(<PublicShell><p>content</p></PublicShell>);
 
     const footer = screen.getByRole('contentinfo');
-    expect(footer).toHaveTextContent('ООО «МедЦентр»');
+    expect(footer).toHaveTextContent('ООО «Лайфлайн»');
     expect(footer).toHaveTextContent('Лицензия №');
     expect(footer).toHaveTextContent('Демонстрационные данные');
   });

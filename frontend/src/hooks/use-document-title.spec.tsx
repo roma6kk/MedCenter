@@ -17,7 +17,7 @@ describe('useDocumentTitle', () => {
   it('should set the tab title to the page name and the brand when the page mounts', () => {
     render(<Page title="Мои записи" />);
 
-    expect(document.title).toBe('Мои записи — МедЦентр');
+    expect(document.title).toBe('Мои записи — Лайфлайн');
   });
 
   it('should follow the title when the page name changes', () => {
@@ -25,7 +25,7 @@ describe('useDocumentTitle', () => {
 
     rerender(<Page title="История" />);
 
-    expect(document.title).toBe('История — МедЦентр');
+    expect(document.title).toBe('История — Лайфлайн');
   });
 
   it('should restore the previous title when the page unmounts', () => {
@@ -41,7 +41,7 @@ describe('useDocumentTitle', () => {
 
     act(() => useUiStore.setState({ locale: 'en' }));
 
-    expect(document.title).toBe('My appointments — MedCenter');
+    expect(document.title).toBe('My appointments — Lifeline');
   });
 
   it('should show the bare title when the page asks for no brand', () => {

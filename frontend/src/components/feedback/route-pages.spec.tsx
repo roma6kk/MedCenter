@@ -28,7 +28,7 @@ describe('route pages', () => {
 
       render(page);
 
-      expect(document.title).toMatch(/ — MedCenter$/);
+      expect(document.title).toMatch(/ — Lifeline$/);
       expect(screen.getByRole('link', { name: 'Skip to content' })).toBeInTheDocument();
     });
   });
@@ -36,7 +36,7 @@ describe('route pages', () => {
   it('should say the page was not found and link home when the URL matches no route', () => {
     render(<NotFoundPage />);
 
-    expect(document.title).toBe('Страница не найдена — МедЦентр');
+    expect(document.title).toBe('Страница не найдена — Лайфлайн');
     expect(screen.getByTestId('not-found-state')).toHaveTextContent('Страница не найдена');
     expect(screen.getByRole('link', { name: 'На главную' })).toHaveAttribute('href', '/');
   });
@@ -53,7 +53,7 @@ describe('route pages', () => {
   it('should explain that the section is not for this role when the guard sent the user here', () => {
     render(<ForbiddenPage />);
 
-    expect(document.title).toBe('Недостаточно прав — МедЦентр');
+    expect(document.title).toBe('Недостаточно прав — Лайфлайн');
     expect(screen.getByTestId('forbidden-state')).toHaveTextContent('Этот раздел недоступен для вашей роли.');
   });
 

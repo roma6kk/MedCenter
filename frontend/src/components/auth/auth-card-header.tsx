@@ -2,9 +2,9 @@
 
 import type { ReactNode } from 'react';
 import Link from 'next/link';
+import { BrandMark } from '@/components/brand/brand-mark';
 import { LocaleSwitcher } from '@/components/layout/locale-switcher';
 import { useT } from '@/lib/i18n/use-t';
-import { BrandMark } from './brand-mark';
 
 /**
  * Top row above the sign-in and registration card: the brand (the way back to the public site) and the language switch.
@@ -15,7 +15,7 @@ export function AuthCardHeader(): ReactNode {
   return (
     <div className="mb-5 flex items-center justify-between gap-2">
       <Link href="/" className="inline-flex min-h-[44px] items-center gap-2.5 text-[19px] font-bold">
-        <BrandMark />
+        <BrandMark size={40} />
         {t('brand')}
       </Link>
       <LocaleSwitcher />

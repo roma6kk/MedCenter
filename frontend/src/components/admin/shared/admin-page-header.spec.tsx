@@ -5,7 +5,7 @@ describe('AdminPageHeader', () => {
   it('should name the browser tab after the screen and the brand when it is shown', () => {
     render(<AdminPageHeader title="Кабинеты" />);
 
-    expect(document.title).toBe('Кабинеты — МедЦентр');
+    expect(document.title).toBe('Кабинеты — Лайфлайн');
   });
 
   it('should put the previous title back when the screen is left', () => {

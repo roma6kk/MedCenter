@@ -14,7 +14,7 @@ describe('rootMetadata', () => {
   it('should default to the clinic name and add the brand to a page title when a page names itself', () => {
     const metadata = rootMetadata();
 
-    expect(metadata.title).toEqual({ default: 'Медицинский центр', template: '%s — МедЦентр' });
+    expect(metadata.title).toEqual({ default: 'Лайфлайн — медицинский центр', template: '%s — Лайфлайн' });
     expect(metadata.description).toBe('Запись на приём и клиническая документация');
   });
 });

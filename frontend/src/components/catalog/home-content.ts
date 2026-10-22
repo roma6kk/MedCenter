@@ -8,13 +8,13 @@ import { Activity, Brain, HeartPulse, Scissors, Stethoscope, type LucideIcon } f
 
 export const CLINIC_LICENSE = { number: '02040/0123456', date: '14.03.2022' } as const;
 
-export const CLINIC_LEGAL = { name: 'ООО «МедЦентр»', unp: '100000000' } as const;
+export const CLINIC_LEGAL = { name: 'ООО «Лайфлайн»', unp: '100000000' } as const;
 
 export const CLINIC_CONTACTS = {
   phone: '+375 17 000-00-00',
   phoneHref: 'tel:+375170000000',
-  email: 'info@medcenter.example',
-  corporateEmail: 'b2b@medcenter.example',
+  email: 'info@lifeline.example',
+  corporateEmail: 'b2b@lifeline.example',
 } as const;
 
 /** Companies served under a contract (names only, no logos). */

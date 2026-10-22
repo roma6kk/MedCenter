@@ -2,7 +2,7 @@
 
 import type { ReactNode } from 'react';
 import Link from 'next/link';
-import { Plus } from 'lucide-react';
+import { BrandMark } from '@/components/brand/brand-mark';
 import { useT } from '@/lib/i18n/use-t';
 import { LocaleSwitcher } from './locale-switcher';
 import { LogoutButton } from './logout-button';
@@ -31,9 +31,7 @@ export function PatientShell({ children }: { readonly children: ReactNode }): Re
       <header className="border-b border-border bg-card">
         <div className="mx-auto flex max-w-[1200px] flex-wrap items-center gap-x-7 gap-y-3 px-6 py-3">
           <Link href="/" className="inline-flex min-h-[44px] items-center gap-2.5 font-bold text-foreground">
-            <span aria-hidden="true" className="inline-flex h-[34px] w-[34px] items-center justify-center rounded-control bg-primary text-primary-foreground">
-              <Plus size={18} strokeWidth={2.4} />
-            </span>
+            <BrandMark size={36} />
             <span className="text-lg">{tLayout('brand')}</span>
           </Link>
           <nav aria-label={t('navLabel')} className="flex flex-wrap gap-0.5">

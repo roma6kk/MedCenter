@@ -46,7 +46,7 @@ describe('AuthGroupLayout', () => {
   it('should link back to the public site when a visitor opens a sign-in screen', () => {
     render(<Providers><AuthGroupLayout><p>sign-in form</p></AuthGroupLayout></Providers>);
 
-    expect(screen.getByRole('link', { name: 'МедЦентр' })).toHaveAttribute('href', '/');
+    expect(screen.getByRole('link', { name: 'Лайфлайн' })).toHaveAttribute('href', '/');
   });
 
   it('should offer exactly one localized skip link that targets the card when a sign-in screen is shown', () => {

@@ -1,4 +1,4 @@
-# MedCenter stack (TASK-001). NFR-001 (>= 6 containers): 5 infrastructure
+# Lifeline stack (TASK-001). NFR-001 (>= 6 containers): 5 infrastructure
 # containers + 8 NestJS BFF services + the Next.js web client = 14.
 #
 #   docker compose up -d --build        # whole system

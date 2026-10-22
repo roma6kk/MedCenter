@@ -1,6 +1,6 @@
 # @medcenter/frontend
 
-Next.js 15 (App Router) client for the МедЦентр medical-center platform. This app is standalone: there is no
+Next.js 15 (App Router) client for the Лайфлайн medical-center platform. This app is standalone: there is no
 root `package.json` — run every command from `frontend/`.
 
 Design, routes, and state conventions live in [`../specs/frontend-design-spec.md`](../specs/frontend-design-spec.md);

@@ -49,7 +49,7 @@ describe('ProfileView', () => {
     expect(within(header).getByText('Учётная запись активна')).toBeInTheDocument();
     expect(within(header).getByRole('img', { name: 'Профиль заполнен на 100 процентов' })).toBeInTheDocument();
     expect(within(header).queryByText('Телефон не указан')).not.toBeInTheDocument();
-    expect(document.title).toBe('Профиль — МедЦентр');
+    expect(document.title).toBe('Профиль — Лайфлайн');
   });
 
   it('should warn about a missing phone in the header, the ring, the personal data and a recommendation', async () => {

@@ -14,7 +14,7 @@ export function pageMetadata(titleKey: string): Metadata {
   return { title: createTranslate(DEFAULT_LOCALE)(titleKey) };
 }
 
-/** The defaults every page inherits: the clinic's name as the title, `«<page> — МедЦентр»` for pages that name themselves. */
+/** The defaults every page inherits: the clinic's name as the title, `«<page> — Лайфлайн»` for pages that name themselves. */
 export function rootMetadata(): Metadata {
   const t = createTranslate(DEFAULT_LOCALE);
   return { title: { default: t('home.title'), template: `%s — ${t('layout.brand')}` }, description: t('layout.description') };
