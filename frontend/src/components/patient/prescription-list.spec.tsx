@@ -27,7 +27,7 @@ describe('PrescriptionList', () => {
     expect(within(card).getByTestId('code-chip')).toHaveAttribute('title', 'http://www.whocc.no/atc');
     expect(within(card).getByText('Азитромицин')).toBeInTheDocument();
     expect(within(card).getByText(/1 таб 3 раза в день после еды/)).toBeInTheDocument();
-    expect(within(card).getByText('Лекарство')).toBeInTheDocument();
+    expect(within(card).getByText('Препарат')).toBeInTheDocument();
     expect(within(card).getByText(/Курс 5 дней/)).toBeInTheDocument();
   });
 
@@ -41,7 +41,7 @@ describe('PrescriptionList', () => {
     expect(within(card).getByTestId('code-chip')).toHaveTextContent('LAB-101');
     expect(within(card).getByTestId('code-chip')).not.toHaveAttribute('title', 'http://www.whocc.no/atc');
     expect(within(card).getByText('Общий анализ крови')).toBeInTheDocument();
-    expect(within(card).getByText('Исследование или услуга')).toBeInTheDocument();
+    expect(within(card).getByText('Услуга или направление')).toBeInTheDocument();
     expect(within(card).queryByText(/Дозировка/)).not.toBeInTheDocument();
   });
 
@@ -58,22 +58,21 @@ describe('PrescriptionList', () => {
 
     renderWithClient(<PrescriptionList />);
 
-    const list = await screen.findByRole('list', { name: 'Назначения врача' });
-    const kinds = within(list).getAllByRole('article').map((card) => card.getAttribute('data-kind'));
+    const kinds = (await screen.findAllByRole('article')).map((card) => card.getAttribute('data-kind'));
     expect(kinds).toEqual(['medication', 'service']);
   });
 
   it.each([
-    ['active', 'Действует', 'stamp-active'],
-    ['completed', 'Выполнено', 'stamp-completed'],
-    ['on-hold', 'Приостановлено', 'stamp-pending'],
-    ['revoked', 'Отозвано', 'stamp-cancelled'],
-  ])('should show the %s status as "%s" in the matching stamp', async (status, label, testId) => {
+    ['active', 'Действует'],
+    ['completed', 'Выполнено'],
+    ['on-hold', 'Приостановлено'],
+    ['revoked', 'Отозвано'],
+  ])('should show the %s status as "%s" in the matching stamp', async (status, label) => {
     prescriptionsMock.mockResolvedValue(pageOf([medicationFixture({ status })]));
 
     renderWithClient(<PrescriptionList />);
 
-    expect(await screen.findByTestId(testId)).toHaveTextContent(label);
+    expect(await screen.findByTestId(`status-${status}`)).toHaveTextContent(label);
   });
 
   it('should show a neutral label when the status is one the catalogue does not know', async () => {
@@ -81,7 +80,7 @@ describe('PrescriptionList', () => {
 
     renderWithClient(<PrescriptionList />);
 
-    expect(await screen.findByTestId('stamp-pending')).toHaveTextContent('Статус не указан');
+    expect(await screen.findByTestId('status-something-new')).toHaveTextContent('Статус не указан');
   });
 
   it('should show the prescription date in clinic time', async () => {
@@ -89,7 +88,7 @@ describe('PrescriptionList', () => {
 
     renderWithClient(<PrescriptionList />);
 
-    expect(await screen.findByText(/Назначено: 13 окт\. 2026/)).toBeInTheDocument();
+    expect(await screen.findByText(/Назначено 13 окт\. 2026/)).toBeInTheDocument();
   });
 
   it('should show the empty state when nothing was prescribed', async () => {
@@ -98,7 +97,7 @@ describe('PrescriptionList', () => {
     renderWithClient(<PrescriptionList />);
 
     expect(await screen.findByText('Назначений нет')).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Печать' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Распечатать для аптеки' })).not.toBeInTheDocument();
   });
 
   it('should show a loading skeleton while the list is being read', () => {
@@ -135,7 +134,7 @@ describe('PrescriptionList', () => {
     prescriptionsMock.mockResolvedValue(pageOf([medicationFixture()]));
     renderWithClient(<PrescriptionList />);
 
-    await userEvent.click(await screen.findByRole('button', { name: 'Печать' }));
+    await userEvent.click(await screen.findByRole('button', { name: 'Распечатать для аптеки' }));
 
     expect(print).toHaveBeenCalledTimes(1);
     print.mockRestore();
@@ -147,7 +146,7 @@ describe('PrescriptionList', () => {
 
     renderWithClient(<PrescriptionList />);
 
-    expect(await screen.findByTestId('stamp-active')).toHaveTextContent('Active');
+    expect(await screen.findByTestId('status-active')).toHaveTextContent('Active');
     expect(screen.getByText('Medication')).toBeInTheDocument();
   });
 
@@ -178,5 +177,61 @@ describe('PrescriptionList', () => {
     expect(await screen.findByTestId('problem-banner')).toHaveTextContent('req-22');
     expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
     expect(screen.queryByText('Назначений нет')).not.toBeInTheDocument();
+  });
+
+  it('should show only running items on the active tab and only closed ones on the completed tab', async () => {
+    prescriptionsMock.mockResolvedValue(pageOf([medicationFixture({ id: 'a', atcDisplay: 'Азитромицин' }), medicationFixture({ id: 'b', status: 'completed', atcDisplay: 'Омепразол' })]));
+    renderWithClient(<PrescriptionList />);
+    await screen.findByText('Омепразол');
+
+    await userEvent.click(screen.getByRole('tab', { name: 'Действующие' }));
+    expect(screen.getByText('Азитромицин')).toBeInTheDocument();
+    expect(screen.queryByText('Омепразол')).not.toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('tab', { name: 'Завершённые' }));
+    expect(screen.getByText('Омепразол')).toBeInTheDocument();
+    expect(screen.queryByText('Азитромицин')).not.toBeInTheDocument();
+  });
+
+  it('should say the page has no active prescriptions instead of implying there are none at all', async () => {
+    prescriptionsMock.mockResolvedValue(pageOf([medicationFixture({ status: 'completed' })]));
+    renderWithClient(<PrescriptionList />);
+    await screen.findByRole('article');
+
+    await userEvent.click(screen.getByRole('tab', { name: 'Действующие' }));
+
+    expect(screen.getByText('Действующих назначений на этой странице нет')).toBeInTheDocument();
+  });
+
+  it('should group the medications by visit under a heading with the earliest prescription date', async () => {
+    prescriptionsMock.mockResolvedValue(pageOf([
+      medicationFixture({ id: 'a', encounterId: 'e1', authoredOn: '2026-10-12T06:20:00.000Z' }),
+      medicationFixture({ id: 'b', encounterId: 'e2', authoredOn: '2026-09-01T06:20:00.000Z' }),
+      medicationFixture({ id: 'c', encounterId: undefined }),
+    ]));
+    renderWithClient(<PrescriptionList />);
+
+    const headings = (await screen.findAllByRole('heading', { level: 2 })).map((h) => h.textContent);
+    expect(headings.slice(0, 3)).toEqual(['Назначения от 12 окт. 2026 г.', 'Назначения от 1 сент. 2026 г.', 'Назначения без привязки к приёму']);
+    expect(screen.getAllByRole('list')).toHaveLength(3);
+  });
+
+  it('should show an honest empty state in the referrals block when the page has no services', async () => {
+    prescriptionsMock.mockResolvedValue(pageOf([medicationFixture()]));
+    renderWithClient(<PrescriptionList />);
+
+    expect(await screen.findByText('Направлений нет')).toBeInTheDocument();
+  });
+
+  it('should count running medications and services of the loaded page and link the question card to booking', async () => {
+    prescriptionsMock.mockResolvedValue(pageOf([medicationFixture(), medicationFixture({ id: 'm2' }), serviceFixture({ status: 'active' })]));
+    renderWithClient(<PrescriptionList />);
+
+    const summary = (await screen.findByRole('heading', { name: 'Сейчас действуют' })).closest('section') as HTMLElement;
+    expect(within(summary).getByText('2')).toBeInTheDocument();
+    expect(within(summary).getByText('препарата')).toBeInTheDocument();
+    expect(within(summary).getByText('направление')).toBeInTheDocument();
+    expect(within(summary).getByText('На этой странице списка')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Записаться на приём' })).toHaveAttribute('href', '/booking');
   });
 });
