@@ -1,6 +1,7 @@
 import { join } from 'node:path';
 
 import { FhirHttp } from '../shared/fhir-http';
+import { loadSeedEnv } from '../shared/load-seed-env';
 import { resolveFhirBaseUrl, runMain } from '../shared/seed-env';
 import { parseCliArgs, readUsersConfig, type CliOptions } from './demo-cli-options';
 import { buildFhirManifest, readManifest, writeManifest, type DemoUsersSection } from './demo-manifest';
@@ -19,7 +20,8 @@ import { seedDemoUsers } from './seed-demo-users';
  *   npm run seed:demo -- --fhir --users   both, FHIR first
  *   npm run seed:demo -- --repair     booked appointments with a finished encounter → fulfilled; report check leftovers
  *
- * Environment (names only; see `demo-cli-options.ts`): `SEED_FHIR_BASE_URL`
+ * Environment (names only; see `demo-cli-options.ts`; the seed variables the shell has not set are
+ * taken from the repository's `.env`, see `load-seed-env.ts`): `SEED_FHIR_BASE_URL`
  * (the services' `FHIR_BASE_URL` is deliberately not read), and for `--users`
  * `SEED_AUTH_BASE_URL` (and `SEED_FHIR_BASE_URL`: patient portraits are written into the Patient resources), `BOOTSTRAP_ADMIN_EMAIL`, `BOOTSTRAP_ADMIN_PASSWORD`,
  * `OAUTH_CLIENT_ID`, `OAUTH_REDIRECT_URI`, `DEMO_EMAIL_DOMAIN`,
@@ -84,6 +86,7 @@ async function runRepairStep(): Promise<void> {
 
 if (require.main === module) {
   runMain(async () => {
+    loadSeedEnv(join(__dirname, '..', '..'));
     const options = parseCliArgs(process.argv.slice(2));
     const now = new Date();
     if (options.runFhir) {
