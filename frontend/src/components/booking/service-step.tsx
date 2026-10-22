@@ -41,11 +41,11 @@ function ServiceChoice({ service, selected, onSelect }: { readonly service: Cata
     >
       <Marker selected={selected} />
       <span className="flex min-w-0 flex-1 flex-col gap-1">
-        <span className="text-base font-semibold">{service.name}</span>
+        <span className="break-words text-base font-semibold">{service.name}</span>
         {service.description === undefined ? null : <span className="text-sm text-muted-foreground">{service.description}</span>}
-      </span>
-      <span className={cn('mono h-fit flex-none rounded-full px-2.5 py-0.5 text-xs font-medium', selected ? 'bg-primary-soft text-primary-soft-foreground' : 'bg-secondary text-muted-foreground')}>
-        {t('serviceMinutes', { minutes: service.defaultDurationMin })}
+        <span className={cn('mono mt-1.5 h-fit self-start rounded-full px-2.5 py-0.5 text-xs font-medium', selected ? 'bg-primary-soft text-primary-soft-foreground' : 'bg-secondary text-muted-foreground')}>
+          {t('serviceMinutes', { minutes: service.defaultDurationMin })}
+        </span>
       </span>
     </button>
   );
@@ -69,7 +69,7 @@ function ServiceList({ services, selectedServiceId, onSelect }: ServiceStepProps
   if (services.length === 0) return <EmptyState title={t('servicesEmpty')} action={<AnyServiceChoice onSelect={() => onSelect(null)} />} />;
   return (
     <div className="flex flex-col gap-3">
-      <ul className="grid grid-cols-[repeat(auto-fill,minmax(260px,1fr))] gap-3">
+      <ul className="grid grid-cols-[repeat(auto-fill,minmax(300px,1fr))] gap-3">
         {services.map((service) => (
           <li key={service.id} className="flex">
             <ServiceChoice service={service} selected={service.id === selectedServiceId} onSelect={() => onSelect(service.id)} />

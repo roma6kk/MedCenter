@@ -21,7 +21,7 @@ import { PrescriptionSide } from './prescriptions/prescription-side';
 export { ATC_SYSTEM } from './prescriptions/prescription-cards';
 export const PRESCRIPTIONS_PAGE_SIZE = 10;
 
-const LIST_CLASS = 'grid list-none grid-cols-1 gap-3 p-0 sm:grid-cols-[repeat(auto-fill,minmax(280px,1fr))]';
+const LIST_CLASS = 'grid list-none grid-cols-1 gap-3 p-0 sm:grid-cols-[repeat(auto-fit,minmax(280px,1fr))]';
 
 function GroupSection({ group, index }: { readonly group: PrescriptionGroup; readonly index: number }): ReactNode {
   const t = useT('patientPrescriptions');
