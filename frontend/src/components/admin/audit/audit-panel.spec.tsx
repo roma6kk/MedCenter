@@ -41,6 +41,19 @@ describe('AuditPanel', () => {
     expect(auditPaths()).toContain(`/api/v1/admin/audit?from=${from}&to=${to}&page=1&pageSize=20`);
   });
 
+  it('should name the account next to its id when the user list knows it, and keep a bare id otherwise', async () => {
+    const account = { id: 'a48dab5b-67da-4ed7-a9be-f047cd9925c7', name: 'Иванова Мария', email: 'x@y.test', firstName: 'Мария', lastName: 'Иванова', roles: ['DOCTOR'], role: 'DOCTOR', patientRef: null, practitionerRoleRef: null, isActive: true };
+    apiFetchMock.mockImplementation((path: string) => Promise.resolve(path.startsWith('/api/v1/admin/users') ? { items: [account], meta: { page: 1, pageSize: 100, totalItems: 1, totalPages: 1 } } : paged(3)));
+    renderWithClient(<AuditPanel />);
+
+    const table = within(await screen.findByRole('table', { name: 'Журнал аудита' }));
+
+    expect(await table.findByText('Иванова Мария')).toBeInTheDocument();
+    expect(table.getByText('a48dab5b-67da-4ed7-a9be-f047cd9925c7')).toBeInTheDocument();
+    expect(table.getByText('19d9172b-681f-4e46-a451-43215ce442d4')).toBeInTheDocument();
+    expect(apiFetchMock.mock.calls.map(([path]) => path)).toContain('/api/v1/admin/users?page=1&pageSize=100');
+  });
+
   it('should show when, who, what and on which resource for each event when the journal loads', async () => {
     renderWithClient(<AuditPanel />);
 
