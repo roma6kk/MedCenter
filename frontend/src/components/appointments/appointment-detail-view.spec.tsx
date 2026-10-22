@@ -34,6 +34,21 @@ describe('AppointmentDetailView', () => {
     expect(screen.getByRole('link', { name: /К списку записей/ })).toHaveAttribute('href', '/appointments');
   });
 
+  it('should show when the appointment was created in Minsk time, and only the day for an older one', async () => {
+    detailMock.mockResolvedValueOnce(appointmentFixture({ createdAt: '2026-10-22T07:07:58.285Z' }));
+    const { unmount } = renderWithClient(<AppointmentDetailView appointmentId="1552" />);
+
+    const created = await screen.findByText('Создана');
+    expect(created.parentElement).toHaveTextContent(/10:07/);
+    unmount();
+
+    detailMock.mockResolvedValueOnce(appointmentFixture({ createdAt: '2026-10-15' }));
+    renderWithClient(<AppointmentDetailView appointmentId="1553" />);
+    const day = await screen.findByText('Создана');
+    expect(day.parentElement).toHaveTextContent(/15 октября 2026/);
+    expect(day.parentElement).not.toHaveTextContent(/\d{2}:\d{2}/);
+  });
+
   it('should show a loading skeleton while the appointment is being read', () => {
     detailMock.mockReturnValue(new Promise(() => undefined));
 

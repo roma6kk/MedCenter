@@ -59,7 +59,8 @@ export function buildBookedAppointment(bookable: BookableSlot, patientRef: strin
     status: BOOKED,
     start: stringOf(slot, 'start'),
     end: stringOf(slot, 'end'),
-    created: new Date().toISOString().slice(0, 10),
+    // FHIR `dateTime`: the instant, as API §6 `createdAt` (RFC 3339) promises.
+    created: new Date().toISOString(),
     slot: [{ reference: `Slot/${slotId}` }],
     participant: [
       { actor: { reference: patientRef }, status: 'accepted' },

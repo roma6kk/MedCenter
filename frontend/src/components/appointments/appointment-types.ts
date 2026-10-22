@@ -23,7 +23,7 @@ export interface AppointmentView {
   readonly reason?: string;
   /** `statusReason` of a cancelled appointment (BR-002). */
   readonly cancelReason?: string;
-  /** A calendar day (`YYYY-MM-DD`), not an instant. */
+  /** RFC 3339 instant; appointments booked before that fix carry only the day (`YYYY-MM-DD`). */
   readonly createdAt: string;
   readonly doctorName?: string;
   readonly serviceName?: string;

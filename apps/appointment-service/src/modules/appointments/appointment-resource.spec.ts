@@ -72,6 +72,15 @@ describe('buildBookedAppointment', () => {
     ]);
   });
 
+  it('should record when it was created as an RFC 3339 instant, not only the day', () => {
+    jest.useFakeTimers().setSystemTime(new Date('2026-10-22T07:07:58.285Z'));
+    try {
+      expect(buildBookedAppointment(bookable, 'Patient/p-1', undefined)['created']).toBe('2026-10-22T07:07:58.285Z');
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
   it('should leave the Practitioner participant out when the role names none', () => {
     const appointment = buildBookedAppointment({ ...bookable, practitionerId: '' }, 'Patient/p-1', 'боль');
 
