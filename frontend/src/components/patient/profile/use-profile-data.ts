@@ -44,7 +44,7 @@ export function countOf<TItem>(page: PaginatedResponse<TItem> | undefined, predi
   return page === undefined ? null : { value: page.items.filter(predicate).length, more: page.meta.totalPages > 1 };
 }
 
-/** The booked ones among the upcoming list (it also holds cancelled appointments, API 6.2). */
+/** The booked ones among the upcoming list (the server already filters by `status=booked`; this guards stale caches). */
 export function activeAppointments(page: PaginatedResponse<AppointmentView> | undefined): ReadonlyArray<AppointmentView> {
   return (page?.items ?? []).filter((item) => item.status === 'booked');
 }

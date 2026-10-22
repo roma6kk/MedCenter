@@ -30,18 +30,10 @@ export interface AppointmentView {
   readonly patientName?: string;
 }
 
-/** `upcoming` starts now or later, soonest first; `all` is the whole history, newest first. */
+/** `upcoming` is the booked visits from now on, soonest first; `all` is the whole history, newest first. */
 export type AppointmentTab = 'upcoming' | 'all';
 
 /** Only a booked appointment can be cancelled (BR-002); the server still has the last word (409 `APPOINTMENT_NOT_CANCELLABLE`). */
 export function isCancellable(status: AppointmentStatus): boolean {
   return status === 'booked';
-}
-
-/**
- * The list of "upcoming" also holds cancelled appointments (API 6.2 has no status filter), which would bury the real
- * bookings. Within one page the cancelled ones go last, each group keeps the server's order; paging stays the server's.
- */
-export function activeFirst(items: ReadonlyArray<AppointmentView>): ReadonlyArray<AppointmentView> {
-  return [...items.filter((item) => item.status !== 'cancelled'), ...items.filter((item) => item.status === 'cancelled')];
 }

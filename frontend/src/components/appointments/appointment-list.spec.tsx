@@ -200,29 +200,7 @@ describe('AppointmentList', () => {
     expect(screen.queryByTestId('table-skeleton')).not.toBeInTheDocument();
   });
 
-  it('should list the active appointments before the cancelled ones and explain it when upcoming holds cancelled ones', async () => {
-    const later = appointmentFixture({ id: '3', status: 'booked', start: '2026-10-22T07:00:00.000Z' });
-    listMock.mockResolvedValue(pageOf([CANCELLED, later, BOOKED]));
-
-    renderWithClient(<AppointmentList />);
-
-    // The nearest booked one (`later`) is the hero card; the rest of the page follows with the cancelled one last.
-    const cards = await screen.findAllByRole('article');
-    expect(screen.getByTestId('next-appointment')).toBeInTheDocument();
-    expect(cards.map((card) => within(card).queryByTestId('stamp-cancelled') !== null)).toEqual([false, true]);
-    expect(screen.getByText(/Среди предстоящих записей показаны и отменённые/)).toBeInTheDocument();
-  });
-
-  it('should keep the order and add no hint when upcoming has nothing cancelled', async () => {
-    listMock.mockResolvedValue(pageOf([BOOKED]));
-
-    renderWithClient(<AppointmentList />);
-
-    await screen.findByTestId('next-appointment');
-    expect(screen.queryByText(/Среди предстоящих записей показаны и отменённые/)).not.toBeInTheDocument();
-  });
-
-  it('should keep the server order and add no hint on the all tab', async () => {
+  it('should keep the server order with the cancelled ones on the all tab', async () => {
     listMock.mockResolvedValue(pageOf([CANCELLED, BOOKED]));
     renderWithClient(<AppointmentList />);
     await screen.findByRole('list');
@@ -232,7 +210,6 @@ describe('AppointmentList', () => {
     await waitFor(() => expect(listMock).toHaveBeenCalledWith({ tab: 'all', page: 1, pageSize: 10 }));
     const cards = await screen.findAllByRole('article');
     expect(cards.map((card) => within(card).queryByTestId('stamp-cancelled') !== null)).toEqual([true, false]);
-    expect(screen.queryByText(/Среди предстоящих записей показаны и отменённые/)).not.toBeInTheDocument();
   });
 
   it('should show one heading and a banner with a retry, not a second not-found screen, when the read answers 404', async () => {

@@ -1333,8 +1333,7 @@
     "newBooking": "New appointment",
     "nextTitle": "Next appointment",
     "cancelShort": "Cancel",
-    "minutes": "{minutes} min",
-    "upcomingCancelledHint": "Cancelled appointments are listed among the upcoming ones too. On each page, active appointments come first."
+    "minutes": "{minutes} min"
   },
   "patientPrescriptions": {
     "subtitle": "Medications and referrals your doctor recorded at your visits",

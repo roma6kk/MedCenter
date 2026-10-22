@@ -17,9 +17,10 @@ export interface AppointmentListParams {
   readonly pageSize: number;
 }
 
-/** Soonest first for what is ahead, newest first for the history. */
+/** What is ahead holds only booked visits, soonest first (6.2 `status`); the history keeps every status, newest first. */
 export function listQueryOf({ tab, page, pageSize }: AppointmentListParams): Readonly<Record<string, string | number | undefined>> {
-  return { page, pageSize, upcoming: tab === 'upcoming' ? 'true' : undefined, sortOrder: tab === 'upcoming' ? 'asc' : 'desc' };
+  const upcoming: boolean = tab === 'upcoming';
+  return { page, pageSize, upcoming: upcoming ? 'true' : undefined, status: upcoming ? 'booked' : undefined, sortOrder: upcoming ? 'asc' : 'desc' };
 }
 
 export function fetchAppointments(params: AppointmentListParams): Promise<PaginatedResponse<AppointmentView>> {

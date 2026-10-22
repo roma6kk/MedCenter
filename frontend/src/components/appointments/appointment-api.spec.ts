@@ -12,10 +12,10 @@ describe('appointment-api', () => {
     apiFetchMock.mockResolvedValue({});
   });
 
-  it('should list upcoming appointments soonest first from /appointments, not /me/appointments', async () => {
+  it('should list only booked upcoming appointments soonest first from /appointments, not /me/appointments', async () => {
     await fetchAppointments({ tab: 'upcoming', page: 2, pageSize: 10 });
 
-    expect(apiFetchMock).toHaveBeenCalledWith('/api/v1/appointments?page=2&pageSize=10&upcoming=true&sortOrder=asc');
+    expect(apiFetchMock).toHaveBeenCalledWith('/api/v1/appointments?page=2&pageSize=10&upcoming=true&status=booked&sortOrder=asc');
   });
 
   it('should list the whole history newest first without an upcoming flag when the all tab is open', async () => {

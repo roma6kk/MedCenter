@@ -1333,8 +1333,7 @@
     "newBooking": "Новая запись",
     "nextTitle": "Ближайший приём",
     "cancelShort": "Отменить",
-    "minutes": "{minutes} мин",
-    "upcomingCancelledHint": "Среди предстоящих записей показаны и отменённые. На каждой странице действующие записи идут первыми."
+    "minutes": "{minutes} мин"
   },
   "patientPrescriptions": {
     "subtitle": "Препараты и направления, которые врач указал на приёмах",

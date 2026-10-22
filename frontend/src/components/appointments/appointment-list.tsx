@@ -19,7 +19,7 @@ import type { PaginatedResponse } from '@/lib/api/pagination';
 import { useT } from '@/lib/i18n/use-t';
 import { AppointmentCard } from './appointment-card';
 import { dayHeading, groupByDay } from './appointment-day';
-import { activeFirst, type AppointmentTab, type AppointmentView } from './appointment-types';
+import type { AppointmentTab, AppointmentView } from './appointment-types';
 import { NextAppointment } from './next-appointment';
 import { CancelAppointmentDialog } from './cancel-appointment-dialog';
 import { useAppointments } from './use-appointments';
@@ -44,16 +44,12 @@ function AppointmentItems({ tab, page, onCancel, onPage }: ItemsProps): ReactNod
   const t = useT('appointments');
   const { locale } = useClinicFormat();
   const isUpcoming: boolean = tab === 'upcoming';
-  const ordered: ReadonlyArray<AppointmentView> = isUpcoming ? activeFirst(page.items) : page.items;
-  const next: AppointmentView | undefined = isUpcoming && page.meta.page === 1 ? ordered.find((appointment) => appointment.status === 'booked') : undefined;
-  const items: ReadonlyArray<AppointmentView> = next === undefined ? ordered : ordered.filter((appointment) => appointment !== next);
+  const next: AppointmentView | undefined = isUpcoming && page.meta.page === 1 ? page.items.find((appointment) => appointment.status === 'booked') : undefined;
+  const items: ReadonlyArray<AppointmentView> = next === undefined ? page.items : page.items.filter((appointment) => appointment !== next);
   const groups = groupByDay(items);
   return (
     <div className="flex flex-col gap-6">
       {next === undefined ? null : <NextAppointment appointment={next} onCancel={onCancel} />}
-      {isUpcoming && items.some((appointment) => appointment.status === 'cancelled') ? (
-        <p className="text-sm text-muted-foreground">{t('upcomingCancelledHint')}</p>
-      ) : null}
       {groups.length === 0 ? null : (
         <div role="list" aria-label={t('listLabel')} className="flex flex-col gap-6">
           {groups.map((group) => (
