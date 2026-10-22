@@ -4,6 +4,7 @@ import type { FhirResource } from '../shared/fhir-http';
 import {
   CLINIC,
   DOCTORS,
+  doctorPhotoUrl,
   ROOMS,
   SCHEDULES,
   SERVICES,
@@ -118,6 +119,7 @@ export function buildPractitioners(): FhirResource[] {
       },
     ],
     gender: doctor.gender,
+    photo: [{ contentType: 'image/jpeg', url: doctorPhotoUrl(doctor), title: fullNameOf(doctor) }],
     qualification: [{ code: specialtyConcept(specialtyOf(doctor.specialtyKey)) }],
   }));
 }

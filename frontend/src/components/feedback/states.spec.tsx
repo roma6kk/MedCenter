@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { render, screen } from '@testing-library/react';
 import { useUiStore } from '@/store/use-ui-store';
 import { EmptyState, ForbiddenState, NotFoundState, TableSkeleton } from './states';
@@ -8,7 +9,7 @@ describe('system states', () => {
   });
 
   it('should render the forbidden state with its explanation and action', () => {
-    render(<ForbiddenState title="Раздел недоступен" action={<a href="/">На главную</a>} />);
+    render(<ForbiddenState title="Раздел недоступен" action={<Link href="/">На главную</Link>} />);
 
     expect(screen.getByRole('heading', { level: 1, name: 'Недостаточно прав' })).toBeInTheDocument();
     expect(screen.getByText('Раздел недоступен')).toBeInTheDocument();

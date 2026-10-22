@@ -4,6 +4,7 @@ import { FhirHttp } from '../shared/fhir-http';
 import { resolveFhirBaseUrl, runMain } from '../shared/seed-env';
 import { parseCliArgs, readUsersConfig, type CliOptions } from './demo-cli-options';
 import { buildFhirManifest, readManifest, writeManifest, type DemoUsersSection } from './demo-manifest';
+import { attachPatientPhotos } from './demo-patient-photos';
 import { repairDemoData } from './demo-repair';
 import { clinicDateOf } from './demo-slots';
 import { seedDemoFhir, type DemoFhirSummary } from './seed-demo-fhir';
@@ -20,7 +21,7 @@ import { seedDemoUsers } from './seed-demo-users';
  *
  * Environment (names only; see `demo-cli-options.ts`): `SEED_FHIR_BASE_URL`
  * (the services' `FHIR_BASE_URL` is deliberately not read), and for `--users`
- * `SEED_AUTH_BASE_URL`, `BOOTSTRAP_ADMIN_EMAIL`, `BOOTSTRAP_ADMIN_PASSWORD`,
+ * `SEED_AUTH_BASE_URL` (and `SEED_FHIR_BASE_URL`: patient portraits are written into the Patient resources), `BOOTSTRAP_ADMIN_EMAIL`, `BOOTSTRAP_ADMIN_PASSWORD`,
  * `OAUTH_CLIENT_ID`, `OAUTH_REDIRECT_URI`, `DEMO_EMAIL_DOMAIN`,
  * `DEMO_DOCTOR_PASSWORD`, `DEMO_PATIENT_PASSWORD`.
  * Both steps refuse a non-local `SEED_FHIR_BASE_URL` / `SEED_AUTH_BASE_URL` unless
@@ -65,6 +66,8 @@ async function runUsersStep(now: Date, withAdmin: boolean): Promise<void> {
   if (failed.length > 0) {
     throw new Error(`${failed.length} account(s) failed: ${failed.map((account) => account.email).join(', ')}`);
   }
+  const photos = await attachPatientPhotos(new FhirHttp(resolveFhirBaseUrl()));
+  console.log(`Patient photos: updated=${photos.updated.length} unchanged=${photos.unchanged.length} missing=${photos.missing.length}${photos.missing.length > 0 ? ` (${photos.missing.join(', ')})` : ''}`);
 }
 
 async function runRepairStep(): Promise<void> {

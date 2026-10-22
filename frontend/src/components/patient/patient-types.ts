@@ -98,5 +98,6 @@ export interface PatientProfile {
   /** FHIR `date`: `YYYY`, `YYYY-MM` or `YYYY-MM-DD`. */
   readonly birthDate?: string;
   readonly gender?: 'male' | 'female' | 'other' | 'unknown';
+  readonly photoUrl?: string;
   readonly telecom: ReadonlyArray<ContactPoint>;
 }

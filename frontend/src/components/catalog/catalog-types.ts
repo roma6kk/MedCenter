@@ -15,6 +15,8 @@ export interface Doctor {
   /** SNOMED code of the specialty: what `GET /doctors?specialty=` takes (API §4.1). */
   readonly specialtyCode?: string;
   readonly specialtySystem?: string;
+  /** Same-origin or absolute URL of the portrait; the card falls back to initials without it. */
+  readonly photoUrl?: string;
   /** Ids of the doctor's active `PractitionerRole`s, ascending (the one a DOCTOR account links to). */
   readonly practitionerRoleIds?: ReadonlyArray<string>;
 }

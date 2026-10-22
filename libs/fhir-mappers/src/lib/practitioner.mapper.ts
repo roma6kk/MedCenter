@@ -10,6 +10,8 @@ export interface DoctorResponseDto {
   readonly specialtyCode?: string;
   readonly specialtySystem?: string;
   readonly roomId?: string;
+  /** `Practitioner.photo[0].url`; absent when the practitioner has no photo by reference. */
+  readonly photoUrl?: string;
 }
 
 function readHumanName(resource: FhirResource): { firstName: string; lastName: string } {
@@ -31,6 +33,7 @@ export function toDoctorResponseDto(practitioner: FhirResource): DoctorResponseD
   const specialty = practitioner['qualification'];
   const qualification = Array.isArray(specialty) && specialty.length > 0 ? specialty[0] : undefined;
   const coding = readQualificationCoding(qualification);
+  const photoUrl = readPhotoUrl(practitioner);
   return {
     id: practitioner.id ?? '',
     firstName,
@@ -38,7 +41,23 @@ export function toDoctorResponseDto(practitioner: FhirResource): DoctorResponseD
     specialty: qualification === undefined ? undefined : readQualificationCode(qualification),
     specialtyCode: coding?.code,
     specialtySystem: coding?.system,
+    ...(photoUrl === undefined ? {} : { photoUrl }),
   };
+}
+
+/** First `photo` attachment that points at a URL (inline `data` is not served to clients). */
+function readPhotoUrl(practitioner: FhirResource): string | undefined {
+  const photos = practitioner['photo'];
+  if (!Array.isArray(photos)) {
+    return undefined;
+  }
+  for (const photo of photos as ReadonlyArray<Record<string, unknown>>) {
+    const url = photo?.['url'];
+    if (typeof url === 'string' && url !== '') {
+      return url;
+    }
+  }
+  return undefined;
 }
 
 /** The first coding of the qualification that carries a `code`; the same concept `PractitionerRole.specialty` is searched by. */

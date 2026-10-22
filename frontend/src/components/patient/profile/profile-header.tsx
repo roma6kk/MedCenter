@@ -3,6 +3,7 @@
 import type { ReactNode } from 'react';
 import { Mail, Phone } from 'lucide-react';
 import { WRAP_TEXT } from '../wrap-text';
+import { Avatar } from '@/components/ui/avatar';
 import { Card } from '@/components/ui/card';
 import { ageInYears } from '@/lib/clinic-time';
 import { useClinicFormat } from '@/hooks/use-clinic-format';
@@ -79,7 +80,7 @@ export function ProfileHeader({ account, patient, completeness }: ProfileHeaderP
   ];
   return (
     <Card as="section" radius="panel" padding="none" aria-labelledby="profile-name" className="flex flex-wrap items-center gap-7 p-7">
-      <span aria-hidden="true" className="inline-flex h-24 w-24 flex-none items-center justify-center rounded-full bg-primary-soft text-[34px] font-bold text-primary-soft-foreground">{initialsOf(name)}</span>
+      <Avatar src={patient?.photoUrl} initials={initialsOf(name)} className="h-24 w-24 text-[34px]" />
       <div className="flex min-w-0 flex-[999_1_360px] flex-col gap-2.5">
         <h1 id="profile-name" className={cn('text-[28px] font-bold tracking-tight sm:text-[32px]', WRAP_TEXT)}>{name}</h1>
         {facts.length > 0 ? <p className="text-base text-muted-foreground">{facts.join(' · ')}</p> : null}

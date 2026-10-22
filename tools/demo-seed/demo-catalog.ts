@@ -73,6 +73,21 @@ export interface AdminDef {
   readonly lastName: string;
 }
 
+/**
+ * Demo portraits are static files of the web app (`frontend/public/demo-photos`), so the
+ * FHIR `photo.url` is a same-origin path the browser can load under the CSP (`img-src 'self'`).
+ */
+const PHOTO_ROOT = '/demo-photos';
+
+export function doctorPhotoUrl(doctor: Pick<DoctorDef, 'key'>): string {
+  return `${PHOTO_ROOT}/doctors/${doctor.key}.jpg`;
+}
+
+/** `patient.kuznetsov` → `/demo-photos/patients/kuznetsov.jpg`. */
+export function patientPhotoUrl(patient: Pick<PatientDef, 'emailLocal'>): string {
+  return `${PHOTO_ROOT}/patients/${patient.emailLocal.replace(/^patient\./, '')}.jpg`;
+}
+
 export const CLINIC = {
   key: 'medcenter',
   name: 'Медицинский центр',

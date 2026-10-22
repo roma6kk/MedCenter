@@ -77,6 +77,13 @@ export function readPersonName(value: unknown): PersonNameDto {
   };
 }
 
+/** URL of the first `Attachment` that has one (`Patient.photo`, `RelatedPerson.photo`). */
+export function readPhotoUrl(value: unknown): string | undefined {
+  return objectsOf(value)
+    .map((photo) => stringOf(photo['url']))
+    .find((url): url is string => url !== undefined);
+}
+
 /** `Patient.gender` / `RelatedPerson.gender` — values outside the required ValueSet are dropped. */
 export function readGender(value: unknown): AdministrativeGender | undefined {
   return typeof value === 'string' && ADMINISTRATIVE_GENDERS.includes(value) ? (value as AdministrativeGender) : undefined;

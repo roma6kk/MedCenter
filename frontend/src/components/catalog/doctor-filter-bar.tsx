@@ -1,6 +1,7 @@
 'use client';
 
 import type { ReactNode } from 'react';
+import Link from 'next/link';
 import { useId } from 'react';
 import { useT } from '@/lib/i18n/use-t';
 import type { CatalogService } from './catalog-types';
@@ -49,7 +50,7 @@ export function DoctorFilterBar({ params, services, specialties }: DoctorFilterB
       </Field>
       <div className="flex gap-2">
         <button type="submit" className="min-h-[44px] rounded-[6px] bg-[var(--primary)] px-5 py-2 text-[var(--primary-foreground)]">{t('apply')}</button>
-        <a href="/doctors" className={SECONDARY_BUTTON_CLASS}>{t('reset')}</a>
+        <Link href="/doctors" className={SECONDARY_BUTTON_CLASS}>{t('reset')}</Link>
       </div>
     </form>
   );

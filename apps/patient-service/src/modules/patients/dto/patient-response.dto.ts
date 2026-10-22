@@ -17,6 +17,8 @@ export interface PatientResponseDto extends PersonNameDto {
   /** `Patient.birthDate`, FHIR `date` (`YYYY`, `YYYY-MM` or `YYYY-MM-DD`). */
   readonly birthDate?: string;
   readonly gender?: AdministrativeGender;
+  /** `Patient.photo[0].url` (an `Attachment` carrying inline `data` only is not exposed). */
+  readonly photoUrl?: string;
   readonly telecom: ReadonlyArray<ContactPointDto>;
   readonly identifiers: ReadonlyArray<IdentifierDto>;
 }

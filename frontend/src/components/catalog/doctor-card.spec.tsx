@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { render, screen } from '@testing-library/react';
 import { DoctorCard } from './doctor-card';
 import { doctorInitials } from './doctor-initials';
@@ -36,7 +37,7 @@ describe('DoctorCard', () => {
   });
 
   it('should render the actions when children are given', () => {
-    render(<DoctorCard doctor={DOCTOR}><a href="/doctors/d-1">Профиль</a></DoctorCard>);
+    render(<DoctorCard doctor={DOCTOR}><Link href="/doctors/d-1">Профиль</Link></DoctorCard>);
 
     expect(screen.getByRole('link', { name: 'Профиль' })).toHaveAttribute('href', '/doctors/d-1');
   });

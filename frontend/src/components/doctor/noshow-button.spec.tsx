@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { apiFetch } from '@/lib/api/api-fetch';
@@ -21,7 +22,7 @@ function renderInRow(): void {
     <table>
       <tbody>
         <tr>
-          <td><a href="/patients/p1" data-row-anchor>Кузнецов А.</a></td>
+          <td><Link href="/patients/p1" data-row-anchor>Кузнецов А.</Link></td>
           <td><NoshowButton appointmentId="a1" /></td>
         </tr>
       </tbody>
