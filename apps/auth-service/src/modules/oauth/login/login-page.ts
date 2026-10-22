@@ -70,9 +70,9 @@ function layout(title: string, body: string): string {
     '<head><meta charset="utf-8">',
     '<meta name="viewport" content="width=device-width, initial-scale=1">',
     '<meta name="robots" content="noindex, nofollow">',
-    `<title>${escapeHtml(title)} — Медицинский центр</title>`,
+    `<title>${escapeHtml(title)} — Лайфлайн</title>`,
     `<style>${LOGIN_PAGE_CSS}</style></head>`,
-    `<body><main aria-labelledby="page-title"><p class="brand">Медицинский центр</p>${body}</main></body>`,
+    `<body><main aria-labelledby="page-title"><p class="brand">Лайфлайн</p>${body}</main></body>`,
     '</html>',
   ].join('\n');
 }

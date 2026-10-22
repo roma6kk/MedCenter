@@ -11,6 +11,7 @@ function registrationDto(overrides: Partial<RegisterPatientDto> = {}): RegisterP
     lastName: 'Иванов',
     password: 'Str0ng!Pass',
     birthDate: '1990-05-12',
+    accountConsent: { accepted: true, textVersion: '2026-10' },
     ...overrides,
   };
 }
@@ -24,6 +25,26 @@ describe('RegistrationService', () => {
     expect(fhir.create).toHaveBeenCalledWith('Patient', expect.objectContaining({ resourceType: 'Patient' }));
     expect(user.patientRef).toMatch(/^Patient\//);
     expect(user).toMatchObject({ email: 'ivanov@example.by', roles: ['PATIENT'], isActive: true });
+  });
+
+  it('should record when and under which text version the account consent was given', async () => {
+    const { registration, store } = createUsersHarness();
+    const before = Date.now();
+
+    const user = await registration.registerPatient(registrationDto());
+
+    const stored = await store.findById(user.id);
+    expect(stored?.accountConsentVersion).toBe('2026-10');
+    expect(stored?.accountConsentAt?.getTime()).toBeGreaterThanOrEqual(before);
+  });
+
+  it('should not create a FHIR Consent when the account consent is recorded', async () => {
+    const { registration, fhir } = createUsersHarness();
+
+    await registration.registerPatient(registrationDto());
+
+    expect(fhir.create).not.toHaveBeenCalledWith('Consent', expect.anything());
+    expect(fhir.batch).not.toHaveBeenCalled();
   });
 
   it('should store a scrypt hash and never the plaintext when a patient registers', async () => {

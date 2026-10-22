@@ -1,6 +1,6 @@
 # auth-service
 
-SMART on FHIR authorization server for the МедЦентр platform: OAuth2 + PKCE (S256), RS256 JWT with JWKS, the
+SMART on FHIR authorization server for the Лайфлайн platform: OAuth2 + PKCE (S256), RS256 JWT with JWKS, the
 credential login of the browser flow, user management and the terminology reads. State lives in the `auth` PostgreSQL
 schema (users, RBAC, the FHIR bridge and the OAuth store) managed with TypeORM migrations; clinical resources
 (`Patient`, `AuditEvent`) live in HAPI FHIR.

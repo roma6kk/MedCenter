@@ -15,6 +15,9 @@ export const NAME_MAX_LENGTH = 100;
 /** Upper bound for a password; scrypt cost does not depend on it, the request size does. */
 export const PASSWORD_MAX_LENGTH = 128;
 
+/** `auth.user.account_consent_version` is `varchar(64)`. */
+export const ACCOUNT_CONSENT_VERSION_MAX_LENGTH = 64;
+
 export const GENDERS = ['male', 'female'] as const;
 
 /**

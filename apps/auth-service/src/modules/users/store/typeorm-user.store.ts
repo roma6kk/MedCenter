@@ -53,6 +53,8 @@ function toRecord(user: User, roles: ReadonlyArray<RoleName>, links: UserLinks):
     roles,
     links,
     createdAt: user.createdAt,
+    ...(user.accountConsentAt !== null && user.accountConsentAt !== undefined ? { accountConsentAt: user.accountConsentAt } : {}),
+    ...(user.accountConsentVersion !== null && user.accountConsentVersion !== undefined ? { accountConsentVersion: user.accountConsentVersion } : {}),
   };
 }
 
@@ -91,6 +93,8 @@ export class TypeOrmUserStore implements UserStore {
             firstName: input.firstName,
             lastName: input.lastName,
             isActive: true,
+            accountConsentAt: input.accountConsent?.at ?? null,
+            accountConsentVersion: input.accountConsent?.version ?? null,
           }),
         );
         await this.assignRoles(manager, user.id, input.roles);

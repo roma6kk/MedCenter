@@ -76,6 +76,7 @@ describe('UserIdentityResolver', () => {
       lastName: 'Иванов',
       password: 'Str0ng!Pass',
       birthDate: '1990-05-12',
+      accountConsent: { accepted: true, textVersion: '2026-10' },
     });
 
     const identity = await new UserIdentityResolver(harness.store).resolve(user.id);

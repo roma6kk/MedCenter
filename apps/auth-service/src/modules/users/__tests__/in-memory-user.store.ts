@@ -54,7 +54,15 @@ export class InMemoryUserStore implements UserStore {
 
   async create(input: NewUser): Promise<UserRecord> {
     this.assertEmailFree(input.email, undefined);
-    const user: UserRecord = { ...input, id: randomUUID(), isActive: true, links: {}, createdAt: new Date() };
+    const { accountConsent, ...rest } = input;
+    const user: UserRecord = {
+      ...rest,
+      id: randomUUID(),
+      isActive: true,
+      links: {},
+      createdAt: new Date(),
+      ...(accountConsent === undefined ? {} : { accountConsentAt: accountConsent.at, accountConsentVersion: accountConsent.version }),
+    };
     this.users.set(user.id, user);
     return user;
   }

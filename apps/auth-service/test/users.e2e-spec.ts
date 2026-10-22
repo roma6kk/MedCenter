@@ -19,8 +19,8 @@ jest.mock('jose', () => ({
 
 const DOCTOR_PASSWORD = 'D0ctor!Passw0rd';
 
-function registration(email: string): Record<string, string> {
-  return { email, firstName: 'Иван', lastName: 'Иванов', password: PATIENT_PASSWORD, birthDate: '1990-05-12' };
+function registration(email: string): Record<string, unknown> {
+  return { email, firstName: 'Иван', lastName: 'Иванов', password: PATIENT_PASSWORD, birthDate: '1990-05-12', accountConsent: { accepted: true, textVersion: '2026-10' } };
 }
 
 /** API §2.2.6/2.2.7 — registration, `/me` and the admin perimeter, over real HTTP and the real guard stack. */

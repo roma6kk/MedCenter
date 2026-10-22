@@ -68,6 +68,7 @@ function postRegistration(app: INestApplication, index: number, extra: Record<st
       lastName: 'Ботов',
       password: PATIENT_PASSWORD,
       birthDate: '1990-05-12',
+      accountConsent: { accepted: true, textVersion: '2026-10' },
       ...extra,
     });
 }
@@ -83,7 +84,7 @@ describe('Credential routes rate limit (POST /oauth/login, POST /api/v1/auth/reg
     app = started.app;
     await request(app.getHttpServer())
       .post('/api/v1/auth/register')
-      .send({ ...OWNER, firstName: 'Иван', lastName: 'Иванов', birthDate: '1990-05-12' })
+      .send({ ...OWNER, firstName: 'Иван', lastName: 'Иванов', birthDate: '1990-05-12', accountConsent: { accepted: true, textVersion: '2026-10' } })
       .expect(201);
     form = await openLoginForm(app);
   });
@@ -168,7 +169,7 @@ describe('Credential routes rate limit (POST /oauth/login, POST /api/v1/auth/reg
       await request(app.getHttpServer())
         .post('/api/v1/auth/register')
         .set('X-Forwarded-For', '203.0.113.99')
-        .send({ email, firstName: 'Пётр', lastName: 'Петров', password: PATIENT_PASSWORD, birthDate: '1985-01-02' })
+        .send({ email, firstName: 'Пётр', lastName: 'Петров', password: PATIENT_PASSWORD, birthDate: '1985-01-02', accountConsent: { accepted: true, textVersion: '2026-10' } })
         .expect(201);
       for (let attempt = 0; attempt <= ACCOUNT_ATTEMPT_LIMIT; attempt += 1) {
         await postLogin(app, form, { email, forwardedFor: `198.51.101.${attempt + 1}` });

@@ -45,7 +45,7 @@ describe('Terminology API (API 2.3.1–2.3.3)', () => {
     doctor = await signIn(app, DOCTOR);
     await api()
       .post('/api/v1/auth/register')
-      .send({ email: 'p@example.by', firstName: 'Иван', lastName: 'Иванов', password: PATIENT_PASSWORD, birthDate: '1990-05-12' })
+      .send({ email: 'p@example.by', firstName: 'Иван', lastName: 'Иванов', password: PATIENT_PASSWORD, birthDate: '1990-05-12', accountConsent: { accepted: true, textVersion: '2026-10' } })
       .expect(201);
     patient = await signIn(app, { email: 'p@example.by', password: PATIENT_PASSWORD });
   });

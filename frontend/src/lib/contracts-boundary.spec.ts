@@ -15,6 +15,7 @@ const VALID_REGISTER = {
   lastName: 'Иванов',
   password: 'Str0ng!Pass',
   birthDate: '1990-05-12',
+  accountConsent: { accepted: true, textVersion: '2026-10' },
 } as const;
 
 const VALID_ENCOUNTER = {

@@ -19,6 +19,9 @@ export interface UserRecord {
   readonly roles: ReadonlyArray<Role>;
   readonly links: UserLinks;
   readonly createdAt: Date;
+  /** Set for self-registered accounts; absent for admin-created and bootstrap ones (API 2.2.1). */
+  readonly accountConsentAt?: Date;
+  readonly accountConsentVersion?: string;
 }
 
 export interface NewUser {
@@ -27,6 +30,7 @@ export interface NewUser {
   readonly firstName: string;
   readonly lastName: string;
   readonly roles: ReadonlyArray<Role>;
+  readonly accountConsent?: { readonly at: Date; readonly version: string };
 }
 
 /**

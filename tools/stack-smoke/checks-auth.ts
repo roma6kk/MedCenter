@@ -62,7 +62,7 @@ async function meChecks(suite: Suite): Promise<void> {
 /** Public registration, the duplicate and the invalid-body answers (API §2.2.6, §1). Records the new user's id. */
 async function registrationChecks(suite: Suite, email: string, users: TestUsers): Promise<void> {
   const { runner, api } = suite;
-  const body = { email, password: newPassword(), firstName: 'Смоук', lastName: 'Тестов', birthDate: '1991-02-03', gender: 'female' };
+  const body = { email, password: newPassword(), firstName: 'Смоук', lastName: 'Тестов', birthDate: '1991-02-03', gender: 'female', accountConsent: { accepted: true, textVersion: '2026-10' } };
   await runner.check(GROUP, 'POST /auth/register (public) -> 201 PATIENT with a FHIR Patient', async () => {
     const response = await api.post('/api/v1/auth/register', { body });
     expectStatus(response, 201);

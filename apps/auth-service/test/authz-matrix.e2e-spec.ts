@@ -72,7 +72,7 @@ describe('Authorization matrix of the protected endpoints', () => {
       .expect(201);
     await request(app.getHttpServer())
       .post('/api/v1/auth/register')
-      .send({ ...PATIENT, firstName: 'Иван', lastName: 'Иванов', birthDate: '1990-05-12' })
+      .send({ ...PATIENT, firstName: 'Иван', lastName: 'Иванов', birthDate: '1990-05-12', accountConsent: { accepted: true, textVersion: '2026-10' } })
       .expect(201);
     authorization = {
       administrator: fixture.adminAuthorization,

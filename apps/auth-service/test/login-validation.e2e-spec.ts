@@ -38,6 +38,7 @@ describe('POST /oauth/login — form validation', () => {
         lastName: 'Иванов',
         password: PATIENT_PASSWORD,
         birthDate: '1990-05-12',
+        accountConsent: { accepted: true, textVersion: '2026-10' },
       })
       .expect(201);
   });

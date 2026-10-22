@@ -38,6 +38,7 @@ const REGISTRATION = {
   lastName: 'Иванов',
   password: PATIENT_PASSWORD,
   birthDate: '1990-05-12',
+  accountConsent: { accepted: true, textVersion: '2026-10' },
 } as const;
 
 class MemoryRateLimitStore implements RateLimitStore {

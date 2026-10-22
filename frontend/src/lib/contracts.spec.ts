@@ -8,9 +8,18 @@ describe('contracts', () => {
       lastName: 'Иванов',
       password: 'Str0ng!Pass',
       birthDate: '1990-05-12',
+      accountConsent: { accepted: true, textVersion: '2026-10' },
     });
 
     expect(result.success).toBe(true);
+  });
+
+  it('should reject a registration whose account consent is missing or not accepted', () => {
+    const body = { email: 'ivanov@example.by', firstName: 'Иван', lastName: 'Иванов', password: 'Str0ng!Pass', birthDate: '1990-05-12' };
+
+    expect(registerPatientSchema.safeParse(body).success).toBe(false);
+    expect(registerPatientSchema.safeParse({ ...body, accountConsent: { accepted: false, textVersion: '2026-10' } }).success).toBe(false);
+    expect(registerPatientSchema.safeParse({ ...body, accountConsent: { accepted: true, textVersion: '' } }).success).toBe(false);
   });
 
   it('should reject a weak password', () => {
@@ -20,6 +29,7 @@ describe('contracts', () => {
       lastName: 'Иванов',
       password: 'weak',
       birthDate: '1990-05-12',
+      accountConsent: { accepted: true, textVersion: '2026-10' },
     });
 
     expect(result.success).toBe(false);
@@ -74,7 +84,7 @@ describe('contracts', () => {
 });
 
 describe('registerPatientSchema password policy parity with class-validator IsStrongPassword', () => {
-  const base = { email: 'ivanov@example.by', firstName: 'Иван', lastName: 'Иванов', birthDate: '1990-05-12' };
+  const base = { email: 'ivanov@example.by', firstName: 'Иван', lastName: 'Иванов', birthDate: '1990-05-12', accountConsent: { accepted: true, textVersion: '2026-10' } };
 
   it.each([['Str0ng!Pass'], ['Str0ng Pass1'], ['Str0ng_Pass1'], ['Passw0rd#xx'], ['Passw0rd£xx'], ['Passw0rd\\xxx']])(
     'should accept the ASCII symbol password %s',

@@ -5,6 +5,9 @@ export const NAME_MAX = 100;
 export const REASON_MIN = 3;
 export const REASON_MAX = 500;
 
+/** `auth.user.account_consent_version` is `varchar(64)`; the server refuses a longer text version. */
+export const ACCOUNT_CONSENT_VERSION_MAX = 64;
+
 export const PASSWORD_MIN = 10;
 export const PASSWORD_MAX = 128;
 
@@ -31,6 +34,8 @@ export const registerPatientSchema = z.object({
   password: z.string().min(PASSWORD_MIN).max(PASSWORD_MAX).regex(PASSWORD_PATTERN),
   birthDate: z.string().refine(isCalendarDate),
   gender: z.enum(['male', 'female']).optional(),
+  /** Consent to the processing of the account data (art. 5, Law 99-Z); not the consent to the electronic record. */
+  accountConsent: z.object({ accepted: z.literal(true), textVersion: z.string().min(1).max(ACCOUNT_CONSENT_VERSION_MAX) }),
 });
 
 export type RegisterPatientForm = z.infer<typeof registerPatientSchema>;

@@ -43,7 +43,7 @@ describe('GET /api/v1/me and the patient compartment', () => {
   ): Promise<Account> {
     const created = await api()
       .post('/api/v1/auth/register')
-      .send({ ...who, firstName, lastName: 'Тестов', birthDate: '1990-05-12' })
+      .send({ ...who, firstName, lastName: 'Тестов', birthDate: '1990-05-12', accountConsent: { accepted: true, textVersion: '2026-10' } })
       .expect(201);
     return {
       id: created.body.id,

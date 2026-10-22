@@ -197,6 +197,7 @@ describe('RegisterPatientDto (POST /api/v1/auth/register)', () => {
     lastName: 'Иванов',
     password: 'Str0ng!Pass',
     birthDate: '1990-05-12',
+    accountConsent: { accepted: true, textVersion: '2026-10' },
   };
   const INVALID: ReadonlyArray<InvalidCase> = [
     ...IDENTITY_CASES,
@@ -205,6 +206,13 @@ describe('RegisterPatientDto (POST /api/v1/auth/register)', () => {
     ['the birth date carries a time', { birthDate: '1990-05-12T00:00:00Z' }, 'birthDate'],
     ['the gender is JSON null', { gender: null }, 'gender'],
     ['the gender is outside the supported set', { gender: 'other' }, 'gender'],
+    ['the account consent is missing', { accountConsent: undefined }, 'accountConsent'],
+    ['the account consent is JSON null', { accountConsent: null }, 'accountConsent'],
+    ['the account consent was not accepted', { accountConsent: { accepted: false, textVersion: '2026-10' } }, 'accepted'],
+    ['the account consent flag is the string "true"', { accountConsent: { accepted: 'true', textVersion: '2026-10' } }, 'accepted'],
+    ['the account consent has no text version', { accountConsent: { accepted: true } }, 'textVersion'],
+    ['the account consent text version is empty', { accountConsent: { accepted: true, textVersion: '' } }, 'textVersion'],
+    ['the account consent text version is longer than 64 characters', { accountConsent: { accepted: true, textVersion: 'v'.repeat(65) } }, 'textVersion'],
   ];
 
   it('should accept the body the registration form sends when gender is omitted', async () => {

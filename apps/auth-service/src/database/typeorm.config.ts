@@ -8,13 +8,14 @@ import { User } from '../modules/users/entities/user.entity';
 import { UserRole } from '../modules/users/entities/user-role.entity';
 import { Init1700000000000 } from './migrations/1700000000000-Init';
 import { RolesAndLinks1700000000001 } from './migrations/1700000000001-RolesAndLinks';
+import { AccountConsent1700000000002 } from './migrations/1700000000002-AccountConsent';
 
 export const AUTH_SCHEMA = 'auth';
 
 export const authEntities = [User, Role, UserRole, ExternalLink, OAuthClient, OAuthToken];
 
 /** Applied in order at startup (`database.providers.ts`); never `synchronize`. */
-export const authMigrations = [Init1700000000000, RolesAndLinks1700000000001];
+export const authMigrations = [Init1700000000000, RolesAndLinks1700000000001, AccountConsent1700000000002];
 
 export interface PostgresConnectionOptions {
   host: string;

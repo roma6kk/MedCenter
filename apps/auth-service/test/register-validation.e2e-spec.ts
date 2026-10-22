@@ -47,6 +47,8 @@ describe('POST /api/v1/auth/register — validation and response contract', () =
     ['the password is missing', { password: undefined }],
     ['the password has no symbol', { password: 'Passw0rdOnly' }],
     ['the password is over 128 characters', { password: `Aa1!${'x'.repeat(125)}` }],
+    ['the account consent is missing', { accountConsent: undefined }],
+    ['the account consent was not accepted', { accountConsent: { accepted: false, textVersion: '2026-10' } }],
     ['the birth date is missing', { birthDate: undefined }],
     ['the birth date carries a time', { birthDate: '1990-05-12T10:00:00Z' }],
     ['the birth date is not a calendar day', { birthDate: '1990-02-31' }],

@@ -11,6 +11,7 @@ export const REGISTRATION = {
   lastName: 'Орлова',
   password: PATIENT_PASSWORD,
   birthDate: '1991-03-04',
+  accountConsent: { accepted: true, textVersion: '2026-10' },
   gender: 'female',
 } as const;
 

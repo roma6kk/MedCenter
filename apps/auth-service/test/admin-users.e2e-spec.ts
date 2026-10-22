@@ -238,7 +238,7 @@ describe('Admin users API (API 2.2.1–2.2.5)', () => {
     it('should answer 502 and keep the account as it was when HAPI refuses the Patient sync', async () => {
       const registered = await api()
         .post('/api/v1/auth/register')
-        .send({ email: 'sync@medcenter.by', firstName: 'Иван', lastName: 'Иванов', password: PATIENT_PASSWORD, birthDate: '1990-05-12' })
+        .send({ email: 'sync@medcenter.by', firstName: 'Иван', lastName: 'Иванов', password: PATIENT_PASSWORD, birthDate: '1990-05-12', accountConsent: { accepted: true, textVersion: '2026-10' } })
         .expect(201);
       fixture.started.fakes.fhir.batch.mockRejectedValueOnce(new BadGatewayException({ errorCode: 'INTERNAL', message: 'FHIR server is unavailable' }));
 

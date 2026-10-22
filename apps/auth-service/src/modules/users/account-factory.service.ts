@@ -28,6 +28,8 @@ export interface NewAccount {
   readonly birthDate?: string;
   readonly gender?: PatientGender;
   readonly practitionerRoleId?: string;
+  /** Self-registration only: the consent text version the account holder accepted (API 2.2.6). */
+  readonly accountConsentVersion?: string;
 }
 
 /** Audit context: `actor` absent means the account acts on itself (self-registration). */
@@ -98,6 +100,9 @@ export class AccountFactory {
         firstName: input.firstName,
         lastName: input.lastName,
         roles: input.roles,
+        ...(input.accountConsentVersion !== undefined
+          ? { accountConsent: { at: new Date(), version: input.accountConsentVersion } }
+          : {}),
       });
     } catch (error: unknown) {
       throw error instanceof DuplicateEmailError ? emailTaken() : error;

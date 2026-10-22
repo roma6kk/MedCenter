@@ -283,8 +283,24 @@ export class RegisterPatientDto {
 
   @ApiPropertyOptional({ enum: ['male', 'female'] })
   gender?: 'male' | 'female';
+
+  @ApiProperty({ type: () => AccountConsentDto })
+  @IsDefined() @ValidateNested() @Type(() => AccountConsentDto)
+  accountConsent: AccountConsentDto;   // галочка формы регистрации: согласие на обработку данных учётной записи
+}
+
+export class AccountConsentDto {
+  @Equals(true) accepted: true;        // только true; false или отсутствие → 400 VALIDATION_ERROR
+  @IsString() @IsNotEmpty() @MaxLength(64)
+  textVersion: string;                 // версия показанного текста, напр. '2026-10'
 }
 ```
+
+**Согласие на обработку данных учётной записи** (ст. 5 Закона № 99-З; не согласие на ЭМК, ADR-019). Сервис пишет в `auth.user` два
+столбца: `account_consent_at` (момент приёма запроса, `timestamptz`) и `account_consent_version` (`varchar(64)`, `textVersion`); оба `NULL` у записей,
+созданных администратором (2.2.1) и до миграции `AccountConsent1700000000002`. `FHIR Consent` при регистрации **не создаётся**: согласие на
+электронную медкарту даётся отдельно (3.8) и без него 7.1/7.3 блокируются. В `UserResponseDto` эти поля не возвращаются; `accountConsent`
+отсутствует в 2.2.1 и 2.2.4.
 
 **Response 201** `UserResponseDto`: `{ id: UUID; email; firstName; lastName; roles: string[];
 patientRef: string | null; isActive: boolean }` · **409** email занят: `errorCode=CONFLICT`, код

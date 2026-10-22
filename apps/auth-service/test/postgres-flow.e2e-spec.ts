@@ -84,7 +84,7 @@ describePostgres('First-stack journey over PostgreSQL', () => {
   it('should register a patient, store a scrypt hash and sign them in with patient and fhirUser claims', async () => {
     const registered = await api()
       .post('/api/v1/auth/register')
-      .send({ email: 'Ivanov@Example.by', firstName: 'Иван', lastName: 'Иванов', password: PATIENT_PASSWORD, birthDate: '1990-05-12' })
+      .send({ email: 'Ivanov@Example.by', firstName: 'Иван', lastName: 'Иванов', password: PATIENT_PASSWORD, birthDate: '1990-05-12', accountConsent: { accepted: true, textVersion: '2026-10' } })
       .expect(201);
     const patientId = String(registered.body.patientRef).replace('Patient/', '');
 
@@ -104,7 +104,7 @@ describePostgres('First-stack journey over PostgreSQL', () => {
   it('should answer 409 EMAIL_TAKEN for the same email in another letter case', async () => {
     const response = await api()
       .post('/api/v1/auth/register')
-      .send({ email: 'IVANOV@example.by', firstName: 'Иван', lastName: 'Иванов', password: PATIENT_PASSWORD, birthDate: '1990-05-12' })
+      .send({ email: 'IVANOV@example.by', firstName: 'Иван', lastName: 'Иванов', password: PATIENT_PASSWORD, birthDate: '1990-05-12', accountConsent: { accepted: true, textVersion: '2026-10' } })
       .expect(409);
 
     expect(response.body.detail).toContain('EMAIL_TAKEN');
