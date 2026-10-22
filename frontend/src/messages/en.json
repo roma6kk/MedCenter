@@ -1020,6 +1020,42 @@
     "minutes": "{minutes} min",
     "upcomingCancelledHint": "Cancelled appointments are listed among the upcoming ones too. On each page, active appointments come first."
   },
+  "patientPrescriptions": {
+    "subtitle": "Medications and referrals your doctor recorded at your visits",
+    "print": "Print for the pharmacy",
+    "tabsLabel": "Prescription status",
+    "tabs": {
+      "active": "Active",
+      "closed": "Completed",
+      "all": "All"
+    },
+    "groupTitle": "Prescribed on {date}",
+    "groupNoDate": "Prescriptions without a date",
+    "groupOther": "Prescriptions not linked to a visit",
+    "medication": "Medication",
+    "service": "Service or referral",
+    "howTo": "How to take",
+    "authored": "Prescribed {date}",
+    "atc": "ATC",
+    "note": "Note",
+    "referralsTitle": "Referrals for examinations",
+    "referralsEmpty": "No referrals",
+    "referralsEmptyHint": "When your doctor refers you for an examination or to a specialist, the referral will appear here.",
+    "referralsEmptyActive": "No active referrals on this page",
+    "emptyActive": "No active prescriptions on this page",
+    "emptyActiveHint": "Completed prescriptions are on the \"Completed\" tab.",
+    "emptyClosed": "No completed prescriptions on this page",
+    "emptyClosedHint": "They will appear here once a course is closed.",
+    "summaryTitle": "Active now",
+    "summaryScope": "On this page of the list",
+    "medicationsCount": "{count, plural, one {medication} other {medications}}",
+    "servicesCount": "{count, plural, one {referral} other {referrals}}",
+    "helpTitle": "A question about a prescription?",
+    "helpText": "Do not change the dose or stop a course on your own. If something worries you, book a visit with your doctor.",
+    "helpLink": "Book a visit",
+    "printTitle": "For the pharmacy",
+    "printText": "The printout lists drug names, ATC codes, dosage and the date of the prescription."
+  },
   "patient": {
     "history": {
       "title": "Visit history",
