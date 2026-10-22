@@ -1100,5 +1100,17 @@
       "readOnly": "This data is read-only. Contact the front desk to change it.",
       "noPatient": "The patient card has not been created yet."
     }
+  },
+  "patientNotifications": {
+    "subtitleUnread": "Unread: {count}",
+    "subtitleAllRead": "All notifications are read",
+    "markPageRead": "Mark all on this page as read",
+    "markingPage": "Marking…",
+    "pageMarkedRead": "Notifications on this page marked as read",
+    "filterAppointment": "Bookings",
+    "filterEncounter": "Visits",
+    "emptyType": "No such notifications on this page",
+    "openAppointment": "Open appointment",
+    "openHistory": "Open in history"
   }
 }

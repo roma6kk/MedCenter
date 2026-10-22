@@ -8,9 +8,10 @@ import { NotificationCenter } from './notification-center';
 
 jest.mock('@/lib/notifications/notification-api', () => ({ fetchNotifications: jest.fn(), fetchUnreadCount: jest.fn(), markNotificationRead: jest.fn() }));
 
-import { fetchNotifications, markNotificationRead } from '@/lib/notifications/notification-api';
+import { fetchNotifications, fetchUnreadCount, markNotificationRead } from '@/lib/notifications/notification-api';
 
 const listMock = fetchNotifications as jest.MockedFunction<typeof fetchNotifications>;
+const countMock = fetchUnreadCount as jest.MockedFunction<typeof fetchUnreadCount>;
 const markMock = markNotificationRead as jest.MockedFunction<typeof markNotificationRead>;
 
 function notification(overrides: Partial<NotificationItem> = {}): NotificationItem {
@@ -28,7 +29,7 @@ describe('NotificationCenter', () => {
 
     renderWithClient(<NotificationCenter />);
 
-    const list = await screen.findByRole('list', { name: 'Список уведомлений' });
+    const list = await screen.findByRole('group', { name: 'Список уведомлений' });
     const [unreadRow, readRow] = within(list).getAllByRole('listitem');
     expect(within(unreadRow as HTMLElement).getByText('Запись')).toBeInTheDocument();
     expect(within(unreadRow as HTMLElement).getByText('Новое')).toBeInTheDocument();
@@ -94,7 +95,7 @@ describe('NotificationCenter', () => {
     expect(screen.queryByRole('button', { name: 'Отметить прочитанным' })).not.toBeInTheDocument();
     expect(invalidate).toHaveBeenCalledWith({ queryKey: ['notifications'] });
     expect(useToastStore.getState().toasts.map((toast) => toast.message)).toContain('Уведомление отмечено прочитанным');
-    expect(screen.getByRole('list', { name: 'Список уведомлений' })).toHaveFocus();
+    expect(screen.getByRole('group', { name: 'Список уведомлений' })).toHaveFocus();
   });
 
   it('should disable the button and say so while the request is running', async () => {
@@ -154,7 +155,7 @@ describe('NotificationCenter', () => {
     expect(await screen.findByTestId('problem-banner')).toHaveTextContent('req-12');
     await userEvent.click(screen.getByRole('button', { name: 'Повторить' }));
 
-    expect(await screen.findByRole('list', { name: 'Список уведомлений' })).toBeInTheDocument();
+    expect(await screen.findByRole('group', { name: 'Список уведомлений' })).toBeInTheDocument();
   });
 
   it('should not read anything for a viewer who is not a patient', async () => {
@@ -233,5 +234,76 @@ describe('NotificationCenter', () => {
 
     expect(await screen.findByTestId('problem-banner')).toHaveTextContent('req-15');
     expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
+  });
+  it('should group the page by clinic day under a heading and show the unread count of the bell in the header', async () => {
+    countMock.mockResolvedValue(79);
+    listMock.mockResolvedValue(pageOf([
+      notification({ id: 'a', sent: '2026-10-19T08:06:00Z' }),
+      notification({ id: 'b', sent: '2026-10-17T09:37:00Z' }),
+    ]));
+
+    renderWithClient(<NotificationCenter />);
+
+    expect(await screen.findByRole('heading', { level: 2, name: /19 октября/ })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 2, name: /17 октября/ })).toBeInTheDocument();
+    expect(screen.getAllByRole('list')).toHaveLength(2);
+    expect(await screen.findByText('Непрочитанных: 79')).toBeInTheDocument();
+  });
+
+  it('should lead a finished visit to the history and offer no link for a booking without an appointment id', async () => {
+    listMock.mockResolvedValue(pageOf([notification({ id: 'a', category: 'encounter', text: 'Приём завершён' }), notification({ id: 'b' })]));
+
+    renderWithClient(<NotificationCenter />);
+
+    const link = await screen.findByRole('link', { name: 'Открыть в истории' });
+    expect(link).toHaveAttribute('href', '/history');
+    expect(screen.queryByRole('link', { name: 'Открыть запись' })).not.toBeInTheDocument();
+  });
+
+  it('should narrow the page to one type without asking the server and say so when none is left', async () => {
+    listMock.mockResolvedValue(pageOf([notification({ id: 'a', text: 'Запись создана' })]));
+    renderWithClient(<NotificationCenter />);
+    await screen.findByText('Запись создана');
+
+    await userEvent.click(screen.getByRole('tab', { name: 'Приёмы' }));
+
+    expect(await screen.findByText('На этой странице таких уведомлений нет')).toBeInTheDocument();
+    expect(screen.queryByText('Запись создана')).not.toBeInTheDocument();
+    expect(listMock).toHaveBeenLastCalledWith({ page: 1, pageSize: 10, unread: false });
+  });
+
+  it('should mark every unread notification of the page with one request each and refresh the counter', async () => {
+    const client = newQueryClient();
+    const invalidate = jest.spyOn(client, 'invalidateQueries');
+    listMock.mockResolvedValue(pageOf([notification({ id: 'a' }), notification({ id: 'b' }), notification({ id: 'c', read: true })]));
+    markMock.mockResolvedValue(undefined);
+    renderWithClient(<NotificationCenter />, client);
+
+    await userEvent.click(await screen.findByRole('button', { name: 'Отметить прочитанными на странице' }));
+
+    await waitFor(() => expect(markMock).toHaveBeenCalledTimes(2));
+    expect(markMock).toHaveBeenCalledWith('a');
+    expect(markMock).toHaveBeenCalledWith('b');
+    await waitFor(() => expect(invalidate).toHaveBeenCalledWith({ queryKey: ['notifications'] }));
+    expect(useToastStore.getState().toasts.map((toast) => toast.message)).toContain('Уведомления на странице отмечены прочитанными');
+  });
+
+  it('should not offer to mark the page when nothing on it is unread', async () => {
+    listMock.mockResolvedValue(pageOf([notification({ read: true })]));
+
+    renderWithClient(<NotificationCenter />);
+
+    await screen.findByRole('group', { name: 'Список уведомлений' });
+    expect(screen.queryByRole('button', { name: 'Отметить прочитанными на странице' })).not.toBeInTheDocument();
+  });
+
+  it('should show the problem when one of the requests of the page-wide mark fails', async () => {
+    listMock.mockResolvedValue(pageOf([notification({ id: 'a' }), notification({ id: 'b' })]));
+    markMock.mockImplementation((id) => (id === 'b' ? Promise.reject(apiProblem(500, 'INTERNAL', { requestId: 'req-16' })) : Promise.resolve()));
+    renderWithClient(<NotificationCenter />);
+
+    await userEvent.click(await screen.findByRole('button', { name: 'Отметить прочитанными на странице' }));
+
+    expect(await screen.findByTestId('problem-banner')).toHaveTextContent('req-16');
   });
 });
