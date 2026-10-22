@@ -56,7 +56,7 @@ function HeaderCell<TRow>({ column, sort, onSort }: HeaderCellProps<TRow>): Reac
   const suffix: string = direction === 'ascending' ? ' ↑' : direction === 'descending' ? ' ↓' : '';
   const hint: string = direction === 'ascending' ? t('sortAscending') : direction === 'descending' ? t('sortDescending') : '';
   return (
-    <th scope="col" aria-sort={direction} className="h-11 px-4 text-left text-[13px] font-semibold text-[var(--muted-foreground)]">
+    <th scope="col" aria-sort={direction} className="h-11 px-3 text-left text-[13px] font-semibold text-[var(--muted-foreground)]">
       {isSortable && sortKey !== undefined ? (
         <button type="button" onClick={() => onSort?.(nextSort(sortKey, sort))} className="min-h-[24px] font-semibold hover:underline">
           {column.header}
@@ -96,7 +96,7 @@ interface RowsProps<TRow> {
 
 function DesktopTable<TRow>({ columns, rows, rowKey, caption, sort, onSort }: RowsProps<TRow> & Pick<PaginatedTableProps<TRow>, 'caption' | 'sort' | 'onSort'>): ReactNode {
   return (
-    <div className="overflow-x-auto rounded-card border border-[var(--border)] bg-[var(--card)] max-md:hidden">
+    <div className="overflow-x-auto rounded-card border border-[var(--border)] bg-[var(--card)] max-xl:hidden">
       <table className="w-full text-sm">
         {caption ? <caption className="sr-only">{caption}</caption> : null}
         <thead className="sticky top-0 bg-[var(--secondary)]">
@@ -105,7 +105,7 @@ function DesktopTable<TRow>({ columns, rows, rowKey, caption, sort, onSort }: Ro
         <tbody>
           {rows.map((row) => (
             <tr key={rowKey(row)} className="border-t border-[var(--border)] hover:bg-secondary">
-              {columns.map((column) => <td key={column.key} className="h-12 px-4">{column.render(row)}</td>)}
+              {columns.map((column) => <td key={column.key} className="h-12 px-3">{column.render(row)}</td>)}
             </tr>
           ))}
         </tbody>
@@ -116,7 +116,7 @@ function DesktopTable<TRow>({ columns, rows, rowKey, caption, sort, onSort }: Ro
 
 function MobileCards<TRow>({ columns, rows, rowKey }: RowsProps<TRow>): ReactNode {
   return (
-    <div className="grid gap-2 md:hidden">
+    <div className="grid gap-2 xl:hidden">
       {rows.map((row) => (
         <div key={rowKey(row)} className="rounded-card border border-[var(--border)] bg-[var(--card)] p-3">
           {columns.map((column) => (

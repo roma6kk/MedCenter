@@ -1,5 +1,6 @@
 'use client';
 
+import { cn } from '@/lib/ui/cn';
 import { PaginatedTable, type PageMeta, type TableColumn } from '@/components/data-display/paginated-table';
 import { StampBadge } from '@/components/feedback/stamp-badge';
 import { useT } from '@/lib/i18n/use-t';
@@ -8,6 +9,9 @@ import type { AdminSchedule, WeekDay } from './schedule-types';
 import { formatDateKey } from '@/lib/clinic-time';
 import { ROW_ACTION_CLASS } from '../shared/admin-styles';
 import { labelOf, type SchedulePickers } from './use-schedule-pickers';
+
+/** The row actions may wrap: «Сгенерировать слоты» on one line pushes the column past the table edge at 1280 px. */
+const ACTION_CLASS: string = cn(ROW_ACTION_CLASS, 'whitespace-normal');
 
 export interface ScheduleHandlers {
   readonly onSlots: (schedule: AdminSchedule) => void;
@@ -31,11 +35,11 @@ export function describeSchedule(schedule: AdminSchedule, pickers: SchedulePicke
 function ScheduleActions({ schedule, label, onSlots, onGenerate, onEdit, onDelete }: ScheduleHandlers & { readonly schedule: AdminSchedule; readonly label: string }): React.JSX.Element {
   const t = useT('admin.schedules');
   return (
-    <span className="flex flex-col items-start">
-      <button type="button" className={ROW_ACTION_CLASS} onClick={() => onSlots(schedule)} aria-label={t('actions.slotsAria', { label })}>{t('actions.slots')}</button>
-      {schedule.isActive ? <button type="button" className={ROW_ACTION_CLASS} onClick={() => onGenerate(schedule)} aria-label={t('actions.generateAria', { label })}>{t('actions.generate')}</button> : null}
-      {schedule.isActive ? <button type="button" className={ROW_ACTION_CLASS} onClick={() => onEdit(schedule)} aria-label={t('actions.editAria', { label })}>{t('actions.edit')}</button> : null}
-      <button type="button" className={ROW_ACTION_CLASS} onClick={() => onDelete(schedule)} aria-label={t('actions.deleteAria', { label })}>{t('actions.delete')}</button>
+    <span className="flex min-w-[9rem] flex-col items-start">
+      <button type="button" className={ACTION_CLASS} onClick={() => onSlots(schedule)} aria-label={t('actions.slotsAria', { label })}>{t('actions.slots')}</button>
+      {schedule.isActive ? <button type="button" className={ACTION_CLASS} onClick={() => onGenerate(schedule)} aria-label={t('actions.generateAria', { label })}>{t('actions.generate')}</button> : null}
+      {schedule.isActive ? <button type="button" className={ACTION_CLASS} onClick={() => onEdit(schedule)} aria-label={t('actions.editAria', { label })}>{t('actions.edit')}</button> : null}
+      <button type="button" className={ACTION_CLASS} onClick={() => onDelete(schedule)} aria-label={t('actions.deleteAria', { label })}>{t('actions.delete')}</button>
     </span>
   );
 }
