@@ -14,11 +14,16 @@ const ADMIN_ENV = { BOOTSTRAP_ADMIN_EMAIL: 'admin@medcenter.test', BOOTSTRAP_ADM
 
 describe('parseCliArgs', () => {
   it('should run the FHIR part for 14 days from today when called without arguments', () => {
-    expect(parseCliArgs([])).toEqual({ runFhir: true, runUsers: false, withAdmin: false, days: 14 });
+    expect(parseCliArgs([])).toEqual({ runFhir: true, runUsers: false, runRepair: false, withAdmin: false, days: 14 });
   });
 
   it('should run only the users step for --users', () => {
     expect(parseCliArgs(['--users'])).toMatchObject({ runFhir: false, runUsers: true });
+  });
+
+  it('should run only the repair step for --repair, and with the FHIR step for --fhir --repair', () => {
+    expect(parseCliArgs(['--repair'])).toMatchObject({ runFhir: false, runUsers: false, runRepair: true });
+    expect(parseCliArgs(['--fhir', '--repair'])).toMatchObject({ runFhir: true, runRepair: true });
   });
 
   it('should run both steps for --fhir --users', () => {

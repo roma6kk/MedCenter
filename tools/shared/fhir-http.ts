@@ -41,6 +41,8 @@ export interface BundleRequestEntry {
   readonly method: 'PUT' | 'POST' | 'DELETE';
   readonly url: string;
   readonly resource?: FhirResource;
+  /** `Bundle.entry.request.ifMatch`: the write only succeeds on this version (`W/"3"`), else `412`. */
+  readonly ifMatch?: string;
 }
 
 export type FetchLike = (url: string, init?: RequestInit) => Promise<Response>;
@@ -118,9 +120,9 @@ export class FhirHttp {
     const body = {
       resourceType: 'Bundle',
       type,
-      entry: entries.map(({ method, url, resource }) => ({
+      entry: entries.map(({ method, url, resource, ifMatch }) => ({
         ...(resource === undefined ? {} : { resource }),
-        request: { method, url },
+        request: { method, url, ...(ifMatch === undefined ? {} : { ifMatch }) },
       })),
     };
     return (await this.request(this.baseUrl, { method: 'POST', body: JSON.stringify(body) })) as Bundle;

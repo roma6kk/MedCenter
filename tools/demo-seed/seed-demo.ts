@@ -4,6 +4,7 @@ import { FhirHttp } from '../shared/fhir-http';
 import { resolveFhirBaseUrl, runMain } from '../shared/seed-env';
 import { parseCliArgs, readUsersConfig, type CliOptions } from './demo-cli-options';
 import { buildFhirManifest, readManifest, writeManifest, type DemoUsersSection } from './demo-manifest';
+import { repairDemoData } from './demo-repair';
 import { clinicDateOf } from './demo-slots';
 import { seedDemoFhir, type DemoFhirSummary } from './seed-demo-fhir';
 import { seedDemoUsers } from './seed-demo-users';
@@ -15,6 +16,7 @@ import { seedDemoUsers } from './seed-demo-users';
  *   npm run seed:demo -- --users      demo doctors and patients (run after auth-service is deployed)
  *   npm run seed:demo -- --users --with-admin   the same plus the demo ADMIN the smoke suite signs in as
  *   npm run seed:demo -- --fhir --users   both, FHIR first
+ *   npm run seed:demo -- --repair     booked appointments with a finished encounter → fulfilled; report check leftovers
  *
  * Environment (names only; see `demo-cli-options.ts`): `SEED_FHIR_BASE_URL`
  * (the services' `FHIR_BASE_URL` is deliberately not read), and for `--users`
@@ -65,6 +67,18 @@ async function runUsersStep(now: Date, withAdmin: boolean): Promise<void> {
   }
 }
 
+async function runRepairStep(): Promise<void> {
+  const baseUrl = resolveFhirBaseUrl();
+  console.log(`Repairing demo data in ${baseUrl}`);
+  const summary = await repairDemoData(new FhirHttp(baseUrl));
+  console.log(`Appointments booked with a finished encounter, now fulfilled: ${summary.fulfilled.length}${summary.fulfilled.length > 0 ? ` (${summary.fulfilled.join(', ')})` : ''}`);
+  console.log(`Inactive schedules (kept): ${summary.leftovers.inactiveSchedules}`);
+  console.log(`Check leftovers (not deleted): ${summary.leftovers.checkResources.length === 0 ? 'none' : summary.leftovers.checkResources.join('; ')}`);
+  if (summary.failed.length > 0) {
+    throw new Error(`${summary.failed.length} appointment(s) not updated: ${summary.failed.map((item) => `${item.id} (${item.status})`).join(', ')}`);
+  }
+}
+
 if (require.main === module) {
   runMain(async () => {
     const options = parseCliArgs(process.argv.slice(2));
@@ -74,6 +88,9 @@ if (require.main === module) {
     }
     if (options.runUsers) {
       await runUsersStep(now, options.withAdmin);
+    }
+    if (options.runRepair) {
+      await runRepairStep();
     }
   });
 }

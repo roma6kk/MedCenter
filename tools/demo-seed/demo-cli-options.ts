@@ -10,6 +10,8 @@ export const MAX_SLOT_DAYS = 90;
 export interface CliOptions {
   readonly runFhir: boolean;
   readonly runUsers: boolean;
+  /** `--repair`: fix the data earlier checks left behind (see `demo-repair.ts`). */
+  readonly runRepair: boolean;
   /** `--with-admin`: also create the demo ADMIN (the stack smoke suite signs in as it). Never by default. */
   readonly withAdmin: boolean;
   readonly days: number;
@@ -47,11 +49,12 @@ function parseFrom(raw: string): string {
  * `--fhir --users` runs both, FHIR first. `--users --with-admin` also creates the
  * demo ADMIN: a persistent privileged account is opt-in, an earlier one stays in the
  * manifest without the flag. `--days=N` / `--from=YYYY-MM-DD` shape the slot horizon
- * (default: 14 days from today).
+ * (default: 14 days from today). `--repair` puts stale demo data right (alone it runs nothing else).
  */
 export function parseCliArgs(argv: readonly string[]): CliOptions {
   let runFhir = false;
   let runUsers = false;
+  let runRepair = false;
   let withAdmin = false;
   let days = DEFAULT_SLOT_DAYS;
   let from: string | undefined;
@@ -60,6 +63,8 @@ export function parseCliArgs(argv: readonly string[]): CliOptions {
       runFhir = true;
     } else if (argument === '--users') {
       runUsers = true;
+    } else if (argument === '--repair') {
+      runRepair = true;
     } else if (argument === '--with-admin') {
       withAdmin = true;
     } else if (argument.startsWith('--days=')) {
@@ -67,13 +72,13 @@ export function parseCliArgs(argv: readonly string[]): CliOptions {
     } else if (argument.startsWith('--from=')) {
       from = parseFrom(readValue(argument, '--from'));
     } else {
-      throw new Error(`Unknown argument "${argument}" (supported: --fhir, --users, --with-admin, --days=N, --from=YYYY-MM-DD)`);
+      throw new Error(`Unknown argument "${argument}" (supported: --fhir, --users, --repair, --with-admin, --days=N, --from=YYYY-MM-DD)`);
     }
   }
   if (withAdmin && !runUsers) {
     throw new Error('--with-admin belongs to the users step: add --users');
   }
-  return { runFhir: runFhir || !runUsers, runUsers, withAdmin, days, ...(from === undefined ? {} : { from }) };
+  return { runFhir: runFhir || (!runUsers && !runRepair), runUsers, runRepair, withAdmin, days, ...(from === undefined ? {} : { from }) };
 }
 
 export const DEFAULT_AUTH_BASE_URL = 'http://localhost:8081';
