@@ -12,11 +12,11 @@ function ServiceCard({ service }: { readonly service: CatalogService }): ReactNo
     <Link
       href={`/doctors?serviceId=${encodeURIComponent(service.id)}`}
       data-testid="service-card"
-      className="flex h-full min-h-[44px] flex-col gap-1 rounded-[8px] border border-[var(--border)] bg-[var(--card)] p-4 hover:bg-[var(--secondary)]"
+      className="flex h-full min-h-[44px] flex-col gap-1 rounded-card border border-border bg-background p-5 transition-colors hover:border-primary hover:bg-card"
     >
-      <span className="font-semibold">{service.name}</span>
-      {service.description === undefined ? null : <span className="text-sm text-[var(--muted-foreground)]">{service.description}</span>}
-      <span className="mono mt-auto pt-2 text-xs text-[var(--muted-foreground)]">{t('minutes', { minutes: service.defaultDurationMin })}</span>
+      <span className="text-[17px] font-semibold">{service.name}</span>
+      {service.description === undefined ? null : <span className="text-sm text-muted-foreground">{service.description}</span>}
+      <span className="mono mt-auto self-start rounded-full bg-secondary px-2.5 py-1 text-xs text-muted-foreground">{t('minutes', { minutes: service.defaultDurationMin })}</span>
     </Link>
   );
 }

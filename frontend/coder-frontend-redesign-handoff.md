@@ -42,14 +42,22 @@
 Проверено: `tsc --noEmit` без ошибок, `next lint` без замечаний, спеки `styles`, `ui`, `lib/ui` зелёные.
 **Полный `jest` после правок не перезапускался.** Базовая линия до правок: 172 набора, 1794 теста — зелёные. Первое, что нужно сделать, — прогнать его снова.
 
-### Не сделано: страница 1 (главная) НЕ готова
-- `home-view.tsx` ещё старый (hero из двух кнопок, сетка услуг, карточки врачей).
-- Нет ключей сообщений для нового контента в `src/messages/ru.json` и `en.json` (включая `home.demoNote`, на которую ссылается `home-content.ts`; паритет ключей проверяет `translate.spec.ts`).
-- `PublicShell` не переделан (шапка, подвал, полноширинные секции).
-- `DoctorCard`, `ServiceGrid`, кнопки на `rounded-[6px]` не переведены на токены и примитивы.
-- Спеки `home-view.spec.tsx`, `public-shell.spec.tsx` не обновлены.
+### Страница 1 (главная): ГОТОВА (2026-10-22, не закоммичена)
+- Сделано: `home-view.tsx` и секции `home-hero|trust|directions|path|audiences|contacts.tsx`, `hero-illustration.tsx`, `public-shell.tsx` (шапка, якорная навигация, телефон) + `public-footer.tsx`, `DoctorCard`/`ServiceGrid`/`DoctorProfileLink` на токенах и примитивах, ключи `home.*`/`public.*` в `ru.json` и `en.json`, спеки `home-view.spec.tsx` (10 тестов) и `public-shell.spec.tsx` (7).
+- Проверено: `npx jest` — 174 набора / 1841 тест зелёные, `tsc --noEmit` и `next lint` чистые, `NODE_ENV=production npm run build` проходит; скриншоты `/` и `/doctors` в светлой и тёмной теме, 1280 и 390 px просмотрены.
+- Спека обновлена: `specs/frontend-design-spec.md` (раздел `[REDESIGN]`) и строка в `specs/MANIFEST.md`.
+- Ограничение: тёмная тема по-прежнему только по `data-theme="dark"` и проверена лишь на публичных страницах.
 
-Рекомендуемый порядок: **сначала закончить главную** (она задаёт общую оболочку и стиль), затем страница 2.
+### Параллельные сессии (запущены 2026-10-22, каждая в своём worktree от `2f0f7bf`)
+| Область | Сессия | Ветка |
+|---|---|---|
+| Кабинет пациента (оболочка, запись, мои записи, история, назначения, профиль, уведомления) | `redesign-patient` | `claude/redesign-patient-03c1a4` |
+| Врач + общая боковая панель `staff-shell` | `redesign-doctor` | `claude/redesign-doctor-036e10` |
+| Администрирование (аналитика-отчёт и остальные страницы) | `redesign-admin` | `claude/redesign-admin-d0c4ea` |
+| Вход, регистрация, страницы 403/404/ошибки | `redesign-auth` | `claude/redesign-auth-5db914` |
+
+Владельцы общих файлов и правила слияния заданы в брифах сессий; ключи сообщений правятся только в своих пространствах имён.
+Страницы публичной части (главная, `/doctors`) закреплены за основной сессией.
 
 ## 3. Данные главной: демонстрационные
 
@@ -96,6 +104,9 @@
 `npx jest` (всё) · `npx next lint` · `npx tsc --noEmit` · `npm run build` (в `frontend/`) · скриншоты до/после · краткий Context Summary с доказательствами.
 
 ## 6. Как смотреть результат
+
+- **Сборка: `NODE_ENV=production npm run build`.** В окружении этой машины `NODE_ENV=development`, и обычный `npm run build` падает на пререндере `/500` с ошибкой `<Html> should not be imported outside of pages/_document` (к коду это не относится).
+- Dev-серверу нужен **перезапуск** после правки `tailwind.config.ts` (иначе новые утилиты вроде `bg-inverse` не попадают в CSS): `node node_modules/next/dist/bin/next dev --port 3000 --hostname 127.0.0.1` в `frontend/`. Не использовать `pkill -f next-server`: это убьёт и чужие dev-серверы.
 
 - Dev-сервер уже работает на `http://localhost:3000` (hot reload). Если нет: `npm run dev` в `frontend/`.
 - Скрипты скриншотов Playwright (системный Chrome `/usr/bin/google-chrome`; `chromium` из Playwright не установлен):

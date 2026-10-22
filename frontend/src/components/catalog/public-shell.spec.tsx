@@ -37,4 +37,26 @@ describe('PublicShell', () => {
     expect(screen.getByRole('link', { name: 'Перейти к содержимому' })).toHaveAttribute('href', '#main-content');
     expect(screen.getByRole('main')).toHaveTextContent('content');
   });
+  it('should link to the landing sections from any public page when the header is rendered', () => {
+    render(<PublicShell><p>content</p></PublicShell>);
+
+    expect(screen.getByRole('link', { name: 'Направления' })).toHaveAttribute('href', '/#directions');
+    expect(screen.getByRole('link', { name: 'Компаниям' })).toHaveAttribute('href', '/#companies');
+    expect(screen.getByRole('link', { name: 'Контакты' })).toHaveAttribute('href', '/#contacts');
+  });
+
+  it('should show the clinic phone as a call link when the header is rendered', () => {
+    render(<PublicShell><p>content</p></PublicShell>);
+
+    expect(screen.getByRole('link', { name: '+375 17 000-00-00' })).toHaveAttribute('href', 'tel:+375170000000');
+  });
+
+  it('should end every public page with the legal line and the demonstration note when the shell is rendered', () => {
+    render(<PublicShell><p>content</p></PublicShell>);
+
+    const footer = screen.getByRole('contentinfo');
+    expect(footer).toHaveTextContent('ООО «МедЦентр»');
+    expect(footer).toHaveTextContent('Лицензия №');
+    expect(footer).toHaveTextContent('Демонстрационные данные');
+  });
 });

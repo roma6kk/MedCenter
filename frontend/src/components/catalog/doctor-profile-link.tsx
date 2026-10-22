@@ -2,6 +2,7 @@
 
 import type { ReactNode } from 'react';
 import Link from 'next/link';
+import { buttonVariants } from '@/components/ui/button-variants';
 import { useT } from '@/lib/i18n/use-t';
 import type { Doctor } from './catalog-types';
 
@@ -12,7 +13,7 @@ export function DoctorProfileLink({ doctor }: { readonly doctor: Doctor }): Reac
     <Link
       href={`/doctors/${encodeURIComponent(doctor.id)}`}
       aria-label={`${t('profile')}: ${doctor.name}`}
-      className="inline-flex min-h-[44px] items-center rounded-[6px] border border-[var(--border)] px-4 text-sm hover:bg-[var(--secondary)]"
+      className={buttonVariants({ variant: 'secondary' })}
     >
       {t('profile')}
     </Link>

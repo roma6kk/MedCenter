@@ -48,7 +48,7 @@ UCUM) подключается по canonical URL `https://fhir.by/...`. Арх�
 | --- | --- | --- | --- |
 | `architect-architecture.md` | Системный дизайн, слои, размещение модулей, интерфейсы, ADR | - | 2026-10-04 |
 | `api-designer-spec.md` | Эндпоинты `/api/v1` (9 доменов, 59 эндпоинтов), DTO, SMART/OAuth2, ошибки RFC 7807, Swagger, Bruno, трассируемость 21 FR; отклонения live-стенда: FHIR-id вместо UUID, семантика `DELETE schedule` (5.2.4) | architect-architecture | 2026-10-15 |
-| `frontend-design-spec.md` | Клиент Next.js: дизайн-система, маршруты по ролям (5 route groups), компоненты, состояние, карта errorCode→UX, E2E Playwright, трассируемость 21 FR | architect-architecture, api-designer-spec | 2026-10-05 |
+| `frontend-design-spec.md` | Клиент Next.js: дизайн-система, маршруты по ролям (5 route groups), компоненты, состояние, карта errorCode→UX, E2E Playwright, трассируемость 21 FR; редизайн «Спокойная клиника» (токены, шрифты, примитивы, главная) | architect-architecture, api-designer-spec | 2026-10-22 |
 | `docs-generator-implementation.md` | Nx-воркспейс и dev-стек бэкенда + сборка, тесты, env и auth-контур фронтенда | - | 2026-10-05 |
 | `coder-m2-catalog-spec.md` | M2 Catalog: библиотеки `terminology`/`fhir`/`fhir-mappers`, `practitioner-service`, `catalog-service`, отклонения от плана, M2-гейт | architect-architecture, api-designer-spec | 2026-10-06 |
 | `coder-m3-booking-spec.md` | M3 Booking: `appointment-service` (транзакция бронирования, If-Match), `notification-service` (потребитель RabbitMQ, DLQ, дедупликация), `libs/messaging`, отклонения от плана | architect-architecture, api-designer-spec, coder-m2-catalog-spec | 2026-10-08 |
