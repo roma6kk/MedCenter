@@ -644,6 +644,8 @@ export class AppointmentResponseDto {
 | 7.6 | `GET /api/v1/me/history` | своя история (компартмент) | `patient/*.read` |
 | 7.7 | `GET /api/v1/me/prescriptions` | свои назначения (компартмент) | `patient/*.read` |
 
+Элементы истории (7.4/7.6) несут `practitionerRoleId` и `doctorName` (ФИО врача: `Practitioner.name`, фамилия первой; поле опускается, если врача не удалось определить) — имя берётся из того же Bundle (`_include` Encounter→PractitionerRole→Practitioner).
+
 **7.1** — тело `{ appointmentId: UUID }`; проверка BR-008 (запись `booked`), создаётся
 `Encounter(status=in-progress, class=AMB)`; `AuditEvent`. **409** `ENCOUNTER_STATE_INVALID`.
 

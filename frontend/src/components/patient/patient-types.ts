@@ -34,6 +34,8 @@ export interface HistoryEntry {
   readonly serviceType?: CodingView;
   readonly appointmentId: string;
   readonly practitionerRoleId: string;
+  /** Display name of the treating doctor (family name first); absent when the server could not resolve it. */
+  readonly doctorName?: string;
 }
 
 interface PrescriptionBase {

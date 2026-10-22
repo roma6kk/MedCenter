@@ -122,6 +122,7 @@ export function VisitRow({ entry, prescriptions }: VisitRowProps): ReactNode {
           <span className="flex min-w-0 flex-[999_1_260px] flex-col gap-1">
             {service ? <span className={cn('text-base font-bold', WRAP_TEXT)}>{service}</span> : null}
             <time dateTime={entry.date} className="text-sm text-muted-foreground">{format.dateTime(entry.date)}</time>
+            {entry.doctorName ? <span className={cn('text-sm text-muted-foreground', WRAP_TEXT)}>{t('doctorBy', { name: entry.doctorName })}</span> : null}
             <span className="flex flex-wrap items-center gap-2 pt-0.5">
               {diagnosis === undefined ? (
                 <span className="text-sm text-muted-foreground">{t('noDiagnosis')}</span>

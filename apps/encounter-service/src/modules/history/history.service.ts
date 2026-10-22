@@ -10,6 +10,12 @@ import { toHistoryItem } from './mappers/history-item.mapper';
 /** Diagnoses, summary and recommendations of the page's encounters, in the same Bundle. */
 const HISTORY_REVINCLUDES: readonly string[] = ['Condition:encounter', 'ClinicalImpression:encounter', 'CarePlan:encounter'];
 
+/** The doctor's name in the same Bundle: the encounter's PractitionerRole, then the Practitioner behind it (one search, no read per entry). */
+const HISTORY_DOCTOR_INCLUDES: Readonly<Record<string, string>> = {
+  _include: 'Encounter:participant',
+  '_include:iterate': 'PractitionerRole:practitioner',
+};
+
 /**
  * API §7.4/7.6 — the patient's visit history: finished encounters, ordered by
  * `Encounter.period` (`date`), each with its diagnoses (BR-004), summary and
@@ -29,6 +35,7 @@ export class HistoryService {
       _offset: pageOffset(query),
       _total: 'accurate',
       _revinclude: HISTORY_REVINCLUDES,
+      ...HISTORY_DOCTOR_INCLUDES,
     });
     const related = resourcesOf(result);
     const items = resourcesOfType(result, 'Encounter').map((encounter) => toHistoryItem(encounter, related));

@@ -1285,6 +1285,7 @@
     "rebook": "Записаться повторно",
     "openAppointment": "Запись на приём",
     "toggleVisit": "Приём от {date}: {service}",
+    "doctorBy": "Врач: {name}",
     "frequencyTitle": "Диагнозы на этой странице",
     "frequencyNote": "По МКБ-10, как их внёс врач; считаются приёмы этой страницы",
     "frequencyVisits": "приёмов: {count}",

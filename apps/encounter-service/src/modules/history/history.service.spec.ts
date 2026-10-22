@@ -36,7 +36,35 @@ describe('HistoryService', () => {
       _offset: 10,
       _total: 'accurate',
       _revinclude: ['Condition:encounter', 'ClinicalImpression:encounter', 'CarePlan:encounter'],
+      _include: 'Encounter:participant',
+      '_include:iterate': 'PractitionerRole:practitioner',
     });
+  });
+
+  it('should name the doctor from the Practitioner behind the encounter role, family name first', async () => {
+    fhir.search.mockResolvedValue({
+      total: 1,
+      entry: [
+        { resource: finishedEncounter },
+        { resource: { resourceType: 'PractitionerRole', id: 'role-1', practitioner: { reference: 'Practitioner/doc-1' } } },
+        { resource: { resourceType: 'Practitioner', id: 'doc-1', name: [{ family: 'Иванов', given: ['Иван', 'Иванович'] }] } },
+      ],
+    });
+
+    const page = await service.historyOf('Patient/pat-1', QUERY);
+
+    expect(page.items[0]).toEqual(expect.objectContaining({ practitionerRoleId: 'role-1', doctorName: 'Иванов Иван Иванович' }));
+  });
+
+  it('should omit the doctor name when the role or practitioner did not come back', async () => {
+    fhir.search.mockResolvedValue({
+      total: 1,
+      entry: [{ resource: finishedEncounter }, { resource: { resourceType: 'PractitionerRole', id: 'role-1', practitioner: { reference: 'Practitioner/gone' } } }],
+    });
+
+    const page = await service.historyOf('Patient/pat-1', QUERY);
+
+    expect(page.items[0]).not.toHaveProperty('doctorName');
   });
 
   it('should map each encounter to a history item with its primary diagnosis when it has one', async () => {

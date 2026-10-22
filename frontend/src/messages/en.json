@@ -1285,6 +1285,7 @@
     "rebook": "Book a follow-up",
     "openAppointment": "Appointment",
     "toggleVisit": "Visit on {date}: {service}",
+    "doctorBy": "Doctor: {name}",
     "frequencyTitle": "Diagnoses on this page",
     "frequencyNote": "ICD-10 as entered by the doctor; counts cover the visits of this page",
     "frequencyVisits": "visits: {count}",

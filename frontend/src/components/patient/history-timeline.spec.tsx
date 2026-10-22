@@ -48,6 +48,19 @@ describe('HistoryTimeline', () => {
     expect(within(visit).getByText('Приём терапевта (первичный)')).toBeInTheDocument();
   });
 
+  it('should name the doctor of the visit, and show no doctor line when the server sent no name', async () => {
+    historyMock.mockResolvedValue(pageOf([historyFixture({ doctorName: 'Иванов Иван Иванович' })]));
+    const named = renderWithClient(<HistoryTimeline />);
+
+    expect(await screen.findByText('Врач: Иванов Иван Иванович')).toBeInTheDocument();
+    named.unmount();
+
+    historyMock.mockResolvedValue(pageOf([historyFixture()]));
+    renderWithClient(<HistoryTimeline />);
+    await screen.findByRole('article');
+    expect(screen.queryByText(/^Врач:/)).not.toBeInTheDocument();
+  });
+
   it('should link every visit to its appointment', async () => {
     historyMock.mockResolvedValue(pageOf([historyFixture()]));
 

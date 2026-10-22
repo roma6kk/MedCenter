@@ -21,4 +21,6 @@ export interface HistoryItemDto {
   readonly serviceType?: CodingDto;
   readonly appointmentId: string;
   readonly practitionerRoleId: string;
+  /** Display name of the doctor (family name first, as `doctorName` of an appointment); absent when it cannot be resolved. */
+  readonly doctorName?: string;
 }
