@@ -4,7 +4,11 @@ import userEvent from '@testing-library/user-event';
 import { apiFetch } from '@/lib/api/api-fetch';
 import { apiProblem, renderWithClient } from '../shared/test-utils';
 import { UserFormDialog } from './user-form-dialog';
+import type { PractitionerRoleChoices } from './use-practitioner-role-options';
 import type { AdminUser } from './user-types';
+
+const roleChoicesMock = jest.fn<PractitionerRoleChoices, [string | undefined, string]>(() => ({ state: 'unavailable' }));
+jest.mock('./use-practitioner-role-options', () => ({ usePractitionerRoleOptions: (userId: string | undefined, current: string) => roleChoicesMock(userId, current) }));
 
 jest.mock('@/lib/api/api-fetch', () => {
   const actual = jest.requireActual('@/lib/api/api-fetch');
@@ -165,6 +169,55 @@ describe('UserFormDialog (create)', () => {
     await userEvent.click(screen.getByRole('checkbox', { name: 'Пациент' }));
 
     expect(screen.queryByLabelText(/Дата рождения/)).not.toBeInTheDocument();
+  });
+});
+
+describe('UserFormDialog (PractitionerRole picker)', () => {
+  const ready: PractitionerRoleChoices = {
+    state: 'ready',
+    options: [
+      { value: 'role-free', label: 'Иванова Мария · Терапевт', disabled: false },
+      { value: 'role-taken', label: 'Петров Алексей · Кардиолог — привязан к Петров Алексей', disabled: true },
+    ],
+  };
+
+  beforeEach(() => {
+    apiFetchMock.mockReset();
+    roleChoicesMock.mockReturnValue(ready);
+  });
+
+  afterEach(() => roleChoicesMock.mockReturnValue({ state: 'unavailable' }));
+
+  it('should pick the doctor from a list, with a taken role disabled, and send its PractitionerRole id when the list is ready', async () => {
+    apiFetchMock.mockResolvedValue(linkedDoctor);
+    const onClose = jest.fn();
+    renderWithClient(<UserFormDialog user={doctor} onClose={onClose} />);
+
+    expect(screen.getByRole('option', { name: /Петров Алексей · Кардиолог/ })).toBeDisabled();
+    await userEvent.selectOptions(screen.getByLabelText(/Роль врача/), 'role-free');
+    await userEvent.click(screen.getByRole('button', { name: 'Сохранить' }));
+
+    await waitFor(() => expect(onClose).toHaveBeenCalled());
+    expect(JSON.parse(String(apiFetchMock.mock.calls[0]?.[1]?.body))).toEqual({ practitionerRoleId: 'role-free' });
+    expect(roleChoicesMock).toHaveBeenCalledWith('u1', expect.any(String));
+  });
+
+  it('should show a disabled list while the doctors are loading', async () => {
+    roleChoicesMock.mockReturnValue({ state: 'pending' });
+    renderWithClient(<UserFormDialog onClose={jest.fn()} />);
+
+    await userEvent.click(screen.getByRole('checkbox', { name: 'Врач' }));
+
+    expect(screen.getByLabelText(/Роль врача/)).toBeDisabled();
+    expect(screen.getByRole('option', { name: 'Загрузка врачей…' })).toBeInTheDocument();
+  });
+
+  it('should fall back to typing the id with a hint when the catalog cannot be read', async () => {
+    roleChoicesMock.mockReturnValue({ state: 'unavailable' });
+    renderWithClient(<UserFormDialog user={doctor} onClose={jest.fn()} />);
+
+    expect(screen.getByRole('textbox', { name: /Роль врача/ })).toBeInTheDocument();
+    expect(screen.getByText(/Каталог врачей сейчас недоступен/)).toBeInTheDocument();
   });
 });
 

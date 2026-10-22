@@ -63,7 +63,8 @@
       },
       "hints": {
         "password": "At least 10 characters: lower and upper case Latin letters, a digit and a symbol",
-        "practitionerRoleId": "Id of the PractitionerRole the doctor is linked to. Without it the doctor sees no schedule.",
+        "practitionerRoleId": "The catalog doctor this account is linked to. Without it the doctor sees no schedule.",
+        "practitionerRoleIdTyped": "The doctor catalog is unavailable right now — type the PractitionerRole id. Without it the doctor sees no schedule.",
         "patientLocked": "The Patient role is unavailable: this account has no patient record. Create a separate user with the patient role.",
         "linkReleased": "The PractitionerRole link will be released: after saving, the doctor will not see their schedule."
       },
@@ -94,7 +95,10 @@
         "rolesRequired": "Choose at least one role",
         "birthDateRequired": "A patient needs a birth date",
         "practitionerOnlyDoctor": "A practitioner role can only be linked to a user with the Doctor role"
-      }
+      },
+      "roleOptionsLoading": "Loading doctors…",
+      "roleNotLinked": "Not linked",
+      "roleTakenBy": "linked to {name}"
     },
     "rooms": {
       "title": "Rooms",

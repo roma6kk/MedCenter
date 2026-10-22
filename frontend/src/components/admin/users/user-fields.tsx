@@ -6,6 +6,7 @@ import { useT } from '@/lib/i18n/use-t';
 import { CONTROL_CLASS } from '../shared/admin-styles';
 import type { FieldMessages } from '../shared/form-errors';
 import { controlProps, Field, Fieldset } from '../shared/form-field';
+import type { PractitionerRoleChoices } from './use-practitioner-role-options';
 import { USER_ROLES, type UserRole } from './user-types';
 
 export type SharedUserField = 'email' | 'firstName' | 'lastName' | 'roles' | 'practitionerRoleId';
@@ -26,6 +27,8 @@ interface SharedFieldsProps {
   readonly errors: FieldMessages<SharedUserField>;
   readonly selectedRoles: ReadonlyArray<UserRole>;
   readonly notes?: RoleNotes;
+  /** What the PractitionerRole field offers; typing the id is the fallback when the catalog cannot be read. */
+  readonly roleChoices?: PractitionerRoleChoices;
 }
 
 type Registrations = Readonly<Record<SharedUserField, UseFormRegisterReturn>>;
@@ -51,12 +54,34 @@ function RoleCheckboxes({ registration, error, notes }: RoleCheckboxesProps): Re
   );
 }
 
-function PractitionerRoleField({ registration, error }: { readonly registration: UseFormRegisterReturn; readonly error: string | undefined }): ReactNode {
+interface PractitionerRoleFieldProps {
+  readonly registration: UseFormRegisterReturn;
+  readonly error: string | undefined;
+  readonly choices: PractitionerRoleChoices;
+}
+
+function PractitionerRoleField({ registration, error, choices }: PractitionerRoleFieldProps): ReactNode {
   const t = useT('admin.users');
+  if (choices.state === 'unavailable') {
+    const hint: string = t('hints.practitionerRoleIdTyped');
+    return (
+      <Field id="user-practitioner-role" label={t('fields.practitionerRoleId')} error={error} hint={hint}>
+        <input {...controlProps('user-practitioner-role', error, hint)} autoComplete="off" className={`${CONTROL_CLASS} mono`} {...registration} />
+      </Field>
+    );
+  }
   const hint: string = t('hints.practitionerRoleId');
+  const options = choices.state === 'ready' ? choices.options : [];
   return (
     <Field id="user-practitioner-role" label={t('fields.practitionerRoleId')} error={error} hint={hint}>
-      <input {...controlProps('user-practitioner-role', error, hint)} autoComplete="off" className={`${CONTROL_CLASS} mono`} {...registration} />
+      <select {...controlProps('user-practitioner-role', error, hint)} disabled={choices.state === 'pending'} className={CONTROL_CLASS} {...registration}>
+        <option value="">{choices.state === 'pending' ? t('roleOptionsLoading') : t('roleNotLinked')}</option>
+        {options.map((option) => (
+          <option key={option.value} value={option.value} disabled={option.disabled}>
+            {option.label}
+          </option>
+        ))}
+      </select>
     </Field>
   );
 }
@@ -76,7 +101,7 @@ function NameFields({ registrations, errors }: { readonly registrations: Registr
 }
 
 /** Fields both the create and the edit form have: name, email, roles and — for a DOCTOR — the PractitionerRole link. */
-export function SharedUserFields({ register, errors, selectedRoles, notes = NO_ROLE_NOTES }: SharedFieldsProps): ReactNode {
+export function SharedUserFields({ register, errors, selectedRoles, notes = NO_ROLE_NOTES, roleChoices = { state: 'unavailable' } }: SharedFieldsProps): ReactNode {
   const t = useT('admin.users');
   // Registered in screen order here: react-hook-form focuses the first invalid field in the order they were registered.
   const registrations: Registrations = {
@@ -93,7 +118,7 @@ export function SharedUserFields({ register, errors, selectedRoles, notes = NO_R
         <input {...controlProps('user-email', errors.email)} type="email" autoComplete="off" className={CONTROL_CLASS} {...registrations.email} />
       </Field>
       <RoleCheckboxes registration={registrations.roles} error={errors.roles} notes={notes} />
-      {selectedRoles.includes('DOCTOR') ? <PractitionerRoleField registration={registrations.practitionerRoleId} error={errors.practitionerRoleId} /> : null}
+      {selectedRoles.includes('DOCTOR') ? <PractitionerRoleField registration={registrations.practitionerRoleId} error={errors.practitionerRoleId} choices={roleChoices} /> : null}
       {notes.releasesLink ? <p className="text-sm text-[var(--muted-foreground)]">{t('hints.linkReleased')}</p> : null}
     </div>
   );

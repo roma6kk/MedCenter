@@ -12,6 +12,7 @@ import { Modal } from '../shared/modal';
 import { useFormBanner } from '../shared/use-form-banner';
 import { useFormMessage } from '../shared/use-form-message';
 import { useCreateUser, useUpdateUser } from './use-admin-users';
+import { usePractitionerRoleOptions } from './use-practitioner-role-options';
 import { CreateOnlyUserFields, SharedUserFields, type CreateOnlyField, type RoleNotes, type SharedUserField } from './user-fields';
 import {
   createUserSchema,
@@ -48,6 +49,7 @@ function CreateUserForm({ onClose }: { readonly onClose: () => void }): ReactNod
   const form = useForm<CreateUserFormValues>({ resolver: zodResolver(createUserSchema), defaultValues: EMPTY_CREATE_VALUES });
   const { register, handleSubmit, watch, formState } = form;
   const roles = watch('roles');
+  const roleChoices = usePractitionerRoleOptions(undefined, watch('practitionerRoleId'));
   const { banner, fail, clear } = useFormBanner(form, CREATE_FIELDS, useServerRules(roles.includes('DOCTOR')));
   const submit = handleSubmit((values) => {
     clear();
@@ -56,7 +58,7 @@ function CreateUserForm({ onClose }: { readonly onClose: () => void }): ReactNod
   const errors = messagesOf<SharedUserField | CreateOnlyField, CreateUserFormValues>(formState.errors, resolve);
   return (
     <form onSubmit={(event) => void submit(event)} noValidate>
-      <SharedUserFields register={register} errors={errors} selectedRoles={roles} />
+      <SharedUserFields register={register} errors={errors} selectedRoles={roles} roleChoices={roleChoices} />
       <CreateOnlyUserFields register={register} errors={errors} selectedRoles={roles} />
       <FormProblem banner={banner} />
       <FormActions submitLabel={t('create')} isPending={create.isPending} onCancel={onClose} error={create.error} />
@@ -79,6 +81,7 @@ function EditUserForm({ user, onClose }: { readonly user: AdminUser; readonly on
   const form = useForm<EditUserFormValues>({ resolver: zodResolver(editUserSchema), defaultValues: editValuesOf(user) });
   const { register, handleSubmit, watch, formState } = form;
   const roles = watch('roles');
+  const roleChoices = usePractitionerRoleOptions(user.id, watch('practitionerRoleId'));
   const { banner, fail, clear } = useFormBanner(form, EDIT_FIELDS, useServerRules(roles.includes('DOCTOR')));
   const submit = handleSubmit((values) => {
     clear();
@@ -87,7 +90,7 @@ function EditUserForm({ user, onClose }: { readonly user: AdminUser; readonly on
   const errors = messagesOf<SharedUserField, EditUserFormValues>(formState.errors, resolve);
   return (
     <form onSubmit={(event) => void submit(event)} noValidate>
-      <SharedUserFields register={register} errors={errors} selectedRoles={roles} notes={roleNotesOf(user, roles)} />
+      <SharedUserFields register={register} errors={errors} selectedRoles={roles} notes={roleNotesOf(user, roles)} roleChoices={roleChoices} />
       <label className="mt-3 flex min-h-[44px] items-center gap-2 text-sm">
         <input type="checkbox" {...register('isActive')} />
         {t('fields.isActive')}
