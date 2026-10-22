@@ -443,7 +443,7 @@
     },
     "audit": {
       "title": "Audit journal",
-      "description": "Who changed what: creation and update events of resources.",
+      "description": "Who changed or read what: creation and update of resources, reads of patient data and refused access.",
       "empty": "No events found",
       "emptyHint": "Change the period or the filters.",
       "total": "Events found: {count}",
@@ -476,7 +476,9 @@
       "actions": {
         "create": "Create",
         "update": "Update",
-        "delete": "Delete"
+        "delete": "Delete",
+        "read": "Read",
+        "denied": "Access denied"
       }
     },
     "terminology": {

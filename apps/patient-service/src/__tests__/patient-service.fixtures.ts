@@ -73,7 +73,7 @@ export function createFhirClientMock(): jest.Mocked<FhirClient> {
   return {
     search: jest.fn().mockResolvedValue(bundleOf()),
     read: jest.fn().mockResolvedValue(patientResource),
-    create: jest.fn(),
+    create: jest.fn().mockResolvedValue({ resourceType: 'AuditEvent' }),
     update: jest.fn(),
     delete: jest.fn(),
     operation: jest.fn(),

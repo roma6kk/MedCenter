@@ -1,4 +1,5 @@
-export type AuditAction = 'create' | 'update' | 'delete';
+/** `read` is a read of patient data by a doctor or administrator, `denied` a read the compartment rule refused (ADR-018). */
+export type AuditAction = 'create' | 'update' | 'delete' | 'read' | 'denied';
 
 /** `AuditEventDto` of `GET /api/v1/admin/audit` (api-designer-spec §9.4). Some events carry no resource or no request id. */
 export interface AuditEvent {

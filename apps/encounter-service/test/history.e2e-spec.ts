@@ -1,3 +1,4 @@
+import type { FhirResource } from '@medcenter/fhir';
 import request from 'supertest';
 
 import {
@@ -105,6 +106,47 @@ describe('History and prescriptions (API §7.4–7.7)', () => {
       expect(response.body).toMatchObject({ errorCode: expect.stringMatching(/^(FORBIDDEN_ROLE|COMPARTMENT_VIOLATION)$/) });
       expect(JSON.stringify(response.body)).not.toContain('J06.9');
     }
+  });
+
+  describe('read audit (ADR-018, D-3)', () => {
+    const readEvents = (): FhirResource[] => harness.hapi.stored('AuditEvent').filter((event) => ['R', 'E'].includes(String(event['action'])));
+
+    it('should write an AuditEvent naming the doctor and the patient when the doctor reads the history', async () => {
+      await completeVisit();
+
+      await get(DOCTOR, '/api/v1/patients/pat-1/history').set('X-Request-Id', 'req-doc-1').expect(200);
+
+      expect(readEvents()).toEqual([
+        expect.objectContaining({
+          outcome: '0',
+          agent: [expect.objectContaining({ who: { identifier: { value: DOCTOR.sub } } })],
+          entity: expect.arrayContaining([
+            expect.objectContaining({ what: { reference: 'Patient/pat-1' } }),
+            expect.objectContaining({ what: { identifier: { value: 'req-doc-1' } } }),
+          ]),
+        }),
+      ]);
+      expect(JSON.stringify(readEvents())).not.toContain('J06.9');
+    });
+
+    it('should write an AuditEvent with outcome 4 when a doctor who never treated the patient is refused', async () => {
+      await get(OTHER_DOCTOR, '/api/v1/patients/pat-1/prescriptions').expect(403);
+
+      expect(readEvents()).toEqual([expect.objectContaining({ outcome: '4', agent: [expect.objectContaining({ who: { identifier: { value: 'other-doctor' } } })] })]);
+    });
+
+    it('should not write an AuditEvent when a patient reads their own history', async () => {
+      await get(PATIENT, '/api/v1/me/history').expect(200);
+
+      expect(readEvents()).toEqual([]);
+    });
+
+    it('should still answer when the AuditEvent cannot be stored', async () => {
+      jest.spyOn(harness.hapi, 'create').mockRejectedValue(new Error('HAPI down'));
+      await completeVisit();
+
+      await get(DOCTOR, '/api/v1/patients/pat-1/history').expect(200);
+    });
   });
 
   it('should answer 403 FORBIDDEN_SCOPE when a doctor token calls the patient-only me routes', async () => {

@@ -1,11 +1,13 @@
 import { Inject, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import type { JwtClaims } from '@medcenter/common';
 import { buildPaginatedResponse, type PaginatedResponseDto } from '@medcenter/contracts';
-import { FHIR_CLIENT, type FhirClient, type FhirResource } from '@medcenter/fhir';
+import { FHIR_CLIENT, PatientReadAudit, type FhirClient, type FhirResource } from '@medcenter/fhir';
 
 import { PatientAccessService } from '../access/patient-access.service';
 import type { RelatedPersonResponseDto } from './dto/related-person-response.dto';
 import { relatedPatientIdOf, toRelatedPersonResponseDto } from './mappers/related-person.mapper';
+
+const AUDIT_SOURCE = 'patient-service';
 
 export interface RelatedPersonsPage {
   readonly page: number;
@@ -15,7 +17,8 @@ export interface RelatedPersonsPage {
 /**
  * Trusted persons of a patient (API §3.3) — `RelatedPerson` resources whose
  * `patient` is the requested Patient. Same access rules as the card itself
- * (`PatientAccessService`); read-only, so no `AuditEvent` (ADR-014).
+ * (`PatientAccessService`); a read of another patient's list, and any refused
+ * read, is journalled (ADR-018).
  */
 @Injectable()
 export class RelatedPersonsService {
@@ -24,9 +27,21 @@ export class RelatedPersonsService {
   constructor(
     @Inject(FHIR_CLIENT) private readonly fhir: FhirClient,
     private readonly access: PatientAccessService,
+    private readonly readAudit: PatientReadAudit,
   ) {}
 
   async listForPatient(
+    patientId: string,
+    claims: JwtClaims,
+    paging: RelatedPersonsPage,
+    requestId?: string,
+  ): Promise<PaginatedResponseDto<RelatedPersonResponseDto>> {
+    return this.readAudit.audited(claims, patientId, { interaction: 'search-type', source: AUDIT_SOURCE, requestId }, () =>
+      this.readList(patientId, claims, paging),
+    );
+  }
+
+  private async readList(
     patientId: string,
     claims: JwtClaims,
     paging: RelatedPersonsPage,

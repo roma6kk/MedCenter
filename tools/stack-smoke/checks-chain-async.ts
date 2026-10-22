@@ -147,6 +147,19 @@ function auditSteps(suite: Suite): SmokeStep[] {
         expectTrue(items.length > 0 && items.every((item) => item['userId'] === userId), "the userId filter did not return the patient's event");
       },
     },
+    {
+      name: "GET /patients/{id} by the doctor and by another doctor -> a `read` and a `denied` audit event of the patient, attributed to each (ADR-018)",
+      run: async () => {
+        const patientId = expectDefined(chain.patientId, 'the chain patient id');
+        expectEqual((await api.get(`/api/v1/patients/${patientId}`, { session: sessions.doctor })).status, 200, 'the treating doctor reading the card');
+        expectEqual((await api.get(`/api/v1/patients/${patientId}`, { session: sessions.otherDoctor })).status, 403, 'a doctor without shared care reading the card');
+        const read = await auditOf(suite, `Patient/${patientId}`, 'read');
+        const denied = await auditOf(suite, `Patient/${patientId}`, 'denied');
+        expectTrue(read.some((item) => item['userId'] === sessions.doctor.claims.sub), 'no read event attributed to the treating doctor');
+        expectTrue(denied.some((item) => item['userId'] === sessions.otherDoctor.claims.sub), 'no denied event attributed to the other doctor');
+        expectTrue([...read, ...denied].every((item) => String(item['requestId']).length > 0), 'a read audit event carries no requestId (NFR-007)');
+      },
+    },
   ];
 }
 

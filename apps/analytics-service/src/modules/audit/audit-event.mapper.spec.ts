@@ -46,6 +46,34 @@ describe('toAuditEventRow', () => {
     expect(toAuditEventRow(appointmentServiceAudit({ action: 'D', subtype: undefined }))?.action).toBe('delete');
   });
 
+  describe('patient-data reads (ADR-018)', () => {
+    const readAudit = (overrides: Record<string, unknown> = {}): FhirResource => ({
+      ...appointmentServiceAudit(),
+      subtype: [{ system: 'http://hl7.org/fhir/restful-interaction', code: 'read' }],
+      action: 'R',
+      source: { observer: { display: 'patient-service' } },
+      entity: [{ what: { reference: 'Patient/pat-1' }, role: { code: '1' } }],
+      ...overrides,
+    });
+
+    it('should map a successful read to read with the patient as the resource', () => {
+      expect(toAuditEventRow(readAudit())).toMatchObject({ action: 'read', resourceType: 'Patient', resourceId: 'pat-1', source: 'patient-service' });
+    });
+
+    it('should map a successful search-type read to read', () => {
+      expect(toAuditEventRow(readAudit({ subtype: [{ code: 'search-type' }], action: 'E' }))?.action).toBe('read');
+    });
+
+    it('should map a read with outcome 4 to denied', () => {
+      expect(toAuditEventRow(readAudit({ outcome: '4' }))?.action).toBe('denied');
+      expect(toAuditEventRow(readAudit({ subtype: [{ code: 'search-type' }], action: 'E', outcome: '4' }))?.action).toBe('denied');
+    });
+
+    it('should keep a write event with outcome 4 as its write action', () => {
+      expect(toAuditEventRow(appointmentServiceAudit({ outcome: '4' }))?.action).toBe('create');
+    });
+  });
+
   it('should skip read and execute events when the action is not a create, update or delete', () => {
     expect(toAuditEventRow(appointmentServiceAudit({ action: 'R', subtype: undefined }))).toBeUndefined();
     expect(toAuditEventRow(appointmentServiceAudit({ action: 'E', subtype: undefined }))).toBeUndefined();

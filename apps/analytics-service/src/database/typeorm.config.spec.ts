@@ -7,6 +7,7 @@ import { EncounterFactEntity } from './entities/encounter-fact.entity';
 import { ProcessedEventEntity } from './entities/processed-event.entity';
 import { SyncCursorEntity } from './entities/sync-cursor.entity';
 import { AnalyticsInit1760342400000 } from './migrations/1760342400000-AnalyticsInit';
+import { AuditReadActions1761120000000 } from './migrations/1761120000000-AuditReadActions';
 import { ANALYTICS_ENTITIES, buildAnalyticsDataSource, migrateAnalyticsSchema } from './typeorm.config';
 
 const CONNECTION: DatabaseConnection = {
@@ -43,7 +44,7 @@ describe('analytics data source factory', () => {
     expect(options.type).toBe('postgres');
     expect(options.schema).toBe('analytics');
     expect(options.synchronize).toBe(false);
-    expect(options.migrations).toEqual([AnalyticsInit1760342400000]);
+    expect(options.migrations).toEqual([AnalyticsInit1760342400000, AuditReadActions1761120000000]);
   });
 
   it('should pass the connection options straight through when built', () => {

@@ -1,4 +1,4 @@
-import { FhirClientError, type FhirClient } from '@medcenter/fhir';
+import { FhirClientError, PatientReadAudit, type FhirClient } from '@medcenter/fhir';
 
 import {
   adminClaims,
@@ -20,7 +20,7 @@ describe('PatientsService', () => {
 
   beforeEach(() => {
     fhir = createFhirClientMock();
-    service = new PatientsService(fhir, new PatientAccessService(fhir));
+    service = new PatientsService(fhir, new PatientAccessService(fhir), new PatientReadAudit(fhir));
   });
 
   describe('getMePatient', () => {
@@ -113,6 +113,59 @@ describe('PatientsService', () => {
         errorCode: 'FORBIDDEN_SCOPE',
       });
       expect(fhir.read).not.toHaveBeenCalled();
+    });
+
+    describe('read audit (ADR-018)', () => {
+      const auditEvents = (): unknown[] => fhir.create.mock.calls.filter(([type]) => type === 'AuditEvent').map(([, event]) => event);
+
+      it('should write an AuditEvent when an administrator reads a card', async () => {
+        await service.getById('9f2c', adminClaims, 'req-1');
+
+        expect(auditEvents()).toEqual([
+          expect.objectContaining({
+            action: 'R',
+            outcome: '0',
+            agent: [expect.objectContaining({ who: { identifier: { value: 'user-a' } } })],
+            entity: [expect.objectContaining({ what: { reference: 'Patient/9f2c' } }), expect.anything()],
+          }),
+        ]);
+      });
+
+      it('should write an AuditEvent when a doctor with shared care reads a card', async () => {
+        fhir.search.mockImplementation(searchAnswering({ Appointment: bundleOf(sharedAppointment) }));
+
+        await service.getById('9f2c', doctorClaims, 'req-2');
+
+        expect(auditEvents()).toEqual([
+          expect.objectContaining({ outcome: '0', agent: [expect.objectContaining({ who: { identifier: { value: 'user-d' } } })] }),
+        ]);
+      });
+
+      it('should write an AuditEvent with outcome 4 when the doctor shares no care', async () => {
+        await expect(service.getById('1442', doctorClaims, 'req-3')).rejects.toThrow('COMPARTMENT_VIOLATION');
+
+        expect(auditEvents()).toEqual([expect.objectContaining({ action: 'R', outcome: '4' })]);
+      });
+
+      it('should write nothing when a patient reads their own card', async () => {
+        await service.getById('9f2c', claims, 'req-4');
+
+        expect(auditEvents()).toEqual([]);
+      });
+
+      it('should still answer when the AuditEvent cannot be stored', async () => {
+        fhir.create.mockRejectedValue(new FhirClientError('POST', 'http://hapi/fhir/AuditEvent', 503));
+
+        await expect(service.getById('9f2c', adminClaims, 'req-5')).resolves.toMatchObject({ id: '9f2c' });
+      });
+
+      it('should write nothing when the patient does not exist', async () => {
+        fhir.read.mockRejectedValue(new FhirClientError('GET', 'http://hapi/fhir/Patient/nope', 404));
+
+        await expect(service.getById('nope', adminClaims, 'req-6')).rejects.toBeDefined();
+
+        expect(auditEvents()).toEqual([]);
+      });
     });
 
     it('should propagate NOT_FOUND when HAPI does not know the id', async () => {

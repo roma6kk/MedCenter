@@ -1,4 +1,4 @@
-import { FhirClientError, type FhirClient, type FhirResource } from '@medcenter/fhir';
+import { FhirClientError, PatientReadAudit, type FhirClient, type FhirResource } from '@medcenter/fhir';
 
 import {
   adminClaims,
@@ -40,7 +40,7 @@ describe('RelatedPersonsService', () => {
   beforeEach(() => {
     fhir = createFhirClientMock();
     fhir.search.mockResolvedValue(bundleOf(mother));
-    service = new RelatedPersonsService(fhir, new PatientAccessService(fhir));
+    service = new RelatedPersonsService(fhir, new PatientAccessService(fhir), new PatientReadAudit(fhir));
   });
 
   it('should return the related persons of the patient in a paginated envelope when access is allowed', async () => {
@@ -192,6 +192,30 @@ describe('RelatedPersonsService', () => {
       fhir.search.mockRejectedValue(new FhirClientError('GET', 'http://hapi/fhir/RelatedPerson', 500));
 
       expect(await errorStatusOf(service.listForPatient('9f2c', adminClaims, page))).toBe(502);
+    });
+  });
+
+  describe('read audit (ADR-018)', () => {
+    const auditEvents = (): unknown[] => fhir.create.mock.calls.filter(([type]) => type === 'AuditEvent').map(([, event]) => event);
+
+    it('should write a search-type AuditEvent when an administrator lists the trusted persons', async () => {
+      await service.listForPatient('9f2c', adminClaims, page, 'req-1');
+
+      expect(auditEvents()).toEqual([
+        expect.objectContaining({ action: 'E', outcome: '0', subtype: [expect.objectContaining({ code: 'search-type' })] }),
+      ]);
+    });
+
+    it('should write an AuditEvent with outcome 4 when the doctor shares no care', async () => {
+      await expect(service.listForPatient('9f2c', doctorClaims, page, 'req-2')).rejects.toThrow('COMPARTMENT_VIOLATION');
+
+      expect(auditEvents()).toEqual([expect.objectContaining({ outcome: '4' })]);
+    });
+
+    it('should write nothing when a patient lists their own trusted persons', async () => {
+      await service.listForPatient('9f2c', patientClaims, page, 'req-3');
+
+      expect(auditEvents()).toEqual([]);
     });
   });
 });

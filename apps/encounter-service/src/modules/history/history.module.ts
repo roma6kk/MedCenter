@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { PatientReadAudit } from '@medcenter/fhir';
 
 import { FhirModule } from '../../common/fhir/fhir.module';
 import { HistoryController } from './history.controller';
@@ -9,6 +10,6 @@ import { PrescriptionsService } from './prescriptions.service';
 @Module({
   imports: [FhirModule],
   controllers: [HistoryController],
-  providers: [PatientAccessService, HistoryService, PrescriptionsService],
+  providers: [PatientAccessService, HistoryService, PrescriptionsService, PatientReadAudit],
 })
 export class HistoryModule {}

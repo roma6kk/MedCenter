@@ -60,6 +60,8 @@ ADR-013; BR-006). Параметр `patient` в query игнорируется �
 | Аналитика 9.1–9.3 (агрегаты) | — | — | да |
 | Журнал аудита 9.4 | — | — | да |
 
+Чтение чужих данных пациента (3.2, 3.3, 7.4, 7.5) врачом и администратором и каждый отказ журналируются (`read`/`denied`, ADR-018).
+
 **Пагинация и сортировка** (листинги `GET`):
 
 | Параметр | Тип | По умолчанию | Ограничение |
@@ -88,7 +90,7 @@ export class PaginatedResponseDto<TItem> {
 
 **Rate-limit** (NFR-006, Redis-счётчики, guard `libs/common`): `120 req/min` на пользователя
 на сервис; `20 req/min` на `POST /oauth/token` (по `clientId`+IP); превышение → `429` с
-заголовками `Retry-After`. Аудит (`AuditEvent`) пишется на create/update/delete (FR-021, ADR-014).
+заголовками `Retry-After`. Аудит (`AuditEvent`) пишется на create/update/delete (FR-021, ADR-014) и на чтение данных пациента врачом или администратором (3.2, 3.3, 7.4, 7.5) вместе с отказами 403 `COMPARTMENT_VIOLATION` (ADR-018).
 
 **Идемпотентность.** `POST /appointments` и `POST /admin/schedules/generate` принимают
 заголовок `Idempotency-Key: <uuid>` (хранится в Redis, TTL 24 h, ответ повторяется из кэша).
@@ -815,8 +817,9 @@ sender=Organization) + email-адаптер (A-3). Компартмент: фи�
 
 Ответ 9.1–9.3 — `MeasureReport`-производный DTO (группировка `measureScoring`), из read-model
 PostgreSQL (worker наполняет по событиям). Ответ 9.4 — `PaginatedResponseDto<AuditEventDto>`:
-`{ id; occurredAt; userId; action: 'create'|'update'|'delete'; resourceType; resourceId;
-requestId }`. **Status:** 200 · 400 (диапазон > 366 дней).
+`{ id; occurredAt; userId; action: 'create'|'update'|'delete'|'read'|'denied'; resourceType; resourceId;
+requestId }`. `read` — чтение данных пациента врачом или администратором, `denied` — отказ в нём (ADR-018);
+чтение пациентом своей карты в журнал не попадает. **Status:** 200 · 400 (диапазон > 366 дней).
 
 #### 10. Swagger / OpenAPI
 
@@ -864,6 +867,6 @@ requestId }`. **Status:** 200 · 400 (диапазон > 366 дней).
 | FR-018 | 2.3.1–2.3.4 | ADR-002/016/017 |
 | FR-019 | 9.1–9.3 | read-model, ADR-011 |
 | FR-020 | 5.2.1–5.2.6 | ADR-015 (horizon ≤ 90 d), `SCHEDULE_OVERLAP` |
-| FR-021 | 9.4 | ADR-014; запись — во всех мутирующих операциях |
+| FR-021 | 9.4 | ADR-014; запись — во всех мутирующих операциях и в чтении ПДн (ADR-018) |
 
 **Coverage:** 21/21 FR покрыты эндпоинтами §2–§9; все 9 BR выражены кодами §1 и правилами §5–§7.

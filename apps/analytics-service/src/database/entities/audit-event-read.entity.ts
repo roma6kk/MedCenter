@@ -2,8 +2,11 @@ import { Column, Entity, PrimaryColumn } from 'typeorm';
 
 import { ANALYTICS_SCHEMA } from '../analytics-schema';
 
-/** `AuditEvent.action` values the journal exposes (API §9.4). */
-export type AuditAction = 'create' | 'update' | 'delete';
+/**
+ * `AuditEvent.action` values the journal exposes (API §9.4): writes, plus `read` (a doctor's or administrator's read
+ * of patient data) and `denied` (a read refused by the compartment rule), ADR-018.
+ */
+export type AuditAction = 'create' | 'update' | 'delete' | 'read' | 'denied';
 
 /**
  * Read-model copy of a FHIR `AuditEvent` (ADR-014). HAPI stays the system of

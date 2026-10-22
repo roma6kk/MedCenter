@@ -1,5 +1,5 @@
 import { Controller, Get, Param, Req } from '@nestjs/common';
-import { claimsOf, RequiresRoles, type RequestWithClaims } from '@medcenter/common';
+import { claimsOf, RequiresRoles, type RequestWithClaims, type RequestWithRequestId } from '@medcenter/common';
 import { Role } from '@medcenter/contracts';
 
 import { PatientIdParamsDto } from './dto/patient-id-params.dto';
@@ -19,7 +19,10 @@ export class PatientsController {
 
   @Get(':id')
   @RequiresRoles(Role.PATIENT, Role.DOCTOR, Role.ADMIN)
-  async getById(@Req() request: RequestWithClaims, @Param() params: PatientIdParamsDto): Promise<PatientResponseDto> {
-    return this.patients.getById(params.id, claimsOf(request));
+  async getById(
+    @Req() request: RequestWithClaims & Pick<RequestWithRequestId, 'requestId'>,
+    @Param() params: PatientIdParamsDto,
+  ): Promise<PatientResponseDto> {
+    return this.patients.getById(params.id, claimsOf(request), request.requestId);
   }
 }

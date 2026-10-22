@@ -5,9 +5,12 @@ import type { AuditEventRow } from './audit.repository';
 
 type Json = Readonly<Record<string, unknown>>;
 
-/** R4 `AuditEventAction` → journal action; `R` (read) and `E` (execute) are not journalled. */
+/** R4 `AuditEventAction` → journal action; a bare `R` (read) or `E` (execute) without a restful subtype is not journalled. */
 const ACTION_BY_CODE: Readonly<Record<string, AuditAction>> = { C: 'create', U: 'update', D: 'delete' };
-const RESTFUL_SUBTYPES: ReadonlySet<string> = new Set(['create', 'update', 'delete']);
+const WRITE_SUBTYPES: ReadonlySet<string> = new Set(['create', 'update', 'delete']);
+/** Read interactions written by `PatientReadAudit` (ADR-018); `AuditEvent.outcome` 4 marks a refused read. */
+const READ_SUBTYPES: ReadonlySet<string> = new Set(['read', 'search-type']);
+const OUTCOME_MINOR_FAILURE = '4';
 
 /** IHE BALP entity type carrying the `X-Request-Id` correlation id. */
 const REQUEST_ID_ENTITY_TYPE = 'XrequestId';
@@ -58,12 +61,20 @@ function fit(value: string | undefined, max: number): string | null {
   return value === undefined ? null : value.slice(0, max);
 }
 
-/** A restful `subtype` (`create`/`update`/`delete`) wins over the coarse `action` code. */
+/**
+ * A restful `subtype` wins over the coarse `action` code: a write subtype is its own action, a read subtype is
+ * `read`, or `denied` when the event records a refusal (`outcome` 4).
+ */
 function actionOf(resource: FhirResource): AuditAction | undefined {
-  const subtype = asObjects(resource['subtype'])
-    .map((coding) => asString(coding['code']))
-    .find((code): code is AuditAction => code !== undefined && RESTFUL_SUBTYPES.has(code));
-  return subtype ?? ACTION_BY_CODE[asString(resource['action']) ?? ''];
+  const subtypes = asObjects(resource['subtype']).map((coding) => asString(coding['code']));
+  const write = subtypes.find((code): code is AuditAction => code !== undefined && WRITE_SUBTYPES.has(code));
+  if (write !== undefined) {
+    return write;
+  }
+  if (subtypes.some((code) => code !== undefined && READ_SUBTYPES.has(code))) {
+    return asString(resource['outcome']) === OUTCOME_MINOR_FAILURE ? 'denied' : 'read';
+  }
+  return ACTION_BY_CODE[asString(resource['action']) ?? ''];
 }
 
 /**
@@ -140,8 +151,9 @@ function sourceOf(resource: FhirResource): string | null {
 
 /**
  * FHIR R4 `AuditEvent` → journal row (API §9.4). Returns `undefined` for
- * anything that is not a create/update/delete AuditEvent with a FHIR id and a
- * valid `recorded` instant — such entries are not part of the journal.
+ * anything that is not a write or patient-data-read AuditEvent with a FHIR id and a
+ * valid `recorded` instant — such entries are not part of the journal. A read of
+ * patient data (`read`/`search-type`) is journalled as `read` or, when refused, `denied` (ADR-018).
  *
  * Every text field is bounded to its column: one oversized value from HAPI
  * (an external source) must not reject a whole insert page and freeze the sync.

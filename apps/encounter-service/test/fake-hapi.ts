@@ -124,8 +124,14 @@ export class FakeHapi implements FhirClient {
     return this.applyTransaction((bundle['entry'] as BundleEntry[] | undefined) ?? []);
   }
 
-  async create(): Promise<FhirResource> {
-    throw new Error('FakeHapi: encounter-service writes through transactions only');
+  /** Only a read `AuditEvent` is created directly (ADR-018); every other write is a transaction. */
+  async create(resourceType: string, resource: FhirResource): Promise<FhirResource> {
+    if (resourceType !== 'AuditEvent') {
+      throw new Error('FakeHapi: encounter-service writes through transactions only');
+    }
+    const stored = { ...structuredClone(resource), id: `auditevent-${(this.sequence += 1)}` };
+    this.put(stored);
+    return stored;
   }
 
   async update(): Promise<FhirResource> {

@@ -65,6 +65,20 @@ describe('AuditPanel', () => {
     expect(table.getByText('a48dab5b-67da-4ed7-a9be-f047cd9925c7')).toBeInTheDocument();
   });
 
+  it('should name a read of patient data and a refused read when the journal holds them (ADR-018)', async () => {
+    const reads: ReadonlyArray<AuditEvent> = [
+      { id: '3', occurredAt: '2026-10-16T08:00:00.000Z', userId: 'u-1', action: 'read', resourceType: 'Patient', resourceId: '1442', requestId: 'r-3' },
+      { id: '4', occurredAt: '2026-10-16T08:01:00.000Z', userId: 'u-2', action: 'denied', resourceType: 'Patient', resourceId: '1442', requestId: 'r-4' },
+    ];
+    apiFetchMock.mockResolvedValue({ items: reads, meta: { page: 1, pageSize: 20, totalItems: 2, totalPages: 1 } });
+    renderWithClient(<AuditPanel />);
+
+    const table = within(await screen.findByRole('table', { name: 'Журнал аудита' }));
+
+    expect(await table.findByText('Чтение')).toBeInTheDocument();
+    expect(table.getByText('Отказ в доступе')).toBeInTheDocument();
+  });
+
   it('should offer to copy the request id only when the event has one', async () => {
     renderWithClient(<AuditPanel />);
 
