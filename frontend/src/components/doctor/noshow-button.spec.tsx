@@ -84,6 +84,18 @@ describe('NoshowButton', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent('Запись уже не в статусе');
   });
 
+  it('should explain why and refresh the journal when the service answers 409 ENCOUNTER_STATE_INVALID for a visit with an encounter', async () => {
+    apiFetchMock.mockRejectedValue(problem(409, 'ENCOUNTER_STATE_INVALID'));
+    const client = newQueryClient();
+    const invalidate = jest.spyOn(client, 'invalidateQueries');
+    renderWithClient(<NoshowButton appointmentId="a1" />, client);
+    await userEvent.click(screen.getByRole('button', { name: 'Неявка' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Подтвердить неявку' }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('по ней уже открыт или завершён приём');
+    await waitFor(() => expect(invalidate).toHaveBeenCalled());
+  });
+
   it('should keep the confirmation open and show the message when the request fails with a server error', async () => {
     apiFetchMock.mockRejectedValue(problem(500, 'INTERNAL'));
     renderButton();

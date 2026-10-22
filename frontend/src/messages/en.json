@@ -753,6 +753,7 @@
       "confirm": "Confirm no-show",
       "cancel": "Cancel",
       "notBooked": "The appointment is no longer booked: it cannot be marked as a no-show",
+      "hasEncounter": "It cannot be marked as a no-show: the appointment is no longer booked or an encounter is already open or completed for it",
       "done": "No-show recorded"
     },
     "schedule": {

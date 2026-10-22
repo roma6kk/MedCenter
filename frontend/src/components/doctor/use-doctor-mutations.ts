@@ -32,6 +32,10 @@ export function useNoshow(onRecorded?: () => void): UseMutationResult<unknown, E
       onRecorded?.();
       await invalidateFor(client, 'noshow');
     },
+    // A 409 means the journal is behind the service (the visit was seen or changed elsewhere): refresh it to show why.
+    onError: async (error) => {
+      if (error instanceof ApiError && error.status === 409) await invalidateFor(client, 'noshow');
+    },
   });
 }
 

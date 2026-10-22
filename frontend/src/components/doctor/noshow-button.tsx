@@ -89,7 +89,7 @@ function NoshowConfirmation({ appointmentId, confirmRef, onDismiss, onDone }: Co
       <button type="button" onClick={onDismiss} disabled={noshow.isPending} className="min-h-[44px] px-2 text-sm underline disabled:opacity-50">
         {t('cancel')}
       </button>
-      {noshow.isError ? <InlineProblem error={noshow.error} overrides={{ CONFLICT: t('notBooked') }} /> : null}
+      {noshow.isError ? <InlineProblem error={noshow.error} overrides={{ CONFLICT: t('notBooked'), ENCOUNTER_STATE_INVALID: t('hasEncounter') }} /> : null}
     </span>
   );
 }
