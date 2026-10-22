@@ -1,8 +1,8 @@
 import type { Doctor } from './catalog-types';
-import { DIRECTORY_PAGE_SIZE, buildDirectory, directoryHref, filterBySpecialty, paginateList, parseDirectoryParams, parseFhirId, specialtiesOf } from './doctor-directory';
+import { DIRECTORY_PAGE_SIZE, buildDirectory, directoryHref, doctorQueryOf, optionQueryOf, parseDirectoryParams, parseFhirId, specialtiesOf } from './doctor-directory';
 
-function doctor(id: string, specialty?: string): Doctor {
-  return { id, firstName: 'Имя', lastName: id, name: `Имя ${id}`, ...(specialty === undefined ? {} : { specialty }) };
+function doctor(id: string, specialty?: string, specialtyCode?: string): Doctor {
+  return { id, firstName: 'Имя', lastName: id, name: `Имя ${id}`, ...(specialty === undefined ? {} : { specialty }), ...(specialtyCode === undefined ? {} : { specialtyCode }) };
 }
 
 describe('parseFhirId', () => {
@@ -30,9 +30,9 @@ describe('parseDirectoryParams', () => {
   });
 
   it('should read the filters and the page when the query string carries them', () => {
-    expect(parseDirectoryParams({ serviceId: 'abc-1', specialty: 'Терапевт', search: ' Иван ', page: '2' })).toEqual({
+    expect(parseDirectoryParams({ serviceId: 'abc-1', specialty: '419192003', search: ' Иван ', page: '2' })).toEqual({
       serviceId: 'abc-1',
-      specialty: 'Терапевт',
+      specialty: '419192003',
       search: 'Иван',
       page: 2,
     });
@@ -57,51 +57,49 @@ describe('parseDirectoryParams', () => {
     expect(parseDirectoryParams({ search: 'я'.repeat(150) }).search).toHaveLength(100);
   });
 
+  it.each(['Терапевт', 'a|b', '1 2', 'x'.repeat(65)])('should drop the specialty %p, as it is no code the API filters by', (specialty) => {
+    expect(parseDirectoryParams({ specialty }).specialty).toBeUndefined();
+  });
+
   it('should treat filters as unset when they are blank', () => {
     expect(parseDirectoryParams({ search: '   ', specialty: '' })).toEqual({ page: 1 });
   });
 });
 
 describe('specialtiesOf', () => {
-  it('should list each specialty once, sorted, when doctors share them or have none', () => {
-    const doctors = [doctor('a', 'Хирург'), doctor('b', 'Терапевт'), doctor('c'), doctor('d', 'Хирург')];
+  it('should offer each coded specialty once, sorted by label, and skip doctors without a code', () => {
+    const doctors = [doctor('a', 'Хирург', '394609007'), doctor('b', 'Терапевт', '419192003'), doctor('c'), doctor('d', 'Хирург', '394609007'), doctor('e', 'Без кода')];
 
-    expect(specialtiesOf(doctors)).toEqual(['Терапевт', 'Хирург']);
+    expect(specialtiesOf(doctors)).toEqual([
+      { code: '419192003', label: 'Терапевт' },
+      { code: '394609007', label: 'Хирург' },
+    ]);
+  });
+
+  it('should fall back to the code as the label when the specialty has no display text', () => {
+    expect(specialtiesOf([doctor('a', undefined, '123')])).toEqual([{ code: '123', label: '123' }]);
   });
 });
 
-describe('filterBySpecialty', () => {
-  const doctors = [doctor('a', 'Хирург'), doctor('b', 'Терапевт'), doctor('c')];
-
-  it('should keep every doctor when no specialty is chosen', () => {
-    expect(filterBySpecialty(doctors, undefined)).toHaveLength(3);
+describe('doctorQueryOf', () => {
+  it('should ask the API for every filter and one directory page when filters are set', () => {
+    expect(doctorQueryOf({ serviceId: 's-1', specialty: '419192003', search: 'Ив', page: 2 })).toEqual({
+      serviceId: 's-1',
+      specialty: '419192003',
+      search: 'Ив',
+      page: 2,
+      pageSize: DIRECTORY_PAGE_SIZE,
+    });
   });
 
-  it('should keep only the doctors of the chosen specialty when one is chosen', () => {
-    expect(filterBySpecialty(doctors, 'Терапевт').map((d) => d.id)).toEqual(['b']);
+  it('should send only the page when no filter is set', () => {
+    expect(doctorQueryOf({ page: 1 })).toEqual({ page: 1, pageSize: DIRECTORY_PAGE_SIZE });
   });
 });
 
-describe('paginateList', () => {
-  const items = Array.from({ length: 20 }, (_, index) => index);
-
-  it('should cut a page and report the envelope meta when the list is paginated', () => {
-    const page = paginateList(items, 2, 9);
-
-    expect(page.items).toEqual([9, 10, 11, 12, 13, 14, 15, 16, 17]);
-    expect(page.meta).toEqual({ page: 2, pageSize: 9, totalItems: 20, totalPages: 3 });
-  });
-
-  it('should clamp the page to the last page when it is past the end', () => {
-    expect(paginateList(items, 99, 9).meta.page).toBe(3);
-  });
-
-  it('should return an empty first page when the list is empty', () => {
-    expect(paginateList([], 1, 9)).toEqual({ items: [], meta: { page: 1, pageSize: 9, totalItems: 0, totalPages: 0 } });
-  });
-
-  it('should use the directory page size when no size is given', () => {
-    expect(paginateList(items, 1).meta.pageSize).toBe(DIRECTORY_PAGE_SIZE);
+describe('optionQueryOf', () => {
+  it('should keep the service and name but not the specialty or page, so every specialty stays on offer', () => {
+    expect(optionQueryOf({ serviceId: 's-1', specialty: '419192003', search: 'Ив', page: 3 })).toEqual({ serviceId: 's-1', search: 'Ив' });
   });
 });
 
@@ -115,37 +113,17 @@ describe('directoryHref', () => {
   });
 
   it('should carry the page when it is 2 or later', () => {
-    expect(directoryHref({ specialty: 'Терапевт', page: 2 })).toBe('/doctors?specialty=%D0%A2%D0%B5%D1%80%D0%B0%D0%BF%D0%B5%D0%B2%D1%82&page=2');
+    expect(directoryHref({ specialty: '419192003', page: 2 })).toBe('/doctors?specialty=419192003&page=2');
   });
 });
 
 describe('buildDirectory', () => {
-  const doctors = [doctor('a', 'Терапевт'), doctor('b', 'Кардиолог'), doctor('c', 'Терапевт'), doctor('d')];
+  it('should keep the API page as it is and offer the specialties of the option doctors', () => {
+    const page = { items: [doctor('a', 'Терапевт', '419192003')], meta: { page: 1, pageSize: 9, totalItems: 1, totalPages: 1 } };
 
-  it('should show every doctor and offer the known specialties when no specialty is chosen', () => {
-    const directory = buildDirectory(doctors, { page: 1 });
+    const directory = buildDirectory(page, [doctor('a', 'Терапевт', '419192003'), doctor('b', 'Кардиолог', '394579002')]);
 
-    expect(directory.page.items).toHaveLength(4);
-    expect(directory.specialties).toEqual(['Кардиолог', 'Терапевт']);
-  });
-
-  it('should narrow the list to the chosen specialty and keep the other options when one is chosen', () => {
-    const directory = buildDirectory(doctors, { page: 1, specialty: 'Терапевт' });
-
-    expect(directory.page.items.map((item) => item.id)).toEqual(['a', 'c']);
-    expect(directory.specialties).toEqual(['Кардиолог', 'Терапевт']);
-  });
-
-  it('should keep a chosen specialty in the options even when no loaded doctor has it', () => {
-    const directory = buildDirectory(doctors, { page: 1, specialty: 'Хирург' });
-
-    expect(directory.page.items).toEqual([]);
-    expect(directory.specialties).toContain('Хирург');
-  });
-
-  it('should cut the list into pages when the directory is built', () => {
-    const many = Array.from({ length: DIRECTORY_PAGE_SIZE + 2 }, (_, index) => doctor(`d${index}`));
-
-    expect(buildDirectory(many, { page: 2 }).page.items).toHaveLength(2);
+    expect(directory.page).toBe(page);
+    expect(directory.specialties.map((option) => option.label)).toEqual(['Кардиолог', 'Терапевт']);
   });
 });

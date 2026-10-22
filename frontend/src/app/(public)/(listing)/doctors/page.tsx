@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
-import { loadDoctors, loadServices } from '@/components/catalog/catalog-server';
+import { loadDoctorPage, loadDoctors, loadServices } from '@/components/catalog/catalog-server';
 import { DoctorCatalog } from '@/components/catalog/doctor-catalog';
-import { buildDirectory, parseDirectoryParams, type DirectoryParams } from '@/components/catalog/doctor-directory';
+import { buildDirectory, doctorQueryOf, optionQueryOf, parseDirectoryParams, type DirectoryParams } from '@/components/catalog/doctor-directory';
 import { pageMetadata } from '@/lib/i18n/page-metadata';
 
 export const metadata: Metadata = pageMetadata('catalog.doctorsTitle');
@@ -15,15 +15,15 @@ interface DoctorsPageProps {
 
 export default async function DoctorsPage({ searchParams }: DoctorsPageProps): Promise<React.JSX.Element> {
   const params: DirectoryParams = parseDirectoryParams((await searchParams) ?? {});
-  const [doctors, services] = await Promise.all([
-    loadDoctors({ ...(params.serviceId === undefined ? {} : { serviceId: params.serviceId }), ...(params.search === undefined ? {} : { search: params.search }) }),
-    loadServices(),
-  ]);
+  const [first, options, services] = await Promise.all([loadDoctorPage(doctorQueryOf(params)), loadDoctors(optionQueryOf(params)), loadServices()]);
+  // A typed page past the end shows the last page instead of an empty list.
+  const lastPage: number = first.ok ? first.data.meta.totalPages : 0;
+  const doctors = first.ok && params.page > lastPage && lastPage > 0 ? await loadDoctorPage(doctorQueryOf({ ...params, page: lastPage })) : first;
   return (
     <DoctorCatalog
       params={params}
       services={services.ok ? services.data : []}
-      directory={doctors.ok ? buildDirectory(doctors.data, params) : null}
+      directory={doctors.ok ? buildDirectory(doctors.data, options.ok ? options.data : []) : null}
     />
   );
 }

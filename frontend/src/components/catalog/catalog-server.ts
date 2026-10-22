@@ -22,6 +22,12 @@ export function loadDoctors(query: DoctorQuery = {}): Promise<ListResult<Doctor>
   return loadList<Doctor>(withQuery('/api/v1/doctors', { pageSize: CATALOG_PAGE_SIZE, ...query }));
 }
 
+/** One page of doctors as the API pages it (filters and paging on the server). */
+export async function loadDoctorPage(query: DoctorQuery): Promise<FetchResult<PaginatedResponse<Doctor>>> {
+  const result = await publicApiFetch<PaginatedResponse<Doctor> | ReadonlyArray<Doctor>>(withQuery('/api/v1/doctors', { ...query }));
+  return result.ok ? { ok: true, data: toPaginated(result.data) } : result;
+}
+
 export function loadDoctor(doctorId: string): Promise<FetchResult<Doctor>> {
   return publicApiFetch<Doctor>(`/api/v1/doctors/${encodeURIComponent(doctorId)}`);
 }

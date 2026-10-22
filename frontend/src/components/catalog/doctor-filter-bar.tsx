@@ -4,7 +4,7 @@ import type { ReactNode } from 'react';
 import { useId } from 'react';
 import { useT } from '@/lib/i18n/use-t';
 import type { CatalogService } from './catalog-types';
-import type { DirectoryParams } from './doctor-directory';
+import type { DirectoryParams, SpecialtyOption } from './doctor-directory';
 import { SECONDARY_BUTTON_CLASS } from './catalog-styles';
 
 const CONTROL_CLASS = 'mt-1 min-h-[44px] w-full rounded-[6px] border border-[var(--input)] bg-[var(--card)] px-2';
@@ -12,7 +12,7 @@ const CONTROL_CLASS = 'mt-1 min-h-[44px] w-full rounded-[6px] border border-[var
 interface DoctorFilterBarProps {
   readonly params: DirectoryParams;
   readonly services: ReadonlyArray<CatalogService>;
-  readonly specialties: ReadonlyArray<string>;
+  readonly specialties: ReadonlyArray<SpecialtyOption>;
 }
 
 function Field({ label, htmlFor, children }: { readonly label: string; readonly htmlFor: string; readonly children: ReactNode }): ReactNode {
@@ -41,7 +41,7 @@ export function DoctorFilterBar({ params, services, specialties }: DoctorFilterB
       <Field label={t('filterSpecialty')} htmlFor={`${id}-specialty`}>
         <select id={`${id}-specialty`} name="specialty" defaultValue={params.specialty ?? ''} className={CONTROL_CLASS}>
           <option value="">{t('anySpecialty')}</option>
-          {specialties.map((specialty) => <option key={specialty} value={specialty}>{specialty}</option>)}
+          {specialties.map((specialty) => <option key={specialty.code} value={specialty.code}>{specialty.label}</option>)}
         </select>
       </Field>
       <Field label={t('filterSearch')} htmlFor={`${id}-search`}>

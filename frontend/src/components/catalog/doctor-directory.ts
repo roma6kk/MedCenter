@@ -1,12 +1,11 @@
 /**
- * doctor-directory — query-string handling and in-memory filtering of the public doctor catalog (`/doctors`).
+ * doctor-directory — query-string handling of the public doctor catalog (`/doctors`).
  *
- * The API filters by `serviceId` and `search` on the server, but its `specialty` filter takes a SNOMED code that
- * the doctor DTO does not expose, so the specialty (a display text) is filtered here, and the page is cut here too:
- * the catalog is one API page (≤ 100 doctors) of a single clinic.
+ * The API filters by `serviceId`, `search` and `specialty` (the SNOMED code of the doctor DTO) and pages the result,
+ * so the URL carries the code and this module only turns the URL into an API query and the specialty options.
  */
-import type { PageMeta, PaginatedResponse } from '@/lib/api/pagination';
-import type { Doctor } from './catalog-types';
+import type { PaginatedResponse } from '@/lib/api/pagination';
+import type { Doctor, DoctorQuery } from './catalog-types';
 
 export const DIRECTORY_PAGE_SIZE = 9;
 
@@ -16,6 +15,8 @@ const MAX_TERM_LENGTH = 100;
  * `.` and `..` are no ids: `encodeURIComponent` leaves them as they are and a URL parser then folds them into the path.
  */
 const FHIR_ID_PATTERN = /^(?!\.+$)[A-Za-z0-9\-.]{1,64}$/;
+/** A terminology code (SNOMED CT ids are digits); a display text from an old link is no code and drops out. */
+const CODE_PATTERN = /^[A-Za-z0-9\-.]{1,64}$/;
 
 export interface DirectoryParams {
   readonly serviceId?: string;
@@ -46,7 +47,8 @@ export function parseFhirId(raw: string | ReadonlyArray<string> | undefined): st
 /** Untrusted `searchParams` → safe filters: blank values drop out, a malformed `serviceId` is ignored. */
 export function parseDirectoryParams(raw: RawParams): DirectoryParams {
   const serviceId: string | undefined = parseFhirId(raw['serviceId']);
-  const specialty: string | undefined = firstValue(raw['specialty'])?.slice(0, MAX_TERM_LENGTH);
+  const rawSpecialty: string | undefined = firstValue(raw['specialty']);
+  const specialty: string | undefined = rawSpecialty !== undefined && CODE_PATTERN.test(rawSpecialty) ? rawSpecialty : undefined;
   const search: string | undefined = firstValue(raw['search'])?.slice(0, MAX_TERM_LENGTH);
   return {
     ...(serviceId === undefined ? {} : { serviceId }),
@@ -56,23 +58,38 @@ export function parseDirectoryParams(raw: RawParams): DirectoryParams {
   };
 }
 
-export function specialtiesOf(doctors: ReadonlyArray<Doctor>): ReadonlyArray<string> {
-  const names = new Set<string>();
+export interface SpecialtyOption {
+  /** The code the URL and the API filter carry. */
+  readonly code: string;
+  readonly label: string;
+}
+
+/** Each coded specialty of the doctors once, sorted by its label; doctors without a coded specialty add nothing. */
+export function specialtiesOf(doctors: ReadonlyArray<Doctor>): ReadonlyArray<SpecialtyOption> {
+  const byCode = new Map<string, string>();
   doctors.forEach((doctor) => {
-    if (doctor.specialty !== undefined && doctor.specialty !== '') names.add(doctor.specialty);
+    if (doctor.specialtyCode !== undefined && doctor.specialtyCode !== '') byCode.set(doctor.specialtyCode, doctor.specialty ?? doctor.specialtyCode);
   });
-  return [...names].sort((a, b) => a.localeCompare(b, 'ru'));
+  return [...byCode].map(([code, label]) => ({ code, label })).sort((a, b) => a.label.localeCompare(b.label, 'ru'));
 }
 
-export function filterBySpecialty(doctors: ReadonlyArray<Doctor>, specialty: string | undefined): ReadonlyArray<Doctor> {
-  return specialty === undefined ? doctors : doctors.filter((doctor) => doctor.specialty === specialty);
+/** The API query of a catalog page: every filter of the URL, the page and the directory page size. */
+export function doctorQueryOf(params: DirectoryParams): DoctorQuery {
+  return {
+    ...(params.serviceId === undefined ? {} : { serviceId: params.serviceId }),
+    ...(params.specialty === undefined ? {} : { specialty: params.specialty }),
+    ...(params.search === undefined ? {} : { search: params.search }),
+    page: params.page,
+    pageSize: DIRECTORY_PAGE_SIZE,
+  };
 }
 
-export function paginateList<T>(items: ReadonlyArray<T>, page: number, pageSize: number = DIRECTORY_PAGE_SIZE): PaginatedResponse<T> {
-  const totalPages: number = Math.ceil(items.length / pageSize);
-  const current: number = Math.min(Math.max(page, 1), Math.max(totalPages, 1));
-  const meta: PageMeta = { page: current, pageSize, totalItems: items.length, totalPages };
-  return { items: items.slice((current - 1) * pageSize, current * pageSize), meta };
+/** The query of the specialty options: the same service and name, every specialty. */
+export function optionQueryOf(params: DirectoryParams): DoctorQuery {
+  return {
+    ...(params.serviceId === undefined ? {} : { serviceId: params.serviceId }),
+    ...(params.search === undefined ? {} : { search: params.search }),
+  };
 }
 
 /** `/doctors?...` for a filter/page combination; default values (no filter, page 1) leave the URL clean. */
@@ -88,14 +105,11 @@ export function directoryHref(params: DirectoryParams): string {
 
 export interface Directory {
   readonly page: PaginatedResponse<Doctor>;
-  /** Specialties to offer in the filter: those of the loaded doctors, and always the selected one. */
-  readonly specialties: ReadonlyArray<string>;
+  /** Specialties to offer in the filter: those of the doctors matching the other filters. */
+  readonly specialties: ReadonlyArray<SpecialtyOption>;
 }
 
-/** What `/doctors` shows for the doctors the API returned (already filtered by service and search) and the filters of the URL. */
-export function buildDirectory(doctors: ReadonlyArray<Doctor>, params: DirectoryParams): Directory {
-  const known: ReadonlyArray<string> = specialtiesOf(doctors);
-  const selected: string | undefined = params.specialty;
-  const specialties: ReadonlyArray<string> = selected === undefined || known.includes(selected) ? known : [...known, selected].sort((a, b) => a.localeCompare(b, 'ru'));
-  return { page: paginateList(filterBySpecialty(doctors, selected), params.page), specialties };
+/** What `/doctors` shows: the API's page of doctors and the specialty options (empty when they could not be read). */
+export function buildDirectory(page: PaginatedResponse<Doctor>, optionDoctors: ReadonlyArray<Doctor>): Directory {
+  return { page, specialties: specialtiesOf(optionDoctors) };
 }

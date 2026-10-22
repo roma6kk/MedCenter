@@ -1,7 +1,7 @@
 jest.mock('@/lib/server-fetch', () => ({ publicApiFetch: jest.fn() }));
 
 import { publicApiFetch } from '@/lib/server-fetch';
-import { loadDoctor, loadDoctors, loadServices } from './catalog-server';
+import { loadDoctor, loadDoctorPage, loadDoctors, loadServices } from './catalog-server';
 
 const fetchMock = publicApiFetch as jest.MockedFunction<(path: string) => Promise<unknown>>;
 
@@ -34,6 +34,16 @@ describe('catalog-server', () => {
     await loadDoctors({ serviceId: 'svc-1', search: 'Ив' });
 
     expect(fetchMock).toHaveBeenCalledWith(expect.stringMatching(/serviceId=svc-1.*search=/));
+  });
+
+  it('should keep the server page meta and send the specialty and paging when one page of doctors is loaded', async () => {
+    const envelope = { items: [{ id: 'd1' }], meta: { page: 2, pageSize: 9, totalItems: 10, totalPages: 2 } };
+    fetchMock.mockResolvedValue({ ok: true, data: envelope });
+
+    const result = await loadDoctorPage({ specialty: '419192003', page: 2, pageSize: 9 });
+
+    expect(fetchMock).toHaveBeenCalledWith('/api/v1/doctors?specialty=419192003&page=2&pageSize=9');
+    expect(result).toEqual({ ok: true, data: envelope });
   });
 
   it('should encode the id when a single doctor is loaded', async () => {

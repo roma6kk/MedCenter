@@ -12,6 +12,11 @@ export interface Doctor {
   readonly name: string;
   /** Display text of the specialty; absent when the practitioner has no qualification. */
   readonly specialty?: string;
+  /** SNOMED code of the specialty: what `GET /doctors?specialty=` takes (API §4.1). */
+  readonly specialtyCode?: string;
+  readonly specialtySystem?: string;
+  /** Ids of the doctor's active `PractitionerRole`s, ascending (the one a DOCTOR account links to). */
+  readonly practitionerRoleIds?: ReadonlyArray<string>;
 }
 
 export interface CatalogService {
