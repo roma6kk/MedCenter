@@ -3,6 +3,8 @@
 import { useCallback, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import Link from 'next/link';
+import { ArrowLeft } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import { NotFoundState, TableSkeleton } from '@/components/feedback/states';
 import { isMissingError, QueryFailure } from '@/components/feedback/query-error-state';
 import { useDocumentTitle } from '@/hooks/use-document-title';
@@ -15,7 +17,7 @@ import { useAppointment } from './use-appointments';
 
 function BackLink(): ReactNode {
   const t = useT('appointments');
-  return <Link href="/appointments" className="inline-flex min-h-[44px] items-center text-sm underline"><span aria-hidden="true">←&nbsp;</span>{t('back')}</Link>;
+  return <Link href="/appointments" className="inline-flex min-h-[44px] items-center gap-1.5 text-sm font-medium text-primary-soft-foreground hover:underline"><ArrowLeft aria-hidden="true" size={16} />{t('back')}</Link>;
 }
 
 interface LoadedProps {
@@ -30,9 +32,7 @@ function LoadedAppointment({ appointment, onCancel }: LoadedProps): ReactNode {
       <AppointmentDetails appointment={appointment} />
       {isCancellable(appointment.status) ? (
         <div className="no-print mt-4">
-          <button type="button" onClick={onCancel} className="min-h-[44px] rounded-[6px] border border-[var(--destructive)] px-4 text-sm text-[var(--destructive)] hover:bg-[var(--secondary)]">
-            {t('cancel')}
-          </button>
+          <Button variant="danger" size="lg" onClick={onCancel}>{t('cancel')}</Button>
         </div>
       ) : null}
     </>
@@ -68,10 +68,10 @@ export function AppointmentDetailView({ appointmentId }: { readonly appointmentI
   useDocumentTitle(t('detailTitle'));
   if (query.data === undefined && isMissingError(query.error, true)) return <MissingAppointment />;
   return (
-    <section aria-busy={query.isFetching}>
+    <section aria-busy={query.isFetching} className="flex flex-col gap-4">
       <BackLink />
-      <h1 ref={heading} tabIndex={-1} className="serif mt-2 text-2xl font-bold focus:outline-none">{t('detailTitle')}</h1>
-      <div className="mt-4"><DetailBody query={query} onCancel={() => setIsDialogOpen(true)} /></div>
+      <h1 ref={heading} tabIndex={-1} className="text-[28px] font-bold tracking-tight focus:outline-none sm:text-[34px]">{t('detailTitle')}</h1>
+      <div><DetailBody query={query} onCancel={() => setIsDialogOpen(true)} /></div>
       {isDialogOpen && query.data ? <CancelAppointmentDialog appointment={query.data} onClose={closeDialog} onCancelled={closeDialog} /> : null}
     </section>
   );

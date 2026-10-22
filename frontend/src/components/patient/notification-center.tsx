@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { ReactNode, RefObject } from 'react';
+import { buttonVariants } from '@/components/ui/button-variants';
 import { Pager } from '@/components/data-display/paginated-table';
 import { EmptyState, TableSkeleton } from '@/components/feedback/states';
 import { isApiError } from '@/lib/api/api-fetch';
@@ -46,7 +47,7 @@ function MarkReadButton({ item, markingId, onMarkRead }: ItemProps): ReactNode {
       disabled={isMarking}
       aria-describedby={`notification-${item.id}-text`}
       onClick={() => onMarkRead(item.id)}
-      className="no-print min-h-[44px] shrink-0 self-start rounded-[6px] border border-[var(--border)] px-4 text-sm hover:bg-[var(--secondary)] disabled:opacity-60"
+      className={`no-print ${buttonVariants({ variant: 'secondary' })} shrink-0 self-start`}
     >
       {isMarking ? t('marking') : t('markRead')}
     </button>
@@ -57,12 +58,12 @@ function NotificationRow({ item, markingId, onMarkRead }: ItemProps): ReactNode 
   const t = useT('patient.notifications');
   const format = useClinicFormat();
   return (
-    <li className={`flex flex-col gap-3 rounded-[6px] border bg-[var(--card)] p-4 sm:flex-row sm:items-start sm:justify-between ${item.read ? 'border-[var(--border)]' : 'border-l-4 border-[var(--border)] border-l-[var(--primary)]'}`}>
+    <li className={`flex flex-col gap-3 rounded-card border bg-card p-5 sm:flex-row sm:items-start sm:justify-between ${item.read ? 'border-border' : 'border-l-4 border-border border-l-primary'}`}>
       <div className="min-w-0 sm:flex-1">
-        <p className="flex flex-wrap items-center gap-2 text-xs text-[var(--muted-foreground)]">
+        <p className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
           <span className="form-label">{t(CATEGORY_KEYS[item.category] ?? 'categoryOther')}</span>
           <time dateTime={item.sent}>{format.dateTime(item.sent)}</time>
-          {item.read ? null : <span className="font-semibold text-[var(--primary)]">{t('unread')}</span>}
+          {item.read ? null : <span className="rounded-full bg-primary-soft px-2 py-0.5 font-semibold text-primary-soft-foreground">{t('unread')}</span>}
         </p>
         <p id={`notification-${item.id}-text`} className={`mt-1 text-sm ${WRAP_TEXT}`}>{format.prose(item.text)}</p>
       </div>
@@ -83,7 +84,7 @@ function NotificationItems({ page, markingId, listRef, onMarkRead, onPage }: Lis
   const t = useT('patient.notifications');
   return (
     <>
-      <ul ref={listRef} tabIndex={-1} aria-label={t('listLabel')} className="grid grid-cols-1 gap-2 focus:outline-none">
+      <ul ref={listRef} tabIndex={-1} aria-label={t('listLabel')} className="grid grid-cols-1 gap-3 focus:outline-none">
         {page.items.map((item) => <NotificationRow key={item.id} item={item} markingId={markingId} onMarkRead={onMarkRead} />)}
       </ul>
       {page.meta.totalPages > 1 ? <Pager meta={page.meta} onPage={onPage} /> : null}
@@ -181,10 +182,10 @@ export function NotificationCenter(): ReactNode {
   const options: ReadonlyArray<TabOption<NotificationTab>> = [{ value: 'all', label: t('tabAll') }, { value: 'unread', label: t('tabUnread') }];
   useDocumentTitle(t('title'));
   return (
-    <section>
-      <h1 className="serif text-2xl font-bold">{t('title')}</h1>
-      <div className="mt-4"><SegmentedTabs idPrefix={TABS_ID} label={t('tabsLabel')} options={options} value={state.tab} onChange={state.changeTab} /></div>
-      <div ref={state.panelRef} tabIndex={-1} aria-busy={state.query.isFetching} {...tabPanelProps(TABS_ID, state.tab)} className="mt-4 focus:outline-none">
+    <section className="flex flex-col gap-7">
+      <h1 className="text-[28px] font-bold tracking-tight sm:text-[34px]">{t('title')}</h1>
+      <div><SegmentedTabs idPrefix={TABS_ID} label={t('tabsLabel')} options={options} value={state.tab} onChange={state.changeTab} /></div>
+      <div ref={state.panelRef} tabIndex={-1} aria-busy={state.query.isFetching} {...tabPanelProps(TABS_ID, state.tab)} className="focus:outline-none">
         <PanelBody state={state} />
       </div>
     </section>

@@ -47,7 +47,7 @@ interface TabButtonProps {
 }
 
 function TabButton({ idPrefix, value, label, selected, onSelect, onKeyDown, buttonRef }: TabButtonProps): ReactNode {
-  const state: string = selected ? 'border-[var(--primary)] font-semibold' : 'border-transparent text-[var(--muted-foreground)] hover:text-[var(--foreground)]';
+  const state: string = selected ? 'bg-card font-semibold text-foreground shadow-[0_1px_2px_rgb(19_37_43/0.12)]' : 'font-medium text-muted-foreground hover:text-foreground';
   return (
     <button
       ref={buttonRef}
@@ -59,7 +59,7 @@ function TabButton({ idPrefix, value, label, selected, onSelect, onKeyDown, butt
       tabIndex={selected ? 0 : -1}
       onClick={onSelect}
       onKeyDown={onKeyDown}
-      className={`min-h-[44px] border-b-2 px-4 text-sm ${state}`}
+      className={`min-h-[44px] rounded-[9px] px-4 text-[15px] ${state}`}
     >
       {label}
     </button>
@@ -78,7 +78,7 @@ export function SegmentedTabs<TValue extends string>({ idPrefix, label, options,
     buttons.current[target]?.focus();
   };
   return (
-    <div role="tablist" aria-label={label} className="no-print flex flex-wrap gap-1 border-b border-[var(--border)]">
+    <div role="tablist" aria-label={label} className="no-print inline-flex max-w-full flex-wrap gap-1 self-start rounded-card bg-secondary p-1">
       {options.map((option, index) => (
         <TabButton
           key={option.value}

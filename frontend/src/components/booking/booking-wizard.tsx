@@ -7,6 +7,7 @@ import { useT } from '@/lib/i18n/use-t';
 import { BookingStepper } from './booking-stepper';
 import { selectDoctor, selectService, selectSlot } from './booking-steps';
 import { BookingSuccess } from './booking-success';
+import { BookingSummary } from './booking-summary';
 import { ConfirmStep } from './confirm-step';
 import { DoctorStep } from './doctor-step';
 import { ServiceStep } from './service-step';
@@ -57,15 +58,26 @@ export function BookingWizard({ presetDoctorId }: { readonly presetDoctorId?: st
   const booking = useBookingSubmit();
   const container = useStepFocus(draft.step, booking.notice !== null);
   if (booking.created !== null) return <BookingSuccess appointmentId={booking.created.id} />;
+  const showsConfirm: boolean = draft.step === 4 && draft.doctorId !== null && draft.slotId !== null;
   const goTo = (step: BookingStep): void => {
     booking.reset();
     draft.updateDraft({ step });
   };
   return (
-    <section ref={container} aria-label={t('title')} className="space-y-5">
+    <section ref={container} aria-label={t('title')} className="flex flex-col gap-7">
       <BookingStepper current={draft.step} onGo={goTo} />
-      {isRestored && draft.step === 4 ? <p role="status" className="text-sm text-[var(--muted-foreground)]">{t('draftRestored')}</p> : null}
-      <StepView draft={draft} booking={booking} update={draft.updateDraft} />
+      {isRestored && draft.step === 4 ? <p role="status" className="text-sm text-muted-foreground">{t('draftRestored')}</p> : null}
+      {/* The confirmation step carries its own full summary; the other steps get the draft panel beside them. */}
+      <div className="flex flex-wrap items-start gap-6">
+        <div className="min-w-0 flex-[999_1_560px]">
+          <StepView draft={draft} booking={booking} update={draft.updateDraft} />
+        </div>
+        {showsConfirm ? null : (
+          <aside className="min-w-0 flex-[1_1_300px]">
+            <BookingSummary draft={draft} />
+          </aside>
+        )}
+      </div>
     </section>
   );
 }

@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import type { ReactNode } from 'react';
+import { Card } from '@/components/ui/card';
 import { Pager } from '@/components/data-display/paginated-table';
 import { CodeChip } from '@/components/feedback/code-chip';
 import { EmptyState, TableSkeleton } from '@/components/feedback/states';
@@ -72,14 +73,14 @@ function PrescriptionCard({ item }: { readonly item: Prescription }): ReactNode 
   const format = useClinicFormat();
   return (
     <li className="min-w-0">
-      <article data-kind={item.kind} className="h-full rounded-[6px] border border-[var(--border)] bg-[var(--card)] p-4">
+      <Card as="article" data-kind={item.kind} padding="lg" className="h-full">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">{item.kind === 'medication' ? <MedicationBody item={item} /> : <ServiceBody item={item} />}</div>
           <StatusStamp status={item.status} />
         </div>
         {item.note ? <p className={`mt-2 text-sm ${WRAP_TEXT}`}><span className="text-[var(--muted-foreground)]">{t('note')}: </span>{item.note}</p> : null}
         {item.authoredOn ? <p className="mt-3 text-xs text-[var(--muted-foreground)]">{t('authored')}: {format.date(item.authoredOn)}</p> : null}
-      </article>
+      </Card>
     </li>
   );
 }
@@ -111,12 +112,12 @@ export function PrescriptionList(): ReactNode {
   useClampedPage(query.data?.meta, page, setPage);
   useDocumentTitle(t('title'));
   return (
-    <section>
+    <section className="flex flex-col gap-7">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="serif text-2xl font-bold">{t('title')}</h1>
+        <h1 className="text-[28px] font-bold tracking-tight sm:text-[34px]">{t('title')}</h1>
         {query.data !== undefined && query.data.items.length > 0 ? <PrintButton label={t('print')} /> : null}
       </div>
-      <div className="mt-4" aria-busy={query.isFetching}><PrescriptionPanel query={query} onPage={setPage} /></div>
+      <div aria-busy={query.isFetching}><PrescriptionPanel query={query} onPage={setPage} /></div>
     </section>
   );
 }

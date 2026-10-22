@@ -1,6 +1,8 @@
 'use client';
 
 import type { ReactNode } from 'react';
+import Link from 'next/link';
+import { Plus } from 'lucide-react';
 import { useT } from '@/lib/i18n/use-t';
 import { LocaleSwitcher } from './locale-switcher';
 import { LogoutButton } from './logout-button';
@@ -16,26 +18,39 @@ const PATIENT_LINKS: ReadonlyArray<{ readonly href: string; readonly key: string
   { href: '/profile', key: 'profile' },
 ];
 
+const LINK_CLASS = 'rounded-control px-3 text-[15px] font-medium text-foreground hover:bg-secondary';
+const ACTIVE_LINK_CLASS = 'bg-primary-soft font-semibold text-primary-soft-foreground hover:bg-primary-soft';
+
+/** Cabinet frame of the redesign: logo mark, pill navigation (the current section on `primary-soft`), bell, language, sign-out. */
 export function PatientShell({ children }: { readonly children: ReactNode }): ReactNode {
   const t = useT('layout.patient');
+  const tLayout = useT('layout');
   return (
     <div className="min-h-screen">
       <SkipLink />
-      <header className="border-b border-[var(--border)] bg-[var(--card)]">
-        <nav aria-label={t('navLabel')} className="mx-auto flex max-w-5xl flex-wrap items-center gap-x-4 gap-y-1 px-4 py-2">
-          {PATIENT_LINKS.map((link) => (
-            <NavLink key={link.href} href={link.href} className="text-sm font-medium hover:underline">
-              {t(link.key)}
-            </NavLink>
-          ))}
-          <span className="ml-auto flex items-center gap-3">
+      <header className="border-b border-border bg-card">
+        <div className="mx-auto flex max-w-[1200px] flex-wrap items-center gap-x-7 gap-y-3 px-6 py-3">
+          <Link href="/" className="inline-flex min-h-[44px] items-center gap-2.5 font-bold text-foreground">
+            <span aria-hidden="true" className="inline-flex h-[34px] w-[34px] items-center justify-center rounded-control bg-primary text-primary-foreground">
+              <Plus size={18} strokeWidth={2.4} />
+            </span>
+            <span className="text-lg">{tLayout('brand')}</span>
+          </Link>
+          <nav aria-label={t('navLabel')} className="flex flex-wrap gap-0.5">
+            {PATIENT_LINKS.map((link) => (
+              <NavLink key={link.href} href={link.href} className={LINK_CLASS} activeClassName={ACTIVE_LINK_CLASS}>
+                {t(link.key)}
+              </NavLink>
+            ))}
+          </nav>
+          <div className="ml-auto flex items-center gap-2.5">
             <NotificationBell />
             <LocaleSwitcher />
             <LogoutButton />
-          </span>
-        </nav>
+          </div>
+        </div>
       </header>
-      <main id={MAIN_CONTENT_ID} tabIndex={-1} className="focus:outline-none mx-auto max-w-5xl px-4 py-6">{children}</main>
+      <main id={MAIN_CONTENT_ID} tabIndex={-1} className="mx-auto max-w-[1200px] px-6 pb-16 pt-9 focus:outline-none">{children}</main>
     </div>
   );
 }

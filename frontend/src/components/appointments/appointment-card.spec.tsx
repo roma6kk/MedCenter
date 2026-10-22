@@ -13,14 +13,16 @@ describe('AppointmentCard', () => {
     render(<AppointmentCard appointment={appointmentFixture()} />);
 
     expect(screen.getByText(/10:00/)).toHaveAttribute('datetime', '2026-10-19T07:00:00.000Z');
-    expect(screen.getByText('Иванова Мария Сергеевна · Приём терапевта (первичный)')).toBeInTheDocument();
+    expect(screen.getByText('Иванова Мария Сергеевна')).toBeInTheDocument();
+    expect(screen.getByText('Приём терапевта (первичный)')).toBeInTheDocument();
     expect(screen.getByTestId('stamp-booked')).toHaveTextContent('Записан');
   });
 
   it('should fall back to neutral texts when the doctor and the service names are missing', () => {
     render(<AppointmentCard appointment={appointmentFixture({ doctorName: undefined, serviceName: undefined })} />);
 
-    expect(screen.getByText('Врач не указан · Услуга не указана')).toBeInTheDocument();
+    expect(screen.getByText('Врач не указан')).toBeInTheDocument();
+    expect(screen.getByText('Услуга не указана')).toBeInTheDocument();
   });
 
   it('should link to the detail page with a name that tells the cards apart', () => {

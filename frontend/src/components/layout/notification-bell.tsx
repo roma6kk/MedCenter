@@ -16,7 +16,7 @@ function UnreadBadge({ count }: { readonly count: number }): ReactNode {
     <span
       data-testid="unread-badge"
       aria-hidden="true"
-      className="absolute -right-1 -top-1 rounded-full bg-[var(--destructive)] px-1 text-[10px] text-white"
+      className="absolute -right-1.5 -top-1.5 inline-flex h-5 min-w-[20px] items-center justify-center rounded-full bg-destructive px-1.5 text-[11px] font-bold text-white"
     >
       {count > BADGE_CAP ? t('overflow') : count}
     </span>
@@ -37,8 +37,8 @@ export function NotificationBell(): ReactNode {
   const count: number = data ?? 0;
   return (
     <span className="relative inline-flex">
-      <NavLink href="/notifications" label={t('label', { count })} className="relative min-w-[44px] justify-center rounded-[6px] border border-[var(--border)] p-2">
-        <Bell size={18} strokeWidth={1.5} aria-hidden="true" />
+      <NavLink href="/notifications" label={t('label', { count })} className="relative min-w-[44px] justify-center rounded-control border border-border text-foreground hover:bg-secondary">
+        <Bell size={20} strokeWidth={2} aria-hidden="true" />
         <UnreadBadge count={count} />
       </NavLink>
       <span role="status" className="sr-only">

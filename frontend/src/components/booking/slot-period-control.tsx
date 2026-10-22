@@ -48,7 +48,7 @@ function JumpToDate({ state }: { readonly state: SlotWindowState }): ReactNode {
         max={state.lastDay}
         onChange={date.onChange}
         onBlur={date.onBlur}
-        className="mt-1 min-h-[44px] w-full rounded-[6px] border border-[var(--input)] bg-[var(--card)] px-2 sm:w-auto"
+        className="mt-1 min-h-[44px] w-full rounded-control border border-input bg-card px-2 sm:w-auto"
       />
     </div>
   );

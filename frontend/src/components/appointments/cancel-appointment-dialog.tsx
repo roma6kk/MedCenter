@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useId, useRef } from 'react';
 import type { ReactNode } from 'react';
+import { Button } from '@/components/ui/button';
+import { buttonVariants } from '@/components/ui/button-variants';
 import { FormField, INPUT_CLASS } from '@/components/patient/form-field';
 import { ProblemBanner } from '@/components/feedback/problem-banner';
 import { useClinicFormat } from '@/hooks/use-clinic-format';
@@ -17,7 +19,6 @@ interface CancelAppointmentDialogProps {
   readonly onCancelled: () => void;
 }
 
-const BUTTON_CLASS = 'min-h-[44px] rounded-[6px] px-4 text-sm disabled:opacity-60 aria-disabled:opacity-60';
 
 function NotCancellable({ onClose }: { readonly onClose: () => void }): ReactNode {
   const t = useT('appointments');
@@ -28,7 +29,7 @@ function NotCancellable({ onClose }: { readonly onClose: () => void }): ReactNod
   return (
     <div>
       <p role="alert" className="mt-3 text-sm">{t('notCancellable')}</p>
-      <button ref={closeButton} type="button" onClick={onClose} className={`${BUTTON_CLASS} mt-3 border border-[var(--border)]`}>{tCommon('close')}</button>
+      <button ref={closeButton} type="button" onClick={onClose} className={`${buttonVariants({ variant: 'secondary' })} mt-3`}>{tCommon('close')}</button>
     </div>
   );
 }
@@ -52,8 +53,8 @@ function ReasonForm({ form, onClose }: { readonly form: CancelFormState; readonl
       {form.problem !== null ? <div className="mt-3"><ProblemBanner problem={form.problem} /></div> : null}
       <div className="mt-4 flex flex-wrap gap-2">
         {/* aria-disabled, not disabled: a control that loses the focus to the body would let Tab walk out of the dialog. */}
-        <button type="submit" aria-disabled={form.pending} className={`${BUTTON_CLASS} bg-[var(--destructive)] text-white`}>{form.pending ? t('cancelBusy') : t('cancelSubmit')}</button>
-        <button type="button" aria-disabled={form.pending} onClick={onClose} className={`${BUTTON_CLASS} border border-[var(--border)]`}>{t('cancelKeep')}</button>
+        <Button type="submit" variant="danger" aria-disabled={form.pending}>{form.pending ? t('cancelBusy') : t('cancelSubmit')}</Button>
+        <Button variant="secondary" aria-disabled={form.pending} onClick={onClose}>{t('cancelKeep')}</Button>
       </div>
     </form>
   );
@@ -84,9 +85,9 @@ export function CancelAppointmentDialog({ appointment, onClose, onCancelled }: C
   const close: () => void = useCloseUnlessPending(form.pending, onClose);
   const dialogRef = useDialogFocus<HTMLDivElement>(true, close);
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4">
-      <div ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby={titleId} aria-describedby={leadId} className="max-h-full w-full max-w-md overflow-y-auto rounded-[8px] border border-[var(--border)] bg-[var(--card)] p-4">
-        <h2 id={titleId} className="serif text-lg font-semibold">{t('cancelTitle')}</h2>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-inverse/40 p-4">
+      <div ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby={titleId} aria-describedby={leadId} className="max-h-full w-full max-w-md overflow-y-auto rounded-panel border border-border bg-card p-6">
+        <h2 id={titleId} className="text-lg font-bold">{t('cancelTitle')}</h2>
         <p id={leadId} className="mt-1 text-sm text-[var(--muted-foreground)]">
           {format.dateTime(appointment.start)} · {appointment.doctorName ?? t('doctorUnknown')}. {t('cancelLead')}
         </p>
