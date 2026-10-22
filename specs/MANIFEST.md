@@ -60,7 +60,7 @@ UCUM) подключается по canonical URL `https://fhir.by/...`. Арх�
 
 Решения продукта/дизайна зафиксированы в `tasks/TASK-001/brainstorming-design.md` (D1–D9),
 требования — в `tasks/TASK-001/requirements-analyst-requirements.md`. Архитектурные решения
-формализованы в `specs/architect-architecture.md` (ADR-001…ADR-017). Ключевое:
+формализованы в `specs/architect-architecture.md` (ADR-001…ADR-018). Ключевое:
 
 - **Стек:** TypeScript (strict) + NestJS для всего собственного кода; Next.js (App Router) клиент;
   Nx-монорепозиторий. HAPI FHIR JPA (R4, Java) — внешний off-the-shelf **движок**, не авторский код.

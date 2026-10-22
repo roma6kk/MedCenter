@@ -27,9 +27,9 @@ export class HistoryController {
     private readonly prescriptions: PrescriptionsService,
   ) {}
 
-  /** 7.4 — owner patient (`patient/*.read`), treating doctor or admin (`user/*.read`). */
+  /** 7.4 — owner patient (`patient/*.read`) or treating doctor (`user/*.read`); not an admin (ADR-018). */
   @Get('patients/:id/history')
-  @RequiresRoles(Role.PATIENT, Role.DOCTOR, Role.ADMIN)
+  @RequiresRoles(Role.PATIENT, Role.DOCTOR)
   async patientHistory(
     @Req() request: RequestWithClaims,
     @Param('id', FhirIdPipe) id: string,
@@ -42,7 +42,7 @@ export class HistoryController {
 
   /** 7.5 — same access as 7.4. */
   @Get('patients/:id/prescriptions')
-  @RequiresRoles(Role.PATIENT, Role.DOCTOR, Role.ADMIN)
+  @RequiresRoles(Role.PATIENT, Role.DOCTOR)
   async patientPrescriptions(
     @Req() request: RequestWithClaims,
     @Param('id', FhirIdPipe) id: string,

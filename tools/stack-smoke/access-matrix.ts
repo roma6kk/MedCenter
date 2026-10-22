@@ -12,6 +12,7 @@ const UUID = '00000000-0000-4000-8000-000000000000';
 const ADMIN: readonly SmokeRole[] = ['ADMIN'];
 const DOCTOR: readonly SmokeRole[] = ['DOCTOR'];
 const PATIENT: readonly SmokeRole[] = ['PATIENT'];
+const PATIENT_OR_DOCTOR: readonly SmokeRole[] = ['PATIENT', 'DOCTOR'];
 const STAFF: readonly SmokeRole[] = ['DOCTOR', 'ADMIN'];
 const VALUE_SET = encodeURIComponent('https://fhir.by/ValueSet/atc');
 
@@ -65,14 +66,15 @@ export const PROTECTED_ROUTES: readonly ProtectedRoute[] = [
   route('POST', '/api/v1/encounters', DOCTOR),
   route('GET', `/api/v1/encounters/${ID}`, STAFF),
   route('POST', `/api/v1/encounters/${ID}/complete`, DOCTOR),
-  route('GET', `/api/v1/patients/${ID}/history`, 'any'),
-  route('GET', `/api/v1/patients/${ID}/prescriptions`, 'any'),
+  route('GET', `/api/v1/patients/${ID}/history`, PATIENT_OR_DOCTOR),
+  route('GET', `/api/v1/patients/${ID}/prescriptions`, PATIENT_OR_DOCTOR),
   route('GET', '/api/v1/me/history', PATIENT),
   route('GET', '/api/v1/me/prescriptions', PATIENT),
   // notification-service
   route('GET', '/api/v1/notifications', PATIENT),
   route('GET', '/api/v1/notifications/unread-count', PATIENT),
   route('POST', `/api/v1/notifications/${ID}/read`, PATIENT),
+  route('POST', '/api/v1/notifications/read-all', PATIENT),
   // analytics-service
   route('GET', '/api/v1/admin/analytics/appointments', ADMIN),
   route('GET', '/api/v1/admin/analytics/encounters', ADMIN),

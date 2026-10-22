@@ -43,11 +43,22 @@ SMART/OAuth2, DTO с `class-validator`, каталог ошибок, Swagger-к�
 | --- | --- | --- | --- |
 | Пациент | `patient/*.read`, `patient/*.write`, `launch` | `PATIENT` | только свои ресурсы: `patientRef` из `ExternalLink` пользователя, проверка владения на уровне сервиса |
 | Врач | `user/*.read`, `user/*.write`, `launch` | `DOCTOR` | только свои `Encounter`/`Appointment` как участник (`PractitionerRole` из `ExternalLink`) |
-| Администратор | `user/*.read`, `user/*.write`, `launch` | `ADMIN` | без ограничений компартмента |
+| Администратор | `user/*.read`, `user/*.write`, `launch` | `ADMIN` | без ограничений компартмента, кроме медицинских данных пациента (ADR-018) |
 
 Правило: scope не отменяет компартмент — пациент-скоупный запрос **всегда** получает
 `patientRef` из JWT-контекста (`ExternalLink`), а не из параметров запроса (defence-in-depth,
 ADR-013; BR-006). Параметр `patient` в query игнорируется для `patient/*`-скоупов.
+
+**Матрица доступа к ПДн** (ADR-018; нормы и решения — `tasks/TASK-003/architect-pdn-access-decision.md`):
+
+| Категория данных | PATIENT (свои) | DOCTOR (общая запись или приём, ADR-013) | ADMIN |
+| --- | --- | --- | --- |
+| Идентификация и контакты (3.2) | да | да | да |
+| Доверенные лица (3.3) | да | да | да |
+| История обращений, диагнозы (7.4 / 7.6) | да | да | нет |
+| Назначения (7.5 / 7.7) | да | да | нет |
+| Аналитика 9.1–9.3 (агрегаты) | — | — | да |
+| Журнал аудита 9.4 | — | — | да |
 
 **Пагинация и сортировка** (листинги `GET`):
 
@@ -639,8 +650,8 @@ export class AppointmentResponseDto {
 | 7.1 | `POST /api/v1/encounters` | открыть приём по booked-записи (врач) | `user/*.write` (DOCTOR) |
 | 7.2 | `GET /api/v1/encounters/{id}` | детали приёма | участник / ADMIN |
 | 7.3 | `POST /api/v1/encounters/{id}/complete` | завершить приём: диагноз/план/назначения | `user/*.write` (DOCTOR) |
-| 7.4 | `GET /api/v1/patients/{id}/history?page=` | история обращений | владелец / DOCTOR / ADMIN |
-| 7.5 | `GET /api/v1/patients/{id}/prescriptions?page=` | назначения (ServiceRequest/MedicationRequest) | владелец / DOCTOR / ADMIN |
+| 7.4 | `GET /api/v1/patients/{id}/history?page=` | история обращений | владелец / DOCTOR (ADMIN → 403) |
+| 7.5 | `GET /api/v1/patients/{id}/prescriptions?page=` | назначения (ServiceRequest/MedicationRequest) | владелец / DOCTOR (ADMIN → 403) |
 | 7.6 | `GET /api/v1/me/history` | своя история (компартмент) | `patient/*.read` |
 | 7.7 | `GET /api/v1/me/prescriptions` | свои назначения (компартмент) | `patient/*.read` |
 

@@ -37,8 +37,8 @@ function isCareAppointment(appointment: FhirResource, patientRef: string, roleRe
 
 /**
  * Who may read a patient's history and prescriptions (API §7.4/7.5, ADR-013):
- * the patient themselves (compartment from the token), a doctor who shares an
- * encounter or an appointment with the patient, or an admin.
+ * the patient themselves (compartment from the token) or a doctor who shares an
+ * encounter or an appointment with the patient. An admin never reads it (ADR-018).
  */
 @Injectable()
 export class PatientAccessService {
@@ -59,7 +59,8 @@ export class PatientAccessService {
         await this.assertSharesCare(practitionerRoleRefFromClaims(claims), patientRef);
         return patientRef;
       case Role.ADMIN:
-        return patientRef;
+        // ADR-018: an administrator provides no care, so a patient's medical data is closed to them.
+        throw compartmentViolation('an administrator has no access to medical data');
       default:
         throw new ForbiddenException({ errorCode: 'FORBIDDEN_ROLE', message: `Role ${claims.role} cannot read patient records` });
     }

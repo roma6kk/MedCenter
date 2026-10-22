@@ -29,16 +29,20 @@ function ownRecordSteps(suite: Suite): SmokeStep[] {
   ];
 }
 
+/** ADR-018: the medical record is read by the owner and the treating doctor; the admin is refused. */
 function sharedRecordStep(suite: Suite, readers: readonly Reader[]): SmokeStep {
-  const { api, chain } = suite;
+  const { api, chain, sessions } = suite;
   return {
-    name: 'GET /patients/{id}/history and /prescriptions -> 200 for the owner, the treating doctor and the admin',
+    name: 'GET /patients/{id}/history and /prescriptions -> 200 for the owner and the treating doctor, 403 for the admin',
     run: async () => {
       const patientId = expectDefined(chain.patientId, 'the patient id');
       for (const [who, session] of readers) {
         const history = expectPage(await api.get(`/api/v1/patients/${patientId}/history`, { session }), HISTORY_ITEM_SHAPE);
         expectTrue(history.some((item) => item['id'] === chain.encounterId), `${who} does not see the encounter in the patient history`);
         expectPage(await api.get(`/api/v1/patients/${patientId}/prescriptions`, { session }), PRESCRIPTION_SHAPE);
+      }
+      for (const path of ['history', 'prescriptions']) {
+        expectStatus(await api.get(`/api/v1/patients/${patientId}/${path}`, { session: sessions.admin }), 403);
       }
     },
   };
@@ -94,6 +98,7 @@ function statusFilterStep(suite: Suite): SmokeStep {
 /** Steps 15-17: what the finished encounter left in the patient's record, read by each party that may read it. */
 export function readbackSteps(suite: Suite): SmokeStep[] {
   const { sessions } = suite;
-  const readers: readonly Reader[] = [['patient', sessions.patient], ['doctor', sessions.doctor], ['admin', sessions.admin]];
-  return [...ownRecordSteps(suite), sharedRecordStep(suite, readers), patientCardStep(suite, readers), statusFilterStep(suite)];
+  const cardReaders: readonly Reader[] = [['patient', sessions.patient], ['doctor', sessions.doctor], ['admin', sessions.admin]];
+  const recordReaders = cardReaders.filter(([who]) => who !== 'admin');
+  return [...ownRecordSteps(suite), sharedRecordStep(suite, recordReaders), patientCardStep(suite, cardReaders), statusFilterStep(suite)];
 }

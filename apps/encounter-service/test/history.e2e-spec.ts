@@ -27,7 +27,7 @@ const FOREIGN_ENCOUNTER = {
 /**
  * API §7.4–7.7 over HTTP: the patient compartment comes from the token only
  * (ADR-013), a doctor reads a patient only after sharing care with them, an
- * admin reads anyone. HAPI is the in-memory `FakeHapi`.
+ * admin reads no medical data (ADR-018). HAPI is the in-memory `FakeHapi`.
  */
 describe('History and prescriptions (API §7.4–7.7)', () => {
   let harness: AppHarness;
@@ -96,13 +96,15 @@ describe('History and prescriptions (API §7.4–7.7)', () => {
     expect(response.body).toMatchObject({ errorCode: 'COMPARTMENT_VIOLATION' });
   });
 
-  it('should let an admin read the prescriptions of any patient', async () => {
+  it('should answer 403 when an admin reads the history or the prescriptions of a patient', async () => {
     await completeVisit();
 
-    const response = await get(ADMIN, '/api/v1/patients/pat-1/prescriptions?page=1&pageSize=1').expect(200);
-
-    expect(response.body.items).toHaveLength(1);
-    expect(response.body.meta).toEqual({ page: 1, pageSize: 1, totalItems: 2, totalPages: 2 });
+    // The role guard refuses first (FORBIDDEN_ROLE); the compartment check behind it is the second layer (ADR-018).
+    for (const path of ['/api/v1/patients/pat-1/history', '/api/v1/patients/pat-1/prescriptions']) {
+      const response = await get(ADMIN, path).expect(403);
+      expect(response.body).toMatchObject({ errorCode: expect.stringMatching(/^(FORBIDDEN_ROLE|COMPARTMENT_VIOLATION)$/) });
+      expect(JSON.stringify(response.body)).not.toContain('J06.9');
+    }
   });
 
   it('should answer 403 FORBIDDEN_SCOPE when a doctor token calls the patient-only me routes', async () => {
@@ -113,7 +115,7 @@ describe('History and prescriptions (API §7.4–7.7)', () => {
   });
 
   it('should answer 400 VALIDATION_ERROR when the patient path id is made of dots only', async () => {
-    const response = await get(ADMIN, '/api/v1/patients/%2E%2E/history').expect(400);
+    const response = await get(DOCTOR, '/api/v1/patients/%2E%2E/history').expect(400);
 
     expect(response.body).toMatchObject({ errorCode: 'VALIDATION_ERROR' });
   });

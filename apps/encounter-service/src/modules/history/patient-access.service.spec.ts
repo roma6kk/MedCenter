@@ -133,8 +133,8 @@ describe('PatientAccessService', () => {
     expect(fhir.search).not.toHaveBeenCalled();
   });
 
-  it('should let an admin read any patient without a FHIR lookup', async () => {
-    await expect(service.resolveReadablePatient(adminClaims, 'pat-9')).resolves.toBe('Patient/pat-9');
+  it('should refuse an admin with COMPARTMENT_VIOLATION without a FHIR lookup', async () => {
+    expect(await errorPayloadOf(service.resolveReadablePatient(adminClaims, 'pat-9'))).toMatchObject({ errorCode: 'COMPARTMENT_VIOLATION' });
     expect(fhir.search).not.toHaveBeenCalled();
   });
 });
