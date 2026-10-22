@@ -19,7 +19,7 @@ export function ContactList({ telecom }: { readonly telecom: ReadonlyArray<Telec
         const href: string | undefined = hrefOf(contact);
         return (
           <li key={`${contact.system}-${contact.value}-${index}`}>
-            <span className="text-[var(--muted-foreground)]">{t(contact.system)}: </span>
+            <span className="text-muted-foreground">{t(contact.system)}: </span>
             {href ? <a href={href} className="underline">{contact.value}</a> : <span>{contact.value}</span>}
           </li>
         );

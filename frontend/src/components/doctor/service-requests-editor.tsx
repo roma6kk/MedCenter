@@ -38,7 +38,7 @@ export function ServiceRequestsEditor(): ReactNode {
   return (
     <fieldset className={`mt-4 ${FIELDSET_CLASS}`}>
       <legend className="px-1 font-semibold">{t('legend')}</legend>
-      {fields.length === 0 ? <p className="text-sm text-[var(--muted-foreground)]">{t('empty')}</p> : null}
+      {fields.length === 0 ? <p className="text-sm text-muted-foreground">{t('empty')}</p> : null}
       {fields.map((field, index) => <ServiceRow key={field.id} index={index} onRemove={() => remove(index)} />)}
       <button type="button" onClick={() => append(EMPTY_SERVICE, { focusName: `serviceRequests.${fields.length}.code` })} disabled={fields.length >= SERVICE_REQUESTS_MAX} className={ADD_BUTTON_CLASS}>
         {t('add')}

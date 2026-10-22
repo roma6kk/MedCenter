@@ -33,7 +33,7 @@ function useFocusBannerOnFinish(status: EncounterDetails['status']): RefObject<H
 function FinishedBanner({ bannerRef }: { readonly bannerRef: RefObject<HTMLParagraphElement> }): ReactNode {
   const t = useT('doctor.encounter');
   return (
-    <p ref={bannerRef} tabIndex={-1} role="status" data-testid="encounter-readonly" className="mt-4 rounded-[6px] border border-[var(--success)] bg-[var(--card)] p-4 text-sm">
+    <p ref={bannerRef} tabIndex={-1} role="status" data-testid="encounter-readonly" className="mt-4 rounded-card border border-success bg-success-soft p-4 text-sm">
       <strong>{t('finishedTitle')}</strong> {t('finishedHint')}
     </p>
   );
@@ -51,7 +51,7 @@ function EncounterBody({ encounter }: { readonly encounter: EncounterDetails }):
       </>
     );
   }
-  return <p role="status" className="mt-4 rounded-[6px] border border-[var(--border)] bg-[var(--card)] p-4 text-sm">{t('notEditable', { status: encounter.status })}</p>;
+  return <p role="status" className="mt-4 rounded-card border border-border bg-card p-4 text-sm">{t('notEditable', { status: encounter.status })}</p>;
 }
 
 /** `/encounters/[encounterId]` (FR-011…FR-014): the form while the visit is in progress, the read-only record once it is finished. */

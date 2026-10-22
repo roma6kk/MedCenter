@@ -127,7 +127,7 @@ export function DiagnosesEditor(): ReactNode {
         <textarea id="summary" rows={4} {...register('summary')} {...a11yOf('summary', summaryError)} className={INPUT_CLASS} />
       </FieldRow>
       <p className="mt-4 text-sm font-medium">{t('diagnosesHint')}</p>
-      {listError ? <p role="alert" data-testid="diagnoses-error" className="text-sm text-[var(--destructive)]">{listError}</p> : null}
+      {listError ? <p role="alert" data-testid="diagnoses-error" className="text-sm text-destructive">{listError}</p> : null}
       {fields.map((field, index) => (
         <DiagnosisRow key={field.id} index={index} canRemove={fields.length > 1} onRemove={() => remove(index)} />
       ))}

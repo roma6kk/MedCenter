@@ -15,10 +15,10 @@ function WeekRow({ day, windows }: { readonly day: WeekDay; readonly windows: Re
   const t = useT('doctor.schedule');
   const own = windowsOf(day, windows);
   return (
-    <tr className="border-t border-[var(--border)]">
+    <tr className="border-t border-border">
       <th scope="row" className="h-9 px-3 text-left font-normal">{t(`weekdays.${day}`)}</th>
       <td className="mono h-9 px-3">
-        {own.length === 0 ? <span className="text-[var(--muted-foreground)]">{t('dayOff')}</span> : own.map((w) => `${w.startTime}–${w.endTime}`).join(', ')}
+        {own.length === 0 ? <span className="text-muted-foreground">{t('dayOff')}</span> : own.map((w) => `${w.startTime}–${w.endTime}`).join(', ')}
       </td>
     </tr>
   );
@@ -27,9 +27,9 @@ function WeekRow({ day, windows }: { readonly day: WeekDay; readonly windows: Re
 function ScheduleCard({ schedule }: { readonly schedule: ScheduleSummary }): ReactNode {
   const t = useT('doctor.schedule');
   return (
-    <article className="rounded-[8px] border border-[var(--border)] bg-[var(--card)] p-4">
+    <article className="rounded-card border border-border bg-card p-4">
       <h3 className="text-base font-semibold">{schedule.comment ?? t('scheduleFallback')}</h3>
-      <p className="mt-1 text-sm text-[var(--muted-foreground)]">
+      <p className="mt-1 text-sm text-muted-foreground">
         {schedule.slotDurationMin !== undefined ? t('slotDuration', { minutes: schedule.slotDurationMin }) : null}
         {schedule.horizonFrom && schedule.horizonTo ? ` · ${t('horizon', { from: formatDateKey(schedule.horizonFrom), to: formatDateKey(schedule.horizonTo) })}` : null}
       </p>

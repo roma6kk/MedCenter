@@ -69,7 +69,7 @@ export function MedicationsEditor(): ReactNode {
   return (
     <fieldset className={`mt-4 ${FIELDSET_CLASS}`}>
       <legend className="px-1 font-semibold">{t('legend')}</legend>
-      {fields.length === 0 ? <p className="text-sm text-[var(--muted-foreground)]">{t('empty')}</p> : null}
+      {fields.length === 0 ? <p className="text-sm text-muted-foreground">{t('empty')}</p> : null}
       {fields.map((field, index) => <MedicationRow key={field.id} index={index} onRemove={() => remove(index)} />)}
       <button type="button" onClick={() => append(EMPTY_MEDICATION, { focusName: `medicationRequests.${fields.length}.atcCode` })} disabled={fields.length >= MEDICATION_REQUESTS_MAX} className={ADD_BUTTON_CLASS}>
         {t('add')}

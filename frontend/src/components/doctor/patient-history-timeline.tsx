@@ -26,13 +26,13 @@ function VisitEntry({ item }: { readonly item: HistoryItem }): ReactNode {
   const t = useT('doctor.history');
   return (
     <li className="relative">
-      <span aria-hidden="true" className="absolute -left-[21px] top-1.5 h-2 w-2 rounded-full bg-[var(--primary)]" />
-      <article className="rounded-[6px] border border-[var(--border)] bg-[var(--card)] p-3">
+      <span aria-hidden="true" className="absolute -left-[21px] top-1.5 h-2 w-2 rounded-full bg-primary" />
+      <article className="rounded-card border border-border bg-card p-3">
         <div className="flex flex-wrap items-baseline justify-between gap-2">
           <p className="mono text-sm">{formatClinicDateTime(item.date)}</p>
-          {item.serviceType?.display ? <p className="text-sm text-[var(--muted-foreground)]">{item.serviceType.display}</p> : null}
+          {item.serviceType?.display ? <p className="text-sm text-muted-foreground">{item.serviceType.display}</p> : null}
         </div>
-        <div className="mt-2">{item.diagnoses.length > 0 ? <DiagnosisList diagnoses={item.diagnoses} /> : <p className="text-sm text-[var(--muted-foreground)]">{t('noDiagnoses')}</p>}</div>
+        <div className="mt-2">{item.diagnoses.length > 0 ? <DiagnosisList diagnoses={item.diagnoses} /> : <p className="text-sm text-muted-foreground">{t('noDiagnoses')}</p>}</div>
         {item.summary ? <VisitText label={t('summary')} text={item.summary} /> : null}
         {item.recommendations ? <VisitText label={t('recommendations')} text={item.recommendations} /> : null}
         <p className="mt-3 text-sm">
@@ -53,10 +53,10 @@ export function PatientHistoryTimeline({ patientId }: { readonly patientId: stri
       <div id="history-title"><SectionTitle>{t('title')}</SectionTitle></div>
       <div className="mt-3" aria-busy={history.isFetching}>
         {history.data === undefined ? <QueryFailure query={history} embedded notFoundText={t('unavailable')} pending={<TableSkeleton />} /> : null}
-        {history.data && history.data.items.length === 0 ? <p className="text-sm text-[var(--muted-foreground)]">{t('empty')}</p> : null}
+        {history.data && history.data.items.length === 0 ? <p className="text-sm text-muted-foreground">{t('empty')}</p> : null}
         {history.data && history.data.items.length > 0 ? (
           <>
-            <ol className="grid gap-3 border-l border-[var(--border)] pl-4">{history.data.items.map((item) => <VisitEntry key={item.id} item={item} />)}</ol>
+            <ol className="grid gap-3 border-l border-border pl-4">{history.data.items.map((item) => <VisitEntry key={item.id} item={item} />)}</ol>
             {history.data.meta.totalPages > 1 ? <Pager meta={history.data.meta} onPage={setPage} /> : null}
           </>
         ) : null}
