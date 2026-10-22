@@ -1019,6 +1019,111 @@
     "bookDisabled": "Pick a time",
     "patientsOnly": "Booking is available to patients."
   },
+  "patientProfile": {
+    "ageLine": "Age: {age}",
+    "sinceLine": "Clinic patient since {date}",
+    "chipNoPhone": "No phone number",
+    "chipActive": "Account active",
+    "chipInactive": "Account disabled",
+    "completeness": {
+      "ringLabel": "Profile is {score} percent complete",
+      "title": "Profile {score}% complete",
+      "done": "Everything is in place.",
+      "missingLead": "Missing: {items}.",
+      "howToFill": "You can complete your profile at the front desk.",
+      "item": {
+        "birthDate": "date of birth",
+        "gender": "sex",
+        "phone": "phone",
+        "email": "e-mail"
+      }
+    },
+    "actions": {
+      "label": "Quick actions",
+      "book": "Book a visit",
+      "bookHint": "Choose a doctor and a time",
+      "appointments": "My appointments",
+      "appointmentsHint": "Upcoming: {count}",
+      "prescriptions": "Prescriptions",
+      "prescriptionsHint": "Active: {count}",
+      "history": "Visit history",
+      "historyHint": "Extract and print"
+    },
+    "reco": {
+      "title": "Recommended for you",
+      "subtitle": "Based on your visit history, prescriptions and profile",
+      "counter": "{shown} of {total}",
+      "empty": "No new recommendations. We will show them after your next visit.",
+      "hide": "Hide",
+      "hideLabel": "Hide recommendation: {title}",
+      "showHidden": "Show hidden",
+      "listLabel": "Recommendations",
+      "tag": {
+        "follow-up": "After your visit on {day}",
+        "referral": "Doctor's order",
+        "prevention": "Prevention",
+        "profile": "Profile"
+      },
+      "repeat": {
+        "title": "Follow-up visit",
+        "text": "Your doctor gave recommendations and no follow-up visit is booked yet. Book one to check how the treatment is going.",
+        "cta": "Book a visit"
+      },
+      "referral": {
+        "title": "Referral: {name}",
+        "text": "Your doctor ordered this examination or procedure and it is not done yet.",
+        "cta": "Book a visit"
+      },
+      "ecg": {
+        "title": "ECG once a year",
+        "text": "There is no ECG in your visit history. The clinic advises patients aged 40 and over to have one every year.",
+        "textOld": "Your last ECG on record was more than a year ago. The clinic advises patients aged 40 and over to have one every year.",
+        "cta": "Book an ECG"
+      },
+      "phone": {
+        "title": "Add a phone number",
+        "text": "With a number the clinic can reach you if your doctor changes the schedule.",
+        "cta": "How to add"
+      }
+    },
+    "next": {
+      "title": "Next visit",
+      "empty": "No upcoming appointments.",
+      "book": "Book a visit",
+      "details": "Details",
+      "more": "More appointments: {count}",
+      "serviceUnknown": "Service not specified",
+      "doctorUnknown": "Doctor not specified"
+    },
+    "last": {
+      "title": "Last visit",
+      "empty": "No finished visits yet.",
+      "serviceUnknown": "Visit",
+      "noDiagnosis": "No diagnosis recorded",
+      "doctorAdvice": "Doctor's recommendations",
+      "all": "Full visit history"
+    },
+    "doctors": {
+      "title": "My doctors",
+      "hint": "Doctors of your upcoming appointments",
+      "nextVisit": "Next visit: {date}",
+      "open": "Open appointment",
+      "openLabel": "Open the appointment with {name}"
+    },
+    "data": {
+      "title": "Personal data",
+      "account": "Account",
+      "patient": "Patient card",
+      "phoneMissing": "Not specified",
+      "registryNote": "To change your data or add a phone number, contact the clinic front desk."
+    },
+    "documents": {
+      "title": "Documents",
+      "print": "Print profile",
+      "history": "Visit history extract",
+      "prescriptions": "Prescriptions"
+    }
+  },
   "auth": {
     "login": {
       "title": "Sign in",
