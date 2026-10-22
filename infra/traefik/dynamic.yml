@@ -123,7 +123,7 @@ http:
       middlewares: [security-headers]
 
     patient-me:
-      rule: Path(`/api/v1/me/patient`)
+      rule: Path(`/api/v1/me/patient`) || PathPrefix(`/api/v1/me/consent`)
       priority: 40
       entryPoints: [websecure, web]
       service: patient-service

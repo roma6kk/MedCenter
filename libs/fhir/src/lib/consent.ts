@@ -193,6 +193,28 @@ function hasCoding(concepts: unknown, system: string, code: string): boolean {
   );
 }
 
+/** `true` for a `Consent` of `patientId` with the `patient-privacy` scope and the `emr-processing` category, whatever its status. */
+export function isEmrConsentOf(resource: FhirResource, patientId: string): boolean {
+  if (resource.resourceType !== 'Consent') {
+    return false;
+  }
+  const patient = referenceParts(asObject(resource['patient'])?.['reference']);
+  return (
+    patient?.type === 'Patient' &&
+    patient.id === patientId &&
+    hasCoding(
+      [resource['scope']],
+      CONSENT_CODE_SYSTEMS.SCOPE,
+      CONSENT_CODES.SCOPE_PATIENT_PRIVACY,
+    ) &&
+    hasCoding(
+      resource['category'],
+      CONSENT_CODE_SYSTEMS.CATEGORY,
+      CONSENT_CODES.CATEGORY_EMR_PROCESSING,
+    )
+  );
+}
+
 /**
  * Whether `resource` is an `emr-processing` consent of `patientId` that holds
  * at `now`. It re-checks every searched field in process, so a HAPI that
@@ -200,25 +222,7 @@ function hasCoding(concepts: unknown, system: string, code: string): boolean {
  * judges the period itself instead of trusting `status` alone (design §2.3).
  */
 export function isConsentInForce(resource: FhirResource, patientId: string, now: Date): boolean {
-  if (resource.resourceType !== 'Consent' || resource['status'] !== 'active') {
-    return false;
-  }
-  const patient = referenceParts(asObject(resource['patient'])?.['reference']);
-  if (patient?.type !== 'Patient' || patient.id !== patientId) {
-    return false;
-  }
-  if (
-    !hasCoding([resource['scope']], CONSENT_CODE_SYSTEMS.SCOPE, CONSENT_CODES.SCOPE_PATIENT_PRIVACY)
-  ) {
-    return false;
-  }
-  if (
-    !hasCoding(
-      resource['category'],
-      CONSENT_CODE_SYSTEMS.CATEGORY,
-      CONSENT_CODES.CATEGORY_EMR_PROCESSING,
-    )
-  ) {
+  if (!isEmrConsentOf(resource, patientId) || resource['status'] !== 'active') {
     return false;
   }
   const provision = asObject(resource['provision']);

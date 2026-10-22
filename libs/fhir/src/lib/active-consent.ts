@@ -1,7 +1,7 @@
 import { ConflictException, HttpStatus } from '@nestjs/common';
 import { CONSENT_CODE_SYSTEMS, CONSENT_CODES } from '@medcenter/terminology';
 
-import { isConsentInForce } from './consent';
+import { isConsentInForce, isEmrConsentOf } from './consent';
 import { FhirClientError, type FhirClient, type FhirResource } from './fhir-client.provider';
 
 /** FHIR R4 `id` (`[A-Za-z0-9\-.]{1,64}`), without the dot-only values that collapse a URL path. */
@@ -66,4 +66,38 @@ export async function assertActiveConsent(
     });
   }
   return consent;
+}
+
+/** How many consents of one patient the history shows; a patient has a handful at most. */
+const HISTORY_LIMIT = 50;
+
+/**
+ * Every `emr-processing` consent of a patient, newest first (design §2.3):
+ * active, revoked and refused alike. Re-filtered in process like
+ * {@link findActiveConsent}; an unknown Patient (HAPI 404) has an empty history.
+ */
+export async function listConsents(
+  fhir: FhirClient,
+  patientId: string,
+): Promise<ReadonlyArray<FhirResource>> {
+  if (!FHIR_ID.test(patientId)) {
+    throw new TypeError('patientId must be a FHIR id');
+  }
+  try {
+    const result = await fhir.search('Consent', {
+      patient: `Patient/${patientId}`,
+      scope: CONSENT_CODES.SCOPE_PATIENT_PRIVACY,
+      category: `${CONSENT_CODE_SYSTEMS.CATEGORY}|${CONSENT_CODES.CATEGORY_EMR_PROCESSING}`,
+      _sort: '-date',
+      _count: HISTORY_LIMIT,
+    });
+    return (result.entry ?? [])
+      .map((entry) => entry.resource)
+      .filter((resource) => isEmrConsentOf(resource, patientId));
+  } catch (error) {
+    if (error instanceof FhirClientError && error.getStatus() === HttpStatus.NOT_FOUND) {
+      return [];
+    }
+    throw error;
+  }
 }

@@ -3,3 +3,4 @@ export * from './lib/patient-read-audit';
 export * from './lib/consent';
 export * from './lib/active-consent';
 export * from './lib/consent-audit';
+export * from './lib/fhir-transaction';

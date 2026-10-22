@@ -162,4 +162,34 @@ describe('PatientAccessService', () => {
       expect(fhir.search).not.toHaveBeenCalled();
     });
   });
+
+  describe('assertCanWrite (consent management, ADR-019)', () => {
+    it('should allow an admin with user/*.write without a compartment lookup', async () => {
+      await expect(service.assertCanWrite(adminClaims, '9f2c')).resolves.toBeUndefined();
+      expect(fhir.search).not.toHaveBeenCalled();
+    });
+
+    it('should allow a doctor who shares an appointment with the patient', async () => {
+      fhir.search.mockImplementation(searchAnswering({ Appointment: bundleOf(sharedAppointment) }));
+
+      await expect(service.assertCanWrite(doctorClaims, '9f2c')).resolves.toBeUndefined();
+    });
+
+    it('should throw COMPARTMENT_VIOLATION when a doctor has no care relationship with the patient', async () => {
+      expect(await errorPayloadOf(service.assertCanWrite(doctorClaims, '9f2c'))).toMatchObject({
+        errorCode: 'COMPARTMENT_VIOLATION',
+      });
+    });
+
+    it('should throw FORBIDDEN_SCOPE without searching when the token holds only user/*.read', async () => {
+      const claims: JwtClaims = { ...doctorClaims, scope: 'user/*.read' };
+
+      expect(await errorPayloadOf(service.assertCanWrite(claims, '9f2c'))).toMatchObject({ errorCode: 'FORBIDDEN_SCOPE' });
+      expect(fhir.search).not.toHaveBeenCalled();
+    });
+
+    it('should throw FORBIDDEN_ROLE when a patient tries to manage a consent for a patient id', async () => {
+      expect(await errorPayloadOf(service.assertCanWrite(patientClaims, '9f2c'))).toMatchObject({ errorCode: 'FORBIDDEN_ROLE' });
+    });
+  });
 });

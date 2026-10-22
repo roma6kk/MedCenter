@@ -1,6 +1,6 @@
 import { ConflictException } from '@nestjs/common';
 
-import { assertActiveConsent, findActiveConsent } from './active-consent';
+import { assertActiveConsent, findActiveConsent, listConsents } from './active-consent';
 import { buildConsent } from './consent';
 import { FhirClientError, type FhirClient, type FhirResource } from './fhir-client.provider';
 
@@ -25,12 +25,10 @@ function consent(id: string, overrides: Record<string, unknown> = {}): FhirResou
 
 function clientReturning(...resources: FhirResource[]): jest.Mocked<FhirClient> {
   return {
-    search: jest
-      .fn()
-      .mockResolvedValue({
-        total: resources.length,
-        entry: resources.map((resource) => ({ resource })),
-      }),
+    search: jest.fn().mockResolvedValue({
+      total: resources.length,
+      entry: resources.map((resource) => ({ resource })),
+    }),
   } as unknown as jest.Mocked<FhirClient>;
 }
 
@@ -133,5 +131,37 @@ describe('assertActiveConsent', () => {
     const error = await rejection(assertActiveConsent(clientReturning(expired), '1442', NOW));
 
     expect(error.getResponse()).toMatchObject({ errorCode: 'CONSENT_REQUIRED' });
+  });
+});
+
+describe('listConsents', () => {
+  it('should search the patient history newest first and keep only that patient emr-processing consents', async () => {
+    const own = consent('c1', { status: 'inactive' });
+    const foreign = consent('c2', { patient: { reference: 'Patient/999' } });
+    const otherCategory = consent('c3', {
+      category: [{ coding: [{ system: 'urn:medcenter:consent-category', code: 'research' }] }],
+    });
+    const fhir = clientReturning(own, foreign, otherCategory, { resourceType: 'OperationOutcome' });
+
+    const history = await listConsents(fhir, '1442');
+
+    expect(history.map((resource) => resource.id)).toEqual(['c1']);
+    expect(fhir.search).toHaveBeenCalledWith('Consent', {
+      patient: 'Patient/1442',
+      scope: 'patient-privacy',
+      category: 'urn:medcenter:consent-category|emr-processing',
+      _sort: '-date',
+      _count: 50,
+    });
+  });
+
+  it('should answer an empty history when HAPI knows no such patient', async () => {
+    const fhir = {
+      search: jest
+        .fn()
+        .mockRejectedValue(new FhirClientError('GET', 'http://hapi/fhir/Consent', 404)),
+    } as unknown as FhirClient;
+
+    expect(await listConsents(fhir, '1442')).toEqual([]);
   });
 });
