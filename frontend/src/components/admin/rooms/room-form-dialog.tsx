@@ -54,7 +54,9 @@ function RoomForm({ room, onClose }: { readonly room?: AdminRoom; readonly onClo
   const mutation = room === undefined ? create : update;
   const form = useForm<RoomFormValues>({ resolver: zodResolver(roomSchema), defaultValues: room === undefined ? EMPTY_ROOM_VALUES : roomValuesOf(room) });
   const { register, handleSubmit, formState } = form;
-  const { banner, fail, clear } = useFormBanner(form, FIELDS);
+  const tProblems = useT('admin.problems');
+  // 4.4/4.5: the only 409 CONFLICT of a room write is a taken identifier (its detail is English text, not a code).
+  const { banner, fail, clear } = useFormBanner(form, FIELDS, { CONFLICT: { field: 'identifier', message: tProblems('ROOM_IDENTIFIER_TAKEN') } });
   const submit = handleSubmit((values) => {
     clear();
     const payload = toRoomPayload(values, room !== undefined);

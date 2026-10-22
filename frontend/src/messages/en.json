@@ -17,6 +17,7 @@
       "SNAPSHOT_NOT_BUNDLED": "This snapshot version is not bundled with the service",
       "TERMINOLOGY_NOT_FOUND": "This code is not in the reference catalogue",
       "ROOM_IN_USE": "A room cannot be deleted while schedules refer to it. Open Occupancy to see which.",
+      "ROOM_IDENTIFIER_TAKEN": "A room with this identifier already exists",
       "SERVICE_IN_USE": "A service cannot be deleted while schedules or appointments refer to it.",
       "SCHEDULE_IN_USE": "The schedule has slots. Slots with bookings always protect it; free slots can be deleted with the schedule by ticking the option Also delete the free slots.",
       "SCHEDULE_OVERLAP": "The doctor already has a schedule whose period overlaps the chosen one. Change the horizon or edit the existing schedule."

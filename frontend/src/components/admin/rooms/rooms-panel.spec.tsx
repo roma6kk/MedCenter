@@ -90,6 +90,22 @@ describe('RoomsPanel', () => {
     await waitFor(() => expect(apiFetchMock).toHaveBeenCalledWith('/api/v1/admin/rooms', { method: 'POST', body: JSON.stringify({ identifier: 'E2E-9', name: 'Тестовый' }) }));
   });
 
+  it('should put a taken identifier at the identifier field in Russian, not in a banner, when the service answers 409 CONFLICT', async () => {
+    const taken = apiProblem({ status: 409, errorCode: 'CONFLICT', detail: 'CONFLICT: room identifier "101" is already used by room r1' });
+    apiFetchMock.mockImplementation((_path, options) => (options?.method === 'POST' ? Promise.reject(taken) : Promise.resolve(pageOf(rooms))));
+    renderWithClient(<RoomsPanel />);
+    await userEvent.click(await first('Создать кабинет'));
+
+    await userEvent.type(screen.getByLabelText(/Идентификатор/), '101');
+    await userEvent.type(screen.getByLabelText(/Название/), 'Дубль');
+    await userEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Создать кабинет' }));
+
+    expect(await screen.findByText('Кабинет с таким идентификатором уже есть')).toBeInTheDocument();
+    expect(screen.getByLabelText(/Идентификатор/)).toHaveFocus();
+    expect(screen.queryByTestId('problem-banner')).not.toBeInTheDocument();
+    expect(screen.queryByText(/already used/)).not.toBeInTheDocument();
+  });
+
   it('should step back to the last page that has rooms when the only room of the last page is deleted', async () => {
     let isDeleted = false;
     const meta = (page: number, totalPages: number): { page: number; pageSize: number; totalItems: number; totalPages: number } => ({ page, pageSize: 10, totalItems: 11, totalPages });
