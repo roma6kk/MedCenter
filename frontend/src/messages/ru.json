@@ -1461,9 +1461,9 @@
   "patientNotifications": {
     "subtitleUnread": "Непрочитанных: {count}",
     "subtitleAllRead": "Все уведомления прочитаны",
-    "markPageRead": "Отметить прочитанными на странице",
+    "markAllRead": "Отметить все прочитанными",
     "markingPage": "Отмечаем…",
-    "pageMarkedRead": "Уведомления на странице отмечены прочитанными",
+    "allMarkedRead": "Все уведомления отмечены прочитанными",
     "filterAppointment": "Записи",
     "filterEncounter": "Приёмы",
     "emptyType": "На этой странице таких уведомлений нет",

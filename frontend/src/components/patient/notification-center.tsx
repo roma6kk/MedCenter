@@ -11,7 +11,7 @@ import { invalidateFor } from '@/lib/api/invalidation';
 import type { PaginatedResponse } from '@/lib/api/pagination';
 import { useT } from '@/lib/i18n/use-t';
 import { showToast } from '@/lib/ui/toast';
-import { markNotificationRead, type NotificationItem } from '@/lib/notifications/notification-api';
+import { markAllNotificationsRead, type NotificationItem } from '@/lib/notifications/notification-api';
 import { useMarkNotificationRead, useNotifications, useUnreadCount } from '@/lib/notifications/use-notifications';
 import { ProblemBanner } from '@/components/feedback/problem-banner';
 import { QueryFailure } from '@/components/feedback/query-error-state';
@@ -72,29 +72,22 @@ interface MarkReadState {
   readonly markingId: string | null;
   readonly failure: unknown;
   readonly markRead: (id: string) => void;
-  readonly markPageRead: (ids: ReadonlyArray<string>) => void;
-  readonly pageMarking: boolean;
+  readonly markAllRead: () => void;
+  readonly allMarking: boolean;
   readonly clearFailure: () => void;
 }
 
-/**
- * Marks notifications read; the list and the bell counter refresh through the shared invalidation table. The API only knows
- * one notification at a time, so "mark the page" is one request per unread item of the page, sent in parallel.
- */
+/** Marks notifications read, one or all of them (API 8.3 / 8.4); the list and the bell counter refresh through the shared invalidation table. */
 function useMarkRead(begin: () => () => void, onRefresh: () => void): MarkReadState {
   const client = useQueryClient();
   const single = useMarkNotificationRead();
-  const page = useMutation({
-    mutationFn: async (ids: ReadonlyArray<string>): Promise<void> => {
-      const results = await Promise.allSettled(ids.map((id) => markNotificationRead(id)));
-      const failed = results.find((result): result is PromiseRejectedResult => result.status === 'rejected');
-      if (failed) throw failed.reason;
-    },
-    // Some requests may have gone through even when one failed: always show the real state.
+  const all = useMutation({
+    mutationFn: () => markAllNotificationsRead(),
+    // Some notifications may have been marked even when the answer failed: always show the real state.
     onSettled: () => invalidateFor(client, 'read-notification'),
   });
   const { mutate, reset: resetSingle } = single;
-  const { mutate: mutatePage, reset: resetPage } = page;
+  const { mutate: mutateAll, reset: resetAll } = all;
   const markRead = useCallback(
     (id: string) => {
       const restoreFocus: () => void = begin();
@@ -110,29 +103,26 @@ function useMarkRead(begin: () => () => void, onRefresh: () => void): MarkReadSt
     },
     [mutate, begin, onRefresh],
   );
-  const markPageRead = useCallback(
-    (ids: ReadonlyArray<string>) => {
-      const restoreFocus: () => void = begin();
-      mutatePage(ids, {
-        onSuccess: () => {
-          showToast('success', 'patientNotifications.pageMarkedRead');
-          restoreFocus();
-        },
-        onError: onRefresh,
-      });
-    },
-    [mutatePage, begin, onRefresh],
-  );
+  const markAllRead = useCallback(() => {
+    const restoreFocus: () => void = begin();
+    mutateAll(undefined, {
+      onSuccess: () => {
+        showToast('success', 'patientNotifications.allMarkedRead');
+        restoreFocus();
+      },
+      onError: onRefresh,
+    });
+  }, [mutateAll, begin, onRefresh]);
   const clearFailure = useCallback(() => {
     resetSingle();
-    resetPage();
-  }, [resetSingle, resetPage]);
+    resetAll();
+  }, [resetSingle, resetAll]);
   return {
     markingId: single.isPending ? (single.variables ?? null) : null,
-    failure: single.error ?? page.error,
+    failure: single.error ?? all.error,
     markRead,
-    markPageRead,
-    pageMarking: page.isPending,
+    markAllRead,
+    allMarking: all.isPending,
     clearFailure,
   };
 }
@@ -188,12 +178,11 @@ function PanelBody({ state }: { readonly state: CenterState }): ReactNode {
 
 interface HeaderProps {
   readonly unreadCount: number | undefined;
-  readonly pageUnreadIds: ReadonlyArray<string>;
-  readonly pageMarking: boolean;
-  readonly onMarkPage: (ids: ReadonlyArray<string>) => void;
+  readonly allMarking: boolean;
+  readonly onMarkAll: () => void;
 }
 
-function CenterHeader({ unreadCount, pageUnreadIds, pageMarking, onMarkPage }: HeaderProps): ReactNode {
+function CenterHeader({ unreadCount, allMarking, onMarkAll }: HeaderProps): ReactNode {
   const t = useT('patient.notifications');
   const tn = useT('patientNotifications');
   return (
@@ -204,9 +193,9 @@ function CenterHeader({ unreadCount, pageUnreadIds, pageMarking, onMarkPage }: H
           <p className="mt-1.5 text-base text-muted-foreground">{unreadCount > 0 ? tn('subtitleUnread', { count: unreadCount }) : tn('subtitleAllRead')}</p>
         )}
       </div>
-      {pageUnreadIds.length > 0 ? (
-        <button type="button" disabled={pageMarking} onClick={() => onMarkPage(pageUnreadIds)} className={`no-print ${buttonVariants({ variant: 'secondary', size: 'lg' })}`}>
-          {pageMarking ? tn('markingPage') : tn('markPageRead')}
+      {unreadCount !== undefined && unreadCount > 0 ? (
+        <button type="button" disabled={allMarking} onClick={onMarkAll} className={`no-print ${buttonVariants({ variant: 'secondary', size: 'lg' })}`}>
+          {allMarking ? tn('markingPage') : tn('markAllRead')}
         </button>
       ) : null}
     </div>
@@ -226,11 +215,10 @@ export function NotificationCenter(): ReactNode {
     encounter: tn('filterEncounter'),
   };
   const options: ReadonlyArray<TabOption<NotificationFilter>> = NOTIFICATION_FILTERS.map((value) => ({ value, label: labels[value] }));
-  const pageUnreadIds: ReadonlyArray<string> = (state.query.data?.items ?? []).filter((item) => !item.read).map((item) => item.id);
   useDocumentTitle(t('title'));
   return (
     <section className="flex flex-col gap-6">
-      <CenterHeader unreadCount={unreadCount} pageUnreadIds={pageUnreadIds} pageMarking={state.pageMarking} onMarkPage={state.markPageRead} />
+      <CenterHeader unreadCount={unreadCount} allMarking={state.allMarking} onMarkAll={state.markAllRead} />
       <div><SegmentedTabs idPrefix={TABS_ID} label={t('tabsLabel')} options={options} value={state.filter} onChange={state.changeFilter} /></div>
       <div ref={state.panelRef} tabIndex={-1} aria-busy={state.query.isFetching} {...tabPanelProps(TABS_ID, state.filter)} className="focus:outline-none">
         <PanelBody state={state} />

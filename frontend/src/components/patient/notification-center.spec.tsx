@@ -6,13 +6,14 @@ import { LONG_UNBROKEN_TEXT } from './cabinet-fixtures';
 import { apiProblem, expectWraps, newQueryClient, pageOf, renderWithClient, resetCabinetState } from './cabinet-test-utils';
 import { NotificationCenter } from './notification-center';
 
-jest.mock('@/lib/notifications/notification-api', () => ({ fetchNotifications: jest.fn(), fetchUnreadCount: jest.fn(), markNotificationRead: jest.fn() }));
+jest.mock('@/lib/notifications/notification-api', () => ({ fetchNotifications: jest.fn(), fetchUnreadCount: jest.fn(), markNotificationRead: jest.fn(), markAllNotificationsRead: jest.fn() }));
 
-import { fetchNotifications, fetchUnreadCount, markNotificationRead } from '@/lib/notifications/notification-api';
+import { fetchNotifications, fetchUnreadCount, markAllNotificationsRead, markNotificationRead } from '@/lib/notifications/notification-api';
 
 const listMock = fetchNotifications as jest.MockedFunction<typeof fetchNotifications>;
 const countMock = fetchUnreadCount as jest.MockedFunction<typeof fetchUnreadCount>;
 const markMock = markNotificationRead as jest.MockedFunction<typeof markNotificationRead>;
+const markAllMock = markAllNotificationsRead as jest.MockedFunction<typeof markAllNotificationsRead>;
 
 function notification(overrides: Partial<NotificationItem> = {}): NotificationItem {
   return { id: 'n-1', category: 'appointment', text: 'Запись на приём отменена. Причина: болею', sent: '2026-10-16T07:27:29.396Z', read: false, ...overrides };
@@ -272,38 +273,49 @@ describe('NotificationCenter', () => {
     expect(listMock).toHaveBeenLastCalledWith({ page: 1, pageSize: 10, unread: false });
   });
 
-  it('should mark every unread notification of the page with one request each and refresh the counter', async () => {
+  it('should mark every unread notification with one read-all request and refresh the list and the counter', async () => {
     const client = newQueryClient();
     const invalidate = jest.spyOn(client, 'invalidateQueries');
-    listMock.mockResolvedValue(pageOf([notification({ id: 'a' }), notification({ id: 'b' }), notification({ id: 'c', read: true })]));
-    markMock.mockResolvedValue(undefined);
+    listMock.mockResolvedValue(pageOf([notification({ id: 'a' }), notification({ id: 'c', read: true })]));
+    countMock.mockResolvedValue(25);
+    markAllMock.mockResolvedValue(25);
     renderWithClient(<NotificationCenter />, client);
 
-    await userEvent.click(await screen.findByRole('button', { name: 'Отметить прочитанными на странице' }));
+    await userEvent.click(await screen.findByRole('button', { name: 'Отметить все прочитанными' }));
 
-    await waitFor(() => expect(markMock).toHaveBeenCalledTimes(2));
-    expect(markMock).toHaveBeenCalledWith('a');
-    expect(markMock).toHaveBeenCalledWith('b');
+    await waitFor(() => expect(markAllMock).toHaveBeenCalledTimes(1));
+    expect(markMock).not.toHaveBeenCalled();
     await waitFor(() => expect(invalidate).toHaveBeenCalledWith({ queryKey: ['notifications'] }));
-    expect(useToastStore.getState().toasts.map((toast) => toast.message)).toContain('Уведомления на странице отмечены прочитанными');
+    expect(useToastStore.getState().toasts.map((toast) => toast.message)).toContain('Все уведомления отмечены прочитанными');
   });
 
-  it('should not offer to mark the page when nothing on it is unread', async () => {
+  it('should not offer to mark all when nothing is unread', async () => {
     listMock.mockResolvedValue(pageOf([notification({ read: true })]));
+    countMock.mockResolvedValue(0);
 
     renderWithClient(<NotificationCenter />);
 
     await screen.findByRole('group', { name: 'Список уведомлений' });
-    expect(screen.queryByRole('button', { name: 'Отметить прочитанными на странице' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Отметить все прочитанными' })).not.toBeInTheDocument();
   });
 
-  it('should show the problem when one of the requests of the page-wide mark fails', async () => {
-    listMock.mockResolvedValue(pageOf([notification({ id: 'a' }), notification({ id: 'b' })]));
-    markMock.mockImplementation((id) => (id === 'b' ? Promise.reject(apiProblem(500, 'INTERNAL', { requestId: 'req-16' })) : Promise.resolve()));
+  it('should show the problem when the read-all request fails', async () => {
+    listMock.mockResolvedValue(pageOf([notification({ id: 'a' })]));
+    countMock.mockResolvedValue(1);
+    markAllMock.mockRejectedValue(apiProblem(500, 'INTERNAL', { requestId: 'req-16' }));
     renderWithClient(<NotificationCenter />);
 
-    await userEvent.click(await screen.findByRole('button', { name: 'Отметить прочитанными на странице' }));
+    await userEvent.click(await screen.findByRole('button', { name: 'Отметить все прочитанными' }));
 
     expect(await screen.findByTestId('problem-banner')).toHaveTextContent('req-16');
+  });
+
+  it('should link a notification about a visit to that appointment when the service names it', async () => {
+    listMock.mockResolvedValue(pageOf([notification({ id: 'a', appointmentId: '3153', text: 'Вы записаны на приём. Начало: 30.10.2026 16:40 (время Минска)' })]));
+
+    renderWithClient(<NotificationCenter />);
+
+    expect(await screen.findByRole('link', { name: 'Открыть запись' })).toHaveAttribute('href', '/appointments/3153');
+    expect(screen.getByText('Вы записаны на приём. Начало: 30.10.2026 16:40 (время Минска)')).toBeInTheDocument();
   });
 });

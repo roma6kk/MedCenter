@@ -1461,9 +1461,9 @@
   "patientNotifications": {
     "subtitleUnread": "Unread: {count}",
     "subtitleAllRead": "All notifications are read",
-    "markPageRead": "Mark all on this page as read",
+    "markAllRead": "Mark all as read",
     "markingPage": "Marking…",
-    "pageMarkedRead": "Notifications on this page marked as read",
+    "allMarkedRead": "All notifications are marked as read",
     "filterAppointment": "Bookings",
     "filterEncounter": "Visits",
     "emptyType": "No such notifications on this page",

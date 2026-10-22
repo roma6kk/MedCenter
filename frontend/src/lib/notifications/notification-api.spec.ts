@@ -1,4 +1,4 @@
-import { fetchNotifications, fetchUnreadCount, markNotificationRead } from './notification-api';
+import { fetchNotifications, fetchUnreadCount, markAllNotificationsRead, markNotificationRead } from './notification-api';
 
 jest.mock('@/lib/api/api-fetch', () => ({ apiFetch: jest.fn() }));
 
@@ -47,5 +47,11 @@ describe('notification-api', () => {
     await markNotificationRead('n 1');
 
     expect(apiFetchMock).toHaveBeenCalledWith('/api/v1/notifications/n%201/read', { method: 'POST' });
+  });
+  it('should POST to /notifications/read-all and hand back how many became read', async () => {
+    apiFetchMock.mockResolvedValueOnce({ updated: 7 });
+
+    expect(await markAllNotificationsRead()).toBe(7);
+    expect(apiFetchMock).toHaveBeenCalledWith('/api/v1/notifications/read-all', { method: 'POST' });
   });
 });
