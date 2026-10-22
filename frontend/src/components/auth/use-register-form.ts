@@ -39,6 +39,9 @@ function useRegisterProblems(form: RegisterForm): RegisterProblems {
   const t = useT('auth.register');
   const [problem, setProblem] = useState<ProblemDetails | null>(null);
   const [isEmailTaken, setIsEmailTaken] = useState(false);
+  // The checkbox is one form field: the server names it by the parts of the nested `accountConsent` object.
+  const setFieldError: RegisterForm['setError'] = (name, error) =>
+    form.setError(String(name).startsWith('accountConsent') ? 'accountConsent' : name, error);
   const show = (failure: ProblemDetails): void => {
     if (hasDetailCode(failure, 'EMAIL_TAKEN')) {
       setIsEmailTaken(true);
@@ -46,7 +49,7 @@ function useRegisterProblems(form: RegisterForm): RegisterProblems {
       form.setFocus('email');
       return;
     }
-    const unmatched: ReadonlyArray<string> = applyProblemToForm(failure, form.setError, REGISTER_FIELDS);
+    const unmatched: ReadonlyArray<string> = applyProblemToForm(failure, setFieldError, REGISTER_FIELDS);
     const hasFieldErrors: boolean = (failure.details?.length ?? 0) > unmatched.length;
     if (!hasFieldErrors || unmatched.length > 0) setProblem(failure);
   };
@@ -61,7 +64,7 @@ function useRegisterProblems(form: RegisterForm): RegisterProblems {
 export function useRegisterForm(): RegisterFormState {
   const form: RegisterForm = useForm<RegisterFormValues>({
     resolver: zodResolver(registerFormSchema),
-    defaultValues: { email: '', firstName: '', lastName: '', password: '', birthDate: '', gender: '' },
+    defaultValues: { email: '', firstName: '', lastName: '', password: '', birthDate: '', gender: '', accountConsent: false },
   });
   const problems: RegisterProblems = useRegisterProblems(form);
   const cooldown: number = useRetryCooldown(problems.problem);

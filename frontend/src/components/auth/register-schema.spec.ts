@@ -1,6 +1,7 @@
-import { registerFormSchema, toRegisterRequest } from './register-schema';
+import { ACCOUNT_CONSENT_VERSION } from '@/lib/contracts';
+import { REGISTER_FIELDS, registerFormSchema, toRegisterRequest } from './register-schema';
 
-const VALID = { email: 'ivan@example.by', firstName: 'Иван', lastName: 'Иванов', password: 'Str0ng!Pass', birthDate: '1990-05-12', gender: '' };
+const VALID = { email: 'ivan@example.by', firstName: 'Иван', lastName: 'Иванов', password: 'Str0ng!Pass', birthDate: '1990-05-12', gender: '', accountConsent: true };
 
 function messagesOf(input: Record<string, unknown>): Readonly<Record<string, string>> {
   const result = registerFormSchema.safeParse(input);
@@ -22,7 +23,7 @@ describe('registerFormSchema', () => {
   });
 
   it('should ask for every required field with the required message when the form is empty', () => {
-    const messages = messagesOf({ email: '', firstName: ' ', lastName: '', password: '', birthDate: '' });
+    const messages = messagesOf({ email: '', firstName: ' ', lastName: '', password: '', birthDate: '', accountConsent: false });
 
     expect(messages).toMatchObject({
       email: 'validation.required',
@@ -30,6 +31,7 @@ describe('registerFormSchema', () => {
       lastName: 'validation.required',
       password: 'validation.required',
       birthDate: 'validation.required',
+      accountConsent: 'validation.consentRequired',
     });
   });
 
@@ -61,5 +63,20 @@ describe('toRegisterRequest', () => {
 
   it('should send the gender when one is chosen', () => {
     expect(toRegisterRequest(registerFormSchema.parse({ ...VALID, gender: 'male' })).gender).toBe('male');
+  });
+});
+
+describe('account consent', () => {
+  it('should refuse the registration when the box is not ticked', () => {
+    expect(messagesOf({ ...VALID, accountConsent: false })['accountConsent']).toBe('validation.consentRequired');
+  });
+
+  it('should send the acceptance with the version of the text shown when the box is ticked', () => {
+    expect(toRegisterRequest(registerFormSchema.parse(VALID)).accountConsent).toEqual({ accepted: true, textVersion: ACCOUNT_CONSENT_VERSION });
+    expect(ACCOUNT_CONSENT_VERSION).toBe('2026-10');
+  });
+
+  it('should let server errors for the consent and its subfields land on the checkbox', () => {
+    expect(REGISTER_FIELDS).toEqual(expect.arrayContaining(['accountConsent', 'accountConsent.accepted', 'accountConsent.textVersion']));
   });
 });

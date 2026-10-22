@@ -68,6 +68,22 @@ function PersonalFields({ state }: { readonly state: RegisterFormState }): React
   );
 }
 
+/** Consent to the account data (art. 5, Law 99-Z). It says outright that the record consent is signed on paper at the clinic. */
+function ConsentField({ state }: { readonly state: RegisterFormState }): ReactNode {
+  const t = useT('auth.register');
+  const { register, formState: { errors } } = state.form;
+  return (
+    <AuthField id="accountConsent" label={t('consentLabel')} error={errors.accountConsent?.message} hint={t('consentRecordNote')} labelHidden>
+      {(control) => (
+        <div className="mt-4 flex items-start gap-3">
+          <input {...control} type="checkbox" aria-required="true" {...register('accountConsent')} className="mt-0.5 h-6 w-6 shrink-0 accent-primary" />
+          <label htmlFor="accountConsent" className="text-sm">{t('consentLabel')}</label>
+        </div>
+      )}
+    </AuthField>
+  );
+}
+
 function submitLabel(state: RegisterFormState, t: Translate): string {
   if (state.isPending) return t('submitting');
   return state.cooldown > 0 ? t('retryIn', { seconds: state.cooldown }) : t('submit');
@@ -88,6 +104,7 @@ export function RegisterForm(): ReactNode {
       <div className="mt-4">
         <IdentityFields state={state} />
         <PersonalFields state={state} />
+        <ConsentField state={state} />
       </div>
       <Button type="submit" size="lg" aria-disabled={state.isPending || state.cooldown > 0 ? true : undefined} aria-busy={state.isPending} className="mt-6 w-full">
         {submitLabel(state, t)}

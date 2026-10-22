@@ -8,6 +8,9 @@ export const REASON_MAX = 500;
 /** `auth.user.account_consent_version` is `varchar(64)`; the server refuses a longer text version. */
 export const ACCOUNT_CONSENT_VERSION_MAX = 64;
 
+/** Version of the account-consent text shown on the registration form (`auth.register.consent*`); bump it with the text. */
+export const ACCOUNT_CONSENT_VERSION = '2026-10';
+
 export const PASSWORD_MIN = 10;
 export const PASSWORD_MAX = 128;
 

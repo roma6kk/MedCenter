@@ -966,7 +966,8 @@
     "identifier": "Invalid identifier",
     "choice": "Choose one of the allowed values",
     "boolean": "Choose yes or no",
-    "format": "The value has an invalid format"
+    "format": "The value has an invalid format",
+    "consentRequired": "Confirm your consent to create an account"
   },
   "errors": {
     "VALIDATION_ERROR": "Check the highlighted fields",
@@ -1260,7 +1261,9 @@
       "successLead": "Your account is ready. You can sign in now.",
       "successCta": "Sign in",
       "requiredNote": "All fields except gender are required.",
-      "retryIn": "Try again in {seconds} s"
+      "retryIn": "Try again in {seconds} s",
+      "consentLabel": "I consent to the processing of my personal data to keep my account on the Lifeline clinic portal (art. 5 of Law 99-Z on personal data protection).",
+      "consentRecordNote": "Consent to keep an electronic medical record is signed on paper at the clinic."
     }
   },
   "patientHistory": {

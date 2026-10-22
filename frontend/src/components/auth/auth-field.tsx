@@ -14,20 +14,22 @@ interface AuthFieldProps {
   /** Validation message: a `validation.*` message key (client schemas) or ready text (server messages). */
   readonly error?: string;
   readonly hint?: string;
+  /** The control draws its own label (a checkbox with the text beside it): only the hint and the error come from here. */
+  readonly labelHidden?: boolean;
   readonly children: (control: FieldControlProps) => ReactNode;
 }
 
 const VALIDATION_KEY_PREFIX = 'validation.';
 
 /** A labelled control with a hint and an error (icon + text, never colour alone) linked through `aria-describedby`. */
-export function AuthField({ id, label, error, hint, children }: AuthFieldProps): ReactNode {
+export function AuthField({ id, label, error, hint, labelHidden = false, children }: AuthFieldProps): ReactNode {
   const t = useT();
   const hintId = `${id}-hint`;
   const errorId = `${id}-error`;
   const message: string | undefined = error?.startsWith(VALIDATION_KEY_PREFIX) === true ? t(error) : error;
   return (
     <div className="mt-4 first:mt-0">
-      <label htmlFor={id} className="block text-sm font-semibold">{label}</label>
+      {labelHidden ? null : <label htmlFor={id} className="block text-sm font-semibold">{label}</label>}
       {children({ id, 'aria-describedby': describedBy(hint !== undefined && hintId, message !== undefined && errorId), 'aria-invalid': message !== undefined })}
       {hint !== undefined ? <p id={hintId} className="mt-1.5 text-xs text-muted-foreground">{hint}</p> : null}
       {message !== undefined ? (

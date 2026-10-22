@@ -33,6 +33,7 @@ async function fillValidForm(): Promise<void> {
   await userEvent.type(screen.getByLabelText('Фамилия'), 'Иванов');
   await userEvent.type(screen.getByLabelText('Дата рождения'), '1990-05-12');
   await userEvent.type(screen.getByLabelText('Пароль'), 'Str0ng!Pass');
+  await userEvent.click(screen.getByRole('checkbox', { name: /согласие на обработку персональных данных/i }));
 }
 
 async function submit(): Promise<void> {
@@ -42,6 +43,27 @@ async function submit(): Promise<void> {
 describe('RegisterForm', () => {
   beforeEach(() => {
     jest.resetAllMocks();
+  });
+
+  it('should ask for the account consent and say the electronic record consent is signed at the clinic', () => {
+    renderForm();
+
+    const box: HTMLElement = screen.getByRole('checkbox', { name: /согласие на обработку персональных данных/i });
+    expect(box).toHaveAttribute('aria-required', 'true');
+    expect(box).not.toBeChecked();
+    expect(screen.getByText('Согласие на ведение электронной медкарты оформляется письменно в клинике.')).toBeInTheDocument();
+    expect(screen.queryByRole('checkbox', { name: /медицинск|медкарт/i })).not.toBeInTheDocument();
+  });
+
+  it('should put a server error for the account consent on the checkbox', async () => {
+    apiFetchMock.mockRejectedValue(new ApiError(problem({ details: [{ field: 'accountConsent.accepted', message: 'accepted must be a boolean value' }] })));
+    renderForm();
+
+    await fillValidForm();
+    await submit();
+
+    expect(await screen.findByRole('checkbox', { name: /согласие на обработку персональных данных/i })).toHaveAttribute('aria-invalid', 'true');
+    expect(screen.queryByTestId('problem-banner')).not.toBeInTheDocument();
   });
 
   it('should say which fields are required and mark them for assistive technology when the form opens', () => {
@@ -58,6 +80,7 @@ describe('RegisterForm', () => {
     await submit();
 
     expect(await screen.findAllByText('Поле обязательно для заполнения')).toHaveLength(5);
+    expect(screen.getByText('Подтвердите согласие, чтобы создать личный кабинет')).toBeInTheDocument();
     expect(apiFetchMock).not.toHaveBeenCalled();
   });
 
@@ -72,7 +95,7 @@ describe('RegisterForm', () => {
     const [path, options] = apiFetchMock.mock.calls[0] ?? [];
     expect(path).toBe('/api/v1/auth/register');
     expect(options?.method).toBe('POST');
-    expect(JSON.parse(String(options?.body))).toEqual({ email: 'ivan@example.by', firstName: 'Иван', lastName: 'Иванов', password: 'Str0ng!Pass', birthDate: '1990-05-12' });
+    expect(JSON.parse(String(options?.body))).toEqual({ email: 'ivan@example.by', firstName: 'Иван', lastName: 'Иванов', password: 'Str0ng!Pass', birthDate: '1990-05-12', accountConsent: { accepted: true, textVersion: '2026-10' } });
     expect(screen.getByRole('link', { name: 'Войти' })).toHaveAttribute('href', '/api/auth/authorize?returnTo=%2Fbooking');
   });
 
