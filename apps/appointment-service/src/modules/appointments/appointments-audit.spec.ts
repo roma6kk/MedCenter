@@ -62,7 +62,7 @@ describe('AppointmentsService audit trail (ADR-014, FR-021)', () => {
       publishBooked: jest.fn().mockResolvedValue(undefined),
       publishCancelled: jest.fn().mockResolvedValue(undefined),
     } as unknown as AppointmentPublisherService;
-    service = new AppointmentsService(fhir, publisher);
+    service = new AppointmentsService(fhir, publisher, 'warn');
   });
 
   it('should audit the booking with the patient and the request id when a patient books', async () => {

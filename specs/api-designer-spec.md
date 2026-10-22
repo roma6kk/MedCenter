@@ -677,6 +677,10 @@ export class CreateAppointmentDto {
 `Slot.status=busy` → publish `appointment.booked.v1` → `AuditEvent(create)` → **201**
 `AppointmentResponseDto`. Гонка → **409** `SLOT_CONFLICT`.
 
+**Согласие и `reason` (ADR-019).** Запись разрешена и без согласия на ЭМК; `reason` — свободный текст о здоровье, поэтому без действующего
+согласия при `CONSENT_ENFORCEMENT=block` запрос с `reason` → **409** `CONSENT_REQUIRED` (ничего не пишется), при `warn` запись
+создаётся без `reason` (предупреждение в журнале сервиса). Поля-подсказки в ответе нет; проверка выполняется только если `reason` передан.
+
 ```typescript
 // apps/appointment-service/src/modules/appointments/dto/appointment-response.dto.ts
 export class AppointmentResponseDto {

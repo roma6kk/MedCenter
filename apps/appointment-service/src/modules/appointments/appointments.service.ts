@@ -1,8 +1,8 @@
 import { randomUUID } from 'node:crypto';
-import { BadRequestException, ConflictException, Inject, Injectable, InternalServerErrorException } from '@nestjs/common';
+import { BadRequestException, ConflictException, Inject, Injectable, InternalServerErrorException, Logger } from '@nestjs/common';
 import type { JwtClaims } from '@medcenter/common';
 import { Role, type ErrorCode } from '@medcenter/contracts';
-import { FHIR_CLIENT, type FhirClient, type FhirResource } from '@medcenter/fhir';
+import { assertActiveConsent, findActiveConsent, FHIR_CLIENT, type FhirClient, type FhirResource } from '@medcenter/fhir';
 import { toAppointmentResponseDto, type AppointmentResponseDto } from '@medcenter/fhir-mappers';
 
 import { AppointmentPublisherService } from '../events/appointment-publisher.service';
@@ -17,6 +17,7 @@ import {
   type BookableSlot,
 } from './appointment-resource';
 import { auditWrite } from './audit';
+import { CONSENT_ENFORCEMENT_MODE, type ConsentEnforcement } from './consent-enforcement';
 import { assertDoctorParticipates, assertPatientOwns, patientRefOf, requireDoctorRoleRef, slotIdOf } from './compartment';
 import { CancelAppointmentDto } from './dto/cancel-appointment.dto';
 import { CreateAppointmentDto } from './dto/create-appointment.dto';
@@ -47,18 +48,22 @@ function assertBooked(appointment: FhirResource, errorCode: ErrorCode, action: s
  */
 @Injectable()
 export class AppointmentsService {
+  private readonly logger = new Logger(AppointmentsService.name);
+
   constructor(
     @Inject(FHIR_CLIENT) private readonly fhir: FhirClient,
     private readonly events: AppointmentPublisherService,
+    @Inject(CONSENT_ENFORCEMENT_MODE) private readonly consentEnforcement: ConsentEnforcement,
   ) {}
 
   /** `requestId` is the `X-Request-Id` recorded in the AuditEvent (NFR-007). */
   async book(claims: JwtClaims, dto: CreateAppointmentDto, requestId?: string): Promise<AppointmentResponseDto> {
     // `Patient/{id}`: the token carries a bare id, the Appointment needs a reference.
     const patientRef = requirePatientReference(claims);
+    const reason = await this.reasonAllowedByConsent(patientRef, dto.reason);
     const bookable = await this.loadBookableSlot(dto);
     const appointmentRef = `urn:uuid:${randomUUID()}`;
-    const appointment = buildBookedAppointment(bookable, patientRef, dto.reason);
+    const appointment = buildBookedAppointment(bookable, patientRef, reason);
     const { slot, slotId, practitionerRoleId, serviceId } = bookable;
     const audit = { interaction: 'create', actorSub: claims.sub, entityRef: appointmentRef, patientRef, requestId } as const;
 
@@ -82,6 +87,26 @@ export class AppointmentsService {
       serviceId,
     });
     return toAppointmentResponseDto({ ...appointment, id: appointmentId });
+  }
+
+  /**
+   * ADR-019: booking itself needs no consent, but a free-text reason is health data. Without a consent
+   * in force `block` answers `409 CONSENT_REQUIRED`; `warn` books without the reason and logs it.
+   */
+  private async reasonAllowedByConsent(patientRef: string, reason: string | undefined): Promise<string | undefined> {
+    if (reason === undefined) {
+      return undefined;
+    }
+    const patientId = patientRef.split('/')[1] ?? '';
+    if (this.consentEnforcement === 'block') {
+      await assertActiveConsent(this.fhir, patientId);
+      return reason;
+    }
+    if ((await findActiveConsent(this.fhir, patientId)) === null) {
+      this.logger.warn({ patientId }, 'free-text reason dropped: the patient has no active consent (CONSENT_ENFORCEMENT=warn)');
+      return undefined;
+    }
+    return reason;
   }
 
   /** Patient (own appointments) or ADMIN cancels a booked appointment; the slot becomes `free` again. */

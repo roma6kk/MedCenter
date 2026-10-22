@@ -83,7 +83,7 @@ describe('AppointmentsService', () => {
       publishBooked: jest.fn().mockResolvedValue(undefined),
       publishCancelled: jest.fn().mockResolvedValue(undefined),
     } as unknown as jest.Mocked<AppointmentPublisherService>;
-    service = new AppointmentsService(fhir, publisher);
+    service = new AppointmentsService(fhir, publisher, 'warn');
   });
 
   describe('book', () => {
