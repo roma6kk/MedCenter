@@ -1,19 +1,27 @@
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { historyFixture, LONG_UNBROKEN_TEXT } from './cabinet-fixtures';
+import { historyFixture, LONG_UNBROKEN_TEXT, medicationFixture } from './cabinet-fixtures';
 import { apiProblem, expectWraps, pageOf, renderWithClient, resetCabinetState } from './cabinet-test-utils';
 import { HistoryTimeline } from './history-timeline';
 
 jest.mock('./patient-api', () => ({ fetchMyHistory: jest.fn(), fetchMyPrescriptions: jest.fn(), fetchAccount: jest.fn(), fetchPatientProfile: jest.fn() }));
 
-import { fetchMyHistory } from './patient-api';
+import { fetchMyHistory, fetchMyPrescriptions } from './patient-api';
 
 const historyMock = fetchMyHistory as jest.MockedFunction<typeof fetchMyHistory>;
+const prescriptionsMock = fetchMyPrescriptions as jest.MockedFunction<typeof fetchMyPrescriptions>;
+
+async function openVisit(): Promise<HTMLElement> {
+  const visit = await screen.findByRole('article');
+  await userEvent.click(within(visit).getByRole('button', { expanded: false }));
+  return visit;
+}
 
 describe('HistoryTimeline', () => {
   beforeEach(() => {
     jest.resetAllMocks();
     resetCabinetState();
+    prescriptionsMock.mockResolvedValue(pageOf([]));
   });
 
   it('should show a loading skeleton while the first page is being read', () => {
@@ -29,11 +37,12 @@ describe('HistoryTimeline', () => {
 
     renderWithClient(<HistoryTimeline />);
 
-    const visit = await screen.findByRole('article');
+    const visit = await openVisit();
     expect(within(visit).getByText(/09:00/)).toHaveAttribute('datetime', '2026-10-12T06:00:00.000Z');
     expect(within(visit).getByTestId('code-chip')).toHaveTextContent('J06.9');
     expect(within(visit).getByText('Острая инфекция верхних дыхательных путей неуточнённая')).toBeInTheDocument();
     expect(within(visit).getByText('(подтверждён)')).toBeInTheDocument();
+    expect(within(visit).getByRole('button', { expanded: true })).toBeInTheDocument();
     expect(within(visit).getByText('Жалобы на кашель и температуру 37,5.')).toBeInTheDocument();
     expect(within(visit).getByText('Обильное питьё, покой.')).toBeInTheDocument();
     expect(within(visit).getByText('Приём терапевта (первичный)')).toBeInTheDocument();
@@ -44,7 +53,10 @@ describe('HistoryTimeline', () => {
 
     renderWithClient(<HistoryTimeline />);
 
-    expect(await screen.findByRole('link', { name: 'Запись на приём' })).toHaveAttribute('href', '/appointments/1552');
+    await openVisit();
+
+    expect(screen.getByRole('link', { name: 'Запись на приём' })).toHaveAttribute('href', '/appointments/1552');
+    expect(screen.getByRole('link', { name: 'Записаться повторно' })).toHaveAttribute('href', '/booking');
   });
 
   it('should show the primary code alone when an old record has no diagnosis list', async () => {
@@ -52,7 +64,9 @@ describe('HistoryTimeline', () => {
 
     renderWithClient(<HistoryTimeline />);
 
-    expect(await screen.findByTestId('code-chip')).toHaveTextContent('I10');
+    const visit = await screen.findByRole('article');
+
+    expect(within(visit).getByTestId('code-chip')).toHaveTextContent('I10');
   });
 
   it('should say no diagnosis was recorded when the visit has none', async () => {
@@ -61,7 +75,7 @@ describe('HistoryTimeline', () => {
     renderWithClient(<HistoryTimeline />);
 
     expect(await screen.findByText('Диагноз не указан')).toBeInTheDocument();
-    expect(screen.queryByTestId('code-chip')).not.toBeInTheDocument();
+    expect(within(screen.getByRole('article')).queryByTestId('code-chip')).not.toBeInTheDocument();
   });
 
   it('should show the empty state and no print button when there are no visits', async () => {
@@ -70,7 +84,7 @@ describe('HistoryTimeline', () => {
     renderWithClient(<HistoryTimeline />);
 
     expect(await screen.findByText('История пуста')).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Печать выписки' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Выписка из медкарты' })).not.toBeInTheDocument();
   });
 
   it('should show a banner with the request id and retry when the service fails', async () => {
@@ -99,7 +113,7 @@ describe('HistoryTimeline', () => {
     historyMock.mockResolvedValue(pageOf([historyFixture()]));
     renderWithClient(<HistoryTimeline />);
 
-    await userEvent.click(await screen.findByRole('button', { name: 'Печать выписки' }));
+    await userEvent.click(await screen.findByRole('button', { name: 'Выписка из медкарты' }));
 
     expect(print).toHaveBeenCalledTimes(1);
     print.mockRestore();
@@ -110,8 +124,52 @@ describe('HistoryTimeline', () => {
 
     renderWithClient(<HistoryTimeline />);
 
-    await screen.findByRole('article');
-    for (const text of [LONG_UNBROKEN_TEXT, `${LONG_UNBROKEN_TEXT}R`, `${LONG_UNBROKEN_TEXT}D`]) expectWraps(screen.getByText(text));
+    const visit = await openVisit();
+    for (const text of [LONG_UNBROKEN_TEXT, `${LONG_UNBROKEN_TEXT}R`, `${LONG_UNBROKEN_TEXT}D`]) expectWraps(within(visit).getByText(text));
+  });
+
+  it('should group visits under a month heading in an ordered list', async () => {
+    historyMock.mockResolvedValue(pageOf([historyFixture(), historyFixture({ id: 'enc-2', date: '2026-09-02T06:00:00.000Z', appointmentId: '9' })]));
+
+    renderWithClient(<HistoryTimeline />);
+
+    expect(await screen.findByRole('heading', { level: 2, name: 'Октябрь 2026' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 2, name: 'Сентябрь 2026' })).toBeInTheDocument();
+    expect(screen.getAllByRole('list', { name: /Октябрь 2026|Сентябрь 2026/ })).toHaveLength(2);
+  });
+
+  it('should show the summary tiles, the total from the response and mark page-only figures', async () => {
+    historyMock.mockResolvedValue(pageOf([historyFixture()], { totalItems: 25 }));
+
+    renderWithClient(<HistoryTimeline />);
+
+    const tiles = within(await screen.findByRole('list', { name: 'Сводка' }));
+    expect(tiles.getByText('25')).toBeInTheDocument();
+    expect(tiles.getAllByText('на этой странице')).toHaveLength(2);
+    expect(tiles.getByText('самый частый диагноз')).toBeInTheDocument();
+  });
+
+  it('should list the prescriptions of the visit, matched by encounter id, and no others', async () => {
+    historyMock.mockResolvedValue(pageOf([historyFixture(), historyFixture({ id: 'enc-2', date: '2026-10-01T06:00:00.000Z' })]));
+    prescriptionsMock.mockResolvedValue(pageOf([medicationFixture()]));
+    renderWithClient(<HistoryTimeline />);
+    const [first, second] = await screen.findAllByRole('article');
+
+    await userEvent.click(within(first as HTMLElement).getByRole('button'));
+    await userEvent.click(within(second as HTMLElement).getByRole('button'));
+
+    await waitFor(() => expect(within(first as HTMLElement).getByText(/Азитромицин/)).toBeInTheDocument());
+    expect(within(second as HTMLElement).queryByText(/Азитромицин/)).not.toBeInTheDocument();
+  });
+
+  it('should filter the loaded visits by diagnosis', async () => {
+    historyMock.mockResolvedValue(pageOf([historyFixture(), historyFixture({ id: 'enc-2', diagnosis: 'I10', diagnoses: [{ code: 'I10', display: 'Гипертензия' }] })]));
+    renderWithClient(<HistoryTimeline />);
+    await screen.findAllByRole('article');
+
+    await userEvent.click(within(screen.getByRole('group', { name: 'Диагноз' })).getByRole('button', { name: 'I10' }));
+
+    expect(screen.getAllByRole('article')).toHaveLength(1);
   });
 
   it('should show one heading and a banner with a retry, not a second not-found screen, when the read answers 404', async () => {

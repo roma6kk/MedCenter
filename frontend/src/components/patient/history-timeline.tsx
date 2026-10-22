@@ -1,120 +1,114 @@
 'use client';
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
-import Link from 'next/link';
-import { buttonVariants } from '@/components/ui/button-variants';
-import { Card } from '@/components/ui/card';
 import { Pager } from '@/components/data-display/paginated-table';
-import { CodeChip } from '@/components/feedback/code-chip';
 import { EmptyState, TableSkeleton } from '@/components/feedback/states';
-import { useT } from '@/lib/i18n/use-t';
-import { PrintButton } from './print-button';
-import type { DiagnosisView, HistoryEntry } from './patient-types';
 import { QueryFailure } from '@/components/feedback/query-error-state';
-import { useClampedPage } from './use-clamped-page';
 import { useClinicFormat } from '@/hooks/use-clinic-format';
 import { useDocumentTitle } from '@/hooks/use-document-title';
-import { useMyHistory } from './use-patient-queries';
-import { WRAP_TEXT } from './wrap-text';
+import { useT } from '@/lib/i18n/use-t';
+import { cn } from '@/lib/ui/cn';
+import { DiagnosisPanel, RepeatVisitCard } from './history/diagnosis-panel';
+import { diagnosisFrequency, filterByDiagnosis, groupByMonth, prescriptionsByEncounter, summarize } from './history/history-model';
+import { SummaryTiles } from './history/summary-tiles';
+import { VisitRow } from './history/visit-row';
+import type { HistoryEntry, Prescription } from './patient-types';
+import { PrintButton } from './print-button';
+import { useClampedPage } from './use-clamped-page';
+import { useMyHistory, useMyPrescriptions } from './use-patient-queries';
+import type { PageMeta } from '@/lib/api/pagination';
 
+export { ICD10_SYSTEM } from './history/visit-row';
 export const HISTORY_PAGE_SIZE = 10;
-export const ICD10_SYSTEM = 'https://fhir.by/CodeSystem/InternClassificDiseases10';
+const PRESCRIPTIONS_LOOKUP_SIZE = 100;
+const EMPTY_PRESCRIPTIONS: ReadonlyArray<Prescription> = [];
 
-/** The diagnoses of a visit; an old record that has only the primary code still shows it. */
-function diagnosesOf(entry: HistoryEntry): ReadonlyArray<DiagnosisView> {
-  if (entry.diagnoses.length > 0) return entry.diagnoses;
-  return entry.diagnosis === '' ? [] : [{ code: entry.diagnosis, display: '' }];
-}
-
-function Diagnosis({ diagnosis }: { readonly diagnosis: DiagnosisView }): ReactNode {
-  const t = useT('patient.history');
+function DiagnosisFilter({ codes, value, onChange }: { readonly codes: ReadonlyArray<string>; readonly value: string | null; readonly onChange: (code: string | null) => void }): ReactNode {
+  const t = useT('patientHistory');
+  const item = (selected: boolean): string =>
+    cn('min-h-[38px] rounded-[9px] px-3.5 text-sm', selected ? 'bg-card font-semibold text-foreground shadow-sm' : 'font-medium text-muted-foreground');
   return (
-    <li className="flex min-w-0 flex-wrap items-baseline gap-2 text-sm">
-      <CodeChip code={diagnosis.code} system={ICD10_SYSTEM} />
-      {diagnosis.display ? <span className={WRAP_TEXT}>{diagnosis.display}</span> : null}
-      {diagnosis.verificationStatus ? <span className="text-xs text-[var(--muted-foreground)]">({t(`verification.${diagnosis.verificationStatus}`)})</span> : null}
-    </li>
-  );
-}
-
-function Diagnoses({ entry }: { readonly entry: HistoryEntry }): ReactNode {
-  const t = useT('patient.history');
-  const diagnoses = diagnosesOf(entry);
-  if (diagnoses.length === 0) return <p className="mt-2 text-sm text-[var(--muted-foreground)]">{t('noDiagnosis')}</p>;
-  return (
-    <div className="mt-2">
-      <p className="form-label">{t('diagnoses')}</p>
-      <ul className="mt-1 grid gap-1">{diagnoses.map((diagnosis) => <Diagnosis key={diagnosis.code} diagnosis={diagnosis} />)}</ul>
+    <div role="group" aria-label={t('filterLabel')} className="no-print inline-flex flex-wrap gap-0.5 rounded-control bg-secondary p-[3px]">
+      <button type="button" aria-pressed={value === null} onClick={() => onChange(null)} className={item(value === null)}>{t('filterAll')}</button>
+      {codes.map((code) => (
+        <button key={code} type="button" aria-pressed={value === code} onClick={() => onChange(code)} className={cn(item(value === code), 'mono')}>{code}</button>
+      ))}
     </div>
   );
 }
 
-function VisitText({ label, text }: { readonly label: string; readonly text: string }): ReactNode {
-  return (
-    <p className={`mt-2 text-sm ${WRAP_TEXT}`}>
-      <span className="form-label mr-2">{label}</span>
-      <span className={`whitespace-pre-line ${WRAP_TEXT}`}>{text}</span>
-    </p>
-  );
+function MonthHeading({ monthKey, id }: { readonly monthKey: string; readonly id: string }): ReactNode {
+  const { locale } = useClinicFormat();
+  const [year = 0, month = 1] = monthKey.split('-').map(Number);
+  const name = new Intl.DateTimeFormat(locale, { month: 'long', timeZone: 'UTC' }).format(new Date(Date.UTC(year, month - 1, 1)));
+  return <h2 id={id} className="text-xl font-bold">{`${name.charAt(0).toUpperCase()}${name.slice(1)} ${year}`}</h2>;
 }
 
-function VisitEntry({ entry }: { readonly entry: HistoryEntry }): ReactNode {
-  const t = useT('patient.history');
-  const format = useClinicFormat();
-  const titleId = `visit-${entry.id}`;
-  return (
-    <li className="relative min-w-0">
-      <span aria-hidden="true" className="absolute -left-[21px] top-6 h-2.5 w-2.5 rounded-full bg-primary ring-4 ring-background" />
-      <Card as="article" aria-labelledby={titleId} padding="lg" className="min-w-0">
-        <div className="flex flex-wrap items-baseline justify-between gap-2">
-          <time id={titleId} dateTime={entry.date} className="text-[20px] font-bold">{format.dateTime(entry.date)}</time>
-          {entry.serviceType?.display ? <p className={`text-sm text-[var(--muted-foreground)] ${WRAP_TEXT}`}>{entry.serviceType.display}</p> : null}
-        </div>
-        <Diagnoses entry={entry} />
-        {entry.summary ? <VisitText label={t('summary')} text={entry.summary} /> : null}
-        {entry.recommendations ? <VisitText label={t('recommendations')} text={entry.recommendations} /> : null}
-        <p className="no-print mt-4">
-          <Link href={`/appointments/${encodeURIComponent(entry.appointmentId)}`} className={buttonVariants({ variant: 'secondary' })}>{t('openAppointment')}</Link>
-        </p>
-      </Card>
-    </li>
-  );
-}
-
-interface TimelineProps {
-  readonly query: ReturnType<typeof useMyHistory>;
+interface LoadedProps {
+  readonly items: ReadonlyArray<HistoryEntry>;
+  readonly meta: PageMeta;
+  readonly prescriptions: ReadonlyArray<Prescription>;
   readonly onPage: (page: number) => void;
 }
 
-function Timeline({ query, onPage }: TimelineProps): ReactNode {
-  const t = useT('patient.history');
-  if (query.data === undefined) return <QueryFailure query={query} embedded pending={<TableSkeleton />} />;
-  if (query.data.items.length === 0) return <EmptyState title={t('empty')} description={t('emptyHint')} />;
+function Loaded({ items, meta, prescriptions, onPage }: LoadedProps): ReactNode {
+  const t = useT('patientHistory');
+  const [chosen, setChosen] = useState<string | null>(null);
+  const summary = useMemo(() => summarize(items), [items]);
+  const frequency = useMemo(() => diagnosisFrequency(items), [items]);
+  const byEncounter = useMemo(() => prescriptionsByEncounter(prescriptions), [prescriptions]);
+  const filter = frequency.some((item) => item.code === chosen) ? chosen : null;
+  const groups = useMemo(() => groupByMonth(filterByDiagnosis(items, filter)), [items, filter]);
   return (
     <>
-      <ol aria-label={t('listLabel')} className="grid grid-cols-1 gap-4 border-l-2 border-border pl-5">
-        {query.data.items.map((entry) => <VisitEntry key={entry.id} entry={entry} />)}
-      </ol>
-      {query.data.meta.totalPages > 1 ? <Pager meta={query.data.meta} onPage={onPage} /> : null}
+      <SummaryTiles summary={summary} meta={meta} />
+      <div className="flex flex-wrap items-start gap-6">
+        <div className="flex min-w-0 flex-[999_1_620px] flex-col gap-4">
+          {frequency.length > 1 ? <DiagnosisFilter codes={frequency.map((item) => item.code)} value={filter} onChange={setChosen} /> : null}
+          {groups.length === 0 ? <EmptyState title={t('emptyFiltered')} /> : null}
+          {groups.map((group) => (
+            <section key={group.key} aria-labelledby={`hx-month-${group.key}`} className="flex flex-col gap-3">
+              <MonthHeading monthKey={group.key} id={`hx-month-${group.key}`} />
+              <ol aria-labelledby={`hx-month-${group.key}`} className="flex flex-col gap-3">
+                {group.entries.map((entry) => <VisitRow key={entry.id} entry={entry} prescriptions={byEncounter.get(entry.id) ?? EMPTY_PRESCRIPTIONS} />)}
+              </ol>
+            </section>
+          ))}
+          {meta.totalPages > 1 ? <Pager meta={meta} onPage={onPage} /> : null}
+        </div>
+        <aside className="flex flex-[1_1_300px] flex-col gap-4">
+          <DiagnosisPanel frequency={frequency} />
+          <RepeatVisitCard />
+        </aside>
+      </div>
     </>
   );
 }
 
-/** The patient's finished visits (FR-006, API 7.6): newest first, a diagnosis chip and the doctor's words for each. */
+/** The patient's finished visits (FR-006, API 7.6): newest first, by month, each row opens to the doctor's words and the prescriptions of that visit. */
 export function HistoryTimeline(): ReactNode {
-  const t = useT('patient.history');
+  const t = useT('patientHistory');
   const [page, setPage] = useState(1);
   const query = useMyHistory({ page, pageSize: HISTORY_PAGE_SIZE });
+  const prescriptions = useMyPrescriptions({ page: 1, pageSize: PRESCRIPTIONS_LOOKUP_SIZE });
   useClampedPage(query.data?.meta, page, setPage);
   useDocumentTitle(t('title'));
+  const data = query.data;
   return (
-    <section className="flex flex-col gap-7">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-[28px] font-bold tracking-tight sm:text-[34px]">{t('title')}</h1>
-        {query.data !== undefined && query.data.items.length > 0 ? <PrintButton label={t('print')} /> : null}
+    <section className="flex flex-col gap-6">
+      <div className="flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <h1 className="text-[28px] font-bold tracking-tight sm:text-[34px]">{t('title')}</h1>
+          <p className="mt-1.5 text-base text-muted-foreground">{t('subtitle')}</p>
+        </div>
+        {data !== undefined && data.items.length > 0 ? <PrintButton label={t('print')} /> : null}
       </div>
-      <div aria-busy={query.isFetching}><Timeline query={query} onPage={setPage} /></div>
+      <div aria-busy={query.isFetching} className="flex flex-col gap-6">
+        {data === undefined ? <QueryFailure query={query} embedded pending={<TableSkeleton />} /> : null}
+        {data !== undefined && data.items.length === 0 ? <EmptyState title={t('empty')} description={t('emptyHint')} /> : null}
+        {data !== undefined && data.items.length > 0 ? <Loaded items={data.items} meta={data.meta} prescriptions={prescriptions.data?.items ?? EMPTY_PRESCRIPTIONS} onPage={setPage} /> : null}
+      </div>
     </section>
   );
 }
