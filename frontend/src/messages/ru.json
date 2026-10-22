@@ -1359,5 +1359,17 @@
       "readOnly": "Данные доступны только для просмотра. Чтобы изменить их, обратитесь в регистратуру.",
       "noPatient": "Карточка пациента ещё не создана."
     }
+  },
+  "patientNotifications": {
+    "subtitleUnread": "Непрочитанных: {count}",
+    "subtitleAllRead": "Все уведомления прочитаны",
+    "markPageRead": "Отметить прочитанными на странице",
+    "markingPage": "Отмечаем…",
+    "pageMarkedRead": "Уведомления на странице отмечены прочитанными",
+    "filterAppointment": "Записи",
+    "filterEncounter": "Приёмы",
+    "emptyType": "На этой странице таких уведомлений нет",
+    "openAppointment": "Открыть запись",
+    "openHistory": "Открыть в истории"
   }
 }
