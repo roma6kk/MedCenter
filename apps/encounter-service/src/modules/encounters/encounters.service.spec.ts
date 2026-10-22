@@ -39,9 +39,10 @@ describe('EncountersService.complete', () => {
     fhir.operation.mockImplementation(async (_type, _operation, params) =>
       validateCodeAnswer(!UNKNOWN_CODES.has(String(params?.['code']))),
     );
+    fhir.search.mockResolvedValue({ total: 0 }); // no Consent: CONSENT_ENFORCEMENT=warn lets it through
     fhir.batch.mockResolvedValue(transactionResponse([`Encounter/${ENCOUNTER_ID}/_history/2`]));
     publisher = { publishCompleted: jest.fn().mockResolvedValue(undefined) } as unknown as jest.Mocked<EncounterPublisherService>;
-    service = new EncountersService(fhir, new TerminologyValidatorService(fhir), publisher);
+    service = new EncountersService(fhir, new TerminologyValidatorService(fhir), publisher, 'warn');
   });
 
   it('should reject completing an encounter twice when it is already finished', async () => {

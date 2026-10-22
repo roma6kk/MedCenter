@@ -5,6 +5,7 @@ import { FHIR_CLIENT, type FhirResource } from '@medcenter/fhir';
 import { EVENT_PUBLISHER, type EventPublisher } from '@medcenter/messaging';
 
 import { AppModule } from '../src/app/app.module';
+import { CONSENT_ENFORCEMENT_MODE, type ConsentEnforcement } from '../src/common/consent/consent-gate';
 import { applyE2eEnv } from './e2e-env';
 import { FakeHapi } from './fake-hapi';
 import { startTestIssuer, type TestIssuer, type TestTokenClaims } from './test-tokens';
@@ -27,7 +28,7 @@ export interface AppHarness {
  * filter — over an in-memory HAPI and a recording event publisher, so the HTTP
  * contract is tested without HAPI or RabbitMQ.
  */
-export async function startAppHarness(): Promise<AppHarness> {
+export async function startAppHarness(consentEnforcement: ConsentEnforcement = 'warn'): Promise<AppHarness> {
   applyE2eEnv();
   const issuer = await startTestIssuer();
   process.env['JWT_JWKS_URI'] = issuer.jwksUri;
@@ -39,6 +40,8 @@ export async function startAppHarness(): Promise<AppHarness> {
     .useValue(hapi)
     .overrideProvider(EVENT_PUBLISHER)
     .useValue(publisher)
+    .overrideProvider(CONSENT_ENFORCEMENT_MODE)
+    .useValue(consentEnforcement)
     .compile();
   const app = moduleRef.createNestApplication();
   app.useGlobalPipes(createValidationPipe());
@@ -88,6 +91,20 @@ export function bookedAppointment(): FhirResource {
       { actor: { reference: 'PractitionerRole/role-1' }, status: 'accepted' },
       { actor: { reference: 'HealthcareService/svc-1' }, status: 'accepted' },
     ],
+  };
+}
+
+/** An `emr-processing` consent in force for `Patient/pat-1` (what patient-service 3.8 writes). */
+export function activeConsent(period?: { start?: string; end?: string }): FhirResource {
+  return {
+    resourceType: 'Consent',
+    id: 'consent-1',
+    status: 'active',
+    scope: { coding: [{ system: 'http://terminology.hl7.org/CodeSystem/consentscope', code: 'patient-privacy' }] },
+    category: [{ coding: [{ system: 'urn:medcenter:consent-category', code: 'emr-processing' }] }],
+    patient: { reference: 'Patient/pat-1' },
+    dateTime: '2026-10-01',
+    provision: { type: 'permit', ...(period === undefined ? {} : { period }) },
   };
 }
 

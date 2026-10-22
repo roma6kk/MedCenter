@@ -32,8 +32,36 @@ const PARAM_PATHS: Readonly<Record<string, readonly string[]>> = {
   actor: ['participant', 'actor', 'reference'],
 };
 
+/** Codings of a `CodeableConcept` or of an array of them, as `system|code` and bare `code` tokens. */
+function codingTokens(value: unknown): string[] {
+  const concepts = Array.isArray(value) ? value : [value];
+  return concepts.flatMap((concept) => {
+    const codings = (concept as { coding?: Array<{ system?: string; code?: string }> } | undefined)?.coding ?? [];
+    return codings.flatMap((coding) => [`${coding.system ?? ''}|${coding.code ?? ''}`, coding.code ?? '']);
+  });
+}
+
+/** `Consent` token searches (`scope`, `category`) the consent gate relies on. */
+function matchesConsentToken(resource: FhirResource, key: string, value: unknown): boolean | undefined {
+  if (resource.resourceType !== 'Consent' || (key !== 'scope' && key !== 'category')) {
+    return undefined;
+  }
+  return codingTokens(resource[key]).includes(String(value));
+}
+
+function patientPath(resourceType: string): readonly string[] {
+  if (resourceType === 'Appointment') {
+    return PARAM_PATHS['actor'] ?? [];
+  }
+  return resourceType === 'Consent' ? ['patient', 'reference'] : ['subject', 'reference'];
+}
+
 function matchesParam(resource: FhirResource, key: string, value: unknown): boolean {
-  const path = key === 'patient' ? (resource.resourceType === 'Appointment' ? PARAM_PATHS['actor'] : ['subject', 'reference']) : PARAM_PATHS[key];
+  const token = matchesConsentToken(resource, key, value);
+  if (token !== undefined) {
+    return token;
+  }
+  const path = key === 'patient' ? patientPath(resource.resourceType) : PARAM_PATHS[key];
   if (path === undefined) {
     throw new Error(`FakeHapi: search parameter ${key} is not supported`);
   }

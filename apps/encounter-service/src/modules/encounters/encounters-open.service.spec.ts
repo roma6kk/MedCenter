@@ -33,7 +33,7 @@ describe('EncountersService.open / findOne', () => {
     fhir.search.mockResolvedValue(searchResult());
     fhir.batch.mockResolvedValue(transactionResponse([`Encounter/${ENCOUNTER_ID}/_history/1`, 'AuditEvent/ae-1/_history/1']));
     const publisher = { publishCompleted: jest.fn() } as unknown as EncounterPublisherService;
-    service = new EncountersService(fhir, new TerminologyValidatorService(fhir), publisher);
+    service = new EncountersService(fhir, new TerminologyValidatorService(fhir), publisher, 'warn');
   });
 
   it('should write the request id of the opening call into the AuditEvent of the new encounter', async () => {

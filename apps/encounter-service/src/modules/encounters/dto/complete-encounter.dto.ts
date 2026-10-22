@@ -11,6 +11,7 @@ import {
   ValidateNested,
 } from 'class-validator';
 
+import { EmergencyReason } from './emergency-reason.decorator';
 import { ConditionDto } from './condition.dto';
 import { MedicationRequestDto } from './medication-request.dto';
 import { ObservationDto } from './observation.dto';
@@ -63,4 +64,9 @@ export class CompleteEncounterDto {
   @ValidateNested({ each: true })
   @Type(() => MedicationRequestDto)
   medicationRequests?: MedicationRequestDto[];
+
+  /** ADR-019: completes without a patient consent and journals the reason. */
+  @IsOptional()
+  @EmergencyReason()
+  emergencyReason?: string;
 }

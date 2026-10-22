@@ -88,6 +88,8 @@ x-bff-env: &bff-env
   # must equal what the guard layer expects. Taken from `.env` when set there.
   JWT_ISSUER: ${JWT_ISSUER:-http://medcenter.localhost:8081}
   RATE_LIMIT_PER_MINUTE: ${RATE_LIMIT_PER_MINUTE:-120}
+  # ADR-019: `warn` logs a missing patient consent, `block` answers 409 CONSENT_REQUIRED (7.1/7.3, 6.1 free text).
+  CONSENT_ENFORCEMENT: ${CONSENT_ENFORCEMENT:-warn}
   # One proxy hop (Traefik) sits in front of every BFF. Services whose bootstrap
   # honours it key the rate limiter on the real client instead of Traefik's IP.
   TRUST_PROXY: '1'
