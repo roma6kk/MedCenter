@@ -10,7 +10,7 @@ interface BundleEntry {
 
 const BASE = 'http://hapi:8080/fhir';
 /** Paging/format parameters the fake accepts and ignores (or applies to the page). */
-const CONTROL_PARAMS: ReadonlySet<string> = new Set(['_count', '_offset', '_sort', '_total', '_revinclude', '_summary']);
+const CONTROL_PARAMS: ReadonlySet<string> = new Set(['_count', '_offset', '_sort', '_total', '_revinclude', '_include', '_include:iterate', '_summary']);
 
 function referencesIn(value: unknown, path: readonly string[]): string[] {
   if (path.length === 0) {
