@@ -2,24 +2,25 @@
 
 import type { ReactNode } from 'react';
 import Link from 'next/link';
-import { FormField, INPUT_CLASS } from '@/components/patient/form-field';
+import { Button } from '@/components/ui/button';
+import { buttonVariants } from '@/components/ui/button-variants';
 import { ProblemBanner } from '@/components/feedback/problem-banner';
 import type { Translate } from '@/lib/i18n/translate';
 import { useDocumentTitle } from '@/hooks/use-document-title';
 import { useT } from '@/lib/i18n/use-t';
 import { clinicDateKey } from '@/lib/clinic-time';
+import { AUTH_INPUT_CLASS, AuthField } from './auth-field';
 import { useRegisterForm, type RegisterFormState } from './use-register-form';
 
 const LOGIN_HREF = '/api/auth/authorize?returnTo=%2Fbooking';
-const BUTTON_CLASS = 'mt-5 min-h-[44px] w-full rounded-[6px] bg-[var(--primary)] px-4 py-2 text-[var(--primary-foreground)] aria-disabled:cursor-not-allowed aria-disabled:opacity-60';
 
 function RegisterSuccess(): ReactNode {
   const t = useT('auth.register');
   return (
     <div data-testid="register-success" role="status">
-      <h1 className="serif text-2xl font-bold">{t('successTitle')}</h1>
-      <p className="mt-2 text-sm text-[var(--muted-foreground)]">{t('successLead')}</p>
-      <a href={LOGIN_HREF} className={`${BUTTON_CLASS} block text-center`}>{t('successCta')}</a>
+      <h1 className="text-[28px] font-bold leading-tight">{t('successTitle')}</h1>
+      <p className="mt-2 text-sm text-muted-foreground">{t('successLead')}</p>
+      <a href={LOGIN_HREF} className={`${buttonVariants({ size: 'lg' })} mt-6 w-full`}>{t('successCta')}</a>
     </div>
   );
 }
@@ -29,16 +30,16 @@ function IdentityFields({ state }: { readonly state: RegisterFormState }): React
   const { register, formState: { errors } } = state.form;
   return (
     <>
-      <FormField id="email" label={t('email')} error={errors.email?.message}>
-        {(control) => <input {...control} type="email" autoComplete="email" aria-required="true" {...register('email')} className={INPUT_CLASS} />}
-      </FormField>
-      {state.isEmailTaken ? <Link href={LOGIN_HREF} className="mt-1 inline-block text-sm underline">{t('emailTakenLogin')}</Link> : null}
-      <FormField id="firstName" label={t('firstName')} error={errors.firstName?.message}>
-        {(control) => <input {...control} autoComplete="given-name" aria-required="true" {...register('firstName')} className={INPUT_CLASS} />}
-      </FormField>
-      <FormField id="lastName" label={t('lastName')} error={errors.lastName?.message}>
-        {(control) => <input {...control} autoComplete="family-name" aria-required="true" {...register('lastName')} className={INPUT_CLASS} />}
-      </FormField>
+      <AuthField id="email" label={t('email')} error={errors.email?.message}>
+        {(control) => <input {...control} type="email" autoComplete="email" aria-required="true" {...register('email')} className={AUTH_INPUT_CLASS} />}
+      </AuthField>
+      {state.isEmailTaken ? <Link href={LOGIN_HREF} className="mt-1.5 inline-flex min-h-[44px] items-center text-sm font-semibold text-primary underline">{t('emailTakenLogin')}</Link> : null}
+      <AuthField id="firstName" label={t('firstName')} error={errors.firstName?.message}>
+        {(control) => <input {...control} autoComplete="given-name" aria-required="true" {...register('firstName')} className={AUTH_INPUT_CLASS} />}
+      </AuthField>
+      <AuthField id="lastName" label={t('lastName')} error={errors.lastName?.message}>
+        {(control) => <input {...control} autoComplete="family-name" aria-required="true" {...register('lastName')} className={AUTH_INPUT_CLASS} />}
+      </AuthField>
     </>
   );
 }
@@ -48,21 +49,21 @@ function PersonalFields({ state }: { readonly state: RegisterFormState }): React
   const { register, formState: { errors } } = state.form;
   return (
     <>
-      <FormField id="birthDate" label={t('birthDate')} error={errors.birthDate?.message}>
-        {(control) => <input {...control} type="date" max={clinicDateKey()} autoComplete="bday" aria-required="true" {...register('birthDate')} className={INPUT_CLASS} />}
-      </FormField>
-      <FormField id="gender" label={t('gender')} error={errors.gender?.message}>
+      <AuthField id="birthDate" label={t('birthDate')} error={errors.birthDate?.message}>
+        {(control) => <input {...control} type="date" max={clinicDateKey()} autoComplete="bday" aria-required="true" {...register('birthDate')} className={AUTH_INPUT_CLASS} />}
+      </AuthField>
+      <AuthField id="gender" label={t('gender')} error={errors.gender?.message}>
         {(control) => (
-          <select {...control} {...register('gender')} className={INPUT_CLASS}>
+          <select {...control} {...register('gender')} className={AUTH_INPUT_CLASS}>
             <option value="">{t('genderUnset')}</option>
             <option value="male">{t('genderMale')}</option>
             <option value="female">{t('genderFemale')}</option>
           </select>
         )}
-      </FormField>
-      <FormField id="password" label={t('password')} hint={t('passwordHint')} error={errors.password?.message}>
-        {(control) => <input {...control} type="password" autoComplete="new-password" aria-required="true" {...register('password')} className={INPUT_CLASS} />}
-      </FormField>
+      </AuthField>
+      <AuthField id="password" label={t('password')} hint={t('passwordHint')} error={errors.password?.message}>
+        {(control) => <input {...control} type="password" autoComplete="new-password" aria-required="true" {...register('password')} className={AUTH_INPUT_CLASS} />}
+      </AuthField>
     </>
   );
 }
@@ -80,19 +81,19 @@ export function RegisterForm(): ReactNode {
   if (state.isSuccess) return <RegisterSuccess />;
   return (
     <form onSubmit={state.submit} noValidate aria-labelledby="register-title">
-      <h1 id="register-title" className="serif text-2xl font-bold">{t('title')}</h1>
-      <p className="mt-2 text-sm text-[var(--muted-foreground)]">{t('lead')}</p>
-      <p className="mt-1 text-sm text-[var(--muted-foreground)]">{t('requiredNote')}</p>
-      {state.problem !== null ? <div className="mt-3"><ProblemBanner problem={state.problem} /></div> : null}
+      <h1 id="register-title" className="text-[28px] font-bold leading-tight">{t('title')}</h1>
+      <p className="mt-2 text-sm text-muted-foreground">{t('lead')}</p>
+      <p className="mt-1 text-sm text-muted-foreground">{t('requiredNote')}</p>
+      {state.problem !== null ? <div className="mt-4"><ProblemBanner problem={state.problem} /></div> : null}
       <div className="mt-4">
         <IdentityFields state={state} />
         <PersonalFields state={state} />
       </div>
-      <button type="submit" aria-disabled={state.isPending || state.cooldown > 0 ? true : undefined} aria-busy={state.isPending} className={BUTTON_CLASS}>
+      <Button type="submit" size="lg" aria-disabled={state.isPending || state.cooldown > 0 ? true : undefined} aria-busy={state.isPending} className="mt-6 w-full">
         {submitLabel(state, t)}
-      </button>
-      <p className="mt-4 text-sm">
-        {t('haveAccount')} <Link href="/login" className="underline">{t('signIn')}</Link>
+      </Button>
+      <p className="mt-4 text-center text-sm text-muted-foreground">
+        {t('haveAccount')} <Link href="/login" className="inline-flex min-h-[44px] items-center font-semibold text-primary underline">{t('signIn')}</Link>
       </p>
     </form>
   );
