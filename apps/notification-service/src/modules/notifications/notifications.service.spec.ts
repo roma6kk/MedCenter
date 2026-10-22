@@ -27,6 +27,7 @@ describe('NotificationsService', () => {
       search: jest.fn().mockResolvedValue({ entry: [] }),
       read: jest.fn(),
       update: jest.fn().mockResolvedValue({}),
+      batch: jest.fn(),
     } as unknown as jest.Mocked<FhirClient>;
     service = new NotificationsService(fhir);
   });
@@ -101,6 +102,50 @@ describe('NotificationsService', () => {
 
       // Assert
       expect(page.meta).toEqual({ page: 2, pageSize: 20, totalItems: 45, totalPages: 3 });
+    });
+  });
+
+  describe('list with Communication.about', () => {
+    it('should hand out the appointment and encounter ids the notification is about, and nothing for an older one', async () => {
+      fhir.search.mockResolvedValue({
+        entry: [
+          { resource: communication({ id: 'a', about: [{ reference: 'Appointment/3150' }] }) },
+          { resource: communication({ id: 'e', about: [{ reference: 'Encounter/e9' }] }) },
+          { resource: communication({ id: 'old' }) },
+        ],
+      });
+
+      const page = await service.list(PATIENT, { page: 1, pageSize: 10, unreadOnly: false });
+
+      expect(page.items.map((item) => [item.id, item.appointmentId, item.encounterId])).toEqual([
+        ['a', '3150', undefined],
+        ['e', undefined, 'e9'],
+        ['old', undefined, undefined],
+      ]);
+      expect(page.items[2]).not.toHaveProperty('appointmentId');
+    });
+  });
+
+  describe('markAllRead', () => {
+    it('should PUT every unread notification of the caller as completed under If-Match in one batch and count the successes', async () => {
+      fhir.search.mockResolvedValue({ entry: [{ resource: communication({ id: 'c-1', meta: { versionId: '2' } }) }, { resource: communication({ id: 'c-2', meta: { versionId: '1' } }) }] });
+      fhir.batch.mockResolvedValue({ resourceType: 'Bundle', entry: [{ response: { status: '200 OK' } }, { response: { status: '412 Precondition Failed' } }] });
+
+      const updated = await service.markAllRead(PATIENT);
+
+      expect(fhir.search).toHaveBeenCalledWith('Communication', { recipient: PATIENT, status: 'in-progress', _count: 200 });
+      const bundle = fhir.batch.mock.calls[0]?.[0] as unknown as { type: string; entry: Array<{ resource: FhirResource; request: unknown }> };
+      expect(bundle.type).toBe('batch');
+      expect(bundle.entry.map((entry) => entry.resource['status'])).toEqual(['completed', 'completed']);
+      expect(bundle.entry[0]?.request).toEqual({ method: 'PUT', url: 'Communication/c-1', ifMatch: 'W/"2"' });
+      expect(updated).toBe(1);
+    });
+
+    it('should send no batch when nothing is unread', async () => {
+      fhir.search.mockResolvedValue({ entry: [] });
+
+      expect(await service.markAllRead(PATIENT)).toBe(0);
+      expect(fhir.batch).not.toHaveBeenCalled();
     });
   });
 

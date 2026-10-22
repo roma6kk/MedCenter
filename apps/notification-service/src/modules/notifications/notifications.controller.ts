@@ -47,6 +47,16 @@ export class NotificationsController {
     return { count: await this.notifications.unreadCount(patientRef) };
   }
 
+  /** API §8.4: every unread notification of the caller becomes read; answers how many did. Declared before `:id/read`. */
+  @Post('read-all')
+  @HttpCode(HttpStatus.OK)
+  @RequiresRoles(Role.PATIENT)
+  @RequiresScopes(SMART_SCOPES.PATIENT_WRITE)
+  async markAllRead(@Req() request: RequestWithClaims): Promise<{ updated: number }> {
+    const patientRef = patientReferenceOf(request);
+    return { updated: await this.notifications.markAllRead(patientRef) };
+  }
+
   @Post(':id/read')
   @HttpCode(HttpStatus.NO_CONTENT)
   @RequiresRoles(Role.PATIENT)

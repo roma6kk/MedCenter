@@ -14,7 +14,20 @@ export interface ListNotificationsQuery {
 const UNREAD = 'in-progress';
 const READ = 'completed';
 
+/** Read-all handles at most this many unread notifications per call (one FHIR batch). */
+export const READ_ALL_LIMIT = 200;
+
+/** The id of the first `Communication.about` reference to `resourceType`, if any. */
+function aboutId(communication: FhirResource, resourceType: string): string | undefined {
+  const about = (communication['about'] as Array<{ reference?: unknown }> | undefined) ?? [];
+  const prefix = `${resourceType}/`;
+  const reference = about.map((item) => item.reference).find((value): value is string => typeof value === 'string' && value.startsWith(prefix));
+  return reference === undefined ? undefined : reference.slice(prefix.length);
+}
+
 function toDto(communication: FhirResource): NotificationResponseDto {
+  const appointmentId = aboutId(communication, 'Appointment');
+  const encounterId = aboutId(communication, 'Encounter');
   const payload = (communication['payload'] as Array<{ contentString?: unknown }> | undefined) ?? [];
   const category = (communication['category'] as Array<{ text?: unknown }> | undefined) ?? [];
   const text = payload[0]?.contentString;
@@ -25,6 +38,8 @@ function toDto(communication: FhirResource): NotificationResponseDto {
     text: typeof text === 'string' ? text : '',
     sent: typeof communication['sent'] === 'string' ? communication['sent'] : '',
     read: communication['status'] === READ,
+    ...(appointmentId === undefined ? {} : { appointmentId }),
+    ...(encounterId === undefined ? {} : { encounterId }),
   };
 }
 
@@ -82,5 +97,31 @@ export class NotificationsService {
       });
     }
     await this.fhir.update('Communication', id, { ...communication, status: READ });
+  }
+
+  /**
+   * API §8.4: marks every unread notification of the caller read, up to {@link READ_ALL_LIMIT} per call, in one FHIR
+   * `batch` of `PUT`s under `If-Match` (a notification changed meanwhile simply stays as it is). The search is the
+   * patient's own compartment, so no other recipient's notification can be touched. Returns how many became read.
+   */
+  async markAllRead(patientRef: string): Promise<number> {
+    const result = await this.fhir.search('Communication', { recipient: patientRef, status: UNREAD, _count: READ_ALL_LIMIT });
+    const unread = (result.entry ?? []).map((entry) => entry.resource).filter((resource) => resource.id !== undefined);
+    if (unread.length === 0) {
+      return 0;
+    }
+    const answer = await this.fhir.batch({
+      resourceType: 'Bundle',
+      type: 'batch',
+      entry: unread.map((communication) => {
+        const versionId = (communication['meta'] as { versionId?: string } | undefined)?.versionId;
+        return {
+          resource: { ...communication, status: READ },
+          request: { method: 'PUT', url: `Communication/${communication.id ?? ''}`, ...(versionId === undefined ? {} : { ifMatch: `W/"${versionId}"` }) },
+        };
+      }),
+    });
+    const responses = (answer['entry'] as Array<{ response?: { status?: string } }> | undefined) ?? [];
+    return responses.filter((entry) => /^2\d\d/.test(entry.response?.status ?? '')).length;
   }
 }

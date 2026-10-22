@@ -3,6 +3,8 @@ import { createHash } from 'node:crypto';
 import type { FhirResource } from '@medcenter/fhir';
 import type { DomainEvent } from '@medcenter/messaging';
 
+import { formatClinicDateTime } from './clinic-time';
+
 /**
  * Domain event → FHIR `Communication` (FR-008). Returns `undefined` for event
  * types this service does not notify on, so the consumer can acknowledge them.
@@ -25,6 +27,7 @@ export function communicationFromEvent(event: DomainEvent): FhirResource | undef
     recipient: [{ reference: recipient }],
     sent: event.occurredAt,
     payload: [{ contentString: built.text }],
+    ...(built.about === undefined ? {} : { about: [{ reference: built.about }] }),
   };
 }
 
@@ -53,20 +56,43 @@ function recipientOf(event: DomainEvent): string | undefined {
   }
 }
 
-function describe(event: DomainEvent): { category: string; text: string } | undefined {
+interface Described {
+  readonly category: string;
+  readonly text: string;
+  /** `Communication.about`: the appointment or encounter the notification is about, so a client can link to it. */
+  readonly about?: string;
+}
+
+function referenceTo(resourceType: string, id: string | undefined): string | undefined {
+  return id === undefined ? undefined : `${resourceType}/${id}`;
+}
+
+/** The start in clinic (Minsk) time, as the patient booked it; the raw value only when it is no instant. */
+function startText(event: DomainEvent): string {
+  const start = stringField(event, 'start') ?? '';
+  return formatClinicDateTime(start) ?? start;
+}
+
+function describe(event: DomainEvent): Described | undefined {
   switch (event.type) {
     case 'appointment.booked.v1':
       return {
         category: 'appointment',
-        text: `Вы записаны на приём. Начало: ${stringField(event, 'start') ?? ''}`,
+        text: `Вы записаны на приём. Начало: ${startText(event)} (время Минска)`,
+        about: referenceTo('Appointment', stringField(event, 'appointmentId')),
       };
     case 'appointment.cancelled.v1':
       return {
         category: 'appointment',
         text: `Запись на приём отменена. Причина: ${stringField(event, 'reason') ?? ''}`,
+        about: referenceTo('Appointment', stringField(event, 'appointmentId')),
       };
     case 'encounter.completed.v1':
-      return { category: 'encounter', text: 'Приём завершён. Результаты доступны в медицинской карте.' };
+      return {
+        category: 'encounter',
+        text: 'Приём завершён. Результаты доступны в медицинской карте.',
+        about: referenceTo('Encounter', stringField(event, 'encounterId')),
+      };
     case 'patient.registered.v1':
       return { category: 'registration', text: 'Регистрация в медицинском центре завершена.' };
     default:

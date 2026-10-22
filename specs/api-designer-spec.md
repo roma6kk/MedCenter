@@ -779,11 +779,17 @@ export class CompleteEncounterDto {
 | 8.1 | `GET /api/v1/notifications?page=&pageSize=&unread=true` | свои in-app уведомления | Bearer |
 | 8.2 | `GET /api/v1/notifications/unread-count` | счётчик (поллинг, ADR-015) | Bearer |
 | 8.3 | `POST /api/v1/notifications/{id}/read` | отметить прочитанным | владелец |
+| 8.4 | `POST /api/v1/notifications/read-all` | отметить прочитанными все свои непрочитанные (до 200 за вызов), ответ `{ "updated": n }` | владелец |
 
 Потребитель RabbitMQ (`appointment.booked/cancelled.v1`, `encounter.completed.v1`,
 `patient.registered.v1` — каталог в §4.4 архитектуры) создаёт `Communication` (recipient=Patient,
 sender=Organization) + email-адаптер (A-3). Компартмент: фильтр по `patientRef` из JWT (ADR-013).
-**Status:** 200 · 204 (8.3) · 403/404.
+Элемент 8.1: `{ id, category, text, sent, read, appointmentId?, encounterId? }` — `appointmentId`/`encounterId`
+берутся из `Communication.about` (`Appointment/{id}` у `appointment.*`, `Encounter/{id}` у `encounter.completed.v1`);
+у уведомлений, созданных до этого поля, их нет. Время начала в тексте `appointment.booked.v1` — по Минску
+(`ДД.ММ.ГГГГ ЧЧ:ММ (время Минска)`). 8.4 пишет одним FHIR `batch` с `If-Match`; изменённое за это время уведомление
+остаётся как есть.
+**Status:** 200 (8.1, 8.2, 8.4) · 204 (8.3) · 403/404.
 
 #### 9. `analytics-service` — Отчёты и аудит (FR-019, FR-021, ADR-014)
 
