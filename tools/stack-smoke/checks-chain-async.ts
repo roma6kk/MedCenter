@@ -45,7 +45,7 @@ function arrivalStep(suite: Suite, found: { notificationId: string }): SmokeStep
       const notification = await pollUntil(config, 'the booking and encounter notifications', async () => {
         const response = await api.get('/api/v1/notifications', { session: sessions.patient, query: { pageSize: 100 } });
         const items = expectPage(response, NOTIFICATION_SHAPE);
-        const booked = items.find((item) => item['category'] === 'appointment' && String(item['text']).includes(String(chain.slot?.start)));
+        const booked = items.find((item) => item['category'] === 'appointment' && item['appointmentId'] === chain.appointmentId);
         const finished = items.find((item) => item['category'] === 'encounter');
         return booked !== undefined && finished !== undefined ? booked : undefined;
       });
@@ -81,9 +81,26 @@ function readFlagSteps(suite: Suite, found: { notificationId: string }): SmokeSt
   ];
 }
 
+/** API §8.4: read-all marks the caller's remaining unread notifications and the counter drops to zero. */
+function readAllStep(suite: Suite): SmokeStep {
+  const { api, sessions } = suite;
+  const session = sessions.patient;
+  return {
+    name: 'POST /notifications/read-all -> 200 with the number marked read, and the unread count drops to zero',
+    run: async () => {
+      const response = await api.post('/api/v1/notifications/read-all', { session });
+      expectStatus(response, 200);
+      const updated = Number(expectShape(response.body, { updated: 'number' }, 'read-all')['updated']);
+      expectTrue(updated >= 1, `read-all marked ${updated} notifications, expected the encounter one at least`);
+      const after = await api.get('/api/v1/notifications/unread-count', { session });
+      expectEqual(Number(bodyObject(after)['count']), 0, 'unread-count after read-all');
+    },
+  };
+}
+
 export function notificationSteps(suite: Suite): SmokeStep[] {
   const found = { notificationId: '' };
-  return [arrivalStep(suite, found), ...readFlagSteps(suite, found)];
+  return [arrivalStep(suite, found), ...readFlagSteps(suite, found), readAllStep(suite)];
 }
 
 function analyticsStep(suite: Suite): SmokeStep {
