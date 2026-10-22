@@ -220,7 +220,8 @@ describe('ProfileView', () => {
     });
 
     it('should show loading skeletons while the reads run', () => {
-      for (const mock of [accountMock, patientMock, historyMock, prescriptionsMock, appointmentsMock]) mock.mockReturnValue(new Promise(() => undefined));
+      const never = new Promise<never>(() => undefined);
+      for (const mock of [accountMock, patientMock, historyMock, prescriptionsMock, appointmentsMock]) (mock as jest.Mock).mockReturnValue(never);
       renderWithClient(<ProfileView />);
 
       expect(screen.getAllByTestId('table-skeleton').length).toBeGreaterThanOrEqual(2);
