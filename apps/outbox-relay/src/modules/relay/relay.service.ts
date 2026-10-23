@@ -20,6 +20,9 @@ export const LOCK_KEY = 'outbox-relay:lock';
 /** One poll never holds the lock for longer than this share of its lifetime. */
 const LOCK_BUDGET_SHARE = 0.5;
 
+/** `$expunge` counts the deleted resource and each of its versions against `limit`; one record has a handful. */
+const EXPUNGE_LIMIT = 1000;
+
 const CODE_SEARCH = `${OUTBOX.CODE_SYSTEM}|${OUTBOX.EVENT_CODE}`;
 const tagSearch = (status: string): string => `${OUTBOX.STATUS_SYSTEM}|${status}`;
 
@@ -233,7 +236,7 @@ export class RelayService implements OnApplicationBootstrap, OnModuleDestroy {
         await this.fhir.operation(
           'Basic',
           '$expunge',
-          { limit: 1, expungeDeletedResources: true, expungePreviousVersions: true },
+          { limit: EXPUNGE_LIMIT, expungeDeletedResources: true, expungePreviousVersions: true },
           { method: 'POST', id: record.id },
         );
       } catch (error) {
