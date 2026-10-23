@@ -10,6 +10,12 @@ export interface AuditEventParams {
   readonly patientRef: string;
   /** `X-Request-Id` of the HTTP request (`RequestIdMiddleware`), the journal's correlation id (NFR-007). */
   readonly requestId?: string;
+  /**
+   * Stable key of the one write this event records (`AuditEvent.entity[0].name`, searchable as
+   * `entity-name`): lets the bundle entry be a conditional create, so a request that lost a race
+   * and changed nothing adds no second event.
+   */
+  readonly entityName?: string;
 }
 
 const PATIENT_OBJECT_ROLE = {
@@ -43,9 +49,17 @@ export function buildAuditEvent(params: AuditEventParams): FhirResource {
     agent: [{ who: { identifier: { value: params.actorSub } }, requestor: true }],
     source: { observer: { display: 'encounter-service' } },
     entity: [
-      ...params.entityRefs.map((reference) => ({ what: { reference } })),
+      ...params.entityRefs.map((reference, index) => ({
+        what: { reference },
+        ...(index === 0 && params.entityName !== undefined ? { name: params.entityName } : {}),
+      })),
       { what: { reference: params.patientRef }, role: PATIENT_OBJECT_ROLE },
       ...(params.requestId === undefined ? [] : [{ what: { identifier: { value: params.requestId } }, type: REQUEST_ID_TYPE }]),
     ],
   };
+}
+
+/** `ifNoneExist` of a keyed AuditEvent: HAPI returns the stored event (`200`) instead of creating a second one. */
+export function auditEventByEntityNameQuery(entityName: string): string {
+  return `AuditEvent?entity-name:exact=${encodeURIComponent(entityName)}`;
 }

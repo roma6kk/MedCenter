@@ -17,6 +17,7 @@ import {
   CONSENT_ENFORCEMENT_MODE,
   type ConsentEnforcement,
 } from '../../common/consent/consent-gate';
+import { auditEventByEntityNameQuery } from '../../common/audit/audit-event';
 import { referenceField } from '../../common/fhir/fhir-read';
 import { canonicalReference, referenceIdOf } from '../../common/fhir/fhir-reference';
 import { resourcesOf, resourcesOfType } from '../../common/fhir/fhir-search';
@@ -55,6 +56,7 @@ import {
   buildOpeningWrites,
   encounterOfAppointmentQuery,
   openedEncounterResource,
+  openingBypassName,
   serviceTypeOf,
   type OpeningContext,
 } from './mappers/encounter-opening.mapper';
@@ -120,6 +122,22 @@ function internal(message: string): InternalServerErrorException {
     errorCode: 'INTERNAL',
     message: `INTERNAL: ${message}`,
   });
+}
+
+/**
+ * The bypass event of an opening is keyed by the appointment (`entity-name` of the encounter
+ * entity) and conditional: the request that lost the open race adds none.
+ */
+function openingBypassOnce(write: TransactionWrite, context: OpeningContext): TransactionWrite {
+  const name = openingBypassName(context.appointmentId);
+  const entities = (write.resource['entity'] as ReadonlyArray<{ what?: { reference?: string } }>).map((entity) =>
+    entity.what?.reference === context.fullUrl ? { ...entity, name } : entity,
+  );
+  return {
+    ...write,
+    resource: { ...write.resource, entity: entities },
+    ifNoneExist: auditEventByEntityNameQuery(name),
+  };
 }
 
 /**
@@ -322,12 +340,15 @@ export class EncountersService {
       emergencyReason === undefined
         ? []
         : [
-            this.bypassWrite(
-              context.actorSub,
-              context.patientRef,
-              context.fullUrl,
-              emergencyReason,
-              context.requestId,
+            openingBypassOnce(
+              this.bypassWrite(
+                context.actorSub,
+                context.patientRef,
+                context.fullUrl,
+                emergencyReason,
+                context.requestId,
+              ),
+              context,
             ),
           ];
     const response = await commitTransaction(

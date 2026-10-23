@@ -147,7 +147,7 @@ function encounterAuditStep(suite: Suite): SmokeStep {
   const { chain } = suite;
   return (
     {
-      name: 'GET /admin/audit?entity=Encounter/{id} -> the open (create) and the completion (update) events, each with a request id',
+      name: 'GET /admin/audit?entity=Encounter/{id} -> exactly one open (create) event despite the concurrent open, and the completion (update) event, each with a request id',
       run: async () => {
         const created = await auditOf(suite, `Encounter/${chain.encounterId}`, 'create');
         const updated = await auditOf(suite, `Encounter/${chain.encounterId}`, 'update');

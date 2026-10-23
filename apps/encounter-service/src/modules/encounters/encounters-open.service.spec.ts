@@ -64,6 +64,28 @@ describe('EncountersService.open / findOne', () => {
     expect(result).toEqual({ created: true, encounter: expect.objectContaining({ id: ENCOUNTER_ID, status: 'in-progress' }) });
   });
 
+  it('should make the AuditEvent of the opening conditional on the same appointment so a lost concurrent open writes none', async () => {
+    await service.open(doctorClaims, { appointmentId: APPOINTMENT_ID });
+
+    const [, auditEntry] = committedEntries(fhir);
+    const name = `encounter-opened:Appointment/${APPOINTMENT_ID}`;
+    expect(auditEntry?.request).toEqual({
+      method: 'POST',
+      url: 'AuditEvent',
+      ifNoneExist: `AuditEvent?entity-name:exact=${encodeURIComponent(name)}`,
+    });
+    expect(JSON.stringify(auditEntry?.resource['entity'])).toContain(name);
+  });
+
+  it('should make the emergency-bypass AuditEvent of the opening conditional too', async () => {
+    await service.open(doctorClaims, { appointmentId: APPOINTMENT_ID, emergencyReason: 'Пациент без сознания, согласие дать некому' });
+
+    const bypass = committedEntries(fhir).find((entry) => entry.resource['action'] === 'E');
+    expect(bypass?.request).toMatchObject({
+      ifNoneExist: `AuditEvent?entity-name:exact=${encodeURIComponent(`encounter-emergency-open:Appointment/${APPOINTMENT_ID}`)}`,
+    });
+  });
+
   it('should reject opening with ENCOUNTER_STATE_INVALID when the appointment is not booked', async () => {
     fhir.read.mockResolvedValue({ ...bookedAppointment, status: 'cancelled' });
 
