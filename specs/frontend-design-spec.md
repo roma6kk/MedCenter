@@ -266,6 +266,21 @@ UCUM — только селект, пароль — зеркало `IsStrongPas
 Дополнительно unit: zod-паритет, `apiFetch` (refresh/retry), `useBookingDraftStore`; security-чек
 (UI не отправляет `patient`-параметр при `patient/*`-скоупах — ADR-013).
 
+**Статус (2026-10-23): реализованы все сценарии A–F и security-набор** — `frontend/e2e/*.spec.ts` (`booking-flow`, `booking-conflict`,
+`cancel-appointment`, `doctor-encounter`, `admin-schedule`, `notifications`, `admin-reports`, `auth-login`, `security`; заглушек `test.fixme`
+нет). Дополнительно покрыты компартмент пациента, role-guards и редиректы `returnTo`. Проект Playwright `setup` (`auth.setup.ts`) один раз входит
+под каждым демо-аккаунтом и сохраняет `storageState`; остальные спеки его переиспользуют (логин ограничен rate-limit). Учётные данные берутся из
+git-ignored манифеста демо-сида (`tools/demo-seed/output/demo-manifest.json`), без него `setup` пропускается (`DEMO_MANIFEST_PATH` указывает другой манифест).
+
+Запуск (нужен поднятый стек с демо-данными и веб на `:3000`, см. README):
+
+```bash
+cd frontend && E2E_BROWSER_CHANNEL=chrome npx playwright test   # установленный Google Chrome
+cd frontend && npx playwright test                              # после `npx playwright install chromium`
+```
+
+`E2E_BASE_URL` задаёт origin веба (по умолчанию `http://localhost:3000`).
+
 #### 7. i18n, локализация данных, доступность
 
 - **next-intl**, `ru-BY` по умолчанию (NFR-008, A-8), `en` — задел: `messages/{ru,en}.json`,

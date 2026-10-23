@@ -69,8 +69,7 @@ ADR-013; BR-006). Параметр `patient` в query игнорируется �
 | --- | --- | --- | --- |
 | `page` | int ≥ 1 | 1 | — |
 | `pageSize` | int 1…100 | 20 | ≤ 100 |
-| `sortBy` | enum per-endpoint | per-endpoint | — |
-| `sortOrder` | `asc` \| `desc` | `asc` | — |
+| `sortOrder` | `asc` \| `desc` | `asc` (у `encounter-service` — `desc`) | — |
 
 Ответ-конверт (единый для всех листингов):
 
@@ -126,7 +125,7 @@ export class PaginatedResponseDto<TItem> {
 | `FORBIDDEN_ROLE` | 403 | RBAC-роль не допущена |
 | `COMPARTMENT_VIOLATION` | 403 | обращение к чужим данным (ADR-013) |
 | `NOT_FOUND` | 404 | ресурс не найден |
-| `METHOD_NOT_ALLOWED` | 405 | — |
+| `METHOD_NOT_ALLOWED` | 405 | не используется: неизвестный метод или маршрут даёт 404 `NOT_FOUND` |
 | `CONFLICT` | 409 | конфликт версии или дубликат при записи в FHIR-хранилище (HAPI 409/412); дубликат e-mail (`EMAIL_TAKEN` в `detail`, 2.2.1/2.2.6) и дубликат `identifier` кабинета (4.4/4.5) — причина в `detail` |
 | `SLOT_CONFLICT` | 409 | BR-001: слот уже занят (гонка, ADR-012) |
 | `CONSENT_REQUIRED` | 409 | у пациента нет действующего согласия на электронную медкарту (7.1, 7.3; ADR-019); при `CONSENT_ENFORCEMENT=warn` не возвращается |
@@ -242,7 +241,7 @@ guard-слоем — **401 `TOKEN_REVOKED`** (см. 2.1.3).
 | 2.2.2 | `GET /api/v1/admin/users?role=&search=&page=&pageSize=` | список | `ADMIN` |
 | 2.2.3 | `GET /api/v1/admin/users/{id}` | карточка + `ExternalLink` | `ADMIN` |
 | 2.2.4 | `PATCH /api/v1/admin/users/{id}` | роль, `isActive` | `ADMIN` |
-| 2.2.5 | `DELETE /api/v1/admin/users/{id}` | деактивация (soft) | `ADMIN` |
+| 2.2.5 | `DELETE /api/v1/admin/users/{id}` | деактивация (soft); ответ **200** с карточкой пользователя (не 204) | `ADMIN` |
 | 2.2.6 | `POST /api/v1/auth/register` | саморегистрация пациента (A-6) | public |
 | 2.2.7 | `GET /api/v1/me` | профиль текущего пользователя + `ExternalLink` | любой Bearer |
 
@@ -303,10 +302,10 @@ export class AccountConsentDto {
 столбца: `account_consent_at` (момент приёма запроса, `timestamptz`) и `account_consent_version` (`varchar(64)`, `textVersion`); оба `NULL` у записей,
 созданных администратором (2.2.1) и до миграции `AccountConsent1700000000002`. `FHIR Consent` при регистрации **не создаётся**: согласие на
 электронную медкарту даётся отдельно (3.8) и без него 7.1/7.3 блокируются. В `UserResponseDto` эти поля не возвращаются; `accountConsent`
-отсутствует в 2.2.1 и 2.2.4.
+отсутствует в 2.2.1 и 2.2.4. Карточка 2.2.3 дополнительно содержит `externalLinks` и `createdAt`.
 
 **Response 201** `UserResponseDto`: `{ id: UUID; email; firstName; lastName; roles: string[];
-patientRef: string | null; isActive: boolean }` · **409** email занят: `errorCode=CONFLICT`, код
+patientRef: string | null; practitionerRoleRef: string | null; name: string; role: string; isActive: boolean }` · **409** email занят: `errorCode=CONFLICT`, код
 `EMAIL_TAKEN` в начале `detail` (`EMAIL_TAKEN: a user with this email already exists`); сравнение без учёта регистра.
 
 **2.2.4 `PATCH /api/v1/admin/users/{id}`** — `UpdateUserDto = PartialType(OmitType(RegisterPatientDto, ['password'] as const))`
@@ -318,7 +317,8 @@ patientRef: string | null; isActive: boolean }` · **409** email занят: `er
 | --- | --- | --- | --- |
 | 2.3.1 | `GET /api/v1/terminology/value-sets` | список seed'нутых `ValueSet` (canonical `https://fhir.by/...`) | `ADMIN` |
 | 2.3.2 | `GET /api/v1/terminology/value-sets/{url}/$expand` | развёртка ValueSet (кэш Redis) | `user/*.read` |
-| 2.3.3 | `GET /api/v1/terminology/validate?system=&code=` | валидация пары system/code в seed'нутых ValueSet | `user/*.read` |
+| 2.3.3 | `GET /api/v1/terminology/validate?system=&code=` | валидация пары system/code в seed'нутых ValueSet (`system` — canonical **CodeSystem**) | `user/*.read` |
+| 2.3.5 | `GET /api/v1/terminology/expand?system=` | то же, что 2.3.2, с canonical **ValueSet** в query-параметре `system` (без URL-кодирования в пути) | `user/*.read` |
 | 2.3.4 | `POST /api/v1/admin/terminology/import` | запуск импортера снапшота НСИ (ADR-016) | `ADMIN` |
 
 **2.3.4** — тело `{ "snapshotVersion": "1.4.463" }` → 202 Accepted, прогресс через логи/событие;
@@ -328,9 +328,9 @@ patientRef: string | null; isActive: boolean }` · **409** email занят: `er
 
 | # | Метод и путь | Назначение | Доступ |
 | --- | --- | --- | --- |
-| 3.1 | `GET /api/v1/me/patient` | FHIR-профиль текущего пациента (по `ExternalLink`) | `patient/*.read` |
-| 3.2 | `GET /api/v1/patients/{id}` | карточка пациента | `user/*.read` (DOCTOR/ADMIN) |
-| 3.3 | `GET /api/v1/patients/{id}/related` | доверенные лица (`RelatedPerson`) | `user/*.read` (DOCTOR/ADMIN) |
+| 3.1 | `GET /api/v1/me/patient` | профиль текущего пациента (по `ExternalLink`); помимо полей карточки — `fullName`, `photoUrl` | `patient/*.read` |
+| 3.2 | `GET /api/v1/patients/{id}` | карточка пациента; `PATIENT` — только своя | `user/*.read` (DOCTOR/ADMIN), `patient/*.read` (PATIENT, своя) |
+| 3.3 | `GET /api/v1/patients/{id}/related` | доверенные лица (`RelatedPerson`); `PATIENT` — только свои | `user/*.read` (DOCTOR/ADMIN), `patient/*.read` (PATIENT, свои) |
 | 3.4 | `GET /api/v1/me/consent` | своё действующее согласие на ЭМК и история | `patient/*.read` |
 | 3.5 | — | не вводится: электронное согласие на ЭМК без ЭЦП не даётся (ADR-019) | — |
 | 3.6 | `POST /api/v1/me/consent/revoke` | отозвать своё согласие (сразу блокирует новые записи, ничего не удаляет) | `patient/*.write` |
@@ -426,6 +426,7 @@ export interface DoctorResponseDto {
   specialty?: string;              // отображаемый текст специальности («Терапевт»)
   specialtyCode?: string;          // код специальности — значение для ?specialty= (4.1): `419192003`
   specialtySystem?: string;        // система кода: `http://snomed.info/sct`; ?specialty=system|code
+  photoUrl?: string;               // фото врача (4.1 и 4.2)
   roomId?: string;
   practitionerRoleIds: string[];   // id активных PractitionerRole врача по возрастанию; [] если ролей нет
 }
@@ -436,7 +437,7 @@ export interface DoctorResponseDto {
 текст) они отсутствуют. `practitionerRoleIds` — **все** активные роли врача (`active != false`), а не только подошедшие
 под фильтр `serviceId`/`specialty`; на них ссылается `practitionerRoleId` DOCTOR-аккаунта (2.2.1). Это один
 дополнительный поиск `PractitionerRole?practitioner=Practitioner/{id},…` на страницу (не больше 200 ролей); поля
-добавлены без изменения прежних, `specialty` остаётся текстом.
+добавлены без изменения прежних, `specialty` остаётся текстом. `?specialty=a,b` — список через запятую, условие **OR**.
 
 **4.4/4.5 — уникальность `identifier`:** `identifier` кабинета уникален среди кабинетов
 (`Location.physicalType=ro`); он сравнивается без учёта регистра и крайних пробелов. Создание (4.4) с занятым
@@ -550,11 +551,11 @@ description?; isActive }`. Инвалидация Redis-кэша `catalog:servic
 | # | Метод и путь | Назначение | Доступ |
 | --- | --- | --- | --- |
 | 5.2.1 | `POST /api/v1/admin/schedules` | создать `Schedule` (`planningHorizon` ≤ 90 дней) | `ADMIN` |
-| 5.2.2 | `GET /api/v1/admin/schedules?doctorId=&active=true&page=` | список расписаний | `ADMIN` |
+| 5.2.2 | `GET /api/v1/admin/schedules?doctorId=&active=true&page=` | список расписаний; `doctorId` — id **PractitionerRole** | `ADMIN` |
 | 5.2.3 | `PATCH /api/v1/admin/schedules/{id}` | изменить окно/горизонт (проверка `SCHEDULE_OVERLAP`) | `ADMIN` |
 | 5.2.4 | `DELETE /api/v1/admin/schedules/{id}` | удалить расписание: busy-слоты защищают его всегда; free-слоты удаляются при `cascade:true`; расписание со слотами, на которые ссылаются записи, деактивируется (см. ниже) | `ADMIN` |
 | 5.2.5 | `POST /api/v1/admin/schedules/{id}/generate` | сгенерировать `Slot` на период | `ADMIN` |
-| 5.2.6 | `GET /api/v1/admin/schedules/{id}/slots?from=&to=&status=` | слоты расписания | `ADMIN` |
+| 5.2.6 | `GET /api/v1/admin/schedules/{id}/slots?from=&to=&status=` | слоты расписания; `from`/`to` обязательны | `ADMIN` |
 | 5.2.7 | `GET /api/v1/doctor/schedule?from=&to=` | своё расписание + слоты | `user/*.read` (DOCTOR) |
 | 5.2.8 | `GET /api/v1/doctors/{id}/slots?from=&to=` | свободные слоты врача | public |
 
@@ -700,7 +701,7 @@ export class CreateAppointmentDto {
 }
 ```
 
-**Транзакция 6.1** (ADR-012): re-read `Slot` c пессимистичной блокировкой → `status=free`?
+**Транзакция 6.1** (ADR-012, оптимистичная блокировка `If-Match` на версию `Slot`): re-read `Slot` → `status=free`? `serviceId` не совпал с услугой расписания слота → **400**.
 → создать `Appointment` (participants: Patient + PractitionerRole; `slot` reference) →
 `Slot.status=busy` → publish `appointment.booked.v1` → `AuditEvent(create)` → **201**
 `AppointmentResponseDto`. Гонка → **409** `SLOT_CONFLICT`.
@@ -893,10 +894,10 @@ export class CompleteEncounterDto {
 
 | # | Метод и путь | Назначение | Доступ |
 | --- | --- | --- | --- |
-| 8.1 | `GET /api/v1/notifications?page=&pageSize=&unread=true` | свои in-app уведомления | Bearer |
-| 8.2 | `GET /api/v1/notifications/unread-count` | счётчик (поллинг, ADR-015) | Bearer |
-| 8.3 | `POST /api/v1/notifications/{id}/read` | отметить прочитанным | владелец |
-| 8.4 | `POST /api/v1/notifications/read-all` | отметить прочитанными все свои непрочитанные (до 200 за вызов), ответ `{ "updated": n }` | владелец |
+| 8.1 | `GET /api/v1/notifications?page=&pageSize=&unread=true` | свои in-app уведомления | `PATIENT`, `patient/*.read` |
+| 8.2 | `GET /api/v1/notifications/unread-count` | счётчик (поллинг, ADR-015) | `PATIENT`, `patient/*.read` |
+| 8.3 | `POST /api/v1/notifications/{id}/read` | отметить прочитанным | `PATIENT`, `patient/*.write`, владелец |
+| 8.4 | `POST /api/v1/notifications/read-all` | отметить прочитанными все свои непрочитанные (до 200 за вызов), ответ `{ "updated": n }` | `PATIENT`, `patient/*.write`, владелец |
 
 Потребитель RabbitMQ (`appointment.booked/cancelled.v1`, `encounter.completed.v1`,
 `patient.registered.v1` — каталог в §4.4 архитектуры) создаёт `Communication` (recipient=Patient,
@@ -912,7 +913,7 @@ sender=Organization) + email-адаптер (A-3). Компартмент: фи�
 
 | # | Метод и путь | Назначение | Доступ |
 | --- | --- | --- | --- |
-| 9.1 | `GET /api/v1/admin/analytics/appointments?from=&to=` | сводка записей (booked/cancelled/noshow) | `ADMIN` |
+| 9.1 | `GET /api/v1/admin/analytics/appointments?from=&to=` (`from`/`to` необязательны, по умолчанию последние 30 дней) | сводка записей (booked/cancelled/noshow) | `ADMIN` |
 | 9.2 | `GET /api/v1/admin/analytics/encounters?from=&to=` | сводка приёмов по специальностям | `ADMIN` |
 | 9.3 | `GET /api/v1/admin/analytics/services-popularity?from=&to=&top=` | топ услуг | `ADMIN` |
 | 9.4 | `GET /api/v1/admin/audit?from=&to=&entity=&userId=&page=` | журнал `AuditEvent` (read-model) | `ADMIN` |
@@ -923,7 +924,7 @@ PostgreSQL (worker наполняет по событиям). Ответ 9.4 —
 requestId; reason? }`. `read` — чтение данных пациента врачом или администратором, `denied` — отказ в нём (ADR-018);
 чтение пациентом своей карты в журнал не попадает. `emergency-bypass` — приём открыт или завершён без согласия пациента по
 `emergencyReason` (7.1/7.3, ADR-019): `userId` — врач, `resourceType/resourceId` — пациент, `reason` — указанная причина
-(только у этого действия); UI: «Экстренный обход согласия». **Status:** 200 · 400 (диапазон > 366 дней).
+(только у этого действия); UI: «Экстренный обход согласия». Изменения услуг, кабинетов и расписаний (`create`/`update`/`delete`) пишутся в той же транзакции; ресурс в `resourceType/resourceId` определяется по логической ссылке (ADR-020). **Status:** 200 · 400 (диапазон > 366 дней).
 
 #### 10. Swagger / OpenAPI
 

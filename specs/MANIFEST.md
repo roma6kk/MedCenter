@@ -19,7 +19,7 @@ UCUM) подключается по canonical URL `https://fhir.by/...`. Арх�
 > (httpOnly `mc_rt` + in-memory Bearer через `/api/auth/session`) и проведение формы приёма
 > (`CompleteEncounterDto` — МКБ-10/ServiceRequest/MedicationRequest). Проверки: `tsc --noEmit`, `jest`
 > (19 suites / 212 tests), `next lint` и `next build` (27 маршрутов + middleware) — зелёные.
-> E2E-сценарии остаются smoke-заглушками (`test.fixme`) до подключения полного стека в CI.
+> E2E-сценарии A–F реализованы (см. ниже, ветка `fix/open-items`).
 
 > **Реализация бэкенда (2026-10-05):** в Nx-монорепозитории реализованы `apps/auth-service`
 > (SMART/OAuth2, схема `auth` через TypeORM, Init-миграция) и общие библиотеки `libs/{common,config,contracts}`
@@ -41,14 +41,20 @@ UCUM) подключается по canonical URL `https://fhir.by/...`. Арх�
 > `eventId`, `Communication` FR-008), плюс библиотека `libs/messaging`. Конкуренция за слот решена атомарным
 > `transaction`-Bundle с `If-Match` на версии `Slot` (HAPI не даёт row-lock, см. отклонение 1 в спеке). Детали — `specs/coder-m3-booking-spec.md`.
 
+> **Ветка `fix/open-items` (2026-10-23):** закрыты пробелы аудита (ADR-020: логическая ссылка + UUID-id администратора), атомарность
+> идентификатора кабинета, гонка «открытие приёма ∥ no-show/cancel» (оптимистичная блокировка `If-Match` по тегу
+> `encounter-opened`, ADR-012), повтор старта аналитики; добавлены Bruno-коллекция `bruno/medcenter-api/` и Playwright E2E A–F + security
+> (`frontend-design-spec.md` §6). `api-designer-spec.md` приведён в соответствие с кодом (11 расхождений). Диаграммы — `docs/diagrams/`.
+> Открыто: transactional outbox, healthcheck HAPI, статус `fulfilled` в аналитике, очистка демо-данных HAPI, TASK-004 (T1/T2/T5), ПЗ, push/PR,
+> Bruno CLI в CI — `tasks/TASK-001/verify-next-agent-handoff.md` §8.
 
 ## Specs Index
 
 | File | Purpose | Depends On | Last Updated |
 | --- | --- | --- | --- |
-| `architect-architecture.md` | Системный дизайн, слои, размещение модулей, интерфейсы, ADR | - | 2026-10-04 |
-| `api-designer-spec.md` | Эндпоинты `/api/v1` (9 доменов, 59 эндпоинтов), DTO, SMART/OAuth2, ошибки RFC 7807, Swagger, Bruno, трассируемость 21 FR; отклонения live-стенда: FHIR-id вместо UUID, семантика `DELETE schedule` (5.2.4) | architect-architecture | 2026-10-15 |
-| `frontend-design-spec.md` | Клиент Next.js: дизайн-система, маршруты по ролям (5 route groups), компоненты, состояние, карта errorCode→UX, E2E Playwright, трассируемость 21 FR; редизайн «Спокойная клиника» (токены, шрифты, примитивы, главная) | architect-architecture, api-designer-spec | 2026-10-22 |
+| `architect-architecture.md` | Системный дизайн, слои, размещение модулей, интерфейсы, ADR-001…ADR-020 (ADR-012 — оптимистичный `If-Match`; ADR-020 — аудит каталога); диаграммы `docs/diagrams/*.drawio` | - | 2026-10-23 |
+| `api-designer-spec.md` | Эндпоинты `/api/v1` (9 доменов, 59 эндпоинтов), DTO, SMART/OAuth2, ошибки RFC 7807, Swagger, Bruno, трассируемость 21 FR; отклонения live-стенда: FHIR-id вместо UUID, семантика `DELETE schedule` (5.2.4); сверено с кодом по Bruno-коллекции (2026-10-23) | architect-architecture | 2026-10-23 |
+| `frontend-design-spec.md` | Клиент Next.js: дизайн-система, маршруты по ролям (5 route groups), компоненты, состояние, карта errorCode→UX, E2E Playwright, трассируемость 21 FR; редизайн «Спокойная клиника» (токены, шрифты, примитивы, главная); статус E2E §6 — все сценарии реализованы | architect-architecture, api-designer-spec | 2026-10-23 |
 | `docs-generator-implementation.md` | Nx-воркспейс и dev-стек бэкенда + сборка, тесты, env и auth-контур фронтенда | - | 2026-10-05 |
 | `coder-m2-catalog-spec.md` | M2 Catalog: библиотеки `terminology`/`fhir`/`fhir-mappers`, `practitioner-service`, `catalog-service`, отклонения от плана, M2-гейт | architect-architecture, api-designer-spec | 2026-10-06 |
 | `coder-m3-booking-spec.md` | M3 Booking: `appointment-service` (транзакция бронирования, If-Match), `notification-service` (потребитель RabbitMQ, DLQ, дедупликация), `libs/messaging`, отклонения от плана | architect-architecture, api-designer-spec, coder-m2-catalog-spec | 2026-10-08 |
@@ -60,7 +66,7 @@ UCUM) подключается по canonical URL `https://fhir.by/...`. Арх�
 
 Решения продукта/дизайна зафиксированы в `tasks/TASK-001/brainstorming-design.md` (D1–D9),
 требования — в `tasks/TASK-001/requirements-analyst-requirements.md`. Архитектурные решения
-формализованы в `specs/architect-architecture.md` (ADR-001…ADR-019). Ключевое:
+формализованы в `specs/architect-architecture.md` (ADR-001…ADR-020). Ключевое:
 
 - **Стек:** TypeScript (strict) + NestJS для всего собственного кода; Next.js (App Router) клиент;
   Nx-монорепозиторий. HAPI FHIR JPA (R4, Java) — внешний off-the-shelf **движок**, не авторский код.
@@ -83,7 +89,7 @@ UCUM) подключается по canonical URL `https://fhir.by/...`. Арх�
 - **API (2026-10-04, api-designer-spec):** единый вход `/api/v1` через Traefik; JWT по JWKS,
   scopes и RBAC проверяет guard-слой `libs/common` в каждом сервисе (ADR-009); компартмент пациента
   — `patientRef` из JWT-контекста, параметр `patient` в query для `patient/*`-скоупов игнорируется
-  (ADR-013). `POST /appointments` — транзакция с пессимистичной блокировкой слота (409 `SLOT_CONFLICT`,
+  (ADR-013). `POST /appointments` — транзакция с оптимистичной блокировкой слота (`If-Match`, 409 `SLOT_CONFLICT`,
   ADR-012) + `Idempotency-Key`. Оформление приёма — одно атомарное тело `CompleteEncounterDto`
   (диагноз МКБ-10, CarePlan, назначения АТХ/UCUM). Ошибки BFF — RFC 7807 Problem Details с
   `errorCode`-каталогом; FHIR — `OperationOutcome`. Пагинация — единый конверт `PaginatedResponseDto`.
