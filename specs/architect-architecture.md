@@ -28,6 +28,11 @@
 `auth-service` и у read-model аналитики; уведомления не имеют своей БД (FHIR `Communication`);
 каждый сервис — отдельный Docker-образ (NFR-001).
 
+Диаграммы draw.io (`docs/diagrams/`): [`structural.drawio`](../docs/diagrams/structural.drawio) — контейнеры и связи (Traefik, 8 BFF,
+HAPI, PostgreSQL, Redis, RabbitMQ, web); [`booking-encounter-sequence.drawio`](../docs/diagrams/booking-encounter-sequence.drawio) —
+запись → приём → завершение с точками `If-Match` (ADR-012); [`logical-db.drawio`](../docs/diagrams/logical-db.drawio) — схема `auth`,
+read-model аналитики и ресурсы FHIR; [`usecase.drawio`](../docs/diagrams/usecase.drawio) — варианты использования FR-001…021 (NFR-010).
+
 #### 2. Размещение модулей (Nx-монорепозиторий)
 
 ```
