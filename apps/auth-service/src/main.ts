@@ -1,7 +1,7 @@
 import { Logger } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
-import { createValidationPipe, RedisRateLimitStore, setRateLimitStore } from '@medcenter/common';
-import { parseGuardEnv } from '@medcenter/config';
+import { createValidationPipe, RedisRateLimitStore, setRateLimitStore, setupSwagger } from '@medcenter/common';
+import { parseGuardEnv, parseSwaggerEnv } from '@medcenter/config';
 import Redis from 'ioredis';
 
 import { AppModule } from './app/app.module';
@@ -30,6 +30,8 @@ async function bootstrap(): Promise<void> {
   // M9: terminate (not just warn) on a signal so in-flight requests drain;
   // a failed boot below becomes a logged fatal with a non-zero exit instead
   // of an unhandled rejection nobody monitors.
+  // API §10: Swagger UI at /api/docs/auth and its JSON at /api/docs/auth-json, only when SWAGGER_ENABLED=true.
+  setupSwagger(app, { service: 'auth', enabled: parseSwaggerEnv(process.env).SWAGGER_ENABLED });
   app.enableShutdownHooks();
   await app.listen(process.env['PORT'] ?? 3001);
   logger.log(`auth-service listening on port ${process.env['PORT'] ?? 3001}`);

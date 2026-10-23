@@ -4,6 +4,7 @@ import {
   parseEnv,
   parseGuardEnv,
   parseJwtSigningEnv,
+  parseSwaggerEnv,
 } from './env.schema';
 
 const validSource: NodeJS.ProcessEnv = {
@@ -39,6 +40,13 @@ describe('envSchema', () => {
 
   it('should reject a CONSENT_ENFORCEMENT value other than warn or block', () => {
     expect(() => parseEnv({ ...validSource, CONSENT_ENFORCEMENT: 'off' })).toThrow();
+  });
+
+  it('should keep Swagger off by default and read SWAGGER_ENABLED as a boolean flag', () => {
+    expect(parseSwaggerEnv({}).SWAGGER_ENABLED).toBe(false);
+    expect(parseSwaggerEnv({ SWAGGER_ENABLED: 'true' }).SWAGGER_ENABLED).toBe(true);
+    expect(parseSwaggerEnv({ SWAGGER_ENABLED: 'false' }).SWAGGER_ENABLED).toBe(false);
+    expect(() => parseSwaggerEnv({ SWAGGER_ENABLED: 'maybe' })).toThrow();
   });
 
   it('should reject configuration that omits a secret', () => {

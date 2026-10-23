@@ -28,11 +28,13 @@ npm run seed:demo                   # demo organisation, doctors, services, room
 | API through Traefik | `http://localhost:8081/api/v1/...` |
 | Sign-in form (auth-service) | opens by itself from the web client |
 | HAPI FHIR (local only) | `http://localhost:8080/fhir` |
+| API docs (Swagger UI, off by default) | `http://localhost:8081/api/docs/<service>` (JSON: `/api/docs/<service>-json`), `<service>` = `auth`, `practitioner`, `catalog`, `patient`, `appointment`, `notification`, `encounter`, `analytics` |
 
 - **Demo accounts.** `npm run seed:demo -- --users --with-admin` (with `SEED_*` and `BOOTSTRAP_ADMIN_*` set, see the
   header of `tools/demo-seed/seed-demo.ts`) creates demo doctors and patients and writes their credentials to the
   git-ignored `tools/demo-seed/output/demo-manifest.json`. Re-running `--users` rotates the passwords. The account list
   and the manual test checklist: [tasks/TASK-001/verify-manual-testing-guide.md](tasks/TASK-001/verify-manual-testing-guide.md).
+- **API docs.** Set `SWAGGER_ENABLED=true` in `.env` (default `false`) and recreate the services to publish the Swagger UI of every BFF through Traefik (API spec §10). `/fhir/**` stays closed at the edge.
 - **Free slots run out** after smoke or E2E runs: run `npm run seed:demo` again.
 - After changing a service: `docker compose up -d --build <service> && npm run stack:wait`.
 

@@ -1,7 +1,7 @@
 import { Logger } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
-import { applyHttpEdge, createValidationPipe, RedisRateLimitStore, setRateLimitStore } from '@medcenter/common';
-import { parseGuardEnv } from '@medcenter/config';
+import { applyHttpEdge, createValidationPipe, RedisRateLimitStore, setRateLimitStore, setupSwagger } from '@medcenter/common';
+import { parseGuardEnv, parseSwaggerEnv } from '@medcenter/config';
 import Redis from 'ioredis';
 
 import { AppModule } from './app/app.module';
@@ -30,6 +30,8 @@ async function bootstrap(): Promise<void> {
   // Global on purpose: without it every class-validator decorator in the
   // service is inert (see `libs/common/src/lib/pipes/validation.pipe.ts`).
   app.useGlobalPipes(createValidationPipe());
+  // API §10: Swagger UI at /api/docs/notification and its JSON at /api/docs/notification-json, only when SWAGGER_ENABLED=true.
+  setupSwagger(app, { service: 'notification', enabled: parseSwaggerEnv(process.env).SWAGGER_ENABLED });
   app.enableShutdownHooks();
   const port = process.env['PORT'] ?? 3006;
   await app.listen(port);

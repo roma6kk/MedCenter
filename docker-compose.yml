@@ -20,7 +20,7 @@
 # Host-run services (`nx serve`) then need the same credentials in their own URLs:
 #   REDIS_URL=redis://:<REDIS_PASSWORD>@localhost:6380
 #   RABBITMQ_URL=amqp://<RABBITMQ_USER>:<RABBITMQ_PASSWORD>@localhost:5672
-# Other optional keys: RATE_LIMIT_PER_MINUTE, FHIR_CLIENT_ID/FHIR_CLIENT_SECRET,
+# Other optional keys: SWAGGER_ENABLED (true publishes /api/docs/<service>), RATE_LIMIT_PER_MINUTE, FHIR_CLIENT_ID/FHIR_CLIENT_SECRET,
 # FHIR_TIMEOUT_MS, AUDIT_SYNC_ENABLED, AUDIT_SYNC_INTERVAL_MS, JWT_ISSUER,
 # WEB_OAUTH_CLIENT_ID, POSTGRES_PORT, REDIS_HOST_PORT, RABBITMQ_HOST_PORT.
 #
@@ -90,6 +90,8 @@ x-bff-env: &bff-env
   RATE_LIMIT_PER_MINUTE: ${RATE_LIMIT_PER_MINUTE:-120}
   # ADR-019: `block` (default) answers 409 CONSENT_REQUIRED without a patient consent (7.1/7.3, 6.1 free text); `warn` only logs it.
   CONSENT_ENFORCEMENT: ${CONSENT_ENFORCEMENT:-block}
+  # API §10: Swagger UI at /api/docs/<service> (+ `-json`) through Traefik; off unless SWAGGER_ENABLED=true.
+  SWAGGER_ENABLED: ${SWAGGER_ENABLED:-false}
   # One proxy hop (Traefik) sits in front of every BFF. Services whose bootstrap
   # honours it key the rate limiter on the real client instead of Traefik's IP.
   TRUST_PROXY: '1'
