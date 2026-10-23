@@ -1,16 +1,70 @@
 /**
- * E2E placeholder — TASK-001 (cancel appointment).
+ * E2E — scenario B of the frontend design spec §6 (FR-005/006, BR-002): the patient cancels an appointment with a reason,
+ * the status becomes «cancelled» (StampBadge) and a notification about it shows up in the notification center.
  *
- * SMOKE ONLY: cancelling needs a running stack plus a seeded patient session
- * and an existing booked appointment. Marked skipped until CI wires it.
+ * The appointment is created through the API at run time on a free slot (the cancelled slot is free again, so the data
+ * cleans itself); the patient signs in once per run.
  */
-import { test, expect } from '@playwright/test';
+import { expect, test, type BrowserContext, type Page } from '@playwright/test';
+import { signInThroughLoginForm } from './fixtures/auth';
+import { bookSlotAs, cancelAppointmentAs, findFreeSlots } from './fixtures/booking-api';
+import { hasDemoManifest, loadDemoAccount } from './fixtures/demo-accounts';
 
-test.fixme('should cancel an appointment with a reason as its owner', async ({ page }) => {
-  await page.goto('/appointments');
-  await page.getByRole('button', { name: 'Отменить' }).first().click();
-  await page.getByLabel('Причина').fill('Пациент заболел');
-  await page.getByRole('button', { name: 'Подтвердить отмену' }).click();
-  await expect(page.getByTestId('stamp-cancelled')).toBeVisible();
+test.skip(!hasDemoManifest(), 'demo seed manifest not found');
+
+const CANCEL_REASON = 'Пациент заболел';
+const NOTIFICATION_TIMEOUT_MS = 90_000;
+
+test.describe('patient cancels an appointment', () => {
+  test.describe.configure({ mode: 'serial' });
+  let context: BrowserContext;
+  let page: Page;
+  let appointmentId: string;
+
+  test.beforeAll(async ({ browser, baseURL }) => {
+    context = await browser.newContext({ baseURL });
+    page = await context.newPage();
+    await signInThroughLoginForm(page, loadDemoAccount('PATIENT', 0), { webOrigin: baseURL });
+    const [target] = await findFreeSlots(page.request, 1);
+    if (target === undefined) throw new Error('no free slot');
+    const booked = await bookSlotAs(page, target.slotId);
+    expect(booked.status).toBe(201);
+    appointmentId = String(booked.body['id']);
+  });
+
+  test.afterAll(async () => {
+    // Idempotent: a no-op when the test already cancelled it.
+    await cancelAppointmentAs(page, appointmentId);
+    await context.close();
+  });
+
+  test('should mark the appointment cancelled when the owner gives a reason', async () => {
+    await page.goto(`/appointments/${appointmentId}`);
+    await expect(page.getByTestId('stamp-booked')).toBeVisible();
+
+    await page.getByRole('button', { name: /^Отменить запись/ }).click();
+    const dialog = page.getByRole('dialog', { name: 'Отмена записи' });
+    await dialog.getByLabel('Причина отмены').fill(CANCEL_REASON);
+    const cancelled = page.waitForResponse((response) => response.url().endsWith(`/api/v1/appointments/${appointmentId}/cancel`) && response.request().method() === 'POST');
+    await dialog.getByRole('button', { name: 'Подтвердить отмену' }).click();
+    expect((await cancelled).ok()).toBe(true);
+
+    await expect(dialog).toBeHidden();
+    await expect(page.getByTestId('stamp-cancelled')).toBeVisible();
+    await expect(page.getByTestId('stamp-booked')).toHaveCount(0);
+    await expect(page.getByText(CANCEL_REASON)).toBeVisible();
+    await expect(page.getByRole('button', { name: /^Отменить запись/ })).toHaveCount(0);
+  });
+
+  test('should show a notification about the cancellation in the notification center', async () => {
+    // The notification is produced asynchronously (RabbitMQ → notification-service), so the list is re-read until it arrives.
+    const row = page
+      .getByRole('group', { name: 'Список уведомлений' })
+      .getByRole('listitem')
+      .filter({ has: page.locator(`a[href="/appointments/${appointmentId}"]`), hasText: `Запись на приём отменена. Причина: ${CANCEL_REASON}` });
+    await expect(async () => {
+      await page.goto('/notifications');
+      await expect(row).toBeVisible({ timeout: 3_000 });
+    }).toPass({ timeout: NOTIFICATION_TIMEOUT_MS, intervals: [2_000, 3_000, 5_000] });
+  });
 });
-
