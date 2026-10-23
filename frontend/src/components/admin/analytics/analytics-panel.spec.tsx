@@ -83,6 +83,21 @@ describe('AnalyticsPanel', () => {
     expect(section.getByText('15')).toBeInTheDocument();
   });
 
+  it('should show the attended visits as their own card when the report has a fulfilled group', async () => {
+    apiFetchMock.mockImplementation((path) =>
+      path.includes('/appointments')
+        ? Promise.resolve({ ...appointments, total: 83, groups: [...appointments.groups, { code: 'fulfilled', count: 6 }], fulfilled: 6 })
+        : answer(path),
+    );
+    renderWithClient(<AnalyticsPanel />);
+
+    const section = within(await screen.findByRole('region', { name: 'Записи на приём' }));
+
+    expect(await section.findByTestId('stamp-fulfilled')).toHaveTextContent('Посещено');
+    expect(section.getAllByTestId('kpi')).toHaveLength(5);
+    expect(section.getByTestId('bar-fulfilled')).toBeInTheDocument();
+  });
+
   it('should list the encounters by specialty with the share of each when the report arrives', async () => {
     renderWithClient(<AnalyticsPanel />);
 

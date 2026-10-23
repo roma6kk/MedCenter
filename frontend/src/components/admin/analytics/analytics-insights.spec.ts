@@ -3,13 +3,13 @@ import type { AppointmentsReport, MeasureReport } from './analytics-types';
 
 const period = { start: '2026-01-01T00:00:00.000Z', end: '2026-12-31T23:59:59.999Z' };
 
-function appointments(booked: number, cancelled: number, noshow: number): AppointmentsReport {
+function appointments(booked: number, cancelled: number, noshow: number, fulfilled = 0): AppointmentsReport {
   return {
     measure: 'appointments-by-status',
     scoring: 'cohort',
     period,
-    total: booked + cancelled + noshow,
-    groups: [{ code: 'booked', count: booked }, { code: 'cancelled', count: cancelled }, { code: 'noshow', count: noshow }],
+    total: booked + fulfilled + cancelled + noshow,
+    groups: [{ code: 'booked', count: booked }, { code: 'fulfilled', count: fulfilled }, { code: 'cancelled', count: cancelled }, { code: 'noshow', count: noshow }],
   };
 }
 
@@ -28,6 +28,10 @@ describe('headlineOf', () => {
     expect(headlineOf(appointments(12, 3, 4))).toBe('bookedTop');
   });
 
+  it('should name the attended visits when they lead', () => {
+    expect(headlineOf(appointments(3, 2, 1, 9))).toBe('fulfilledTop');
+  });
+
   it('should call the split even when the top count is shared', () => {
     expect(headlineOf(appointments(5, 5, 1))).toBe('balanced');
   });
@@ -40,6 +44,10 @@ describe('headlineOf', () => {
 describe('cancellationInsight', () => {
   it('should compare the cancellations with booked and no-shows together when they outnumber both', () => {
     expect(cancellationInsight(appointments(34, 62, 21))).toMatchObject({ count: 62, total: 117, percent: 53, comparison: 'overOthers' });
+  });
+
+  it('should count the attended visits among the other statuses when the cancellations are compared', () => {
+    expect(cancellationInsight(appointments(10, 15, 10, 20))).toMatchObject({ comparison: 'other' });
   });
 
   it('should compare with each status when they lead each one but not both together', () => {

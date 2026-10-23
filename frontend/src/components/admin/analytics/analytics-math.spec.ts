@@ -34,8 +34,15 @@ describe('statusCount', () => {
     expect(statusCount(report, 'cancelled')).toBe(2);
   });
 
+  it('should read the attended visits from the fulfilled group when the report has one', () => {
+    const withAttended: AppointmentsReport = { ...report, total: 9, groups: [...report.groups, { code: 'fulfilled', count: 4 }] };
+
+    expect(statusCount(withAttended, 'fulfilled')).toBe(4);
+    expect(statusCount({ ...report, fulfilled: 4 }, 'fulfilled')).toBe(4);
+  });
+
   it('should report 0 for a status when neither groups nor the flat counters know it', () => {
-    expect(statusCounts(report)).toEqual({ booked: 3, cancelled: 2, noshow: 0 });
+    expect(statusCounts(report)).toEqual({ booked: 3, fulfilled: 0, cancelled: 2, noshow: 0 });
   });
 });
 

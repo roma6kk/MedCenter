@@ -9,6 +9,7 @@ import { APPOINTMENT_STATUSES, type AppointmentStatusCode, type AppointmentsRepo
 
 const SEGMENT_CLASS: Record<AppointmentStatusCode, string> = {
   booked: 'bg-primary text-primary-foreground',
+  fulfilled: 'bg-success text-white',
   cancelled: 'bg-destructive text-white',
   noshow: 'bg-warning text-white',
 };
@@ -52,7 +53,7 @@ export function AppointmentsKpis({ report }: { readonly report: AppointmentsRepo
   return (
     <div className="grid gap-4">
       <StatusBar report={report} />
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
         <Kpi value={report.total}>{t('total')}</Kpi>
         {APPOINTMENT_STATUSES.map((status) => (
           <Kpi key={status} value={counts[status]}>
