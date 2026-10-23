@@ -1,6 +1,63 @@
-# Accelerator Core
+# Lifeline (MedCenter)
+
+Web application of a medical center (patients book appointments, doctors run encounters, admins manage users,
+services, rooms and schedules). Clinical data lives in **HAPI FHIR JPA (R4)**; the own code is **8 NestJS BFF
+services** behind **Traefik** and a **Next.js** client. Design: [specs/MANIFEST.md](specs/MANIFEST.md),
+architecture and ADRs: [specs/architect-architecture.md](specs/architect-architecture.md) (diagrams in
+[docs/diagrams/](docs/diagrams/)), API contract: [specs/api-designer-spec.md](specs/api-designer-spec.md),
+change history: [CHANGELOG.md](CHANGELOG.md).
 
 > **For agent policy rules, see [AGENTS.md](AGENTS.md)**
+
+## Running the project
+
+Prerequisites: Node.js 22 + npm, Docker with Compose. Copy `.env.example` to `.env` and fill the mandatory
+values (never commit `.env`; the comments in `docker-compose.yml` list the optional keys).
+
+```bash
+npm ci
+docker compose up -d --build        # 5 infrastructure containers + 8 BFF services + web (14 containers)
+npm run stack:wait                  # waits until every service answers
+npm run seed:terminology            # national terminology snapshot (https://fhir.by/... canonicals)
+npm run seed:demo                   # demo organisation, doctors, services, rooms, schedules and 14 days of free slots (idempotent)
+```
+
+| What | Address |
+| --- | --- |
+| Web client | <http://localhost:3000> |
+| API through Traefik | `http://localhost:8081/api/v1/...` |
+| Sign-in form (auth-service) | opens by itself from the web client |
+| HAPI FHIR (local only) | `http://localhost:8080/fhir` |
+
+- **Demo accounts.** `npm run seed:demo -- --users --with-admin` (with `SEED_*` and `BOOTSTRAP_ADMIN_*` set, see the
+  header of `tools/demo-seed/seed-demo.ts`) creates demo doctors and patients and writes their credentials to the
+  git-ignored `tools/demo-seed/output/demo-manifest.json`. Re-running `--users` rotates the passwords. The account list
+  and the manual test checklist: [tasks/TASK-001/verify-manual-testing-guide.md](tasks/TASK-001/verify-manual-testing-guide.md).
+- **Free slots run out** after smoke or E2E runs: run `npm run seed:demo` again.
+- After changing a service: `docker compose up -d --build <service> && npm run stack:wait`.
+
+## Tests and checks
+
+| Check | Command |
+| --- | --- |
+| Backend unit / integration | `npm test` (or `npx nx run-many -t test lint build -p <project> --parallel=1`) |
+| Lint, types | `npm run lint`, `npm run typecheck` |
+| Tools (seeds, smoke) | `npm run test:tools && npm run lint:tools` |
+| Frontend | `cd frontend && npx tsc --noEmit && npx jest && npx next lint` |
+| Live smoke through Traefik | `npm run smoke:stack` (stack must be up; includes the open-vs-no-show race and the audit journal) |
+| Playwright E2E (scenarios A-F, security) | `cd frontend && E2E_BROWSER_CHANNEL=chrome npx playwright test` |
+| API by hand | Bruno collection, see [bruno/medcenter-api/README.md](bruno/medcenter-api/README.md) |
+
+E2E needs the running stack with the demo seed and the web client on `:3000` (`E2E_BASE_URL` overrides it). It drives
+an installed Google Chrome (`E2E_BROWSER_CHANNEL=chrome`); without Chrome run `npx playwright install chromium` and
+drop the variable. A `setup` project signs in once per demo account; credentials are read from the demo manifest.
+Scenario list: [specs/frontend-design-spec.md](specs/frontend-design-spec.md) section 6.
+
+---
+
+# Accelerator Core
+
+The rest of this file describes the Claude Code accelerator framework used to develop the project.
 
 A skill-based extension framework for [Claude Code](https://docs.anthropic.com/claude-code) that adds structured workflows, specialized agents, and quality hooks to your development process.
 
