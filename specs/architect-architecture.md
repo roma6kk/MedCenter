@@ -338,7 +338,8 @@ patient-service. Без действующего согласия 7.1/7.3 отв
 буквальных ссылок на другие ресурсы (referential integrity HAPI не даст удалить такие ресурсы). Статус — `meta.tag`
 (`system=https://fhir.by/CodeSystem/outbox-status`, `pending` | `sent`); тип события, `eventId` и JSON-payload — расширения
 `MEDCENTER_EXT.OUTBOX_*` (`libs/terminology`). Отдельный сервис `apps/outbox-relay` (своей БД и публичного API нет, только `/health`) раз в
-несколько секунд читает `Basic?code=outbox-event&_tag=…|pending` пачкой (`_count`), публикует каждое через `AmqpEventPublisher`
+несколько секунд читает `Basic?code=outbox-event&_tag=…|pending&_tag:not=…|sent` пачкой (`_count`; HAPI при PUT не заменяет
+`meta.tag`, а добавляет к прежним, поэтому отправленная запись несёт оба тега и `sent` важнее `pending`), публикует каждое через `AmqpEventPublisher`
 (`messageId` = `eventId`) и помечает пачку `sent` одной транзакцией с `If-Match` на прочитанные версии (параллельная реплика
 проигрывает чисто); опрос идёт под Redis-замком (`SET NX PX` с токеном), поэтому реплики не дублируют работу. Payload для relay
 непрозрачен: схемы `libs/contracts` он не импортирует. *Ретенция:* `sent` старше 7 суток relay удаляет и вызывает `$expunge`
