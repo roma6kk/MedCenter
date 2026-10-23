@@ -45,7 +45,7 @@ UCUM) подключается по canonical URL `https://fhir.by/...`. Арх�
 > идентификатора кабинета, гонка «открытие приёма ∥ no-show/cancel» (оптимистичная блокировка `If-Match` по тегу
 > `encounter-opened`, ADR-012), повтор старта аналитики; добавлены Bruno-коллекция `bruno/medcenter-api/` и Playwright E2E A–F + security
 > (`frontend-design-spec.md` §6). `api-designer-spec.md` приведён в соответствие с кодом (11 расхождений). Диаграммы — `docs/diagrams/`.
-> Открыто: transactional outbox, healthcheck HAPI, статус `fulfilled` в аналитике, очистка демо-данных HAPI, TASK-004 (T1/T2/T5), ПЗ, push/PR,
+> Swagger (`/api/docs/<service>`) закрыт. Открыто: transactional outbox, healthcheck HAPI, статус `fulfilled` в аналитике, очистка демо-данных HAPI, TASK-004 (T1/T2/T5), ПЗ, push/PR,
 > Bruno CLI в CI — `tasks/TASK-001/verify-next-agent-handoff.md` §8.
 
 ## Specs Index
@@ -53,7 +53,7 @@ UCUM) подключается по canonical URL `https://fhir.by/...`. Арх�
 | File | Purpose | Depends On | Last Updated |
 | --- | --- | --- | --- |
 | `architect-architecture.md` | Системный дизайн, слои, размещение модулей, интерфейсы, ADR-001…ADR-020 (ADR-012 — оптимистичный `If-Match`; ADR-020 — аудит каталога); диаграммы `docs/diagrams/*.drawio` | - | 2026-10-23 |
-| `api-designer-spec.md` | Эндпоинты `/api/v1` (9 доменов, 59 эндпоинтов), DTO, SMART/OAuth2, ошибки RFC 7807, Swagger, Bruno, трассируемость 21 FR; отклонения live-стенда: FHIR-id вместо UUID, семантика `DELETE schedule` (5.2.4); сверено с кодом по Bruno-коллекции (2026-10-23) | architect-architecture | 2026-10-23 |
+| `api-designer-spec.md` | Эндпоинты `/api/v1` (9 доменов, 59 эндпоинтов), DTO, SMART/OAuth2, ошибки RFC 7807, Swagger, Bruno, трассируемость 21 FR; отклонения live-стенда: FHIR-id вместо UUID, семантика `DELETE schedule` (5.2.4); сверено с кодом по Bruno-коллекции (2026-10-23); Swagger/OpenAPI реализован (§10: `/api/docs/<service>`, `SWAGGER_ENABLED`, `problemDetails`), расхождения OAuth/коды ошибок/FHIR-id устранены | architect-architecture | 2026-10-23 |
 | `frontend-design-spec.md` | Клиент Next.js: дизайн-система, маршруты по ролям (5 route groups), компоненты, состояние, карта errorCode→UX, E2E Playwright, трассируемость 21 FR; редизайн «Спокойная клиника» (токены, шрифты, примитивы, главная); статус E2E §6 — все сценарии реализованы | architect-architecture, api-designer-spec | 2026-10-23 |
 | `docs-generator-implementation.md` | Nx-воркспейс и dev-стек бэкенда + сборка, тесты, env и auth-контур фронтенда | - | 2026-10-05 |
 | `coder-m2-catalog-spec.md` | M2 Catalog: библиотеки `terminology`/`fhir`/`fhir-mappers`, `practitioner-service`, `catalog-service`, отклонения от плана, M2-гейт | architect-architecture, api-designer-spec | 2026-10-06 |

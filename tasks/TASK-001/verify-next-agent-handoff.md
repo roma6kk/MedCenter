@@ -27,7 +27,7 @@
 
 ## 3. Решения пользователя (обязательны)
 
-- **Git.** Ветка `feature/clinic-platform-wip`. Коммит на каждую законченную единицу работы, формат `feat|fix|refactor|test|docs(<scope>): …`. В конце сообщения строка `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>`. **Push и PR — только после явного подтверждения пользователя.** Не коммитить: `labs/`, PDF/DOCX в корне, `tmp/`, `frontend/pw-tmp.config.ts`, `.claude/settings.local.json`, пользовательские правки `.claude/skills/agent-browser/SKILL.md` и `.clinerules/skills/SKILL FLOW.md`. Без `--no-verify`, force-push и hard-reset.
+- **Git.** Ветка `feature/clinic-platform-wip`. Коммит на каждую законченную единицу работы, формат `feat|fix|refactor|test|docs(<scope>): …`. Без строк `Co-Authored-By` и «Generated with …» — владелец запретил любую AI-атрибуцию в коммитах и PR; сообщение заканчивается телом. **Push и PR — только после явного подтверждения пользователя.** Не коммитить: `labs/`, PDF/DOCX в корне, `tmp/`, `frontend/pw-tmp.config.ts`, `.claude/settings.local.json`, пользовательские правки `.claude/skills/agent-browser/SKILL.md` и `.clinerules/skills/SKILL FLOW.md`. Без `--no-verify`, force-push и hard-reset.
 - **Docker.** Полный локальный стек разрешён. Чужой контейнер `corporate-redis-cache` (и другие не-`medcenter-*`) не трогать. `docker compose down -v` не запускать — удалит данные.
 - **`.env`.** Не читать и не выводить. Единственное разрешённое исключение — посев демо-пользователей без вывода значений: `bash -c 'set -a; . ./.env; set +a; npm run seed:demo -- --users'`. `.env` и `.env.example` правит пользователь сам.
 - **Пароли.** Демо-пароли только в git-ignored `tools/demo-seed/output/demo-manifest.json`. Никогда не печатать их в чат, отчёты, тесты или скриншоты. Вводить через подстановку, например `"$(node -p "require('./tools/demo-seed/output/demo-manifest.json').users.accounts.find(a=>a.email==='EMAIL').password")"`.
@@ -91,7 +91,7 @@
 
 ## 8. Остаток плана (не начинать без запроса)
 
-*Обновлено 2026-10-23.* Сделано в `fix/open-items`: code review `e13a59c` и адаптация клиента, Playwright E2E (Task 20), Swagger (`/api/docs/<service>`, `SWAGGER_ENABLED`) и коллекция Bruno, документация (README, CHANGELOG, MANIFEST, спеки, диаграммы draw.io).
+*Обновлено 2026-10-23.* Сделано в `fix/open-items`: code review `e13a59c` и адаптация клиента, Playwright E2E (Task 20), Swagger **закрыт** (`a03265e`…`57bb048`: `/api/docs/<service>`, `SWAGGER_ENABLED`, спека §10; итоги врачей `bbe4e5e`) и коллекция Bruno, документация (README, CHANGELOG, MANIFEST, спеки, диаграммы draw.io).
 
 Открыто:
 1. **Решения владельца** — transactional outbox, healthcheck HAPI (новый образ), статус `fulfilled` в аналитике (спека), expunge демо/тестовых остатков в HAPI (см. §7).

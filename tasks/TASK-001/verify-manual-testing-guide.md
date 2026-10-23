@@ -170,4 +170,4 @@ cd frontend && node node_modules/next/dist/bin/next dev --port 3000 --hostname 1
 
 ## 9. Что остаётся по плану
 
-*Обновлено 2026-10-23.* Сделаны code review и адаптация клиента, Playwright E2E, Swagger, Bruno, документация и диаграммы. Осталось: решения владельца (outbox, healthcheck HAPI, `fulfilled` в аналитике, expunge остатков), TASK-004 (T1, T2, T5), Bruno CLI в CI, пояснительная записка (по команде), финальный DoD, затем push и PR — только после подтверждения пользователя. Детали — `verify-next-agent-handoff.md` §8.
+*Обновлено 2026-10-23.* Сделаны code review и адаптация клиента, Playwright E2E, Swagger (закрыт; включается `SWAGGER_ENABLED=true` в `.env`), Bruno, документация и диаграммы. Осталось: решения владельца (outbox, healthcheck HAPI, `fulfilled` в аналитике, expunge остатков), TASK-004 (T1, T2, T5), Bruno CLI в CI, пояснительная записка (по команде), финальный DoD, затем push и PR — только после подтверждения пользователя. Детали — `verify-next-agent-handoff.md` §8.
