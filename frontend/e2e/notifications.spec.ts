@@ -5,9 +5,8 @@
  * Notifications are produced at run time: a booking that is cancelled right away (the slot is free again, so the data
  * cleans itself) makes the notification service write an in-app notification asynchronously (RabbitMQ). Other specs
  * create notifications for the same demo patients, so nothing here asserts absolute counts: every check follows the
- * notification of this run, found by the unique cancellation reason.
+ * notification of this run, found by the link to its appointment (the text carries no reason).
  */
-import { randomUUID } from 'node:crypto';
 import { expect, test, type BrowserContext, type Locator, type Page } from '@playwright/test';
 import { bookAnyFreeSlotAs, cancelAppointmentAs } from './fixtures/booking-api';
 import { hasDemoManifest } from './fixtures/demo-accounts';
@@ -24,24 +23,23 @@ test.describe('patient notifications', () => {
   let context: BrowserContext;
   let page: Page;
 
-  /** Books a free slot and cancels it with a unique reason; resolves with the appointment id and that reason. */
-  async function bookAndCancel(): Promise<{ readonly appointmentId: string; readonly reason: string }> {
+  /** Books a free slot and cancels it; resolves with the appointment id. */
+  async function bookAndCancel(): Promise<{ readonly appointmentId: string }> {
     const { id: appointmentId } = await bookAnyFreeSlotAs(page);
-    const reason = `E2E уведомления ${randomUUID().slice(0, 8)}`;
-    await cancelAppointmentAs(page, appointmentId, reason);
-    return { appointmentId, reason };
+    await cancelAppointmentAs(page, appointmentId);
+    return { appointmentId };
   }
 
-  function rowOf(appointmentId: string, reason: string): Locator {
+  function rowOf(appointmentId: string): Locator {
     return page
       .getByRole('group', { name: 'Список уведомлений' })
       .getByRole('listitem')
-      .filter({ has: page.locator(`a[href="/appointments/${appointmentId}"]`), hasText: reason });
+      .filter({ has: page.locator(`a[href="/appointments/${appointmentId}"]`), hasText: 'Запись на приём отменена.' });
   }
 
   /** Re-reads the list until the notification of the cancellation has arrived. */
-  async function openUntilArrived(appointmentId: string, reason: string): Promise<Locator> {
-    const row = rowOf(appointmentId, reason);
+  async function openUntilArrived(appointmentId: string): Promise<Locator> {
+    const row = rowOf(appointmentId);
     await expect(async () => {
       await page.goto('/notifications');
       await expect(row).toBeVisible({ timeout: 3_000 });
@@ -73,8 +71,8 @@ test.describe('patient notifications', () => {
   });
 
   test('should mark one notification read and keep it in the list without the «Новое» marker', async () => {
-    const { appointmentId, reason } = await bookAndCancel();
-    const row = await openUntilArrived(appointmentId, reason);
+    const { appointmentId } = await bookAndCancel();
+    const row = await openUntilArrived(appointmentId);
     await expect(row.getByText('Новое', { exact: true })).toBeVisible();
 
     const marked = page.waitForResponse((response) => /\/api\/v1\/notifications\/[^/]+\/read$/.test(response.url()) && response.request().method() === 'POST');
@@ -86,12 +84,12 @@ test.describe('patient notifications', () => {
     await expect(row.getByRole('button', { name: 'Отметить прочитанным' })).toHaveCount(0);
     // The unread filter (API 8.1 `unread=true`) no longer lists it.
     await page.getByRole('tab', { name: 'Непрочитанные' }).click();
-    await expect(rowOf(appointmentId, reason)).toHaveCount(0);
+    await expect(rowOf(appointmentId)).toHaveCount(0);
   });
 
   test('should mark every notification read with one action', async () => {
-    const { appointmentId, reason } = await bookAndCancel();
-    const row = await openUntilArrived(appointmentId, reason);
+    const { appointmentId } = await bookAndCancel();
+    const row = await openUntilArrived(appointmentId);
     await expect(row.getByText('Новое', { exact: true })).toBeVisible();
 
     const markedAll = page.waitForResponse((response) => response.url().endsWith('/api/v1/notifications/read-all') && response.request().method() === 'POST');

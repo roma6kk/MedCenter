@@ -55,11 +55,11 @@ test.describe('patient cancels an appointment', () => {
   });
 
   test('should show a notification about the cancellation in the notification center', async () => {
-    // The notification is produced asynchronously (RabbitMQ → notification-service), so the list is re-read until it arrives.
+    // The notification text carries no reason (owner decision). It is produced asynchronously (RabbitMQ → notification-service), so the list is re-read until it arrives.
     const row = page
       .getByRole('group', { name: 'Список уведомлений' })
       .getByRole('listitem')
-      .filter({ has: page.locator(`a[href="/appointments/${appointmentId}"]`), hasText: `Запись на приём отменена. Причина: ${CANCEL_REASON}` });
+      .filter({ has: page.locator(`a[href="/appointments/${appointmentId}"]`), hasText: 'Запись на приём отменена.' });
     await expect(async () => {
       await page.goto('/notifications');
       await expect(row).toBeVisible({ timeout: 3_000 });
