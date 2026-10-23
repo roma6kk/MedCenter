@@ -25,6 +25,28 @@ describe('HttpClient', () => {
     );
   });
 
+  it('should invoke an instance-level operation via POST with a Parameters body', async () => {
+    const fetchMock = jest.fn().mockResolvedValue({ ok: true, status: 200, json: () => Promise.resolve({ resourceType: 'Parameters' }) });
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    const client = new HttpClient({ baseUrl: 'http://hapi:8080/fhir' });
+    await client.operation('Basic', '$expunge', { limit: 1, expungeDeletedResources: true }, { method: 'POST', id: 'b-1' });
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      'http://hapi:8080/fhir/Basic/b-1/$expunge',
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({
+          resourceType: 'Parameters',
+          parameter: [
+            { name: 'limit', valueInteger: 1 },
+            { name: 'expungeDeletedResources', valueBoolean: true },
+          ],
+        }),
+      }),
+    );
+  });
+
   it('should invoke a type-level operation via GET with serialised params', async () => {
     const fetchMock = jest.fn().mockResolvedValue({
       ok: true,
