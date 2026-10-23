@@ -51,6 +51,17 @@ describe('invalidateFor', () => {
     expect(invalidatedKeys(client)).toEqual(expect.arrayContaining(['appointments', 'doctorAppointments', 'encounter', 'patientHistory', 'prescriptions']));
   });
 
+  it('should refresh the patient card after the patient edits their phone', async () => {
+    const client = seededClient();
+    client.setQueryData(queryKeys.patientProfile, {});
+
+    await invalidateFor(client, 'update-contact');
+
+    expect(INVALIDATION['update-contact']).toEqual([queryKeys.patientProfile]);
+    expect(client.getQueryState(queryKeys.patientProfile)?.isInvalidated).toBe(true);
+    expect(client.getQueryState(queryKeys.profile)?.isInvalidated).toBe(false);
+  });
+
   it('should leave unrelated queries fresh', async () => {
     const client = seededClient();
 

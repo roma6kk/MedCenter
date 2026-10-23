@@ -1,4 +1,4 @@
-import { registerPatientSchema, cancelAppointmentSchema, completeEncounterSchema } from './contracts';
+import { registerPatientSchema, cancelAppointmentSchema, completeEncounterSchema, normaliseBelarusPhone } from './contracts';
 
 describe('contracts', () => {
   it('should accept a valid patient registration payload', () => {
@@ -116,5 +116,27 @@ describe('registerPatientSchema password policy parity with class-validator IsSt
   it('should accept the optional gender values the server knows and refuse others', () => {
     expect(registerPatientSchema.safeParse({ ...base, password: 'Str0ng!Pass', gender: 'female' }).success).toBe(true);
     expect(registerPatientSchema.safeParse({ ...base, password: 'Str0ng!Pass', gender: 'other' }).success).toBe(false);
+  });
+});
+
+describe('normaliseBelarusPhone (parity with libs/contracts phone.ts)', () => {
+  it.each([
+    ['+375291234567', '+375291234567'],
+    ['+375 (29) 123-45-67', '+375291234567'],
+    [' +375-17-123-45-67 ', '+375171234567'],
+  ])('should normalise %s to %s', (input, expected) => {
+    expect(normaliseBelarusPhone(input)).toBe(expected);
+  });
+
+  it.each(['', '291234567', '375291234567', '+37529123456', '+3752912345678', '+7 912 345 67 89', '+375 29 12a 45 67'])('should return null for %p', (input) => {
+    expect(normaliseBelarusPhone(input)).toBeNull();
+  });
+
+  it('should take an optional phone in the registration payload and refuse a foreign one', () => {
+    const base = { email: 'ivanov@example.by', firstName: 'Иван', lastName: 'Иванов', password: 'Str0ng!Pass', birthDate: '1990-05-12', accountConsent: { accepted: true, textVersion: '2026-10' } };
+
+    expect(registerPatientSchema.safeParse({ ...base, phone: '+375291234567' }).success).toBe(true);
+    expect(registerPatientSchema.safeParse(base).success).toBe(true);
+    expect(registerPatientSchema.safeParse({ ...base, phone: '+7 912 345 67 89' }).success).toBe(false);
   });
 });

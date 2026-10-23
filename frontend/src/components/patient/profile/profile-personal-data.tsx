@@ -16,8 +16,8 @@ import { DefinitionList, DefinitionRow } from '../definition-list';
 import { PrintButton } from '../print-button';
 import type { AccountProfile, ContactPoint, PatientProfile } from '../patient-types';
 import { useAccount, usePatientProfile } from '../use-patient-queries';
-import { phoneOf } from './profile-completeness';
 import { displayName } from './profile-header';
+import { PhoneValue } from './profile-phone';
 
 const GENDER_KEYS: Readonly<Record<string, string>> = { male: 'genderMale', female: 'genderFemale', other: 'genderOther' };
 const CONTACT_KEYS: Readonly<Record<string, string>> = { email: 'contactEmail', phone: 'contactPhone' };
@@ -56,7 +56,6 @@ function AccountRows({ account }: { readonly account: AccountProfile }): ReactNo
 
 function PatientRows({ patient }: { readonly patient: PatientProfile }): ReactNode {
   const t = useT('patient.profile');
-  const tData = useT('patientProfile.data');
   const format = useClinicFormat();
   const fullName: string = patient.fullName === '' ? [patient.lastName, patient.firstName, patient.middleName].filter(Boolean).join(' ') : patient.fullName;
   return (
@@ -64,8 +63,8 @@ function PatientRows({ patient }: { readonly patient: PatientProfile }): ReactNo
       <DefinitionRow label={t('name')}>{fullName}</DefinitionRow>
       {patient.birthDate ? <DefinitionRow label={t('birthDate')}>{format.dateOnly(patient.birthDate)}</DefinitionRow> : null}
       <DefinitionRow label={t('gender')}>{t(GENDER_KEYS[patient.gender ?? ''] ?? 'genderUnknown')}</DefinitionRow>
-      <ContactRows contacts={patient.telecom} />
-      {phoneOf(patient) === undefined ? <DefinitionRow label={t('contactPhone')}><span className="font-semibold text-warning">{tData('phoneMissing')}</span></DefinitionRow> : null}
+      <ContactRows contacts={patient.telecom.filter((contact) => contact.system !== 'phone')} />
+      <DefinitionRow label={t('contactPhone')}><PhoneValue patient={patient} /></DefinitionRow>
     </DefinitionList>
   );
 }
@@ -75,8 +74,8 @@ function SubTitle({ children }: { readonly children: ReactNode }): ReactNode {
 }
 
 /**
- * Account and FHIR card in one panel, each with its own loading and failure. Nothing here is editable: the API has no write
- * for them, so the panel says who changes the data (the front desk) instead of showing a button that would do nothing.
+ * Account and FHIR card in one panel, each with its own loading and failure. Only the phone is editable (3.12); the panel
+ * says that the front desk changes the rest instead of showing buttons that would do nothing.
  */
 export function ProfilePersonalData(): ReactNode {
   const t = useT('patientProfile.data');

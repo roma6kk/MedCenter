@@ -69,9 +69,10 @@ describe('RegisterForm', () => {
   it('should say which fields are required and mark them for assistive technology when the form opens', () => {
     renderForm();
 
-    expect(screen.getByText('Все поля, кроме пола, обязательны для заполнения.')).toBeInTheDocument();
+    expect(screen.getByText('Все поля, кроме пола и телефона, обязательны для заполнения.')).toBeInTheDocument();
     ['Email', 'Имя', 'Фамилия', 'Дата рождения', 'Пароль'].forEach((label) => expect(screen.getByLabelText(label)).toHaveAttribute('aria-required', 'true'));
     expect(screen.getByLabelText('Пол')).not.toHaveAttribute('aria-required');
+    expect(screen.getByLabelText('Телефон')).not.toHaveAttribute('aria-required');
   });
 
   it('should show a required message for every empty field and not call the API when the form is submitted empty', async () => {
@@ -121,13 +122,48 @@ describe('RegisterForm', () => {
   });
 
   it('should show a banner when the server names a field the form does not have', async () => {
-    apiFetchMock.mockRejectedValue(new ApiError(problem({ details: [{ field: 'phone', message: 'phone must be a string' }] })));
+    apiFetchMock.mockRejectedValue(new ApiError(problem({ details: [{ field: 'nickname', message: 'nickname must be a string' }] })));
     renderForm();
 
     await fillValidForm();
     await submit();
 
     expect(await screen.findByTestId('problem-banner')).toBeInTheDocument();
+  });
+
+  it('should post the phone normalised to +375XXXXXXXXX when one is typed', async () => {
+    apiFetchMock.mockResolvedValue({ id: 'u-1' });
+    renderForm();
+
+    await fillValidForm();
+    await userEvent.type(screen.getByLabelText('Телефон'), '+375 (29) 123-45-67');
+    await submit();
+
+    expect(await screen.findByTestId('register-success')).toBeInTheDocument();
+    expect(JSON.parse(String(apiFetchMock.mock.calls[0]?.[1]?.body))).toMatchObject({ phone: '+375291234567' });
+  });
+
+  it('should refuse a foreign phone before calling the API and show it on the phone field', async () => {
+    renderForm();
+
+    await fillValidForm();
+    await userEvent.type(screen.getByLabelText('Телефон'), '+7 912 345 67 89');
+    await submit();
+
+    expect(await screen.findByLabelText('Телефон')).toHaveAccessibleDescription(expect.stringContaining('+375'));
+    expect(apiFetchMock).not.toHaveBeenCalled();
+  });
+
+  it('should put a server error for the phone next to the phone field in the language of the page', async () => {
+    apiFetchMock.mockRejectedValue(new ApiError(problem({ details: [{ field: 'phone', message: 'phone must be a Belarus number: +375 and nine digits' }] })));
+    renderForm();
+
+    await fillValidForm();
+    await userEvent.type(screen.getByLabelText('Телефон'), '+375291234567');
+    await submit();
+
+    expect(await screen.findByLabelText('Телефон')).toHaveAttribute('aria-invalid', 'true');
+    expect(screen.queryByTestId('problem-banner')).not.toBeInTheDocument();
   });
 
   it('should hint at the email field with a login link when the email is already registered', async () => {

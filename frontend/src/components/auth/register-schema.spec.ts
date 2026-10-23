@@ -1,7 +1,7 @@
 import { ACCOUNT_CONSENT_VERSION } from '@/lib/contracts';
 import { REGISTER_FIELDS, registerFormSchema, toRegisterRequest } from './register-schema';
 
-const VALID = { email: 'ivan@example.by', firstName: 'Иван', lastName: 'Иванов', password: 'Str0ng!Pass', birthDate: '1990-05-12', gender: '', accountConsent: true };
+const VALID = { email: 'ivan@example.by', firstName: 'Иван', lastName: 'Иванов', password: 'Str0ng!Pass', birthDate: '1990-05-12', gender: '', phone: '', accountConsent: true };
 
 function messagesOf(input: Record<string, unknown>): Readonly<Record<string, string>> {
   const result = registerFormSchema.safeParse(input);
@@ -63,6 +63,32 @@ describe('toRegisterRequest', () => {
 
   it('should send the gender when one is chosen', () => {
     expect(toRegisterRequest(registerFormSchema.parse({ ...VALID, gender: 'male' })).gender).toBe('male');
+  });
+});
+
+describe('phone', () => {
+  it('should accept an empty phone because it is optional', () => {
+    expect(messagesOf({ ...VALID, phone: '' })).toEqual({});
+    expect(messagesOf(VALID)).toEqual({});
+  });
+
+  it('should accept a Belarus number written with spaces and dashes', () => {
+    expect(messagesOf({ ...VALID, phone: '+375 (29) 123-45-67' })).toEqual({});
+  });
+
+  it('should reject a number that is not +375 and nine digits', () => {
+    expect(messagesOf({ ...VALID, phone: '+7 912 345 67 89' })['phone']).toBe('validation.phone');
+    expect(messagesOf({ ...VALID, phone: '29 123 45 67' })['phone']).toBe('validation.phone');
+  });
+
+  it('should send the normalised phone and leave it out when it is empty', () => {
+    expect(toRegisterRequest(registerFormSchema.parse({ ...VALID, phone: '+375 (29) 123-45-67' })).phone).toBe('+375291234567');
+    expect(toRegisterRequest(registerFormSchema.parse({ ...VALID, phone: '  ' }))).not.toHaveProperty('phone');
+    expect(toRegisterRequest(registerFormSchema.parse(VALID))).not.toHaveProperty('phone');
+  });
+
+  it('should let a server error for the phone land on the phone field', () => {
+    expect(REGISTER_FIELDS).toContain('phone');
   });
 });
 

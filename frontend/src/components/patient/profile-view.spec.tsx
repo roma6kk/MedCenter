@@ -6,7 +6,7 @@ import { accountFixture, historyFixture, medicationFixture, patientProfileFixtur
 import { apiProblem, pageOf, renderWithClient, resetCabinetState } from './cabinet-test-utils';
 import { ProfileView } from './profile-view';
 
-jest.mock('./patient-api', () => ({ fetchMyHistory: jest.fn(), fetchMyPrescriptions: jest.fn(), fetchAccount: jest.fn(), fetchPatientProfile: jest.fn() }));
+jest.mock('./patient-api', () => ({ fetchMyHistory: jest.fn(), fetchMyPrescriptions: jest.fn(), fetchAccount: jest.fn(), fetchPatientProfile: jest.fn(), updateMyPhone: jest.fn() }));
 jest.mock('@/components/appointments/appointment-api', () => ({ fetchAppointments: jest.fn(), fetchAppointment: jest.fn(), cancelAppointment: jest.fn() }));
 
 import { fetchAppointments } from '@/components/appointments/appointment-api';
@@ -65,13 +65,14 @@ describe('ProfileView', () => {
     expect(screen.getByRole('link', { name: 'Как добавить' })).toHaveAttribute('href', '#profile-data');
   });
 
-  it('should say who changes the data instead of offering an edit button', async () => {
+  it('should offer to change only the phone and say the front desk changes the rest', async () => {
     loadAll();
     renderWithClient(<ProfileView />);
 
     const data = await screen.findByRole('region', { name: 'Личные данные' });
-    expect(within(data).getByText(/обратитесь в регистратуру клиники/)).toBeInTheDocument();
-    expect(within(data).queryByRole('button')).not.toBeInTheDocument();
+    expect(within(data).getByText(/Остальные данные меняет регистратура клиники/)).toBeInTheDocument();
+    expect(await within(data).findByRole('button', { name: 'Изменить телефон' })).toBeInTheDocument();
+    expect(within(data).getAllByRole('button')).toHaveLength(1);
     expect(await within(data).findByText('2 ноября 1992 г.')).toBeInTheDocument();
     expect(within(data).getByText('Женский')).toBeInTheDocument();
     expect(within(data).getByText('+375291234567')).toBeInTheDocument();

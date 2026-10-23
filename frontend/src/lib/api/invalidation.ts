@@ -14,6 +14,7 @@ export type MutationKind =
   | 'open-encounter'
   | 'complete-encounter'
   | 'read-notification'
+  | 'update-contact'
   | 'admin-users'
   | 'admin-services'
   | 'admin-rooms'
@@ -42,6 +43,8 @@ export const INVALIDATION: Readonly<Record<MutationKind, ReadonlyArray<QueryKey>
     queryRoots.appointmentDetail,
   ],
   'read-notification': [queryRoots.notifications],
+  // The patient edits their phone: only the FHIR card (and its `version`) changes.
+  'update-contact': [queryKeys.patientProfile],
   // A new doctor account is a new entry of the public catalogue too.
   'admin-users': [queryRoots.adminUsers, queryRoots.doctors],
   'admin-services': [queryRoots.services],
