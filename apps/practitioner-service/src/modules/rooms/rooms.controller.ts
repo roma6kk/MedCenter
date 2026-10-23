@@ -9,8 +9,9 @@ import {
   Patch,
   Post,
   Query,
+  Req,
 } from '@nestjs/common';
-import { RequiresRoles, RequiresScopes } from '@medcenter/common';
+import { auditActorOf, RequiresRoles, RequiresScopes, type AuditedRequest } from '@medcenter/common';
 import { DEFAULT_PAGE, DEFAULT_PAGE_SIZE, Role, SMART_SCOPES } from '@medcenter/contracts';
 
 import { PageQueryDto } from '../../common/page-query.dto';
@@ -38,17 +39,18 @@ export class RoomsController {
 
   @Post('admin/rooms')
   @RequiresRoles(Role.ADMIN)
-  async create(@Body() dto: CreateRoomDto): Promise<RoomResponseDto> {
-    return this.roomsService.create(dto);
+  async create(@Req() request: AuditedRequest, @Body() dto: CreateRoomDto): Promise<RoomResponseDto> {
+    return this.roomsService.create(dto, auditActorOf(request));
   }
 
   @Patch('admin/rooms/:id')
   @RequiresRoles(Role.ADMIN)
   async update(
+    @Req() request: AuditedRequest,
     @Param() params: RoomIdParamDto,
     @Body() dto: UpdateRoomDto,
   ): Promise<RoomResponseDto> {
-    return this.roomsService.update(params.id, dto);
+    return this.roomsService.update(params.id, dto, auditActorOf(request));
   }
 
   /**
@@ -65,7 +67,7 @@ export class RoomsController {
   @Delete('admin/rooms/:id')
   @RequiresRoles(Role.ADMIN)
   @HttpCode(HttpStatus.NO_CONTENT)
-  async remove(@Param() params: RoomIdParamDto): Promise<void> {
-    await this.roomsService.remove(params.id);
+  async remove(@Req() request: AuditedRequest, @Param() params: RoomIdParamDto): Promise<void> {
+    await this.roomsService.remove(params.id, auditActorOf(request));
   }
 }

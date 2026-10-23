@@ -1,6 +1,15 @@
 import { ConflictException, Inject, Injectable } from '@nestjs/common';
 import type { PaginatedResponseDto } from '@medcenter/contracts';
-import { FHIR_CLIENT, type FhirClient, type FhirResource } from '@medcenter/fhir';
+import {
+  createAudited,
+  deleteAudited,
+  FHIR_CLIENT,
+  updateAudited,
+  type AuditContext,
+  type FhirClient,
+  type FhirResource,
+  type WriteActor,
+} from '@medcenter/fhir';
 import { MEDCENTER_EXT } from '@medcenter/terminology';
 
 import { toPage } from '../../common/page-envelope';
@@ -13,6 +22,9 @@ import { findAllRooms, LOCATION_PHYSICAL_TYPE_SYSTEM, ROOM_PHYSICAL_TYPE_CODE } 
 
 /** One page of the room list in the API §0 envelope. */
 export type RoomPage = PaginatedResponseDto<RoomResponseDto>;
+
+/** `AuditEvent.source` of the writes of this service. */
+const AUDIT_SOURCE = 'practitioner-service';
 
 /** FHIR R4 `Location` has no native floor element — it lives in an extension. */
 const FLOOR_EXT = MEDCENTER_EXT.ROOM_FLOOR;
@@ -42,13 +54,18 @@ export class RoomsService {
     return this.toResponseDto(resource);
   }
 
-  async create(dto: CreateRoomDto): Promise<RoomResponseDto> {
+  /** Admin writes carry their `AuditEvent` in the same transaction (FR-021, ADR-014). */
+  private auditOf(actor: WriteActor): AuditContext {
+    return { actor, source: AUDIT_SOURCE };
+  }
+
+  async create(dto: CreateRoomDto, actor: WriteActor): Promise<RoomResponseDto> {
     await this.assertIdentifierFree(dto.identifier);
-    const created = await this.fhirClient.create('Location', this.toLocation(dto));
+    const created = await createAudited(this.fhirClient, this.toLocation(dto), this.auditOf(actor));
     return this.toResponseDto(created);
   }
 
-  async update(id: string, dto: UpdateRoomDto): Promise<RoomResponseDto> {
+  async update(id: string, dto: UpdateRoomDto, actor: WriteActor): Promise<RoomResponseDto> {
     const existing = await this.fhirClient.read('Location', id);
     if (dto.identifier !== undefined) {
       await this.assertIdentifierFree(dto.identifier, id);
@@ -74,7 +91,7 @@ export class RoomsService {
       ).concat([{ url: FLOOR_EXT, valueInteger: dto.floor }]);
       merged['extension'] = extensions;
     }
-    const updated = await this.fhirClient.update('Location', id, merged as FhirResource);
+    const updated = await updateAudited(this.fhirClient, { ...merged, id } as FhirResource, this.auditOf(actor));
     return this.toResponseDto(updated);
   }
 
@@ -88,7 +105,7 @@ export class RoomsService {
    * `ProblemDetailsFilter` promotes it to the response `errorCode`; the same
    * label stays at the start of `detail` for logs and older clients.
    */
-  async remove(id: string): Promise<void> {
+  async remove(id: string, actor: WriteActor): Promise<void> {
     // An unknown id surfaces as 404 NOT_FOUND straight from the FHIR client.
     await this.fhirClient.read('Location', id);
     // `_count: 1` — one referencing schedule is enough to refuse the delete.
@@ -103,7 +120,7 @@ export class RoomsService {
         message: `ROOM_IN_USE: room ${id} is referenced by a schedule`,
       });
     }
-    await this.fhirClient.delete('Location', id);
+    await deleteAudited(this.fhirClient, 'Location', id, this.auditOf(actor));
   }
 
   /**
@@ -115,11 +132,15 @@ export class RoomsService {
   private async assertIdentifierFree(identifier: string, roomId?: string): Promise<void> {
     const taken = roomUsingIdentifier(await findAllRooms(this.fhirClient), identifier, roomId);
     if (taken !== undefined) {
-      throw new ConflictException({
-        errorCode: 'CONFLICT',
-        message: `CONFLICT: room identifier "${identifier}" is already used by room ${taken.id ?? ''}`,
-      });
+      throw this.identifierTaken(identifier, taken.id ?? '');
     }
+  }
+
+  private identifierTaken(identifier: string, roomId: string): ConflictException {
+    return new ConflictException({
+      errorCode: 'CONFLICT',
+      message: `CONFLICT: room identifier "${identifier}" is already used by room ${roomId}`,
+    });
   }
 
   private toLocation(dto: Partial<CreateRoomDto>): FhirResource {

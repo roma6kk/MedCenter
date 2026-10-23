@@ -1,4 +1,4 @@
-import type { FhirResource } from '@medcenter/fhir';
+import { buildWriteAuditEvent, type FhirResource } from '@medcenter/fhir';
 
 import { toAuditEventRow } from './audit-event.mapper';
 
@@ -21,6 +21,37 @@ function appointmentServiceAudit(overrides: Record<string, unknown> = {}): FhirR
 }
 
 describe('toAuditEventRow', () => {
+  describe('admin writes of the catalog, rooms and schedules', () => {
+    it.each(['create', 'update', 'delete'] as const)(
+      'should journal a %s of a room through its logical reference, with the actor and the request id',
+      (interaction) => {
+        const event = buildWriteAuditEvent({
+          interaction,
+          actor: { sub: 'admin-1', requestId: 'req-9' },
+          resourceType: 'Location',
+          resourceId: '4f1c0a2e-1111-4a1a-9a1a-000000000001',
+          source: 'practitioner-service',
+        });
+
+        expect(toAuditEventRow({ ...event, id: 'ae-7' })).toMatchObject({
+          id: 'ae-7',
+          userId: 'admin-1',
+          action: interaction,
+          resourceType: 'Location',
+          resourceId: '4f1c0a2e-1111-4a1a-9a1a-000000000001',
+          requestId: 'req-9',
+          source: 'practitioner-service',
+        });
+      },
+    );
+
+    it('should ignore a logical reference whose identifier is not a FHIR id of this system', () => {
+      const entity = [{ what: { type: 'Location', identifier: { system: 'https://example.org/other', value: 'room-1' } } }];
+
+      expect(toAuditEventRow(appointmentServiceAudit({ entity }))).toMatchObject({ resourceType: null, resourceId: null });
+    });
+  });
+
   it('should map an appointment-service AuditEvent onto the journal row when every field is present', () => {
     const row = toAuditEventRow(appointmentServiceAudit());
 

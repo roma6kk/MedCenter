@@ -22,7 +22,6 @@ function createFhirClientMock(): jest.Mocked<FhirClient> {
         { url: WEEKLY_WINDOWS_EXT, valueString: JSON.stringify([{ dayOfWeek: 'MO', startTime: '09:00', endTime: '10:00' }]) },
       ],
     }),
-    delete: jest.fn().mockResolvedValue(undefined),
     batch: jest.fn().mockResolvedValue({
       resourceType: 'Bundle',
       entry: [{ response: { status: '201 Created' } }, { response: { status: '201 Created' } }],
@@ -77,7 +76,7 @@ describe('slot cache invalidation', () => {
     const service = new SchedulesService(createFhirClientMock(), new RedisCacheService(store));
 
     // Act
-    await service.remove(SCHEDULE_ID, false);
+    await service.remove(SCHEDULE_ID, false, { sub: 'admin-1' });
 
     // Assert
     expect([...store.entries.keys()]).toEqual([UNRELATED]);

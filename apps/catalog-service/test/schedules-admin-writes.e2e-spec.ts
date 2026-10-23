@@ -7,6 +7,7 @@ import {
   SLOT_DURATION_EXT,
   WEEKLY_WINDOWS_EXT,
 } from '../src/modules/schedules/schedule.constants';
+import { auditedResource, committedAudit, committedEntries, transactionResponder } from '../src/common/__tests__/audited-transactions';
 import { bootCatalog, TOKENS, type CatalogHarness } from './catalog-harness';
 
 jest.mock('jose', () => jest.requireActual<typeof import('./e2e-tokens')>('./e2e-tokens').decodeOnlyJose());
@@ -37,7 +38,8 @@ describe('Schedules admin writes (e2e)', () => {
 
   beforeEach(async () => {
     harness = await bootCatalog();
-    harness.fhir.create.mockImplementation(async (_type, resource) => ({ ...resource, id: 'sched-new' }));
+    harness.fhir.batch.mockImplementation(transactionResponder());
+    harness.fhir.read.mockResolvedValue({ resourceType: 'Schedule', id: 'sched-1', active: true });
   });
 
   afterEach(async () => {
@@ -55,8 +57,12 @@ describe('Schedules admin writes (e2e)', () => {
 
       // Assert
       expect(harness.fhir.search).toHaveBeenCalledWith('Schedule', expect.objectContaining({ actor: `PractitionerRole/${ROLE_ID}`, active: 'true' }));
-      expect(harness.fhir.create).toHaveBeenCalledWith('Schedule', {
+      const [schedule] = committedEntries(harness.fhir);
+      expect(schedule?.request).toMatchObject({ method: 'PUT', url: `Schedule/${schedule?.resource?.id}` });
+      expect(committedAudit(harness.fhir)).toMatchObject({ action: 'C', agent: [{ who: { identifier: { value: expect.any(String) } } }], entity: [auditedResource('Schedule', schedule?.resource?.id), expect.anything()] });
+      expect(schedule?.resource).toEqual({
         resourceType: 'Schedule',
+        id: expect.any(String),
         active: true,
         actor: [
           { reference: `PractitionerRole/${ROLE_ID}` },
@@ -71,7 +77,7 @@ describe('Schedules admin writes (e2e)', () => {
         comment: 'Осенний график',
       });
       expect(response.body).toEqual({
-        id: 'sched-new',
+        id: schedule?.resource?.id,
         isActive: true,
         practitionerRoleId: ROLE_ID,
         roomId: ROOM_ID,
@@ -114,7 +120,7 @@ describe('Schedules admin writes (e2e)', () => {
 
       // Assert
       expect(response.body).toMatchObject({ status: 409, errorCode: 'SCHEDULE_OVERLAP' });
-      expect(harness.fhir.create).not.toHaveBeenCalled();
+      expect(harness.fhir.batch).not.toHaveBeenCalled();
     });
 
     it('should create the schedule when the same weekday window of the role belongs to a disjoint horizon', async () => {
@@ -138,7 +144,7 @@ describe('Schedules admin writes (e2e)', () => {
       await post(VALID_BODY).expect(201);
 
       // Assert
-      expect(harness.fhir.create).toHaveBeenCalledTimes(1);
+      expect(harness.fhir.batch).toHaveBeenCalledTimes(1);
     });
 
     it('should answer 409 SCHEDULE_OVERLAP before searching HAPI when two windows of the body intersect', async () => {
@@ -173,7 +179,7 @@ describe('Schedules admin writes (e2e)', () => {
       // Assert
       expect(response.body).toMatchObject({ status: 400, errorCode: 'VALIDATION_ERROR' });
       expect(harness.fhir.search).not.toHaveBeenCalled();
-      expect(harness.fhir.create).not.toHaveBeenCalled();
+      expect(harness.fhir.batch).not.toHaveBeenCalled();
     });
   });
 
@@ -197,7 +203,8 @@ describe('Schedules admin writes (e2e)', () => {
 
       // Assert
       expect(harness.fhir.search).toHaveBeenCalledWith('Slot', { schedule: 'Schedule/sched-1', status: 'busy', _count: 1 });
-      expect(harness.fhir.delete).toHaveBeenCalledWith('Schedule', 'sched-1');
+      expect(committedEntries(harness.fhir).map((entry) => `${entry.request.method} ${entry.request.url}`)).toEqual(['DELETE Schedule/sched-1', 'POST AuditEvent']);
+      expect(committedAudit(harness.fhir)).toMatchObject({ action: 'D', entity: [auditedResource('Schedule', 'sched-1'), expect.anything()] });
       expect(harness.store.entries.has(slotKey)).toBe(false);
       expect(harness.store.entries.size).toBe(0);
     });
@@ -218,7 +225,7 @@ describe('Schedules admin writes (e2e)', () => {
         instance: `${SCHEDULES}/sched-1`,
       });
       expect(response.body.detail).toContain('SCHEDULE_IN_USE');
-      expect(harness.fhir.delete).not.toHaveBeenCalled();
+      expect(harness.fhir.batch).not.toHaveBeenCalled();
       expect(harness.store.entries.has(slotKey)).toBe(true);
     });
 
@@ -231,7 +238,7 @@ describe('Schedules admin writes (e2e)', () => {
 
       // Assert
       expect(response.body).toMatchObject({ errorCode: 'SCHEDULE_IN_USE' });
-      expect(harness.fhir.delete).not.toHaveBeenCalled();
+      expect(harness.fhir.batch).not.toHaveBeenCalled();
     });
 
     it('should delete the free slots and then the Schedule when the admin confirms with cascade', async () => {
@@ -242,14 +249,13 @@ describe('Schedules admin writes (e2e)', () => {
         const deleted = harness.fhir.batch.mock.calls.length > 0;
         return asked.status === 'busy' || deleted ? { entry: [] } : freeSlots;
       });
-      harness.fhir.batch.mockResolvedValue({ resourceType: 'Bundle', entry: [{ response: { status: '204 No Content' } }] } as never);
 
       // Act
       await remove({ cascade: true }).expect(204);
 
       // Assert
       expect(harness.fhir.batch).toHaveBeenCalledWith(expect.objectContaining({ type: 'batch', entry: [{ request: { method: 'DELETE', url: 'Slot/slot-1' } }] }));
-      expect(harness.fhir.delete).toHaveBeenCalledWith('Schedule', 'sched-1');
+      expect(committedEntries(harness.fhir, 1).map((entry) => `${entry.request.method} ${entry.request.url}`)).toEqual(['DELETE Schedule/sched-1', 'POST AuditEvent']);
       expect(harness.store.entries.size).toBe(0);
     });
 
@@ -265,7 +271,6 @@ describe('Schedules admin writes (e2e)', () => {
       harness.fhir.batch
         .mockResolvedValueOnce({ resourceType: 'Bundle', entry: [{ response: { status: '409 Conflict' } }] } as never)
         .mockResolvedValueOnce({ resourceType: 'Bundle', entry: [{ response: { status: '200 OK' } }] } as never);
-      harness.fhir.read.mockResolvedValue({ resourceType: 'Schedule', id: 'sched-1', active: true });
 
       // Act
       await remove({ cascade: true }).expect(204);
@@ -274,8 +279,9 @@ describe('Schedules admin writes (e2e)', () => {
       const retire = (harness.fhir.batch.mock.calls[1]?.[0] as unknown as { entry: Array<{ request: object; resource: object }> }).entry[0];
       expect(retire?.request).toEqual({ method: 'PUT', url: 'Slot/slot-1', ifMatch: 'W/"2"' });
       expect(retire?.resource).toMatchObject({ id: 'slot-1', status: 'entered-in-error' });
-      expect(harness.fhir.update).toHaveBeenCalledWith('Schedule', 'sched-1', expect.objectContaining({ active: false }));
-      expect(harness.fhir.delete).not.toHaveBeenCalled();
+      expect(committedEntries(harness.fhir, 2).map((entry) => `${entry.request.method} ${entry.request.url}`)).toEqual(['PUT Schedule/sched-1', 'POST AuditEvent']);
+      expect(committedEntries(harness.fhir, 2)[0]?.resource).toMatchObject({ active: false });
+      expect(committedAudit(harness.fhir, 2)).toMatchObject({ action: 'U' });
       expect(harness.store.entries.has(slotKey)).toBe(false);
     });
 
@@ -291,7 +297,6 @@ describe('Schedules admin writes (e2e)', () => {
       // Assert
       expect(response.body).toMatchObject({ errorCode: 'SCHEDULE_IN_USE' });
       expect(harness.fhir.batch).not.toHaveBeenCalled();
-      expect(harness.fhir.delete).not.toHaveBeenCalled();
     });
 
     it('should answer 400 VALIDATION_ERROR before HAPI is called when cascade is not a boolean', async () => {
@@ -305,7 +310,7 @@ describe('Schedules admin writes (e2e)', () => {
 
     it('should answer 404 NOT_FOUND and keep the caches when HAPI has no such schedule to delete', async () => {
       // Arrange
-      harness.fhir.delete.mockRejectedValue(new FhirClientError('DELETE', 'http://hapi:8080/fhir/Schedule/sched-1', 404, '{}'));
+      harness.fhir.read.mockRejectedValue(new FhirClientError('GET', 'http://hapi:8080/fhir/Schedule/sched-1', 404, '{}'));
 
       // Act
       const response = await remove({}).expect(404);

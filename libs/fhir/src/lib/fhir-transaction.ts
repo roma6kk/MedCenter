@@ -9,9 +9,10 @@ import { FhirClientError, type FhirClient, type FhirResource } from './fhir-clie
  * is still at the version this service read (HAPI answers 412, reported as 409).
  */
 export interface TransactionWrite {
-  readonly method: 'POST' | 'PUT';
+  readonly method: 'POST' | 'PUT' | 'DELETE';
   readonly url: string;
-  readonly resource: FhirResource;
+  /** Absent for `DELETE`. */
+  readonly resource?: FhirResource;
   /** `urn:uuid:` id so later entries in the same bundle can reference this one. */
   readonly fullUrl?: string;
   readonly ifMatch?: string;
@@ -52,7 +53,7 @@ export async function commitTransaction(
     type: 'transaction',
     entry: writes.map((write) => ({
       ...(write.fullUrl === undefined ? {} : { fullUrl: write.fullUrl }),
-      resource: write.resource,
+      ...(write.resource === undefined ? {} : { resource: write.resource }),
       request: {
         method: write.method,
         url: write.url,

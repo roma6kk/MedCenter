@@ -1,13 +1,17 @@
 import { BadRequestException } from '@nestjs/common';
-import type { FhirClient } from '@medcenter/fhir';
+import type { FhirClient, FhirResource } from '@medcenter/fhir';
 
+import { auditedResource, committedAudit, committedEntries, transactionResponder } from '../../common/__tests__/audited-transactions';
 import { RedisCacheService } from '../cache/redis-cache.service';
 import {
   PLANNING_HORIZON_EXT,
   SLOT_DURATION_EXT,
   WEEKLY_WINDOWS_EXT,
 } from './schedule.constants';
+import type { CreateScheduleDto } from './dto/create-schedule.dto';
 import { SchedulesService } from './schedules.service';
+
+const ACTOR = { sub: 'admin-1', requestId: 'req-1' };
 
 function createFhirClientMock(): jest.Mocked<FhirClient> {
   return {
@@ -16,7 +20,7 @@ function createFhirClientMock(): jest.Mocked<FhirClient> {
     create: jest.fn(),
     update: jest.fn(),
     delete: jest.fn(),
-    batch: jest.fn(),
+    batch: jest.fn().mockImplementation(transactionResponder()),
   } as unknown as jest.Mocked<FhirClient>;
 }
 
@@ -44,13 +48,12 @@ describe('SchedulesService', () => {
           { dayOfWeek: 'MO', startTime: '09:00', endTime: '12:00' },
           { dayOfWeek: 'MO', startTime: '11:00', endTime: '13:00' },
         ],
-      }),
+      }, ACTOR),
     ).rejects.toThrow('SCHEDULE_OVERLAP');
   });
 
   it('should persist a non-overlapping schedule', async () => {
     fhirClient.search.mockResolvedValue({ entry: [] });
-    fhirClient.create.mockResolvedValue({ resourceType: 'Schedule', id: 'sched-9' });
 
     await expect(
       schedulesService.create({
@@ -61,13 +64,12 @@ describe('SchedulesService', () => {
         horizonTo: '2026-11-30',
         slotDurationMin: 30,
         windows: [{ dayOfWeek: 'MO', startTime: '09:00', endTime: '10:00' }],
-      }),
-    ).resolves.toMatchObject({ id: 'sched-9', isActive: true });
+      }, ACTOR),
+    ).resolves.toMatchObject({ id: expect.any(String), isActive: true });
   });
 
   it('should answer with the ScheduleSummaryDto, not the raw FHIR resource, when a schedule is created', async () => {
     fhirClient.search.mockResolvedValue({ entry: [] });
-    fhirClient.create.mockImplementation(async (_type, resource) => ({ ...resource, id: 'sched-9' }));
 
     const created = await schedulesService.create({
       practitionerRoleId: 'role-1',
@@ -77,10 +79,10 @@ describe('SchedulesService', () => {
       horizonTo: '2026-12-26',
       slotDurationMin: 30,
       windows: [{ dayOfWeek: 'SA', startTime: '09:00', endTime: '12:00' }],
-    });
+    }, ACTOR);
 
     expect(created).toEqual({
-      id: 'sched-9',
+      id: expect.any(String),
       isActive: true,
       practitionerRoleId: 'role-1',
       roomId: '1469',
@@ -135,13 +137,12 @@ describe('SchedulesService', () => {
       ],
     });
 
-    await expect(schedulesService.update('sched-1', { horizonTo: '2026-12-15' })).rejects.toThrow('SCHEDULE_OVERLAP');
-    expect(fhirClient.update).not.toHaveBeenCalled();
+    await expect(schedulesService.update('sched-1', { horizonTo: '2026-12-15' }, ACTOR)).rejects.toThrow('SCHEDULE_OVERLAP');
+    expect(fhirClient.batch).not.toHaveBeenCalled();
   });
 
   it('should persist slotDurationMin as a valueInteger extension, not a top-level element', async () => {
     fhirClient.search.mockResolvedValue({ entry: [] });
-    fhirClient.create.mockResolvedValue({ resourceType: 'Schedule', id: 'sched-9' });
 
     await schedulesService.create({
       practitionerRoleId: 'role-1',
@@ -151,9 +152,9 @@ describe('SchedulesService', () => {
       horizonTo: '2026-11-30',
       slotDurationMin: 45,
       windows: [{ dayOfWeek: 'MO', startTime: '09:00', endTime: '10:00' }],
-    });
+    }, ACTOR);
 
-    const created = fhirClient.create.mock.calls[0][1];
+    const created = (committedEntries(fhirClient)[0]?.resource ?? {}) as FhirResource;
     // `slotDurationMin` is not a valid FHIR R4 Schedule element: a strict HAPI
     // would reject the whole create. It must live in an extension.
     expect(created['slotDurationMin']).toBeUndefined();
@@ -172,11 +173,10 @@ describe('SchedulesService', () => {
         },
       ],
     });
-    fhirClient.update.mockResolvedValue({ resourceType: 'Schedule', id: 'sched-1' });
 
-    await schedulesService.update('sched-1', { slotDurationMin: 45 });
+    await schedulesService.update('sched-1', { slotDurationMin: 45 }, ACTOR);
 
-    const merged = fhirClient.update.mock.calls[0][2];
+    const merged = (committedEntries(fhirClient)[0]?.resource ?? {}) as FhirResource;
     expect(merged['slotDurationMin']).toBeUndefined();
     expect(merged['extension']).toContainEqual({ url: SLOT_DURATION_EXT, valueInteger: 45 });
     // The stored weekly windows survive the duration merge.
@@ -198,13 +198,12 @@ describe('SchedulesService', () => {
         },
       ],
     });
-    fhirClient.update.mockResolvedValue({ resourceType: 'Schedule', id: 'sched-1' });
 
     await schedulesService.update('sched-1', {
       windows: [{ dayOfWeek: 'TU', startTime: '10:00', endTime: '11:00' }],
-    });
+    }, ACTOR);
 
-    const merged = fhirClient.update.mock.calls[0][2];
+    const merged = (committedEntries(fhirClient)[0]?.resource ?? {}) as FhirResource;
     // Replacing the windows must not drop the stored duration extension.
     expect(merged['extension']).toContainEqual({ url: SLOT_DURATION_EXT, valueInteger: 45 });
     expect(merged['extension']).toContainEqual(
@@ -238,11 +237,10 @@ describe('SchedulesService', () => {
         { url: PLANNING_HORIZON_EXT, valuePeriod: { start: '2026-01-01', end: '2026-02-01' } },
       ],
     });
-    fhirClient.update.mockResolvedValue({ resourceType: 'Schedule', id: 'sched-1' });
 
-    await schedulesService.update('sched-1', { horizonTo: '2026-03-31' });
+    await schedulesService.update('sched-1', { horizonTo: '2026-03-31' }, ACTOR);
 
-    const merged = fhirClient.update.mock.calls[0][2];
+    const merged = (committedEntries(fhirClient)[0]?.resource ?? {}) as FhirResource;
     const extensions = merged['extension'] as Array<Record<string, unknown>>;
     const period = extensions.find((ext) => ext['url'] === PLANNING_HORIZON_EXT);
     expect(period).toMatchObject({ valuePeriod: { start: '2026-01-01', end: '2026-03-31' } });
@@ -254,7 +252,7 @@ describe('SchedulesService', () => {
     fhirClient.read.mockResolvedValue({ resourceType: 'Schedule', id: 'sched-1' });
 
     await expect(
-      schedulesService.update('sched-1', { horizonFrom: '2026-01-01', horizonTo: '2026-12-31' }),
+      schedulesService.update('sched-1', { horizonFrom: '2026-01-01', horizonTo: '2026-12-31' }, ACTOR),
     ).rejects.toThrow('planningHorizon');
   });
 
@@ -269,9 +267,9 @@ describe('SchedulesService', () => {
 
     // Only horizonTo is supplied: the span is measured from the stored start.
     await expect(
-      schedulesService.update('sched-1', { horizonTo: '2027-12-31' }),
+      schedulesService.update('sched-1', { horizonTo: '2027-12-31' }, ACTOR),
     ).rejects.toBeInstanceOf(BadRequestException);
-    expect(fhirClient.update).not.toHaveBeenCalled();
+    expect(fhirClient.batch).not.toHaveBeenCalled();
   });
 
   it('should keep the windows, horizon and duration extensions independent on a comment PATCH', async () => {
@@ -281,13 +279,60 @@ describe('SchedulesService', () => {
       { url: PLANNING_HORIZON_EXT, valuePeriod: { start: '2026-01-01', end: '2026-02-01' } },
     ];
     fhirClient.read.mockResolvedValue({ resourceType: 'Schedule', id: 'sched-1', extension });
-    fhirClient.update.mockResolvedValue({ resourceType: 'Schedule', id: 'sched-1' });
 
-    await schedulesService.update('sched-1', { comment: 'note' });
+    await schedulesService.update('sched-1', { comment: 'note' }, ACTOR);
 
-    const merged = fhirClient.update.mock.calls[0][2];
+    const merged = (committedEntries(fhirClient)[0]?.resource ?? {}) as FhirResource;
     expect(merged['comment']).toBe('note');
     expect(merged['extension']).toEqual(expect.arrayContaining(extension));
     expect(merged['extension']).toHaveLength(3);
+  });
+
+  describe('audit (FR-021, ADR-014)', () => {
+    const dto = {
+      practitionerRoleId: 'role-1',
+      roomId: 'room-1',
+      serviceId: 'svc-1',
+      horizonFrom: '2026-11-01',
+      horizonTo: '2026-11-30',
+      slotDurationMin: 30,
+      windows: [{ dayOfWeek: 'MO', startTime: '09:00', endTime: '10:00' }],
+    } as CreateScheduleDto;
+
+    it('should write the create AuditEvent of the new schedule in the same transaction, with the actor and the request id', async () => {
+      fhirClient.search.mockResolvedValue({ entry: [] });
+
+      await schedulesService.create(dto, ACTOR);
+
+      expect(fhirClient.batch).toHaveBeenCalledTimes(1);
+      const [schedule, audit] = committedEntries(fhirClient);
+      expect(schedule?.request).toMatchObject({ method: 'PUT', url: `Schedule/${schedule?.resource?.id}` });
+      expect(audit?.request).toMatchObject({ method: 'POST', url: 'AuditEvent' });
+      expect(committedAudit(fhirClient)).toMatchObject({
+        action: 'C',
+        subtype: [{ code: 'create' }],
+        agent: [{ who: { identifier: { value: 'admin-1' } } }],
+        source: { observer: { display: 'catalog-service' } },
+        entity: [auditedResource('Schedule', schedule?.resource?.id), { what: { identifier: { value: 'req-1' } } }],
+      });
+    });
+
+    it('should write the update AuditEvent of the schedule in the same transaction as the change', async () => {
+      fhirClient.read.mockResolvedValue({ resourceType: 'Schedule', id: 'sched-1' });
+
+      await schedulesService.update('sched-1', { comment: 'note' }, ACTOR);
+
+      expect(committedEntries(fhirClient).map((entry) => `${entry.request.method} ${entry.request.url}`)).toEqual(['PUT Schedule/sched-1', 'POST AuditEvent']);
+      expect(committedAudit(fhirClient)).toMatchObject({ action: 'U', subtype: [{ code: 'update' }], entity: [auditedResource('Schedule', 'sched-1'), expect.anything()] });
+    });
+
+    it('should write no schedule and no AuditEvent when the overlap check refuses the create', async () => {
+      fhirClient.search.mockResolvedValue({
+        entry: [{ resource: { resourceType: 'Schedule', id: 's-2', extension: [{ url: WEEKLY_WINDOWS_EXT, valueString: JSON.stringify(dto.windows) }, { url: PLANNING_HORIZON_EXT, valuePeriod: { start: '2026-11-01', end: '2026-11-30' } }] } }],
+      });
+
+      await expect(schedulesService.create(dto, ACTOR)).rejects.toThrow('SCHEDULE_OVERLAP');
+      expect(fhirClient.batch).not.toHaveBeenCalled();
+    });
   });
 });

@@ -4,3 +4,5 @@ export * from './lib/consent';
 export * from './lib/active-consent';
 export * from './lib/consent-audit';
 export * from './lib/fhir-transaction';
+export * from './lib/write-audit';
+export * from './lib/audited-write';

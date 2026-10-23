@@ -1,5 +1,5 @@
 import { BadGatewayException, ConflictException, Logger } from '@nestjs/common';
-import type { FhirClient, FhirResource } from '@medcenter/fhir';
+import { deleteAudited, updateAudited, type AuditContext, type FhirClient, type FhirResource } from '@medcenter/fhir';
 
 import { FHIR_PAGE_SIZE, resourcesOf } from '../../common/fhir-search';
 
@@ -108,10 +108,10 @@ async function removeFreeSlots(fhirClient: FhirClient, scheduleId: string): Prom
 }
 
 /** `active=false` hides the schedule from slot searches and the overlap check; it stays for the slots HAPI keeps. */
-async function deactivateSchedule(fhirClient: FhirClient, scheduleId: string): Promise<void> {
+async function deactivateSchedule(fhirClient: FhirClient, scheduleId: string, audit: AuditContext): Promise<void> {
   const schedule = await fhirClient.read('Schedule', scheduleId);
   if (schedule['active'] !== false) {
-    await fhirClient.update('Schedule', scheduleId, { ...schedule, active: false });
+    await updateAudited(fhirClient, { ...schedule, id: scheduleId, active: false }, audit);
   }
 }
 
@@ -121,8 +121,12 @@ async function deactivateSchedule(fhirClient: FhirClient, scheduleId: string): P
  * refuses to delete a Schedule that a Slot still references. A schedule that still
  * has slots afterwards (retired ones, kept for the appointment history) is
  * deactivated instead of deleted: the answer is the same 204 and a repeat is safe.
+ * The schedule's own change (`delete`, or `update` for the deactivation) is audited with it (ADR-014);
+ * the slots are a by-product of the schedule and are not journalled one by one.
  */
-export async function removeScheduleWithSlots(fhirClient: FhirClient, scheduleId: string, cascade: boolean): Promise<void> {
+export async function removeScheduleWithSlots(fhirClient: FhirClient, scheduleId: string, cascade: boolean, audit: AuditContext): Promise<void> {
+  // An unknown schedule is a 404 here, before anything is removed; the delete's AuditEvent needs a stored resource.
+  await fhirClient.read('Schedule', scheduleId);
   if (await hasSlots(fhirClient, scheduleId, 'busy')) {
     throw scheduleInUse(scheduleId, 'has busy slots (booked appointments)');
   }
@@ -131,8 +135,8 @@ export async function removeScheduleWithSlots(fhirClient: FhirClient, scheduleId
   }
   await removeFreeSlots(fhirClient, scheduleId);
   if (await hasSlots(fhirClient, scheduleId)) {
-    await deactivateSchedule(fhirClient, scheduleId);
+    await deactivateSchedule(fhirClient, scheduleId, audit);
     return;
   }
-  await fhirClient.delete('Schedule', scheduleId);
+  await deleteAudited(fhirClient, 'Schedule', scheduleId, audit);
 }

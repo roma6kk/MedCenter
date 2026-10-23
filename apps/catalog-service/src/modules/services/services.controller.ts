@@ -9,8 +9,9 @@ import {
   Patch,
   Post,
   Query,
+  Req,
 } from '@nestjs/common';
-import { Public, RequiresRoles } from '@medcenter/common';
+import { auditActorOf, Public, RequiresRoles, type AuditedRequest } from '@medcenter/common';
 import { DEFAULT_PAGE, DEFAULT_PAGE_SIZE, Role } from '@medcenter/contracts';
 
 import { FhirIdParamDto } from '../../common/fhir-id-param.dto';
@@ -39,23 +40,24 @@ export class ServicesController {
 
   @Post('admin/services')
   @RequiresRoles(Role.ADMIN)
-  async create(@Body() dto: CreateServiceDto): Promise<ServiceResponseDto> {
-    return this.servicesService.create(dto);
+  async create(@Req() request: AuditedRequest, @Body() dto: CreateServiceDto): Promise<ServiceResponseDto> {
+    return this.servicesService.create(dto, auditActorOf(request));
   }
 
   @Patch('admin/services/:id')
   @RequiresRoles(Role.ADMIN)
   async update(
+    @Req() request: AuditedRequest,
     @Param() params: FhirIdParamDto,
     @Body() dto: UpdateServiceDto,
   ): Promise<ServiceResponseDto> {
-    return this.servicesService.update(params.id, dto);
+    return this.servicesService.update(params.id, dto, auditActorOf(request));
   }
 
   @Delete('admin/services/:id')
   @RequiresRoles(Role.ADMIN)
   @HttpCode(HttpStatus.NO_CONTENT)
-  async remove(@Param() params: FhirIdParamDto): Promise<void> {
-    await this.servicesService.remove(params.id);
+  async remove(@Req() request: AuditedRequest, @Param() params: FhirIdParamDto): Promise<void> {
+    await this.servicesService.remove(params.id, auditActorOf(request));
   }
 }

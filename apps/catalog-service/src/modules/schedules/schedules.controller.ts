@@ -12,7 +12,7 @@ import {
   Query,
   Req,
 } from '@nestjs/common';
-import { claimsOf, IdempotencyService, RequiresRoles, type RequestWithClaims } from '@medcenter/common';
+import { auditActorOf, claimsOf, IdempotencyService, RequiresRoles, type AuditedRequest, type RequestWithClaims } from '@medcenter/common';
 import { DEFAULT_PAGE, DEFAULT_PAGE_SIZE, Role } from '@medcenter/contracts';
 import type { SlotResponseDto } from '@medcenter/fhir-mappers';
 
@@ -39,8 +39,8 @@ export class SchedulesController {
 
   @Post()
   @RequiresRoles(Role.ADMIN)
-  async create(@Body() dto: CreateScheduleDto): Promise<ScheduleSummaryDto> {
-    return this.schedulesService.create(dto);
+  async create(@Req() request: AuditedRequest, @Body() dto: CreateScheduleDto): Promise<ScheduleSummaryDto> {
+    return this.schedulesService.create(dto, auditActorOf(request));
   }
 
   @Get()
@@ -52,17 +52,18 @@ export class SchedulesController {
   @Patch(':id')
   @RequiresRoles(Role.ADMIN)
   async update(
+    @Req() request: AuditedRequest,
     @Param() params: FhirIdParamDto,
     @Body() dto: UpdateScheduleDto,
   ): Promise<ScheduleSummaryDto> {
-    return this.schedulesService.update(params.id, dto);
+    return this.schedulesService.update(params.id, dto, auditActorOf(request));
   }
 
   @Delete(':id')
   @RequiresRoles(Role.ADMIN)
   @HttpCode(HttpStatus.NO_CONTENT)
-  async remove(@Param() params: FhirIdParamDto, @Body() dto: DeleteScheduleDto): Promise<void> {
-    await this.schedulesService.remove(params.id, dto.cascade === true);
+  async remove(@Req() request: AuditedRequest, @Param() params: FhirIdParamDto, @Body() dto: DeleteScheduleDto): Promise<void> {
+    await this.schedulesService.remove(params.id, dto.cascade === true, auditActorOf(request));
   }
 
   @Post(':id/generate')

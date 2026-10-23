@@ -15,3 +15,4 @@ export * from './lib/pipes/validation.pipe';
 export * from './lib/idempotency/idempotency.service';
 export * from './lib/patient-compartment';
 export * from './lib/http';
+export * from './lib/audit-actor';

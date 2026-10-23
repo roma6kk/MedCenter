@@ -2,6 +2,7 @@ import type { INestApplication } from '@nestjs/common';
 import type { FhirClient } from '@medcenter/fhir';
 import request from 'supertest';
 
+import { transactionResponder } from '../src/common/__tests__/audited-transactions';
 import { bootWithFhir, createFhirStub, storedRoom, TOKENS } from './rooms-harness';
 
 jest.mock('jose', () => jest.requireActual<typeof import('./e2e-tokens')>('./e2e-tokens').decodeOnlyJose());
@@ -17,7 +18,7 @@ describe('Room identifier uniqueness (e2e)', () => {
     fhir = createFhirStub();
     fhir.search.mockResolvedValue({ entry: [{ resource: storedRoom() }, { resource: storedRoom({ id: 'room-101', identifier: [{ value: '101' }] }) }] });
     fhir.read.mockImplementation(async () => storedRoom());
-    fhir.create.mockImplementation(async (_type, resource) => ({ ...resource, id: 'room-new' }));
+    fhir.batch.mockImplementation(transactionResponder());
     app = await bootWithFhir(fhir);
   });
 
@@ -34,7 +35,7 @@ describe('Room identifier uniqueness (e2e)', () => {
 
     expect(response.headers['content-type']).toContain('application/problem+json');
     expect(response.body).toMatchObject({ status: 409, errorCode: 'CONFLICT', detail: expect.stringContaining('204-Х') });
-    expect(fhir.create).not.toHaveBeenCalled();
+    expect(fhir.batch).not.toHaveBeenCalled();
   });
 
   it('should answer 409 CONFLICT and update nothing when a room is renamed to the identifier of another room', async () => {
@@ -45,7 +46,7 @@ describe('Room identifier uniqueness (e2e)', () => {
       .expect(409);
 
     expect(response.body).toMatchObject({ status: 409, errorCode: 'CONFLICT', detail: expect.stringContaining('101') });
-    expect(fhir.update).not.toHaveBeenCalled();
+    expect(fhir.batch).not.toHaveBeenCalled();
   });
 
   it('should answer 201 when the identifier is free on create', async () => {
@@ -55,6 +56,6 @@ describe('Room identifier uniqueness (e2e)', () => {
       .send({ identifier: '305', name: 'Кабинет 305' })
       .expect(201);
 
-    expect(fhir.create).toHaveBeenCalledTimes(1);
+    expect(fhir.batch).toHaveBeenCalledTimes(1);
   });
 });

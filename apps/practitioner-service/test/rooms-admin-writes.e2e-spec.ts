@@ -3,6 +3,7 @@ import { FhirClientError, type FhirClient } from '@medcenter/fhir';
 import { MEDCENTER_EXT } from '@medcenter/terminology';
 import request from 'supertest';
 
+import { auditedResource, committedAudit, committedEntries, transactionResponder } from '../src/common/__tests__/audited-transactions';
 import { bootWithFhir, createFhirStub, ROOM_PHYSICAL_TYPE_SYSTEM, storedRoom, TOKENS } from './rooms-harness';
 
 jest.mock('jose', () => jest.requireActual<typeof import('./e2e-tokens')>('./e2e-tokens').decodeOnlyJose());
@@ -31,7 +32,7 @@ describe('Rooms admin writes (e2e)', () => {
 
   describe('POST /api/v1/admin/rooms', () => {
     beforeEach(() => {
-      fhir.create.mockImplementation(async (_type, resource) => ({ ...resource, id: 'room-new' }));
+      fhir.batch.mockImplementation(transactionResponder());
     });
 
     it('should create a room Location and answer 201 with the room view when an admin posts a valid body', async () => {
@@ -43,8 +44,12 @@ describe('Rooms admin writes (e2e)', () => {
         .expect(201);
 
       // Assert
-      expect(fhir.create).toHaveBeenCalledWith('Location', {
+      const [room] = committedEntries(fhir);
+      expect(room?.request).toMatchObject({ method: 'PUT', url: `Location/${room?.resource?.id}` });
+      expect(committedAudit(fhir)).toMatchObject({ action: 'C', source: { observer: { display: 'practitioner-service' } }, entity: [auditedResource('Location', room?.resource?.id), expect.anything()] });
+      expect(room?.resource).toEqual({
         resourceType: 'Location',
+        id: expect.any(String),
         identifier: [{ value: '204-Х' }],
         name: 'Кабинет 204',
         description: 'Окна во двор',
@@ -52,7 +57,7 @@ describe('Rooms admin writes (e2e)', () => {
         physicalType: { coding: [{ system: ROOM_PHYSICAL_TYPE_SYSTEM, code: 'ro', display: 'room' }] },
       });
       expect(response.body).toEqual({
-        id: 'room-new',
+        id: room?.resource?.id,
         identifier: '204-Х',
         name: 'Кабинет 204',
         description: 'Окна во двор',
@@ -70,7 +75,7 @@ describe('Rooms admin writes (e2e)', () => {
         .expect(201);
 
       // Assert
-      const [, created] = fhir.create.mock.calls[0] ?? [];
+      const created = committedEntries(fhir)[0]?.resource;
       expect(created).not.toHaveProperty('extension');
       expect(created?.['description']).toBeUndefined();
     });
@@ -84,8 +89,8 @@ describe('Rooms admin writes (e2e)', () => {
         .expect(201);
 
       // Assert
-      const [, created] = fhir.create.mock.calls[0] ?? [];
-      expect(created).not.toHaveProperty('id');
+      const created = committedEntries(fhir)[0]?.resource;
+      expect(created?.['id']).not.toBe('hijacked');
       expect(created).not.toHaveProperty('status');
       expect(created).not.toHaveProperty('meta');
     });
@@ -110,7 +115,7 @@ describe('Rooms admin writes (e2e)', () => {
       // Assert
       expect(response.headers['content-type']).toContain('application/problem+json');
       expect(response.body).toMatchObject({ status: 400, errorCode: 'VALIDATION_ERROR' });
-      expect(fhir.create).not.toHaveBeenCalled();
+      expect(fhir.batch).not.toHaveBeenCalled();
     });
 
     it('should answer 400 VALIDATION_ERROR when the body is empty', async () => {
@@ -119,12 +124,12 @@ describe('Rooms admin writes (e2e)', () => {
 
       // Assert
       expect(response.body).toMatchObject({ errorCode: 'VALIDATION_ERROR' });
-      expect(fhir.create).not.toHaveBeenCalled();
+      expect(fhir.batch).not.toHaveBeenCalled();
     });
 
     it('should answer 409 CONFLICT when HAPI refuses the create as a duplicate', async () => {
       // Arrange
-      fhir.create.mockRejectedValue(new FhirClientError('POST', 'http://hapi:8080/fhir/Location', 412, '{}'));
+      fhir.batch.mockRejectedValue(new FhirClientError('POST', 'http://hapi:8080/fhir', 412, '{}'));
 
       // Act
       const response = await request(app.getHttpServer())
@@ -139,7 +144,7 @@ describe('Rooms admin writes (e2e)', () => {
 
     it('should answer 502 INTERNAL without the HAPI address when the FHIR server is down', async () => {
       // Arrange
-      fhir.create.mockRejectedValue(new FhirClientError('POST', 'http://hapi:8080/fhir/Location', 503, 'secret outcome'));
+      fhir.batch.mockRejectedValue(new FhirClientError('POST', 'http://hapi:8080/fhir', 503, 'secret outcome'));
 
       // Act
       const response = await request(app.getHttpServer())
@@ -157,7 +162,7 @@ describe('Rooms admin writes (e2e)', () => {
   describe('PATCH /api/v1/admin/rooms/{id}', () => {
     beforeEach(() => {
       fhir.read.mockResolvedValue(storedRoom({ extension: [{ url: MEDCENTER_EXT.ROOM_FLOOR, valueInteger: 2 }, OTHER_EXTENSION] }));
-      fhir.update.mockImplementation(async (_type, id, resource) => ({ ...resource, id }));
+      fhir.batch.mockImplementation(transactionResponder());
     });
 
     it('should read the Location, merge only the patched fields and answer 200 when an admin renames the room', async () => {
@@ -170,8 +175,10 @@ describe('Rooms admin writes (e2e)', () => {
 
       // Assert
       expect(fhir.read).toHaveBeenCalledWith('Location', 'room-204');
-      const [type, id, merged] = fhir.update.mock.calls[0] ?? [];
-      expect([type, id]).toEqual(['Location', 'room-204']);
+      const [update] = committedEntries(fhir);
+      const merged = update?.resource;
+      expect([update?.request.method, update?.request.url]).toEqual(['PUT', 'Location/room-204']);
+      expect(committedAudit(fhir)).toMatchObject({ action: 'U', entity: [auditedResource('Location', 'room-204'), expect.anything()] });
       expect(merged).toMatchObject({ name: 'Кабинет 204А', description: 'Окна во двор', identifier: [{ value: '204-Х' }] });
       expect(response.body).toMatchObject({ id: 'room-204', name: 'Кабинет 204А', floor: 2, isActive: true });
     });
@@ -181,7 +188,7 @@ describe('Rooms admin writes (e2e)', () => {
       await request(app.getHttpServer()).patch(ROOM_URL).set('Authorization', TOKENS.admin).send({ floor: 5 }).expect(200);
 
       // Assert
-      const [, , merged] = fhir.update.mock.calls[0] ?? [];
+      const merged = committedEntries(fhir)[0]?.resource;
       expect(merged?.['extension']).toEqual([OTHER_EXTENSION, { url: MEDCENTER_EXT.ROOM_FLOOR, valueInteger: 5 }]);
     });
 
@@ -194,8 +201,8 @@ describe('Rooms admin writes (e2e)', () => {
         .expect(200);
 
       // Assert
-      const [, id, merged] = fhir.update.mock.calls[0] ?? [];
-      expect(id).toBe('room-204');
+      const merged = committedEntries(fhir)[0]?.resource;
+      expect(committedEntries(fhir)[0]?.request.url).toBe('Location/room-204');
       expect(merged?.['id']).toBe('room-204');
       expect(merged?.['physicalType']).toEqual({ coding: [{ system: ROOM_PHYSICAL_TYPE_SYSTEM, code: 'ro', display: 'room' }] });
     });
@@ -215,7 +222,7 @@ describe('Rooms admin writes (e2e)', () => {
       // Assert
       expect(response.body).toMatchObject({ errorCode: 'VALIDATION_ERROR' });
       expect(fhir.read).not.toHaveBeenCalled();
-      expect(fhir.update).not.toHaveBeenCalled();
+      expect(fhir.batch).not.toHaveBeenCalled();
     });
 
     it('should answer 404 NOT_FOUND and write nothing when the room does not exist', async () => {
@@ -231,12 +238,12 @@ describe('Rooms admin writes (e2e)', () => {
 
       // Assert
       expect(response.body).toMatchObject({ status: 404, errorCode: 'NOT_FOUND' });
-      expect(fhir.update).not.toHaveBeenCalled();
+      expect(fhir.batch).not.toHaveBeenCalled();
     });
 
     it('should answer 409 CONFLICT when HAPI rejects the update as a stale version', async () => {
       // Arrange
-      fhir.update.mockRejectedValue(new FhirClientError('PUT', 'http://hapi:8080/fhir/Location/room-204', 412, '{}'));
+      fhir.batch.mockRejectedValue(new FhirClientError('POST', 'http://hapi:8080/fhir', 412, '{}'));
 
       // Act
       const response = await request(app.getHttpServer())
@@ -251,7 +258,7 @@ describe('Rooms admin writes (e2e)', () => {
 
     it('should answer 500 INTERNAL without the OperationOutcome when HAPI rejects a resource this service built', async () => {
       // Arrange
-      fhir.update.mockRejectedValue(new FhirClientError('PUT', 'http://hapi:8080/fhir/Location/room-204', 422, 'HAPI-1234 details'));
+      fhir.batch.mockRejectedValue(new FhirClientError('POST', 'http://hapi:8080/fhir', 422, 'HAPI-1234 details'));
 
       // Act
       const response = await request(app.getHttpServer())

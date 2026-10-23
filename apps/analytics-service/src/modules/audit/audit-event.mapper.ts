@@ -1,4 +1,4 @@
-import type { FhirResource } from '@medcenter/fhir';
+import { FHIR_RESOURCE_ID_SYSTEM, type FhirResource } from '@medcenter/fhir';
 
 import type { AuditAction } from '../../database/entities/audit-event-read.entity';
 import type { AuditEventRow } from './audit.repository';
@@ -104,12 +104,31 @@ interface JournalResource {
   readonly resourceId: string | null;
 }
 
-/** The first relative FHIR reference wins; an `auth.user` account is the fallback (no FHIR resource touched). */
+/**
+ * A logical reference (`type` + an identifier of `FHIR_RESOURCE_ID_SYSTEM` holding the FHIR id): how the catalog,
+ * rooms and schedules name a resource an admin can delete — a literal `Type/id` would keep HAPI from deleting it.
+ */
+function logicalReferenceOf(what: Json | undefined): JournalResource | undefined {
+  const identifier = asObject(what?.['identifier']);
+  const type = asString(what?.['type']);
+  const id = asString(identifier?.['value']);
+  if (asString(identifier?.['system']) !== FHIR_RESOURCE_ID_SYSTEM || type === undefined || id === undefined) {
+    return undefined;
+  }
+  return RELATIVE_REFERENCE.test(`${type}/${id}`) ? { resourceType: type, resourceId: id } : undefined;
+}
+
+/** The first FHIR reference (relative or logical) wins; an `auth.user` account is the fallback (no FHIR resource touched). */
 function resourceOf(entities: ReadonlyArray<Json>): JournalResource {
   for (const entity of entities) {
-    const match = RELATIVE_REFERENCE.exec(asString(asObject(entity['what'])?.['reference']) ?? '');
+    const what = asObject(entity['what']);
+    const match = RELATIVE_REFERENCE.exec(asString(what?.['reference']) ?? '');
     if (match?.[1] !== undefined && match[2] !== undefined) {
       return { resourceType: match[1], resourceId: match[2] };
+    }
+    const logical = logicalReferenceOf(what);
+    if (logical !== undefined) {
+      return logical;
     }
   }
   const accountId = authUserIdOf(entities);

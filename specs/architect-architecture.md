@@ -161,7 +161,8 @@ SMART-scopes и RBAC общим guard-слоем (`libs/common`); Traefik мар
 - **Авторизация:** SMART-scopes + RBAC-guards (`PATIENT`/`DOCTOR`/`ADMIN`).
 - **Patient-компартмент:** пациент видит только свои ресурсы; проверка владения на уровне сервиса
   (defence-in-depth, ADR-013) — пациент-скоуп не отменяет проверку ссылки `patient`.
-- **Аудит (FR-021):** `AuditEvent` на create/update/delete в `encounter`, `appointment`, `auth`.
+- **Аудит (FR-021):** `AuditEvent` на create/update/delete в `encounter`, `appointment`, `auth`, а также в административных
+  записях `catalog` (услуги, расписания) и `practitioner` (кабинеты) — в той же `transaction` Bundle, что и изменение.
 - **OWASP Top-10:** валидация входа (`class-validator`), параметризованные запросы, секреты только в
   env (`.env` не коммитим), rate-limit по эндпоинтам (Redis-счётчики в общем guard-слое), корректные
   CORS и заголовки безопасности на Traefik, отсутствие утечки внутренних деталей в ответах.

@@ -182,7 +182,8 @@ export function reportSteps(suite: Suite): SmokeStep[] {
   return [analyticsStep(suite), ...auditSteps(suite)];
 }
 
-async function auditOf(suite: Suite, entity: string, action: string): Promise<readonly JsonObject[]> {
+/** The journal rows of `entity` with `action`, once at least one is synced (the journal follows HAPI on an interval). */
+export async function auditOf(suite: Suite, entity: string, action: string): Promise<readonly JsonObject[]> {
   const { api, sessions, config } = suite;
   return pollUntil(config, `the ${action} audit event of ${entity}`, async () => {
     const response = await api.get('/api/v1/admin/audit', { session: sessions.admin, query: { entity, pageSize: 100 } });

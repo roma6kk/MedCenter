@@ -1,3 +1,5 @@
+import { auditSteps } from './checks-admin-catalog-audit';
+import type { Ids } from './checks-admin-catalog-ids';
 import { isoDay } from './checks-catalog-read';
 import { asArray, bodyObject, expectEqual, expectPage, expectProblem, expectShape, expectStatus, expectTrue } from './smoke-assert';
 import { GENERATE_SHAPE, ROOM_SHAPE, ROOM_USAGE_SHAPE, SCHEDULE_SHAPE, SERVICE_SHAPE, SLOT_SHAPE } from './smoke-shapes';
@@ -9,16 +11,6 @@ const NSI_SERVICES = 'https://fhir.by/CodeSystem/nsi-services';
 const SATURDAY = [{ dayOfWeek: 'SA', startTime: '09:00', endTime: '12:00' }];
 const HORIZON = { horizonFrom: isoDay(60), horizonTo: isoDay(74) };
 const API_PREFIX = '/api/v1/admin';
-
-/** Ids that the steps of one lifecycle hand to each other. */
-interface Ids {
-  room: string;
-  /** A second room, made only to prove that a rename to a taken identifier is refused. */
-  otherRoom: string;
-  service: string;
-  schedule: string;
-  futureSchedule: string;
-}
 
 /** API §4.4/4.5: `Location.identifier` of a room is unique -> 409 CONFLICT on create and on rename. */
 function duplicateRoomStep(suite: Suite, ids: Ids, tag: string): SmokeStep {
@@ -209,6 +201,7 @@ function deleteScheduleSteps(suite: Suite, ids: Ids): SmokeStep[] {
       run: async () => {
         const scheduleId = ids.schedule;
         expectStatus(await api.delete(`${API_PREFIX}/schedules/${scheduleId}`, { session, body: { cascade: true } }), 204);
+        ids.removed.schedule = scheduleId;
         ids.schedule = '';
         const slots = await api.get(`${API_PREFIX}/schedules/${scheduleId}/slots`, { session, query: { from: HORIZON.horizonFrom, to: HORIZON.horizonTo } });
         expectEqual(asArray(slots.body, 'slots').length, 0, 'slots left after the cascade delete');
@@ -234,6 +227,8 @@ function deleteCatalogStep(suite: Suite, ids: Ids): SmokeStep {
       expectStatus(await api.delete(`${API_PREFIX}/services/${service}`, { session }), 204);
       ids.service = '';
       expectStatus(await api.delete(`${API_PREFIX}/rooms/${ids.room}`, { session }), 204);
+      ids.removed.room = ids.room;
+      ids.removed.service = service;
       ids.room = '';
       expectProblem(await api.get(`/api/v1/services/${service}`), 404, 'NOT_FOUND');
     },
@@ -259,7 +254,7 @@ async function removeLeftovers(suite: Suite, ids: Ids): Promise<void> {
 
 /** The admin's catalog lifecycle in one chain: every step needs what the previous one made. */
 export async function adminCatalogChecks(suite: Suite): Promise<void> {
-  const ids: Ids = { room: '', otherRoom: '', service: '', schedule: '', futureSchedule: '' };
+  const ids: Ids = { room: '', otherRoom: '', service: '', schedule: '', futureSchedule: '', removed: { room: '', service: '', schedule: '' } };
   await suite.runner.chain(GROUP, [
     ...roomSteps(suite, ids, runTag()),
     serviceStep(suite, ids, runTag()),
@@ -269,6 +264,7 @@ export async function adminCatalogChecks(suite: Suite): Promise<void> {
     ...inUseSteps(suite, ids),
     ...deleteScheduleSteps(suite, ids),
     deleteCatalogStep(suite, ids),
+    ...auditSteps(suite, ids),
   ]);
   await removeLeftovers(suite, ids);
 }

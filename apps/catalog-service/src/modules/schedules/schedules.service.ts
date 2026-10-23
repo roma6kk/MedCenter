@@ -1,6 +1,6 @@
 import { BadRequestException, Inject, Injectable } from '@nestjs/common';
 import { buildPaginatedResponse, type PaginatedResponseDto } from '@medcenter/contracts';
-import { FHIR_CLIENT, type FhirClient, type FhirResource } from '@medcenter/fhir';
+import { createAudited, FHIR_CLIENT, updateAudited, type AuditContext, type FhirClient, type FhirResource, type WriteActor } from '@medcenter/fhir';
 import { toSlotResponseDto, type SlotResponseDto } from '@medcenter/fhir-mappers';
 
 import { CACHE_KEYS, CACHE_TTLS, RedisCacheService } from '../cache/redis-cache.service';
@@ -18,6 +18,9 @@ import { assertNoScheduleOverlap } from './schedule-overlap';
 import { removeScheduleWithSlots } from './schedule-removal';
 
 type Extension = Record<string, unknown>;
+
+/** `AuditEvent.source` of the writes of this service. */
+const AUDIT_SOURCE = 'catalog-service';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -37,7 +40,12 @@ export class SchedulesService {
     private readonly cache: RedisCacheService,
   ) {}
 
-  async create(dto: CreateScheduleDto): Promise<ScheduleSummaryDto> {
+  /** Admin writes carry their `AuditEvent` in the same transaction (FR-021, ADR-014). */
+  private auditOf(actor: WriteActor): AuditContext {
+    return { actor, source: AUDIT_SOURCE };
+  }
+
+  async create(dto: CreateScheduleDto, actor: WriteActor): Promise<ScheduleSummaryDto> {
     await assertNoScheduleOverlap(this.fhirClient, {
       practitionerRoleId: dto.practitionerRoleId,
       windows: dto.windows,
@@ -62,10 +70,10 @@ export class SchedulesService {
       ],
       ...(dto.comment === undefined ? {} : { comment: dto.comment }),
     };
-    return toScheduleSummaryDto(await this.fhirClient.create('Schedule', schedule));
+    return toScheduleSummaryDto(await createAudited(this.fhirClient, schedule, this.auditOf(actor)));
   }
 
-  async update(id: string, dto: UpdateScheduleDto): Promise<ScheduleSummaryDto> {
+  async update(id: string, dto: UpdateScheduleDto, actor: WriteActor): Promise<ScheduleSummaryDto> {
     const existing = await this.fhirClient.read('Schedule', id);
     // Partial PATCH semantics: a supplied horizon bound replaces its half of
     // the stored valuePeriod, the other half survives. The 90-day guard runs
@@ -99,7 +107,7 @@ export class SchedulesService {
       delete merged['extension'];
     }
     delete merged['slotDurationMin'];
-    return toScheduleSummaryDto(await this.fhirClient.update('Schedule', id, merged as FhirResource));
+    return toScheduleSummaryDto(await updateAudited(this.fhirClient, { ...merged, id } as FhirResource, this.auditOf(actor)));
   }
 
   /**
@@ -179,8 +187,8 @@ export class SchedulesService {
   }
 
   /** API §5.2.4: busy slots protect the schedule, free ones go with `cascade` (see `removeScheduleWithSlots`). */
-  async remove(id: string, cascade: boolean): Promise<void> {
-    await removeScheduleWithSlots(this.fhirClient, id, cascade);
+  async remove(id: string, cascade: boolean, actor: WriteActor): Promise<void> {
+    await removeScheduleWithSlots(this.fhirClient, id, cascade, this.auditOf(actor));
     await this.cache.invalidate([CACHE_KEYS.SCHEDULE_SLOTS(id), CACHE_KEYS.ALL_DOCTOR_SLOTS]);
   }
 

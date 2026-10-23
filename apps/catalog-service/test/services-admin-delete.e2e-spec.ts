@@ -2,6 +2,7 @@ import { FhirClientError } from '@medcenter/fhir';
 import request from 'supertest';
 
 import { CACHE_KEYS } from '../src/modules/cache/redis-cache.service';
+import { auditedResource, committedAudit, committedEntries, transactionResponder } from '../src/common/__tests__/audited-transactions';
 import { bootCatalog, TOKENS, type CatalogHarness } from './catalog-harness';
 
 jest.mock('jose', () => jest.requireActual<typeof import('./e2e-tokens')>('./e2e-tokens').decodeOnlyJose());
@@ -33,6 +34,8 @@ describe('Services admin delete and access (e2e)', () => {
 
   beforeEach(async () => {
     harness = await bootCatalog();
+    harness.fhir.read.mockResolvedValue({ resourceType: 'HealthcareService', id: 'svc-1' });
+    harness.fhir.batch.mockImplementation(transactionResponder());
     harness.store.entries.set(SERVICE_PAGE_KEY, '{"items":[]}');
   });
 
@@ -51,7 +54,8 @@ describe('Services admin delete and access (e2e)', () => {
 
       // Assert
       expect(harness.fhir.search).toHaveBeenCalledWith('Schedule', { actor: 'HealthcareService/svc-1', _count: 1 });
-      expect(harness.fhir.delete).toHaveBeenCalledWith('HealthcareService', 'svc-1');
+      expect(committedEntries(harness.fhir).map((entry) => `${entry.request.method} ${entry.request.url}`)).toEqual(['DELETE HealthcareService/svc-1', 'POST AuditEvent']);
+      expect(committedAudit(harness.fhir)).toMatchObject({ action: 'D', entity: [auditedResource('HealthcareService', 'svc-1'), expect.anything()] });
       expect(harness.store.entries.has(SERVICE_PAGE_KEY)).toBe(false);
     });
 
@@ -71,13 +75,13 @@ describe('Services admin delete and access (e2e)', () => {
         instance: SERVICE_URL,
       });
       expect(response.body.detail).toContain('SERVICE_IN_USE');
-      expect(harness.fhir.delete).not.toHaveBeenCalled();
+      expect(harness.fhir.batch).not.toHaveBeenCalled();
       expect(harness.store.entries.has(SERVICE_PAGE_KEY)).toBe(true);
     });
 
     it('should answer 404 NOT_FOUND and keep the cache when HAPI has no such service to delete', async () => {
       // Arrange
-      harness.fhir.delete.mockRejectedValue(new FhirClientError('DELETE', 'http://hapi:8080/fhir/HealthcareService/svc-1', 404, '{}'));
+      harness.fhir.read.mockRejectedValue(new FhirClientError('GET', 'http://hapi:8080/fhir/HealthcareService/svc-1', 404, '{}'));
 
       // Act
       const response = await remove().expect(404);
@@ -89,7 +93,7 @@ describe('Services admin delete and access (e2e)', () => {
 
     it('should answer 409 CONFLICT when HAPI itself refuses the delete on referential integrity', async () => {
       // Arrange — a schedule created between the check and the delete: HAPI's own 409.
-      harness.fhir.delete.mockRejectedValue(new FhirClientError('DELETE', 'http://hapi:8080/fhir/HealthcareService/svc-1', 409, '{}'));
+      harness.fhir.batch.mockRejectedValue(new FhirClientError('POST', 'http://hapi:8080/fhir', 409, '{}'));
 
       // Act
       const response = await remove().expect(409);
@@ -105,7 +109,7 @@ describe('Services admin delete and access (e2e)', () => {
       // Assert
       expect(response.body).toMatchObject({ errorCode: 'VALIDATION_ERROR' });
       expect(harness.fhir.search).not.toHaveBeenCalled();
-      expect(harness.fhir.delete).not.toHaveBeenCalled();
+      expect(harness.fhir.batch).not.toHaveBeenCalled();
     });
   });
 
@@ -117,7 +121,7 @@ describe('Services admin delete and access (e2e)', () => {
     }
 
     function expectFhirUntouched(): void {
-      for (const interaction of [harness.fhir.read, harness.fhir.search, harness.fhir.create, harness.fhir.update, harness.fhir.delete, harness.fhir.operation]) {
+      for (const interaction of [harness.fhir.read, harness.fhir.search, harness.fhir.create, harness.fhir.update, harness.fhir.delete, harness.fhir.batch, harness.fhir.operation]) {
         expect(interaction).not.toHaveBeenCalled();
       }
     }
