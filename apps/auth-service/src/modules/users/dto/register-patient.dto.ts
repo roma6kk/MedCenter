@@ -1,4 +1,5 @@
-import { Type } from 'class-transformer';
+import { BELARUS_PHONE_PATTERN, normaliseBelarusPhone } from '@medcenter/contracts';
+import { Transform, Type } from 'class-transformer';
 import {
   Equals,
   IsDateString,
@@ -75,6 +76,13 @@ export class RegisterPatientDto {
   @ValidateIf(isPresent)
   @IsIn(GENDERS)
   gender?: PatientGender;
+
+  /** Optional contact phone, `+375XXXXXXXXX`; spaces and dashes are accepted and dropped (API §2.2.6). */
+  @ValidateIf(isPresent)
+  @Transform(({ value }: { value: unknown }) => (typeof value === 'string' ? (normaliseBelarusPhone(value) ?? value) : value))
+  @IsString()
+  @Matches(BELARUS_PHONE_PATTERN, { message: 'phone must be a Belarus number: +375 and nine digits' })
+  phone?: string;
 
   @IsDefined()
   @ValidateNested()

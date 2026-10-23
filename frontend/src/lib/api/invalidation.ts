@@ -15,6 +15,7 @@ export type MutationKind =
   | 'complete-encounter'
   | 'read-notification'
   | 'consent-change'
+  | 'update-contact'
   | 'admin-users'
   | 'admin-services'
   | 'admin-rooms'
@@ -45,6 +46,8 @@ export const INVALIDATION: Readonly<Record<MutationKind, ReadonlyArray<QueryKey>
   'read-notification': [queryRoots.notifications],
   // A consent recorded or revoked changes the encounter gate, the booking reason field and every consent panel.
   'consent-change': [queryRoots.consent],
+  // The patient edits their phone: only the FHIR card (and its `version`) changes.
+  'update-contact': [queryKeys.patientProfile],
   // A new doctor account is a new entry of the public catalogue too.
   'admin-users': [queryRoots.adminUsers, queryRoots.doctors],
   'admin-services': [queryRoots.services],

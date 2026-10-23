@@ -3,7 +3,7 @@
  * server (`contracts.ts` holds them). Messages are `validation.*` message keys, translated where they are shown.
  */
 import { z } from 'zod';
-import { ACCOUNT_CONSENT_VERSION, EMAIL_MAX, NAME_MAX, PASSWORD_MAX, PASSWORD_MIN, PASSWORD_PATTERN, isCalendarDate } from '@/lib/contracts';
+import { ACCOUNT_CONSENT_VERSION, EMAIL_MAX, NAME_MAX, PASSWORD_MAX, PASSWORD_MIN, PASSWORD_PATTERN, isCalendarDate, normaliseBelarusPhone } from '@/lib/contracts';
 
 const REQUIRED = { message: 'validation.required' } as const;
 const TOO_LONG = { message: 'validation.tooLong' } as const;
@@ -21,6 +21,8 @@ export const registerFormSchema = z.object({
   birthDate: z.string().min(1, REQUIRED).refine(isCalendarDate, { message: 'validation.date' }),
   // A native <select> reports "not specified" as an empty string.
   gender: z.enum(['', 'male', 'female']),
+  // Optional; spaces and dashes are allowed and dropped before sending (`normaliseBelarusPhone`).
+  phone: z.string().trim().refine((value) => value === '' || normaliseBelarusPhone(value) !== null, { message: 'validation.phone' }),
   // Consent to the processing of the account data (art. 5, Law 99-Z); it is not the consent to the electronic record.
   accountConsent: z.boolean().refine((accepted) => accepted, { message: 'validation.consentRequired' }),
 });
@@ -35,14 +37,17 @@ export interface RegisterRequest {
   readonly password: string;
   readonly birthDate: string;
   readonly gender?: 'male' | 'female';
+  /** `+375XXXXXXXXX`; left out when the field is empty. */
+  readonly phone?: string;
   readonly accountConsent: { readonly accepted: true; readonly textVersion: string };
 }
 
 export function toRegisterRequest(values: RegisterFormValues): RegisterRequest {
-  const { gender, accountConsent: _accepted, ...rest } = values;
+  const { gender, phone, accountConsent: _accepted, ...rest } = values;
   const request = { ...rest, accountConsent: { accepted: true, textVersion: ACCOUNT_CONSENT_VERSION } } as const;
-  return gender === '' ? request : { ...request, gender };
+  const normalised: string | null = normaliseBelarusPhone(phone);
+  return { ...request, ...(gender === '' ? {} : { gender }), ...(normalised === null ? {} : { phone: normalised }) };
 }
 
 /** Form fields the server may report errors for; anything else goes to the banner. */
-export const REGISTER_FIELDS: ReadonlyArray<string> = ['email', 'firstName', 'lastName', 'password', 'birthDate', 'gender', 'accountConsent', 'accountConsent.accepted', 'accountConsent.textVersion'];
+export const REGISTER_FIELDS: ReadonlyArray<string> = ['email', 'firstName', 'lastName', 'password', 'birthDate', 'gender', 'phone', 'accountConsent', 'accountConsent.accepted', 'accountConsent.textVersion'];

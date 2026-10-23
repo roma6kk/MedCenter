@@ -284,6 +284,9 @@ export class RegisterPatientDto {
   @ApiPropertyOptional({ enum: ['male', 'female'] })
   gender?: 'male' | 'female';
 
+  @ApiPropertyOptional({ example: '+375291234567', description: 'формат и нормализация — 3.12; необязателен, попадает в Patient.telecom' })
+  phone?: string;
+
   @ApiProperty({ type: () => AccountConsentDto })
   @IsDefined() @ValidateNested() @Type(() => AccountConsentDto)
   accountConsent: AccountConsentDto;   // галочка формы регистрации: согласие на обработку данных учётной записи
@@ -336,6 +339,7 @@ patientRef: string | null; isActive: boolean }` · **409** email занят: `er
 | 3.9 | `POST /api/v1/patients/{id}/consent/revoke` | зафиксировать письменный отзыв (номер заявления) | `user/*.write` (DOCTOR со связью / ADMIN) |
 | 3.10 | `POST /api/v1/patients/{id}/consent/scan` | загрузить скан формы (`multipart/form-data`, поле `file`) → `Binary` | `user/*.write` (DOCTOR со связью / ADMIN) |
 | 3.11 | `GET /api/v1/patients/{id}/consent/scan/{scanId}` | скачать скан; каждое чтение журналируется | `user/*.read` (DOCTOR со связью / ADMIN) |
+| 3.12 | `PATCH /api/v1/me/patient` | пациент меняет свой телефон | `patient/*.write` (только `PATIENT`) |
 
 Маппинг: `Patient` R4 ↔ `PatientResponseDto` (`FhirToXMapper`); компартмент: врач видит только
 пациентов с активным `Encounter`/`Appointment` вместе (defence-in-depth, ADR-013).
@@ -390,6 +394,14 @@ export class PatientConsentDto {         // 3.4, 3.7
   PATIENT — только 3.4 и 3.6 и только своя запись.
 - Блокировка: 7.1 и 7.3 без действующего согласия → **409** `CONSENT_REQUIRED`; 6.1 разрешена с предупреждением, но свободный текст
   причины без согласия отклоняется; экстренный обход — `emergencyReason` (см. 7.1). Режим — `CONSENT_ENFORCEMENT=warn|block` (по умолчанию `block`).
+
+##### 3.12 Телефон пациента
+
+Тело `{ phone }`: `+375` и девять цифр; пробелы, дефисы и скобки на входе допускаются и отбрасываются, нарушение → **400** `VALIDATION_ERROR`
+(тот же формат у необязательного `phone` в 2.2.6). Меняется только живой `telecom` с `system=phone` (по умолчанию `use=mobile`); e-mail, прочие
+контакты и номера `use=old` остаются. Заголовок `If-Match` (версия из `version` в 3.1, ADR-012) обязателен, иначе **400**; устаревшая версия → **409** `CONFLICT`.
+→ 200 карточка как в 3.1 с новым `version`. `Patient` и `AuditEvent` (`update`, `entity=Patient/{id}`, без номера в теле) пишутся одной `transaction` Bundle.
+Пациент берётся только из токена (ADR-013); `DOCTOR` и `ADMIN` → 403 `FORBIDDEN_ROLE`.
 
 #### 4. `practitioner-service` — Врачи, кабинеты, организация (FR-002, FR-017)
 

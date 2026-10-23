@@ -90,6 +90,8 @@ export interface ContactPoint {
 /** `GET /me/patient` (3.1): the FHIR `Patient` of the caller. */
 export interface PatientProfile {
   readonly id: string;
+  /** `meta.versionId` of the card: sent back as `If-Match` when the phone is changed (3.12). */
+  readonly version?: string;
   readonly active: boolean;
   readonly fullName: string;
   readonly lastName: string;

@@ -206,6 +206,9 @@ describe('RegisterPatientDto (POST /api/v1/auth/register)', () => {
     ['the birth date carries a time', { birthDate: '1990-05-12T00:00:00Z' }, 'birthDate'],
     ['the gender is JSON null', { gender: null }, 'gender'],
     ['the gender is outside the supported set', { gender: 'other' }, 'gender'],
+    ['the phone is JSON null', { phone: null }, 'phone'],
+    ['the phone is not a Belarus number', { phone: '+7 912 345 67 89' }, 'phone'],
+    ['the phone is not a string', { phone: 375291234567 }, 'phone'],
     ['the account consent is missing', { accountConsent: undefined }, 'accountConsent'],
     ['the account consent is JSON null', { accountConsent: null }, 'accountConsent'],
     ['the account consent was not accepted', { accountConsent: { accepted: false, textVersion: '2026-10' } }, 'accepted'],
@@ -217,6 +220,12 @@ describe('RegisterPatientDto (POST /api/v1/auth/register)', () => {
 
   it('should accept the body the registration form sends when gender is omitted', async () => {
     expect(await violationsOf(RegisterPatientDto, REGISTER)).toEqual([]);
+  });
+
+  it('should accept the optional phone and normalise it to +375XXXXXXXXX', async () => {
+    const dto = await pipeline(RegisterPatientDto, bodyOf(REGISTER, { phone: '+375 (29) 123-45-67' }));
+
+    expect(dto).toMatchObject({ phone: '+375291234567' });
   });
 
   it('should accept the optional gender when it is male or female', async () => {

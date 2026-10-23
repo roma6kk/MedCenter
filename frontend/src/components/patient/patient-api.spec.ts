@@ -1,4 +1,4 @@
-import { fetchAccount, fetchMyHistory, fetchMyPrescriptions, fetchPatientProfile } from './patient-api';
+import { fetchAccount, fetchMyHistory, fetchMyPrescriptions, fetchPatientProfile, updateMyPhone } from './patient-api';
 
 jest.mock('@/lib/api/api-fetch', () => ({ apiFetch: jest.fn() }));
 
@@ -30,6 +30,16 @@ describe('patient-api', () => {
 
     expect(apiFetchMock).toHaveBeenNthCalledWith(1, '/api/v1/me');
     expect(apiFetchMock).toHaveBeenNthCalledWith(2, '/api/v1/me/patient');
+  });
+
+  it('should PATCH /me/patient with the phone and the version of the card as If-Match', async () => {
+    await updateMyPhone({ phone: '+375291234567', version: '3' });
+
+    const [path, options] = apiFetchMock.mock.calls[0] ?? [];
+    expect(path).toBe('/api/v1/me/patient');
+    expect(options?.method).toBe('PATCH');
+    expect(new Headers(options?.headers).get('If-Match')).toBe('W/"3"');
+    expect(JSON.parse(String(options?.body))).toEqual({ phone: '+375291234567' });
   });
 
   it('should never send a patient id when the compartment comes from the token', async () => {

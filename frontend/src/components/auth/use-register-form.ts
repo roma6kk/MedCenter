@@ -64,7 +64,7 @@ function useRegisterProblems(form: RegisterForm): RegisterProblems {
 export function useRegisterForm(): RegisterFormState {
   const form: RegisterForm = useForm<RegisterFormValues>({
     resolver: zodResolver(registerFormSchema),
-    defaultValues: { email: '', firstName: '', lastName: '', password: '', birthDate: '', gender: '', accountConsent: false },
+    defaultValues: { email: '', firstName: '', lastName: '', password: '', birthDate: '', gender: '', phone: '', accountConsent: false },
   });
   const problems: RegisterProblems = useRegisterProblems(form);
   const cooldown: number = useRetryCooldown(problems.problem);

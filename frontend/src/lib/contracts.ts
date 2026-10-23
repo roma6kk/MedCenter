@@ -40,6 +40,15 @@ export function isCalendarDate(value: string): boolean {
   return !Number.isNaN(parsed.getTime()) && parsed.toISOString().startsWith(value);
 }
 
+/** Belarus phone as the server stores it (`libs/contracts` phone.ts): `+375` and nine digits. */
+export const BELARUS_PHONE_PATTERN = /^\+375\d{9}$/;
+
+/** The number as `+375XXXXXXXXX` (spaces, dashes and parentheses dropped), or `null` when it is not a Belarus number. */
+export function normaliseBelarusPhone(input: string): string | null {
+  const compact: string = input.replace(/[\s\-()]/g, '');
+  return BELARUS_PHONE_PATTERN.test(compact) ? compact : null;
+}
+
 export const registerPatientSchema = z.object({
   email: z.string().email().max(EMAIL_MAX),
   firstName: z.string().min(1).max(NAME_MAX),
@@ -47,6 +56,7 @@ export const registerPatientSchema = z.object({
   password: z.string().min(PASSWORD_MIN).max(PASSWORD_MAX).regex(PASSWORD_PATTERN),
   birthDate: z.string().refine(isCalendarDate),
   gender: z.enum(['male', 'female']).optional(),
+  phone: z.string().regex(BELARUS_PHONE_PATTERN).optional(),
   /** Consent to the processing of the account data (art. 5, Law 99-Z); not the consent to the electronic record. */
   accountConsent: z.object({ accepted: z.literal(true), textVersion: z.string().min(1).max(ACCOUNT_CONSENT_VERSION_MAX) }),
 });

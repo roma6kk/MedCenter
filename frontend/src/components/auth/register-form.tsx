@@ -61,6 +61,9 @@ function PersonalFields({ state }: { readonly state: RegisterFormState }): React
           </select>
         )}
       </AuthField>
+      <AuthField id="phone" label={t('phone')} hint={t('phoneHint')} error={errors.phone?.message}>
+        {(control) => <input {...control} type="tel" autoComplete="tel" inputMode="tel" {...register('phone')} className={AUTH_INPUT_CLASS} />}
+      </AuthField>
       <AuthField id="password" label={t('password')} hint={t('passwordHint')} error={errors.password?.message}>
         {(control) => <input {...control} type="password" autoComplete="new-password" aria-required="true" {...register('password')} className={AUTH_INPUT_CLASS} />}
       </AuthField>

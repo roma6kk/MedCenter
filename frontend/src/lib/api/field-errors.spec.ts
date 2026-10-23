@@ -56,6 +56,7 @@ describe('localizeFieldMessage in English', () => {
     ['birthDate must be a valid ISO 8601 date string', 'Enter a valid date'],
     ['gender must be one of the following values: male, female', 'Choose one of the allowed values'],
     ['code must match /^[A-Z]/ regular expression', 'The value has an invalid format'],
+    ['phone must be a Belarus number: +375 and nine digits', 'Phone must be +375 and nine digits'],
   ])('should show "%s" in English when the interface is English', (message, expected) => {
     expect(localizeFieldMessage(message)).toBe(expected);
   });

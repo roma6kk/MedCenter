@@ -27,6 +27,33 @@ describe('RegistrationService', () => {
     expect(user).toMatchObject({ email: 'ivanov@example.by', roles: ['PATIENT'], isActive: true });
   });
 
+  it('should store the phone on the Patient when the registration carries one', async () => {
+    const { registration, fhir } = createUsersHarness();
+
+    await registration.registerPatient(registrationDto({ phone: '+375291234567' }));
+
+    expect(fhir.create).toHaveBeenCalledWith(
+      'Patient',
+      expect.objectContaining({
+        telecom: [
+          { system: 'email', value: 'ivanov@example.by', use: 'home' },
+          { system: 'phone', value: '+375291234567', use: 'mobile' },
+        ],
+      }),
+    );
+  });
+
+  it('should store no phone on the Patient when the registration has none', async () => {
+    const { registration, fhir } = createUsersHarness();
+
+    await registration.registerPatient(registrationDto());
+
+    expect(fhir.create).toHaveBeenCalledWith(
+      'Patient',
+      expect.objectContaining({ telecom: [{ system: 'email', value: 'ivanov@example.by', use: 'home' }] }),
+    );
+  });
+
   it('should record when and under which text version the account consent was given', async () => {
     const { registration, store } = createUsersHarness();
     const before = Date.now();

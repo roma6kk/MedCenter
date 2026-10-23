@@ -970,6 +970,7 @@
     "choice": "Choose one of the allowed values",
     "boolean": "Choose yes or no",
     "format": "The value has an invalid format",
+    "phone": "Phone must be +375 and nine digits",
     "consentRequired": "Confirm your consent to create an account",
     "scanRequired": "Attach the scan of the signed form",
     "scanType": "The scan must be a PDF, JPEG or PNG file",
@@ -1227,7 +1228,16 @@
       "account": "Account",
       "patient": "Patient card",
       "phoneMissing": "Not specified",
-      "registryNote": "To change your data or add a phone number, contact the clinic front desk."
+      "registryNote": "You can change your phone number yourself. The front desk changes the rest of the data.",
+      "phoneLabel": "Phone",
+      "phoneEdit": "Change phone",
+      "phoneAdd": "Add phone",
+      "phoneSave": "Save",
+      "phoneCancel": "Cancel",
+      "phoneSaving": "Saving…",
+      "phoneSaved": "Phone saved",
+      "phoneHint": "Format: +375 29 123-45-67.",
+      "phoneConflict": "The card changed after you opened it. We reloaded it: check the number and save again."
     },
     "documents": {
       "title": "Documents",
@@ -1257,6 +1267,8 @@
       "genderUnset": "Not specified",
       "genderMale": "Male",
       "genderFemale": "Female",
+      "phone": "Phone",
+      "phoneHint": "Optional. Format: +375 29 123-45-67.",
       "password": "Password",
       "passwordHint": "At least 10 characters: lower- and upper-case Latin letters, a digit and a special character.",
       "submit": "Register",
@@ -1268,7 +1280,7 @@
       "successTitle": "Registration complete",
       "successLead": "Your account is ready. You can sign in now.",
       "successCta": "Sign in",
-      "requiredNote": "All fields except gender are required.",
+      "requiredNote": "All fields except gender and phone are required.",
       "retryIn": "Try again in {seconds} s",
       "consentLabel": "I consent to the processing of my personal data to keep my account on the Lifeline clinic portal (art. 5 of Law 99-Z on personal data protection).",
       "consentRecordNote": "Consent to keep an electronic medical record is signed on paper at the clinic."
@@ -1470,7 +1482,7 @@
       "contactEmail": "Email",
       "contactPhone": "Phone",
       "registered": "Registered",
-      "readOnly": "This data is read-only. Contact the front desk to change it.",
+      "readOnly": "You can change your phone number yourself; the front desk changes the rest.",
       "noPatient": "The patient card has not been created yet."
     }
   },

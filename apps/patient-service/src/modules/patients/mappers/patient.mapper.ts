@@ -16,8 +16,10 @@ export function toPatientResponseDto(patient: FhirResource): PatientResponseDto 
   const birthDate = readDate(patient['birthDate']);
   const gender = readGender(patient['gender']);
   const photoUrl = readPhotoUrl(patient['photo']);
+  const version = (patient['meta'] as { versionId?: unknown } | undefined)?.versionId;
   return {
     id: patient.id ?? '',
+    ...(typeof version === 'string' && version !== '' ? { version } : {}),
     active: readActive(patient['active']),
     ...readPersonName(patient['name']),
     ...(birthDate === undefined ? {} : { birthDate }),

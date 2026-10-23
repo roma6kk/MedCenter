@@ -22,6 +22,7 @@ const VALIDATION_MESSAGES: ReadonlyArray<readonly [RegExp, string]> = [
   [/must be a uuid|must be a UUID/, 'validation.identifier'],
   [/must be one of the following values/, 'validation.choice'],
   [/must be a boolean/, 'validation.boolean'],
+  [/must be a Belarus number/, 'validation.phone'],
   [/must match .* regular expression/, 'validation.format'],
 ];
 

@@ -14,6 +14,8 @@ export interface PatientDemographics {
   readonly lastName: string;
   readonly birthDate: string;
   readonly gender?: PatientGender;
+  /** Optional, `+375XXXXXXXXX` (API §2.2.6); stored as the `mobile` phone `telecom` entry. */
+  readonly phone?: string;
 }
 
 /** Fields an admin PATCH may change on an already linked Patient. */
@@ -33,7 +35,10 @@ export function buildPatient(demographics: PatientDemographics): FhirResource {
     active: true,
     identifier: [{ system: AUTH_USER_IDENTIFIER_SYSTEM, value: demographics.userId }],
     name: [{ use: 'official', family: demographics.lastName, given: [demographics.firstName] }],
-    telecom: [{ system: 'email', value: demographics.email, use: 'home' }],
+    telecom: [
+      { system: 'email', value: demographics.email, use: 'home' },
+      ...(demographics.phone !== undefined ? [{ system: 'phone', value: demographics.phone, use: 'mobile' }] : []),
+    ],
     birthDate: demographics.birthDate,
     ...(demographics.gender !== undefined ? { gender: demographics.gender } : {}),
   };

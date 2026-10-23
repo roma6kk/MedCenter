@@ -33,6 +33,7 @@ export function accountFixture(overrides: Partial<AccountProfile> = {}): Account
 export function patientProfileFixture(overrides: Partial<PatientProfile> = {}): PatientProfile {
   return {
     id: '1442',
+    version: '3',
     active: true,
     fullName: 'Лебедева Анна',
     lastName: 'Лебедева',

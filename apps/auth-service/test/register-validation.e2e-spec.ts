@@ -54,6 +54,8 @@ describe('POST /api/v1/auth/register — validation and response contract', () =
     ['the birth date is not a calendar day', { birthDate: '1990-02-31' }],
     ['the gender is JSON null', { gender: null }],
     ['the gender is outside the supported set', { gender: 'robot' }],
+    ['the phone is JSON null', { phone: null }],
+    ['the phone is not a Belarus number', { phone: '+7 912 345 67 89' }],
   ])(
     'should answer 400 VALIDATION_ERROR and write nothing anywhere when %s',
     async (_label, overrides) => {
