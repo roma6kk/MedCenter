@@ -65,6 +65,12 @@ function cancelSteps(suite: Suite, race: Race): SmokeStep[] {
       name: 'cancelling again -> 409 APPOINTMENT_NOT_CANCELLABLE',
       run: async () => expectProblem(await cancel(suite, race.winnerSession, race.winner), 409, 'APPOINTMENT_NOT_CANCELLABLE'),
     },
+    cancelledListStep(suite, race),
+  ];
+}
+
+function cancelledListStep(suite: Suite, race: Race): SmokeStep {
+  return (
     {
       name: 'GET /appointments?status=cancelled lists the cancelled appointment; status=booked&upcoming=true does not',
       run: async () => {
@@ -78,8 +84,8 @@ function cancelSteps(suite: Suite, race: Race): SmokeStep[] {
         const unfiltered = await list({ upcoming: true });
         expectTrue(unfiltered.some((item) => item['id'] === race.winner), 'upcoming=true alone no longer includes the cancelled appointment (semantics changed)');
       },
-    },
-  ];
+    }
+  );
 }
 
 function rebookSteps(suite: Suite, race: Race): SmokeStep[] {

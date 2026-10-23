@@ -25,7 +25,7 @@ export async function loadFreeSlots(suite: Suite): Promise<readonly JsonObject[]
   return free;
 }
 
-async function doctorChecks(suite: Suite): Promise<void> {
+async function doctorListChecks(suite: Suite): Promise<void> {
   const { runner, api, accounts } = suite;
   await runner.check(GROUP, 'GET /doctors (public) -> envelope with the demo doctors', async () => {
     const items = expectPage(await api.get('/api/v1/doctors'), DOCTOR_SHAPE);
@@ -42,6 +42,10 @@ async function doctorChecks(suite: Suite): Promise<void> {
     expectEqual(expectShape(response.body, DOCTOR_SHAPE, 'doctor')['id'], accounts.doctorId, 'id');
     expectProblem(await api.get('/api/v1/doctors/00000000-0000-4000-8000-000000000000'), 404, 'NOT_FOUND');
   });
+}
+
+async function doctorSpecialtyChecks(suite: Suite): Promise<void> {
+  const { runner, api, accounts } = suite;
   await runner.check(GROUP, 'GET /doctors -> specialtyCode/specialtySystem and the practitionerRoleIds of the doctor, and ?specialty= takes that same token', async () => {
     const doctor = expectDefined(expectPage(await api.get('/api/v1/doctors', { query: { pageSize: 100 } }), DOCTOR_SHAPE).find((item) => item['id'] === accounts.doctorId), 'the suite doctor in the catalog');
     const roleIds = asArray(doctor['practitionerRoleIds'], 'practitionerRoleIds');
@@ -58,6 +62,10 @@ async function doctorChecks(suite: Suite): Promise<void> {
     expectTrue(asArray(card['practitionerRoleIds'], 'practitionerRoleIds').includes(accounts.doctorRoleId), 'the card lacks the doctor role id');
     expectTrue(typeof card['specialtyCode'] === 'string', 'the card has no specialtyCode');
   });
+}
+
+async function doctorSlotChecks(suite: Suite): Promise<void> {
+  const { runner, api, accounts } = suite;
   await runner.check(GROUP, 'GET /doctors/{id}/slots (public) -> free slots, sorted by start', async () => {
     const response = await api.get(`/api/v1/doctors/${accounts.doctorId}/slots`, { query: { from: isoDay(0), to: isoDay(14) } });
     expectStatus(response, 200);
@@ -66,6 +74,12 @@ async function doctorChecks(suite: Suite): Promise<void> {
     expectTrue(starts.length > 0, 'the demo doctor has no free slot');
     expectEqual(JSON.stringify(starts), JSON.stringify([...starts].sort()), 'slots sorted by start');
   });
+}
+
+async function doctorChecks(suite: Suite): Promise<void> {
+  await doctorListChecks(suite);
+  await doctorSpecialtyChecks(suite);
+  await doctorSlotChecks(suite);
 }
 
 async function serviceAndRoomChecks(suite: Suite): Promise<void> {

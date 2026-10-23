@@ -129,15 +129,7 @@ function auditSteps(suite: Suite): SmokeStep[] {
         expectTrue(String(items[0]?.['requestId']).length > 0, 'the audit event of the booking carries no requestId (NFR-007)');
       },
     },
-    {
-      name: 'GET /admin/audit?entity=Encounter/{id} -> the open (create) and the completion (update) events, each with a request id',
-      run: async () => {
-        const created = await auditOf(suite, `Encounter/${chain.encounterId}`, 'create');
-        const updated = await auditOf(suite, `Encounter/${chain.encounterId}`, 'update');
-        expectEqual(created.length, 1, 'create events of the encounter (a replayed open writes none)');
-        expectTrue([...created, ...updated].every((item) => String(item['requestId']).length > 0), 'an audit event of the encounter carries no requestId');
-      },
-    },
+    encounterAuditStep(suite),
     {
       name: 'GET /admin/audit?userId=&entity= filters by the actor: the booking is attributed to the patient',
       run: async () => {
@@ -147,6 +139,28 @@ function auditSteps(suite: Suite): SmokeStep[] {
         expectTrue(items.length > 0 && items.every((item) => item['userId'] === userId), "the userId filter did not return the patient's event");
       },
     },
+    patientReadAuditStep(suite),
+  ];
+}
+
+function encounterAuditStep(suite: Suite): SmokeStep {
+  const { chain } = suite;
+  return (
+    {
+      name: 'GET /admin/audit?entity=Encounter/{id} -> the open (create) and the completion (update) events, each with a request id',
+      run: async () => {
+        const created = await auditOf(suite, `Encounter/${chain.encounterId}`, 'create');
+        const updated = await auditOf(suite, `Encounter/${chain.encounterId}`, 'update');
+        expectEqual(created.length, 1, 'create events of the encounter (a replayed open writes none)');
+        expectTrue([...created, ...updated].every((item) => String(item['requestId']).length > 0), 'an audit event of the encounter carries no requestId');
+      },
+    }
+  );
+}
+
+function patientReadAuditStep(suite: Suite): SmokeStep {
+  const { api, sessions, chain } = suite;
+  return (
     {
       name: "GET /patients/{id} by the doctor and by another doctor -> a `read` and a `denied` audit event of the patient, attributed to each (ADR-018)",
       run: async () => {
@@ -159,8 +173,8 @@ function auditSteps(suite: Suite): SmokeStep[] {
         expectTrue(denied.some((item) => item['userId'] === sessions.otherDoctor.claims.sub), 'no denied event attributed to the other doctor');
         expectTrue([...read, ...denied].every((item) => String(item['requestId']).length > 0), 'a read audit event carries no requestId (NFR-007)');
       },
-    },
-  ];
+    }
+  );
 }
 
 /** Step 20-21: the admin reports and the audit journal show the activity (the audit is synced on an interval). */
