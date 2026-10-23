@@ -52,6 +52,10 @@ export interface SmokeConfig {
   readonly pollIntervalMs: number;
   /** How long one request may take, answer body included, before the check fails instead of hanging the suite. */
   readonly requestTimeoutMs: number;
+  /** HAPI as the host publishes it: only the consent chain reads it (the bypass `AuditEvent` is not exposed by any API). */
+  readonly fhirBaseUrl: string;
+  /** What the stack's `CONSENT_ENFORCEMENT` is, when known; unset means the consent chain detects it. */
+  readonly consentEnforcement?: 'warn' | 'block';
 }
 
 export type Outcome = 'PASS' | 'FAIL' | 'SKIP';

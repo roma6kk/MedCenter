@@ -62,7 +62,8 @@ function bookStep(suite: Suite, removal: Removal): SmokeStep {
       const listed = await api.get(`${ADMIN}/schedules/${removal.schedule}/slots`, { session: sessions.admin, query });
       expectStatus(listed, 200);
       removal.slotId = String(expectShape(expectDefined(asArray(listed.body, 'slots')[0], 'a free slot'), SLOT_SHAPE, 'slot')['id']);
-      const body = { slotId: removal.slotId, reason: 'Запись для проверки удаления расписания (smoke)' };
+      // No free-text reason: this patient has no consent on purpose (ADR-019: `block` refuses a reason without one).
+      const body = { slotId: removal.slotId };
       const booked = await api.post('/api/v1/appointments', { session: sessions.thirdPatient, body, headers: { 'Idempotency-Key': newKey() } });
       expectStatus(booked, 201);
       removal.appointment = String(expectShape(booked.body, APPOINTMENT_SHAPE, 'appointment')['id']);
@@ -129,7 +130,7 @@ function afterRemovalStep(suite: Suite, removal: Removal): SmokeStep {
       expectTrue(!(await lastPage(suite, true)).some((item) => item['id'] === removal.schedule), 'the removed schedule is still listed as active');
       const range = { from: HORIZON.horizonFrom, to: HORIZON.horizonTo };
       expectProblem(await api.post(`${ADMIN}/schedules/${removal.schedule}/generate`, { session: sessions.admin, body: range, headers: { 'Idempotency-Key': newKey() } }), 409, 'CONFLICT');
-      const body = { slotId: removal.slotId, reason: 'Повторная запись на снятый слот (smoke)' };
+      const body = { slotId: removal.slotId };
       expectProblem(await api.post('/api/v1/appointments', { session: sessions.otherPatient, body, headers: { 'Idempotency-Key': newKey() } }), 409, 'SLOT_CONFLICT');
     },
   };

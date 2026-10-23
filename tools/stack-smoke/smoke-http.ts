@@ -6,6 +6,8 @@ export interface RequestOptions {
   /** A raw `Authorization` value for malformed-token probes. */
   readonly authorization?: string;
   readonly body?: unknown;
+  /** A `multipart/form-data` body (a file upload); mutually exclusive with `body`. `fetch` sets the content type and boundary. */
+  readonly multipart?: FormData;
   readonly headers?: Readonly<Record<string, string>>;
   readonly query?: Readonly<Record<string, string | number | boolean | undefined>>;
 }
@@ -37,6 +39,13 @@ function authorizationOf(options: RequestOptions): Record<string, string> {
     return { authorization: options.authorization };
   }
   return options.session === undefined ? {} : { authorization: `Bearer ${options.session.accessToken}` };
+}
+
+function bodyOf(options: RequestOptions): { body?: string | FormData } {
+  if (options.multipart !== undefined) {
+    return { body: options.multipart };
+  }
+  return options.body === undefined ? {} : { body: JSON.stringify(options.body) };
 }
 
 /** A hung answer must fail one check, not hang the suite: no request waits longer than this unless configured. */
@@ -87,7 +96,7 @@ export class ApiClient {
         ...authorizationOf(options),
         ...options.headers,
       },
-      ...(options.body === undefined ? {} : { body: JSON.stringify(options.body) }),
+      ...bodyOf(options),
     });
   }
 

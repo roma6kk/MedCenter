@@ -38,6 +38,14 @@ export const PROTECTED_ROUTES: readonly ProtectedRoute[] = [
   route('GET', '/api/v1/me/patient', PATIENT),
   route('GET', `/api/v1/patients/${ID}`, 'any'),
   route('GET', `/api/v1/patients/${ID}/related`, 'any'),
+  // patient-service, consent to the EMR (3.4-3.11): the patient only 3.4 and 3.6; a DOCTOR only for a linked patient (compartment, checked in the consent chain)
+  route('GET', '/api/v1/me/consent', PATIENT),
+  route('POST', '/api/v1/me/consent/revoke', PATIENT),
+  route('GET', `/api/v1/patients/${ID}/consent`, STAFF),
+  route('POST', `/api/v1/patients/${ID}/consent`, STAFF),
+  route('POST', `/api/v1/patients/${ID}/consent/revoke`, STAFF),
+  route('POST', `/api/v1/patients/${ID}/consent/scan`, STAFF),
+  route('GET', `/api/v1/patients/${ID}/consent/scan/${ID}`, STAFF),
   // practitioner-service
   route('GET', '/api/v1/rooms', STAFF),
   route('POST', '/api/v1/admin/rooms', ADMIN),

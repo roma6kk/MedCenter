@@ -48,4 +48,21 @@ describe('the real access matrix', () => {
 
     expect(missing).toEqual([]);
   });
+
+  it('should give the patient only the two own-consent routes (3.4, 3.6) and the staff the five patient-consent routes (3.7-3.11)', () => {
+    const rolesOf = (method: string, path: string): ProtectedRoute['roles'] | undefined =>
+      PROTECTED_ROUTES.find((route) => route.method === method && route.path === path)?.roles;
+
+    expect(rolesOf('GET', '/api/v1/me/consent')).toEqual(['PATIENT']);
+    expect(rolesOf('POST', '/api/v1/me/consent/revoke')).toEqual(['PATIENT']);
+    for (const [method, path] of [
+      ['GET', '/api/v1/patients/1/consent'],
+      ['POST', '/api/v1/patients/1/consent'],
+      ['POST', '/api/v1/patients/1/consent/revoke'],
+      ['POST', '/api/v1/patients/1/consent/scan'],
+      ['GET', '/api/v1/patients/1/consent/scan/1'],
+    ] as const) {
+      expect(rolesOf(method, path)).toEqual(['DOCTOR', 'ADMIN']);
+    }
+  });
 });

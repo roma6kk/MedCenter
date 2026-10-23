@@ -10,7 +10,8 @@ const GROUP = 'BR-001 race + cancel';
 const NOSHOW_GROUP = 'no-show';
 
 function book(suite: Suite, session: Session, slotId: string): Promise<ApiResponse> {
-  const body = { slotId, reason: 'Гонка за слот (smoke)' };
+  // No free-text reason: the third demo patient has no consent on purpose, and without one `block` refuses a reason (ADR-019).
+  const body = { slotId };
   return suite.api.post('/api/v1/appointments', { session, body, headers: { 'Idempotency-Key': newKey() } });
 }
 

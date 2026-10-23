@@ -12,7 +12,7 @@ const ADMIN_USERS = '/api/v1/admin/users';
 const UNKNOWN_UUID = '00000000-0000-4000-8000-000000000000';
 
 /** A fresh random password per test account (CSPRNG), shaped to pass the password policy. */
-function newPassword(): string {
+export function newPassword(): string {
   return `Sm0ke!${randomBytes(9).toString('hex')}Aa`;
 }
 

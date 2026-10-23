@@ -5,8 +5,9 @@ import { accessChecks } from './checks-access';
 import { adminCatalogChecks } from './checks-admin-catalog';
 import { scheduleRemovalChecks } from './checks-schedule-removal';
 import { authChecks } from './checks-auth';
-import { catalogReadChecks, loadFreeSlots } from './checks-catalog-read';
+import { MIN_FREE_SLOTS, catalogReadChecks, loadFreeSlots } from './checks-catalog-read';
 import { chainChecks } from './checks-chain';
+import { consentChecks } from './checks-chain-consent';
 import { compartmentChecks } from './checks-compartment';
 import { edgeChecks } from './checks-edge';
 import { loginAll } from './checks-login';
@@ -28,7 +29,7 @@ import type { Suite } from './suite';
  *   npm run smoke:stack
  *
  * Needs the stack up (`npm run stack:up`) and the demo data seeded
- * (`npm run seed:terminology`, `npm run seed:demo`, then `npm run seed:demo -- --users`).
+ * (`npm run seed:terminology`, `npm run seed:demo`, then `npm run seed:demo -- --users --consents`).
  * Accounts come from `tools/demo-seed/output/demo-manifest.json`; no password is
  * ever printed. Exit code 0 only when every check passed.
  */
@@ -37,7 +38,7 @@ const APPS_DIRECTORY = join(__dirname, '..', '..', 'apps');
 
 async function prepareSlots(suite: Suite): Promise<readonly JsonObject[] | undefined> {
   let slots: readonly JsonObject[] | undefined;
-  await suite.runner.check('setup', 'the demo doctor has at least 4 free slots in the next 14 days', async () => {
+  await suite.runner.check('setup', `the demo doctor has at least ${MIN_FREE_SLOTS} free slots in the next 14 days`, async () => {
     slots = await loadFreeSlots(suite);
   });
   return slots;
@@ -59,6 +60,7 @@ async function runSuite(suite: Suite, tracker: RouteTracker): Promise<void> {
     await compartmentChecks(suite).catch((error: unknown) => runner.skip('compartment (ADR-013)', 'compartment checks', `the clinical chain did not finish: ${String(error)}`));
     await raceChecks(suite, slots);
     await noShowChecks(suite, slots);
+    await consentChecks(suite, slots);
   }
   await terminologyImportChecks(suite);
   await runner.check('route coverage', `every /api/v1 route of the 8 services answered 2xx at least once (${tracker.total} routes)`, async () => {

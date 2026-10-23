@@ -28,6 +28,20 @@ describe('ApiClient', () => {
     expect(answer).toMatchObject({ status: 201, body: { id: '1' } });
   });
 
+  it('should send a multipart body as is, with no JSON content type, so fetch can set the boundary', async () => {
+    const fetchMock = stubFetch(201, '{"scanId":"s1"}');
+    const form = new FormData();
+    form.append('file', new Blob(['%PDF-1.4'], { type: 'application/pdf' }), 'scan.pdf');
+
+    const answer = await new ApiClient('http://edge').post('/api/v1/patients/p/consent/scan', { session: SESSION, multipart: form });
+
+    const [, init] = fetchMock.mock.calls[0] as [string, RequestInit & { headers: Record<string, string> }];
+    expect(init.body).toBe(form);
+    expect(init.headers).not.toHaveProperty('content-type');
+    expect(init.headers['authorization']).toBe('Bearer tok-123');
+    expect(answer.status).toBe(201);
+  });
+
   it('should add the query parameters it is given and skip the undefined ones', async () => {
     const fetchMock = stubFetch(200, '{}');
 
