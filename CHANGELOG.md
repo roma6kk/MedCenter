@@ -43,12 +43,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and a read-through `RedisCacheService` (NFR-005).
 - Unit + e2e suites for the M2 libraries and services (typecheck, lint, test and build green across all
   9 Nx projects; `jwt-perimeter` e2e present in both new services, ADR-009).
+- Bruno collection `bruno/medcenter-api/` — requests for every endpoint of the API spec (§2-§9), the RFC 7807
+  error catalogue and the booking → encounter chain, with a token helper script.
+- Playwright E2E suites for scenarios A-F (guest booking, slot conflict, cancel, encounter, admin schedule,
+  notifications, reports and audit filters) and the security checks (patient compartment, role guards, `returnTo`),
+  with a `setup` project signing in once per demo account (`E2E_BROWSER_CHANNEL=chrome` drives an installed Chrome).
+- Audit: `AuditEvent` for catalog, room and schedule creates, updates and deletes, written in the same transaction
+  (ADR-020: logical `what` reference + client-assigned UUID ids).
+- Draw.io diagrams `docs/diagrams/` (container view, booking → encounter sequence with the `If-Match` points).
 
 ### Changed
 
 - `EncounterCompleteForm` now submits the full atomic `CompleteEncounterDto` (МКБ-10 diagnoses ≥ 1,
   `ServiceRequest`/`MedicationRequest`, UCUM select-only unit), so an encounter can actually be completed.
 - `specs/MANIFEST.md` now records the backend implementation status and the tooling spec.
+- ADR-012 now describes the implemented optimistic locking (`If-Match` on the booking, encounter and
+  no-show/cancel transactions); `specs/api-designer-spec.md` was aligned with the code (11 differences found
+  by the Bruno collection); `README.md` documents running, seeding, testing, E2E and Bruno.
+- Test-only libraries moved from `dependencies` to `devDependencies`, so they no longer reach runtime images.
+- Encounter opening extracted into `EncounterOpeningService`.
 
 ### Fixed
 
@@ -67,3 +80,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `user.repository.spec.ts` skips itself when PostgreSQL is unreachable, so `nx test auth-service` passes without
   a live compose stack. Alongside it: `Role.description` gained an explicit `varchar` column type, the `auth`
   schema is created before `runMigrations`, and `user` rows are truncated with `CASCADE`.
+- Opening an encounter now also writes the Appointment (`meta.tag` `encounter-opened`) under `If-Match`, so a
+  concurrent no-show or cancel loses the race (`ENCOUNTER_STATE_INVALID` / `APPOINTMENT_NOT_CANCELLABLE`).
+- Two parallel `POST /encounters` no longer write a second opening `AuditEvent`: only the winning open does.
+- Room identifier uniqueness is atomic (conditional PUT); blank identifiers are trimmed and rejected.
+- analytics-service retries the first audit sync with a backoff while HAPI boots.
+- Terminology seed retries `$expand` on a 5xx with a bounded backoff.
+- The doctor journal no longer links cancelled and no-show rows to the patient card.
