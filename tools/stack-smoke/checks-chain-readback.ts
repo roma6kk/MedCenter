@@ -51,12 +51,13 @@ function sharedRecordStep(suite: Suite, readers: readonly Reader[]): SmokeStep {
 function patientCardStep(suite: Suite, readers: readonly Reader[]): SmokeStep {
   const { api, sessions, chain } = suite;
   return {
-    name: 'GET /me/patient, GET /patients/{id}, GET /patients/{id}/related -> the card and an envelope',
+    name: 'GET /me/patient, PATCH /me/patient, GET /patients/{id}, GET /patients/{id}/related -> the card and an envelope',
     run: async () => {
       const patientId = expectDefined(chain.patientId, 'the patient id');
       const mine = await api.get('/api/v1/me/patient', { session: sessions.patient });
       expectStatus(mine, 200);
       expectEqual(expectShape(mine.body, PATIENT_SHAPE, 'me/patient')['id'], patientId, 'patient id');
+      await rewriteOwnPhone(suite, bodyObject(mine));
       for (const [who, session] of readers) {
         const card = await api.get(`/api/v1/patients/${patientId}`, { session });
         expectStatus(card, 200);
@@ -65,6 +66,16 @@ function patientCardStep(suite: Suite, readers: readonly Reader[]): SmokeStep {
       }
     },
   };
+}
+
+/** API §3.12: the patient writes their phone back unchanged (or a fixed demo number when the card has none), so the demo card keeps its data. */
+async function rewriteOwnPhone(suite: Suite, card: JsonObject): Promise<void> {
+  const telecom = Array.isArray(card['telecom']) ? (card['telecom'] as JsonObject[]) : [];
+  const current = telecom.find((point) => point['system'] === 'phone')?.['value'];
+  const phone = typeof current === 'string' && current !== '' ? current : '+375291234567';
+  const version = expectDefined(typeof card['version'] === 'string' ? card['version'] : undefined, 'the card version');
+  const updated = await suite.api.patch('/api/v1/me/patient', { session: suite.sessions.patient, body: { phone }, headers: { 'if-match': `W/"${version}"` } });
+  expectStatus(updated, 200);
 }
 
 /** The patient's own appointments with a `status` filter, newest first so a long demo history cannot push the new one off the page. */

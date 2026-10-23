@@ -36,6 +36,7 @@ export const PROTECTED_ROUTES: readonly ProtectedRoute[] = [
   route('POST', '/api/v1/admin/terminology/import', ADMIN),
   // patient-service
   route('GET', '/api/v1/me/patient', PATIENT),
+  route('PATCH', '/api/v1/me/patient', PATIENT),
   route('GET', `/api/v1/patients/${ID}`, 'any'),
   route('GET', `/api/v1/patients/${ID}/related`, 'any'),
   // patient-service, consent to the EMR (3.4-3.11): the patient only 3.4 and 3.6; a DOCTOR only for a linked patient (compartment, checked in the consent chain)
