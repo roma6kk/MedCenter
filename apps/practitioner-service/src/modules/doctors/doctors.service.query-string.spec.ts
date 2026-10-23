@@ -30,22 +30,22 @@ describe('HAPI query strings', () => {
     [
       'a specialty code',
       { specialty: '419192003' },
-      '/PractitionerRole?specialty=419192003&_include=PractitionerRole%3Apractitioner&_count=20&_offset=0&_total=accurate',
+      '/PractitionerRole?specialty=419192003&_elements=practitioner&_count=1000',
     ],
     [
       'a specialty with its code system',
       { specialty: 'http://snomed.info/sct|394579002' },
-      '/PractitionerRole?specialty=http%3A%2F%2Fsnomed.info%2Fsct%7C394579002&_include=PractitionerRole%3Apractitioner&_count=20&_offset=0&_total=accurate',
+      '/PractitionerRole?specialty=http%3A%2F%2Fsnomed.info%2Fsct%7C394579002&_elements=practitioner&_count=1000',
     ],
     [
       'a service',
       { serviceId: 'svc-1' },
-      '/PractitionerRole?service=HealthcareService%2Fsvc-1&_include=PractitionerRole%3Apractitioner&_count=20&_offset=0&_total=accurate',
+      '/PractitionerRole?service=HealthcareService%2Fsvc-1&_elements=practitioner&_count=1000',
     ],
     [
       'a service, a specialty and a name',
       { serviceId: 'svc-1', specialty: '419192003', search: 'Иванов' },
-      '/PractitionerRole?service=HealthcareService%2Fsvc-1&specialty=419192003&practitioner.name=%D0%98%D0%B2%D0%B0%D0%BD%D0%BE%D0%B2&_include=PractitionerRole%3Apractitioner&_count=20&_offset=0&_total=accurate',
+      '/PractitionerRole?service=HealthcareService%2Fsvc-1&specialty=419192003&practitioner.name=%D0%98%D0%B2%D0%B0%D0%BD%D0%BE%D0%B2&_elements=practitioner&_count=1000',
     ],
     ['no filter', {}, '/Practitioner?_count=20&_offset=0&_total=accurate'],
     ['a name only', { search: 'Iva' }, '/Practitioner?name=Iva&_count=20&_offset=0&_total=accurate'],
