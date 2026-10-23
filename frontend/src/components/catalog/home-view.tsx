@@ -71,7 +71,7 @@ export function HomeView({ services, doctors, isFailed }: HomeViewProps): ReactN
     <>
       <HomeHero />
       <HomeTrust />
-      <HomeDirections>
+      <HomeDirections {...(isFailed ? {} : { availableSpecialties: new Set(doctors.flatMap((doctor) => doctor.specialtyCode === undefined ? [] : [doctor.specialtyCode])) })}>
         {isFailed ? <CatalogUnavailable namespace="home" retryHref="/" /> : <ServicesBlock services={services} />}
       </HomeDirections>
       <HomePath />

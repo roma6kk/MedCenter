@@ -36,14 +36,16 @@ export type DirectionId = 'therapy' | 'cardiology' | 'neurology' | 'surgery' | '
 export interface Direction {
   readonly id: DirectionId;
   readonly icon: LucideIcon;
+  /** SNOMED CT code of the specialty (as the doctors carry it); absent for a service group such as diagnostics. */
+  readonly specialtyCode?: string;
 }
 
-/** Directions of the clinic; the texts live under `home.directions.<id>` in the message catalogues. */
+/** Directions of the clinic (the codes are those of the demo seed, tools/demo-seed/demo-catalog.ts); the texts live under `home.directions.<id>` in the message catalogues. */
 export const DIRECTIONS: ReadonlyArray<Direction> = [
-  { id: 'therapy', icon: Stethoscope },
-  { id: 'cardiology', icon: HeartPulse },
-  { id: 'neurology', icon: Brain },
-  { id: 'surgery', icon: Scissors },
+  { id: 'therapy', icon: Stethoscope, specialtyCode: '419192003' },
+  { id: 'cardiology', icon: HeartPulse, specialtyCode: '394579002' },
+  { id: 'neurology', icon: Brain, specialtyCode: '394591006' },
+  { id: 'surgery', icon: Scissors, specialtyCode: '394609007' },
   { id: 'diagnostics', icon: Activity },
 ];
 
