@@ -51,7 +51,8 @@ describe('parseAnalyticsEvent', () => {
   });
 
   it('should accept a cancellation without a reason when the producer no longer sends one (ADR-021)', () => {
-    const { reason: _dropped, ...withoutReason } = CANCELLED;
+    const withoutReason: Record<string, unknown> = { ...CANCELLED };
+    delete withoutReason['reason'];
 
     expect(parseAnalyticsEvent(bytes(withoutReason))).toEqual(withoutReason);
   });
