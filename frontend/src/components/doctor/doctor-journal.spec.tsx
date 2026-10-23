@@ -325,12 +325,18 @@ jest.setTimeout(30_000);
     }
 
     it('should request the five working days at once and show each visit as a block at its time', async () => {
-      await openWeek();
+      // On a weekend the day view first asks for that day, which is outside the working week.
+      jest.useFakeTimers({ now: new Date('2026-10-21T09:00:00Z'), advanceTimers: true });
+      try {
+        await openWeek();
 
-      await screen.findAllByRole('link', { name: /09:00 Кузнецов Алексей, Записан/ });
-      const froms = new Set(callsTo(apiFetchMock, JOURNAL).map(([path]) => new URL(path, 'http://x').searchParams.get('from')));
-      expect(froms.size).toBe(5);
-      expect(screen.getAllByRole('list', { name: /\d{1,2}/ }).length).toBeGreaterThanOrEqual(5);
+        await screen.findAllByRole('link', { name: /09:00 Кузнецов Алексей, Записан/ });
+        const froms = new Set(callsTo(apiFetchMock, JOURNAL).map(([path]) => new URL(path, 'http://x').searchParams.get('from')));
+        expect(froms.size).toBe(5);
+        expect(screen.getAllByRole('list', { name: /\d{1,2}/ }).length).toBeGreaterThanOrEqual(5);
+      } finally {
+        jest.useRealTimers();
+      }
     });
 
     it('should apply the status filter to the blocks', async () => {
