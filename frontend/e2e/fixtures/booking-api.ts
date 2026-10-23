@@ -20,6 +20,7 @@ export interface FreeSlot {
 interface DoctorItem {
   readonly id: string;
   readonly name: string;
+  readonly practitionerRoleIds?: ReadonlyArray<string>;
 }
 
 interface SlotItem {
@@ -48,15 +49,18 @@ function shuffle<T>(items: ReadonlyArray<T>): T[] {
   return copy;
 }
 
-function clinicDay(date: Date): string {
+/** The clinic calendar day (`YYYY-MM-DD`, Europe/Minsk) of an instant; the doctor journal is addressed by it (`?date=`). */
+export function clinicDay(date: Date): string {
   return new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Minsk', year: 'numeric', month: '2-digit', day: '2-digit' }).format(date);
 }
 
-/** Up to `count` free slots of distinct doctors where possible (a doctor may repeat only when there are not enough doctors). */
-export async function findFreeSlots(request: APIRequestContext, count: number): Promise<FreeSlot[]> {
+/** Up to `count` free slots of distinct doctors where possible; `practitionerRoleId` narrows the search to one doctor (a seeded doctor account). */
+export async function findFreeSlots(request: APIRequestContext, count: number, practitionerRoleId?: string): Promise<FreeSlot[]> {
   const doctorsResponse = await request.get('/api/v1/doctors?pageSize=100');
   if (!doctorsResponse.ok()) throw new Error(`GET /api/v1/doctors answered ${doctorsResponse.status()}`);
-  const doctors = ((await doctorsResponse.json()) as { items: ReadonlyArray<DoctorItem> }).items;
+  const doctors = ((await doctorsResponse.json()) as { items: ReadonlyArray<DoctorItem> }).items.filter(
+    (doctor) => practitionerRoleId === undefined || doctor.practitionerRoleIds?.includes(practitionerRoleId) === true,
+  );
   const from = clinicDay(new Date(Date.now() + MIN_LEAD_MS));
   const to = clinicDay(new Date(Date.now() + SLOT_WINDOW_DAYS * 24 * 60 * 60 * 1000));
   const earliest = Date.now() + MIN_LEAD_MS;
@@ -67,15 +71,17 @@ export async function findFreeSlots(request: APIRequestContext, count: number): 
     const slots = ((await slotsResponse.json()) as { items: ReadonlyArray<SlotItem> }).items.filter(
       (slot) => slot.status === 'free' && Date.parse(slot.start) >= earliest,
     );
-    const slot = shuffle(slots)[0];
-    if (slot !== undefined) found.push({ doctorId: doctor.id, doctorName: doctor.name, slotId: slot.id, start: slot.start, end: slot.end });
+    // One slot per doctor, except when a single doctor was asked for: then all of the slots come from them.
+    const picks = shuffle(slots).slice(0, practitionerRoleId === undefined ? 1 : count - found.length);
+    for (const slot of picks) found.push({ doctorId: doctor.id, doctorName: doctor.name, slotId: slot.id, start: slot.start, end: slot.end });
     if (found.length >= count) break;
   }
   if (found.length < count) throw new Error(`Only ${found.length} free slot(s) found, ${count} needed; run "npm run seed:demo" (without --users).`);
   return found;
 }
 
-async function accessTokenOf(page: Page): Promise<string> {
+/** The access token of the page's session (token broker); for Authorization headers of API calls only. */
+export async function accessTokenOf(page: Page): Promise<string> {
   const response = await page.request.get('/api/auth/session');
   if (!response.ok()) throw new Error(`GET /api/auth/session answered ${response.status()}`);
   return ((await response.json()) as { accessToken: string }).accessToken;
