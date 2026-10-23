@@ -9,8 +9,9 @@ export type AppointmentStatus = (typeof APPOINTMENT_STATUSES)[number];
 
 /**
  * `?status=booked,noshow` or a repeated `?status=booked&status=noshow` into a
- * list without blanks and duplicates. An empty value is "no filter"; anything
- * that is not a string (or array of strings) is left for the validator to refuse.
+ * list without duplicates. A value that is empty as a whole is "no filter"; an empty element of a
+ * list (`booked,` or `?status=&status=booked`) is kept and refused by the validator (400), like
+ * anything that is not a string (or array of strings).
  */
 function toStatusList({ value }: { readonly value: unknown }): unknown {
   const parts = (Array.isArray(value) ? value : [value]) as unknown[];
