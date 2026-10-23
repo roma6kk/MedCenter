@@ -17,10 +17,10 @@ import { ReportsService } from './reports.service';
 export class ReportsController {
   constructor(private readonly reportsService: ReportsService) {}
 
-  /** §9.1 — booked / cancelled / no-show in the period (by `Appointment.start`). */
+  /** §9.1 — booked / fulfilled / cancelled / no-show in the period (by `Appointment.start`). */
   @Get('appointments')
   @ApiOperation({ summary: '9.1 Appointments summary by status' })
-  @ApiResponse({ status: 200, description: 'booked / cancelled / no-show counts', type: AppointmentsSummaryDoc })
+  @ApiResponse({ status: 200, description: 'booked / fulfilled / cancelled / no-show counts', type: AppointmentsSummaryDoc })
   @ApiProblems([400, ...GUARD_PROBLEM_STATUSES], { 400: 'VALIDATION_ERROR: malformed bound, from > to or range longer than 366 days' })
   @RequiresScopes(SMART_SCOPES.USER_READ)
   @RequiresRoles(Role.ADMIN)

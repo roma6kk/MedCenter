@@ -371,9 +371,10 @@
         "title": "Appointments",
         "total": "Appointments in total",
         "booked": "Booked",
+        "fulfilled": "Attended",
         "cancelled": "Cancelled",
         "noshow": "No-shows",
-        "barLabel": "Booked {booked}, cancelled {cancelled}, no-shows {noshow}"
+        "barLabel": "Booked {booked}, attended {fulfilled}, cancelled {cancelled}, no-shows {noshow}"
       },
       "encounters": {
         "title": "Completed encounters by specialty",
@@ -396,6 +397,7 @@
         "cancelledMajority": "More than half of the appointments are cancelled before the visit",
         "cancelledTop": "Cancelled appointments outnumber booked ones and no-shows",
         "noshowTop": "No-shows outnumber cancellations and booked appointments",
+        "fulfilledTop": "Attended visits outnumber cancellations, no-shows and booked appointments",
         "bookedTop": "Booked appointments outnumber cancellations and no-shows",
         "balanced": "The appointment outcomes are evenly split"
       },

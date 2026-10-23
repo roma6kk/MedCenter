@@ -18,6 +18,7 @@ describe('ReportsService', () => {
     };
     clinical = {
       noShowAppointmentIds: jest.fn().mockResolvedValue([]),
+      fulfilledAppointmentIds: jest.fn().mockResolvedValue([]),
       serviceNames: jest.fn().mockResolvedValue(new Map()),
     };
     reportsService = new ReportsService(repository, clinical, () => NOW);
@@ -36,6 +37,7 @@ describe('ReportsService', () => {
 
       expect(summary.groups).toEqual([
         { code: 'booked', display: 'Записано', count: 12 },
+        { code: 'fulfilled', display: 'Посещено', count: 0 },
         { code: 'cancelled', display: 'Отменено', count: 0 },
         { code: 'noshow', display: 'Неявка', count: 0 },
       ]);
@@ -51,7 +53,21 @@ describe('ReportsService', () => {
 
       const summary = await reportsService.appointmentsSummary(range);
 
-      expect(summary).toMatchObject({ booked: 8, cancelled: 3, noshow: 2, total: 13 });
+      expect(summary).toMatchObject({ booked: 8, fulfilled: 0, cancelled: 3, noshow: 2, total: 13 });
+    });
+
+    it('should report the attended visits as their own group when the read-model reclassified them as fulfilled', async () => {
+      clinical.fulfilledAppointmentIds.mockResolvedValue(['apt-3']);
+      repository.countAppointmentsByStatus.mockResolvedValue([
+        { status: 'booked', count: '5' },
+        { status: 'fulfilled', count: '4' },
+        { status: 'noshow', count: '1' },
+      ]);
+
+      const summary = await reportsService.appointmentsSummary(range);
+
+      expect(summary).toMatchObject({ booked: 5, fulfilled: 4, cancelled: 0, noshow: 1, total: 10 });
+      expect(summary.groups.map((group) => group.code)).toEqual(['booked', 'fulfilled', 'cancelled', 'noshow']);
     });
 
     it('should hand the HAPI no-show ids to the read-model when it counts, so one statement partitions the population', async () => {
@@ -59,7 +75,15 @@ describe('ReportsService', () => {
 
       await reportsService.appointmentsSummary(range);
 
-      expect(repository.countAppointmentsByStatus).toHaveBeenCalledWith(expect.anything(), ['apt-1', 'apt-2']);
+      expect(repository.countAppointmentsByStatus).toHaveBeenCalledWith(expect.anything(), ['apt-1', 'apt-2'], []);
+    });
+
+    it('should hand the HAPI fulfilled ids to the read-model when it counts', async () => {
+      clinical.fulfilledAppointmentIds.mockResolvedValue(['apt-3']);
+
+      await reportsService.appointmentsSummary(range);
+
+      expect(repository.countAppointmentsByStatus).toHaveBeenCalledWith(expect.anything(), [], ['apt-3']);
     });
 
     it('should not count a HAPI no-show the read-model never saw when it is absent from the read-model rows', async () => {
@@ -78,12 +102,20 @@ describe('ReportsService', () => {
       expect(repository.countAppointmentsByStatus).not.toHaveBeenCalled();
     });
 
+    it('should fail the report when HAPI cannot list the fulfilled visits, rather than leave them under booked', async () => {
+      clinical.fulfilledAppointmentIds.mockRejectedValue(new Error('HAPI down'));
+
+      await expect(reportsService.appointmentsSummary(range)).rejects.toThrow('HAPI down');
+      expect(repository.countAppointmentsByStatus).not.toHaveBeenCalled();
+    });
+
     it('should query the read-model and HAPI with the same half-open period when the range is valid', async () => {
       await reportsService.appointmentsSummary(range);
 
       const expected = { from: new Date('2026-01-01T00:00:00.000Z'), toExclusive: new Date('2027-01-01T00:00:00.000Z') };
-      expect(repository.countAppointmentsByStatus).toHaveBeenCalledWith(expected, []);
+      expect(repository.countAppointmentsByStatus).toHaveBeenCalledWith(expected, [], []);
       expect(clinical.noShowAppointmentIds).toHaveBeenCalledWith(expected);
+      expect(clinical.fulfilledAppointmentIds).toHaveBeenCalledWith(expected);
     });
 
     it('should describe the period inclusively like a MeasureReport when the summary is built', async () => {

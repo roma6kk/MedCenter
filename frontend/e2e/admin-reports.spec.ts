@@ -20,6 +20,7 @@ const NO_DATA = 'Нет данных за выбранный период';
 interface AppointmentsReport {
   readonly total: number;
   readonly booked: number;
+  readonly fulfilled: number;
   readonly cancelled: number;
   readonly noshow: number;
 }
@@ -58,11 +59,13 @@ test.describe('admin analytics', () => {
 
     await expect(page.getByRole('heading', { level: 1 })).not.toHaveText('Аналитика');
     const kpis = page.getByTestId('kpi');
-    await expect(kpis).toHaveCount(4);
+    await expect(kpis).toHaveCount(5);
     await expect(kpis.nth(0)).toContainText(String(report.total));
     await expect(kpis.nth(1)).toContainText(String(report.booked));
-    await expect(kpis.nth(2)).toContainText(String(report.cancelled));
-    await expect(kpis.nth(3)).toContainText(String(report.noshow));
+    await expect(kpis.nth(2)).toContainText('Посещено');
+    await expect(kpis.nth(2)).toContainText(String(report.fulfilled));
+    await expect(kpis.nth(3)).toContainText(String(report.cancelled));
+    await expect(kpis.nth(4)).toContainText(String(report.noshow));
     await expect(page.getByRole('table', { name: 'Завершённые приёмы по специальностям' })).toBeVisible();
     await expect(page.getByRole('table', { name: /^Топ-\d+ услуг по записям$/ })).toBeVisible();
   });

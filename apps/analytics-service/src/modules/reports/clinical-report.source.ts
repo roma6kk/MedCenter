@@ -7,6 +7,11 @@ import type { DateRange } from '../shared/date-range';
 export interface ClinicalReportSource {
   /** Ids of `Appointment?status=noshow` starting in the period — no domain event exists for a no-show. */
   noShowAppointmentIds(range: DateRange): Promise<ReadonlyArray<string>>;
+  /**
+   * Ids of `Appointment?status=fulfilled` starting in the period. `encounter.completed.v1` carries no
+   * `appointmentId`, so the attended visits are known to HAPI only (BR-008 sets the status).
+   */
+  fulfilledAppointmentIds(range: DateRange): Promise<ReadonlyArray<string>>;
   /** Current `HealthcareService.name` per id; unknown ids are absent from the map. */
   serviceNames(serviceIds: ReadonlyArray<string>): Promise<ReadonlyMap<string, string>>;
 }
@@ -40,12 +45,20 @@ export class FhirClinicalReportSource implements ClinicalReportSource {
    * reached), not until a page is "short": HAPI may serve fewer than `_count`,
    * so the offset advances by what was actually received.
    */
-  async noShowAppointmentIds(range: DateRange): Promise<ReadonlyArray<string>> {
+  noShowAppointmentIds(range: DateRange): Promise<ReadonlyArray<string>> {
+    return this.appointmentIdsByStatus('noshow', range);
+  }
+
+  fulfilledAppointmentIds(range: DateRange): Promise<ReadonlyArray<string>> {
+    return this.appointmentIdsByStatus('fulfilled', range);
+  }
+
+  private async appointmentIdsByStatus(status: 'noshow' | 'fulfilled', range: DateRange): Promise<ReadonlyArray<string>> {
     const ids = new Set<string>();
     let offset = 0;
     for (let page = 0; page < NO_SHOW_MAX_PAGES; page += 1) {
       const result = await this.fhir.search('Appointment', {
-        status: 'noshow',
+        status,
         date: [`ge${range.from.toISOString()}`, `lt${range.toExclusive.toISOString()}`],
         _elements: 'id',
         _sort: '_lastUpdated',
@@ -63,7 +76,7 @@ export class FhirClinicalReportSource implements ClinicalReportSource {
         return [...ids];
       }
     }
-    throw new Error(`more than ${NO_SHOW_MAX_PAGES * NO_SHOW_PAGE_SIZE} no-show appointments in one period; raise NO_SHOW_MAX_PAGES`);
+    throw new Error(`more than ${NO_SHOW_MAX_PAGES * NO_SHOW_PAGE_SIZE} ${status === 'noshow' ? 'no-show' : status} appointments in one period; raise NO_SHOW_MAX_PAGES`);
   }
 
   /**

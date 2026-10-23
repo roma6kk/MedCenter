@@ -64,7 +64,7 @@ describeWithDocker('analytics read-model (PostgreSQL, Testcontainers)', () => {
     expect(await writer.applyBooked(meta('evt-1'), booking('apt-1', 'svc-1', '2026-10-05T09:00:00Z'))).toBe('duplicate');
 
     expect(await writer.isProcessed('evt-1')).toBe(true);
-    expect(await reports.countAppointmentsByStatus(OCTOBER, [])).toEqual([{ status: 'booked', count: '1' }]);
+    expect(await reports.countAppointmentsByStatus(OCTOBER, [], [])).toEqual([{ status: 'booked', count: '1' }]);
   });
 
   it('should let exactly one of two concurrent deliveries of the same event win when they race', async () => {
@@ -85,7 +85,7 @@ describeWithDocker('analytics read-model (PostgreSQL, Testcontainers)', () => {
     });
     await writer.applyBooked(meta('evt-b'), booking('apt-2', 'svc-1', '2026-10-06T09:00:00Z'));
 
-    expect(await reports.countAppointmentsByStatus(OCTOBER, [])).toEqual([{ status: 'cancelled', count: '1' }]);
+    expect(await reports.countAppointmentsByStatus(OCTOBER, [], [])).toEqual([{ status: 'cancelled', count: '1' }]);
   });
 
   it('should count only appointments whose start lies in the half-open period when the range is queried', async () => {
@@ -93,7 +93,7 @@ describeWithDocker('analytics read-model (PostgreSQL, Testcontainers)', () => {
     await writer.applyBooked(meta('e2'), booking('a2', 'svc-1', '2026-10-31T23:59:59Z'));
     await writer.applyBooked(meta('e3'), booking('a3', 'svc-1', '2026-11-01T00:00:00Z'));
 
-    expect(await reports.countAppointmentsByStatus(OCTOBER, [])).toEqual([{ status: 'booked', count: '2' }]);
+    expect(await reports.countAppointmentsByStatus(OCTOBER, [], [])).toEqual([{ status: 'booked', count: '2' }]);
   });
 
   describe('no-show classification (API §9.1)', () => {
@@ -110,8 +110,11 @@ describeWithDocker('analytics read-model (PostgreSQL, Testcontainers)', () => {
       });
     }
 
-    async function countsByStatus(noShowIds: ReadonlyArray<string>): Promise<Record<string, string>> {
-      const rows = await reports.countAppointmentsByStatus(OCTOBER, noShowIds);
+    async function countsByStatus(
+      noShowIds: ReadonlyArray<string>,
+      fulfilledIds: ReadonlyArray<string> = [],
+    ): Promise<Record<string, string>> {
+      const rows = await reports.countAppointmentsByStatus(OCTOBER, noShowIds, fulfilledIds);
       return Object.fromEntries(rows.map((row) => [row.status, String(row.count)]));
     }
 
@@ -119,6 +122,18 @@ describeWithDocker('analytics read-model (PostgreSQL, Testcontainers)', () => {
       await seed();
 
       expect(await countsByStatus(['apt-a'])).toEqual({ booked: '1', cancelled: '1', noshow: '1' });
+    });
+
+    it('should move a booked appointment into fulfilled when HAPI lists it as fulfilled', async () => {
+      await seed();
+
+      expect(await countsByStatus([], ['apt-a'])).toEqual({ booked: '1', fulfilled: '1', cancelled: '1' });
+    });
+
+    it('should keep a cancelled appointment cancelled when HAPI lists its id as fulfilled', async () => {
+      await seed();
+
+      expect(await countsByStatus([], ['apt-c'])).toEqual({ booked: '2', cancelled: '1' });
     });
 
     it('should leave every count untouched when HAPI lists no no-show', async () => {

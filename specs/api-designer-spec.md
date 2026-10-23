@@ -951,13 +951,17 @@ sender=Organization) + email-адаптер (A-3). Компартмент: фи�
 
 | # | Метод и путь | Назначение | Доступ |
 | --- | --- | --- | --- |
-| 9.1 | `GET /api/v1/admin/analytics/appointments?from=&to=` (`from`/`to` необязательны, по умолчанию последние 30 дней) | сводка записей (booked/cancelled/noshow) | `ADMIN` |
+| 9.1 | `GET /api/v1/admin/analytics/appointments?from=&to=` (`from`/`to` необязательны, по умолчанию последние 30 дней) | сводка записей (booked/fulfilled/cancelled/noshow) | `ADMIN` |
 | 9.2 | `GET /api/v1/admin/analytics/encounters?from=&to=` | сводка приёмов по специальностям | `ADMIN` |
 | 9.3 | `GET /api/v1/admin/analytics/services-popularity?from=&to=&top=` | топ услуг | `ADMIN` |
 | 9.4 | `GET /api/v1/admin/audit?from=&to=&entity=&userId=&page=` | журнал `AuditEvent` (read-model) | `ADMIN` |
 
 Ответ 9.1–9.3 — `MeasureReport`-производный DTO (группировка `measureScoring`), из read-model
-PostgreSQL (worker наполняет по событиям). Ответ 9.4 — `PaginatedResponseDto<AuditEventDto>`:
+PostgreSQL (worker наполняет по событиям). 9.1 разбивает записи периода по текущему `Appointment.status`: группы `booked` («Записано»), `fulfilled`
+(«Посещено», приём состоялся, BR-008), `cancelled`, `noshow`; плоские поля `booked`/`fulfilled`/`cancelled`/`noshow` повторяют
+группы, `total` — их сумма. Добавление аддитивное (новая группа и поле `fulfilled`), но `booked` больше не включает посещённые
+записи. `noshow` и `fulfilled` read-model не хранит: у них нет события с `appointmentId`, поэтому id берутся из HAPI
+(`Appointment?status=…`) и пересчитывают ещё `booked` факты. Ответ 9.4 — `PaginatedResponseDto<AuditEventDto>`:
 `{ id; occurredAt; userId; action: 'create'|'update'|'delete'|'read'|'denied'|'emergency-bypass'; resourceType; resourceId;
 requestId; reason? }`. `read` — чтение данных пациента врачом или администратором, `denied` — отказ в нём (ADR-018);
 чтение пациентом своей карты в журнал не попадает. `emergency-bypass` — приём открыт или завершён без согласия пациента по

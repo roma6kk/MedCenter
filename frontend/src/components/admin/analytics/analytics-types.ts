@@ -16,16 +16,18 @@ export interface MeasureReport {
   readonly groups: ReadonlyArray<MeasureGroup>;
 }
 
-/** 9.1 also carries the flat `booked` / `cancelled` / `noshow` counters next to `groups`. */
+/** 9.1 also carries the flat `booked` / `fulfilled` / `cancelled` / `noshow` counters next to `groups`. */
 export interface AppointmentsReport extends MeasureReport {
   readonly booked?: number;
+  /** Attended visits; absent in answers of a service that predates the group. */
+  readonly fulfilled?: number;
   readonly cancelled?: number;
   readonly noshow?: number;
 }
 
-export type AppointmentStatusCode = 'booked' | 'cancelled' | 'noshow';
+export type AppointmentStatusCode = 'booked' | 'fulfilled' | 'cancelled' | 'noshow';
 
-export const APPOINTMENT_STATUSES: ReadonlyArray<AppointmentStatusCode> = ['booked', 'cancelled', 'noshow'];
+export const APPOINTMENT_STATUSES: ReadonlyArray<AppointmentStatusCode> = ['booked', 'fulfilled', 'cancelled', 'noshow'];
 
 /** The service answers 1…50 (`top`, default 10). */
 export const TOP_OPTIONS: ReadonlyArray<number> = [5, 10, 20, 50];

@@ -53,6 +53,9 @@ export class AppointmentsSummaryDoc extends MeasureReportDoc implements Appointm
   @ApiProperty({ minimum: 0 })
   booked!: number;
 
+  @ApiProperty({ minimum: 0, description: 'Attended visits (Appointment.status fulfilled)' })
+  fulfilled!: number;
+
   @ApiProperty({ minimum: 0 })
   cancelled!: number;
 
