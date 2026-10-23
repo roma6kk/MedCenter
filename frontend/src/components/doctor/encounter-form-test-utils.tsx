@@ -29,7 +29,7 @@ export function completeRoute(respond: ApiRoute['respond'] = () => ({ id: 'enc-1
 export function setup(complete: ApiRoute = completeRoute()): void {
   apiFetchMock.mockReset();
   routeApi(apiFetchMock, [{ path: '/api/v1/terminology/expand', respond: expansion }, complete]);
-  renderWithClient(<EncounterCompleteForm encounterId="enc-1" />);
+  renderWithClient(<EncounterCompleteForm encounterId="enc-1" patientId="p-1" />);
 }
 
 export function completeCall(): ApiCall | undefined {

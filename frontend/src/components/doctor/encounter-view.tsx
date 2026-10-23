@@ -42,7 +42,7 @@ function FinishedBanner({ bannerRef }: { readonly bannerRef: RefObject<HTMLParag
 function EncounterBody({ encounter }: { readonly encounter: EncounterDetails }): ReactNode {
   const t = useT('doctor.encounter');
   const bannerRef = useFocusBannerOnFinish(encounter.status);
-  if (encounter.status === 'in-progress') return <div className="mt-4"><EncounterCompleteForm encounterId={encounter.id} /></div>;
+  if (encounter.status === 'in-progress') return <div className="mt-4"><EncounterCompleteForm encounterId={encounter.id} patientId={encounter.patientId} /></div>;
   if (encounter.status === 'finished') {
     return (
       <>

@@ -15,6 +15,7 @@ import { firstErrorPath, firstPathOnScreen } from './encounter-error-focus';
 import { knownFieldPaths, mapProblemToFieldAssignments } from './encounter-problem-fields';
 import { encounterErrorMap } from './encounter-zod-messages';
 import { useCompleteEncounter } from './use-doctor-mutations';
+import type { CompleteEncounterBody } from './doctor-api';
 
 const DEFAULT_VALUES: CompleteEncounterForm = {
   summary: '',
@@ -58,14 +59,16 @@ function markServerProblem(methods: Methods, problem: ProblemDetails): ServerMar
 
 export interface EncounterFormController extends ServerMarks {
   readonly methods: Methods;
-  readonly complete: UseMutationResult<EncounterSummary, Error, CompleteEncounterForm>;
+  readonly complete: UseMutationResult<EncounterSummary, Error, CompleteEncounterBody>;
   readonly onSubmit: ReturnType<Methods['handleSubmit']>;
+  /** Sends the same, validated form again with the reason for emergency care (ADR-019: after a 409 `CONSENT_REQUIRED`). */
+  readonly completeAsEmergency: (reason: string) => void;
 }
 
 interface Completion {
-  readonly complete: UseMutationResult<EncounterSummary, Error, CompleteEncounterForm>;
+  readonly complete: UseMutationResult<EncounterSummary, Error, CompleteEncounterBody>;
   readonly marks: ServerMarks;
-  readonly send: (values: CompleteEncounterForm) => void;
+  readonly send: (values: CompleteEncounterForm, emergencyReason?: string) => void;
 }
 
 /**
@@ -77,11 +80,11 @@ function useCompletion(encounterId: string, methods: Methods): Completion {
   const complete = useCompleteEncounter(encounterId);
   const [marks, setMarks] = useState<ServerMarks>({ isMarked: false, foreignMessages: [] });
   const isSending = useRef(false);
-  const send = (values: CompleteEncounterForm): void => {
+  const send = (values: CompleteEncounterForm, emergencyReason?: string): void => {
     if (isSending.current) return;
     isSending.current = true;
     setMarks({ isMarked: false, foreignMessages: [] });
-    complete.mutate(values, {
+    complete.mutate(emergencyReason === undefined ? values : { ...values, emergencyReason }, {
       onError: (error) => (isApiError(error) ? setMarks(markServerProblem(methods, error.problem)) : undefined),
       onSettled: () => {
         isSending.current = false;
@@ -105,5 +108,6 @@ export function useEncounterForm(encounterId: string): EncounterFormController {
     const path: string | null = firstErrorPath(errors);
     if (path !== null) methods.setFocus(path as FieldPath<CompleteEncounterForm>);
   };
-  return { methods, complete, onSubmit: methods.handleSubmit(send, handleInvalid), ...marks };
+  const completeAsEmergency = (reason: string): void => void methods.handleSubmit((values) => send(values, reason), handleInvalid)();
+  return { methods, complete, onSubmit: methods.handleSubmit((values) => send(values), handleInvalid), completeAsEmergency, ...marks };
 }

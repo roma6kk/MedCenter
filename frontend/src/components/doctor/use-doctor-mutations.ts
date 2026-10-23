@@ -7,15 +7,16 @@
 import { useMutation, useQueryClient, type UseMutationResult } from '@tanstack/react-query';
 import { ApiError } from '@/lib/api/api-fetch';
 import { invalidateFor } from '@/lib/api/invalidation';
-import type { CompleteEncounterForm } from '@/lib/contracts';
 import { showToast } from '@/lib/ui/toast';
-import { postCompleteEncounter, postNoshow, postOpenEncounter } from './doctor-api';
+import { postCompleteEncounter, postNoshow, postOpenEncounter, type CompleteEncounterBody } from './doctor-api';
 import type { EncounterSummary } from './doctor-types';
 import { findFinishedEncounterId } from './find-finished-encounter';
 
 export interface OpenEncounterInput {
   readonly appointmentId: string;
   readonly patientId: string;
+  /** Why the encounter is opened without the patient's consent (emergency care, 10…500 characters); sent only after a 409 `CONSENT_REQUIRED`. */
+  readonly emergencyReason?: string;
 }
 
 /**
@@ -46,9 +47,9 @@ export function useNoshow(onRecorded?: () => void): UseMutationResult<unknown, E
 export function useOpenEncounter(): UseMutationResult<string, Error, OpenEncounterInput> {
   const client = useQueryClient();
   return useMutation({
-    mutationFn: async ({ appointmentId, patientId }: OpenEncounterInput): Promise<string> => {
+    mutationFn: async ({ appointmentId, patientId, emergencyReason }: OpenEncounterInput): Promise<string> => {
       try {
-        return (await postOpenEncounter(appointmentId)).id;
+        return (await postOpenEncounter(appointmentId, emergencyReason)).id;
       } catch (error: unknown) {
         if (!(error instanceof ApiError) || error.errorCode !== 'ENCOUNTER_STATE_INVALID') throw error;
         const finishedId: string | null = await findFinishedEncounterId(patientId, appointmentId).catch(() => null);
@@ -64,10 +65,10 @@ export function useOpenEncounter(): UseMutationResult<string, Error, OpenEncount
 }
 
 /** Completes the encounter with one atomic body (API 7.3). A replay is a 409 the form turns into the read-only view. */
-export function useCompleteEncounter(encounterId: string): UseMutationResult<EncounterSummary, Error, CompleteEncounterForm> {
+export function useCompleteEncounter(encounterId: string): UseMutationResult<EncounterSummary, Error, CompleteEncounterBody> {
   const client = useQueryClient();
   return useMutation({
-    mutationFn: (values: CompleteEncounterForm) => postCompleteEncounter(encounterId, values),
+    mutationFn: (values: CompleteEncounterBody) => postCompleteEncounter(encounterId, values),
     onSuccess: async () => {
       showToast('success', 'doctor.encounter.completedToast');
       await invalidateFor(client, 'complete-encounter');

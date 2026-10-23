@@ -2,6 +2,7 @@
 
 import type { ReactNode } from 'react';
 import { FormProvider, useFormContext, useFormState } from 'react-hook-form';
+import { ConsentRequiredNotice } from '@/components/consent/consent-required-notice';
 import { ProblemBanner } from '@/components/feedback/problem-banner';
 import { isApiError } from '@/lib/api/api-fetch';
 import type { ProblemDetails } from '@/lib/api/problem';
@@ -54,9 +55,10 @@ function CompletionFailure({ problem, foreignMessages, isMarked }: FailureProps)
  * one atomic submit (API 7.3). Client rules mirror the server's; what only the server knows (a code outside the terminology
  * seed, a replay) comes back as problem+json and is shown on the field or as the read-only view.
  */
-export function EncounterCompleteForm({ encounterId }: { readonly encounterId: string }): ReactNode {
+export function EncounterCompleteForm({ encounterId, patientId }: { readonly encounterId: string; readonly patientId: string }): ReactNode {
   const t = useT('doctor.encounter');
-  const { methods, complete, onSubmit, foreignMessages, isMarked } = useEncounterForm(encounterId);
+  const { methods, complete, onSubmit, completeAsEmergency, foreignMessages, isMarked } = useEncounterForm(encounterId);
+  const needsConsent: boolean = complete.isError && isApiError(complete.error) && complete.error.errorCode === 'CONSENT_REQUIRED';
 
   return (
     <FormProvider {...methods}>
@@ -66,11 +68,13 @@ export function EncounterCompleteForm({ encounterId }: { readonly encounterId: s
         <ServiceRequestsEditor />
         <MedicationsEditor />
         <RecommendationsSection />
-        {complete.isError && isApiError(complete.error) ? <CompletionFailure problem={complete.error.problem} foreignMessages={foreignMessages} isMarked={isMarked} /> : null}
+        {complete.isError && !needsConsent && isApiError(complete.error) ? <CompletionFailure problem={complete.error.problem} foreignMessages={foreignMessages} isMarked={isMarked} /> : null}
         <button type="submit" aria-disabled={complete.isPending} aria-busy={complete.isPending} className={`mt-4 ${buttonVariants({ variant: 'primary', size: 'lg' })}`}>
           {complete.isPending ? t('completing') : t('complete')}
         </button>
       </form>
+      {/* Outside the form: the notice has a form of its own, and a nested one would submit the completion. */}
+      {needsConsent ? <div className="mt-4"><ConsentRequiredNotice action="complete" patientId={patientId} isPending={complete.isPending} onEmergency={completeAsEmergency} /></div> : null}
     </FormProvider>
   );
 }

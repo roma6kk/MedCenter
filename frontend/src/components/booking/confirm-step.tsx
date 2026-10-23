@@ -1,10 +1,11 @@
 'use client';
 
 import type { ReactNode, RefObject } from 'react';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { useDoctor, useService } from '@/components/catalog/use-catalog';
+import { useMyConsent } from '@/components/consent/use-consent';
 import { ProblemBanner } from '@/components/feedback/problem-banner';
 import { FormField, INPUT_CLASS } from '@/components/patient/form-field';
 import { useRetryCooldown } from '@/lib/api/use-retry-cooldown';
@@ -65,14 +66,16 @@ interface ReasonFieldProps {
   readonly inputRef: RefObject<HTMLTextAreaElement>;
   readonly onChange: (reason: string) => void;
   readonly onBlur: () => void;
+  /** No active consent to the electronic record: the free text about health cannot be taken (6.1, ADR-019). */
+  readonly disabled: boolean;
 }
 
-function ReasonField({ value, error, inputRef, onChange, onBlur }: ReasonFieldProps): ReactNode {
+function ReasonField({ value, error, inputRef, onChange, onBlur, disabled }: ReasonFieldProps): ReactNode {
   const t = useT('booking');
   return (
-    <FormField id="booking-reason" label={t('reasonLabel')} hint={t('reasonHint')} error={error}>
+    <FormField id="booking-reason" label={t('reasonLabel')} hint={disabled ? t('reasonNoConsent') : t('reasonHint')} error={error}>
       {(control) => (
-        <textarea {...control} ref={inputRef} rows={3} value={value} onChange={(event) => onChange(event.target.value)} onBlur={onBlur} className={INPUT_CLASS} />
+        <textarea {...control} ref={inputRef} rows={3} disabled={disabled} value={value} onChange={(event) => onChange(event.target.value)} onBlur={onBlur} className={INPUT_CLASS} />
       )}
     </FormField>
   );
@@ -118,9 +121,16 @@ export function ConfirmStep({ draft, onReasonChange, booking }: ConfirmStepProps
   const reasonRef = useRef<HTMLTextAreaElement>(null);
   const field = useReasonField(draft.reason, booking.reasonError);
   const cooldown: number = useRetryCooldown(booking.problem);
+  // Only a known "no consent" closes the field; a consent that cannot be read leaves it open and the server decides.
+  const consent = useMyConsent();
+  const noConsent: boolean = consent.data !== undefined && consent.data.active === null;
+  // A reason typed before the answer arrived (or kept in the draft) must not go out: the server would refuse or drop it.
+  useEffect(() => {
+    if (noConsent && draft.reason !== '') onReasonChange('');
+  }, [noConsent, draft.reason, onReasonChange]);
   const handleConfirm = (): void => {
     field.touch();
-    if (reasonProblem(draft.reason) !== null) reasonRef.current?.focus();
+    if (!noConsent && reasonProblem(draft.reason) !== null) reasonRef.current?.focus();
     else booking.submit();
   };
   return (
@@ -128,7 +138,7 @@ export function ConfirmStep({ draft, onReasonChange, booking }: ConfirmStepProps
       <h2 className="text-[22px] font-bold">{t('confirmTitle')}</h2>
       <Card radius="card" padding="none" className="mt-3 px-5"><Summary draft={draft} /></Card>
       <div className={field.error === undefined ? 'mt-4 md:pb-6' : 'mt-4'}>
-        <ReasonField value={draft.reason} error={field.error} inputRef={reasonRef} onChange={onReasonChange} onBlur={field.touch} />
+        <ReasonField value={draft.reason} error={field.error} inputRef={reasonRef} onChange={onReasonChange} onBlur={field.touch} disabled={noConsent} />
       </div>
       {booking.problem === null ? null : <div className="mt-4"><ProblemBanner problem={booking.problem} /></div>}
       <ConfirmButton isPending={booking.isPending} cooldown={cooldown} onConfirm={handleConfirm} />

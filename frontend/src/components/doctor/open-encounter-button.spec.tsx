@@ -122,4 +122,93 @@ describe('OpenEncounterButton', () => {
     await waitFor(() => expect(invalidate).toHaveBeenCalledWith({ queryKey: ['doctorAppointments'] }));
     expect(invalidate).toHaveBeenCalledWith({ queryKey: ['encounter'] });
   });
+  describe('without a consent (409 CONSENT_REQUIRED)', () => {
+    const refuse = (): never => { throw problem(409, 'CONSENT_REQUIRED'); };
+
+    it('should say the patient has no consent in a dialog, offer the record form, and not leave the journal', async () => {
+      setup([openRoute(refuse)]);
+
+      await click();
+
+      const dialog = await screen.findByRole('dialog', { name: 'Нет согласия на электронную медкарту' });
+      expect(dialog).toHaveTextContent('Приём нельзя открыть');
+      expect(screen.getByRole('link', { name: 'Внести согласие в карточке пациента' })).toHaveAttribute('href', '/patients/p1#consent');
+      expect(push).not.toHaveBeenCalled();
+    });
+
+    it('should resend with the emergency reason and go to the encounter when the doctor opens it as emergency care', async () => {
+      let attempts = 0;
+      setup([openRoute((_path, options) => {
+        attempts += 1;
+        if (attempts === 1) return refuse();
+        expect(JSON.parse(String(options?.body))).toEqual({ appointmentId: APPOINTMENT_ID, emergencyReason: 'Пациент без сознания, ДТП' });
+        return { id: ENCOUNTER_ID, status: 'in-progress' };
+      })]);
+
+      await click();
+      await userEvent.click(await screen.findByLabelText('Причина экстренной помощи'));
+      await userEvent.paste('Пациент без сознания, ДТП');
+      await userEvent.click(screen.getByRole('button', { name: 'Открыть приём как экстренный' }));
+
+      await waitFor(() => expect(push).toHaveBeenCalledWith(`/encounters/${ENCOUNTER_ID}`));
+      expect(callsTo(apiFetchMock, '/api/v1/encounters', 'POST')).toHaveLength(2);
+    });
+
+    it('should keep the dialog up with the busy button while the emergency request runs', async () => {
+      let attempts = 0;
+      let finish: (value: unknown) => void = () => undefined;
+      setup([openRoute(() => {
+        attempts += 1;
+        if (attempts === 1) return refuse();
+        return new Promise((done) => { finish = done; });
+      })]);
+
+      await click();
+      await userEvent.click(await screen.findByLabelText('Причина экстренной помощи'));
+      await userEvent.paste('Пациент без сознания, ДТП');
+      await userEvent.click(screen.getByRole('button', { name: 'Открыть приём как экстренный' }));
+
+      expect(await screen.findByRole('button', { name: 'Отправляем…' })).toHaveAttribute('aria-disabled', 'true');
+      expect(screen.getByRole('dialog')).toBeInTheDocument();
+      finish({ id: ENCOUNTER_ID, status: 'in-progress' });
+      await waitFor(() => expect(push).toHaveBeenCalledWith(`/encounters/${ENCOUNTER_ID}`));
+    });
+
+    it('should show why the emergency request failed inside the dialog', async () => {
+      let attempts = 0;
+      setup([openRoute(() => {
+        attempts += 1;
+        if (attempts === 1) return refuse();
+        throw problem(400, 'VALIDATION_ERROR');
+      })]);
+
+      await click();
+      await userEvent.click(await screen.findByLabelText('Причина экстренной помощи'));
+      await userEvent.paste('Пациент без сознания, ДТП');
+      await userEvent.click(screen.getByRole('button', { name: 'Открыть приём как экстренный' }));
+
+      expect(await screen.findByText('Проверьте заполнение полей')).toBeInTheDocument();
+      expect(screen.getByRole('dialog')).toBeInTheDocument();
+    });
+
+    it('should not send a first request with an emergency reason', async () => {
+      setup([openRoute(() => ({ id: ENCOUNTER_ID, status: 'in-progress' }))]);
+
+      await click();
+
+      await waitFor(() => expect(push).toHaveBeenCalled());
+      expect(bodyOf(callsTo(apiFetchMock, '/api/v1/encounters', 'POST')[0])).not.toHaveProperty('emergencyReason');
+    });
+
+    it('should close the dialog on Escape and leave the button usable', async () => {
+      setup([openRoute(refuse)]);
+
+      await click();
+      await screen.findByRole('dialog');
+      await userEvent.keyboard('{Escape}');
+
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Открыть приём: Кузнецов, 09:00' })).toBeInTheDocument();
+    });
+  });
 });

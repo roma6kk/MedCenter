@@ -51,17 +51,21 @@ export function postNoshow(appointmentId: string): Promise<unknown> {
   return apiFetch(`/api/v1/doctor/appointments/${encodeURIComponent(appointmentId)}/noshow`, { method: 'POST' });
 }
 
-/** API 7.1: 201 for a new encounter, 200 with the open one when the appointment already has it. */
-export function postOpenEncounter(appointmentId: string): Promise<EncounterSummary> {
-  return apiFetch<EncounterSummary>('/api/v1/encounters', { method: 'POST', body: JSON.stringify({ appointmentId }) });
+/** API 7.1: 201 for a new encounter, 200 with the open one when the appointment already has it. `emergencyReason` (10…500) bypasses a missing consent (ADR-019). */
+export function postOpenEncounter(appointmentId: string, emergencyReason?: string): Promise<EncounterSummary> {
+  const body = emergencyReason === undefined ? { appointmentId } : { appointmentId, emergencyReason };
+  return apiFetch<EncounterSummary>('/api/v1/encounters', { method: 'POST', body: JSON.stringify(body) });
 }
 
 export function fetchEncounter(encounterId: string, signal?: AbortSignal): Promise<EncounterDetails> {
   return apiFetch<EncounterDetails>(`/api/v1/encounters/${encodeURIComponent(encounterId)}`, { signal });
 }
 
+/** The completion form plus the optional `emergencyReason` (10…500) that bypasses a missing consent (ADR-019). */
+export type CompleteEncounterBody = CompleteEncounterForm & { readonly emergencyReason?: string };
+
 /** API 7.3: one atomic body; a replay answers `409 ENCOUNTER_STATE_INVALID`. */
-export function postCompleteEncounter(encounterId: string, body: CompleteEncounterForm): Promise<EncounterSummary> {
+export function postCompleteEncounter(encounterId: string, body: CompleteEncounterBody): Promise<EncounterSummary> {
   return apiFetch<EncounterSummary>(`/api/v1/encounters/${encodeURIComponent(encounterId)}/complete`, { method: 'POST', body: JSON.stringify(body) });
 }
 
