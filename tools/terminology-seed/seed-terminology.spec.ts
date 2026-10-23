@@ -1,4 +1,4 @@
-import { FhirHttp, type FetchLike } from '../shared/fhir-http';
+import { FhirHttp, FhirHttpError, type FetchLike } from '../shared/fhir-http';
 import { InMemoryFhirServer } from '../shared/in-memory-fhir';
 import { expansionCodes, findMissingCodes, seedTerminology, type VerifyOptions } from './seed-terminology';
 import { buildCodeSystems, buildValueSets, TERMINOLOGY_URLS } from './terminology-resources';
@@ -109,6 +109,51 @@ describe('seedTerminology', () => {
     await expect(seedTerminology(new FhirHttp('http://fhir.test/fhir', truncated), NO_WAIT)).rejects.toThrow(
       /expansion is incomplete/,
     );
+  });
+
+  describe('$expand answering a server error right after a ValueSet PUT', () => {
+    /** Fails the first `failures` $expand calls with `status`, then answers like the server. */
+    function flaky(server: InMemoryFhirServer, failures: number, status: number): { fetch: FetchLike; failed: () => number } {
+      let failed = 0;
+      return {
+        failed: () => failed,
+        fetch: async (url, init) => {
+          if (url.includes('$expand') && failed < failures) {
+            failed += 1;
+            return new Response(JSON.stringify({ resourceType: 'OperationOutcome' }), { status });
+          }
+          return server.fetch(url, init);
+        },
+      };
+    }
+
+    it('should retry with a growing pause and then succeed when the 5xx is transient', async () => {
+      const server = new InMemoryFhirServer();
+      const pauses: number[] = [];
+      const options: VerifyOptions = { ...NO_WAIT, serverErrorDelayMs: 100, sleep: (ms) => { pauses.push(ms); return Promise.resolve(); } };
+      const { fetch, failed } = flaky(server, 3, 503);
+
+      await seedTerminology(new FhirHttp('http://fhir.test/fhir', fetch), options);
+
+      expect(failed()).toBe(3);
+      expect(pauses).toEqual([100, 200, 400]);
+    });
+
+    it('should give up after a bounded number of attempts when the 5xx persists', async () => {
+      const server = new InMemoryFhirServer();
+      const { fetch, failed } = flaky(server, 1000, 500);
+
+      await expect(seedTerminology(new FhirHttp('http://fhir.test/fhir', fetch), NO_WAIT)).rejects.toBeInstanceOf(FhirHttpError);
+      expect(failed()).toBe(5);
+    });
+
+    it('should not retry a 4xx', async () => {
+      const server = new InMemoryFhirServer();
+      const { fetch, failed } = flaky(server, 1000, 404);
+
+      await expect(seedTerminology(new FhirHttp('http://fhir.test/fhir', fetch), NO_WAIT)).rejects.toBeInstanceOf(FhirHttpError);
+      expect(failed()).toBe(1);
+    });
   });
 
   it('should recreate a ValueSet whose stored expansion is stale and then succeed', async () => {
