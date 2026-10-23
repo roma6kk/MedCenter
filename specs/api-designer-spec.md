@@ -928,18 +928,38 @@ requestId; reason? }`. `read` — чтение данных пациента в�
 
 #### 10. Swagger / OpenAPI
 
-- **`@nestjs/swagger` во всех BFF-сервисах.** UI: `/api/docs/<service>` (например,
-  `/api/docs/appointment`), JSON: `/api/docs/<service>-json` — маршрутизация Traefik.
-  В проде (задел: env `SWAGGER_ENABLED=false`) отключается.
-- **Конвенции декораторов** (скилл api-designer): `@ApiTags('<service>')` на контроллере;
-  `@ApiOperation({ summary })`; `@ApiBody({ type })`, `@ApiParam`, `@ApiQuery` с
-  `DefaultValuePipe`/`ParseIntPipe`; `@ApiResponse` **на каждый** код из §1–§9 (200/201/204,
-  400/401/403/404/409/422/429/500); `@ApiBearerAuth()` на защищённых; `@ApiSecurity()`
-  не используется (Bearer-only).
-- **Типизация:** все контроллеры возвращают DTO (`Promise<XResponseDto>`), strict-типы
-  (GOLDEN-PRINCIPLES: без `any`, explicit return types). `PartialType`/`OmitType` для update-DTO.
-- **RFC 7807 в Swagger:** глобальный `problemDetails` schema в `main.ts` каждого сервиса
-  (`SwaggerModule`), ссылки на errorCode-каталог §1.
+Реализовано (ветка `fix/open-items`): `@nestjs/swagger` во всех 8 BFF-сервисах.
+
+- **Подключение.** Общий помощник `setupSwagger(app, { service, enabled })` в `libs/common/src/lib/swagger/` вызывается
+  в `main.ts` каждого сервиса. UI — `/api/docs/<service>`, документ JSON — `/api/docs/<service>-json`, YAML —
+  `/api/docs/<service>-yaml`; `<service>` = `auth`, `practitioner`, `catalog`, `patient`, `appointment`,
+  `notification`, `encounter`, `analytics`. `buildOpenApiDocument` строит документ отдельно (для тестов).
+- **Флаг `SWAGGER_ENABLED`.** Описан в `libs/config` (`envSchema`, `parseSwaggerEnv`), по умолчанию **`false`**: без явного
+  включения документация не публикуется (сервис отвечает 404). В Docker Compose передаётся через `x-bff-env`
+  (`SWAGGER_ENABLED: ${SWAGGER_ENABLED:-false}`); включение — `SWAGGER_ENABLED=true` в `.env` и пересоздание сервисов.
+- **Маршрутизация.** В `infra/traefik/dynamic.yml` по роутеру на сервис, `docs-<service>`
+  (`PathPrefix(/api/docs/<service>)`, priority 70); `/fhir/**` по-прежнему закрыт.
+- **Схема безопасности.** Только Bearer (`http`/`bearer`, JWT, имя схемы `bearer`); `@ApiSecurity()` не используется.
+- **RFC 7807.** В каждый документ добавляется глобальная схема `problemDetails` (`problem-details.schema.ts`); декоратор
+  `ApiProblems(statuses, extra?)` вешает `@ApiResponse` с `application/problem+json` на нужные статусы и перечисляет в
+  описании `errorCode` каталога §1. `GUARD_PROBLEM_STATUSES` = 401/403/429/500 — коды guard-слоя, общие для защищённых
+  эндпоинтов.
+- **Конвенции декораторов.** `@ApiTags('<service>')` на контроллере; `@ApiOperation({ summary })` с номером пункта
+  спецификации; `@ApiParam`/`@ApiQuery`/`@ApiBody`; `@ApiResponse` на каждый успешный код и `ApiProblems` на ошибочные;
+  `@ApiBearerAuth()` на защищённых. Контроллеры возвращают DTO, strict-типы (GOLDEN-PRINCIPLES: без `any`, явные
+  возвращаемые типы). Ответы описаны doc-классами `*.doc.ts` рядом с DTO.
+- **Тесты.** В каждом сервисе `apps/<service>/src/swagger.spec.ts` строит документ из `AppModule` и проверяет: схема
+  `problemDetails` присутствует; у каждой операции есть тег, summary и успешный ответ (`findUndocumentedOperations`);
+  набор путей `/api/v1` совпадает с соответствующим разделом спецификации; Bearer требуется на всех, кроме публичных;
+  на каждой операции есть `application/problem+json`. Тест самого помощника — `setup-swagger.spec.ts`.
+
+**Отличия от прежнего замысла (текущее состояние).**
+
+- `PartialType`/`OmitType` для update-DTO **не используются**: `UpdateUserDto`, `UpdateRoomDto`, `UpdateScheduleDto` и др.
+  написаны вручную (`@nestjs/mapped-types` не входит в зависимости воркспейса); поля те же, что в спецификации DTO.
+- Общего класса `PageMetaDto` в `libs/contracts` **нет**: `PageMetaDto` там — `interface` (конверт `PaginatedResponseDto`
+  выше показан как контракт, а не как класс). Для Swagger каждый сервис держит свой doc-класс `PageMetaDoc`
+  (`page-meta.doc.ts`) и doc-класс страницы.
 
 #### 11. Bruno-коллекция
 
