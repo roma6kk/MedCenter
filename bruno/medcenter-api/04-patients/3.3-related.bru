@@ -1,0 +1,36 @@
+meta {
+  name: 3.3 Related persons
+  type: http
+  seq: 3
+  tags: [
+    ro-patient
+    ro-doctor
+    ro-admin
+  ]
+}
+
+get {
+  url: {{baseUrl}}/api/v1/patients/{{patientId}}/related?page=1&pageSize=20
+  body: none
+  auth: inherit
+}
+
+params:query {
+  page: 1
+  pageSize: 20
+}
+
+script:pre-request {
+  if (!bru.getVar('patientId')) { bru.runner.skipRequest(); }
+}
+
+assert {
+  res.status: eq 200
+  res.body.items: isArray
+  res.body.meta.page: isNumber
+  res.body.meta.totalItems: isNumber
+}
+
+docs {
+  Spec 3.3. Trusted persons (`RelatedPerson`). Same access rules as 3.2.
+}

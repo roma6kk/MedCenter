@@ -1,0 +1,35 @@
+meta {
+  name: 5.1.4 Update service
+  type: http
+  seq: 4
+  tags: [
+    write
+    crud-services
+    role-admin
+  ]
+}
+
+patch {
+  url: {{baseUrl}}/api/v1/admin/services/{{newServiceId}}
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "defaultDurationMin": 45
+  }
+}
+
+script:pre-request {
+  if (!bru.getVar('newServiceId')) { bru.runner.skipRequest(); }
+}
+
+assert {
+  res.status: eq 200
+  res.body.defaultDurationMin: eq 45
+}
+
+docs {
+  Spec 5.1.4. ADMIN. Any subset of the create fields.
+}

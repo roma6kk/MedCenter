@@ -1,0 +1,28 @@
+meta {
+  name: 3.7 Patient consent status
+  type: http
+  seq: 6
+  tags: [
+    ro-doctor
+    ro-admin
+  ]
+}
+
+get {
+  url: {{baseUrl}}/api/v1/patients/{{patientId}}/consent
+  body: none
+  auth: inherit
+}
+
+script:pre-request {
+  if (!bru.getVar('patientId')) { bru.runner.skipRequest(); }
+}
+
+assert {
+  res.status: eq 200
+  res.body.history: isArray
+}
+
+docs {
+  Spec 3.7. DOCTOR (with a link) / ADMIN; the read is audited.
+}

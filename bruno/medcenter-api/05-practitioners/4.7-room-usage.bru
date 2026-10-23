@@ -1,0 +1,28 @@
+meta {
+  name: 4.7 Room usage
+  type: http
+  seq: 6
+  tags: [
+    ro-admin
+  ]
+}
+
+get {
+  url: {{baseUrl}}/api/v1/admin/rooms/{{roomId}}/usage
+  body: none
+  auth: inherit
+}
+
+script:pre-request {
+  if (!bru.getVar('roomId')) { bru.runner.skipRequest(); }
+}
+
+assert {
+  res.status: eq 200
+  res.body.inUse: isBoolean
+  res.body.items: isArray
+}
+
+docs {
+  Spec 4.7. ADMIN. `Schedule`/`Slot` references that keep the room busy; `truncated` when the list was cut.
+}

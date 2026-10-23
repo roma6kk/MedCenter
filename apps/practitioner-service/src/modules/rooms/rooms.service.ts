@@ -1,18 +1,33 @@
 import { ConflictException, Inject, Injectable } from '@nestjs/common';
 import type { PaginatedResponseDto } from '@medcenter/contracts';
-import { FHIR_CLIENT, type FhirClient, type FhirResource } from '@medcenter/fhir';
+import {
+  createAudited,
+  deleteAudited,
+  FHIR_CLIENT,
+  FhirClientError,
+  updateAudited,
+  type AuditContext,
+  type FhirClient,
+  type FhirResource,
+  type WriteActor,
+} from '@medcenter/fhir';
 import { MEDCENTER_EXT } from '@medcenter/terminology';
 
 import { toPage } from '../../common/page-envelope';
 import { CreateRoomDto } from './dto/create-room.dto';
 import { UpdateRoomDto } from './dto/update-room.dto';
 import type { RoomResponseDto } from './dto/room-response.dto';
-import { roomUsingIdentifier } from './room-identifier';
+import { roomIdentifierQuery, roomUsingIdentifier } from './room-identifier';
 import { roomScheduleQuery } from './room-schedules';
 import { findAllRooms, LOCATION_PHYSICAL_TYPE_SYSTEM, ROOM_PHYSICAL_TYPE_CODE } from './room-search';
 
 /** One page of the room list in the API §0 envelope. */
 export type RoomPage = PaginatedResponseDto<RoomResponseDto>;
+
+const HTTP_BAD_REQUEST = 400;
+
+/** `AuditEvent.source` of the writes of this service. */
+const AUDIT_SOURCE = 'practitioner-service';
 
 /** FHIR R4 `Location` has no native floor element — it lives in an extension. */
 const FLOOR_EXT = MEDCENTER_EXT.ROOM_FLOOR;
@@ -42,13 +57,29 @@ export class RoomsService {
     return this.toResponseDto(resource);
   }
 
-  async create(dto: CreateRoomDto): Promise<RoomResponseDto> {
-    await this.assertIdentifierFree(dto.identifier);
-    const created = await this.fhirClient.create('Location', this.toLocation(dto));
-    return this.toResponseDto(created);
+  /** Admin writes carry their `AuditEvent` in the same transaction (FR-021, ADR-014). */
+  private auditOf(actor: WriteActor): AuditContext {
+    return { actor, source: AUDIT_SOURCE };
   }
 
-  async update(id: string, dto: UpdateRoomDto): Promise<RoomResponseDto> {
+  async create(dto: CreateRoomDto, actor: WriteActor): Promise<RoomResponseDto> {
+    await this.assertIdentifierFree(dto.identifier);
+    try {
+      const created = await createAudited(this.fhirClient, this.toLocation(dto), this.auditOf(actor), {
+        onlyIfNoneMatches: roomIdentifierQuery(dto.identifier),
+      });
+      return this.toResponseDto(created);
+    } catch (error) {
+      // Another request stored a room with this identifier between the check above and the write:
+      // HAPI refused this transaction (400 when it matched the stored room, 409 when it met a write in flight).
+      if (error instanceof ConflictException || (error instanceof FhirClientError && error.upstreamStatus === HTTP_BAD_REQUEST)) {
+        await this.assertIdentifierFree(dto.identifier);
+      }
+      throw error;
+    }
+  }
+
+  async update(id: string, dto: UpdateRoomDto, actor: WriteActor): Promise<RoomResponseDto> {
     const existing = await this.fhirClient.read('Location', id);
     if (dto.identifier !== undefined) {
       await this.assertIdentifierFree(dto.identifier, id);
@@ -74,7 +105,7 @@ export class RoomsService {
       ).concat([{ url: FLOOR_EXT, valueInteger: dto.floor }]);
       merged['extension'] = extensions;
     }
-    const updated = await this.fhirClient.update('Location', id, merged as FhirResource);
+    const updated = await updateAudited(this.fhirClient, { ...merged, id } as FhirResource, this.auditOf(actor));
     return this.toResponseDto(updated);
   }
 
@@ -88,7 +119,7 @@ export class RoomsService {
    * `ProblemDetailsFilter` promotes it to the response `errorCode`; the same
    * label stays at the start of `detail` for logs and older clients.
    */
-  async remove(id: string): Promise<void> {
+  async remove(id: string, actor: WriteActor): Promise<void> {
     // An unknown id surfaces as 404 NOT_FOUND straight from the FHIR client.
     await this.fhirClient.read('Location', id);
     // `_count: 1` — one referencing schedule is enough to refuse the delete.
@@ -103,23 +134,27 @@ export class RoomsService {
         message: `ROOM_IN_USE: room ${id} is referenced by a schedule`,
       });
     }
-    await this.fhirClient.delete('Location', id);
+    await deleteAudited(this.fhirClient, 'Location', id, this.auditOf(actor));
   }
 
   /**
    * `409 CONFLICT` when another room already has `identifier` (API §4.4/4.5, compared trimmed and
    * case-insensitively). HAPI has no unique constraint over `Location.identifier`, so the rooms are
    * read and compared here; two admins creating the same identifier in the same instant is the one
-   * case this check cannot see (admin-only, low-frequency writes).
+   * case this check cannot see; `create` closes it with a conditional create (`roomIdentifierQuery`).
    */
   private async assertIdentifierFree(identifier: string, roomId?: string): Promise<void> {
     const taken = roomUsingIdentifier(await findAllRooms(this.fhirClient), identifier, roomId);
     if (taken !== undefined) {
-      throw new ConflictException({
-        errorCode: 'CONFLICT',
-        message: `CONFLICT: room identifier "${identifier}" is already used by room ${taken.id ?? ''}`,
-      });
+      throw this.identifierTaken(identifier, taken.id ?? '');
     }
+  }
+
+  private identifierTaken(identifier: string, roomId: string): ConflictException {
+    return new ConflictException({
+      errorCode: 'CONFLICT',
+      message: `CONFLICT: room identifier "${identifier}" is already used by room ${roomId}`,
+    });
   }
 
   private toLocation(dto: Partial<CreateRoomDto>): FhirResource {

@@ -145,6 +145,8 @@ export class AppointmentsService {
       assertPatientOwns(callerRef, appointment);
     }
     assertBooked(appointment, 'APPOINTMENT_NOT_CANCELLABLE', 'cancelled');
+    // A patient who is being seen (an encounter exists) cannot cancel; an encounter opened after this check bumps the version.
+    await this.assertNoEncounter(appointmentId, 'APPOINTMENT_NOT_CANCELLABLE', 'cancelled');
     return appointment;
   }
 
@@ -162,7 +164,7 @@ export class AppointmentsService {
     // Ownership before state: a non-participant must not learn the appointment's status.
     assertDoctorParticipates(callerRef, appointment);
     assertBooked(appointment, 'ENCOUNTER_STATE_INVALID', 'marked as no-show');
-    await this.assertNoEncounter(appointmentId);
+    await this.assertNoEncounter(appointmentId, 'ENCOUNTER_STATE_INVALID', 'marked as no-show (BR-008)');
 
     const updated: FhirResource = { ...appointment, status: 'noshow' };
     const patientRef = patientRefOf(appointment);
@@ -172,23 +174,22 @@ export class AppointmentsService {
         { method: 'PUT', url: `Appointment/${appointmentId}`, resource: updated, ifMatch: versionOf(appointment) },
         auditWrite({ interaction: 'update', actorSub: claims.sub, entityRef: `Appointment/${appointmentId}`, patientRef, requestId }),
       ],
-      'CONFLICT',
+      'ENCOUNTER_STATE_INVALID',
     );
     return toAppointmentResponseDto(updated);
   }
 
   /**
-   * `409 ENCOUNTER_STATE_INVALID` when an Encounter (in progress or finished) refers to the appointment.
-   * The `If-Match` on the Appointment cannot cover this check: opening an encounter does not change the
-   * appointment, so an encounter opened in the instant between this search and the commit is not seen
-   * here — completing it is still refused later, because the appointment is no longer `booked`.
+   * `409 <errorCode>` when an Encounter (in progress or finished) refers to the appointment. An encounter
+   * opened between this search and the commit is caught by the `If-Match` on the Appointment: encounter-service
+   * changes the Appointment (`meta.tag`) in the transaction that opens the encounter.
    */
-  private async assertNoEncounter(appointmentId: string): Promise<void> {
+  private async assertNoEncounter(appointmentId: string, errorCode: ErrorCode, action: string): Promise<void> {
     const encounters = await this.fhir.search('Encounter', { appointment: `Appointment/${appointmentId}`, _count: 1 });
     if ((encounters.entry ?? []).length > 0) {
       throw new ConflictException({
-        errorCode: 'ENCOUNTER_STATE_INVALID',
-        message: 'ENCOUNTER_STATE_INVALID: the appointment already has an encounter, it cannot be marked as no-show (BR-008)',
+        errorCode,
+        message: `${errorCode}: the appointment already has an encounter, it cannot be ${action}`,
       });
     }
   }

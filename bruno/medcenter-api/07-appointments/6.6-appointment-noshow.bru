@@ -1,0 +1,29 @@
+meta {
+  name: 6.6 Mark no-show
+  type: http
+  seq: 6
+  tags: [
+    write
+    destructive
+    role-doctor
+  ]
+}
+
+post {
+  url: {{baseUrl}}/api/v1/doctor/appointments/{{doctorAppointmentId}}/noshow
+  body: none
+  auth: inherit
+}
+
+script:pre-request {
+  if (!bru.getVar('doctorAppointmentId')) { bru.runner.skipRequest(); }
+}
+
+assert {
+  res.status: eq 200
+  res.body.status: eq noshow
+}
+
+docs {
+  Spec 6.6. DOCTOR, scope `user/*.write`. Only for a `booked` appointment without an encounter, otherwise 409 `ENCOUNTER_STATE_INVALID`. Not run by the collection runner by default: set `doctorAppointmentId` to a throwaway appointment first.
+}

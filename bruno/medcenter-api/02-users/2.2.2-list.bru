@@ -1,0 +1,36 @@
+meta {
+  name: 2.2.2 List users
+  type: http
+  seq: 2
+  tags: [
+    ro-admin
+  ]
+}
+
+get {
+  url: {{baseUrl}}/api/v1/admin/users?page=1&pageSize=20
+  body: none
+  auth: inherit
+}
+
+params:query {
+  ~role: DOCTOR
+  ~search: 
+  page: 1
+  pageSize: 20
+}
+
+script:post-response {
+  if (res.status === 200 && res.body.items.length) { bru.setVar('userId', res.body.items[0].id); }
+}
+
+assert {
+  res.status: eq 200
+  res.body.items: isArray
+  res.body.meta.page: isNumber
+  res.body.meta.totalItems: isNumber
+}
+
+docs {
+  Spec 2.2.2. ADMIN. Filters: `role` (PATIENT|DOCTOR|ADMIN), `search`, `page`, `pageSize` (1..100). Stores the first id in `userId`.
+}

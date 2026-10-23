@@ -1,0 +1,35 @@
+meta {
+  name: 8.1 List notifications
+  type: http
+  seq: 1
+  tags: [
+    ro-patient
+  ]
+}
+
+get {
+  url: {{baseUrl}}/api/v1/notifications?page=1&pageSize=20
+  body: none
+  auth: inherit
+}
+
+params:query {
+  page: 1
+  pageSize: 20
+  ~unread: true
+}
+
+script:post-response {
+  if (res.status === 200 && res.body.items.length) { bru.setVar('notificationId', res.body.items[0].id); }
+}
+
+assert {
+  res.status: eq 200
+  res.body.items: isArray
+  res.body.meta.page: isNumber
+  res.body.meta.totalItems: isNumber
+}
+
+docs {
+  Spec 8.1. PATIENT, scope `patient/*.read`. Items `{ id, category, text, sent, read, appointmentId?, encounterId? }`; `unread=true` keeps the unread ones.
+}

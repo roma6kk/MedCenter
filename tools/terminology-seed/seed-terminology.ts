@@ -1,4 +1,4 @@
-import { FhirHttp } from '../shared/fhir-http';
+import { FhirHttp, FhirHttpError } from '../shared/fhir-http';
 import { resolveFhirBaseUrl, runMain } from '../shared/seed-env';
 import { applyUpsert, planUpsert, type CanonicalResource, type UpsertPlan, type UpsertResult } from './canonical-upsert';
 import { expansionCodes, findMissingCodes } from './expansion-codes';
@@ -83,7 +83,32 @@ export interface VerifyOptions {
   readonly attempts: number;
   /** Pause between attempts: HAPI caches resolved CodeSystems for about a minute. */
   readonly delayMs: number;
+  /** First pause before retrying a `$expand` that answered 5xx; it doubles for every further retry. */
+  readonly serverErrorDelayMs?: number;
   readonly sleep: (ms: number) => Promise<void>;
+}
+
+/** Retries of one `$expand` that answered 5xx (so at most `1 + 4` calls): bounded, 1 s + 2 s + 4 s + 8 s by default. */
+const SERVER_ERROR_RETRIES = 4;
+const DEFAULT_SERVER_ERROR_DELAY_MS = 1_000;
+
+/**
+ * HAPI runs its pre-expansion job right after a ValueSet PUT and a `$expand` that lands in that window can answer
+ * 5xx although the next call works. Only a 5xx is retried; a 4xx or a network error is a real failure.
+ */
+async function retryOnServerError<T>(options: VerifyOptions, call: () => Promise<T>): Promise<T> {
+  for (let retry = 0; ; retry += 1) {
+    try {
+      return await call();
+    } catch (error) {
+      if (!(error instanceof FhirHttpError) || error.status < 500 || retry >= SERVER_ERROR_RETRIES) {
+        throw error;
+      }
+      const pause = (options.serverErrorDelayMs ?? DEFAULT_SERVER_ERROR_DELAY_MS) * 2 ** retry;
+      console.log(`$expand answered ${error.status}, retrying in ${pause} ms (${retry + 1}/${SERVER_ERROR_RETRIES})`);
+      await options.sleep(pause);
+    }
+  }
 }
 
 export const DEFAULT_VERIFY_OPTIONS: VerifyOptions = {
@@ -112,14 +137,15 @@ async function verifyWithRecovery(
   ownCopy: SeedValueSet | undefined,
   options: VerifyOptions,
 ): Promise<ExpandReport> {
-  let report = await verifyExpansion(http, check);
+  const expand = (): Promise<ExpandReport> => retryOnServerError(options, () => verifyExpansion(http, check));
+  let report = await expand();
   for (let attempt = 1; report.missingCodes.length > 0 && attempt < options.attempts; attempt += 1) {
     if (attempt === 1 && ownCopy !== undefined) {
       await recreateValueSet(http, ownCopy);
     } else {
       await options.sleep(options.delayMs);
     }
-    report = await verifyExpansion(http, check);
+    report = await expand();
   }
   return report;
 }
@@ -160,8 +186,8 @@ function assertVerified(reports: readonly ExpansionReport[]): void {
   }
 }
 
-async function proveKeys(http: FhirHttp): Promise<KeyCodeProof[]> {
-  const proofs = await proveKeyCodes(http);
+async function proveKeys(http: FhirHttp, options: VerifyOptions): Promise<KeyCodeProof[]> {
+  const proofs = await retryOnServerError(options, () => proveKeyCodes(http));
   proofs.forEach((proof) => console.log(describeProof(proof)));
   const failed = proofs.filter((proof) => !proof.isValid || !proof.isFoundByFilter);
   if (failed.length > 0) {
@@ -177,7 +203,7 @@ export async function seedTerminology(
 ): Promise<TerminologySeedSummary> {
   const upserts = await upsertAll(http);
   const expansions = await verifyAll(http, options, upserts);
-  const keyCodes = await proveKeys(http);
+  const keyCodes = await proveKeys(http, options);
   const counts = { CodeSystem: await http.count('CodeSystem'), ValueSet: await http.count('ValueSet') };
   console.log(`Server totals: CodeSystem=${counts.CodeSystem} ValueSet=${counts.ValueSet}`);
   return { upserts, expansions, keyCodes, counts };

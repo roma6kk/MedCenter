@@ -1,0 +1,23 @@
+meta {
+  name: 8.2 Unread count
+  type: http
+  seq: 2
+  tags: [
+    ro-patient
+  ]
+}
+
+get {
+  url: {{baseUrl}}/api/v1/notifications/unread-count
+  body: none
+  auth: inherit
+}
+
+assert {
+  res.status: eq 200
+  res.body.count: isNumber
+}
+
+docs {
+  Spec 8.2. Polled by the web client (ADR-015).
+}

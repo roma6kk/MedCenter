@@ -1,0 +1,29 @@
+meta {
+  name: 2.1.1 SMART configuration
+  type: http
+  seq: 1
+  tags: [
+    ro-public
+    ro-admin
+    ro-doctor
+    ro-patient
+  ]
+}
+
+get {
+  url: {{baseUrl}}/.well-known/smart-configuration
+  body: none
+  auth: none
+}
+
+assert {
+  res.status: eq 200
+  res.body.code_challenge_methods_supported: contains S256
+  res.body.response_types_supported: contains code
+  res.body.grant_types_supported: contains authorization_code
+  res.body.token_endpoint: isString
+}
+
+docs {
+  SMART discovery (spec 2.1.1): endpoints, `scopes_supported`, `capabilities`, `fhir_base`, `token_endpoint_auth_methods_supported`, `grant_types_supported`. Public.
+}

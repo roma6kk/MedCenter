@@ -53,7 +53,7 @@ export function versionOf(resource: FhirResource): string {
 export async function commitTransaction(
   fhir: FhirClient,
   writes: readonly TransactionWrite[],
-  conflictCode: 'SLOT_CONFLICT' | 'CONFLICT' | 'APPOINTMENT_NOT_CANCELLABLE',
+  conflictCode: 'SLOT_CONFLICT' | 'CONFLICT' | 'APPOINTMENT_NOT_CANCELLABLE' | 'ENCOUNTER_STATE_INVALID',
 ): Promise<FhirResource> {
   const bundle: FhirResource = {
     resourceType: 'Bundle',

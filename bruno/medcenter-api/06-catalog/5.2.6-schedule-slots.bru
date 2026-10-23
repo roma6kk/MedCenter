@@ -1,0 +1,32 @@
+meta {
+  name: 5.2.6 Schedule slots
+  type: http
+  seq: 7
+  tags: [
+    ro-admin
+  ]
+}
+
+get {
+  url: {{baseUrl}}/api/v1/admin/schedules/{{scheduleId}}/slots?from={{fromDate}}&to={{toDate}}&status=free%2Cbusy
+  body: none
+  auth: inherit
+}
+
+params:query {
+  from: {{fromDate}}
+  to: {{toDate}}
+  status: free,busy
+}
+
+script:pre-request {
+  if (!bru.getVar('scheduleId')) { bru.runner.skipRequest(); }
+}
+
+assert {
+  res.status: eq 200
+}
+
+docs {
+  Spec 5.2.6. ADMIN. `from` and `to` are **required** (date or date-time with an offset). `status`: comma list of `free|busy|busy-unavailable|busy-tentative|entered-in-error`; without it only `free` and `busy`. `fromDate`/`toDate` default to today and today + 13 days.
+}

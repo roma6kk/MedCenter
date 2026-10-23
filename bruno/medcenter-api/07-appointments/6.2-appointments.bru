@@ -1,0 +1,37 @@
+meta {
+  name: 6.2 My appointments
+  type: http
+  seq: 1
+  tags: [
+    ro-patient
+  ]
+}
+
+get {
+  url: {{baseUrl}}/api/v1/appointments?page=1&pageSize=20
+  body: none
+  auth: inherit
+}
+
+params:query {
+  ~upcoming: true
+  ~status: booked,noshow
+  page: 1
+  pageSize: 20
+  ~sortOrder: asc
+}
+
+script:post-response {
+  if (res.status === 200 && res.body.items.length) { bru.setVar('appointmentId', res.body.items[0].id); }
+}
+
+assert {
+  res.status: eq 200
+  res.body.items: isArray
+  res.body.meta.page: isNumber
+  res.body.meta.totalItems: isNumber
+}
+
+docs {
+  Spec 6.2. PATIENT, scope `patient/*.read`; own records only. `status` is one status or a comma list/repeat of `booked|cancelled|noshow|fulfilled` (unknown -> 400 `VALIDATION_ERROR`); `upcoming=true` means `start >= now` and still contains cancelled records, so use `upcoming=true&status=booked` for "active upcoming".
+}

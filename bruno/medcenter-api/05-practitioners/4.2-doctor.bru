@@ -1,0 +1,39 @@
+meta {
+  name: 4.2 Get doctor
+  type: http
+  seq: 2
+  tags: [
+    ro-public
+    ro-admin
+    ro-doctor
+    ro-patient
+  ]
+}
+
+get {
+  url: {{baseUrl}}/api/v1/doctors/{{doctorId}}
+  body: none
+  auth: none
+}
+
+script:pre-request {
+  if (!bru.getVar('doctorId')) { bru.runner.skipRequest(); }
+}
+
+script:post-response {
+  if (res.status === 200 && res.body.roomId) { bru.setVar('roomId', res.body.roomId); }
+}
+
+assert {
+  res.status: eq 200
+}
+
+tests {
+  test('id is the requested doctorId', function () {
+    expect(String(res.body.id)).to.equal(String(bru.getVar('doctorId')));
+  });
+}
+
+docs {
+  Spec 4.2, public. Card with specialty and room.
+}

@@ -1,0 +1,27 @@
+meta {
+  name: 400 VALIDATION_ERROR (malformed id)
+  type: http
+  seq: 7
+  tags: [
+    errors
+    ro-public
+    ro-admin
+    ro-doctor
+    ro-patient
+  ]
+}
+
+get {
+  url: {{baseUrl}}/api/v1/services/not%20an%20id
+  body: none
+  auth: none
+}
+
+assert {
+  res.status: eq 400
+  res.body.errorCode: eq VALIDATION_ERROR
+}
+
+docs {
+  FHIR ids are validated as `[A-Za-z0-9\-.]{1,64}` before any lookup.
+}

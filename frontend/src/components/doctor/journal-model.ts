@@ -15,6 +15,14 @@ const DEFAULT_GRID_START_HOUR = 9;
 const DEFAULT_GRID_END_HOUR = 17;
 export const WEEK_DAYS = 5;
 
+/**
+ * Whether the doctor may open the patient card of a row. patient-service lets a doctor in only through a care relation
+ * (`CARE_APPOINTMENT_STATUSES`: booked, arrived, checked-in, fulfilled); a cancelled or no-show row would answer 403.
+ */
+export function canOpenPatientCard(status: AppointmentState): boolean {
+  return status !== 'cancelled' && status !== 'noshow';
+}
+
 export interface VisitEntry {
   readonly kind: 'visit';
   readonly visit: JournalAppointment;

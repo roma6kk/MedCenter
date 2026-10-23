@@ -1,0 +1,29 @@
+meta {
+  name: 9.2 Encounters by specialty
+  type: http
+  seq: 2
+  tags: [
+    ro-admin
+  ]
+}
+
+get {
+  url: {{baseUrl}}/api/v1/admin/analytics/encounters
+  body: none
+  auth: inherit
+}
+
+params:query {
+  ~from: 
+  ~to: 
+}
+
+assert {
+  res.status: eq 200
+  res.body.measure: eq encounters-by-specialty
+  res.body.groups: isArray
+}
+
+docs {
+  Spec 9.2. ADMIN.
+}

@@ -1,0 +1,30 @@
+meta {
+  name: 9.1 Appointments summary
+  type: http
+  seq: 1
+  tags: [
+    ro-admin
+  ]
+}
+
+get {
+  url: {{baseUrl}}/api/v1/admin/analytics/appointments
+  body: none
+  auth: inherit
+}
+
+params:query {
+  ~from: 
+  ~to: 
+}
+
+assert {
+  res.status: eq 200
+  res.body.measure: eq appointments-by-status
+  res.body.total: isNumber
+  res.body.groups: isArray
+}
+
+docs {
+  Spec 9.1. ADMIN. MeasureReport-like `{ measure, scoring, period, total, groups[], booked, cancelled, noshow }`. 400 when the range exceeds 366 days.
+}

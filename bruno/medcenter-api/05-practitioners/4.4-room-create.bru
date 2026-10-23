@@ -1,0 +1,39 @@
+meta {
+  name: 4.4 Create room
+  type: http
+  seq: 4
+  tags: [
+    write
+    crud-rooms
+    role-admin
+  ]
+}
+
+post {
+  url: {{baseUrl}}/api/v1/admin/rooms
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "identifier": "BR-{{$randomInt}}",
+    "name": "Кабинет Bruno",
+    "floor": 2,
+    "description": "Created by the Bruno collection"
+  }
+}
+
+script:post-response {
+  if (res.status === 201) { bru.setVar('newRoomId', res.body.id); }
+}
+
+assert {
+  res.status: eq 201
+  res.body.id: isString
+  res.body.isActive: eq true
+}
+
+docs {
+  Spec 4.4. ADMIN. `identifier` 1..50 and unique among rooms (case and edge spaces ignored) -> 409 `CONFLICT`; `name` 1..200; `floor` 1..10; `description` <= 500.
+}

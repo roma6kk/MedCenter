@@ -1,0 +1,35 @@
+meta {
+  name: 2.1.4 Revoke refresh token
+  type: http
+  seq: 6
+  tags: [
+    oauth-manual
+    write
+  ]
+}
+
+post {
+  url: {{baseUrl}}/oauth/token/revoke
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "refreshToken": "{{refreshToken}}",
+    "client_id": "{{oauthClientId}}"
+  }
+}
+
+script:pre-request {
+  if (!bru.getEnvVar('refreshToken')) { bru.runner.skipRequest(); }
+}
+
+assert {
+  res.status: eq 200
+  res.body.revoked: isBoolean
+}
+
+docs {
+  Spec 2.1.4. Bearer required. `revoked:true` only when the token belongs to the caller; otherwise `false` (indistinguishable by design). After a successful revoke the Bearer of the same session answers 401 `TOKEN_REVOKED`.
+}

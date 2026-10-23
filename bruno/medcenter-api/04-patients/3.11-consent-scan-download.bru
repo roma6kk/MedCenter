@@ -1,0 +1,29 @@
+meta {
+  name: 3.11 Download consent scan
+  type: http
+  seq: 10
+  tags: [
+    write
+    role-admin
+    flow-scan
+  ]
+}
+
+get {
+  url: {{baseUrl}}/api/v1/patients/{{patientId}}/consent/scan/{{scanId}}
+  body: none
+  auth: inherit
+}
+
+script:pre-request {
+  if (!bru.getVar('patientId')) { bru.runner.skipRequest(); }
+  if (!bru.getVar('scanId')) { bru.runner.skipRequest(); }
+}
+
+assert {
+  res.status: eq 200
+}
+
+docs {
+  Spec 3.11. Returns the scan bytes with the scan `Content-Type` (`Cache-Control: no-store`). Every read is audited.
+}

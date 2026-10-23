@@ -1,0 +1,33 @@
+meta {
+  name: 403 COMPARTMENT_VIOLATION
+  type: http
+  seq: 5
+  tags: [
+    errors
+    ro-patient
+  ]
+}
+
+get {
+  url: {{baseUrl}}/api/v1/patients/{{otherPatientId}}
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{patientToken}}
+}
+
+script:pre-request {
+  if (!bru.getVar('otherPatientId') || !bru.getEnvVar('patientToken')) { bru.runner.skipRequest(); }
+}
+
+assert {
+  res.status: eq 403
+  res.body.errorCode: eq COMPARTMENT_VIOLATION
+  res.body.status: eq 403
+}
+
+docs {
+  A patient reads another patient's card. Needs `patientToken` and `otherPatientRef` (`Patient/<id>` of someone else) in the environment.
+}

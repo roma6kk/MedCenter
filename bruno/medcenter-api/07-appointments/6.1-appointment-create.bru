@@ -1,0 +1,49 @@
+meta {
+  name: 6.1 Book appointment
+  type: http
+  seq: 4
+  tags: [
+    write
+    role-patient
+    flow-patient
+  ]
+}
+
+post {
+  url: {{baseUrl}}/api/v1/appointments
+  body: json
+  auth: inherit
+}
+
+headers {
+  Idempotency-Key: {{$guid}}
+}
+
+body:json {
+  {
+    "slotId": "{{slotId}}"
+  }
+}
+
+script:pre-request {
+  if (!bru.getVar('slotId')) { bru.runner.skipRequest(); }
+}
+
+script:post-response {
+  if (res.status === 201) { bru.setVar('bookedAppointmentId', res.body.id); }
+}
+
+assert {
+  res.status: eq 201
+  res.body.status: eq booked
+}
+
+tests {
+  test('slotId is the requested slotId', function () {
+    expect(String(res.body.slotId)).to.equal(String(bru.getVar('slotId')));
+  });
+}
+
+docs {
+  Spec 6.1. PATIENT, scope `patient/*.write`. `slotId` is a free slot from 5.2.8; `serviceId` optional (default: the service of the slot's schedule; send it only when it matches that schedule); `reason` optional (3..500). Without an active EMR consent a `reason` is refused with 409 `CONSENT_REQUIRED`. `Idempotency-Key: <uuid>` makes a retry return the cached answer. 409 `SLOT_CONFLICT` when the slot is taken.
+}

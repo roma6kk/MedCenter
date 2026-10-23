@@ -53,7 +53,7 @@ describe('Rooms access control (e2e)', () => {
   }
 
   function expectFhirUntouched(): void {
-    for (const interaction of [fhir.read, fhir.search, fhir.create, fhir.update, fhir.delete]) {
+    for (const interaction of [fhir.read, fhir.search, fhir.create, fhir.update, fhir.delete, fhir.batch]) {
       expect(interaction).not.toHaveBeenCalled();
     }
   }
@@ -167,13 +167,13 @@ describe('Rooms access control (e2e)', () => {
 
       // Assert
       expect(response.body).toMatchObject({ status: 404, errorCode: 'NOT_FOUND' });
-      expect(fhir.delete).not.toHaveBeenCalled();
+      expect(fhir.batch).not.toHaveBeenCalled();
     });
 
     it('should answer 409 CONFLICT when HAPI itself refuses the delete on referential integrity', async () => {
       // Arrange — a schedule created between the usage check and the delete: HAPI's own 409, not ROOM_IN_USE.
       fhir.read.mockResolvedValue(storedRoom());
-      fhir.delete.mockRejectedValue(new FhirClientError('DELETE', 'http://hapi:8080/fhir/Location/room-204', 409, '{}'));
+      fhir.batch.mockRejectedValue(new FhirClientError('POST', 'http://hapi:8080/fhir', 409, '{}'));
 
       // Act
       const response = await call(ADMIN_ROUTES[2] as AdminRoute, TOKENS.admin).expect(409);

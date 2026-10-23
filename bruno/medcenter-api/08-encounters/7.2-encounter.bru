@@ -1,0 +1,34 @@
+meta {
+  name: 7.2 Get encounter
+  type: http
+  seq: 3
+  tags: [
+    ro-doctor
+    ro-admin
+  ]
+}
+
+get {
+  url: {{baseUrl}}/api/v1/encounters/{{encounterId}}
+  body: none
+  auth: inherit
+}
+
+script:pre-request {
+  if (!bru.getVar('encounterId')) { bru.runner.skipRequest(); }
+}
+
+assert {
+  res.status: eq 200
+  res.body.diagnoses: isArray
+}
+
+tests {
+  test('id is the requested encounterId', function () {
+    expect(String(res.body.id)).to.equal(String(bru.getVar('encounterId')));
+  });
+}
+
+docs {
+  Spec 7.2. DOCTOR (participant) or ADMIN, scope `user/*.read`. Set `encounterId` (7.6 stores it from the patient run).
+}

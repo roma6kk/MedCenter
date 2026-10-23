@@ -69,8 +69,7 @@ ADR-013; BR-006). Параметр `patient` в query игнорируется �
 | --- | --- | --- | --- |
 | `page` | int ≥ 1 | 1 | — |
 | `pageSize` | int 1…100 | 20 | ≤ 100 |
-| `sortBy` | enum per-endpoint | per-endpoint | — |
-| `sortOrder` | `asc` \| `desc` | `asc` | — |
+| `sortOrder` | `asc` \| `desc` | `asc` (у `encounter-service` — `desc`) | — |
 
 Ответ-конверт (единый для всех листингов):
 
@@ -126,7 +125,7 @@ export class PaginatedResponseDto<TItem> {
 | `FORBIDDEN_ROLE` | 403 | RBAC-роль не допущена |
 | `COMPARTMENT_VIOLATION` | 403 | обращение к чужим данным (ADR-013) |
 | `NOT_FOUND` | 404 | ресурс не найден |
-| `METHOD_NOT_ALLOWED` | 405 | — |
+| `METHOD_NOT_ALLOWED` | 405 | не используется: неизвестный метод или маршрут даёт 404 `NOT_FOUND` |
 | `CONFLICT` | 409 | конфликт версии или дубликат при записи в FHIR-хранилище (HAPI 409/412); дубликат e-mail (`EMAIL_TAKEN` в `detail`, 2.2.1/2.2.6) и дубликат `identifier` кабинета (4.4/4.5) — причина в `detail` |
 | `SLOT_CONFLICT` | 409 | BR-001: слот уже занят (гонка, ADR-012) |
 | `CONSENT_REQUIRED` | 409 | у пациента нет действующего согласия на электронную медкарту (7.1, 7.3; ADR-019); при `CONSENT_ENFORCEMENT=warn` не возвращается |
@@ -134,6 +133,9 @@ export class PaginatedResponseDto<TItem> {
 | `APPOINTMENT_NOT_CANCELLABLE` | 409 | BR-002: статус не позволяет отмену |
 | `ENCOUNTER_STATE_INVALID` | 409 | BR-003/BR-008: приём уже оформлен / запись не `booked` (cancelled/noshow/fulfilled); неявка (6.6) для записи, у которой уже есть приём |
 | `SCHEDULE_OVERLAP` | 409 | пересечение `Schedule.planningHorizon` одного `PractitionerRole` |
+| `SERVICE_IN_USE` | 409 | 5.1.5: на услугу ссылается активное `Schedule` |
+| `SCHEDULE_IN_USE` | 409 | 5.2.4: расписание нельзя удалить — есть слоты или busy-слот (таблица 5.2.4) |
+| `ROOM_IN_USE` | 409 | 4.6: на кабинет ссылается активное `Schedule` |
 | `INVALID_ICD10_CODE` | 422 | код не входит в ValueSet `https://fhir.by/ValueSet/InternClassificDiseases10`; `details[]` называет поля запроса (`diagnoses.1.code`), `detail` сохраняет список кодов |
 | `TERMINOLOGY_NOT_FOUND` | 422 | код отсутствует в локальном seed НСИ (ADR-002/016); `details[]` называет поля запроса (`medicationRequests.0.atcCode`, `observations.0.unit`), `detail` сохраняет список кодов |
 | `RATE_LIMITED` | 429 | превышение лимита |
@@ -153,10 +155,27 @@ export class PaginatedResponseDto<TItem> {
 | 2.1.3 | `POST /oauth/token` | Обмен `code`/`refresh_token` на JWT (RS256, TTL 15 min) + refresh (TTL 14 d, rotation) | public, rate-limit |
 | 2.1.4 | `POST /oauth/token/revoke` | Отзыв refresh-токена (`jti` → Redis-denylist) | Bearer |
 | 2.1.5 | `GET /.well-known/jwks.json` | Публичный ключ RS256 для guard-слоя всех BFF-сервисов | public |
+| 2.1.6 | `POST /oauth/login` | шаг ввода учётных данных (`application/x-www-form-urlencoded`) серверной формы входа | public, rate-limit |
 
 **2.1.2 `GET /oauth/authorize`** — параметры: `response_type=code`, `client_id`, `redirect_uri`,
 `scope` (пробел-разделённые), `state`, `code_challenge`, `code_challenge_method=S256`, `launch?`.
-302 → `redirect_uri?code=…&state=…` | ошибка → `redirect_uri?error=access_denied&state=…`.
+`redirect_uri` необязателен: если не передан, берётся первый зарегистрированный URI клиента; он обязан входить в
+зарегистрированные для `client_id`. Поведение (UI-1: форма входа — на стороне authorization server):
+
+- **без сессии входа** → **200** `text/html` — форма входа (поля `email`, `password`, скрытые `csrf` и `authorize_query`);
+- **с сессией входа** (cookie, ставится 2.1.6; одноразовая — расходуется здесь) → **302** `Location: redirect_uri?code=…&state=…`;
+  отказ домена этой поверхности (`access_denied`, `invalid_request`, `invalid_scope`) → **302**
+  `redirect_uri?error=<код>&state=…` на **зарегистрированный** URI;
+- до того как известен адрес возврата (неизвестный `client_id` → **401** `invalid_client`; негодный `client_id`,
+  `redirect_uri`, `response_type`, `code_challenge`, `code_challenge_method` → **400** `invalid_request`) — конверт RFC 6749 §5.2,
+  не Problem Details; **429** `RATE_LIMITED`, **500** — Problem Details.
+
+**2.1.6 `POST /oauth/login`** — тело `email`, `password`, `csrf` (токен формы, дублируется cookie), `authorize_query`
+(санированный query исходного запроса 2.1.2). Принят вход → **302** на `GET /oauth/authorize?…` с исходным запросом и
+cookie сессии входа (затем 2.1.2 выдаёт код). Ответы-страницы (`text/html`, не JSON): **200** — неверные учётные данные
+(форма с сообщением); **400** — негодный исходный запрос; **403** — устаревшая форма (CSRF не совпал); **429** — лимит
+попыток (по IP — 10/мин, по учётной записи — 10 за 15 мин; `Retry-After`); **503** — счётчик попыток недоступен
+(вход закрывается: fail-closed). Ошибка валидации ввода (слишком длинное поле) — 400 `problem+json`.
 
 ##### 2.1.1 `GET /.well-known/smart-configuration`
 
@@ -179,9 +198,13 @@ export class PaginatedResponseDto<TItem> {
 
 ```text
 grant_type=authorization_code | refresh_token
-code=… & redirect_uri=… & client_id=… & code_verifier=…        (authorization_code)
+code=… & client_id=… & code_verifier=…                          (authorization_code)
 refresh_token=…                                                 (refresh_token)
 ```
+
+Параметр `redirect_uri` в теле допускается (DTO его принимает), но при обмене кода **не используется и не сверяется**:
+адрес возврата проверяется только на шаге 2.1.2 (зарегистрированный URI клиента), код привязан к `client_id` и PKCE-вызову.
+Обязательны `code`, `client_id`, `code_verifier` (иначе 400 `invalid_request`).
 
 **Response 200** (JWT claims: `sub` (userId), `patient?` (PatientRef), `encounter?`,
 `scope`, `role` (`PATIENT`|`DOCTOR`|`ADMIN`), `fhirUser?` (PractitionerRoleRef), `jti`,
@@ -242,7 +265,7 @@ guard-слоем — **401 `TOKEN_REVOKED`** (см. 2.1.3).
 | 2.2.2 | `GET /api/v1/admin/users?role=&search=&page=&pageSize=` | список | `ADMIN` |
 | 2.2.3 | `GET /api/v1/admin/users/{id}` | карточка + `ExternalLink` | `ADMIN` |
 | 2.2.4 | `PATCH /api/v1/admin/users/{id}` | роль, `isActive` | `ADMIN` |
-| 2.2.5 | `DELETE /api/v1/admin/users/{id}` | деактивация (soft) | `ADMIN` |
+| 2.2.5 | `DELETE /api/v1/admin/users/{id}` | деактивация (soft); ответ **200** с карточкой пользователя (не 204) | `ADMIN` |
 | 2.2.6 | `POST /api/v1/auth/register` | саморегистрация пациента (A-6) | public |
 | 2.2.7 | `GET /api/v1/me` | профиль текущего пользователя + `ExternalLink` | любой Bearer |
 
@@ -303,11 +326,15 @@ export class AccountConsentDto {
 столбца: `account_consent_at` (момент приёма запроса, `timestamptz`) и `account_consent_version` (`varchar(64)`, `textVersion`); оба `NULL` у записей,
 созданных администратором (2.2.1) и до миграции `AccountConsent1700000000002`. `FHIR Consent` при регистрации **не создаётся**: согласие на
 электронную медкарту даётся отдельно (3.8) и без него 7.1/7.3 блокируются. В `UserResponseDto` эти поля не возвращаются; `accountConsent`
-отсутствует в 2.2.1 и 2.2.4.
+отсутствует в 2.2.1 и 2.2.4. Карточка 2.2.3 дополнительно содержит `externalLinks` и `createdAt`.
 
 **Response 201** `UserResponseDto`: `{ id: UUID; email; firstName; lastName; roles: string[];
-patientRef: string | null; isActive: boolean }` · **409** email занят: `errorCode=CONFLICT`, код
+patientRef: string | null; practitionerRoleRef: string | null; name: string; role: string; isActive: boolean }` · **409** email занят: `errorCode=CONFLICT`, код
 `EMAIL_TAKEN` в начале `detail` (`EMAIL_TAKEN: a user with this email already exists`); сравнение без учёта регистра.
+
+**409 при администрировании** (`errorCode=CONFLICT`, причина — код в начале `detail`): 2.2.1 и 2.2.4 — `EMAIL_TAKEN`
+и `PRACTITIONER_ROLE_TAKEN` (`PractitionerRole` уже привязана к другому пользователю); 2.2.4 и 2.2.5 — `SELF_LOCKOUT`
+(администратор не может деактивировать или понизить собственную учётную запись).
 
 **2.2.4 `PATCH /api/v1/admin/users/{id}`** — `UpdateUserDto = PartialType(OmitType(RegisterPatientDto, ['password'] as const))`
 + `@IsOptional() @IsArray() roles?: string[]` + `@IsOptional() @IsBoolean() isActive?: boolean`.
@@ -318,19 +345,21 @@ patientRef: string | null; isActive: boolean }` · **409** email занят: `er
 | --- | --- | --- | --- |
 | 2.3.1 | `GET /api/v1/terminology/value-sets` | список seed'нутых `ValueSet` (canonical `https://fhir.by/...`) | `ADMIN` |
 | 2.3.2 | `GET /api/v1/terminology/value-sets/{url}/$expand` | развёртка ValueSet (кэш Redis) | `user/*.read` |
-| 2.3.3 | `GET /api/v1/terminology/validate?system=&code=` | валидация пары system/code в seed'нутых ValueSet | `user/*.read` |
+| 2.3.3 | `GET /api/v1/terminology/validate?system=&code=` | валидация пары system/code в seed'нутых ValueSet (`system` — canonical **CodeSystem**) | `user/*.read` |
+| 2.3.5 | `GET /api/v1/terminology/expand?system=` | то же, что 2.3.2, с canonical **ValueSet** в query-параметре `system` (без URL-кодирования в пути) | `user/*.read` |
 | 2.3.4 | `POST /api/v1/admin/terminology/import` | запуск импортера снапшота НСИ (ADR-016) | `ADMIN` |
 
 **2.3.4** — тело `{ "snapshotVersion": "1.4.463" }` → 202 Accepted, прогресс через логи/событие;
-конфликт выполняющегося импорта → 409.
+конфликт выполняющегося импорта → **409** `CONFLICT` (`IMPORT_RUNNING` в `detail`); снапшот этой версии не поставляется
+с сервисом → **422** `TERMINOLOGY_NOT_FOUND` (`SNAPSHOT_NOT_BUNDLED` в `detail`, там же доступная версия).
 
 #### 3. `patient-service` — Пациенты (FR-001, FR-002)
 
 | # | Метод и путь | Назначение | Доступ |
 | --- | --- | --- | --- |
-| 3.1 | `GET /api/v1/me/patient` | FHIR-профиль текущего пациента (по `ExternalLink`) | `patient/*.read` |
-| 3.2 | `GET /api/v1/patients/{id}` | карточка пациента | `user/*.read` (DOCTOR/ADMIN) |
-| 3.3 | `GET /api/v1/patients/{id}/related` | доверенные лица (`RelatedPerson`) | `user/*.read` (DOCTOR/ADMIN) |
+| 3.1 | `GET /api/v1/me/patient` | профиль текущего пациента (по `ExternalLink`); помимо полей карточки — `fullName`, `photoUrl` | `patient/*.read` |
+| 3.2 | `GET /api/v1/patients/{id}` | карточка пациента; `PATIENT` — только своя | `user/*.read` (DOCTOR/ADMIN), `patient/*.read` (PATIENT, своя) |
+| 3.3 | `GET /api/v1/patients/{id}/related` | доверенные лица (`RelatedPerson`); `PATIENT` — только свои | `user/*.read` (DOCTOR/ADMIN), `patient/*.read` (PATIENT, свои) |
 | 3.4 | `GET /api/v1/me/consent` | своё действующее согласие на ЭМК и история | `patient/*.read` |
 | 3.5 | — | не вводится: электронное согласие на ЭМК без ЭЦП не даётся (ADR-019) | — |
 | 3.6 | `POST /api/v1/me/consent/revoke` | отозвать своё согласие (сразу блокирует новые записи, ничего не удаляет) | `patient/*.write` |
@@ -413,7 +442,7 @@ export class PatientConsentDto {         // 3.4, 3.7
 | 4.4 | `POST /api/v1/admin/rooms` | создать кабинет | `ADMIN` |
 | 4.5 | `PATCH /api/v1/admin/rooms/{id}` | обновить кабинет | `ADMIN` |
 | 4.6 | `DELETE /api/v1/admin/rooms/{id}` | удалить (если нет активных `Schedule`) → иначе 409 `ROOM_IN_USE` | `ADMIN` |
-| 4.7 | `GET /api/v1/admin/rooms/{id}/usage` | занятость кабинета (`Schedule`/`Slot` references) | `ADMIN` |
+| 4.7 | `GET /api/v1/admin/rooms/{id}/usage` | занятость кабинета (`Schedule`/`Slot` references); только чтение | `ADMIN` + `user/*.read` |
 
 **4.1/4.2 `DoctorResponseDto`** (`apps/practitioner-service/src/modules/doctors/dto/doctor-response.dto.ts`):
 
@@ -426,6 +455,7 @@ export interface DoctorResponseDto {
   specialty?: string;              // отображаемый текст специальности («Терапевт»)
   specialtyCode?: string;          // код специальности — значение для ?specialty= (4.1): `419192003`
   specialtySystem?: string;        // система кода: `http://snomed.info/sct`; ?specialty=system|code
+  photoUrl?: string;               // фото врача (4.1 и 4.2)
   roomId?: string;
   practitionerRoleIds: string[];   // id активных PractitionerRole врача по возрастанию; [] если ролей нет
 }
@@ -436,7 +466,9 @@ export interface DoctorResponseDto {
 текст) они отсутствуют. `practitionerRoleIds` — **все** активные роли врача (`active != false`), а не только подошедшие
 под фильтр `serviceId`/`specialty`; на них ссылается `practitionerRoleId` DOCTOR-аккаунта (2.2.1). Это один
 дополнительный поиск `PractitionerRole?practitioner=Practitioner/{id},…` на страницу (не больше 200 ролей); поля
-добавлены без изменения прежних, `specialty` остаётся текстом.
+добавлены без изменения прежних, `specialty` остаётся текстом. `?specialty=a,b` — список через запятую, условие **OR**.
+Пагинация 4.1 считает **врачей**: `totalItems`/`totalPages` — число различных врачей, подошедших под `serviceId`/`specialty`/`search`
+(врач с двумя подходящими ролями учитывается один раз и не укорачивает страницу).
 
 **4.4/4.5 — уникальность `identifier`:** `identifier` кабинета уникален среди кабинетов
 (`Location.physicalType=ro`); он сравнивается без учёта регистра и крайних пробелов. Создание (4.4) с занятым
@@ -550,20 +582,24 @@ description?; isActive }`. Инвалидация Redis-кэша `catalog:servic
 | # | Метод и путь | Назначение | Доступ |
 | --- | --- | --- | --- |
 | 5.2.1 | `POST /api/v1/admin/schedules` | создать `Schedule` (`planningHorizon` ≤ 90 дней) | `ADMIN` |
-| 5.2.2 | `GET /api/v1/admin/schedules?doctorId=&active=true&page=` | список расписаний | `ADMIN` |
+| 5.2.2 | `GET /api/v1/admin/schedules?doctorId=&active=true&page=` | список расписаний; `doctorId` — id **PractitionerRole** | `ADMIN` |
 | 5.2.3 | `PATCH /api/v1/admin/schedules/{id}` | изменить окно/горизонт (проверка `SCHEDULE_OVERLAP`) | `ADMIN` |
 | 5.2.4 | `DELETE /api/v1/admin/schedules/{id}` | удалить расписание: busy-слоты защищают его всегда; free-слоты удаляются при `cascade:true`; расписание со слотами, на которые ссылаются записи, деактивируется (см. ниже) | `ADMIN` |
 | 5.2.5 | `POST /api/v1/admin/schedules/{id}/generate` | сгенерировать `Slot` на период | `ADMIN` |
-| 5.2.6 | `GET /api/v1/admin/schedules/{id}/slots?from=&to=&status=` | слоты расписания | `ADMIN` |
+| 5.2.6 | `GET /api/v1/admin/schedules/{id}/slots?from=&to=&status=` | слоты расписания; `from`/`to` обязательны | `ADMIN` |
 | 5.2.7 | `GET /api/v1/doctor/schedule?from=&to=` | своё расписание + слоты | `user/*.read` (DOCTOR) |
 | 5.2.8 | `GET /api/v1/doctors/{id}/slots?from=&to=` | свободные слоты врача | public |
+
+**Часовой пояс клиники — `Europe/Minsk`** (UTC+3 круглый год, без перехода на летнее время): окна `startTime`/`endTime`
+(`HH:mm`) и календарные дни `horizonFrom`/`horizonTo`, `from`/`to` слотов интерпретируются по минскому времени; в ответах
+моменты — RFC 3339.
 
 **5.2.1 `CreateScheduleDto`:**
 
 ```typescript
 // apps/catalog-service/src/modules/schedules/dto/create-schedule.dto.ts
 import {
-  IsArray, IsIn, IsInt, IsNotEmpty, IsOptional, IsString, IsUUID, Max, MaxLength, Min,
+  IsArray, IsIn, IsInt, IsNotEmpty, IsOptional, IsString, Max, MaxLength, Min,
   ValidateNested, ArrayMinSize, IsDateString, Matches,
 } from 'class-validator';
 import { Type } from 'class-transformer';
@@ -586,16 +622,16 @@ export class WeeklyWindowDto {
 }
 
 export class CreateScheduleDto {
-  @ApiProperty({ format: 'uuid' })
-  @IsUUID()
+  @ApiProperty({ pattern: FHIR_ID_PATTERN.source, example: '1042' })
+  @Matches(FHIR_ID_PATTERN)   // FHIR `id`, не UUID (см. §0, отклонение live-стенда)
   practitionerRoleId: string; // actor: PractitionerRole
 
-  @ApiProperty({ format: 'uuid' })
-  @IsUUID()
+  @ApiProperty({ pattern: FHIR_ID_PATTERN.source, example: '1043' })
+  @Matches(FHIR_ID_PATTERN)
   roomId: string;             // actor: Location (кабинет)
 
-  @ApiProperty({ format: 'uuid' })
-  @IsUUID()
+  @ApiProperty({ pattern: FHIR_ID_PATTERN.source, example: '1044' })
+  @Matches(FHIR_ID_PATTERN)
   serviceId: string;          // actor: HealthcareService
 
   @ApiProperty({ format: 'date' })
@@ -651,6 +687,9 @@ export class CreateScheduleDto {
 расписание не участвует в проверке `SCHEDULE_OVERLAP`, в `GET /doctors/{id}/slots` и `GET /doctor/schedule`, виден
 администратору как `isActive=false` (`GET /admin/schedules?active=false`) и не принимает `generate`.
 
+**5.2.7** — расписание берётся по `PractitionerRole` из токена; токен врача без `PractitionerRole` → **403**
+`COMPARTMENT_VIOLATION` (проверка идёт раньше правил диапазона `from`/`to`).
+
 **5.2.8 `SlotResponseDto`:** `{ id; scheduleId; start; end; status: 'free' | 'busy' | 'entered-in-error' }` —
 пагинация отключена (данные компактны), сортировка по `start` обязательна. `entered-in-error` — слот, снятый при
 удалении расписания (5.2.4); он виден только в `GET /admin/schedules/{id}/slots?status=entered-in-error`:
@@ -678,17 +717,17 @@ export class CreateScheduleDto {
 
 ```typescript
 // apps/appointment-service/src/modules/appointments/dto/create-appointment.dto.ts
-import { IsOptional, IsString, IsUUID, MaxLength, MinLength } from 'class-validator';
+import { IsOptional, IsString, Matches, MaxLength, MinLength } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class CreateAppointmentDto {
-  @ApiProperty({ format: 'uuid' })
-  @IsUUID()
+  @ApiProperty({ pattern: FHIR_ID_PATTERN.source })
+  @Matches(FHIR_ID_PATTERN)  // FHIR `id`, не UUID: id слота — sha256 (§0)
   slotId: string;      // Slot.status=free (проверка в транзакции, ADR-012)
 
-  @ApiPropertyOptional({ format: 'uuid' })
+  @ApiPropertyOptional({ pattern: FHIR_ID_PATTERN.source })
   @IsOptional()
-  @IsUUID()
+  @Matches(FHIR_ID_PATTERN)
   serviceId?: string;  // по умолчанию — serviceId расписания слота
 
   @ApiPropertyOptional({ example: 'Болит спина', maxLength: 500 })
@@ -700,7 +739,7 @@ export class CreateAppointmentDto {
 }
 ```
 
-**Транзакция 6.1** (ADR-012): re-read `Slot` c пессимистичной блокировкой → `status=free`?
+**Транзакция 6.1** (ADR-012, оптимистичная блокировка `If-Match` на версию `Slot`): re-read `Slot` → `status=free`? `serviceId` не совпал с услугой расписания слота → **400**.
 → создать `Appointment` (participants: Patient + PractitionerRole; `slot` reference) →
 `Slot.status=busy` → publish `appointment.booked.v1` → `AuditEvent(create)` → **201**
 `AppointmentResponseDto`. Гонка → **409** `SLOT_CONFLICT`.
@@ -734,8 +773,9 @@ export class AppointmentResponseDto {
 `Encounter` (`Encounter?appointment=Appointment/{id}`: ни `in-progress`, ни `finished`). Запись не `booked`
 (cancelled/noshow/fulfilled) или с приёмом → **409** `ENCOUNTER_STATE_INVALID` (раньше для не-`booked` отвечал `CONFLICT`,
 а для записи с завершённым приёмом — 200). Проверка владельца (403 `COMPARTMENT_VIOLATION`) идёт раньше проверки
-состояния. Запись приёма, открытого в тот же момент между проверкой и коммитом, 6.6 не видит; такой приём завершить уже
-нельзя (7.3 требует `booked`).
+состояния. Приём, открытый в тот же момент между проверкой и коммитом, тоже исключён: открытие (7.1) меняет Appointment
+(`meta.tag` `encounter-opened`) под `If-Match`, и проигравший гонку получает 409 `ENCOUNTER_STATE_INVALID`.
+Отмена (6.4) записи с приёмом → 409 `APPOINTMENT_NOT_CANCELLABLE` (так же при проигрыше гонки).
 
 **Status:** 201 (6.1) · 200 (6.2–6.6) · 400/401/403/404/409 — §1.
 
@@ -892,10 +932,10 @@ export class CompleteEncounterDto {
 
 | # | Метод и путь | Назначение | Доступ |
 | --- | --- | --- | --- |
-| 8.1 | `GET /api/v1/notifications?page=&pageSize=&unread=true` | свои in-app уведомления | Bearer |
-| 8.2 | `GET /api/v1/notifications/unread-count` | счётчик (поллинг, ADR-015) | Bearer |
-| 8.3 | `POST /api/v1/notifications/{id}/read` | отметить прочитанным | владелец |
-| 8.4 | `POST /api/v1/notifications/read-all` | отметить прочитанными все свои непрочитанные (до 200 за вызов), ответ `{ "updated": n }` | владелец |
+| 8.1 | `GET /api/v1/notifications?page=&pageSize=&unread=true` | свои in-app уведомления | `PATIENT`, `patient/*.read` |
+| 8.2 | `GET /api/v1/notifications/unread-count` | счётчик (поллинг, ADR-015) | `PATIENT`, `patient/*.read` |
+| 8.3 | `POST /api/v1/notifications/{id}/read` | отметить прочитанным | `PATIENT`, `patient/*.write`, владелец |
+| 8.4 | `POST /api/v1/notifications/read-all` | отметить прочитанными все свои непрочитанные (до 200 за вызов), ответ `{ "updated": n }` | `PATIENT`, `patient/*.write`, владелец |
 
 Потребитель RabbitMQ (`appointment.booked/cancelled.v1`, `encounter.completed.v1`,
 `patient.registered.v1` — каталог в §4.4 архитектуры) создаёт `Communication` (recipient=Patient,
@@ -905,13 +945,13 @@ sender=Organization) + email-адаптер (A-3). Компартмент: фи�
 у уведомлений, созданных до этого поля, их нет. Время начала в тексте `appointment.booked.v1` — по Минску
 (`ДД.ММ.ГГГГ ЧЧ:ММ (время Минска)`). 8.4 пишет одним FHIR `batch` с `If-Match`; изменённое за это время уведомление
 остаётся как есть.
-**Status:** 200 (8.1, 8.2, 8.4) · 204 (8.3) · 403/404.
+**Status:** 200 (8.1, 8.2, 8.4) · 204 (8.3) · 404 `NOT_FOUND` (8.3: нет такого уведомления у вызывающего). Отказы 401/403 — только guard-слоя (§0).
 
 #### 9. `analytics-service` — Отчёты и аудит (FR-019, FR-021, ADR-014)
 
 | # | Метод и путь | Назначение | Доступ |
 | --- | --- | --- | --- |
-| 9.1 | `GET /api/v1/admin/analytics/appointments?from=&to=` | сводка записей (booked/cancelled/noshow) | `ADMIN` |
+| 9.1 | `GET /api/v1/admin/analytics/appointments?from=&to=` (`from`/`to` необязательны, по умолчанию последние 30 дней) | сводка записей (booked/cancelled/noshow) | `ADMIN` |
 | 9.2 | `GET /api/v1/admin/analytics/encounters?from=&to=` | сводка приёмов по специальностям | `ADMIN` |
 | 9.3 | `GET /api/v1/admin/analytics/services-popularity?from=&to=&top=` | топ услуг | `ADMIN` |
 | 9.4 | `GET /api/v1/admin/audit?from=&to=&entity=&userId=&page=` | журнал `AuditEvent` (read-model) | `ADMIN` |
@@ -922,22 +962,42 @@ PostgreSQL (worker наполняет по событиям). Ответ 9.4 —
 requestId; reason? }`. `read` — чтение данных пациента врачом или администратором, `denied` — отказ в нём (ADR-018);
 чтение пациентом своей карты в журнал не попадает. `emergency-bypass` — приём открыт или завершён без согласия пациента по
 `emergencyReason` (7.1/7.3, ADR-019): `userId` — врач, `resourceType/resourceId` — пациент, `reason` — указанная причина
-(только у этого действия); UI: «Экстренный обход согласия». **Status:** 200 · 400 (диапазон > 366 дней).
+(только у этого действия); UI: «Экстренный обход согласия». Изменения услуг, кабинетов и расписаний (`create`/`update`/`delete`) пишутся в той же транзакции; ресурс в `resourceType/resourceId` определяется по логической ссылке (ADR-020). **Status:** 200 · 400 (диапазон > 366 дней).
 
 #### 10. Swagger / OpenAPI
 
-- **`@nestjs/swagger` во всех BFF-сервисах.** UI: `/api/docs/<service>` (например,
-  `/api/docs/appointment`), JSON: `/api/docs/<service>-json` — маршрутизация Traefik.
-  В проде (задел: env `SWAGGER_ENABLED=false`) отключается.
-- **Конвенции декораторов** (скилл api-designer): `@ApiTags('<service>')` на контроллере;
-  `@ApiOperation({ summary })`; `@ApiBody({ type })`, `@ApiParam`, `@ApiQuery` с
-  `DefaultValuePipe`/`ParseIntPipe`; `@ApiResponse` **на каждый** код из §1–§9 (200/201/204,
-  400/401/403/404/409/422/429/500); `@ApiBearerAuth()` на защищённых; `@ApiSecurity()`
-  не используется (Bearer-only).
-- **Типизация:** все контроллеры возвращают DTO (`Promise<XResponseDto>`), strict-типы
-  (GOLDEN-PRINCIPLES: без `any`, explicit return types). `PartialType`/`OmitType` для update-DTO.
-- **RFC 7807 в Swagger:** глобальный `problemDetails` schema в `main.ts` каждого сервиса
-  (`SwaggerModule`), ссылки на errorCode-каталог §1.
+Реализовано (ветка `fix/open-items`): `@nestjs/swagger` во всех 8 BFF-сервисах.
+
+- **Подключение.** Общий помощник `setupSwagger(app, { service, enabled })` в `libs/common/src/lib/swagger/` вызывается
+  в `main.ts` каждого сервиса. UI — `/api/docs/<service>`, документ JSON — `/api/docs/<service>-json`, YAML —
+  `/api/docs/<service>-yaml`; `<service>` = `auth`, `practitioner`, `catalog`, `patient`, `appointment`,
+  `notification`, `encounter`, `analytics`. `buildOpenApiDocument` строит документ отдельно (для тестов).
+- **Флаг `SWAGGER_ENABLED`.** Описан в `libs/config` (`envSchema`, `parseSwaggerEnv`), по умолчанию **`false`**: без явного
+  включения документация не публикуется (сервис отвечает 404). В Docker Compose передаётся через `x-bff-env`
+  (`SWAGGER_ENABLED: ${SWAGGER_ENABLED:-false}`); включение — `SWAGGER_ENABLED=true` в `.env` и пересоздание сервисов.
+- **Маршрутизация.** В `infra/traefik/dynamic.yml` по роутеру на сервис, `docs-<service>`
+  (`PathPrefix(/api/docs/<service>)`, priority 70); `/fhir/**` по-прежнему закрыт.
+- **Схема безопасности.** Только Bearer (`http`/`bearer`, JWT, имя схемы `bearer`); `@ApiSecurity()` не используется.
+- **RFC 7807.** В каждый документ добавляется глобальная схема `problemDetails` (`problem-details.schema.ts`); декоратор
+  `ApiProblems(statuses, extra?)` вешает `@ApiResponse` с `application/problem+json` на нужные статусы и перечисляет в
+  описании `errorCode` каталога §1. `GUARD_PROBLEM_STATUSES` = 401/403/429/500 — коды guard-слоя, общие для защищённых
+  эндпоинтов.
+- **Конвенции декораторов.** `@ApiTags('<service>')` на контроллере; `@ApiOperation({ summary })` с номером пункта
+  спецификации; `@ApiParam`/`@ApiQuery`/`@ApiBody`; `@ApiResponse` на каждый успешный код и `ApiProblems` на ошибочные;
+  `@ApiBearerAuth()` на защищённых. Контроллеры возвращают DTO, strict-типы (GOLDEN-PRINCIPLES: без `any`, явные
+  возвращаемые типы). Ответы описаны doc-классами `*.doc.ts` рядом с DTO.
+- **Тесты.** В каждом сервисе `apps/<service>/src/swagger.spec.ts` строит документ из `AppModule` и проверяет: схема
+  `problemDetails` присутствует; у каждой операции есть тег, summary и успешный ответ (`findUndocumentedOperations`);
+  набор путей `/api/v1` совпадает с соответствующим разделом спецификации; Bearer требуется на всех, кроме публичных;
+  на каждой операции есть `application/problem+json`. Тест самого помощника — `setup-swagger.spec.ts`.
+
+**Отличия от прежнего замысла (текущее состояние).**
+
+- `PartialType`/`OmitType` для update-DTO **не используются**: `UpdateUserDto`, `UpdateRoomDto`, `UpdateScheduleDto` и др.
+  написаны вручную (`@nestjs/mapped-types` не входит в зависимости воркспейса); поля те же, что в спецификации DTO.
+- Общего класса `PageMetaDto` в `libs/contracts` **нет**: `PageMetaDto` там — `interface` (конверт `PaginatedResponseDto`
+  выше показан как контракт, а не как класс). Для Swagger каждый сервис держит свой doc-класс `PageMetaDoc`
+  (`page-meta.doc.ts`) и doc-класс страницы.
 
 #### 11. Bruno-коллекция
 

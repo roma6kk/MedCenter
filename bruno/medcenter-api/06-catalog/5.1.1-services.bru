@@ -1,0 +1,38 @@
+meta {
+  name: 5.1.1 List services
+  type: http
+  seq: 1
+  tags: [
+    ro-public
+    ro-admin
+    ro-doctor
+    ro-patient
+  ]
+}
+
+get {
+  url: {{baseUrl}}/api/v1/services?page=1&pageSize=20
+  body: none
+  auth: none
+}
+
+params:query {
+  ~search: 
+  page: 1
+  pageSize: 20
+}
+
+script:post-response {
+  if (res.status === 200 && res.body.items.length) { bru.setVar('serviceId', res.body.items[0].id); }
+}
+
+assert {
+  res.status: eq 200
+  res.body.items: isArray
+  res.body.meta.page: isNumber
+  res.body.meta.totalItems: isNumber
+}
+
+docs {
+  Spec 5.1.1, public. `search` <= 100 chars. Stores the first id in `serviceId`.
+}

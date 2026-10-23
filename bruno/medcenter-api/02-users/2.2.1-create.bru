@@ -1,0 +1,44 @@
+meta {
+  name: 2.2.1 Create user
+  type: http
+  seq: 5
+  tags: [
+    write
+    crud-users
+    role-admin
+  ]
+}
+
+post {
+  url: {{baseUrl}}/api/v1/admin/users
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "email": "bruno.admin.{{$randomInt}}.{{$timestamp}}@medcenter.test",
+    "firstName": "Бруно",
+    "lastName": "Админов",
+    "password": "{{newUserPassword}}",
+    "roles": [
+      "PATIENT"
+    ],
+    "birthDate": "1991-02-03",
+    "gender": "female"
+  }
+}
+
+script:post-response {
+  if (res.status === 201) { bru.setVar('createdUserId', res.body.id); }
+}
+
+assert {
+  res.status: eq 201
+  res.body.id: isString
+  res.body.isActive: eq true
+}
+
+docs {
+  Spec 2.2.1. ADMIN. `roles` is an array of PATIENT|DOCTOR|ADMIN; DOCTOR accounts take `practitionerRoleId`, PATIENT accounts `birthDate`/`gender`. The password is yours (`newUserPassword`). 409 `CONFLICT` (`EMAIL_TAKEN`) on a duplicate e-mail (case-insensitive).
+}

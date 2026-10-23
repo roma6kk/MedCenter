@@ -1,0 +1,44 @@
+meta {
+  name: 3.8 Enter paper consent
+  type: http
+  seq: 8
+  tags: [
+    write
+    role-admin
+  ]
+}
+
+post {
+  url: {{baseUrl}}/api/v1/patients/{{patientId}}/consent
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "status": "active",
+    "formNumber": "BRUNO-{{$randomInt}}",
+    "signedAt": "2026-10-01",
+    "scanId": "{{scanId}}",
+    "consenterType": "self",
+    "signedByName": "Бруно Тестов"
+  }
+}
+
+script:pre-request {
+  if (!bru.getVar('patientId')) { bru.runner.skipRequest(); }
+  if (!bru.getVar('scanId')) { bru.runner.skipRequest(); }
+}
+
+script:post-response {
+  if (res.status === 201) { bru.setVar('consentId', res.body.id); }
+}
+
+assert {
+  res.status: eq 201
+  res.body.status: eq active
+}
+
+docs {
+  Spec 3.8. `scanId` comes from 3.10. For `consenterType` other than `self` also send `relatedPersonId` and `representativeDocument`; ADMIN must send `signedByName`. 409 `CONSENT_ALREADY_ACTIVE` when an active consent exists (revoke it first, 3.9).
+}

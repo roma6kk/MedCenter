@@ -1,0 +1,39 @@
+meta {
+  name: 6.5 Doctor appointments
+  type: http
+  seq: 3
+  tags: [
+    ro-doctor
+  ]
+}
+
+get {
+  url: {{baseUrl}}/api/v1/doctor/appointments?page=1&pageSize=20
+  body: none
+  auth: inherit
+}
+
+params:query {
+  ~from: 
+  ~to: 
+  page: 1
+  pageSize: 20
+}
+
+script:post-response {
+  if (res.status === 200 && res.body.items.length) {
+    bru.setVar('doctorAppointmentId', res.body.items[0].id);
+    if (!bru.getVar('patientId')) bru.setVar('patientId', res.body.items[0].patientId);
+  }
+}
+
+assert {
+  res.status: eq 200
+  res.body.items: isArray
+  res.body.meta.page: isNumber
+  res.body.meta.totalItems: isNumber
+}
+
+docs {
+  Spec 6.5. DOCTOR, scope `user/*.read`; appointments where the doctor is a participant. `from`/`to` are RFC 3339 dates or date-times with a zone. Stores `doctorAppointmentId` and, when not known yet, `patientId`.
+}

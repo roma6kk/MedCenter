@@ -1,0 +1,42 @@
+meta {
+  name: 3 Doctor: open encounter (7.1)
+  type: http
+  seq: 3
+  tags: [
+    e2e
+    write
+  ]
+}
+
+post {
+  url: {{baseUrl}}/api/v1/encounters
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{doctorToken}}
+}
+
+body:json {
+  {
+    "appointmentId": "{{e2eAppointmentId}}"
+  }
+}
+
+script:pre-request {
+  if (!bru.getVar('e2eAppointmentId')) { bru.runner.skipRequest(); }
+}
+
+script:post-response {
+  if (res.status === 201) { bru.setVar('e2eEncounterId', res.body.id); }
+}
+
+assert {
+  res.status: eq 201
+  res.body.status: eq in-progress
+}
+
+docs {
+  Spec 7.1. 409 `CONSENT_REQUIRED` means the patient has no active EMR consent (enter it with 3.10 + 3.8 first).
+}

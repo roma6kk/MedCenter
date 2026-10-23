@@ -25,6 +25,11 @@ export const envSchema = z.object({
    * `block` answers 409 `CONSENT_REQUIRED`. Services that enforce it pick this key.
    */
   CONSENT_ENFORCEMENT: z.enum(['warn', 'block']).default('block'),
+  /**
+   * API §10: serve the Swagger UI (`/api/docs/<service>`) and its OpenAPI JSON. Off by default,
+   * so production exposes no API documentation unless it is switched on explicitly.
+   */
+  SWAGGER_ENABLED: z.stringbool().default(false),
 });
 
 /** Only the keys the shared guard stack (`libs/common`) depends on. */
@@ -39,6 +44,11 @@ export const guardEnvSchema = envSchema.pick({
 export const jwtEnvSchema = envSchema.pick({
   JWT_JWKS_URI: true,
   JWT_ISSUER: true,
+});
+
+/** Only the key the Swagger bootstrap (`setupSwagger`) reads. */
+export const swaggerEnvSchema = envSchema.pick({
+  SWAGGER_ENABLED: true,
 });
 
 /** Only the key the rate-limit guard reads. */
@@ -56,6 +66,7 @@ export const jwtSigningEnvSchema = envSchema
 
 export type Env = z.infer<typeof envSchema>;
 export type GuardEnv = z.infer<typeof guardEnvSchema>;
+export type SwaggerEnv = z.infer<typeof swaggerEnvSchema>;
 export type JwtEnv = z.infer<typeof jwtEnvSchema>;
 export type RateLimitEnv = z.infer<typeof rateLimitEnvSchema>;
 export type JwtSigningEnv = z.infer<typeof jwtSigningEnvSchema>;
@@ -66,6 +77,10 @@ export function parseEnv(source: NodeJS.ProcessEnv): Env {
 
 export function parseGuardEnv(source: NodeJS.ProcessEnv): GuardEnv {
   return guardEnvSchema.parse(source);
+}
+
+export function parseSwaggerEnv(source: NodeJS.ProcessEnv): SwaggerEnv {
+  return swaggerEnvSchema.parse(source);
 }
 
 export function parseJwtEnv(source: NodeJS.ProcessEnv): JwtEnv {

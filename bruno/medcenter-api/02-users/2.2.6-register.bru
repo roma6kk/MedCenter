@@ -1,0 +1,46 @@
+meta {
+  name: 2.2.6 Register patient (public)
+  type: http
+  seq: 4
+  tags: [
+    write
+    crud-users
+  ]
+}
+
+post {
+  url: {{baseUrl}}/api/v1/auth/register
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "email": "bruno.{{$randomInt}}.{{$timestamp}}@medcenter.test",
+    "firstName": "Бруно",
+    "lastName": "Тестов",
+    "password": "{{newUserPassword}}",
+    "birthDate": "1990-05-12",
+    "gender": "male",
+    "phone": "+375291234567",
+    "accountConsent": {
+      "accepted": true,
+      "textVersion": "2026-10"
+    }
+  }
+}
+
+script:post-response {
+  if (res.status === 201) { bru.setVar('registeredUserId', res.body.id); }
+}
+
+assert {
+  res.status: eq 201
+  res.body.id: isString
+  res.body.roles: contains PATIENT
+  res.body.patientRef: isString
+}
+
+docs {
+  Spec 2.2.6, public. Creates the user, the HAPI `Patient` and the `ExternalLink`. `accountConsent.accepted` must be `true` (Law 99-Z, not the EMR consent). `password`: min 10 chars with lower, upper, digit and symbol; set `newUserPassword` in the environment. 409 `CONFLICT` with `EMAIL_TAKEN` at the start of `detail` when the e-mail exists.
+}

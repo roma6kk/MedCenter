@@ -1,0 +1,25 @@
+meta {
+  name: 8.4 Mark all read
+  type: http
+  seq: 4
+  tags: [
+    write
+    role-patient
+    flow-patient
+  ]
+}
+
+post {
+  url: {{baseUrl}}/api/v1/notifications/read-all
+  body: none
+  auth: inherit
+}
+
+assert {
+  res.status: eq 200
+  res.body.updated: isNumber
+}
+
+docs {
+  Spec 8.4. Marks up to 200 unread notifications per call; answers `{ "updated": n }`.
+}

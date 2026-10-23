@@ -1,0 +1,47 @@
+meta {
+  name: Error catalogue (RFC 7807)
+  seq: 11
+}
+
+docs {
+  Spec §1. Problem Details examples and requests that provoke the errors reproducible without side effects.
+
+  Every BFF error is `application/problem+json`:
+
+  ```json
+  {
+    "type": "https://api.medcenter.by/errors/slot-conflict",
+    "title": "Slot conflict",
+    "status": 409,
+    "detail": "Slot 7c9e... is already taken (status=busy)",
+    "instance": "/api/v1/appointments",
+    "requestId": "01J9ZK3M8Q...",
+    "errorCode": "SLOT_CONFLICT"
+  }
+  ```
+
+  | errorCode | HTTP | when |
+  | --- | --- | --- |
+  | VALIDATION_ERROR | 400 | DTO validation failed; `details[]` names the fields |
+  | UNAUTHENTICATED | 401 | no, expired or invalid JWT |
+  | TOKEN_REVOKED | 401 | the Bearer token was revoked (jti/sid in the denylist) |
+  | FORBIDDEN_SCOPE | 403 | scope does not cover the operation |
+  | FORBIDDEN_ROLE | 403 | RBAC role not admitted |
+  | COMPARTMENT_VIOLATION | 403 | someone else's data (ADR-013) |
+  | NOT_FOUND | 404 | resource not found |
+  | METHOD_NOT_ALLOWED | 405 | method not allowed |
+  | CONFLICT | 409 | version conflict or duplicate (EMAIL_TAKEN, room identifier) |
+  | SLOT_CONFLICT | 409 | BR-001: slot already taken |
+  | CONSENT_REQUIRED | 409 | no active EMR consent (7.1, 7.3, 6.1 with reason) |
+  | CONSENT_ALREADY_ACTIVE | 409 | 3.8: an active consent exists |
+  | APPOINTMENT_NOT_CANCELLABLE | 409 | BR-002 |
+  | ENCOUNTER_STATE_INVALID | 409 | BR-003/BR-008 |
+  | SCHEDULE_OVERLAP | 409 | overlapping planningHorizon |
+  | ROOM_IN_USE / SERVICE_IN_USE / SCHEDULE_IN_USE | 409 | deletion blocked by references |
+  | INVALID_ICD10_CODE | 422 | code outside the ICD-10 value set; `details[]` per field |
+  | TERMINOLOGY_NOT_FOUND | 422 | code outside the seeded НСИ |
+  | RATE_LIMITED | 429 | rate limit; `Retry-After` header |
+  | INTERNAL | 500 | unhandled error (only the log has details) |
+
+  Validation failures add `details: [{ "field": "diagnoses.1.code", "message": "..." }]`. OAuth endpoints answer RFC 6749 errors (`{ "error": "invalid_grant" }`), not Problem Details.
+}

@@ -1,0 +1,53 @@
+meta {
+  name: 4.1 List doctors
+  type: http
+  seq: 1
+  tags: [
+    ro-public
+    ro-admin
+    ro-doctor
+    ro-patient
+  ]
+}
+
+get {
+  url: {{baseUrl}}/api/v1/doctors?page=1&pageSize=20
+  body: none
+  auth: none
+}
+
+params:query {
+  ~serviceId: 
+  ~specialty: 
+  ~search: 
+  page: 1
+  pageSize: 20
+}
+
+script:post-response {
+  if (res.status === 200 && res.body.items.length) {
+    const d = res.body.items[0];
+    bru.setVar('doctorId', d.id);
+    if (d.practitionerRoleIds && d.practitionerRoleIds.length) bru.setVar('practitionerRoleId', d.practitionerRoleIds[0]);
+  }
+}
+
+assert {
+  res.status: eq 200
+  res.body.items: isArray
+  res.body.meta.page: isNumber
+  res.body.meta.totalItems: isNumber
+}
+
+tests {
+  test('items carry the DoctorResponseDto fields', function () {
+    const d = res.body.items[0];
+    expect(d.id).to.be.a('string');
+    expect(d.name).to.be.a('string');
+    expect(d.practitionerRoleIds).to.be.an('array');
+  });
+}
+
+docs {
+  Spec 4.1, public. Filters: `serviceId`, `specialty` (code or `system|code`, the `specialtyCode` of a result), `search`, `page`, `pageSize`. Stores the first doctor in `doctorId` and `practitionerRoleId`.
+}

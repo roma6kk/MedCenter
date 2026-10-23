@@ -113,7 +113,18 @@ jest.setTimeout(30_000);
   it('should fall back to the patient id when the service sent no name', async () => {
     setup();
 
-    expect(within(await findTable()).getByRole('link', { name: 'Пациент p4' })).toBeInTheDocument();
+    expect(within(await findTable()).getByText('Пациент p4')).toBeInTheDocument();
+  });
+
+  it('should not link the patient of a cancelled or no-show visit to a card the doctor cannot open (403)', async () => {
+    setup();
+    const timeline = within(await findTable());
+
+    expect(timeline.getByRole('link', { name: 'Новиков Пётр' })).toHaveAttribute('href', '/patients/p3');
+    expect(timeline.queryByRole('link', { name: 'Лебедева Ирина' })).toBeNull();
+    expect(timeline.getByText('Лебедева Ирина')).toBeInTheDocument();
+    expect(timeline.queryByRole('link', { name: 'Пациент p4' })).toBeNull();
+    expect(timeline.getByText('Пациент p4')).toBeInTheDocument();
   });
 
   it('should say so when the day has no appointments', async () => {
@@ -329,7 +340,8 @@ jest.setTimeout(30_000);
       await userEvent.selectOptions(screen.getByLabelText('Статус'), 'noshow');
 
       expect(screen.queryAllByRole('link', { name: /Кузнецов Алексей/ })).toHaveLength(0);
-      expect(screen.getAllByRole('link', { name: /Лебедева Ирина/ }).length).toBeGreaterThan(0);
+      expect(screen.getAllByRole('group', { name: /Лебедева Ирина, Неявка/ }).length).toBeGreaterThan(0);
+      expect(screen.queryAllByRole('link', { name: /Лебедева Ирина/ })).toHaveLength(0);
     });
 
     it('should open the day in the day view when its heading is pressed', async () => {

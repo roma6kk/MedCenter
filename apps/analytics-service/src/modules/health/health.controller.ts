@@ -1,5 +1,14 @@
 import { Controller, Get } from '@nestjs/common';
-import { Public } from '@medcenter/common';
+import { ApiOperation, ApiProperty, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { ApiProblems, Public } from '@medcenter/common';
+
+export class HealthResponseDoc implements HealthResponseDto {
+  @ApiProperty({ enum: ['ok'] })
+  readonly status!: 'ok';
+
+  @ApiProperty({ example: 'analytics-service' })
+  readonly service!: string;
+}
 
 export interface HealthResponseDto {
   readonly status: 'ok';
@@ -12,10 +21,14 @@ export interface HealthResponseDto {
  * data, hence `@Public()`. Readiness of PostgreSQL is enforced at boot: the
  * read-model is opened and migrated before the service listens.
  */
+@ApiTags('analytics')
 @Controller('health')
 export class HealthController {
   @Get()
   @Public()
+  @ApiOperation({ summary: 'Liveness probe' })
+  @ApiResponse({ status: 200, description: 'The process serves HTTP', type: HealthResponseDoc })
+  @ApiProblems([500])
   check(): HealthResponseDto {
     return { status: 'ok', service: 'analytics-service' };
   }

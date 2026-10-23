@@ -1,0 +1,40 @@
+meta {
+  name: 5.1.3 Create service
+  type: http
+  seq: 3
+  tags: [
+    write
+    crud-services
+    role-admin
+  ]
+}
+
+post {
+  url: {{baseUrl}}/api/v1/admin/services
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "name": "Консультация Bruno {{$randomInt}}",
+    "typeSystem": "https://fhir.by/CodeSystem/nsi-services",
+    "typeCode": "10007",
+    "defaultDurationMin": 30,
+    "description": "Created by the Bruno collection"
+  }
+}
+
+script:post-response {
+  if (res.status === 201) { bru.setVar('newServiceId', res.body.id); }
+}
+
+assert {
+  res.status: eq 201
+  res.body.id: isString
+  res.body.isActive: eq true
+}
+
+docs {
+  Spec 5.1.3. ADMIN. `typeSystem`+`typeCode` bind to the НСИ ЦИСЗ catalogue (ADR-002); `defaultDurationMin` 5..240; `description` <= 2000; `specialtyCodes[]` optional. Invalidates the `catalog:services` cache.
+}

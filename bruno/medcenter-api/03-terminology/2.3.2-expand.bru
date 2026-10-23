@@ -1,0 +1,31 @@
+meta {
+  name: 2.3.2 Expand value set
+  type: http
+  seq: 2
+  tags: [
+    ro-admin
+    ro-doctor
+  ]
+}
+
+get {
+  url: {{baseUrl}}/api/v1/terminology/value-sets/https%3A%2F%2Ffhir.by%2FValueSet%2FInternClassificDiseases10/$expand?filter=J06&count=20&offset=0
+  body: none
+  auth: inherit
+}
+
+params:query {
+  filter: J06
+  count: 20
+  offset: 0
+}
+
+assert {
+  res.status: eq 200
+  res.body.items: isArray
+  res.body.total: isNumber
+}
+
+docs {
+  Spec 2.3.2. `{url}` is the URL-encoded canonical of the value set. `filter` matches code or display, `count` 1..100 (default 20), `offset`. Scope `user/*.read` (DOCTOR or ADMIN). Cached `private, max-age=300`.
+}

@@ -5,12 +5,13 @@ import { FHIR_CLIENT, type FhirClient, type FhirResource } from '@medcenter/fhir
 import { toPage } from '../../common/page-envelope';
 import { toDoctorDto } from './doctor.mapper';
 import {
+  distinctPractitionerIds,
   needsRoleSearch,
   pageWindow,
   practitionerQuery,
   practitionerRoleQuery,
   practitionerRolesQuery,
-  practitionersOfRoles,
+  practitionersByIdQuery,
   roleIdsByPractitioner,
   type DoctorFilters,
 } from './doctor-search';
@@ -26,23 +27,38 @@ export class DoctorsService {
 
   /**
    * The service and specialty filters live on `PractitionerRole` (FHIR has no
-   * `Practitioner` search parameter for either), so they are asked of the role
-   * with the practitioner `_include`d; paging then runs over the roles and the
-   * total is the number of matching roles. Without them the list is a plain
-   * `Practitioner` search. Either way every listed doctor carries all of its
-   * active roles (one more `PractitionerRole` search for the page), not only
-   * the ones the filter matched.
+   * `Practitioner` search parameter for either), so they are asked of the roles
+   * (ids only). The distinct doctors behind the matching roles are what is paged
+   * and counted: `totalItems` is the number of doctors, a doctor with two matching
+   * roles counts once. Without the filters the list is a plain `Practitioner` search
+   * paged by HAPI. Either way every listed doctor carries all of its active roles
+   * (one more `PractitionerRole` search for the page), not only the ones the filter matched.
    */
   async list(filters: DoctorFilters, page = 1, pageSize = 20): Promise<DoctorPage> {
     const window = pageWindow(page, pageSize);
     if (needsRoleSearch(filters)) {
-      const roles = await this.fhirClient.search('PractitionerRole', practitionerRoleQuery(filters, window));
-      const practitioners = practitionersOfRoles(roles.entry ?? []);
-      return toPage(await this.withRoles(practitioners), page, pageSize, roles.total);
+      const roles = await this.fhirClient.search('PractitionerRole', practitionerRoleQuery(filters));
+      const doctorIds = distinctPractitionerIds(roles.entry ?? []);
+      const pageIds = doctorIds.slice(window._offset, window._offset + pageSize);
+      return toPage(await this.practitionersWithRoles(pageIds), page, pageSize, doctorIds.length);
     }
     const result = await this.fhirClient.search('Practitioner', practitionerQuery(filters, window));
     const practitioners = (result.entry ?? []).map((entry) => entry.resource);
     return toPage(await this.withRoles(practitioners), page, pageSize, result.total);
+  }
+
+  /** The doctors with these ids, in the given order; ids HAPI does not return are dropped. */
+  private async practitionersWithRoles(ids: readonly string[]): Promise<DoctorResponseDto[]> {
+    if (ids.length === 0) {
+      return [];
+    }
+    const found = await this.fhirClient.search('Practitioner', practitionersByIdQuery(ids));
+    const byId = new Map((found.entry ?? []).map((entry) => [entry.resource.id, entry.resource]));
+    const ordered = ids.flatMap((id) => {
+      const practitioner = byId.get(id);
+      return practitioner === undefined ? [] : [practitioner];
+    });
+    return this.withRoles(ordered);
   }
 
   async findById(id: string): Promise<DoctorResponseDto> {

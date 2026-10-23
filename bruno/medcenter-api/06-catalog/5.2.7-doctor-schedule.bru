@@ -1,0 +1,30 @@
+meta {
+  name: 5.2.7 Own schedule (doctor)
+  type: http
+  seq: 8
+  tags: [
+    ro-doctor
+  ]
+}
+
+get {
+  url: {{baseUrl}}/api/v1/doctor/schedule
+  body: none
+  auth: inherit
+}
+
+params:query {
+  ~from: 
+  ~to: 
+}
+
+assert {
+  res.status: eq 200
+  res.body.schedules: isArray
+  res.body.items: isArray
+  res.body.practitionerRoleId: isString
+}
+
+docs {
+  Spec 5.2.7. DOCTOR, scope `user/*.read`. Own schedules and slots; default window is today + 14 days. Response `{ practitionerRoleId, from, to, schedules[], items[], truncated? }`.
+}

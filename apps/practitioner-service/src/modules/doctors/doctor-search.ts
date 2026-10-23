@@ -19,9 +19,6 @@ export function pageWindow(page: number, pageSize: number): PageWindow {
   return { _count: pageSize, _offset: (page - 1) * pageSize, _total: 'accurate' };
 }
 
-/** Brings the `Practitioner` of every matched `PractitionerRole` into the same Bundle. */
-export const PRACTITIONER_ROLE_INCLUDE = 'PractitionerRole:practitioner';
-
 const PRACTITIONER_REFERENCE = /(?:^|\/)Practitioner\/([^/]+)$/;
 
 function nonBlank(value: string | undefined): string | undefined {
@@ -46,17 +43,17 @@ export function practitionerQuery(
   return { ...(search === undefined ? {} : { name: search }), ...window };
 }
 
+/** Upper bound of the role scan behind a service/specialty filter: a clinic holds far fewer `PractitionerRole`s. */
+export const ROLE_SCAN_LIMIT = 1000;
+
 /**
- * `PractitionerRole` search for the service and specialty filters. `specialty`
- * is a token (`code` or `system|code`) over `PractitionerRole.specialty`,
- * `service` a reference over `PractitionerRole.healthcareService`, and the name
- * filter chains through `practitioner` (`practitioner.name`). The doctors come
- * back as `_include`d `Practitioner`s in the same Bundle, so one request answers.
+ * `PractitionerRole` scan for the service and specialty filters, ids only (`_elements=practitioner`).
+ * `specialty` is a token (`code` or `system|code`) over `PractitionerRole.specialty`, `service` a reference
+ * over `PractitionerRole.healthcareService`, and the name filter chains through `practitioner`
+ * (`practitioner.name`). Not paged by HAPI: a doctor may hold several matching roles, so the page
+ * and the total have to count distinct doctors ({@link distinctPractitionerIds}).
  */
-export function practitionerRoleQuery(
-  filters: DoctorFilters,
-  window: PageWindow,
-): Readonly<Record<string, unknown>> {
+export function practitionerRoleQuery(filters: DoctorFilters): Readonly<Record<string, unknown>> {
   const serviceId = nonBlank(filters.serviceId);
   const specialty = nonBlank(filters.specialty);
   const search = nonBlank(filters.search);
@@ -64,34 +61,26 @@ export function practitionerRoleQuery(
     ...(serviceId === undefined ? {} : { service: `HealthcareService/${serviceId}` }),
     ...(specialty === undefined ? {} : { specialty }),
     ...(search === undefined ? {} : { 'practitioner.name': search }),
-    _include: PRACTITIONER_ROLE_INCLUDE,
-    ...window,
+    _elements: 'practitioner',
+    _count: ROLE_SCAN_LIMIT,
   };
 }
 
 /**
- * The included `Practitioner`s of a role search Bundle, in role order. A
- * practitioner holding several roles on the page is listed once; a role whose
- * practitioner is missing from the Bundle is skipped.
+ * The practitioner ids of a role scan Bundle, each once, in role order. A role without a
+ * practitioner reference is skipped.
  */
-export function practitionersOfRoles(entries: ReadonlyArray<FhirBundleEntry>): FhirResource[] {
-  const resources = entries.map((entry) => entry.resource);
-  const included = new Map(
-    resources
-      .filter((resource) => resource.resourceType === 'Practitioner' && resource.id !== undefined)
-      .map((practitioner) => [practitioner.id, practitioner]),
-  );
-  const listed = new Set<string>();
-  const practitioners: FhirResource[] = [];
-  for (const role of resources.filter((resource) => resource.resourceType === 'PractitionerRole')) {
-    const id = practitionerIdOf(role);
-    const practitioner = id === undefined ? undefined : included.get(id);
-    if (id !== undefined && practitioner !== undefined && !listed.has(id)) {
-      listed.add(id);
-      practitioners.push(practitioner);
-    }
-  }
-  return practitioners;
+export function distinctPractitionerIds(entries: ReadonlyArray<FhirBundleEntry>): string[] {
+  const ids = entries.flatMap(({ resource }) => {
+    const id = resource.resourceType === 'PractitionerRole' ? practitionerIdOf(resource) : undefined;
+    return id === undefined ? [] : [id];
+  });
+  return [...new Set(ids)];
+}
+
+/** `Practitioner` search for exactly the doctors of one page (a comma ORs the ids). */
+export function practitionersByIdQuery(ids: readonly string[]): Readonly<Record<string, unknown>> {
+  return { _id: ids.join(','), _count: ids.length };
 }
 
 /** The most roles one page of doctors can bring back; a page holds at most 100 doctors with a handful of roles each. */

@@ -1,0 +1,32 @@
+meta {
+  name: 5 Patient: appointment is fulfilled (6.3)
+  type: http
+  seq: 6
+  tags: [
+    e2e
+    write
+  ]
+}
+
+get {
+  url: {{baseUrl}}/api/v1/appointments/{{e2eAppointmentId}}
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{patientToken}}
+}
+
+script:pre-request {
+  if (!bru.getVar('e2eAppointmentId')) { bru.runner.skipRequest(); }
+}
+
+assert {
+  res.status: eq 200
+  res.body.status: eq fulfilled
+}
+
+docs {
+  Completing the encounter moves the appointment to `fulfilled` in the same transaction.
+}

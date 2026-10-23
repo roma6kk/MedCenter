@@ -1,0 +1,52 @@
+meta {
+  name: 2.1.2 Authorize (PKCE)
+  type: http
+  seq: 3
+  tags: [
+    oauth-manual
+  ]
+}
+
+get {
+  url: {{baseUrl}}/oauth/authorize?response_type=code&client_id={{oauthClientId}}&redirect_uri={{oauthRedirectUri}}&scope=launch%20patient%2F*.read%20patient%2F*.write%20user%2F*.read%20user%2F*.write&state={{oauthState}}&code_challenge={{pkceChallenge}}&code_challenge_method=S256
+  body: none
+  auth: none
+}
+
+params:query {
+  response_type: code
+  client_id: {{oauthClientId}}
+  redirect_uri: {{oauthRedirectUri}}
+  scope: launch patient/*.read patient/*.write user/*.read user/*.write
+  state: {{oauthState}}
+  code_challenge: {{pkceChallenge}}
+  code_challenge_method: S256
+}
+
+script:pre-request {
+  // PKCE (RFC 7636): verifier = 32 random bytes, challenge = BASE64URL(SHA256(verifier)).
+  const CryptoJS = require('crypto-js');
+  const b64url = (wa) => CryptoJS.enc.Base64.stringify(wa).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  const verifier = b64url(CryptoJS.lib.WordArray.random(32));
+  const challenge = b64url(CryptoJS.SHA256(verifier));
+  bru.setVar('pkceVerifier', verifier);
+  bru.setVar('pkceChallenge', challenge);
+  bru.setVar('oauthState', b64url(CryptoJS.lib.WordArray.random(16)));
+}
+
+script:post-response {
+  // Without a session the server answers the HTML login page. Open the same URL in a browser to sign in.
+  const base = bru.getEnvVar('baseUrl');
+  const q = new URLSearchParams({ response_type: 'code', client_id: bru.getEnvVar('oauthClientId'), redirect_uri: bru.getEnvVar('oauthRedirectUri'),
+    scope: 'launch patient/*.read patient/*.write user/*.read user/*.write', state: bru.getVar('oauthState'),
+    code_challenge: bru.getVar('pkceChallenge'), code_challenge_method: 'S256' });
+  bru.setVar('authorizeUrl', base + '/oauth/authorize?' + q.toString());
+}
+
+assert {
+  res.status: eq 200
+}
+
+docs {
+  Spec 2.1.2. The pre-request script creates the PKCE pair (`pkceVerifier`, `pkceChallenge`) and `oauthState`; the post-response script stores the full browser URL in `authorizeUrl`. The server answers the login page (HTML); signing in needs a browser or `get-token.mjs` (see README). On success the server redirects to `redirect_uri?code=...&state=...`.
+}

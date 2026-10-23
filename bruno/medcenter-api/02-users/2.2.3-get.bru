@@ -1,0 +1,33 @@
+meta {
+  name: 2.2.3 Get user
+  type: http
+  seq: 3
+  tags: [
+    ro-admin
+  ]
+}
+
+get {
+  url: {{baseUrl}}/api/v1/admin/users/{{userId}}
+  body: none
+  auth: inherit
+}
+
+script:pre-request {
+  if (!bru.getVar('userId')) { bru.runner.skipRequest(); }
+}
+
+assert {
+  res.status: eq 200
+  res.body.externalLinks: isArray
+}
+
+tests {
+  test('id is the requested userId', function () {
+    expect(String(res.body.id)).to.equal(String(bru.getVar('userId')));
+  });
+}
+
+docs {
+  Spec 2.2.3. ADMIN. Card plus `ExternalLink`s.
+}

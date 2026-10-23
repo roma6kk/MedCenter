@@ -1,0 +1,32 @@
+meta {
+  name: 2.3.4 Import НСИ snapshot
+  type: http
+  seq: 5
+  tags: [
+    write
+    role-admin
+    slow
+  ]
+}
+
+post {
+  url: {{baseUrl}}/api/v1/admin/terminology/import
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "snapshotVersion": "1.4.463"
+  }
+}
+
+assert {
+  res.status: eq 202
+  res.body.status: eq ACCEPTED
+  res.body.importId: isString
+}
+
+docs {
+  Spec 2.3.4. ADMIN. 202 with `{ importId, snapshotVersion, status: "ACCEPTED", acceptedAt }`; progress goes to logs/events. 409 when an import is already running.
+}

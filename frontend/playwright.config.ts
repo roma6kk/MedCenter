@@ -1,7 +1,20 @@
 import { defineConfig, devices } from '@playwright/test';
 
+/**
+ * `E2E_BROWSER_CHANNEL=chrome` drives the installed Google Chrome instead of the Playwright-managed Chromium (machines
+ * without `npx playwright install`); `E2E_BASE_URL` points at the web origin of the live stack.
+ */
+const channel = process.env['E2E_BROWSER_CHANNEL'];
+
+const browser = { ...devices['Desktop Chrome'], ...(channel === undefined || channel === '' ? {} : { channel, launchOptions: { args: ['--no-sandbox'] } }) };
+
 export default defineConfig({
   testDir: './e2e',
-  use: { baseURL: process.env.E2E_BASE_URL ?? 'http://localhost:3000', trace: 'on-first-retry' },
-  projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
+  outputDir: './test-results/pw',
+  use: { baseURL: process.env['E2E_BASE_URL'] ?? 'http://localhost:3000', trace: 'on-first-retry' },
+  projects: [
+    // One real sign-in per demo account; the specs reuse the saved states (auth-service throttles the login per IP).
+    { name: 'setup', testMatch: /auth\.setup\.ts$/, use: browser },
+    { name: 'chromium', testIgnore: /auth\.setup\.ts$/, dependencies: ['setup'], use: browser },
+  ],
 });

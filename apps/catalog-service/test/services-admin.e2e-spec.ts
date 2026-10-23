@@ -2,6 +2,7 @@ import { FhirClientError, type FhirResource } from '@medcenter/fhir';
 import { FHIR_BY, MEDCENTER_EXT } from '@medcenter/terminology';
 import request from 'supertest';
 
+import { auditedResource, committedAudit, committedEntries, transactionResponder } from '../src/common/__tests__/audited-transactions';
 import { CACHE_KEYS } from '../src/modules/cache/redis-cache.service';
 import { bootCatalog, TOKENS, type CatalogHarness } from './catalog-harness';
 
@@ -46,8 +47,7 @@ describe('Services admin writes (e2e)', () => {
   beforeEach(async () => {
     harness = await bootCatalog();
     harness.fhir.operation.mockResolvedValue({ resourceType: 'Parameters' });
-    harness.fhir.create.mockImplementation(async (_type, resource) => ({ ...resource, id: 'svc-new' }));
-    harness.fhir.update.mockImplementation(async (_type, id, resource) => ({ ...resource, id }));
+    harness.fhir.batch.mockImplementation(transactionResponder());
     harness.store.entries.set(SERVICE_PAGE_KEY, '{"items":[]}');
     harness.store.entries.set(SLOT_KEY, '[]');
   });
@@ -70,14 +70,22 @@ describe('Services admin writes (e2e)', () => {
         system: FHIR_BY.SERVICE_CODE_SYSTEM,
         code: 'A01.001',
       });
-      expect(harness.fhir.create).toHaveBeenCalledWith('HealthcareService', {
+      const [service] = committedEntries(harness.fhir);
+      expect(service?.request).toMatchObject({ method: 'PUT', url: `HealthcareService/${service?.resource?.id}` });
+      expect(committedAudit(harness.fhir)).toMatchObject({
+        action: 'C',
+        source: { observer: { display: 'catalog-service' } },
+        entity: [auditedResource('HealthcareService', service?.resource?.id), { what: { identifier: { value: expect.any(String) } } }],
+      });
+      expect(service?.resource).toEqual({
         resourceType: 'HealthcareService',
+        id: expect.any(String),
         name: 'Приём терапевта',
         comment: 'Первичный приём',
         extension: [{ url: MEDCENTER_EXT.SERVICE_DEFAULT_DURATION, valueInteger: 30 }],
         type: [{ coding: [{ system: FHIR_BY.SERVICE_CODE_SYSTEM, code: 'A01.001' }] }],
       });
-      expect(response.body).toMatchObject({ id: 'svc-new', name: 'Приём терапевта', typeCode: 'A01.001', defaultDurationMin: 30, isActive: true });
+      expect(response.body).toMatchObject({ id: service?.resource?.id, name: 'Приём терапевта', typeCode: 'A01.001', defaultDurationMin: 30, isActive: true });
     });
 
     it('should clear the cached listing and leave unrelated cache entries when a service is created', async () => {
@@ -98,7 +106,7 @@ describe('Services admin writes (e2e)', () => {
 
       // Assert
       expect(response.body).toMatchObject({ status: 422, errorCode: 'TERMINOLOGY_NOT_FOUND' });
-      expect(harness.fhir.create).not.toHaveBeenCalled();
+      expect(harness.fhir.batch).not.toHaveBeenCalled();
       expect(harness.store.entries.has(SERVICE_PAGE_KEY)).toBe(true);
     });
 
@@ -109,7 +117,7 @@ describe('Services admin writes (e2e)', () => {
       // Assert
       expect(response.body).toMatchObject({ errorCode: 'TERMINOLOGY_NOT_FOUND' });
       expect(harness.fhir.operation).not.toHaveBeenCalled();
-      expect(harness.fhir.create).not.toHaveBeenCalled();
+      expect(harness.fhir.batch).not.toHaveBeenCalled();
     });
 
     it('should answer 502 INTERNAL without the HAPI detail and create nothing when the lookup itself fails', async () => {
@@ -122,7 +130,7 @@ describe('Services admin writes (e2e)', () => {
       // Assert
       expect(response.body).toMatchObject({ status: 502, errorCode: 'INTERNAL' });
       expect(JSON.stringify(response.body)).not.toMatch(/HAPI-9999|hapi:8080/);
-      expect(harness.fhir.create).not.toHaveBeenCalled();
+      expect(harness.fhir.batch).not.toHaveBeenCalled();
     });
 
     it.each([
@@ -142,7 +150,7 @@ describe('Services admin writes (e2e)', () => {
       // Assert
       expect(response.body).toMatchObject({ status: 400, errorCode: 'VALIDATION_ERROR' });
       expect(harness.fhir.operation).not.toHaveBeenCalled();
-      expect(harness.fhir.create).not.toHaveBeenCalled();
+      expect(harness.fhir.batch).not.toHaveBeenCalled();
     });
   });
 
@@ -161,8 +169,9 @@ describe('Services admin writes (e2e)', () => {
 
       // Assert
       expect(harness.fhir.operation).not.toHaveBeenCalled();
-      const [type, id, merged] = harness.fhir.update.mock.calls[0] ?? [];
-      expect([type, id]).toEqual(['HealthcareService', 'svc-1']);
+      const [service] = committedEntries(harness.fhir);
+      const merged = service?.resource;
+      expect([service?.request.method, service?.request.url]).toEqual(['PUT', 'HealthcareService/svc-1']);
       expect(merged).toMatchObject({ name: 'Приём терапевта (повторный)', comment: 'Первичный приём' });
       expect(merged?.['type']).toEqual(storedService()['type']);
       expect(response.body).toMatchObject({ id: 'svc-1', name: 'Приём терапевта (повторный)', typeCode: 'A01.001' });
@@ -178,7 +187,7 @@ describe('Services admin writes (e2e)', () => {
         system: FHIR_BY.SERVICE_CODE_SYSTEM,
         code: 'A01.002',
       });
-      const [, , merged] = harness.fhir.update.mock.calls[0] ?? [];
+      const merged = committedEntries(harness.fhir)[0]?.resource;
       expect(merged?.['type']).toEqual([{ coding: [{ system: FHIR_BY.SERVICE_CODE_SYSTEM, code: 'A01.002' }] }]);
     });
 
@@ -189,7 +198,7 @@ describe('Services admin writes (e2e)', () => {
       // Assert
       expect(response.body).toMatchObject({ errorCode: 'VALIDATION_ERROR' });
       expect(harness.fhir.read).not.toHaveBeenCalled();
-      expect(harness.fhir.update).not.toHaveBeenCalled();
+      expect(harness.fhir.batch).not.toHaveBeenCalled();
     });
 
     it.each([
@@ -214,7 +223,7 @@ describe('Services admin writes (e2e)', () => {
 
       // Assert
       expect(response.body).toMatchObject({ errorCode: 'TERMINOLOGY_NOT_FOUND' });
-      expect(harness.fhir.update).not.toHaveBeenCalled();
+      expect(harness.fhir.batch).not.toHaveBeenCalled();
     });
 
     it('should answer 404 NOT_FOUND and keep the cache when the service does not exist', async () => {

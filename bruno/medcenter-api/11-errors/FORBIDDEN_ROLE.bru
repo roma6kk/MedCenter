@@ -1,0 +1,38 @@
+meta {
+  name: 403 FORBIDDEN_ROLE / FORBIDDEN_SCOPE
+  type: http
+  seq: 4
+  tags: [
+    errors
+    ro-patient
+  ]
+}
+
+get {
+  url: {{baseUrl}}/api/v1/admin/users
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{patientToken}}
+}
+
+script:pre-request {
+  if (!bru.getEnvVar('patientToken')) { bru.runner.skipRequest(); }
+}
+
+assert {
+  res.status: eq 403
+}
+
+tests {
+  test('a patient token is refused on an admin route', function () {
+    expect(res.status).to.equal(403);
+    expect(['FORBIDDEN_ROLE', 'FORBIDDEN_SCOPE']).to.include(res.body.errorCode);
+  });
+}
+
+docs {
+  Needs `patientToken`. The role check or the scope check answers first, depending on the route.
+}

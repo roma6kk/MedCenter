@@ -1,9 +1,12 @@
 import { ConflictException } from '@nestjs/common';
 import { ERROR_CODES } from '@medcenter/contracts';
-import { FhirClientError, type FhirClient } from '@medcenter/fhir';
+import { FhirClientError, type FhirClient, type FhirResource } from '@medcenter/fhir';
 import { MEDCENTER_EXT } from '@medcenter/terminology';
 
+import { auditedResource, committedAudit, committedEntries, transactionResponder } from '../../common/__tests__/audited-transactions';
 import { RoomsService } from './rooms.service';
+
+const ACTOR = { sub: 'admin-1', requestId: 'req-1' };
 
 const FLOOR = MEDCENTER_EXT.ROOM_FLOOR;
 
@@ -19,7 +22,7 @@ describe('RoomsService', () => {
       create: jest.fn(),
       update: jest.fn(),
       delete: jest.fn(),
-      batch: jest.fn(),
+      batch: jest.fn().mockImplementation(transactionResponder()),
     } as unknown as jest.Mocked<FhirClient>;
     roomsService = new RoomsService(fhirClient);
   });
@@ -27,13 +30,13 @@ describe('RoomsService', () => {
   it('should refuse to delete a room referenced by an active schedule', async () => {
     fhirClient.search.mockResolvedValue({ entry: [{ resource: { resourceType: 'Schedule' } }] });
 
-    await expect(roomsService.remove(roomId)).rejects.toThrow('ROOM_IN_USE');
+    await expect(roomsService.remove(roomId, ACTOR)).rejects.toThrow('ROOM_IN_USE');
   });
 
   it('should mark the conflict with the ROOM_IN_USE error code', async () => {
     fhirClient.search.mockResolvedValue({ entry: [{ resource: { resourceType: 'Schedule' } }] });
 
-    const error = await roomsService.remove(roomId).then(
+    const error = await roomsService.remove(roomId, ACTOR).then(
       () => undefined,
       (e: unknown) => e,
     );
@@ -45,7 +48,7 @@ describe('RoomsService', () => {
   it('should throw an error code the contract catalogues when the room is in use', async () => {
     fhirClient.search.mockResolvedValue({ entry: [{ resource: { resourceType: 'Schedule' } }] });
 
-    const error = await roomsService.remove(roomId).then(
+    const error = await roomsService.remove(roomId, ACTOR).then(
       () => undefined,
       (e: unknown) => e as ConflictException,
     );
@@ -59,15 +62,16 @@ describe('RoomsService', () => {
     fhirClient.search.mockResolvedValue({ entry: [] });
     fhirClient.read.mockResolvedValue({ resourceType: 'Location', id: roomId });
 
-    await expect(roomsService.remove(roomId)).resolves.toBeUndefined();
-    expect(fhirClient.delete).toHaveBeenCalledWith('Location', roomId);
+    await expect(roomsService.remove(roomId, ACTOR)).resolves.toBeUndefined();
+    expect(committedEntries(fhirClient).map((entry) => `${entry.request.method} ${entry.request.url}`)).toEqual([`DELETE Location/${roomId}`, 'POST AuditEvent']);
+    expect(committedAudit(fhirClient)).toMatchObject({ action: 'D', subtype: [{ code: 'delete' }], entity: [auditedResource('Location', roomId), expect.anything()] });
   });
 
   it('should never delete a Location when a schedule references it', async () => {
     fhirClient.search.mockResolvedValue({ entry: [{ resource: { resourceType: 'Schedule' } }] });
 
-    await expect(roomsService.remove(roomId)).rejects.toThrow('ROOM_IN_USE');
-    expect(fhirClient.delete).not.toHaveBeenCalled();
+    await expect(roomsService.remove(roomId, ACTOR)).rejects.toThrow('ROOM_IN_USE');
+    expect(fhirClient.batch).not.toHaveBeenCalled();
   });
 
   it('should answer 404 for an unknown room before checking schedules', async () => {
@@ -75,13 +79,13 @@ describe('RoomsService', () => {
       new FhirClientError('GET', 'http://hapi/Location/missing', 404, '{}'),
     );
 
-    const error = await roomsService.remove('missing').then(
+    const error = await roomsService.remove('missing', ACTOR).then(
       () => undefined,
       (e: unknown) => e as FhirClientError,
     );
     expect(error?.getStatus()).toBe(404);
     expect(fhirClient.search).not.toHaveBeenCalled();
-    expect(fhirClient.delete).not.toHaveBeenCalled();
+    expect(fhirClient.batch).not.toHaveBeenCalled();
   });
 
   it('should look up referencing schedules through Schedule.actor when the delete is checked', async () => {
@@ -90,7 +94,7 @@ describe('RoomsService', () => {
     fhirClient.search.mockResolvedValue({ entry: [] });
 
     // Act
-    await roomsService.remove(roomId);
+    await roomsService.remove(roomId, ACTOR);
 
     // Assert — R4 `Schedule` has no `location` search parameter (HAPI answers
     // 400 → 500 INTERNAL); the room is one of the schedule's actors.
@@ -116,11 +120,10 @@ describe('RoomsService', () => {
 
     it('does not blank stored fields omitted from the partial DTO', async () => {
       fhirClient.read.mockResolvedValue(existing);
-      fhirClient.update.mockResolvedValue({ ...existing, name: 'Renamed 204' });
 
-      await roomsService.update(roomId, { name: 'Renamed 204' });
+      await roomsService.update(roomId, { name: 'Renamed 204' }, ACTOR);
 
-      const merged = fhirClient.update.mock.calls[0][2];
+      const merged = (committedEntries(fhirClient)[0]?.resource ?? {}) as FhirResource;
       expect(merged['name']).toBe('Renamed 204');
       expect(merged['description']).toBe('Old description');
       expect(merged['identifier']).toEqual([{ value: '204' }]);
@@ -128,11 +131,10 @@ describe('RoomsService', () => {
 
     it('replaces only the fields the PATCH carries', async () => {
       fhirClient.read.mockResolvedValue(existing);
-      fhirClient.update.mockResolvedValue({ ...existing });
 
-      await roomsService.update(roomId, { description: 'Freshly painted' });
+      await roomsService.update(roomId, { description: 'Freshly painted' }, ACTOR);
 
-      const merged = fhirClient.update.mock.calls[0][2];
+      const merged = (committedEntries(fhirClient)[0]?.resource ?? {}) as FhirResource;
       expect(merged['description']).toBe('Freshly painted');
       expect(merged['name']).toBe('Cabinet 204');
     });
@@ -141,11 +143,10 @@ describe('RoomsService', () => {
   describe('floor round-trip', () => {
     it('persists floor as a valueInteger extension on create', async () => {
       fhirClient.search.mockResolvedValue({ entry: [] });
-      fhirClient.create.mockResolvedValue({ resourceType: 'Location', id: roomId });
 
-      await roomsService.create({ identifier: '204', name: 'Cabinet 204', floor: 2 });
+      await roomsService.create({ identifier: '204', name: 'Cabinet 204', floor: 2 }, ACTOR);
 
-      const created = fhirClient.create.mock.calls[0][1];
+      const created = (committedEntries(fhirClient)[0]?.resource ?? {}) as FhirResource;
       expect(created['extension']).toEqual([{ url: FLOOR, valueInteger: 2 }]);
     });
 
@@ -173,11 +174,10 @@ describe('RoomsService', () => {
           { url: 'https://example.org/StructureDefinition/other', valueString: 'keep-me' },
         ],
       });
-      fhirClient.update.mockResolvedValue({ resourceType: 'Location', id: roomId });
 
-      await roomsService.update(roomId, { floor: 5 });
+      await roomsService.update(roomId, { floor: 5 }, ACTOR);
 
-      const merged = fhirClient.update.mock.calls[0][2];
+      const merged = (committedEntries(fhirClient)[0]?.resource ?? {}) as FhirResource;
       expect(merged['extension']).toEqual([
         { url: 'https://example.org/StructureDefinition/other', valueString: 'keep-me' },
         { url: FLOOR, valueInteger: 5 },
@@ -192,11 +192,10 @@ describe('RoomsService', () => {
         name: 'Cabinet 204',
         extension: [{ url: FLOOR, valueInteger: 2 }],
       });
-      fhirClient.update.mockResolvedValue({ resourceType: 'Location', id: roomId });
 
-      await roomsService.update(roomId, { name: 'Renamed' });
+      await roomsService.update(roomId, { name: 'Renamed' }, ACTOR);
 
-      const merged = fhirClient.update.mock.calls[0][2];
+      const merged = (committedEntries(fhirClient)[0]?.resource ?? {}) as FhirResource;
       expect(merged['extension']).toEqual([{ url: FLOOR, valueInteger: 2 }]);
     });
   });

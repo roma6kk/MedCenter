@@ -1,0 +1,43 @@
+meta {
+  name: 3.12 Change own phone
+  type: http
+  seq: 11
+  tags: [
+    write
+    role-patient
+    flow-patient
+  ]
+}
+
+patch {
+  url: {{baseUrl}}/api/v1/me/patient
+  body: json
+  auth: inherit
+}
+
+headers {
+  If-Match: {{patientVersion}}
+}
+
+body:json {
+  {
+    "phone": "+375 29 123-45-67"
+  }
+}
+
+script:pre-request {
+  if (!bru.getVar('patientVersion')) { bru.runner.skipRequest(); }
+}
+
+script:post-response {
+  if (res.status === 200) { bru.setVar('patientVersion', res.body.version); }
+}
+
+assert {
+  res.status: eq 200
+  res.body.telecom: isArray
+}
+
+docs {
+  Spec 3.12. PATIENT only (DOCTOR/ADMIN -> 403 `FORBIDDEN_ROLE`). `+375` and nine digits; spaces, dashes and brackets are dropped. `If-Match` = `version` from 3.1 is required (else 400); a stale version -> 409 `CONFLICT`.
+}

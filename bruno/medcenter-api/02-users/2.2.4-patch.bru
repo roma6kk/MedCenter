@@ -1,0 +1,35 @@
+meta {
+  name: 2.2.4 Update user
+  type: http
+  seq: 6
+  tags: [
+    write
+    crud-users
+    role-admin
+  ]
+}
+
+patch {
+  url: {{baseUrl}}/api/v1/admin/users/{{createdUserId}}
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "lastName": "Админов-Обновлён"
+  }
+}
+
+script:pre-request {
+  if (!bru.getVar('createdUserId')) { bru.runner.skipRequest(); }
+}
+
+assert {
+  res.status: eq 200
+  res.body.lastName: eq Админов-Обновлён
+}
+
+docs {
+  Spec 2.2.4. ADMIN. Any subset of `email, firstName, lastName, birthDate, gender, roles, isActive, practitionerRoleId`. No password and no `accountConsent` here.
+}

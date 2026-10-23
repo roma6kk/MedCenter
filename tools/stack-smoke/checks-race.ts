@@ -110,10 +110,42 @@ function rebookSteps(suite: Suite, race: Race): SmokeStep[] {
   ];
 }
 
+/**
+ * BR-008: opening an encounter and marking a no-show race on a fresh appointment. The opening changes the Appointment
+ * (`If-Match`), so the two can never both succeed and the final state is consistent: a `noshow` appointment has no
+ * encounter, an opened encounter keeps the appointment `booked`.
+ */
+function openVersusNoShowStep(suite: Suite, race: Race): SmokeStep {
+  const { api, sessions } = suite;
+  return {
+    name: 'open an encounter and mark a no-show at the same time on a fresh appointment -> never both succeed, the final state is consistent',
+    run: async () => {
+      const booked = await book(suite, sessions.patient, race.slotId);
+      expectStatus(booked, 201);
+      const appointmentId = String(bodyObject(booked)['id']);
+      const [opened, noshow] = await Promise.all([
+        api.post('/api/v1/encounters', { session: sessions.doctor, body: { appointmentId } }),
+        api.post(`/api/v1/doctor/appointments/${appointmentId}/noshow`, { session: sessions.doctor }),
+      ]);
+      const openSucceeded = opened.status === 201 || opened.status === 200;
+      expectTrue(!(openSucceeded && noshow.status === 200), `both the opening (${opened.status}) and the no-show (${noshow.status}) succeeded`);
+      expectTrue(openSucceeded || noshow.status === 200, `neither succeeded: opening ${opened.status}, no-show ${noshow.status}`);
+      if (openSucceeded) {
+        expectProblem(noshow, 409, 'ENCOUNTER_STATE_INVALID');
+      } else {
+        expectProblem(opened, 409, 'ENCOUNTER_STATE_INVALID');
+      }
+      const listed = expectPage(await api.get('/api/v1/appointments', { session: sessions.patient, query: { sortOrder: 'desc', pageSize: 100 } }), APPOINTMENT_VIEW_SHAPE);
+      const stored = expectDefined(listed.find((item) => item['id'] === appointmentId), 'the raced appointment in the patient list');
+      expectEqual(stored['status'], openSucceeded ? 'booked' : 'noshow', 'final appointment status');
+    },
+  };
+}
+
 /** BR-001: two patients, one free slot, fired at the same time -> exactly one 201 and one 409 SLOT_CONFLICT. */
 export async function raceChecks(suite: Suite, slots: readonly JsonObject[]): Promise<void> {
   const race: Race = { slotId: String((slots[1] as JsonObject)['id']), winner: '', winnerSession: suite.sessions.otherPatient };
-  await suite.runner.chain(GROUP, [raceStep(suite, race), ...cancelSteps(suite, race), ...rebookSteps(suite, race)]);
+  await suite.runner.chain(GROUP, [raceStep(suite, race), ...cancelSteps(suite, race), ...rebookSteps(suite, race), openVersusNoShowStep(suite, race)]);
 }
 
 /** FR-006: the doctor marks a booked appointment as a no-show; the slot stays busy; a second mark is refused. */

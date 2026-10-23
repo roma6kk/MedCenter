@@ -61,7 +61,8 @@ describe('DoctorsService practitioner roles', () => {
 
   it('should list every role of a doctor, not only the ones that matched the filter, when the catalog is filtered', async () => {
     fhir.search
-      .mockResolvedValueOnce(bundle(role('r1', '101'), practitioner('101')))
+      .mockResolvedValueOnce(bundle(role('r1', '101')))
+      .mockResolvedValueOnce(bundle(practitioner('101')))
       .mockResolvedValueOnce(bundle(role('r1', '101'), role('r9', '101')));
 
     const result = await service.list({ specialty: '419192003' });

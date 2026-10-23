@@ -1,6 +1,6 @@
 # Передача контекста следующему агенту (TASK-001)
 
-Дата передачи: 2026-10-21. Предыдущий агент — оркестратор, который доводил план `tasks/TASK-001/writing-plans-plan.md` до конца через субагентов и воркфлоу. Этот файл — точка входа: прочитай его целиком, затем [verify-manual-testing-guide.md](verify-manual-testing-guide.md).
+Дата передачи: 2026-10-21 (§4, §7, §8 обновлены 2026-10-23). Предыдущий агент — оркестратор, который доводил план `tasks/TASK-001/writing-plans-plan.md` до конца через субагентов и воркфлоу. Этот файл — точка входа: прочитай его целиком, затем [verify-manual-testing-guide.md](verify-manual-testing-guide.md).
 
 ## 1. Твоя задача сейчас
 
@@ -27,7 +27,7 @@
 
 ## 3. Решения пользователя (обязательны)
 
-- **Git.** Ветка `feature/clinic-platform-wip`. Коммит на каждую законченную единицу работы, формат `feat|fix|refactor|test|docs(<scope>): …`. В конце сообщения строка `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>`. **Push и PR — только после явного подтверждения пользователя.** Не коммитить: `labs/`, PDF/DOCX в корне, `tmp/`, `frontend/pw-tmp.config.ts`, `.claude/settings.local.json`, пользовательские правки `.claude/skills/agent-browser/SKILL.md` и `.clinerules/skills/SKILL FLOW.md`. Без `--no-verify`, force-push и hard-reset.
+- **Git.** Ветка `feature/clinic-platform-wip`. Коммит на каждую законченную единицу работы, формат `feat|fix|refactor|test|docs(<scope>): …`. Без строк `Co-Authored-By` и «Generated with …» — владелец запретил любую AI-атрибуцию в коммитах и PR; сообщение заканчивается телом. **Push и PR — только после явного подтверждения пользователя.** Не коммитить: `labs/`, PDF/DOCX в корне, `tmp/`, `frontend/pw-tmp.config.ts`, `.claude/settings.local.json`, пользовательские правки `.claude/skills/agent-browser/SKILL.md` и `.clinerules/skills/SKILL FLOW.md`. Без `--no-verify`, force-push и hard-reset.
 - **Docker.** Полный локальный стек разрешён. Чужой контейнер `corporate-redis-cache` (и другие не-`medcenter-*`) не трогать. `docker compose down -v` не запускать — удалит данные.
 - **`.env`.** Не читать и не выводить. Единственное разрешённое исключение — посев демо-пользователей без вывода значений: `bash -c 'set -a; . ./.env; set +a; npm run seed:demo -- --users'`. `.env` и `.env.example` правит пользователь сам.
 - **Пароли.** Демо-пароли только в git-ignored `tools/demo-seed/output/demo-manifest.json`. Никогда не печатать их в чат, отчёты, тесты или скриншоты. Вводить через подстановку, например `"$(node -p "require('./tools/demo-seed/output/demo-manifest.json').users.accounts.find(a=>a.email==='EMAIL').password")"`.
@@ -37,22 +37,14 @@
 
 ## 4. Состояние кода
 
-25 коммитов поверх `7aa7866`, последний `e73cbf3`. На GitHub ничего не отправлено.
+*Обновлено 2026-10-23.* Работа ведётся в ветке `fix/open-items` (около 25 коммитов поверх `main`, git worktree `.worktrees/open-items`). На GitHub ничего не отправлено. Историческая ветка `feature/clinic-platform-wip` уже слита в `main`.
 
-- **Бэкенд** (M0–M5 готовы): 8 NestJS BFF — auth 3001, practitioner 3002, catalog 3003, patient 3004, appointment 3005, notification 3006, encounter 3007, analytics 3008. Общие библиотеки `libs/{common,config,contracts,fhir,fhir-mappers,terminology,messaging}`.
-  - Хранилище клинических данных — HAPI FHIR R4. Наружу открыт только `GET /fhir/metadata`.
-  - Конкурентная запись на слот — оптимистичная транзакция с `If-Match` (отклонение от пессимистичной блокировки в ADR-012). Одновременная запись даёт ровно один 201 и один 409 `SLOT_CONFLICT`.
-  - Последние правки бэкенда (`e13a59c`) прошли тесты и smoke, но **без code review**.
-- **Фронтенд** `frontend/` (Next.js 15; отклонение от `apps/web` принято). Построен на реальном API:
-  - ядро — `abb13ee`;
-  - кабинет пациента — `570f830`, врач — `89713b4`, каталог и запись — `9112883`, админка — `d90e328`;
-  - общие правки — `27d9204`.
-
-  Состояние: TanStack Query + Zustand, собственный i18n `lib/i18n` (`messages/ru.json` и `en.json`, паритет проверяется тестом), время клиники — `lib/clinic-time`, ошибки — `lib/api/error-code-map` и `components/feedback`.
-- **Проверки на момент передачи:**
-  - фронтенд: `tsc` 0 ошибок, jest 172 набора / 1794 теста, `next lint` чистый;
-  - бэкенд: nx test/lint/build зелёные;
-  - smoke через Traefik 131/131.
+- **Бэкенд** (M0–M5 готовы): 8 NestJS BFF — auth 3001, practitioner 3002, catalog 3003, patient 3004, appointment 3005, notification 3006, encounter 3007, analytics 3008. Общие библиотеки `libs/{common,config,contracts,fhir,fhir-mappers,terminology,messaging}`. Хранилище клинических данных — HAPI FHIR R4; наружу открыт только `GET /fhir/metadata`.
+  - Конкурентные записи — оптимистичные транзакции с `If-Match` (бронирование, открытие и завершение приёма, no-show, отмена); ADR-012 в спеке обновлён.
+  - Закрыто в `fix/open-items`: дубль «открывающего» `AuditEvent` (пишет только победитель открытия); `AuditEvent` для услуг, кабинетов и расписаний (логическая ссылка + UUID-id, ADR-020); атомарный идентификатор кабинета (conditional PUT); гонка открытие ∥ no-show/cancel (тег `encounter-opened` на Appointment под `If-Match`); повтор старта аналитики; тестовые зависимости вынесены из образов; повтор `$expand` при 5xx в сиде терминологии; время в уведомлениях по Минску.
+- **Фронтенд** `frontend/` (Next.js 15, редизайн «Спокойная клиника», согласие на ЭМК). Клиент использует новые поля API (`specialtyCode`, `practitionerRoleIds`, `status`-фильтр).
+- **Тесты и инструменты:** Playwright E2E сценарии A–F и security (`frontend/e2e`, проект `setup`, запуск `E2E_BROWSER_CHANNEL=chrome npx playwright test`); коллекция Bruno `bruno/medcenter-api/`; smoke `npm run smoke:stack` (включает гонку открытия с no-show и журнал аудита).
+- **Документация:** спеки сверены с кодом (api-designer-spec: 11 расхождений из Bruno), ADR-012/020, диаграммы `docs/diagrams/*.drawio`, README, CHANGELOG.
 
 ## 5. Как работать со стендом
 
@@ -76,40 +68,39 @@
 - **Отчёты ревьюеров.** Агенты-ревьюеры иногда возвращают замечания только в результате, не файлом. Оркестратор восстанавливал отчёты из журнала воркфлоу.
 - **Перезагрузки машины.** После перезагрузки контейнеры поднимаются сами, `next dev` нужно запустить заново.
 
-## 7. Известные недочёты, которые всплывут при тестировании
+## 7. Известные недочёты
 
-Полный список — гайд §6. Главное:
+*Обновлено 2026-10-23.* Полный исторический список — гайд §6.
 
-- **Клиент не использует новые поля API из `e13a59c`:**
-  - «Предстоящие» показывает отменённые записи — нужен `?upcoming=true&status=booked`;
-  - каталог фильтрует специальность в памяти — есть `specialtyCode` / `specialtySystem`;
-  - PractitionerRole в форме админа вводится как id — есть `practitionerRoleIds`;
-  - у `fulfilled`-записей в журнале врача могут остаться «Открыть приём» и «Неявка»;
-  - 409 `ENCOUNTER_STATE_INVALID` на неявку может показываться общим баннером.
+**Закрыто:**
+- ~~Клиент не использует новые поля API (`status`, `specialtyCode`, `practitionerRoleIds`), «Открыть приём»/«Неявка» у `fulfilled`, общий баннер 409~~;
+- ~~два параллельных `POST /encounters` пишут два `AuditEvent`~~ (`538f7d2`);
+- ~~каталог, кабинеты и расписания не пишут `AuditEvent`~~ (`370cc71`, ADR-020);
+- ~~уникальность номера кабинета без защиты от гонки~~ (`ed630c5`);
+- ~~время в уведомлениях в UTC~~ (по Минску, в спеке 8);
+- ~~тестовые зависимости в runtime-образах~~ (`af029ea`);
+- ~~гонка открытие ∥ no-show/cancel~~ (`d86f288`);
+- ~~админку после `27d9204` не проходили в браузере~~ — покрыта E2E (`admin-schedule`, `admin-reports`).
 
-  Пути полей в 422 (`diagnoses.1.code`) уже совпадают с путями формы.
-- **Админку после `27d9204` в браузере не проходили.** Для неё есть аккаунт `admin.demo@medcenter.test` с паролем в манифесте.
-- **Демо-данные натоптаны агентами:** в журнале Ивановой остались `booked`-записи с уже завершёнными приёмами — созданы до исправления `fulfilled`, сами не исправятся.
-- **Недочёты бэкенда:**
-  - нет transactional outbox;
-  - два параллельных `POST /encounters` пишут два `AuditEvent`;
-  - у HAPI нет healthcheck;
-  - каталог, кабинеты и расписания не пишут `AuditEvent`;
-  - уникальность номера кабинета проверяется без защиты от гонки;
-  - в уведомлениях время в UTC;
-  - тестовые зависимости попадают в runtime-образы;
-  - хелперы (`MAX_PAGE`, `REQUEST_ID_TYPE`, время клиники) продублированы между сервисами.
+**Остаётся открытым:**
+- **Transactional outbox** — события теряются, если брокер упал после записи в HAPI; в архитектуре его нет, нужно решение владельца.
+- **Healthcheck HAPI** — образ distroless без shell; нужен новый образ (решение владельца).
+- **Статус `fulfilled` в аналитике** — read-model не учитывает его как отдельный статус; изменение требует правки спеки (9.1).
+- **Демо- и тестовые остатки в HAPI** (`booked`-записи с завершёнными приёмами, ресурсы `E2E-check`, деактивированный `e2e-check.doctor3`) — убираются только expunge (удаление данных, решение владельца); `npm run seed:demo -- --repair` исправляет статусы.
+- Хелперы (`MAX_PAGE`, `REQUEST_ID_TYPE`, время клиники) продублированы между сервисами.
 
 ## 8. Остаток плана (не начинать без запроса)
 
-1. Code review `e13a59c` и адаптация клиента к новым полям API (§7).
-2. Playwright E2E, Task 20: сценарии A, A2, B, C, C2, D, E, F и security. В `frontend/e2e` есть только тесты входа (`auth-login.spec.ts`), остальное — `test.fixme`. Для запуска на этой машине нужен установленный Chrome (`channel: 'chrome'`); образец — локальный `frontend/pw-tmp.config.ts`.
-3. Swagger (`@nestjs/swagger` не установлен) и коллекция Bruno (API §10–11).
-4. Документация: README (запуск), CHANGELOG, MANIFEST, спеки (ADR-012 → оптимистичная блокировка через `If-Match`), диаграммы draw.io.
-5. Пояснительная записка — только по команде пользователя.
-6. Финальный DoD (`.claude/DOD.md`), skill `finishing-branch`, push и PR — после подтверждения пользователя.
+*Обновлено 2026-10-23.* Сделано в `fix/open-items`: code review `e13a59c` и адаптация клиента, Playwright E2E (Task 20), Swagger **закрыт** (`a03265e`…`57bb048`: `/api/docs/<service>`, `SWAGGER_ENABLED`, спека §10; итоги врачей `bbe4e5e`) и коллекция Bruno, документация (README, CHANGELOG, MANIFEST, спеки, диаграммы draw.io).
 
-Скрипты прошлых воркфлоу (можно взять за образец) лежат в `~/.claude/projects/-mnt-BE48B9DF48B9971D-projs-MedCenter/dc59563e-9984-43f8-9c25-f3dfc920d1da/workflows/scripts/`: `medcenter-frontend-areas-batch.js` (реализация → ревью ∥ браузер → исправления по областям), `medcenter-build-only.js`, `medcenter-live-stack.js`.
+Открыто:
+1. **Решения владельца** — transactional outbox, healthcheck HAPI (новый образ), статус `fulfilled` в аналитике (спека), expunge демо/тестовых остатков в HAPI (см. §7).
+2. **TASK-004** — задачи T1, T2, T5 (`tasks/TASK-004/`, в git не коммитится).
+3. **Bruno CLI в CI** — прогон коллекции `bruno/medcenter-api/` в конвейере (токены через `get-token.mjs`).
+4. **Пояснительная записка (ПЗ)** — `docs/pz/medcenter-pz.docx`, Task 21, только по команде пользователя (срок курса 2026-12-15); диаграммы для неё готовы в `docs/diagrams/`.
+5. **Финал** — DoD (`.claude/DOD.md`), skill `finishing-branch`, **push и PR — только после подтверждения пользователя**.
+
+Скрипты прошлых воркфлоу (можно взять за образец) лежат в `~/.claude/projects/-mnt-BE48B9DF48B9971D-projs-MedCenter/dc59563e-9984-43f8-9c25-f3dfc920d1da/workflows/scripts/`: `medcenter-frontend-areas-batch.js`, `medcenter-build-only.js`, `medcenter-live-stack.js`.
 
 ## 9. Мусор в рабочем дереве
 

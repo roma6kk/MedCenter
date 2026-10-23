@@ -5,6 +5,7 @@ import { FHIR_CLIENT, FhirClientError, type FhirClient, type FhirSearchResult } 
 import request from 'supertest';
 
 import { AppModule } from '../src/app/app.module';
+import { auditedResource, committedAudit, committedEntries, transactionResponder } from '../src/common/__tests__/audited-transactions';
 import { applyE2eEnv } from './e2e-env';
 import { ADMIN_SCOPE, bearer, DOCTOR_SCOPE } from './e2e-tokens';
 
@@ -33,7 +34,7 @@ const BOOKED = {
 };
 
 function createFhirStub(schedules: ReadonlyArray<Record<string, unknown>>): jest.Mocked<FhirClient> {
-  const stub = { read: jest.fn(), search: jest.fn(), delete: jest.fn() } as unknown as jest.Mocked<FhirClient>;
+  const stub = { read: jest.fn(), search: jest.fn(), delete: jest.fn(), batch: jest.fn().mockImplementation(transactionResponder()) } as unknown as jest.Mocked<FhirClient>;
   stub.read.mockResolvedValue({ resourceType: 'Location', id: 'room-204' });
   stub.search.mockImplementation(async (resourceType) =>
     resourceType === 'Schedule' ? bundle(schedules) : bundle([BOOKED]),
@@ -163,7 +164,7 @@ describe('Room usage (e2e)', () => {
       expect(response.body).toMatchObject({ status: 409, errorCode: 'ROOM_IN_USE' });
       expect(response.body.detail).toContain('ROOM_IN_USE');
       expect(fhir.search).toHaveBeenCalledWith('Schedule', { actor: 'Location/room-204', _count: 1 });
-      expect(fhir.delete).not.toHaveBeenCalled();
+      expect(fhir.batch).not.toHaveBeenCalled();
     });
 
     it('should delete with 204 when the usage view reports the room free', async () => {
@@ -174,7 +175,8 @@ describe('Room usage (e2e)', () => {
       await request(app.getHttpServer()).delete('/api/v1/admin/rooms/room-204').set('Authorization', admin).expect(204);
 
       // Assert
-      expect(fhir.delete).toHaveBeenCalledWith('Location', 'room-204');
+      expect(committedEntries(fhir).map((entry) => `${entry.request.method} ${entry.request.url}`)).toEqual(['DELETE Location/room-204', 'POST AuditEvent']);
+      expect(committedAudit(fhir)).toMatchObject({ action: 'D', entity: [auditedResource('Location', 'room-204'), expect.anything()] });
     });
   });
 
@@ -194,7 +196,7 @@ describe('Room usage (e2e)', () => {
       expect(response.body).toMatchObject({ errorCode: 'VALIDATION_ERROR' });
       expect(fhir.read).not.toHaveBeenCalled();
       expect(fhir.search).not.toHaveBeenCalled();
-      expect(fhir.delete).not.toHaveBeenCalled();
+      expect(fhir.batch).not.toHaveBeenCalled();
     });
 
     it('should reject a patch with 400 VALIDATION_ERROR before HAPI is called when the id is only dots', async () => {

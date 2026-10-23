@@ -1,0 +1,35 @@
+meta {
+  name: 4.3 List rooms
+  type: http
+  seq: 3
+  tags: [
+    ro-admin
+    ro-doctor
+  ]
+}
+
+get {
+  url: {{baseUrl}}/api/v1/rooms?page=1&pageSize=20
+  body: none
+  auth: inherit
+}
+
+params:query {
+  page: 1
+  pageSize: 20
+}
+
+script:post-response {
+  if (res.status === 200 && res.body.items.length) { bru.setVar('roomId', res.body.items[0].id); }
+}
+
+assert {
+  res.status: eq 200
+  res.body.items: isArray
+  res.body.meta.page: isNumber
+  res.body.meta.totalItems: isNumber
+}
+
+docs {
+  Spec 4.3. Scope `user/*.read` (DOCTOR or ADMIN).
+}

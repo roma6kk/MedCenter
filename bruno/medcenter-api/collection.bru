@@ -1,0 +1,42 @@
+headers {
+  Accept: application/json
+}
+
+auth {
+  mode: bearer
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+script:pre-request {
+  // date window used by the slot requests: today .. today + 13 days; far window for the schedule CRUD.
+  const day = (offset) => new Date(Date.now() + offset * 86400000).toISOString().slice(0, 10);
+  bru.setVar('fromDate', day(0));
+  bru.setVar('toDate', day(13));
+  bru.setVar('farFrom', day(120));
+  bru.setVar('farTo', day(133));
+  // patientRef (environment) is "Patient/<id>"; many requests need the bare id.
+  if (!bru.getVar('patientId') && bru.getEnvVar('patientRef')) {
+    bru.setVar('patientId', String(bru.getEnvVar('patientRef')).split('/').pop());
+  }
+  if (!bru.getVar('encounterId') && bru.getEnvVar('encounterId')) {
+    bru.setVar('encounterId', bru.getEnvVar('encounterId'));
+  }
+  if (!bru.getVar('otherPatientId') && bru.getEnvVar('otherPatientRef')) {
+    bru.setVar('otherPatientId', String(bru.getEnvVar('otherPatientRef')).split('/').pop());
+  }
+}
+
+docs {
+  # MedCenter API (Лайфлайн)
+
+  Collection for the public REST API (`/api/v1/**`) and the SMART / OAuth2 endpoints, as specified in
+  `specs/api-designer-spec.md` §2-§9. One folder per domain, one request per endpoint (the heading of each
+  request carries the spec number). Read README.md for the token set-up.
+
+  Environment `local`: `{{baseUrl}}` is the Traefik edge, `{{accessToken}}` the Bearer JWT of the role
+  you are testing (secret, not committed). The chain folder and the role-specific requests use
+  `{{adminToken}}`, `{{doctorToken}}`, `{{patientToken}}`.
+}

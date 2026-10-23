@@ -28,6 +28,11 @@
 `auth-service` и у read-model аналитики; уведомления не имеют своей БД (FHIR `Communication`);
 каждый сервис — отдельный Docker-образ (NFR-001).
 
+Диаграммы draw.io (`docs/diagrams/`): [`structural.drawio`](../docs/diagrams/structural.drawio) — контейнеры и связи (Traefik, 8 BFF,
+HAPI, PostgreSQL, Redis, RabbitMQ, web); [`booking-encounter-sequence.drawio`](../docs/diagrams/booking-encounter-sequence.drawio) —
+запись → приём → завершение с точками `If-Match` (ADR-012); [`logical-db.drawio`](../docs/diagrams/logical-db.drawio) — схема `auth`,
+read-model аналитики и ресурсы FHIR; [`usecase.drawio`](../docs/diagrams/usecase.drawio) — варианты использования FR-001…021 (NFR-010).
+
 #### 2. Размещение модулей (Nx-монорепозиторий)
 
 ```
@@ -161,7 +166,8 @@ SMART-scopes и RBAC общим guard-слоем (`libs/common`); Traefik мар
 - **Авторизация:** SMART-scopes + RBAC-guards (`PATIENT`/`DOCTOR`/`ADMIN`).
 - **Patient-компартмент:** пациент видит только свои ресурсы; проверка владения на уровне сервиса
   (defence-in-depth, ADR-013) — пациент-скоуп не отменяет проверку ссылки `patient`.
-- **Аудит (FR-021):** `AuditEvent` на create/update/delete в `encounter`, `appointment`, `auth`.
+- **Аудит (FR-021):** `AuditEvent` на create/update/delete в `encounter`, `appointment`, `auth`, а также в административных
+  записях `catalog` (услуги, расписания) и `practitioner` (кабинеты) — в той же `transaction` Bundle, что и изменение.
 - **OWASP Top-10:** валидация входа (`class-validator`), параметризованные запросы, секреты только в
   env (`.env` не коммитим), rate-limit по эндпоинтам (Redis-счётчики в общем guard-слое), корректные
   CORS и заголовки безопасности на Traefik, отсутствие утечки внутренних деталей в ответах.
@@ -243,15 +249,23 @@ auth, ослабление NFR-006).
 HAPI; сервисы без собственного клинического состояния → горизонтальное масштабирование.
 *Следствие:* собственная реляционная БД только у `auth-service` и read-model аналитики.
 
-**ADR-012 · Идемпотентная запись слота с пессимистичной блокировкой · Accepted (BR-001)** — При
-`POST /appointments` перечитать `Slot` и проверить `status=free` в транзакции; при гонке → **409
-Conflict**; `Slot.status → busy`. *Следствие:* исключено двойное бронирование.
+**ADR-012 · Идемпотентная запись слота: оптимистичная блокировка через `If-Match` · Accepted (BR-001); формулировка «пессимистичная блокировка» заменена реализацией (2026-10-23)** —
+HAPI JPA не даёт row-lock, поэтому гонки решаются оптимистично: каждая запись, чувствительная к состоянию, идёт одним
+`transaction`-Bundle, где `PUT` читанной версии ресурса несёт `If-Match: W/"<versionId>"`; несовпадение версии → HAPI откатывает весь
+Bundle (412) → сервис отвечает доменным кодом. Точки применения: (1) бронирование `POST /appointments` — `PUT Slot` (`free→busy`) → 409
+`SLOT_CONFLICT`; (2) открытие приёма — в той же транзакции `PUT Appointment` с тегом `meta.tag`
+`https://fhir.by/CodeSystem/medcenter-appointment-flags#encounter-opened` под `If-Match`; (3) завершение приёма — `PUT Encounter` и связанные ресурсы
+по прочитанным версиям; (4) no-show и отмена — `PUT Appointment`/`PUT Slot` с `If-Match`. Гонка «открытие ∥ no-show/cancel»: тот, кто
+проиграл `If-Match`, получает 409 (`ENCOUNTER_STATE_INVALID` для no-show, `APPOINTMENT_NOT_CANCELLABLE` для отмены); при уже существующем
+приёме no-show/cancel отклоняются тем же кодом. Идемпотентность — `Idempotency-Key` (Redis). *Следствие:* исключено двойное бронирование и
+«приём у отменённой записи»; пессимистичная блокировка не применяется. Диаграмма —
+[`docs/diagrams/booking-encounter-sequence.drawio`](../docs/diagrams/booking-encounter-sequence.drawio); детали M3 — `coder-m3-booking-spec.md`.
 
 **ADR-013 · Patient-компартмент на уровне сервиса (defence-in-depth) · Accepted (BR-006, NFR-006)** —
 Каждый пациент-скоупный запрос явно передаёт ссылку `patient`; проверка владения на уровне сервиса,
 а не только scope. *Следствие:* защита выживает при ошибочно выданном scope.
 
-**ADR-014 · Аудит через FHIR `AuditEvent`, запрос у analytics-service · Accepted (FR-021)** — Отдельный
+**ADR-014 · Аудит через FHIR `AuditEvent`, запрос у analytics-service · Accepted (FR-021; дополнение — ADR-020)** — Отдельный
 журнал аудита не нужен: `AuditEvent` пишется рядом с клиническим изменением. *Следствие:* ретенция
 аудита следует ретенции HAPI; `GET /admin/audit` — read-model запрос. *Дополнение (ADR-018, D-3):* чтение данных
 пациента врачом или администратором (3.2, 3.3, 7.4, 7.5) и каждый отказ `COMPARTMENT_VIOLATION` пишут
@@ -306,6 +320,15 @@ patient-service. Без действующего согласия 7.1/7.3 отв
 (по умолчанию `block`, в схеме окружения и в compose), экстренный обход — `emergencyReason` с отдельным `AuditEvent`. Отзыв ничего не удаляет. *Следствие:* флажок
 саморегистрации — только согласие на учётную запись (ст. 5 № 99-З) и `Consent` не создаёт. Модель, варианты и правовые ответы —
 `tasks/TASK-003/brainstorming-consent-design.md`, `tasks/TASK-003/architect-consent-legal-answers.md`; контракт — `api-designer-spec.md` §3.4–3.11.
+
+**ADR-020 · Аудит изменений каталога: логическая ссылка и клиентские UUID · Accepted (FR-021; 2026-10-23)** — *Контекст:* HAPI
+(referential integrity) не удаляет ресурс, на который буквально ссылается `AuditEvent.entity.what.reference`, а администратор вправе удалять
+услуги, кабинеты и расписания. *Решение:* создание/изменение/удаление услуг, кабинетов и расписаний пишет `AuditEvent` **в той же
+транзакции**, а ресурс называется логической ссылкой — `entity.what.type` (тип ресурса) + `entity.what.identifier` с
+`system=https://api.medcenter.by/sid/fhir-resource-id` и `value` = FHIR id; буквальный `Type/id` не используется. Создаваемым
+администратором ресурсам id назначает клиент (BFF) — UUID (`PUT`), чтобы `AuditEvent` в Bundle ссылался на id до создания. Журнал
+`GET /admin/audit` (analytics-service) читает обе формы (буквальную и логическую). *Следствие:* удаление не блокируется аудитом, история
+сохраняется; ресурс в журнале определяется по паре `resourceType`/`resourceId`. Дополняет ADR-014.
 
 #### 9. Трассируемость
 

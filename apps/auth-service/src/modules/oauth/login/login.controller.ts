@@ -1,6 +1,7 @@
 import { Body, Controller, HttpStatus, Inject, Logger, Post, Req, Res, UseFilters } from '@nestjs/common';
 import type { Response } from 'express';
-import { Public, RateLimit } from '@medcenter/common';
+import { ApiProblems, Public, RateLimit } from '@medcenter/common';
+import { ApiBody, ApiConsumes, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 
 import { CredentialsService } from '../../users/credentials.service';
 import { CLIENT_REGISTRY, type ClientRegistry } from '../guards/client.guard';
@@ -55,6 +56,7 @@ type Refusal = Pick<LoginFormView, 'status' | 'error' | 'email' | 'retryAfterSec
  * counter (`LoginThrottle`) that fails closed. Both end in the login page with
  * a message, not a JSON problem (`LoginRateLimitFilter` covers the first).
  */
+@ApiTags('auth')
 @Controller('oauth')
 export class LoginController {
   private readonly logger = new Logger(LoginController.name);
@@ -68,6 +70,43 @@ export class LoginController {
   ) {}
 
   @Public()
+  @ApiOperation({ summary: '2.1.2 Submit the login form of the authorization flow' })
+  @ApiConsumes('application/x-www-form-urlencoded')
+  @ApiBody({ type: LoginFormDto })
+  @ApiResponse({
+    status: 200,
+    description: 'Wrong credentials: the login form again with a message (HTML)',
+    content: { 'text/html': { schema: { type: 'string' } } },
+  })
+  @ApiResponse({
+    status: 302,
+    description: 'Credentials accepted: sets the login session cookie and redirects to GET /oauth/authorize with the original query',
+    headers: { Location: { description: '/oauth/authorize?...', schema: { type: 'string' } } },
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Unusable authorization request (HTML page), or input rejected by validation (problem+json)',
+    content: {
+      'text/html': { schema: { type: 'string' } },
+      'application/problem+json': { schema: { $ref: '#/components/schemas/problemDetails' } },
+    },
+  })
+  @ApiResponse({
+    status: 403,
+    description: 'Stale form: the CSRF token does not match (HTML)',
+    content: { 'text/html': { schema: { type: 'string' } } },
+  })
+  @ApiResponse({
+    status: 429,
+    description: 'Per-IP or per-account attempt limit reached (HTML login page with Retry-After)',
+    content: { 'text/html': { schema: { type: 'string' } } },
+  })
+  @ApiResponse({
+    status: 503,
+    description: 'The attempt counter is unavailable; login fails closed (HTML)',
+    content: { 'text/html': { schema: { type: 'string' } } },
+  })
+  @ApiProblems([500])
   @RateLimit(LOGIN_RATE_LIMIT)
   @UseFilters(LoginRateLimitFilter)
   @Post('login')

@@ -1,0 +1,34 @@
+meta {
+  name: 3.2 Patient card
+  type: http
+  seq: 2
+  tags: [
+    ro-patient
+    ro-doctor
+    ro-admin
+  ]
+}
+
+get {
+  url: {{baseUrl}}/api/v1/patients/{{patientId}}
+  body: none
+  auth: inherit
+}
+
+script:pre-request {
+  if (!bru.getVar('patientId')) { bru.runner.skipRequest(); }
+}
+
+assert {
+  res.status: eq 200
+}
+
+tests {
+  test('id is the requested patientId', function () {
+    expect(String(res.body.id)).to.equal(String(bru.getVar('patientId')));
+  });
+}
+
+docs {
+  Spec 3.2. DOCTOR (with a link to the patient) or ADMIN; a PATIENT may read only the own card. Reads by DOCTOR/ADMIN and refusals are audited. Another patient -> 403 `COMPARTMENT_VIOLATION`. `patientId` comes from 3.1 or from `patientRef` of the environment.
+}

@@ -147,7 +147,7 @@ function encounterAuditStep(suite: Suite): SmokeStep {
   const { chain } = suite;
   return (
     {
-      name: 'GET /admin/audit?entity=Encounter/{id} -> the open (create) and the completion (update) events, each with a request id',
+      name: 'GET /admin/audit?entity=Encounter/{id} -> exactly one open (create) event despite the concurrent open, and the completion (update) event, each with a request id',
       run: async () => {
         const created = await auditOf(suite, `Encounter/${chain.encounterId}`, 'create');
         const updated = await auditOf(suite, `Encounter/${chain.encounterId}`, 'update');
@@ -182,7 +182,8 @@ export function reportSteps(suite: Suite): SmokeStep[] {
   return [analyticsStep(suite), ...auditSteps(suite)];
 }
 
-async function auditOf(suite: Suite, entity: string, action: string): Promise<readonly JsonObject[]> {
+/** The journal rows of `entity` with `action`, once at least one is synced (the journal follows HAPI on an interval). */
+export async function auditOf(suite: Suite, entity: string, action: string): Promise<readonly JsonObject[]> {
   const { api, sessions, config } = suite;
   return pollUntil(config, `the ${action} audit event of ${entity}`, async () => {
     const response = await api.get('/api/v1/admin/audit', { session: sessions.admin, query: { entity, pageSize: 100 } });

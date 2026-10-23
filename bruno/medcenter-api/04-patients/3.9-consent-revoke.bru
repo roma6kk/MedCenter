@@ -1,0 +1,35 @@
+meta {
+  name: 3.9 Record written revocation
+  type: http
+  seq: 9
+  tags: [
+    write
+    destructive
+    role-admin
+  ]
+}
+
+post {
+  url: {{baseUrl}}/api/v1/patients/{{patientId}}/consent/revoke
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "applicationNumber": "BRUNO-APP-{{$randomInt}}"
+  }
+}
+
+script:pre-request {
+  if (!bru.getVar('patientId')) { bru.runner.skipRequest(); }
+}
+
+assert {
+  res.status: eq 200
+  res.body.status: eq inactive
+}
+
+docs {
+  Spec 3.9. `applicationNumber` 1..64, `revokedAt` optional (default today). 404 `NOT_FOUND` without an active consent.
+}

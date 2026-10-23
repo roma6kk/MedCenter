@@ -1,0 +1,43 @@
+meta {
+  name: 1 Doctor: own free slot (5.2.7)
+  type: http
+  seq: 1
+  tags: [
+    e2e
+    write
+  ]
+}
+
+get {
+  url: {{baseUrl}}/api/v1/doctor/schedule
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{doctorToken}}
+}
+
+script:post-response {
+  const free = (res.body.items || []).filter(function (s) { return s.status === 'free'; });
+  if (free.length) {
+    bru.setVar('e2eSlotId', free[0].id);
+    bru.setVar('e2eServiceId', (res.body.schedules[0] || {}).serviceId);
+  } else {
+    bru.setVar('e2eSlotId', '');
+  }
+}
+
+assert {
+  res.status: eq 200
+}
+
+tests {
+  test('the doctor has a free slot', function () {
+    expect(bru.getVar('e2eSlotId')).to.be.a('string').and.not.equal('');
+  });
+}
+
+docs {
+  Takes the doctor's own first free slot, so the appointment is for the doctor whose token opens the encounter. Run `npm run seed:demo` (idempotent, regenerates slots) when none is left.
+}

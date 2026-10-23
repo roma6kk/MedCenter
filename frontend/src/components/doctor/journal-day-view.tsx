@@ -11,7 +11,7 @@ import { formatClinicTime } from '@/lib/clinic-time';
 import { useT } from '@/lib/i18n/use-t';
 import { cn } from '@/lib/ui/cn';
 import type { DoctorJournalPage, JournalAppointment } from './doctor-types';
-import { buildTimeline, countByStatus, findNextVisit, initialsOf, visitMinutes, type GapEntry, type StatusCounts, type TimelineEntry } from './journal-model';
+import { buildTimeline, canOpenPatientCard, countByStatus, findNextVisit, initialsOf, visitMinutes, type GapEntry, type StatusCounts, type TimelineEntry } from './journal-model';
 import { NoshowButton } from './noshow-button';
 import { OpenEncounterButton } from './open-encounter-button';
 
@@ -33,6 +33,9 @@ function patientNameOf(visit: JournalAppointment, t: Translate): string {
 
 function PatientLink({ visit, className }: { readonly visit: JournalAppointment; readonly className?: string }): ReactNode {
   const t = useT('doctor.journal');
+  if (!canOpenPatientCard(visit.status)) {
+    return <span className={className}>{patientNameOf(visit, t)}</span>;
+  }
   return (
     <Link
       href={`/patients/${encodeURIComponent(visit.patientId)}`}

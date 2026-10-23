@@ -1,0 +1,30 @@
+meta {
+  name: 2.3.3 Validate code
+  type: http
+  seq: 4
+  tags: [
+    ro-admin
+    ro-doctor
+  ]
+}
+
+get {
+  url: {{baseUrl}}/api/v1/terminology/validate?system=https%3A%2F%2Ffhir.by%2FCodeSystem%2FInternClassificDiseases10&code=J06.9
+  body: none
+  auth: inherit
+}
+
+params:query {
+  system: https://fhir.by/CodeSystem/InternClassificDiseases10
+  code: J06.9
+}
+
+assert {
+  res.status: eq 200
+  res.body.valid: eq true
+  res.body.code: eq J06.9
+}
+
+docs {
+  Spec 2.3.3. `system` is the **CodeSystem** canonical (`https://fhir.by/CodeSystem/...`), not the ValueSet one; `code` 1..64 printable characters. Answers `valid:false` for codes outside the seed.
+}

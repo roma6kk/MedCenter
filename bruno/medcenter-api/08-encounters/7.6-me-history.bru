@@ -1,0 +1,44 @@
+meta {
+  name: 7.6 My history
+  type: http
+  seq: 1
+  tags: [
+    ro-patient
+  ]
+}
+
+get {
+  url: {{baseUrl}}/api/v1/me/history?page=1&pageSize=20&sortOrder=desc
+  body: none
+  auth: inherit
+}
+
+params:query {
+  page: 1
+  pageSize: 20
+  sortOrder: desc
+}
+
+script:post-response {
+  if (res.status === 200 && res.body.items.length) { bru.setVar('encounterId', res.body.items[0].id); }
+}
+
+assert {
+  res.status: eq 200
+  res.body.items: isArray
+  res.body.meta.page: isNumber
+  res.body.meta.totalItems: isNumber
+}
+
+tests {
+  test('items carry doctorName and the diagnoses', function () {
+    if (res.body.items.length) {
+      expect(res.body.items[0].diagnoses).to.be.an('array');
+      expect(res.body.items[0].practitionerRoleId).to.be.a('string');
+    }
+  });
+}
+
+docs {
+  Spec 7.6. PATIENT, scope `patient/*.read`; own history, newest first by default. Items carry `practitionerRoleId` and `doctorName`. Stores the first encounter id.
+}

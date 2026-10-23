@@ -6,7 +6,17 @@ import {
   UnprocessableEntityException,
 } from '@nestjs/common';
 import { buildPaginatedResponse, type PaginatedResponseDto } from '@medcenter/contracts';
-import { FHIR_CLIENT, FhirClientError, type FhirClient, type FhirResource } from '@medcenter/fhir';
+import {
+  createAudited,
+  deleteAudited,
+  FHIR_CLIENT,
+  FhirClientError,
+  updateAudited,
+  type AuditContext,
+  type FhirClient,
+  type FhirResource,
+  type WriteActor,
+} from '@medcenter/fhir';
 import { FHIR_BY, MEDCENTER_EXT } from '@medcenter/terminology';
 
 import { CACHE_KEYS, CACHE_TTLS, RedisCacheService } from '../cache/redis-cache.service';
@@ -16,6 +26,9 @@ import type { ServiceResponseDto } from './dto/service-response.dto';
 
 /** One page of the services catalog in the API §0 envelope. */
 export type ServicePage = PaginatedResponseDto<ServiceResponseDto>;
+
+/** `AuditEvent.source` of the writes of this service. */
+const AUDIT_SOURCE = 'catalog-service';
 
 /** HAPI answers `$lookup` of an unknown code (or system) with one of these. */
 const LOOKUP_NOT_FOUND_STATUSES: ReadonlySet<number> = new Set([400, 404, 422]);
@@ -73,17 +86,19 @@ export class ServicesService {
     return this.toResponseDto(resource);
   }
 
-  async create(dto: CreateServiceDto): Promise<ServiceResponseDto> {
+  /** Admin writes carry their `AuditEvent` in the same transaction (FR-021, ADR-014). */
+  private auditOf(actor: WriteActor): AuditContext {
+    return { actor, source: AUDIT_SOURCE };
+  }
+
+  async create(dto: CreateServiceDto, actor: WriteActor): Promise<ServiceResponseDto> {
     await this.assertTerminology(dto.typeSystem, dto.typeCode);
-    const created = await this.fhirClient.create(
-      'HealthcareService',
-      this.toHealthcareService(dto),
-    );
+    const created = await createAudited(this.fhirClient, this.toHealthcareService(dto), this.auditOf(actor));
     await this.invalidate();
     return this.toResponseDto(created);
   }
 
-  async update(id: string, dto: UpdateServiceDto): Promise<ServiceResponseDto> {
+  async update(id: string, dto: UpdateServiceDto, actor: WriteActor): Promise<ServiceResponseDto> {
     // A system without a code would rebuild the coding with no code at all
     // and skip the terminology check — the pair is only valid together.
     if (dto.typeSystem !== undefined && dto.typeCode === undefined) {
@@ -106,7 +121,7 @@ export class ServicesService {
       })['type'];
       (merged as Record<string, unknown>)['type'] = typeCoding;
     }
-    const updated = await this.fhirClient.update('HealthcareService', id, merged);
+    const updated = await updateAudited(this.fhirClient, { ...merged, id }, this.auditOf(actor));
     await this.invalidate();
     return this.toResponseDto(updated);
   }
@@ -133,7 +148,9 @@ export class ServicesService {
    * `ProblemDetailsFilter` promotes it to the response `errorCode`; the same
    * label stays at the start of `detail` for logs and older clients.
    */
-  async remove(id: string): Promise<void> {
+  async remove(id: string, actor: WriteActor): Promise<void> {
+    // An unknown id is a 404 from HAPI; the delete's AuditEvent needs a stored resource to point at.
+    await this.fhirClient.read('HealthcareService', id);
     const schedules = await this.fhirClient.search('Schedule', {
       actor: `HealthcareService/${id}`,
       _count: 1,
@@ -144,7 +161,7 @@ export class ServicesService {
         message: `SERVICE_IN_USE: service ${id} is referenced by a schedule`,
       });
     }
-    await this.fhirClient.delete('HealthcareService', id);
+    await deleteAudited(this.fhirClient, 'HealthcareService', id, this.auditOf(actor));
     await this.invalidate();
   }
 

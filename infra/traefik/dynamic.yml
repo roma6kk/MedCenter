@@ -142,6 +142,65 @@ http:
       service: notification-service
       middlewares: [security-headers]
 
+    # API §10: Swagger UI `/api/docs/<service>` and its `<service>-json`/`-yaml` documents, one
+    # router per BFF. They answer 404 from the service itself unless SWAGGER_ENABLED=true there.
+    # Only these exact prefixes are routed; `/fhir/**` stays closed.
+    docs-auth:
+      rule: PathPrefix(`/api/docs/auth`)
+      priority: 70
+      entryPoints: [websecure, web]
+      service: auth-service
+      middlewares: [security-headers]
+
+    docs-practitioner:
+      rule: PathPrefix(`/api/docs/practitioner`)
+      priority: 70
+      entryPoints: [websecure, web]
+      service: practitioner-service
+      middlewares: [security-headers]
+
+    docs-catalog:
+      rule: PathPrefix(`/api/docs/catalog`)
+      priority: 70
+      entryPoints: [websecure, web]
+      service: catalog-service
+      middlewares: [security-headers]
+
+    docs-patient:
+      rule: PathPrefix(`/api/docs/patient`)
+      priority: 70
+      entryPoints: [websecure, web]
+      service: patient-service
+      middlewares: [security-headers]
+
+    docs-appointment:
+      rule: PathPrefix(`/api/docs/appointment`)
+      priority: 70
+      entryPoints: [websecure, web]
+      service: appointment-service
+      middlewares: [security-headers]
+
+    docs-notification:
+      rule: PathPrefix(`/api/docs/notification`)
+      priority: 70
+      entryPoints: [websecure, web]
+      service: notification-service
+      middlewares: [security-headers]
+
+    docs-encounter:
+      rule: PathPrefix(`/api/docs/encounter`)
+      priority: 70
+      entryPoints: [websecure, web]
+      service: encounter-service
+      middlewares: [security-headers]
+
+    docs-analytics:
+      rule: PathPrefix(`/api/docs/analytics`)
+      priority: 70
+      entryPoints: [websecure, web]
+      service: analytics-service
+      middlewares: [security-headers]
+
   services:
     hapi:
       loadBalancer:

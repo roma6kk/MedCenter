@@ -1,3 +1,4 @@
+import { ApiPropertyOptional } from '@nestjs/swagger';
 import {
   ArrayMinSize,
   IsArray,
@@ -22,14 +23,21 @@ import { WeeklyWindowDto } from './create-schedule.dto';
  * not a workspace dependency.
  */
 export class UpdateScheduleDto {
+  @ApiPropertyOptional({ format: 'date', example: '2026-11-02' })
   @IsOptional()
   @IsDateString()
   horizonFrom?: string;
 
+  @ApiPropertyOptional({
+    format: 'date',
+    example: '2026-12-31',
+    description: 'Inclusive; at most 90 days after horizonFrom',
+  })
   @IsOptional()
   @IsDateString()
   horizonTo?: string;
 
+  @ApiPropertyOptional({ type: () => [WeeklyWindowDto], minItems: 1 })
   @IsOptional()
   @IsArray()
   @ArrayMinSize(1)
@@ -37,12 +45,19 @@ export class UpdateScheduleDto {
   @Type(() => WeeklyWindowDto)
   windows?: WeeklyWindowDto[];
 
+  @ApiPropertyOptional({
+    minimum: 5,
+    maximum: 120,
+    example: 30,
+    description: 'Slot length, minutes',
+  })
   @IsOptional()
   @IsInt()
   @Min(5)
   @Max(120)
   slotDurationMin?: number;
 
+  @ApiPropertyOptional({ maxLength: 500 })
   @IsOptional()
   @IsString()
   @MaxLength(500)

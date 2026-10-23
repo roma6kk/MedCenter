@@ -1,4 +1,4 @@
-import { bodyObject, expectDetailField, expectEqual, expectProblem, expectShape, expectStatus, expectTrue, asArray } from './smoke-assert';
+import { bodyObject, expectDefined, expectDetailField, expectEqual, expectProblem, expectShape, expectStatus, expectTrue, asArray } from './smoke-assert';
 import { APPOINTMENT_SHAPE, ENCOUNTER_DETAILS_SHAPE, ENCOUNTER_SHAPE } from './smoke-shapes';
 import type { SmokeStep } from './smoke-runner';
 import type { JsonObject } from './smoke-types';
@@ -20,17 +20,25 @@ export function completionBody(overrides: JsonObject = {}): JsonObject {
   };
 }
 
+/** Two parallel opens of one appointment: one creates (201), the other gets the same encounter (200) or a 409; never two encounters or two audit events. */
 function openStep(suite: Suite): SmokeStep {
   const { api, sessions, chain, accounts } = suite;
   return {
-    name: 'doctor opens POST /encounters {appointmentId} -> 201 in-progress',
+    name: 'two concurrent POST /encounters {appointmentId} -> one 201 in-progress, the other 200 (same encounter) or 409; one encounter only',
     run: async () => {
-      const response = await api.post('/api/v1/encounters', { session: sessions.doctor, body: { appointmentId: chain.appointmentId } });
-      expectStatus(response, 201);
-      const encounter = expectShape(response.body, ENCOUNTER_SHAPE, 'encounter');
+      const open = (): ReturnType<typeof api.post> => api.post('/api/v1/encounters', { session: sessions.doctor, body: { appointmentId: chain.appointmentId } });
+      const attempts = await Promise.all([open(), open()]);
+      const created = attempts.filter((attempt) => attempt.status === 201);
+      expectEqual(created.length, 1, 'number of 201 answers');
+      const other = attempts.find((attempt) => attempt.status !== 201);
+      expectTrue(other?.status === 200 || other?.status === 409, `the losing open answered ${String(other?.status)}, expected 200 or 409`);
+      const encounter = expectShape(expectDefined(created[0], 'the 201 answer').body, ENCOUNTER_SHAPE, 'encounter');
       expectEqual(encounter['status'], 'in-progress', 'status');
       expectEqual(encounter['appointmentId'], chain.appointmentId, 'appointmentId');
       expectEqual(encounter['practitionerRoleId'], accounts.doctorRoleId, 'practitionerRoleId');
+      if (other?.status === 200) {
+        expectEqual(bodyObject(other)['id'], encounter['id'], 'encounter id of the losing open');
+      }
       chain.encounterId = String(encounter['id']);
     },
   };

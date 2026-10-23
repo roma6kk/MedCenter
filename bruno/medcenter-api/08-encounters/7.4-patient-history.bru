@@ -1,0 +1,35 @@
+meta {
+  name: 7.4 Patient history
+  type: http
+  seq: 4
+  tags: [
+    ro-patient
+    ro-doctor
+  ]
+}
+
+get {
+  url: {{baseUrl}}/api/v1/patients/{{patientId}}/history?page=1&pageSize=20
+  body: none
+  auth: inherit
+}
+
+params:query {
+  page: 1
+  pageSize: 20
+}
+
+script:pre-request {
+  if (!bru.getVar('patientId')) { bru.runner.skipRequest(); }
+}
+
+assert {
+  res.status: eq 200
+  res.body.items: isArray
+  res.body.meta.page: isNumber
+  res.body.meta.totalItems: isNumber
+}
+
+docs {
+  Spec 7.4. The owner or a DOCTOR with a link; **ADMIN -> 403**. Doctor reads and refusals are audited.
+}

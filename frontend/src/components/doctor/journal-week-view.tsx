@@ -11,7 +11,7 @@ import { useT } from '@/lib/i18n/use-t';
 import { cn } from '@/lib/ui/cn';
 import { useUiStore } from '@/store/use-ui-store';
 import type { AppointmentState, DoctorJournalPage, JournalAppointment } from './doctor-types';
-import { HALF_HOUR_PX, gridRange, layoutBlocks, shortName, weekdayShort, type WeekBlock } from './journal-model';
+import { HALF_HOUR_PX, canOpenPatientCard, gridRange, layoutBlocks, shortName, weekdayShort, type WeekBlock } from './journal-model';
 
 const BLOCK_STYLE: Readonly<Record<AppointmentState, string>> = {
   booked: 'border-primary bg-primary text-primary-foreground',
@@ -56,17 +56,24 @@ function Block({ block }: { readonly block: WeekBlock }): ReactNode {
   const tStamp = useT('stamp');
   const { visit } = block;
   const name: string = visit.patientName ?? t('unknownPatient', { id: visit.patientId });
+  const blockClass = cn('flex h-full flex-col justify-center overflow-hidden rounded-card border px-2', BLOCK_STYLE[visit.status]);
   const label = `${formatClinicTime(visit.start)} ${visit.patientName ? shortName(visit.patientName) : name}`;
   return (
     <li className="absolute box-border p-0.5" style={{ top: block.top, height: block.height, left: `${block.left}%`, width: `${block.width}%` }}>
-      <Link
-        href={`/patients/${encodeURIComponent(visit.patientId)}`}
-        aria-label={`${formatClinicTime(visit.start)} ${name}, ${tStamp(visit.status)}. ${t('patientCard')}`}
-        title={`${name} · ${tStamp(visit.status)}`}
-        className={cn('flex h-full flex-col justify-center overflow-hidden rounded-card border px-2 no-underline', BLOCK_STYLE[visit.status])}
-      >
-        <span className="truncate text-xs font-semibold">{label}</span>
-      </Link>
+      {canOpenPatientCard(visit.status) ? (
+        <Link
+          href={`/patients/${encodeURIComponent(visit.patientId)}`}
+          aria-label={`${formatClinicTime(visit.start)} ${name}, ${tStamp(visit.status)}. ${t('patientCard')}`}
+          title={`${name} · ${tStamp(visit.status)}`}
+          className={cn(blockClass, 'no-underline')}
+        >
+          <span className="truncate text-xs font-semibold">{label}</span>
+        </Link>
+      ) : (
+        <div role="group" aria-label={`${formatClinicTime(visit.start)} ${name}, ${tStamp(visit.status)}`} title={`${name} · ${tStamp(visit.status)}`} className={blockClass}>
+          <span className="truncate text-xs font-semibold">{label}</span>
+        </div>
+      )}
     </li>
   );
 }

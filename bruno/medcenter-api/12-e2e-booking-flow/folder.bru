@@ -1,0 +1,8 @@
+meta {
+  name: E2E: booking -> encounter -> diagnosis -> prescription
+  seq: 12
+}
+
+docs {
+  Spec §11 chain 6.1 -> 7.1 -> 7.3. Run the folder in order (`--tags=e2e`). Needs `doctorToken` and `patientToken` (demo doctor and a demo patient with an active EMR consent). It consumes one free slot of the doctor and completes the appointment: do not run it against data you want to keep.
+}

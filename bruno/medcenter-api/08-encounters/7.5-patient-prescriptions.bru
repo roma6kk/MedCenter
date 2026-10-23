@@ -1,0 +1,35 @@
+meta {
+  name: 7.5 Patient prescriptions
+  type: http
+  seq: 5
+  tags: [
+    ro-patient
+    ro-doctor
+  ]
+}
+
+get {
+  url: {{baseUrl}}/api/v1/patients/{{patientId}}/prescriptions?page=1&pageSize=20
+  body: none
+  auth: inherit
+}
+
+params:query {
+  page: 1
+  pageSize: 20
+}
+
+script:pre-request {
+  if (!bru.getVar('patientId')) { bru.runner.skipRequest(); }
+}
+
+assert {
+  res.status: eq 200
+  res.body.items: isArray
+  res.body.meta.page: isNumber
+  res.body.meta.totalItems: isNumber
+}
+
+docs {
+  Spec 7.5. Same access rules as 7.4.
+}
