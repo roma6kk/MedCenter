@@ -16,11 +16,8 @@ export interface SignInOptions {
   readonly returnTo?: string;
 }
 
-/** Fills the auth-service login form (addressed by field name) and waits until the browser is back on the web app. */
-export async function signInThroughLoginForm(page: Page, account: DemoAccount, options: SignInOptions = {}): Promise<void> {
-  const webOrigin = new URL(options.webOrigin ?? DEFAULT_WEB_ORIGIN).origin;
-  const entry = options.returnTo === undefined ? '/login' : `/login?returnTo=${encodeURIComponent(options.returnTo)}`;
-  await page.goto(`${webOrigin}${entry}`);
+/** From the `/login` entry screen: «Войти» → the auth-service form (fields by name) → back on the web app. */
+export async function continueFromLoginScreen(page: Page, account: DemoAccount, webOrigin: string): Promise<void> {
   await page.getByRole('link', { name: 'Войти' }).click();
   await page.locator('input[name="email"]').fill(account.email);
   await page.locator('input[name="password"]').fill(account.password());
@@ -29,6 +26,14 @@ export async function signInThroughLoginForm(page: Page, account: DemoAccount, o
     page.locator('button[type="submit"], input[type="submit"]').first().click(),
   ]);
   await page.waitForLoadState('networkidle');
+}
+
+/** Fills the auth-service login form (addressed by field name) and waits until the browser is back on the web app. */
+export async function signInThroughLoginForm(page: Page, account: DemoAccount, options: SignInOptions = {}): Promise<void> {
+  const webOrigin = new URL(options.webOrigin ?? DEFAULT_WEB_ORIGIN).origin;
+  const entry = options.returnTo === undefined ? '/login' : `/login?returnTo=${encodeURIComponent(options.returnTo)}`;
+  await page.goto(`${webOrigin}${entry}`);
+  await continueFromLoginScreen(page, account, webOrigin);
 }
 
 export async function openSignedInPage(browser: Browser, role: DemoRole, baseURL: string | undefined): Promise<Page> {
