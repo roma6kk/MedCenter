@@ -6,9 +6,9 @@
  * cleans itself); the patient signs in once per run.
  */
 import { expect, test, type BrowserContext, type Page } from '@playwright/test';
-import { signInThroughLoginForm } from './fixtures/auth';
 import { bookSlotAs, cancelAppointmentAs, findFreeSlots } from './fixtures/booking-api';
-import { hasDemoManifest, loadDemoAccount } from './fixtures/demo-accounts';
+import { hasDemoManifest } from './fixtures/demo-accounts';
+import { openStoredSession } from './fixtures/session-state';
 
 test.skip(!hasDemoManifest(), 'demo seed manifest not found');
 
@@ -22,9 +22,7 @@ test.describe('patient cancels an appointment', () => {
   let appointmentId: string;
 
   test.beforeAll(async ({ browser, baseURL }) => {
-    context = await browser.newContext({ baseURL });
-    page = await context.newPage();
-    await signInThroughLoginForm(page, loadDemoAccount('PATIENT', 0), { webOrigin: baseURL });
+    ({ context, page } = await openStoredSession(browser, baseURL, 'PATIENT', 0));
     const [target] = await findFreeSlots(page.request, 1);
     if (target === undefined) throw new Error('no free slot');
     const booked = await bookSlotAs(page, target.slotId);

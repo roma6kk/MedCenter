@@ -2,13 +2,13 @@
  * E2E — scenario A2 of the frontend design spec §6 (BR-001): two patients go for one slot at the same time, one wins,
  * the other gets 409 SLOT_CONFLICT and the wizard puts them back on the slot step with the refused slot shown as taken.
  *
- * Two seeded patients sign in once (`beforeAll`, the login is rate limited); the slots are found at run time and every
+ * Two seeded patients open their saved sessions (`auth.setup.ts`; the login is rate limited); the slots are found at run time and every
  * booking that was made is cancelled afterwards.
  */
 import { expect, test, type Browser, type BrowserContext, type Page } from '@playwright/test';
-import { signInThroughLoginForm } from './fixtures/auth';
 import { bookSlotAs, cancelAppointmentAs, findFreeSlots } from './fixtures/booking-api';
-import { hasDemoManifest, loadDemoAccount } from './fixtures/demo-accounts';
+import { hasDemoManifest } from './fixtures/demo-accounts';
+import { openStoredSession } from './fixtures/session-state';
 
 test.skip(!hasDemoManifest(), 'demo seed manifest not found');
 
@@ -18,10 +18,7 @@ interface Session {
 }
 
 async function openPatient(browser: Browser, index: number, baseURL: string | undefined): Promise<Session> {
-  const context = await browser.newContext({ baseURL });
-  const page = await context.newPage();
-  await signInThroughLoginForm(page, loadDemoAccount('PATIENT', index), { webOrigin: baseURL });
-  return { context, page };
+  return openStoredSession(browser, baseURL, 'PATIENT', index);
 }
 
 test.describe('two patients, one slot', () => {

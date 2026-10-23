@@ -12,9 +12,9 @@
  * Each side signs in once per run.
  */
 import { expect, test, type APIResponse, type BrowserContext, type Page, type Response } from '@playwright/test';
-import { signInThroughLoginForm } from './fixtures/auth';
 import { accessTokenOf, bookSlotAs, cancelAppointmentAs, clinicDay, findFreeSlots, type FreeSlot } from './fixtures/booking-api';
 import { hasDemoManifest, loadDemoAccount } from './fixtures/demo-accounts';
+import { openStoredSession } from './fixtures/session-state';
 
 test.skip(!hasDemoManifest(), 'demo seed manifest not found');
 
@@ -69,12 +69,8 @@ test.describe('doctor completes an encounter', () => {
 
   test.beforeAll(async ({ browser, baseURL }) => {
     const doctor = loadDemoAccount('DOCTOR', 0);
-    patientContext = await browser.newContext({ baseURL });
-    doctorContext = await browser.newContext({ baseURL });
-    patientPage = await patientContext.newPage();
-    doctorPage = await doctorContext.newPage();
-    await signInThroughLoginForm(patientPage, loadDemoAccount('PATIENT', 0), { webOrigin: baseURL });
-    await signInThroughLoginForm(doctorPage, doctor, { webOrigin: baseURL });
+    ({ context: patientContext, page: patientPage } = await openStoredSession(browser, baseURL, 'PATIENT', 0));
+    ({ context: doctorContext, page: doctorPage } = await openStoredSession(browser, baseURL, 'DOCTOR', 0));
     expect(doctor.practitionerRoleId, 'the seeded doctor account is linked to a PractitionerRole').toBeDefined();
     const slots = await findFreeSlots(patientPage.request, 2, doctor.practitionerRoleId);
     [first, second] = (await bookVisits(slots)) as [Visit, Visit];

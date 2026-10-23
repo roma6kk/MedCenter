@@ -9,9 +9,9 @@
  */
 import { randomInt } from 'node:crypto';
 import { expect, test, type Browser, type BrowserContext, type Locator, type Page, type Response } from '@playwright/test';
-import { signInThroughLoginForm } from './fixtures/auth';
 import { accessTokenOf, clinicDay } from './fixtures/booking-api';
 import { hasDemoManifest, loadDemoAccount } from './fixtures/demo-accounts';
+import { openStoredSession } from './fixtures/session-state';
 
 test.skip(!hasDemoManifest(), 'demo seed manifest not found');
 
@@ -53,10 +53,8 @@ test.describe('admin creates a schedule and generates slots', () => {
   let generated = 0;
 
   async function signedInPage(browser: Browser, baseURL: string | undefined, role: 'ADMIN' | 'DOCTOR' | 'PATIENT', index = 0): Promise<Page> {
-    const context = await browser.newContext({ baseURL });
+    const { context, page } = await openStoredSession(browser, baseURL, role, index);
     contexts.push(context);
-    const page = await context.newPage();
-    await signInThroughLoginForm(page, loadDemoAccount(role, index), { webOrigin: baseURL });
     return page;
   }
 
