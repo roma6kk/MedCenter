@@ -1,6 +1,7 @@
+import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import { IsIn, IsInt, IsOptional, Matches, Max, Min } from 'class-validator';
-import { MAX_PAGE_SIZE } from '@medcenter/contracts';
+import { DEFAULT_PAGE, DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE } from '@medcenter/contracts';
 
 import { FHIR_ID_PATTERN } from '../../../common/fhir-id';
 
@@ -13,6 +14,12 @@ const MAX_PAGE = 1000;
  * must be a single FHIR id. `active` goes to HAPI as a token.
  */
 export class ListSchedulesQueryDto {
+  @ApiPropertyOptional({
+    minimum: 1,
+    maximum: MAX_PAGE,
+    default: DEFAULT_PAGE,
+    description: 'Page number',
+  })
   @IsOptional()
   @Type(() => Number)
   @IsInt()
@@ -20,6 +27,12 @@ export class ListSchedulesQueryDto {
   @Max(MAX_PAGE)
   page?: number;
 
+  @ApiPropertyOptional({
+    minimum: 1,
+    maximum: MAX_PAGE_SIZE,
+    default: DEFAULT_PAGE_SIZE,
+    description: 'Page size',
+  })
   @IsOptional()
   @Type(() => Number)
   @IsInt()
@@ -27,10 +40,19 @@ export class ListSchedulesQueryDto {
   @Max(MAX_PAGE_SIZE)
   pageSize?: number;
 
+  @ApiPropertyOptional({
+    description: 'PractitionerRole id whose schedules to list',
+    pattern: FHIR_ID_PATTERN.source,
+    example: '1042',
+  })
   @IsOptional()
   @Matches(FHIR_ID_PATTERN, { message: 'doctorId must be a FHIR resource id' })
   doctorId?: string;
 
+  @ApiPropertyOptional({
+    enum: ['true', 'false'],
+    description: 'Only active (true) or only deactivated (false) schedules',
+  })
   @IsOptional()
   @IsIn(['true', 'false'])
   active?: 'true' | 'false';

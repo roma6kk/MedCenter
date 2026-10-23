@@ -1,6 +1,9 @@
 import { Controller, Get, Param, Query, Req } from '@nestjs/common';
+import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import {
+  ApiProblems,
   claimsOf,
+  GUARD_PROBLEM_STATUSES,
   Public,
   RequiresRoles,
   RequiresScopes,
@@ -14,6 +17,7 @@ import { DoctorIdParamDto } from './dto/doctor-id-param.dto';
 import type { DoctorScheduleResponseDto } from './dto/doctor-schedule-response.dto';
 import type { DoctorSlotsResponseDto } from './dto/doctor-slots-response.dto';
 import { SlotRangeQueryDto } from './dto/slot-range-query.dto';
+import { DoctorScheduleResponseDoc, DoctorSlotsResponseDoc } from './dto/slot-response.doc';
 import { requirePractitionerRoleId } from './practitioner-role-ref';
 import { resolveSlotRange } from './slot-range';
 
@@ -22,6 +26,7 @@ import { resolveSlotRange } from './slot-range';
  * routes `/api/v1/doctor/schedule` and `^/api/v1/doctors/[^/]+/slots$` here;
  * the rest of `/api/v1/doctors` belongs to practitioner-service.
  */
+@ApiTags('catalog')
 @Controller('api/v1')
 export class SlotsController {
   constructor(
@@ -31,6 +36,13 @@ export class SlotsController {
 
   @Public()
   @Get('doctors/:id/slots')
+  @ApiOperation({ summary: '5.2.8 List the free slots of a doctor' })
+  @ApiResponse({
+    status: 200,
+    description: 'Free slots of the range, sorted by start',
+    type: DoctorSlotsResponseDoc,
+  })
+  @ApiProblems([400, 429, 500])
   async listDoctorSlots(
     @Param() params: DoctorIdParamDto,
     @Query() query: SlotRangeQueryDto,
@@ -41,6 +53,16 @@ export class SlotsController {
   @Get('doctor/schedule')
   @RequiresRoles(Role.DOCTOR)
   @RequiresScopes(SMART_SCOPES.USER_READ)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: '5.2.7 Get the signed-in doctor schedule with slots' })
+  @ApiResponse({
+    status: 200,
+    description: 'Own schedules and their slots in the range',
+    type: DoctorScheduleResponseDoc,
+  })
+  @ApiProblems([...GUARD_PROBLEM_STATUSES, 400], {
+    403: 'The token has no PractitionerRole identity (COMPARTMENT_VIOLATION), role or scope not allowed',
+  })
   async ownSchedule(
     @Req() request: RequestWithClaims,
     @Query() query: SlotRangeQueryDto,

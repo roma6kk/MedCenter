@@ -1,3 +1,4 @@
+import { ApiProperty } from '@nestjs/swagger';
 import { Matches } from 'class-validator';
 
 import { FHIR_ID_PATTERN } from '../../../common/fhir-id';
@@ -10,6 +11,11 @@ import { FHIR_ID_PATTERN } from '../../../common/fhir-id';
  * would collapse the FHIR read URL.
  */
 export class DoctorIdParamDto {
+  @ApiProperty({
+    description: 'Practitioner id (FHIR id)',
+    pattern: FHIR_ID_PATTERN.source,
+    example: '1042',
+  })
   @Matches(FHIR_ID_PATTERN, { message: 'id must be a FHIR resource id' })
   id!: string;
 }

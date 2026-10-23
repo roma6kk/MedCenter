@@ -1,3 +1,4 @@
+import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Transform } from 'class-transformer';
 import { IsIn, IsOptional } from 'class-validator';
 
@@ -32,11 +33,23 @@ function toStatusList({ value }: { readonly value: unknown }): unknown {
  */
 export class ListAppointmentsQueryDto extends PageQueryDto {
   /** `true` keeps appointments starting now or later; all appointments otherwise. */
+  @ApiPropertyOptional({
+    enum: ['true', 'false'],
+    description: 'true keeps appointments starting now or later',
+  })
   @IsOptional()
   @IsIn(['true', 'false'])
   upcoming?: 'true' | 'false';
 
   /** Keeps appointments in any of these statuses (one value or a comma list); every status when absent. */
+  @ApiPropertyOptional({
+    type: String,
+    isArray: true,
+    enum: APPOINTMENT_STATUSES,
+    enumName: 'AppointmentStatus',
+    description: 'One status or a comma list (OR); repeated parameters are accepted too',
+    example: 'booked,noshow',
+  })
   @IsOptional()
   @Transform(toStatusList)
   @IsIn(APPOINTMENT_STATUSES, { each: true })
