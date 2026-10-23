@@ -2,7 +2,7 @@ import type { FhirResource } from '@medcenter/fhir';
 
 /** Form in which two room identifiers are compared: `204-Х`, ` 204-х ` and `204-Х` name the same door. */
 export function identifierKey(value: string): string {
-  return value.trim().toLocaleLowerCase();
+  return value.trim().toLowerCase();
 }
 
 /** Every `Location.identifier[].value` of a room. */

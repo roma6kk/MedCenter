@@ -1,4 +1,7 @@
+import { Transform } from 'class-transformer';
 import { IsInt, IsNotEmpty, IsOptional, IsString, Max, MaxLength, Min } from 'class-validator';
+
+import { trimString } from './trim-string';
 
 /**
  * API §4.5 `UpdateRoomDto` — every field optional.
@@ -9,6 +12,7 @@ import { IsInt, IsNotEmpty, IsOptional, IsString, Max, MaxLength, Min } from 'cl
  */
 export class UpdateRoomDto {
   @IsOptional()
+  @Transform(trimString)
   @IsString()
   @IsNotEmpty()
   @MaxLength(50)
