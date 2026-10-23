@@ -67,11 +67,18 @@ function extensionString(resource: FhirResource, url: string, field: 'valueStrin
   return undefined;
 }
 
-/** The delivery state tag, or `undefined` when the record carries none of ours. */
+/**
+ * The delivery state, or `undefined` when the record carries none of ours.
+ * HAPI keeps existing tags on a `PUT` (non-versioned tag storage), so a sent
+ * record carries both `pending` and `sent`: `sent` wins, as it is always the later one.
+ */
 export function outboxStatusOf(resource: FhirResource): OutboxStatus | undefined {
   const meta = resource['meta'] as { tag?: ReadonlyArray<{ system?: unknown; code?: unknown }> } | undefined;
-  const tag = meta?.tag?.find((candidate) => candidate.system === OUTBOX.STATUS_SYSTEM);
-  return tag?.code === OUTBOX.PENDING || tag?.code === OUTBOX.SENT ? tag.code : undefined;
+  const codes = (meta?.tag ?? []).filter((candidate) => candidate.system === OUTBOX.STATUS_SYSTEM).map((candidate) => candidate.code);
+  if (codes.includes(OUTBOX.SENT)) {
+    return OUTBOX.SENT;
+  }
+  return codes.includes(OUTBOX.PENDING) ? OUTBOX.PENDING : undefined;
 }
 
 /**

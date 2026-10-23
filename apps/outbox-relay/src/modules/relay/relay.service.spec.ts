@@ -1,5 +1,5 @@
 import { ConflictException, Logger } from '@nestjs/common';
-import { buildOutboxBasic, FhirClientError, type FhirClient, type FhirResource } from '@medcenter/fhir';
+import { buildOutboxBasic, FhirClientError, outboxStatusOf, type FhirClient, type FhirResource } from '@medcenter/fhir';
 import type { DomainEvent, EventPublisher } from '@medcenter/messaging';
 import { OUTBOX } from '@medcenter/terminology';
 
@@ -37,17 +37,21 @@ class FakeHapi {
   }
 
   statusOf(id: string): string | undefined {
-    const tags = (this.rows.get(id)?.['meta'] as { tag: Array<{ code: string }> } | undefined)?.tag;
-    return tags?.[0]?.code;
+    return outboxStatusOf(this.rows.get(id) as FhirResource);
+  }
+
+  private tagCodes(row: FhirResource): string[] {
+    return ((row['meta'] as { tag?: Array<{ code: string }> }).tag ?? []).map((tag) => tag.code);
   }
 
   client(): jest.Mocked<FhirClient> {
     return {
       search: jest.fn((_type: string, params: Record<string, unknown> = {}) => {
-        const wanted = String(params['_tag']).split('|')[1];
+        const wanted = String(params['_tag']).split('|')[1] as string;
+        const excluded = params['_tag:not'] === undefined ? undefined : String(params['_tag:not']).split('|')[1];
         const before = params['_lastUpdated'] === undefined ? Infinity : Date.parse(String(params['_lastUpdated']).slice(2));
         const hits = [...this.rows.values()]
-          .filter((row) => this.statusOf(row.id as string) === wanted)
+          .filter((row) => this.tagCodes(row).includes(wanted) && (excluded === undefined || !this.tagCodes(row).includes(excluded)))
           .filter((row) => Date.parse((row['meta'] as { lastUpdated: string }).lastUpdated) < before)
           .sort((a, b) => Date.parse((a['meta'] as { lastUpdated: string }).lastUpdated) - Date.parse((b['meta'] as { lastUpdated: string }).lastUpdated));
         return Promise.resolve({ total: hits.length, entry: hits.slice(0, Number(params['_count'])).map((resource) => ({ resource })) });
@@ -71,7 +75,11 @@ class FakeHapi {
             this.rows.delete(id);
           } else if (resource !== undefined) {
             const version = Number((this.rows.get(id)?.['meta'] as { versionId: string }).versionId) + 1;
-            this.rows.set(id, { ...resource, meta: { ...(resource['meta'] as object), versionId: String(version), lastUpdated: NOW.toISOString() } });
+            // HAPI keeps the tags a version already had and only adds new ones (non-versioned tag storage).
+            const kept = this.tagCodes(this.rows.get(id) as FhirResource).map((code) => ({ system: OUTBOX.STATUS_SYSTEM, code }));
+            const given = (resource['meta'] as { tag?: Array<{ system: string; code: string }> }).tag ?? [];
+            const tag = [...kept, ...given.filter((added) => !kept.some((old) => old.code === added.code))];
+            this.rows.set(id, { ...resource, meta: { ...(resource['meta'] as object), tag, versionId: String(version), lastUpdated: NOW.toISOString() } });
           }
         }
         return Promise.resolve({ resourceType: 'Bundle' });
@@ -113,6 +121,18 @@ describe('RelayService', () => {
     await service.tick(NOW);
 
     expect(published).toEqual([{ v: 1, type: 'appointment.booked.v1', eventId: 'ev-1', appointmentId: 'a-1' }]);
+    expect(hapi.statusOf('b1')).toBe('sent');
+  });
+
+  it('should publish an event once when HAPI keeps the pending tag after the record is marked sent', async () => {
+    hapi.seed('b1', 'pending', MIN);
+
+    await service.tick(NOW);
+    await service.tick(NOW);
+    await service.tick(NOW);
+
+    expect(published).toHaveLength(1);
+    expect(hapi.batches).toHaveLength(1);
     expect(hapi.statusOf('b1')).toBe('sent');
   });
 

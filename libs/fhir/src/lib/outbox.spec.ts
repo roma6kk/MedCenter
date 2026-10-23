@@ -40,6 +40,13 @@ describe('outbox Basic', () => {
     expect(JSON.parse(record?.payload ?? '')).toEqual(EVENT);
   });
 
+  it('should read sent when HAPI kept the old pending tag next to the new sent tag', () => {
+    const tags = [{ system: OUTBOX.STATUS_SYSTEM, code: 'pending' }, { system: OUTBOX.STATUS_SYSTEM, code: 'sent' }];
+    const stored = { ...buildOutboxBasic(EVENT), id: 'b-1', meta: { versionId: '2', tag: tags } };
+
+    expect(parseOutboxRecord(stored)?.status).toBe('sent');
+  });
+
   it('should return undefined when the record is not a complete outbox record', () => {
     expect(parseOutboxRecord({ resourceType: 'Basic', id: 'b-1', meta: { versionId: '1' } })).toBeUndefined();
     expect(parseOutboxRecord({ ...buildOutboxBasic(EVENT), id: 'b-1' })).toBeUndefined();

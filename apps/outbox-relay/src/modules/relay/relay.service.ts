@@ -27,6 +27,12 @@ const CODE_SEARCH = `${OUTBOX.CODE_SYSTEM}|${OUTBOX.EVENT_CODE}`;
 const tagSearch = (status: string): string => `${OUTBOX.STATUS_SYSTEM}|${status}`;
 
 /**
+ * `pending` and not `sent`: HAPI keeps the old `pending` tag when a `PUT` adds `sent`
+ * (non-versioned tags), so `_tag=pending` alone would match a sent record forever.
+ */
+const PENDING_SEARCH = { _tag: tagSearch(OUTBOX.PENDING), '_tag:not': tagSearch(OUTBOX.SENT) } as const;
+
+/**
  * Transactional-outbox relay (ADR-021). Reads `pending` outbox `Basic` records,
  * publishes each event and marks the batch `sent` in one transaction with
  * `If-Match` on the versions it read. Delivery is at-least-once: a crash between
@@ -111,7 +117,7 @@ export class RelayService implements OnApplicationBootstrap, OnModuleDestroy {
     for (;;) {
       const result = await this.fhir.search('Basic', {
         code: CODE_SEARCH,
-        _tag: tagSearch(OUTBOX.PENDING),
+        ...PENDING_SEARCH,
         _sort: '_lastUpdated',
         _count: this.config.batchSize,
       });
@@ -195,7 +201,7 @@ export class RelayService implements OnApplicationBootstrap, OnModuleDestroy {
     const cutoff = new Date(now.getTime() - this.config.stalePendingMs).toISOString();
     const result = await this.fhir.search('Basic', {
       code: CODE_SEARCH,
-      _tag: tagSearch(OUTBOX.PENDING),
+      ...PENDING_SEARCH,
       _lastUpdated: `lt${cutoff}`,
       _sort: '_lastUpdated',
       _count: 1,
