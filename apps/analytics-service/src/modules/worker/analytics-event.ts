@@ -47,7 +47,7 @@ function isCancelled(event: Json): boolean {
   return (
     isFhirId(event['appointmentId']) &&
     isText(event['patientRef'], REF_MAX) &&
-    typeof event['reason'] === 'string' &&
+    (event['reason'] === undefined || typeof event['reason'] === 'string') &&
     (event['actorType'] === 'PATIENT' || event['actorType'] === 'ADMIN')
   );
 }

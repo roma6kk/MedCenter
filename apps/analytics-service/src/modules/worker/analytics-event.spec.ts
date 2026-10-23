@@ -50,6 +50,16 @@ describe('parseAnalyticsEvent', () => {
     expect(parseAnalyticsEvent(bytes(event))).toEqual(event);
   });
 
+  it('should accept a cancellation without a reason when the producer no longer sends one (ADR-021)', () => {
+    const { reason: _dropped, ...withoutReason } = CANCELLED;
+
+    expect(parseAnalyticsEvent(bytes(withoutReason))).toEqual(withoutReason);
+  });
+
+  it('should reject a cancellation whose reason is not text when a producer misbehaves', () => {
+    expect(parseAnalyticsEvent(bytes({ ...CANCELLED, reason: 5 }))).toBeUndefined();
+  });
+
   it('should reject a body that is not JSON when the broker delivers garbage', () => {
     expect(parseAnalyticsEvent(Buffer.from('{not json'))).toBeUndefined();
   });
