@@ -1,7 +1,17 @@
 import { Controller, Get, Logger, Req, Res, UseFilters, UseGuards } from '@nestjs/common';
 import type { Response } from 'express';
-import { Public } from '@medcenter/common';
+import { ApiProblems, Public } from '@medcenter/common';
+import {
+  ApiExtraModels,
+  ApiOperation,
+  ApiProduces,
+  ApiQuery,
+  ApiResponse,
+  ApiTags,
+} from '@nestjs/swagger';
 
+import { ApiOAuthBadRequest, ApiOAuthInvalidClient } from './dto/oauth-docs';
+import { OAuthErrorDoc } from './dto/oauth-response.doc';
 import { OAuthErrorFilter } from './filters/oauth-error.filter';
 import { AuthorizePageGuard } from './guards/authorize-page.guard';
 import { ClientGuard, readQueryString, type RegisteredClient } from './guards/client.guard';
@@ -54,6 +64,8 @@ function errorRedirect(redirectUri: string, state: string, error: AuthorizeRedir
  * - Errors raised before a redirect target is known leave as the RFC 6749
  *   §5.2 envelope via `OAuthErrorFilter`.
  */
+@ApiTags('auth')
+@ApiExtraModels(OAuthErrorDoc)
 @UseFilters(OAuthErrorFilter)
 @Controller()
 export class AuthorizeController {
@@ -66,6 +78,29 @@ export class AuthorizeController {
   ) {}
 
   @Public()
+  @ApiOperation({ summary: '2.1.2 Authorization Code + PKCE: login form or redirect with a code' })
+  @ApiProduces('text/html')
+  @ApiQuery({ name: 'response_type', enum: ['code'], required: true })
+  @ApiQuery({ name: 'client_id', required: true, example: 'medcenter-web' })
+  @ApiQuery({ name: 'redirect_uri', required: false, description: 'Must be registered for the client; defaults to its first registered URI' })
+  @ApiQuery({ name: 'scope', required: false, description: 'Space-separated SMART scopes; unknown ones are dropped' })
+  @ApiQuery({ name: 'state', required: false, description: 'Opaque value echoed back on the redirect' })
+  @ApiQuery({ name: 'code_challenge', required: true, description: 'PKCE S256 challenge' })
+  @ApiQuery({ name: 'code_challenge_method', enum: ['S256'], required: true })
+  @ApiQuery({ name: 'launch', required: false, description: 'SMART launch context token' })
+  @ApiResponse({
+    status: 200,
+    description: 'No login session: the HTML login form (POST /oauth/login resumes this request)',
+    content: { 'text/html': { schema: { type: 'string' } } },
+  })
+  @ApiResponse({
+    status: 302,
+    description: 'Redirect to redirect_uri with code and state, or with error (access_denied, invalid_request, invalid_scope) and state',
+    headers: { Location: { description: 'redirect_uri?code=...&state=... | redirect_uri?error=...&state=...', schema: { type: 'string' } } },
+  })
+  @ApiOAuthBadRequest('invalid_request: unusable client_id, redirect_uri, response_type, code_challenge or code_challenge_method (RFC 6749 envelope)')
+  @ApiOAuthInvalidClient('invalid_client: unknown client_id')
+  @ApiProblems([429, 500])
   @UseGuards(ClientGuard, AuthorizePageGuard, LoginSessionGuard)
   @Get('oauth/authorize')
   async authorize(@Req() request: AuthorizeRequest, @Res() response: Response): Promise<void> {

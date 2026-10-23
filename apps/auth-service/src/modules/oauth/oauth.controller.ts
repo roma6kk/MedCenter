@@ -11,10 +11,20 @@ import {
   UseFilters,
   UseGuards,
 } from '@nestjs/common';
-import { Public, RateLimit } from '@medcenter/common';
+import { ApiProblems, GUARD_PROBLEM_STATUSES, Public, RateLimit } from '@medcenter/common';
+import { ApiBearerAuth, ApiBody, ApiExtraModels, ApiConsumes, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { SMART_SCOPES } from '@medcenter/contracts';
 import { z } from 'zod';
 
+import { ApiOAuthBadRequest, ApiOAuthInvalidClient } from './dto/oauth-docs';
+import {
+  JwksDoc,
+  OAuthErrorDoc,
+  RevokeRequestDoc,
+  RevokeResponseDoc,
+  SmartConfigurationDoc,
+  TokenResponseDoc,
+} from './dto/oauth-response.doc';
 import { TokenRequestDto } from './dto/token-request.dto';
 import { OAuthErrorFilter } from './filters/oauth-error.filter';
 import { TokenClientGuard } from './guards/token-client.guard';
@@ -81,6 +91,8 @@ export function readFhirBaseUrl(source: NodeJS.ProcessEnv = process.env): string
  * document the rest of the API uses. Only `OAuthError` instances are claimed
  * by that filter; anything else still reaches the global `ProblemDetailsFilter`.
  */
+@ApiTags('auth')
+@ApiExtraModels(OAuthErrorDoc)
 @UseFilters(OAuthErrorFilter)
 @Controller()
 export class OAuthController {
@@ -91,6 +103,9 @@ export class OAuthController {
   ) {}
 
   @Public()
+  @ApiOperation({ summary: '2.1.1 SMART discovery document' })
+  @ApiResponse({ status: 200, description: 'Endpoints, scopes and capabilities', type: SmartConfigurationDoc })
+  @ApiProblems([429, 500])
   @Get('.well-known/smart-configuration')
   smartConfiguration(): SmartConfiguration {
     const issuer = this.keys.issuer;
@@ -114,6 +129,9 @@ export class OAuthController {
   }
 
   @Public()
+  @ApiOperation({ summary: '2.1.5 Public RS256 key set (JWKS)' })
+  @ApiResponse({ status: 200, description: 'JSON Web Key Set used to verify access tokens', type: JwksDoc })
+  @ApiProblems([429, 500])
   @Get('.well-known/jwks.json')
   jwksDocument(): JwksDocument {
     return this.jwks.getPublicJwks();
@@ -129,6 +147,13 @@ export class OAuthController {
   @Header('Pragma', 'no-cache')
   @Public()
   @RateLimit(20)
+  @ApiOperation({ summary: '2.1.3 Exchange an authorization code or refresh token for tokens' })
+  @ApiConsumes('application/x-www-form-urlencoded')
+  @ApiBody({ type: TokenRequestDto })
+  @ApiResponse({ status: 200, description: 'Access and refresh tokens (Cache-Control: no-store)', type: TokenResponseDoc })
+  @ApiOAuthBadRequest('RFC 6749 error envelope: invalid_request, invalid_grant (also a revoked or rotated refresh token), unsupported_grant_type')
+  @ApiOAuthInvalidClient('invalid_client: unknown client_id or failed client authentication')
+  @ApiProblems([429, 500])
   @UseGuards(TokenClientGuard)
   @Post('oauth/token')
   async token(@Body() body: TokenRequestDto): Promise<TokenResponse> {
@@ -153,6 +178,12 @@ export class OAuthController {
 
   // API 2.1.4 documents 200 for the revocation outcome body.
   @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: '2.1.4 Revoke a refresh token' })
+  @ApiBearerAuth()
+  @ApiBody({ type: RevokeRequestDoc })
+  @ApiResponse({ status: 200, description: 'Outcome of the revocation (false when the token is not the caller\'s or already unusable)', type: RevokeResponseDoc })
+  @ApiOAuthBadRequest('invalid_request: refreshToken is required')
+  @ApiProblems(GUARD_PROBLEM_STATUSES)
   @Post('oauth/token/revoke')
   async revoke(
     @Body() body: RevokeRequestDto,
