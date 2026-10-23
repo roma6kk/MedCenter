@@ -51,6 +51,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Audit: `AuditEvent` for catalog, room and schedule creates, updates and deletes, written in the same transaction
   (ADR-020: logical `what` reference + client-assigned UUID ids).
 - Draw.io diagrams `docs/diagrams/` (container view, booking → encounter sequence with the `If-Match` points).
+- Swagger / OpenAPI for all eight BFF services: `setupSwagger` in `libs/common` serves the UI at `/api/docs/<service>`
+  (plus `-json` and `-yaml`) through per-service Traefik routers `docs-<service>`; off unless `SWAGGER_ENABLED=true`
+  (default `false`, passed via compose `x-bff-env`). Every endpoint and DTO is documented, errors reference the global
+  RFC 7807 `problemDetails` schema (`ApiProblems`), auth is Bearer-only, and each service has a `swagger.spec.ts`
+  that checks its document against the API spec (API §10).
 
 ### Changed
 
@@ -87,3 +92,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - analytics-service retries the first audit sync with a backoff while HAPI boots.
 - Terminology seed retries `$expand` on a 5xx with a bounded backoff.
 - The doctor journal no longer links cancelled and no-show rows to the patient card.
+- `GET /api/v1/doctors` filtered by service or specialty now pages and counts doctors, not roles: `totalItems`
+  was the number of matching `PractitionerRole`s and a doctor with two roles shortened the page.
