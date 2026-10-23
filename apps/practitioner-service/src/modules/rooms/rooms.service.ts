@@ -4,6 +4,7 @@ import {
   createAudited,
   deleteAudited,
   FHIR_CLIENT,
+  FhirClientError,
   updateAudited,
   type AuditContext,
   type FhirClient,
@@ -16,12 +17,14 @@ import { toPage } from '../../common/page-envelope';
 import { CreateRoomDto } from './dto/create-room.dto';
 import { UpdateRoomDto } from './dto/update-room.dto';
 import type { RoomResponseDto } from './dto/room-response.dto';
-import { roomUsingIdentifier } from './room-identifier';
+import { roomIdentifierQuery, roomUsingIdentifier } from './room-identifier';
 import { roomScheduleQuery } from './room-schedules';
 import { findAllRooms, LOCATION_PHYSICAL_TYPE_SYSTEM, ROOM_PHYSICAL_TYPE_CODE } from './room-search';
 
 /** One page of the room list in the API §0 envelope. */
 export type RoomPage = PaginatedResponseDto<RoomResponseDto>;
+
+const HTTP_BAD_REQUEST = 400;
 
 /** `AuditEvent.source` of the writes of this service. */
 const AUDIT_SOURCE = 'practitioner-service';
@@ -61,8 +64,19 @@ export class RoomsService {
 
   async create(dto: CreateRoomDto, actor: WriteActor): Promise<RoomResponseDto> {
     await this.assertIdentifierFree(dto.identifier);
-    const created = await createAudited(this.fhirClient, this.toLocation(dto), this.auditOf(actor));
-    return this.toResponseDto(created);
+    try {
+      const created = await createAudited(this.fhirClient, this.toLocation(dto), this.auditOf(actor), {
+        onlyIfNoneMatches: roomIdentifierQuery(dto.identifier),
+      });
+      return this.toResponseDto(created);
+    } catch (error) {
+      // Another request stored a room with this identifier between the check above and the write:
+      // HAPI refused this transaction (400 when it matched the stored room, 409 when it met a write in flight).
+      if (error instanceof ConflictException || (error instanceof FhirClientError && error.upstreamStatus === HTTP_BAD_REQUEST)) {
+        await this.assertIdentifierFree(dto.identifier);
+      }
+      throw error;
+    }
   }
 
   async update(id: string, dto: UpdateRoomDto, actor: WriteActor): Promise<RoomResponseDto> {
@@ -127,7 +141,7 @@ export class RoomsService {
    * `409 CONFLICT` when another room already has `identifier` (API §4.4/4.5, compared trimmed and
    * case-insensitively). HAPI has no unique constraint over `Location.identifier`, so the rooms are
    * read and compared here; two admins creating the same identifier in the same instant is the one
-   * case this check cannot see (admin-only, low-frequency writes).
+   * case this check cannot see; `create` closes it with a conditional create (`roomIdentifierQuery`).
    */
   private async assertIdentifierFree(identifier: string, roomId?: string): Promise<void> {
     const taken = roomUsingIdentifier(await findAllRooms(this.fhirClient), identifier, roomId);

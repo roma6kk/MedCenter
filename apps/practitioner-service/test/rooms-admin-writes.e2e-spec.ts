@@ -45,7 +45,7 @@ describe('Rooms admin writes (e2e)', () => {
 
       // Assert
       const [room] = committedEntries(fhir);
-      expect(room?.request).toMatchObject({ method: 'PUT', url: `Location/${room?.resource?.id}` });
+      expect(room?.request).toMatchObject({ method: 'PUT', url: 'Location?identifier=204-%D0%A5' });
       expect(committedAudit(fhir)).toMatchObject({ action: 'C', source: { observer: { display: 'practitioner-service' } }, entity: [auditedResource('Location', room?.resource?.id), expect.anything()] });
       expect(room?.resource).toEqual({
         resourceType: 'Location',

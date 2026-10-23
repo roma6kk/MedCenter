@@ -1,7 +1,8 @@
 import { ConflictException } from '@nestjs/common';
-import type { FhirClient, FhirResource } from '@medcenter/fhir';
+import { FhirClientError, type FhirClient, type FhirResource } from '@medcenter/fhir';
 
-import { auditedResource, committedAudit, committedWrites, transactionResponder } from '../../common/__tests__/audited-transactions';
+import { auditedResource, committedAudit, committedEntries, committedWrites, transactionResponder } from '../../common/__tests__/audited-transactions';
+import { roomIdentifierQuery } from './room-identifier';
 import { RoomsService } from './rooms.service';
 
 const ACTOR = { sub: 'admin-1', requestId: 'req-1' };
@@ -93,6 +94,68 @@ describe('RoomsService identifier uniqueness (API §4.4, §4.5)', () => {
 
       await expect(service.update('ghost', { identifier: '101' }, ACTOR)).rejects.toThrow('missing');
       expect(fhir.search).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('creation is atomic (concurrent creates of one identifier)', () => {
+    it('should store the room and its AuditEvent in one transaction, the room as a conditional create on its identifier', async () => {
+      const created = await service.create({ identifier: '305', name: 'Кабинет 305' }, ACTOR);
+
+      expect(fhir.batch).toHaveBeenCalledTimes(1);
+      expect(committedWrites(fhir)).toEqual(['PUT Location?identifier=305', 'POST AuditEvent']);
+      expect(committedEntries(fhir)[0]?.resource).toMatchObject({ id: created.id, identifier: [{ value: '305' }] });
+    });
+
+    it('should answer 409 CONFLICT naming the identifier when HAPI refused the transaction because a room was created in between', async () => {
+      // HAPI-2279: the conditional create matched a stored room under another id (400); the read check now sees it.
+      let reads = 0;
+      fhir.search.mockImplementation(async () => ({ entry: reads++ === 0 ? [] : [{ resource: room('room-winner', '305') }] }));
+      fhir.batch.mockRejectedValue(new FhirClientError('POST', 'http://hapi/fhir', 400, 'HAPI-2279'));
+
+      const payload = await errorPayloadOf(service.create({ identifier: '305', name: 'Кабинет 305' }, ACTOR));
+
+      expect(payload).toMatchObject({
+        errorCode: 'CONFLICT',
+        message: 'CONFLICT: room identifier "305" is already used by room room-winner',
+      });
+    });
+
+    it('should answer 409 CONFLICT when HAPI met a conflicting write in flight, even before the winner is visible', async () => {
+      fhir.batch.mockRejectedValue(new FhirClientError('POST', 'http://hapi/fhir', 412, '{}'));
+
+      const payload = await errorPayloadOf(service.create({ identifier: '305', name: 'Кабинет 305' }, ACTOR));
+
+      expect(payload).toMatchObject({ errorCode: 'CONFLICT' });
+    });
+
+    it('should not mistake another HAPI failure for a taken identifier', async () => {
+      fhir.batch.mockRejectedValue(new FhirClientError('POST', 'http://hapi/fhir', 503, 'down'));
+
+      await expect(service.create({ identifier: '305', name: 'Кабинет 305' }, ACTOR)).rejects.toBeInstanceOf(FhirClientError);
+    });
+
+    it('should let exactly one of two concurrent creates win when the store applies the conditional create', async () => {
+      const stored = new Set<string>();
+      fhir.batch.mockImplementation(async (bundle) => {
+        const [first] = bundle['entry'] as Array<{ request: { url: string } }>;
+        if (stored.has(first?.request.url ?? '')) {
+          throw new FhirClientError('POST', 'http://hapi/fhir', 400, 'HAPI-2279');
+        }
+        stored.add(first?.request.url ?? '');
+        return { resourceType: 'Bundle', type: 'transaction-response', entry: [] };
+      });
+
+      const outcomes = await Promise.allSettled([
+        service.create({ identifier: '305', name: 'A' }, ACTOR),
+        service.create({ identifier: '305', name: 'B' }, ACTOR),
+      ]);
+
+      expect(outcomes.map((outcome) => outcome.status).sort()).toEqual(['fulfilled', 'rejected']);
+    });
+
+    it('should escape the characters FHIR reserves in a token and URL-encode the rest', () => {
+      expect(roomIdentifierQuery('2,0|4$х\\')).toBe(`Location?identifier=${encodeURIComponent('2\\,0\\|4\\$х\\\\')}`);
+      expect(roomIdentifierQuery('204-Х')).toBe(`Location?identifier=${encodeURIComponent('204-Х')}`);
     });
   });
 

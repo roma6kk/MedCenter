@@ -1,4 +1,4 @@
-import { auditSteps } from './checks-admin-catalog-audit';
+import { auditSteps, concurrentRoomStep } from './checks-admin-catalog-audit';
 import type { Ids } from './checks-admin-catalog-ids';
 import { isoDay } from './checks-catalog-read';
 import { asArray, bodyObject, expectEqual, expectPage, expectProblem, expectShape, expectStatus, expectTrue } from './smoke-assert';
@@ -49,6 +49,7 @@ function roomSteps(suite: Suite, ids: Ids, tag: string): SmokeStep[] {
       },
     },
     duplicateRoomStep(suite, ids, tag),
+    concurrentRoomStep(suite, ids, tag),
     {
       name: 'PATCH /admin/rooms/{id} -> 200; GET /admin/rooms/{id}/usage -> not in use',
       run: async () => {
@@ -243,6 +244,7 @@ async function removeLeftovers(suite: Suite, ids: Ids): Promise<void> {
     [`${API_PREFIX}/services/${ids.service}`, ids.service],
     [`${API_PREFIX}/rooms/${ids.room}`, ids.room],
     [`${API_PREFIX}/rooms/${ids.otherRoom}`, ids.otherRoom],
+    [`${API_PREFIX}/rooms/${ids.raceRoom}`, ids.raceRoom],
   ];
   for (const [path, id, body] of leftovers.filter(([, id]) => id !== '')) {
     const response = await suite.api.delete(path, { session: suite.sessions.admin, ...(body === undefined ? {} : { body }) });
@@ -254,7 +256,7 @@ async function removeLeftovers(suite: Suite, ids: Ids): Promise<void> {
 
 /** The admin's catalog lifecycle in one chain: every step needs what the previous one made. */
 export async function adminCatalogChecks(suite: Suite): Promise<void> {
-  const ids: Ids = { room: '', otherRoom: '', service: '', schedule: '', futureSchedule: '', removed: { room: '', service: '', schedule: '' } };
+  const ids: Ids = { room: '', otherRoom: '', service: '', schedule: '', futureSchedule: '', raceRoom: '', removed: { room: '', service: '', schedule: '' } };
   await suite.runner.chain(GROUP, [
     ...roomSteps(suite, ids, runTag()),
     serviceStep(suite, ids, runTag()),

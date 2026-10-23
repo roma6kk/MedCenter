@@ -34,6 +34,15 @@ describe('createAudited', () => {
     });
   });
 
+  it('should make the create a conditional update when a match URL is given, so a duplicate fails the whole transaction', async () => {
+    const fhir = client();
+
+    const created = await createAudited(fhir, { resourceType: 'Location' }, AUDIT, { onlyIfNoneMatches: 'Location?identifier=204' });
+
+    expect(methodsOf(fhir)).toEqual(['PUT Location?identifier=204', 'POST AuditEvent']);
+    expect(sent(fhir).entry[0]?.resource?.id).toBe(created.id);
+  });
+
   it('should give two creates two different ids', async () => {
     const first = await createAudited(client(), { resourceType: 'Schedule' }, AUDIT);
     const second = await createAudited(client(), { resourceType: 'Schedule' }, AUDIT);

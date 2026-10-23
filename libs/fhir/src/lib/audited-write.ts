@@ -10,6 +10,16 @@ export interface AuditContext {
   readonly source: string;
 }
 
+export interface CreateAuditedOptions {
+  /**
+   * Search URL such as `Location?identifier=204` that makes the create conditional: the write
+   * is a FHIR conditional update that creates the resource (under its new id) only while nothing
+   * matches. When something does, HAPI refuses the whole transaction (`400`, "matching resource does
+   * not match the provided ID") and nothing is written, so two concurrent creates cannot both win.
+   */
+  readonly onlyIfNoneMatches?: string;
+}
+
 /**
  * Creates `resource` and its `create` AuditEvent in one transaction (ADR-014): no write without its
  * journal entry. The id is assigned here (`PUT`, a UUID) rather than by HAPI, because the event names
@@ -20,13 +30,14 @@ export async function createAudited(
   fhir: FhirClient,
   resource: FhirResource,
   audit: AuditContext,
+  options: CreateAuditedOptions = {},
 ): Promise<FhirResource> {
   const id = randomUUID();
   const created: FhirResource = { ...resource, id };
   await commitTransaction(
     fhir,
     [
-      { method: 'PUT', url: `${resource.resourceType}/${id}`, resource: created },
+      { method: 'PUT', url: options.onlyIfNoneMatches ?? `${resource.resourceType}/${id}`, resource: created },
       writeAuditEntry({ interaction: 'create', resourceType: resource.resourceType, resourceId: id, ...audit }),
     ],
     'CONFLICT',
