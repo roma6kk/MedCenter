@@ -8,7 +8,7 @@
  */
 import { randomUUID } from 'node:crypto';
 import { expect, test, type BrowserContext, type Page, type Response } from '@playwright/test';
-import { accessTokenOf, bookSlotAs, cancelAppointmentAs, clinicDay, findFreeSlots } from './fixtures/booking-api';
+import { accessTokenOf, bookAnyFreeSlotAs, cancelAppointmentAs, clinicDay } from './fixtures/booking-api';
 import { hasDemoManifest } from './fixtures/demo-accounts';
 import { openStoredSession } from './fixtures/session-state';
 
@@ -67,7 +67,7 @@ test.describe('admin analytics', () => {
     await expect(page.getByRole('table', { name: /^Топ-\d+ услуг по записям$/ })).toBeVisible();
   });
 
-  test('should follow a booking that was cancelled after the report was opened when the page is read again', async ({ browser, baseURL, request }) => {
+  test('should follow a booking that was cancelled after the report was opened when the page is read again', async ({ browser, baseURL }) => {
     test.setTimeout(150_000);
     const first = page.waitForResponse(isReport('appointments'));
     await page.goto('/admin/analytics');
@@ -75,11 +75,8 @@ test.describe('admin analytics', () => {
 
     const patient = await openStoredSession(browser, baseURL, 'PATIENT', 2);
     try {
-      const [slot] = await findFreeSlots(request, 1);
-      if (slot === undefined) throw new Error('no free slot');
-      const booked = await bookSlotAs(patient.page, slot.slotId);
-      expect(booked.status, 'the patient books the slot').toBe(201);
-      await cancelAppointmentAs(patient.page, String(booked.body['id']));
+      const { id } = await bookAnyFreeSlotAs(patient.page);
+      await cancelAppointmentAs(patient.page, id);
     } finally {
       await patient.context.close();
     }
@@ -96,6 +93,7 @@ test.describe('admin analytics', () => {
 
   test('should send the chosen top and period and show the no-data notice for a period without appointments', async () => {
     await page.goto('/admin/analytics');
+    await page.waitForLoadState('networkidle');
     await page.getByLabel('Топ услуг').selectOption('5');
     const services = page.waitForResponse(isReport('services-popularity'));
     await page.getByRole('button', { name: 'Показать' }).click();

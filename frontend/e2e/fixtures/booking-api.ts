@@ -115,3 +115,17 @@ export async function cancelBookedAt(page: Page, starts: ReadonlyArray<string>):
   const wanted = new Set(starts.map((start) => Date.parse(start)));
   for (const item of items) if (wanted.has(Date.parse(item.start))) await cancelAppointmentAs(page, item.id);
 }
+
+/**
+ * Books a random free slot as the page's user; a slot that another parallel spec took first (409) is replaced by a new
+ * pick, so a spec that only needs "some booking" does not depend on winning the race for one slot.
+ */
+export async function bookAnyFreeSlotAs(page: Page, attempts = 5): Promise<{ readonly id: string; readonly slot: FreeSlot }> {
+  for (let attempt = 1; ; attempt += 1) {
+    const [slot] = await findFreeSlots(page.request, 1);
+    if (slot === undefined) throw new Error('no free slot');
+    const booked = await bookSlotAs(page, slot.slotId);
+    if (booked.status === 201) return { id: String(booked.body['id']), slot };
+    if (booked.status !== 409 || attempt >= attempts) throw new Error(`POST /api/v1/appointments answered ${booked.status} for a free slot (attempt ${attempt})`);
+  }
+}

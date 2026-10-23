@@ -9,7 +9,7 @@
  */
 import { randomUUID } from 'node:crypto';
 import { expect, test, type BrowserContext, type Locator, type Page } from '@playwright/test';
-import { bookSlotAs, cancelAppointmentAs, findFreeSlots } from './fixtures/booking-api';
+import { bookAnyFreeSlotAs, cancelAppointmentAs } from './fixtures/booking-api';
 import { hasDemoManifest } from './fixtures/demo-accounts';
 import { openStoredSession } from './fixtures/session-state';
 
@@ -26,11 +26,7 @@ test.describe('patient notifications', () => {
 
   /** Books a free slot and cancels it with a unique reason; resolves with the appointment id and that reason. */
   async function bookAndCancel(): Promise<{ readonly appointmentId: string; readonly reason: string }> {
-    const [target] = await findFreeSlots(page.request, 1);
-    if (target === undefined) throw new Error('no free slot');
-    const booked = await bookSlotAs(page, target.slotId);
-    expect(booked.status, 'the patient books the slot').toBe(201);
-    const appointmentId = String(booked.body['id']);
+    const { id: appointmentId } = await bookAnyFreeSlotAs(page);
     const reason = `E2E уведомления ${randomUUID().slice(0, 8)}`;
     await cancelAppointmentAs(page, appointmentId, reason);
     return { appointmentId, reason };
