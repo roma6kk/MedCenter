@@ -24,12 +24,10 @@ export const CORPORATE_CLIENTS: ReadonlyArray<string> = [
   'МТС Беларусь',
   'A1 Belarus',
   'Минский тракторный завод',
-  'Белорусская калийная компания',
-  'ЭПАМ Системз',
 ];
 
 /** Insurers whose policies the clinic accepts (names only, no logos). */
-export const INSURANCE_PARTNERS: ReadonlyArray<string> = ['Белгосстрах', 'ЭРГО Беларусь', 'Промтрансинвест', 'Белэксимгарант'];
+export const INSURANCE_PARTNERS: ReadonlyArray<string> = ['Белгосстрах', 'Промтрансинвест'];
 
 export type DirectionId = 'therapy' | 'cardiology' | 'neurology' | 'surgery' | 'diagnostics';
 
