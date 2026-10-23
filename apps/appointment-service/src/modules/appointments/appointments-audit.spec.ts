@@ -1,7 +1,6 @@
 import type { JwtClaims } from '@medcenter/common';
 import type { FhirClient, FhirResource } from '@medcenter/fhir';
 
-import type { AppointmentPublisherService } from '../events/appointment-publisher.service';
 import { AppointmentsService } from './appointments.service';
 
 const PATIENT: JwtClaims = { sub: 'user-1', scope: 'patient/*.write', role: 'PATIENT', patient: 'pat-1', jti: 'jti-1' };
@@ -58,11 +57,7 @@ describe('AppointmentsService audit trail (ADR-014, FR-021)', () => {
       search: jest.fn().mockResolvedValue({ entry: [] }),
       batch: jest.fn().mockResolvedValue(COMMITTED),
     } as unknown as jest.Mocked<FhirClient>;
-    const publisher = {
-      publishBooked: jest.fn().mockResolvedValue(undefined),
-      publishCancelled: jest.fn().mockResolvedValue(undefined),
-    } as unknown as AppointmentPublisherService;
-    service = new AppointmentsService(fhir, publisher, 'warn');
+    service = new AppointmentsService(fhir, 'warn');
   });
 
   it('should audit the booking with the patient and the request id when a patient books', async () => {

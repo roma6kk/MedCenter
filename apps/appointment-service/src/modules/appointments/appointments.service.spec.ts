@@ -1,8 +1,8 @@
 import { ConflictException, ForbiddenException } from '@nestjs/common';
 import type { JwtClaims } from '@medcenter/common';
 import { FhirClientError, type FhirClient, type FhirResource } from '@medcenter/fhir';
+import { MEDCENTER_EXT } from '@medcenter/terminology';
 
-import { AppointmentPublisherService } from '../events/appointment-publisher.service';
 import { AppointmentsService } from './appointments.service';
 
 const patientClaims: JwtClaims = {
@@ -54,6 +54,13 @@ const bookedAppointment: FhirResource = {
   meta: { versionId: '2' },
 };
 
+/** The event envelope inside an outbox `Basic` (the payload extension, JSON text). */
+function outboxEventOf(basic: FhirResource | undefined): Record<string, unknown> {
+  const extensions = (basic?.['extension'] ?? []) as Array<{ url: string; valueString?: string }>;
+  const payload = extensions.find((extension) => extension.url === MEDCENTER_EXT.OUTBOX_PAYLOAD)?.valueString;
+  return JSON.parse(payload ?? '{}') as Record<string, unknown>;
+}
+
 /** Error payload (`{ errorCode, message }`) thrown by a service call. */
 async function errorPayloadOf(promise: Promise<unknown>): Promise<unknown> {
   try {
@@ -67,7 +74,6 @@ async function errorPayloadOf(promise: Promise<unknown>): Promise<unknown> {
 describe('AppointmentsService', () => {
   let service: AppointmentsService;
   let fhir: jest.Mocked<FhirClient>;
-  let publisher: jest.Mocked<AppointmentPublisherService>;
 
   beforeEach(() => {
     fhir = {
@@ -79,15 +85,11 @@ describe('AppointmentsService', () => {
       operation: jest.fn(),
       batch: jest.fn(),
     } as unknown as jest.Mocked<FhirClient>;
-    publisher = {
-      publishBooked: jest.fn().mockResolvedValue(undefined),
-      publishCancelled: jest.fn().mockResolvedValue(undefined),
-    } as unknown as jest.Mocked<AppointmentPublisherService>;
-    service = new AppointmentsService(fhir, publisher, 'warn');
+    service = new AppointmentsService(fhir, 'warn');
   });
 
   describe('book', () => {
-    it('should commit the slot CAS, the Appointment and the AuditEvent in one transaction, then publish, when the slot is free', async () => {
+    it('should commit the slot CAS, the Appointment and the AuditEvent in one transaction with the outbox event, when the slot is free', async () => {
       fhir.read.mockImplementation(async (type) => (type === 'Slot' ? freeSlot : schedule));
       fhir.batch.mockResolvedValue({
         resourceType: 'Bundle',
@@ -101,22 +103,30 @@ describe('AppointmentsService', () => {
 
       const result = await service.book(patientClaims, { slotId: 'slot-1' });
 
-      const bundle = fhir.batch.mock.calls[0]?.[0] as unknown as { type: string; entry: Array<{ request: Record<string, unknown> }> };
+      const bundle = fhir.batch.mock.calls[0]?.[0] as unknown as { type: string; entry: Array<{ resource?: FhirResource; request: Record<string, unknown> }> };
       expect(bundle.type).toBe('transaction');
       expect(bundle.entry[0]?.request).toEqual({ method: 'PUT', url: 'Slot/slot-1', ifMatch: 'W/"3"' });
-      expect(bundle.entry[1]?.request).toEqual({ method: 'POST', url: 'Appointment' });
+      const appointmentId = result.id;
+      expect(appointmentId).toMatch(/^[0-9a-f-]{36}$/);
+      expect(bundle.entry[1]?.request).toEqual({ method: 'PUT', url: `Appointment/${appointmentId}` });
       expect(bundle.entry[2]?.request).toEqual({ method: 'POST', url: 'AuditEvent' });
+      expect(bundle.entry[3]?.request).toEqual({ method: 'POST', url: 'Basic' });
       expect(result).toMatchObject({
         patientId: '9f2c',
-        id: 'apt-1',
         status: 'booked',
         slotId: 'slot-1',
         serviceId: 'svc-1',
         practitionerRoleId: 'role-1',
       });
-      expect(publisher.publishBooked).toHaveBeenCalledWith(
-        expect.objectContaining({ appointmentId: 'apt-1', patientRef: 'Patient/9f2c', slotRef: 'Slot/slot-1' }),
-      );
+      const outbox = outboxEventOf(bundle.entry[3]?.resource);
+      expect(outbox).toMatchObject({
+        type: 'appointment.booked.v1',
+        appointmentId,
+        patientRef: 'Patient/9f2c',
+        slotRef: 'Slot/slot-1',
+        practitionerRoleRef: 'PractitionerRole/role-1',
+        serviceId: 'svc-1',
+      });
     });
 
     it('should write a Patient/{id} participant when the token carries a bare patient id', async () => {
@@ -155,17 +165,15 @@ describe('AppointmentsService', () => {
         errorCode: 'SLOT_CONFLICT',
       });
       expect(fhir.batch).not.toHaveBeenCalled();
-      expect(publisher.publishBooked).not.toHaveBeenCalled();
     });
 
-    it('should map the lost race to SLOT_CONFLICT and publish nothing when HAPI rejects the If-Match (412 as 409)', async () => {
+    it('should map the lost race to SLOT_CONFLICT when HAPI rejects the If-Match (412 as 409)', async () => {
       fhir.read.mockImplementation(async (type) => (type === 'Slot' ? freeSlot : schedule));
       fhir.batch.mockRejectedValue(new FhirClientError('POST', 'http://hapi/fhir', 412, '{}'));
 
       expect(await errorPayloadOf(service.book(patientClaims, { slotId: 'slot-1' }))).toMatchObject({
         errorCode: 'SLOT_CONFLICT',
       });
-      expect(publisher.publishBooked).not.toHaveBeenCalled();
     });
 
     it('should refuse before touching FHIR when the token carries no patient context', async () => {
@@ -212,18 +220,16 @@ describe('AppointmentsService', () => {
         });
         expect(fhir.search).toHaveBeenCalledWith('Encounter', { appointment: 'Appointment/apt-1', _count: 1 });
         expect(fhir.batch).not.toHaveBeenCalled();
-        expect(publisher.publishCancelled).not.toHaveBeenCalled();
       },
     );
 
-    it('should answer APPOINTMENT_NOT_CANCELLABLE and publish nothing when an encounter was opened meanwhile (If-Match lost)', async () => {
+    it('should answer APPOINTMENT_NOT_CANCELLABLE when an encounter was opened meanwhile (If-Match lost)', async () => {
       fhir.read.mockImplementation(async (type) => (type === 'Appointment' ? bookedAppointment : { ...freeSlot, status: 'busy' }));
       fhir.batch.mockRejectedValue(new FhirClientError('POST', 'http://hapi/fhir', 412, '{}'));
 
       expect(await errorPayloadOf(service.cancel(patientClaims, 'apt-1', { reason: 'не смог прийти' }))).toMatchObject({
         errorCode: 'APPOINTMENT_NOT_CANCELLABLE',
       });
-      expect(publisher.publishCancelled).not.toHaveBeenCalled();
     });
 
     it('should fail with INTERNAL, without reading a collection URL, when the appointment has no slot', async () => {
@@ -234,7 +240,6 @@ describe('AppointmentsService', () => {
       });
       expect(fhir.read).not.toHaveBeenCalledWith('Slot', '');
       expect(fhir.batch).not.toHaveBeenCalled();
-      expect(publisher.publishCancelled).not.toHaveBeenCalled();
     });
 
     it('should refuse with COMPARTMENT_VIOLATION when the appointment belongs to another patient', async () => {
@@ -265,7 +270,7 @@ describe('AppointmentsService', () => {
       expect(fhir.batch).not.toHaveBeenCalled();
     });
 
-    it('should cancel, free the slot with If-Match and publish when the owner cancels a booked appointment', async () => {
+    it('should cancel, free the slot with If-Match and record the outbox event when the owner cancels a booked appointment', async () => {
       fhir.read.mockImplementation(async (type) =>
         type === 'Appointment' ? bookedAppointment : { ...freeSlot, status: 'busy' },
       );
@@ -278,9 +283,10 @@ describe('AppointmentsService', () => {
       expect(bundle.entry[1]?.resource['status']).toBe('free');
       expect(bundle.entry[1]?.request).toEqual({ method: 'PUT', url: 'Slot/slot-1', ifMatch: 'W/"3"' });
       expect(result).toMatchObject({ status: 'cancelled', cancelReason: 'не смог прийти' });
-      expect(publisher.publishCancelled).toHaveBeenCalledWith(
-        expect.objectContaining({ appointmentId: 'apt-1', actorType: 'PATIENT', patientRef: 'Patient/9f2c' }),
-      );
+      const outbox = outboxEventOf(bundle.entry[3]?.resource);
+      expect(outbox).toMatchObject({ type: 'appointment.cancelled.v1', appointmentId: 'apt-1', actorType: 'PATIENT', patientRef: 'Patient/9f2c' });
+      // Payload minimisation (ADR-021): the free-text reason never enters the outbox.
+      expect(JSON.stringify(bundle.entry[3]?.resource)).not.toContain('не смог прийти');
     });
   });
 

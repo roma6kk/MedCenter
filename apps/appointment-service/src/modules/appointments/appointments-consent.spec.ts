@@ -2,7 +2,6 @@ import { ConflictException } from '@nestjs/common';
 import type { JwtClaims } from '@medcenter/common';
 import type { FhirClient, FhirResource } from '@medcenter/fhir';
 
-import { AppointmentPublisherService } from '../events/appointment-publisher.service';
 import { AppointmentsService } from './appointments.service';
 import type { ConsentEnforcement } from './consent-enforcement';
 
@@ -46,8 +45,7 @@ describe('AppointmentsService.book without a patient consent (API §6.1, ADR-019
       search: jest.fn().mockResolvedValue({ total: consents.length, entry: consents.map((resource) => ({ resource })) }),
       batch: jest.fn().mockResolvedValue(COMMITTED),
     } as unknown as jest.Mocked<FhirClient>;
-    const publisher = { publishBooked: jest.fn().mockResolvedValue(undefined) } as unknown as AppointmentPublisherService;
-    return new AppointmentsService(fhir, publisher, mode);
+    return new AppointmentsService(fhir, mode);
   }
 
   const bookedReason = (): unknown => {

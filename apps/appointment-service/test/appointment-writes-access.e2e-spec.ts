@@ -56,10 +56,6 @@ describe('Appointment write access (e2e)', () => {
 
   it('should book with 201 when the slot id is the hex digest catalog-service generates', async () => {
     harness.fhir.read.mockImplementation(async (type) => (type === 'Slot' ? FREE_SLOT : SCHEDULE));
-    harness.fhir.batch.mockResolvedValue({
-      ...COMMITTED,
-      entry: [{}, { response: { status: '201', location: 'Appointment/apt-9/_history/1' } }, {}],
-    });
 
     const response = await request(harness.app.getHttpServer())
       .post('/api/v1/appointments')
@@ -67,7 +63,8 @@ describe('Appointment write access (e2e)', () => {
       .send({ slotId: GENERATED_SLOT_ID })
       .expect(201);
 
-    expect(response.body).toMatchObject({ id: 'apt-9', status: 'booked', slotId: GENERATED_SLOT_ID, patientId: 'pat-1' });
+    // The service assigns the id itself (ADR-021: the outbox event must name the appointment before the commit).
+    expect(response.body).toMatchObject({ id: expect.stringMatching(/^[0-9a-f-]{36}$/), status: 'booked', slotId: GENERATED_SLOT_ID, patientId: 'pat-1' });
   });
 
   it('should answer 400 VALIDATION_ERROR without reading FHIR when slotId is not a FHIR id', async () => {

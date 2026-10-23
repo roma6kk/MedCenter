@@ -2,7 +2,6 @@ import type { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { createValidationPipe, IDEMPOTENCY_STORE, type IdempotencyStore } from '@medcenter/common';
 import { FHIR_CLIENT, type FhirClient, type FhirResource } from '@medcenter/fhir';
-import { EVENT_PUBLISHER } from '@medcenter/messaging';
 
 import { AppModule } from '../src/app/app.module';
 import { applyE2eEnv } from './e2e-env';
@@ -42,8 +41,8 @@ function createMemoryStore(): IdempotencyStore {
 
 /**
  * Boots the real `AppModule` — global guard stack, validation pipe, RFC 7807
- * filter — over a fake FHIR client, an in-memory idempotency store and a no-op
- * event publisher, so HTTP behaviour is tested without HAPI, Redis or RabbitMQ.
+ * filter — over a fake FHIR client and an in-memory idempotency store, so HTTP
+ * behaviour is tested without HAPI or Redis. The service no longer publishes events itself (outbox, ADR-021).
  */
 export async function startAppHarness(): Promise<AppHarness> {
   applyE2eEnv();
@@ -56,8 +55,6 @@ export async function startAppHarness(): Promise<AppHarness> {
     .useValue(fhir)
     .overrideProvider(IDEMPOTENCY_STORE)
     .useValue(createMemoryStore())
-    .overrideProvider(EVENT_PUBLISHER)
-    .useValue({ publish: jest.fn().mockResolvedValue(undefined) })
     .compile();
   const app = moduleRef.createNestApplication();
   app.useGlobalPipes(createValidationPipe());

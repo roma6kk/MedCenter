@@ -2,11 +2,10 @@ import { MEDCENTER_EXT, OUTBOX, type OutboxStatus } from '@medcenter/terminology
 
 import type { FhirResource } from './fhir-client.provider';
 
-/** An event envelope as a service builds it; only the two routing fields are read here. */
+/** An event envelope as a service builds it; only the two routing fields are read, the whole object is stored. */
 export interface OutboxEventInput {
   readonly type: string;
   readonly eventId: string;
-  readonly [key: string]: unknown;
 }
 
 /** The `POST Basic` entry of a transaction Bundle; assignable to every service's own write type. */
