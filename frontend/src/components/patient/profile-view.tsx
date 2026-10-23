@@ -7,6 +7,7 @@ import { useDocumentTitle } from '@/hooks/use-document-title';
 import { isApiError } from '@/lib/api/api-fetch';
 import { errorCodeToUx } from '@/lib/api/error-code-map';
 import { useT } from '@/lib/i18n/use-t';
+import { MyConsentSection } from '@/components/consent/my-consent-section';
 import { computeCompleteness, type Completeness } from './profile/profile-completeness';
 import { doctorsOf, ProfileDoctors } from './profile/profile-doctors';
 import { ProfileHeader } from './profile/profile-header';
@@ -80,6 +81,7 @@ export function ProfileView(): ReactNode {
         </div>
         <aside className="flex min-w-0 flex-[1_1_320px] flex-col gap-4">
           <ProfilePersonalData />
+          <MyConsentSection />
           <ProfileDocuments />
         </aside>
       </div>

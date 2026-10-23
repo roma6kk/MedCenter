@@ -1,6 +1,14 @@
 import { QueryClient } from '@tanstack/react-query';
 import { queryKeys, queryRoots } from './query-keys';
 
+describe('consent keys', () => {
+  it('should keep the own consent and a patient consent under one root', () => {
+    expect(queryKeys.myConsent).toEqual(['consent', 'me']);
+    expect(queryKeys.patientConsent('p1')).toEqual(['consent', 'patient', 'p1']);
+    expect(queryRoots.consent).toEqual(['consent']);
+  });
+});
+
 describe('queryKeys', () => {
   it('should start every key with its domain (frontend-design-spec §5.1)', () => {
     expect(queryKeys.slots('d1', { from: '2026-10-16' })[0]).toBe('slots');

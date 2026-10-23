@@ -26,6 +26,8 @@ export function isApiError(error: unknown): error is ApiError {
 interface ApiFetchOptions extends RequestInit {
   /** Set `false` to handle a 401 yourself (no silent refresh, no redirect). */
   readonly retry?: boolean;
+  /** `blob` returns the bytes of a successful answer (a scan) instead of parsing JSON; errors stay problem+json. */
+  readonly responseAs?: 'json' | 'blob';
 }
 
 async function readJson(response: Response): Promise<unknown> {
@@ -40,7 +42,8 @@ async function readJson(response: Response): Promise<unknown> {
 function buildHeaders(init: RequestInit): Headers {
   const headers = new Headers(init.headers);
   const hasBody: boolean = init.body !== undefined && init.body !== null;
-  if (hasBody && !headers.has('Content-Type')) headers.set('Content-Type', 'application/json');
+  // A form body (multipart upload) gets its content type, with the boundary, from the browser.
+  if (hasBody && !(init.body instanceof FormData) && !headers.has('Content-Type')) headers.set('Content-Type', 'application/json');
   const token: string | null = getAccessToken();
   if (token !== null && !headers.has('Authorization')) headers.set('Authorization', `Bearer ${token}`);
   return headers;
@@ -68,10 +71,11 @@ async function recoverFromUnauthorized<T>(path: string, init: ApiFetchOptions, p
 }
 
 async function execute<T>(path: string, init: ApiFetchOptions, canRefresh: boolean): Promise<T> {
-  const { retry: _retry, ...requestInit } = init;
+  const { retry: _retry, responseAs, ...requestInit } = init;
   const response: Response = await send(path, requestInit);
   if (response.ok) {
     if (response.status === 204) return undefined as T;
+    if (responseAs === 'blob') return (await response.blob()) as T;
     return (await readJson(response)) as T;
   }
 

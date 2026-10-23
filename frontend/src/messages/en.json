@@ -600,7 +600,8 @@
     "chooseDoctor": "Choose doctor",
     "slotsFound": "Available times: {count}",
     "retryIn": "Try again in {seconds} s",
-    "nextPeriodLimit": "This is the last available period: you can search up to a year ahead."
+    "nextPeriodLimit": "This is the last available period: you can search up to a year ahead.",
+    "reasonNoConsent": "Free text about your health can be added only after the consent to the electronic record is signed. Ask the front desk: the visit can be booked without a reason."
   },
   "layout": {
     "skipToContent": "Skip to content",
@@ -967,7 +968,12 @@
     "choice": "Choose one of the allowed values",
     "boolean": "Choose yes or no",
     "format": "The value has an invalid format",
-    "consentRequired": "Confirm your consent to create an account"
+    "consentRequired": "Confirm your consent to create an account",
+    "scanRequired": "Attach the scan of the signed form",
+    "scanType": "The scan must be a PDF, JPEG or PNG file",
+    "scanSize": "The file is larger than 10 MB",
+    "futureDate": "The signing date cannot be in the future",
+    "relatedRequired": "Choose the patient's trusted person"
   },
   "errors": {
     "VALIDATION_ERROR": "Check the highlighted fields",
@@ -981,8 +987,8 @@
     "CONFLICT": "Conflicts with existing data",
     "SLOT_CONFLICT": "The slot is already taken",
     "APPOINTMENT_NOT_CANCELLABLE": "The appointment cannot be cancelled",
-    "CONSENT_REQUIRED": "The patient has no active consent to the electronic record",
-    "CONSENT_ALREADY_ACTIVE": "The patient already has an active consent",
+    "CONSENT_REQUIRED": "No active consent to the electronic record: send the patient to the front desk or record the paper consent",
+    "CONSENT_ALREADY_ACTIVE": "The patient already has an active consent: record its revocation first",
     "ENCOUNTER_STATE_INVALID": "The encounter is already completed",
     "SCHEDULE_OVERLAP": "Schedule windows overlap",
     "SCHEDULE_IN_USE": "The schedule is in use: it has linked slots or appointments",
@@ -1477,5 +1483,119 @@
     "emptyType": "No such notifications on this page",
     "openAppointment": "Open appointment",
     "openHistory": "Open in history"
+  },
+  "consent": {
+    "title": "Consent to the electronic record",
+    "status": {
+      "active": "In force",
+      "inactive": "Revoked",
+      "rejected": "Written refusal",
+      "entered-in-error": "Entered in error"
+    },
+    "state": {
+      "active": "Consent is in force",
+      "revoked": "Consent revoked",
+      "rejected": "A written refusal is on file",
+      "none": "No consent on file"
+    },
+    "view": {
+      "formNumber": "Form no. {number}",
+      "signedAt": "Signed {date}",
+      "signedBy": "Recorded by: {name}",
+      "consenter": "Signed by",
+      "consenterTypes": {
+        "self": "the patient",
+        "legal-representative": "legal representative",
+        "guardian": "guardian",
+        "relative": "relative"
+      },
+      "representativeDocument": "Document proving authority: {document}",
+      "revocationNumber": "Revocation application no. {number}",
+      "until": "In force until {date}",
+      "historyTitle": "History",
+      "historyEmpty": "There are no consent entries.",
+      "scanFile": "form scan",
+      "loading": "Loading the consent details…"
+    },
+    "mine": {
+      "lead": "Lifeline keeps your electronic medical record only with your written consent (art. 44 of the Healthcare Law).",
+      "noneHow": "To give your consent, come to the front desk with your passport: the form is signed on paper and its scan is attached to your record. Until then a doctor cannot add entries to your record.",
+      "revokedHow": "No new entries are added to your record; existing ones are kept. To have a consent in force again, sign a new one at the front desk.",
+      "rejectedHow": "Your written refusal is on file. If you change your mind, sign a consent at the front desk.",
+      "revoke": "Revoke consent",
+      "dialogTitle": "Revoke your consent?",
+      "dialogBody": "After the revocation no new entries are added to your medical record. Entries already made are not deleted. Confirm the revocation with a written application at the clinic.",
+      "dialogConfirm": "Revoke consent",
+      "dialogBusy": "Revoking…",
+      "dialogKeep": "Keep consent",
+      "revoked": "Consent revoked. Confirm it with a written application at the clinic."
+    },
+    "staff": {
+      "lead": "The consent is signed on paper; its scan and the signature details are kept here.",
+      "adminNote": "Only the consent paperwork is here: this section shows no medical data of the patient.",
+      "downloadScan": "Download scan",
+      "downloadScanFor": "Download the scan of form {number}",
+      "downloading": "Downloading…",
+      "downloadFailed": "The scan could not be downloaded. Try again.",
+      "recordTitle": "Record a paper consent or refusal",
+      "formNumber": "Form number",
+      "signedAt": "Signing date",
+      "entryStatus": "What the patient signed",
+      "entryStatuses": {
+        "active": "Consent",
+        "rejected": "Written refusal"
+      },
+      "consenterType": "Signed by",
+      "relatedPerson": "Patient's trusted person",
+      "relatedPlaceholder": "Choose…",
+      "relatedNone": "The patient has no trusted persons on file: record a consent signed by the patient, or add the trusted person first.",
+      "representativeDocument": "Document proving authority",
+      "representativeHint": "For example: power of attorney, guardianship decision.",
+      "signedByName": "Name of the staff member who handled the form",
+      "signedByDoctorHint": "Filled in from your account.",
+      "file": "Scan of the signed form",
+      "fileHint": "PDF, JPEG or PNG, up to 10 MB.",
+      "submit": "Add to the record",
+      "submitting": "Adding…",
+      "recorded": "The consent entry is recorded.",
+      "alreadyActive": "The patient already has an active consent. Record its revocation from the written application first, then add the new form.",
+      "revokeTitle": "Record a revocation",
+      "revokeLead": "The patient's written application to revoke the consent. New entries to the record stop, existing ones are not deleted.",
+      "applicationNumber": "Application number",
+      "revokeSubmit": "Record revocation",
+      "revoking": "Recording…",
+      "revoked": "The revocation is recorded.",
+      "nothingToRevoke": "Nothing to revoke: there is no active consent."
+    },
+    "required": {
+      "title": "No consent to the electronic record",
+      "openLead": "The encounter cannot be opened: the patient has no active consent.",
+      "completeLead": "The encounter cannot be completed: the patient has no active consent.",
+      "how": "Send the patient to the front desk to sign the consent, or record the paper consent on the patient's page.",
+      "record": "Record the consent on the patient's page",
+      "emergencyTitle": "Emergency care",
+      "emergencyHint": "If the patient cannot give consent (for example, is unconscious), state the reason. The encounter goes ahead without consent, and the reason and your name are written to the audit log.",
+      "reason": "Reason for emergency care",
+      "reasonHint": "10 to 500 characters.",
+      "reasonTooShort": "Describe the reason in more detail: at least 10 characters",
+      "reasonTooLong": "At most 500 characters",
+      "openEmergency": "Open as emergency care",
+      "completeEmergency": "Complete as emergency care",
+      "sending": "Sending…"
+    },
+    "banner": {
+      "noneTitle": "No active consent to the electronic record",
+      "revokedTitle": "Consent to the electronic record is revoked",
+      "rejectedTitle": "The patient refused the electronic record in writing",
+      "text": "An encounter can be opened only after the consent is signed, or as emergency care with a stated reason.",
+      "goTo": "Record the consent"
+    },
+    "admin": {
+      "title": "Consent to the electronic record",
+      "back": "Back to users",
+      "open": "EMR consent",
+      "openFor": "Consent to the electronic record: {name}",
+      "notFound": "Patient not found"
+    }
   }
 }

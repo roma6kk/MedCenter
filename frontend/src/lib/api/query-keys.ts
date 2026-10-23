@@ -32,6 +32,10 @@ export const queryKeys = {
   /** The FHIR patient card of the caller (API 3.1); lives under `profile`, so one invalidation refreshes both. */
   patientProfile: ['profile', 'patient'] as const,
 
+  // consent to the electronic record (ADR-019): the caller's own (API 3.4) and a patient's for staff (3.7), one root
+  myConsent: ['consent', 'me'] as const,
+  patientConsent: (patientId: string) => ['consent', 'patient', patientId] as const,
+
   // notifications (patient)
   notifications: (params?: Params) => ['notifications', 'list', normalise(params)] as const,
   unreadCount: ['notifications', 'unreadCount'] as const,
@@ -69,6 +73,7 @@ export const queryRoots = {
   history: ['patientHistory'],
   prescriptions: ['prescriptions'],
   notifications: ['notifications'],
+  consent: ['consent'],
   doctorAppointments: ['doctorAppointments'],
   doctorSchedule: ['doctorSchedule'],
   encounters: ['encounter'],

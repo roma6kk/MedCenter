@@ -14,6 +14,8 @@ function seededClient(): QueryClient {
   client.setQueryData(queryKeys.prescriptions('p1'), { items: [] });
   client.setQueryData(queryKeys.valueSets('x'), []);
   client.setQueryData(queryKeys.profile, {});
+  client.setQueryData(queryKeys.myConsent, {});
+  client.setQueryData(queryKeys.patientConsent('p1'), {});
   return client;
 }
 
@@ -27,6 +29,14 @@ function invalidatedKeys(client: QueryClient): ReadonlyArray<string> {
 }
 
 describe('invalidateFor', () => {
+  it('should refresh the own and every patient consent view after a consent changes (ADR-019)', async () => {
+    const client = seededClient();
+
+    await invalidateFor(client, 'consent-change');
+
+    expect(invalidatedKeys(client)).toEqual(['consent', 'consent']);
+  });
+
   it('should refresh slots, appointments and the unread counter after a booking (§5.1)', async () => {
     const client = seededClient();
 

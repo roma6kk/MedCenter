@@ -28,6 +28,11 @@ describe('errorCodeMap', () => {
     expect(errorCodeToUx('SLOT_CONFLICT')).toEqual({ kind: 'slot-conflict' });
   });
 
+  it('should give the consent codes their own UX instead of the generic banner (ADR-019)', () => {
+    expect(errorCodeToUx('CONSENT_REQUIRED')).toEqual({ kind: 'consent-required' });
+    expect(errorCodeToUx('CONSENT_ALREADY_ACTIVE')).toEqual({ kind: 'consent-active' });
+  });
+
   it.each([
     ['ROOM_IN_USE', 'room'],
     ['SERVICE_IN_USE', 'service'],

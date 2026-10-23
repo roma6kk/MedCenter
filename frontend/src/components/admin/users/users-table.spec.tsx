@@ -46,4 +46,26 @@ describe('UsersTable', () => {
 
     expect(screen.getAllByText(link).length).toBeGreaterThan(0);
   });
+  describe('consent link', () => {
+    const patient = { id: 'u1', name: 'Кузнецов Алексей', roles: ['PATIENT'], patientRef: 'Patient/p-77', isActive: true };
+    const doctor = { id: 'u2', name: 'Иванова Анна', roles: ['DOCTOR'], practitionerRoleRef: 'PractitionerRole/r1', isActive: true };
+
+    it('should link an account tied to a patient to the consent page of that patient when links are enabled', () => {
+      render(<UsersTable rows={[patient, doctor]} meta={meta} onPage={jest.fn()} consentLinks />);
+
+      // The table renders each row for both the wide and the narrow layout, so the link is there once per layout.
+      const links = screen.getAllByRole('link', { name: /Согласие на электронную медкарту/ });
+      expect(links.length).toBeGreaterThan(0);
+      links.forEach((link) => {
+        expect(link).toHaveAccessibleName('Согласие на электронную медкарту: Кузнецов Алексей');
+        expect(link).toHaveAttribute('href', '/admin/patients/p-77/consent');
+      });
+    });
+
+    it('should show no consent link unless links are enabled', () => {
+      render(<UsersTable rows={[patient]} meta={meta} onPage={jest.fn()} />);
+
+      expect(screen.queryByRole('link', { name: /Согласие/ })).not.toBeInTheDocument();
+    });
+  });
 });

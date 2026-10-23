@@ -17,6 +17,8 @@ export type ErrorUx =
   | { kind: 'forbidden' }
   | { kind: 'not-found' }
   | { kind: 'banner-generic' }
+  | { kind: 'consent-required' }
+  | { kind: 'consent-active' }
   | { kind: 'slot-conflict' }
   | { kind: 'appointment-refresh' }
   | { kind: 'encounter-readonly' }
@@ -40,9 +42,9 @@ export const errorCodeMap: Readonly<Record<ErrorCode, ErrorUx>> = {
   CONFLICT: { kind: 'banner-generic' },
   SLOT_CONFLICT: { kind: 'slot-conflict' },
   APPOINTMENT_NOT_CANCELLABLE: { kind: 'appointment-refresh' },
-  // ADR-019: the screens that raise these get their own handling in a later stage; until then the generic banner.
-  CONSENT_REQUIRED: { kind: 'banner-generic' },
-  CONSENT_ALREADY_ACTIVE: { kind: 'banner-generic' },
+  // ADR-019: 7.1/7.3 without a consent open `ConsentRequiredNotice`; 3.8 over an active consent says to revoke it first.
+  CONSENT_REQUIRED: { kind: 'consent-required' },
+  CONSENT_ALREADY_ACTIVE: { kind: 'consent-active' },
   ENCOUNTER_STATE_INVALID: { kind: 'encounter-readonly' },
   SCHEDULE_OVERLAP: { kind: 'schedule-highlight' },
   SCHEDULE_IN_USE: { kind: 'in-use-conflict', resource: 'schedule' },

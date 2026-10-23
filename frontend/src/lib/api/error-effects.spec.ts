@@ -25,6 +25,10 @@ describe('effectsFor (mutation)', () => {
     expect(effectsFor(problem('ENCOUNTER_STATE_INVALID')).invalidate).toEqual([['encounter'], ['doctorAppointments']]);
   });
 
+  it.each(['CONSENT_REQUIRED', 'CONSENT_ALREADY_ACTIVE'] as const)('should refetch the consent status without a toast on %s (it was stale)', (code) => {
+    expect(effectsFor(problem(code))).toEqual({ toast: null, invalidate: [['consent']] });
+  });
+
   it('should toast the wait time when RATE_LIMITED carries Retry-After', () => {
     expect(effectsFor(problem('RATE_LIMITED', { status: 429, retryAfter: 30 })).toast).toEqual({
       tone: 'error',
@@ -41,7 +45,7 @@ describe('effectsFor (mutation)', () => {
     expect(effectsFor(networkProblem()).toast).toEqual({ tone: 'error', messageKey: 'errors.NETWORK' });
   });
 
-  it.each(ERROR_CODES.filter((code) => !['SLOT_CONFLICT', 'APPOINTMENT_NOT_CANCELLABLE', 'ENCOUNTER_STATE_INVALID', 'RATE_LIMITED'].includes(code)))(
+  it.each(ERROR_CODES.filter((code) => !['SLOT_CONFLICT', 'APPOINTMENT_NOT_CANCELLABLE', 'ENCOUNTER_STATE_INVALID', 'RATE_LIMITED', 'CONSENT_REQUIRED', 'CONSENT_ALREADY_ACTIVE'].includes(code)))(
     'should have no global side effect for %s (the screen owns its UX)',
     (code) => {
       expect(effectsFor(problem(code))).toEqual({ toast: null, invalidate: [] });

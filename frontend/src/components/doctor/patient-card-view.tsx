@@ -5,6 +5,8 @@ import { isApiError } from '@/lib/api/api-fetch';
 import { errorCodeToUx } from '@/lib/api/error-code-map';
 import { useDocumentTitle } from '@/hooks/use-document-title';
 import { useT } from '@/lib/i18n/use-t';
+import { PatientConsentBanner } from '@/components/consent/patient-consent-banner';
+import { StaffConsentPanel } from '@/components/consent/staff-consent-panel';
 import { PatientHeader } from './patient-header';
 import { PatientHistoryTimeline } from './patient-history-timeline';
 import { PatientPrescriptions } from './patient-prescriptions';
@@ -32,7 +34,9 @@ export function PatientCardView({ patientId }: { readonly patientId: string }): 
   return (
     <>
       <PatientHeader patientId={patientId} />
+      <PatientConsentBanner patientId={patientId} />
       <RelatedPersons patientId={patientId} />
+      <div className="mt-6"><StaffConsentPanel patientId={patientId} role="DOCTOR" /></div>
       <PatientHistoryTimeline patientId={patientId} />
       <PatientPrescriptions patientId={patientId} />
     </>

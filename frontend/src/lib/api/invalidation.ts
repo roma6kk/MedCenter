@@ -14,6 +14,7 @@ export type MutationKind =
   | 'open-encounter'
   | 'complete-encounter'
   | 'read-notification'
+  | 'consent-change'
   | 'admin-users'
   | 'admin-services'
   | 'admin-rooms'
@@ -42,6 +43,8 @@ export const INVALIDATION: Readonly<Record<MutationKind, ReadonlyArray<QueryKey>
     queryRoots.appointmentDetail,
   ],
   'read-notification': [queryRoots.notifications],
+  // A consent recorded or revoked changes the encounter gate, the booking reason field and every consent panel.
+  'consent-change': [queryRoots.consent],
   // A new doctor account is a new entry of the public catalogue too.
   'admin-users': [queryRoots.adminUsers, queryRoots.doctors],
   'admin-services': [queryRoots.services],

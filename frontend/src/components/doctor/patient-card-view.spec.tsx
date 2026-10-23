@@ -10,6 +10,7 @@ import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { apiFetch } from '@/lib/api/api-fetch';
 import { callsTo, pageOf, problem, renderWithClient, routeApi, type ApiMock, type ApiRoute } from './doctor-test-utils';
+import { ACTIVE_RECORD } from '@/components/consent/consent-fixtures';
 import { PatientCardView } from './patient-card-view';
 
 const apiFetchMock = apiFetch as ApiMock;
@@ -45,6 +46,7 @@ const SERVICE = { id: 's1', kind: 'service', status: 'active', codeSystem: 'http
 
 function defaultRoutes(): ReadonlyArray<ApiRoute> {
   return [
+    { path: '/api/v1/patients/p1/consent', respond: () => ({ active: ACTIVE_RECORD, history: [ACTIVE_RECORD] }) },
     { path: '/api/v1/patients/p1/related', respond: () => pageOf([RELATED]) },
     { path: '/api/v1/patients/p1/history', respond: () => pageOf([HISTORY]) },
     { path: '/api/v1/patients/p1/prescriptions', respond: () => pageOf([MEDICATION, SERVICE]) },
@@ -203,5 +205,22 @@ describe('PatientCardView prescriptions (API 7.5)', () => {
     setup([{ path: '/api/v1/patients/p1/prescriptions', respond: () => pageOf([]) }]);
 
     expect(await screen.findByText('Назначений нет')).toBeInTheDocument();
+  });
+  describe('consent to the electronic record (ADR-019)', () => {
+    it('should show the consent panel with its status and the recording form for a doctor', async () => {
+      setup();
+
+      const panel = await screen.findByRole('region', { name: 'Согласие на электронную медкарту' });
+      expect(await within(panel).findByText('Согласие действует')).toBeInTheDocument();
+      expect(within(panel).getByRole('form', { name: 'Внести бумажное согласие или отказ' })).toBeInTheDocument();
+      expect(screen.queryByTestId('consent-banner')).not.toBeInTheDocument();
+    });
+
+    it('should warn up front, before any encounter is tried, when the patient has no active consent', async () => {
+      setup([{ path: '/api/v1/patients/p1/consent', respond: () => ({ active: null, history: [] }) }]);
+
+      expect(await screen.findByTestId('consent-banner')).toHaveTextContent('Нет действующего согласия на электронную медкарту');
+      expect(screen.getByRole('link', { name: 'Оформить согласие' })).toHaveAttribute('href', '#consent');
+    });
   });
 });

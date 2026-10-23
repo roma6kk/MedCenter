@@ -9,7 +9,11 @@ import { ProfileView } from './profile-view';
 jest.mock('./patient-api', () => ({ fetchMyHistory: jest.fn(), fetchMyPrescriptions: jest.fn(), fetchAccount: jest.fn(), fetchPatientProfile: jest.fn() }));
 jest.mock('@/components/appointments/appointment-api', () => ({ fetchAppointments: jest.fn(), fetchAppointment: jest.fn(), cancelAppointment: jest.fn() }));
 
+jest.mock('@/components/consent/consent-api');
+
 import { fetchAppointments } from '@/components/appointments/appointment-api';
+import { fetchMyConsent } from '@/components/consent/consent-api';
+import { NONE } from '@/components/consent/consent-fixtures';
 import { fetchAccount, fetchMyHistory, fetchMyPrescriptions, fetchPatientProfile } from './patient-api';
 
 const accountMock = fetchAccount as jest.MockedFunction<typeof fetchAccount>;
@@ -27,11 +31,14 @@ function loadAll(overrides: { patient?: Parameters<typeof patientProfileFixture>
   appointmentsMock.mockResolvedValue(pageOf([]));
 }
 
+const consentMock = fetchMyConsent as jest.MockedFunction<typeof fetchMyConsent>;
+
 const region = (name: string): HTMLElement => screen.getByRole('region', { name });
 
 describe('ProfileView', () => {
   beforeEach(() => {
     jest.resetAllMocks();
+    consentMock.mockResolvedValue(NONE);
     resetCabinetState();
     window.localStorage.clear();
     jest.useFakeTimers({ doNotFake: ['nextTick', 'setImmediate', 'setTimeout', 'setInterval', 'clearTimeout', 'clearInterval', 'queueMicrotask'], now: new Date('2026-10-22T09:00:00Z') });
@@ -50,6 +57,14 @@ describe('ProfileView', () => {
     expect(within(header).getByRole('img', { name: 'Профиль заполнен на 100 процентов' })).toBeInTheDocument();
     expect(within(header).queryByText('Телефон не указан')).not.toBeInTheDocument();
     expect(document.title).toBe('Профиль — Лайфлайн');
+  });
+
+  it('should show the consent to the electronic record next to the personal data (ADR-019)', async () => {
+    loadAll();
+    renderWithClient(<ProfileView />);
+
+    const section = await screen.findByRole('region', { name: 'Согласие на электронную медкарту' });
+    expect(await within(section).findByText('Согласие не оформлено')).toBeInTheDocument();
   });
 
   it('should warn about a missing phone in the header, the ring, the personal data and a recommendation', async () => {

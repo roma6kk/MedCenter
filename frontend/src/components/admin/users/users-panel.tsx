@@ -54,6 +54,7 @@ export function UsersPanel(): ReactNode {
       <QueryState query={query} isEmpty={(data) => data.items.length === 0} emptyTitle={t('empty')} emptyDescription={t('emptyHint')}>
         {(data) => (
           <UsersTable
+            consentLinks
             rows={data.items}
             meta={data.meta}
             onPage={(page) => { activate.reset(); setFilter({ ...filter, page }); }}

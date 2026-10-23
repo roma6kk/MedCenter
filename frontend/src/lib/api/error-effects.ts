@@ -44,6 +44,10 @@ function mutationEffects(problem: ProblemDetails): ErrorEffects {
       return { toast: null, invalidate: [queryRoots.appointments, queryRoots.appointmentDetail] };
     case 'encounter-readonly':
       return { toast: null, invalidate: [queryRoots.encounters, queryRoots.doctorAppointments] };
+    case 'consent-required':
+    case 'consent-active':
+      // The consent the screen showed is out of date: refresh it so the banner and the form agree with the server.
+      return { toast: null, invalidate: [queryRoots.consent] };
     case 'rate-limit-toast':
       return { toast: rateLimitToast(problem), invalidate: [] };
     default:

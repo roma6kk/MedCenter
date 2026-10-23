@@ -11,6 +11,16 @@ export const ACCOUNT_CONSENT_VERSION_MAX = 64;
 /** Version of the account-consent text shown on the registration form (`auth.register.consent*`); bump it with the text. */
 export const ACCOUNT_CONSENT_VERSION = '2026-10';
 
+/** Consent to the electronic record (api-designer-spec §3.4–3.11, ADR-019): limits of the clerk's form and of the scan. */
+export const CONSENT_FORM_NUMBER_MAX = 64;
+export const CONSENT_SIGNED_BY_MAX = 200;
+export const CONSENT_REPRESENTATIVE_DOCUMENT_MAX = 500;
+export const CONSENT_SCAN_CONTENT_TYPES: ReadonlyArray<string> = ['application/pdf', 'image/jpeg', 'image/png'];
+export const CONSENT_SCAN_MAX_BYTES = 10 * 1024 * 1024;
+/** `emergencyReason` of 7.1 / 7.3: why the patient could not give the consent. */
+export const EMERGENCY_REASON_MIN = 10;
+export const EMERGENCY_REASON_MAX = 500;
+
 export const PASSWORD_MIN = 10;
 export const PASSWORD_MAX = 128;
 
