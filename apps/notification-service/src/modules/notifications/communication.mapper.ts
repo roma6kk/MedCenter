@@ -84,7 +84,8 @@ function describe(event: DomainEvent): Described | undefined {
     case 'appointment.cancelled.v1':
       return {
         category: 'appointment',
-        text: `Запись на приём отменена. Причина: ${stringField(event, 'reason') ?? ''}`,
+        // The free-text reason is health data: it is neither carried by the event nor copied into the message (ADR-021).
+        text: 'Запись на приём отменена.',
         about: referenceTo('Appointment', stringField(event, 'appointmentId')),
       };
     case 'encounter.completed.v1':

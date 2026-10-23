@@ -2,14 +2,13 @@ import { randomUUID } from 'node:crypto';
 import { BadRequestException, ConflictException, Inject, Injectable, InternalServerErrorException, Logger } from '@nestjs/common';
 import type { JwtClaims } from '@medcenter/common';
 import { Role, type ErrorCode } from '@medcenter/contracts';
-import { assertActiveConsent, findActiveConsent, FHIR_CLIENT, type FhirClient, type FhirResource } from '@medcenter/fhir';
+import { assertActiveConsent, findActiveConsent, FHIR_CLIENT, outboxWrite, type FhirClient, type FhirResource } from '@medcenter/fhir';
 import { toAppointmentResponseDto, type AppointmentResponseDto } from '@medcenter/fhir-mappers';
 
-import { AppointmentPublisherService } from '../events/appointment-publisher.service';
+import { bookedEvent, cancelledEvent } from '../events/appointment-events';
 import {
   BOOKED,
   buildBookedAppointment,
-  createdAppointmentId,
   missingReference,
   rolePractitionerId,
   scheduleActorId,
@@ -52,7 +51,6 @@ export class AppointmentsService {
 
   constructor(
     @Inject(FHIR_CLIENT) private readonly fhir: FhirClient,
-    private readonly events: AppointmentPublisherService,
     @Inject(CONSENT_ENFORCEMENT_MODE) private readonly consentEnforcement: ConsentEnforcement,
   ) {}
 
@@ -62,23 +60,13 @@ export class AppointmentsService {
     const patientRef = requirePatientReference(claims);
     const reason = await this.reasonAllowedByConsent(patientRef, dto.reason);
     const bookable = await this.loadBookableSlot(dto);
-    const appointmentRef = `urn:uuid:${randomUUID()}`;
-    const appointment = buildBookedAppointment(bookable, patientRef, reason);
+    // Client-assigned id (as ADR-020): the outbox event names the appointment, and the event is written in the
+    // same transaction, before HAPI could assign an id.
+    const appointmentId = randomUUID();
+    const appointment: FhirResource = { ...buildBookedAppointment(bookable, patientRef, reason), id: appointmentId };
     const { slot, slotId, practitionerRoleId, serviceId } = bookable;
-    const audit = { interaction: 'create', actorSub: claims.sub, entityRef: appointmentRef, patientRef, requestId } as const;
-
-    const response = await commitTransaction(
-      this.fhir,
-      [
-        { method: 'PUT', url: `Slot/${slotId}`, resource: { ...slot, status: 'busy' }, ifMatch: versionOf(slot) },
-        { method: 'POST', url: 'Appointment', fullUrl: appointmentRef, resource: appointment },
-        auditWrite(audit),
-      ],
-      'SLOT_CONFLICT',
-    );
-    const appointmentId = createdAppointmentId(response);
-
-    await this.events.publishBooked({
+    const audit = { interaction: 'create', actorSub: claims.sub, entityRef: `Appointment/${appointmentId}`, patientRef, requestId } as const;
+    const event = bookedEvent({
       appointmentId,
       patientRef,
       practitionerRoleRef: `PractitionerRole/${practitionerRoleId}`,
@@ -86,7 +74,19 @@ export class AppointmentsService {
       start: stringOf(appointment, 'start'),
       serviceId,
     });
-    return toAppointmentResponseDto({ ...appointment, id: appointmentId });
+
+    // One atomic commit: the booking, its audit and the outbox event exist together or not at all (ADR-021).
+    await commitTransaction(
+      this.fhir,
+      [
+        { method: 'PUT', url: `Slot/${slotId}`, resource: { ...slot, status: 'busy' }, ifMatch: versionOf(slot) },
+        { method: 'PUT', url: `Appointment/${appointmentId}`, resource: appointment },
+        auditWrite(audit),
+        outboxWrite(event),
+      ],
+      'SLOT_CONFLICT',
+    );
+    return toAppointmentResponseDto(appointment);
   }
 
   /**
@@ -120,18 +120,17 @@ export class AppointmentsService {
     const { slotId, slot } = await this.readSlotOf(appointment, appointmentId);
     const cancelled: FhirResource = { ...appointment, status: 'cancelled', cancelationReason: { text: dto.reason } };
     const patientRef = patientRefOf(appointment);
+    const actorType = claims.role === Role.ADMIN ? 'ADMIN' : 'PATIENT';
     await commitTransaction(
       this.fhir,
       [
         { method: 'PUT', url: `Appointment/${appointmentId}`, resource: cancelled, ifMatch: versionOf(appointment) },
         { method: 'PUT', url: `Slot/${slotId}`, resource: { ...slot, status: 'free' }, ifMatch: versionOf(slot) },
         auditWrite({ interaction: 'update', actorSub: claims.sub, entityRef: `Appointment/${appointmentId}`, patientRef, requestId }),
+        outboxWrite(cancelledEvent({ appointmentId, patientRef: patientRef ?? '', actorType })),
       ],
       'APPOINTMENT_NOT_CANCELLABLE',
     );
-
-    const actorType = claims.role === Role.ADMIN ? 'ADMIN' : 'PATIENT';
-    await this.events.publishCancelled({ appointmentId, patientRef: patientRef ?? '', reason: dto.reason, actorType });
     return toAppointmentResponseDto(cancelled);
   }
 

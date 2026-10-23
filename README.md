@@ -2,7 +2,8 @@
 
 Web application of a medical center (patients book appointments, doctors run encounters, admins manage users,
 services, rooms and schedules). Clinical data lives in **HAPI FHIR JPA (R4)**; the own code is **8 NestJS BFF
-services** behind **Traefik** and a **Next.js** client. Design: [specs/MANIFEST.md](specs/MANIFEST.md),
+services** behind **Traefik**, an **outbox relay** (`apps/outbox-relay`, ADR-021: booking and cancellation events are
+written to HAPI in the booking transaction and published to RabbitMQ from there) and a **Next.js** client. Design: [specs/MANIFEST.md](specs/MANIFEST.md),
 architecture and ADRs: [specs/architect-architecture.md](specs/architect-architecture.md) (diagrams in
 [docs/diagrams/](docs/diagrams/)), API contract: [specs/api-designer-spec.md](specs/api-designer-spec.md),
 change history: [CHANGELOG.md](CHANGELOG.md).

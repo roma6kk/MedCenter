@@ -27,4 +27,10 @@ export const MEDCENTER_EXT = {
   CONSENT_REPRESENTATIVE_DOCUMENT: `${EXTENSION_BASE}/consent-representative-document`,
   /** `Consent` number of the written application that revoked it — valueString (ADR-019). */
   CONSENT_REVOCATION_NUMBER: `${EXTENSION_BASE}/consent-revocation-number`,
+  /** Outbox `Basic` routing key of the event, e.g. `appointment.booked.v1` — valueCode (ADR-021). */
+  OUTBOX_EVENT_TYPE: `${EXTENSION_BASE}/outbox-event-type`,
+  /** Outbox `Basic` id of the event, the broker `messageId` and the consumers' dedup key — valueString (ADR-021). */
+  OUTBOX_EVENT_ID: `${EXTENSION_BASE}/outbox-event-id`,
+  /** Outbox `Basic` the whole event envelope as JSON, opaque to the relay — valueString (ADR-021). */
+  OUTBOX_PAYLOAD: `${EXTENSION_BASE}/outbox-payload`,
 } as const;

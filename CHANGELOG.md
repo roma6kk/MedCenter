@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Transactional outbox, stage 1 (ADR-021): `appointment.booked.v1` and `appointment.cancelled.v1` are written as FHIR
+  `Basic` outbox records in the same transaction Bundle as the booking or cancellation, and the new `apps/outbox-relay`
+  service publishes them to RabbitMQ (at-least-once, Redis lock, `If-Match` status update). Sent records are deleted
+  after 7 days and expunged (`HAPI_FHIR_EXPUNGE_ENABLED`). Outbox helpers in `libs/fhir` and `libs/terminology`.
 - Frontend (`frontend/`) — standalone Next.js 15 App Router client (5 route groups, 27 routes): public catalog,
   SMART sign-in, patient cabinet (booking, appointments, history, prescriptions, profile, notifications),
   doctor cabinet (journal, schedule, encounter, patient), admin section (analytics, users, services, rooms,
@@ -59,6 +63,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- `appointment.cancelled.v1`: `reason` is optional and no longer sent (payload minimisation); the cancellation
+  notification no longer quotes it. Appointments are created with a client-assigned UUID id.
 - `EncounterCompleteForm` now submits the full atomic `CompleteEncounterDto` (МКБ-10 diagnoses ≥ 1,
   `ServiceRequest`/`MedicationRequest`, UCUM select-only unit), so an encounter can actually be completed.
 - `specs/MANIFEST.md` now records the backend implementation status and the tooling spec.

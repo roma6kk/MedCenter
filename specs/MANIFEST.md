@@ -52,7 +52,7 @@ UCUM) подключается по canonical URL `https://fhir.by/...`. Арх�
 
 | File | Purpose | Depends On | Last Updated |
 | --- | --- | --- | --- |
-| `architect-architecture.md` | Системный дизайн, слои, размещение модулей, интерфейсы, ADR-001…ADR-020 (ADR-012 — оптимистичный `If-Match`; ADR-020 — аудит каталога); диаграммы `docs/diagrams/*.drawio` | - | 2026-10-23 |
+| `architect-architecture.md` | Системный дизайн, слои, размещение модулей, интерфейсы, ADR-001…ADR-021 (ADR-012 — оптимистичный `If-Match`; ADR-020 — аудит каталога; ADR-021 — transactional outbox); диаграммы `docs/diagrams/*.drawio` | - | 2026-10-23 |
 | `api-designer-spec.md` | Эндпоинты `/api/v1` (9 доменов, 59 эндпоинтов), DTO, SMART/OAuth2, ошибки RFC 7807, Swagger, Bruno, трассируемость 21 FR; отклонения live-стенда: FHIR-id вместо UUID, семантика `DELETE schedule` (5.2.4); сверено с кодом по Bruno-коллекции (2026-10-23); Swagger/OpenAPI реализован (§10: `/api/docs/<service>`, `SWAGGER_ENABLED`, `problemDetails`), расхождения OAuth/коды ошибок/FHIR-id устранены | architect-architecture | 2026-10-23 |
 | `frontend-design-spec.md` | Клиент Next.js: дизайн-система, маршруты по ролям (5 route groups), компоненты, состояние, карта errorCode→UX, E2E Playwright, трассируемость 21 FR; редизайн «Спокойная клиника» (токены, шрифты, примитивы, главная); статус E2E §6 — все сценарии реализованы | architect-architecture, api-designer-spec | 2026-10-23 |
 | `docs-generator-implementation.md` | Nx-воркспейс и dev-стек бэкенда + сборка, тесты, env и auth-контур фронтенда | - | 2026-10-05 |

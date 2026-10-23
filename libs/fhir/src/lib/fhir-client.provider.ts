@@ -25,6 +25,7 @@ export interface FhirClient {
     resourceType: string,
     operation: string,
     params?: Record<string, unknown>,
+    options?: FhirOperationOptions,
   ): Promise<FhirResource>;
   /**
    * Submits a FHIR Bundle (batch/transaction) in one HTTP request.
@@ -32,6 +33,14 @@ export interface FhirClient {
    * per-entry outcome (e.g. `201 Created`) for callers to inspect.
    */
   batch(bundle: FhirResource): Promise<FhirResource>;
+}
+
+/** How an operation is invoked when the default type-level `GET` does not fit. */
+export interface FhirOperationOptions {
+  /** `POST` sends `params` as a `Parameters` body, as non-idempotent operations such as `$expunge` require. */
+  readonly method?: 'GET' | 'POST';
+  /** Makes the call instance-level: `<resourceType>/<id>/<operation>`. */
+  readonly id?: string;
 }
 
 export interface FhirSearchResult {
@@ -118,8 +127,13 @@ export class HttpClient implements FhirClient {
     resourceType: string,
     operation: string,
     params: Record<string, unknown> = {},
+    options: FhirOperationOptions = {},
   ): Promise<FhirResource> {
-    return this.request<FhirResource>('GET', withQuery(`${resourceType}/${operation}`, params));
+    const target = options.id === undefined ? resourceType : `${resourceType}/${encodeURIComponent(options.id)}`;
+    if (options.method === 'POST') {
+      return this.request<FhirResource>('POST', `${target}/${operation}`, toParameters(params));
+    }
+    return this.request<FhirResource>('GET', withQuery(`${target}/${operation}`, params));
   }
 
   async batch(bundle: FhirResource): Promise<FhirResource> {
@@ -208,6 +222,22 @@ export class HttpClient implements FhirClient {
 
 function isTimeoutError(error: unknown): boolean {
   return error instanceof Error && error.name === 'TimeoutError';
+}
+
+/** `Parameters` body of a `POST` operation; booleans, integers and strings are the only value types the callers need. */
+function toParameters(params: Record<string, unknown>): FhirResource {
+  const parameter = Object.entries(params)
+    .filter(([, value]) => value !== undefined && value !== null)
+    .map(([name, value]) => {
+      if (typeof value === 'boolean') {
+        return { name, valueBoolean: value };
+      }
+      if (typeof value === 'number') {
+        return { name, valueInteger: value };
+      }
+      return { name, valueString: String(value) };
+    });
+  return { resourceType: 'Parameters', parameter };
 }
 
 /** Builds `<path>?<query>`, skipping empty values. Array values become

@@ -6,3 +6,4 @@ export * from './lib/consent-audit';
 export * from './lib/fhir-transaction';
 export * from './lib/write-audit';
 export * from './lib/audited-write';
+export * from './lib/outbox';

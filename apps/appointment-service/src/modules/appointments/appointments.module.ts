@@ -1,7 +1,6 @@
 import { Module } from '@nestjs/common';
 import { createFhirClientProvider } from '@medcenter/fhir';
 
-import { EventsModule } from '../events/events.module';
 import { IdempotencyModule } from '../idempotency/idempotency.module';
 import { consentEnforcementProvider } from './consent-enforcement';
 import { AppointmentQueriesService } from './appointment-queries.service';
@@ -10,7 +9,7 @@ import { AppointmentsService } from './appointments.service';
 import { DoctorAppointmentsController } from './doctor-appointments.controller';
 
 @Module({
-  imports: [EventsModule, IdempotencyModule],
+  imports: [IdempotencyModule],
   controllers: [AppointmentsController, DoctorAppointmentsController],
   providers: [createFhirClientProvider(), consentEnforcementProvider, AppointmentsService, AppointmentQueriesService],
 })

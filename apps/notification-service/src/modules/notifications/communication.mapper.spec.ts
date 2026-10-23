@@ -33,6 +33,12 @@ describe('communicationFromEvent', () => {
     expect(completed?.['about']).toEqual([{ reference: 'Encounter/e9' }]);
   });
 
+  it('should word a cancellation without the reason even when an older event still carries one', () => {
+    const communication = communicationFromEvent(event({ type: 'appointment.cancelled.v1', appointmentId: '7', patientRef: 'Patient/1', reason: 'Заболел', actorType: 'PATIENT' }));
+
+    expect(communication?.['payload']).toEqual([{ contentString: 'Запись на приём отменена.' }]);
+  });
+
   it('should leave about out when the event names nothing to point at, such as a registration', () => {
     const communication = communicationFromEvent(event({ type: 'patient.registered.v1', patientId: '5', email: 'x@y.test' }));
 

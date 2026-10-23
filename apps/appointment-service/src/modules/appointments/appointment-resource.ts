@@ -2,7 +2,6 @@ import { InternalServerErrorException } from '@nestjs/common';
 import type { FhirResource } from '@medcenter/fhir';
 
 import { parseReference } from './fhir-reference';
-import { idFromLocation } from './fhir-transaction';
 
 export const BOOKED = 'booked';
 
@@ -70,14 +69,4 @@ export function buildBookedAppointment(bookable: BookableSlot, patientRef: strin
     ],
     ...(reason === undefined ? {} : { reasonCode: [{ text: reason }] }),
   };
-}
-
-/** Id HAPI assigned to the Appointment, the second entry of the booking transaction. */
-export function createdAppointmentId(transactionResponse: FhirResource): string {
-  const entries = (transactionResponse['entry'] as Array<{ response?: { location?: string } }> | undefined) ?? [];
-  const appointmentId = idFromLocation(entries[1]?.response?.location);
-  if (appointmentId === '') {
-    throw new InternalServerErrorException({ errorCode: 'INTERNAL', message: 'Transaction response has no Appointment id' });
-  }
-  return appointmentId;
 }

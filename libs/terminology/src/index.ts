@@ -4,3 +4,4 @@ export * from './lib/validators/atc';
 export * from './lib/validators/ucum';
 export * from './lib/extension-urls';
 export * from './lib/consent-codes';
+export * from './lib/outbox-codes';

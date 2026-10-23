@@ -1,5 +1,5 @@
 # Lifeline stack (TASK-001). NFR-001 (>= 6 containers): 5 infrastructure
-# containers + 8 NestJS BFF services + the Next.js web client = 14.
+# containers + 8 NestJS BFF services + the outbox relay + the Next.js web client = 15.
 #
 #   docker compose up -d --build        # whole system
 #   open http://localhost:3000          # web client (browser entry point)
@@ -27,8 +27,8 @@
 # Network exposure: every published port is bound to 127.0.0.1, nothing listens on
 # a LAN interface. Containers are split over three networks:
 #   edge     traefik, web                         (what the browser reaches)
-#   backend  traefik, 8 BFFs, hapi                (what Traefik routes to)
-#   data     8 BFFs, hapi, postgres, redis, rabbitmq
+#   backend  traefik, 8 BFFs, outbox-relay, hapi  (what Traefik routes to; the relay has no route)
+#   data     8 BFFs, outbox-relay, hapi, postgres, redis, rabbitmq
 # so the internet-facing containers (traefik, web) cannot reach the data stores.
 #
 # Secret scoping: the RS256 signing key (JWT_PRIVATE_KEY/JWT_PUBLIC_KEY), the
@@ -101,9 +101,10 @@ x-bff-env: &bff-env
   FHIR_TIMEOUT_MS:
 
 # Only for services that publish or consume domain events: auth-service
-# (patient events), appointment-service, encounter-service, notification-service
-# and analytics-service. practitioner, catalog and patient neither need the
-# broker URL nor depend on rabbitmq.
+# (patient events), outbox-relay (appointment events, ADR-021), encounter-service,
+# notification-service and analytics-service. practitioner, catalog, patient and
+# appointment-service neither need the broker URL nor depend on rabbitmq: appointment-service
+# only writes the outbox `Basic` into HAPI.
 x-mq-env: &mq-env
   RABBITMQ_URL: amqp://${RABBITMQ_USER:-guest}:${RABBITMQ_PASSWORD:-guest}@rabbitmq:5672
 
@@ -240,6 +241,10 @@ services:
       SPRING_JPA_PROPERTIES_HIBERNATE_DIALECT: org.hibernate.dialect.PostgreSQLDialect
       # The JVM sizes its heap from the 3g container limit (default is only 25%).
       JAVA_TOOL_OPTIONS: -XX:MaxRAMPercentage=60.0
+      # `$expunge` (hapi.fhir.expunge_enabled) lets outbox-relay physically drop the sent outbox
+      # records it deleted after the 7-day retention window (ADR-021). HAPI is not routed to the
+      # public edge, so only backend services can call it.
+      HAPI_FHIR_EXPUNGE_ENABLED: 'true'
     depends_on:
       <<: *dep-postgres
     networks: [backend, data]
@@ -358,11 +363,11 @@ services:
       <<: *bff-build
       args: { APP: appointment-service, PORT: '3005' }
     environment:
-      <<: [*bff-env, *mq-env]
+      <<: *bff-env
       PORT: '3005'
       HEALTH_PATH: /health
     depends_on:
-      <<: [*dep-hapi, *dep-redis, *dep-rabbitmq]
+      <<: [*dep-hapi, *dep-redis]
 
   notification-service:
     <<: *bff
@@ -403,6 +408,21 @@ services:
       AUDIT_SYNC_INTERVAL_MS:
     depends_on:
       <<: [*dep-hapi, *dep-redis, *dep-rabbitmq, *dep-postgres]
+
+  # Transactional-outbox relay (ADR-021): no database, no public API (only /health, not
+  # routed by Traefik). Polls the outbox `Basic` records in HAPI and publishes them to
+  # RabbitMQ; one replica works at a time (Redis lock), so it can be scaled out.
+  outbox-relay:
+    <<: *bff
+    build:
+      <<: *bff-build
+      args: { APP: outbox-relay, PORT: '3009' }
+    environment:
+      <<: [*bff-env, *mq-env]
+      PORT: '3009'
+      HEALTH_PATH: /health
+    depends_on:
+      <<: [*dep-hapi, *dep-redis, *dep-rabbitmq]
 
   # --- Next.js web client -------------------------------------------------------
 

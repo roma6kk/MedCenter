@@ -131,12 +131,13 @@ SMART-scopes и RBAC общим guard-слоем (`libs/common`); Traefik мар
 
 | Событие | Издатель | Потребители | Ключевые поля payload |
 | --- | --- | --- | --- |
-| `appointment.booked.v1` | appointment-service | notification-service | `appointmentId`, `patientRef`, `practitionerRoleRef`, `slotRef`, `start`, `serviceId` |
-| `appointment.cancelled.v1` | appointment-service | notification-service | `appointmentId`, `patientRef`, `reason`, `actorType` |
+| `appointment.booked.v1` | appointment-service (через outbox, ADR-021) | notification-service | `appointmentId`, `patientRef`, `practitionerRoleRef`, `slotRef`, `start`, `serviceId` |
+| `appointment.cancelled.v1` | appointment-service (через outbox, ADR-021) | notification-service | `appointmentId`, `patientRef`, `actorType`; `reason` — необязательное, не заполняется (ADR-021) |
 | `encounter.completed.v1` | encounter-service | notification-service | `encounterId`, `patientRef`, `practitionerRef`, `diagnoses[]` |
 | `patient.registered.v1` | patient-service | notification-service | `patientId`, `email` |
 
-Соглашение: события идемпотентно обрабатываются (dedup по `eventId`); контракт — в `libs/contracts`.
+Соглашение: события идемпотентно обрабатываются (dedup по `eventId`); контракт — в `libs/contracts`. Доставка — at-least-once; события
+бронирования и отмены публикует `outbox-relay` из записей `Basic` (ADR-021), остальные — прямой публикацией после коммита (до этапов 2–3).
 
 **4.5 Форматы ошибок**
 
@@ -329,6 +330,24 @@ patient-service. Без действующего согласия 7.1/7.3 отв
 администратором ресурсам id назначает клиент (BFF) — UUID (`PUT`), чтобы `AuditEvent` в Bundle ссылался на id до создания. Журнал
 `GET /admin/audit` (analytics-service) читает обе формы (буквальную и логическую). *Следствие:* удаление не блокируется аудитом, история
 сохраняется; ресурс в журнале определяется по паре `resourceType`/`resourceId`. Дополняет ADR-014.
+
+**ADR-021 · Transactional outbox на FHIR `Basic` и сервис `outbox-relay` · Accepted (FR-008, NFR-005; владелец, 2026-10-23; этап 1 — бронирование и отмена)** —
+*Контекст:* событие публикуется после коммита транзакции HAPI; при сбое брокера бронь есть, а уведомления и аналитики нет (разрыв
+был записан в `coder-m3-booking-spec.md`). *Решение:* запись о событии — ресурс `Basic` с `code` = `outbox-event`
+(`system=https://fhir.by/CodeSystem/outbox`), добавляемый **той же транзакцией Bundle**, что и бизнес-изменение. У записи нет `subject` и
+буквальных ссылок на другие ресурсы (referential integrity HAPI не даст удалить такие ресурсы). Статус — `meta.tag`
+(`system=https://fhir.by/CodeSystem/outbox-status`, `pending` | `sent`); тип события, `eventId` и JSON-payload — расширения
+`MEDCENTER_EXT.OUTBOX_*` (`libs/terminology`). Отдельный сервис `apps/outbox-relay` (своей БД и публичного API нет, только `/health`) раз в
+несколько секунд читает `Basic?code=outbox-event&_tag=…|pending` пачкой (`_count`), публикует каждое через `AmqpEventPublisher`
+(`messageId` = `eventId`) и помечает пачку `sent` одной транзакцией с `If-Match` на прочитанные версии (параллельная реплика
+проигрывает чисто); опрос идёт под Redis-замком (`SET NX PX` с токеном), поэтому реплики не дублируют работу. Payload для relay
+непрозрачен: схемы `libs/contracts` он не импортирует. *Ретенция:* `sent` старше 7 суток relay удаляет и вызывает `$expunge`
+(в HAPI включено `hapi.fhir.expunge_enabled`); `pending` не удаляется никогда, `pending` старше 5 минут даёт предупреждение в логе
+(без payload). *Минимизация:* запись и событие не несут свободного текста причины отмены; `reason` в
+`appointment.cancelled.v1` стал необязательным (обратная совместимость, версия не меняется), уведомление причину не показывает.
+*Следствие:* доставка at-least-once — возможны дубликаты, их снимают потребители (notification по `eventId`, analytics по
+`processed_event`); прямая публикация после коммита для этих двух событий удалена. Этап 2 (encounter-service) и этап 3 (auth-service) —
+отдельные шаги. Уточняет ADR-005, опирается на ADR-011/012.
 
 #### 9. Трассируемость
 
