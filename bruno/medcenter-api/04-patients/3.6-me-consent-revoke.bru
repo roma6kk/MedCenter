@@ -1,0 +1,25 @@
+meta {
+  name: 3.6 Revoke own consent
+  type: http
+  seq: 5
+  tags: [
+    write
+    destructive
+    role-patient
+  ]
+}
+
+post {
+  url: {{baseUrl}}/api/v1/me/consent/revoke
+  body: none
+  auth: inherit
+}
+
+assert {
+  res.status: eq 200
+  res.body.status: eq inactive
+}
+
+docs {
+  **Destructive for the demo data**: blocks new bookings with a reason and encounters until a paper consent is entered again (3.8). Empty body. 404 `NOT_FOUND` without an active consent.
+}

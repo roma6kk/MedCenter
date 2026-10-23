@@ -1,0 +1,23 @@
+meta {
+  name: 3.4 Own consent
+  type: http
+  seq: 4
+  tags: [
+    ro-patient
+  ]
+}
+
+get {
+  url: {{baseUrl}}/api/v1/me/consent
+  body: none
+  auth: inherit
+}
+
+assert {
+  res.status: eq 200
+  res.body.history: isArray
+}
+
+docs {
+  Spec 3.4. PATIENT. `{ active: ConsentResponse | null, history: [...] }`, newest first.
+}

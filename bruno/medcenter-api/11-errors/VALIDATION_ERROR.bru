@@ -1,0 +1,42 @@
+meta {
+  name: 400 VALIDATION_ERROR
+  type: http
+  seq: 3
+  tags: [
+    errors
+    ro-public
+    ro-admin
+    ro-doctor
+    ro-patient
+  ]
+}
+
+post {
+  url: {{baseUrl}}/api/v1/auth/register
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "email": "not-an-email"
+  }
+}
+
+assert {
+  res.status: eq 400
+  res.body.errorCode: eq VALIDATION_ERROR
+  res.body.status: eq 400
+  res.body.details: isArray
+}
+
+tests {
+  test('details[] names the offending fields', function () {
+    const fields = res.body.details.map(function (d) { return d.field; });
+    expect(fields).to.include('email');
+  });
+}
+
+docs {
+  Invalid body: `details[]` carries `{ field, message }` per failed field.
+}

@@ -1,0 +1,30 @@
+meta {
+  name: 2.3.2 Expand value set (by canonical)
+  type: http
+  seq: 3
+  tags: [
+    ro-admin
+    ro-doctor
+  ]
+}
+
+get {
+  url: {{baseUrl}}/api/v1/terminology/expand?system=https%3A%2F%2Ffhir.by%2FValueSet%2Fatc&filter=J01&count=20
+  body: none
+  auth: inherit
+}
+
+params:query {
+  system: https://fhir.by/ValueSet/atc
+  filter: J01
+  count: 20
+}
+
+assert {
+  res.status: eq 200
+  res.body.items: isArray
+}
+
+docs {
+  **Not in the spec** (code only): the same expansion with the canonical in `?system=` instead of the path, used by the web client.
+}

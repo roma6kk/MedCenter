@@ -1,0 +1,41 @@
+meta {
+  name: 5.2.5 Generate slots
+  type: http
+  seq: 12
+  tags: [
+    write
+    crud-schedules
+    role-admin
+  ]
+}
+
+post {
+  url: {{baseUrl}}/api/v1/admin/schedules/{{newScheduleId}}/generate
+  body: json
+  auth: inherit
+}
+
+headers {
+  Idempotency-Key: {{$guid}}
+}
+
+body:json {
+  {
+    "from": "{{farFrom}}",
+    "to": "{{farTo}}"
+  }
+}
+
+script:pre-request {
+  if (!bru.getVar('newScheduleId')) { bru.runner.skipRequest(); }
+}
+
+assert {
+  res.status: eq 201
+  res.body.generated: isNumber
+  res.body.skipped: isNumber
+}
+
+docs {
+  Spec 5.2.5. ADMIN. Body `{ from, to }` (<= 90 days, inside the horizon); 201 `{ generated, skipped }`, existing slots are not duplicated. Supports `Idempotency-Key` (UUID, 24 h): a repeat returns the cached answer. 409 `CONFLICT` for a deactivated schedule.
+}

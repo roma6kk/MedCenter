@@ -1,0 +1,37 @@
+meta {
+  name: 2.1.5 JWKS
+  type: http
+  seq: 2
+  tags: [
+    ro-public
+    ro-admin
+    ro-doctor
+    ro-patient
+  ]
+}
+
+get {
+  url: {{baseUrl}}/.well-known/jwks.json
+  body: none
+  auth: none
+}
+
+assert {
+  res.status: eq 200
+  res.body.keys: isArray
+}
+
+tests {
+  test('every key is an RS256 public key without private members', function () {
+    const keys = res.body.keys;
+    expect(keys.length).to.be.greaterThan(0);
+    keys.forEach(function (k) {
+      expect(k.kty).to.equal('RSA');
+      expect(k).to.not.have.property('d');
+    });
+  });
+}
+
+docs {
+  Public RS256 key set used by the guard layer of every BFF service (spec 2.1.5).
+}

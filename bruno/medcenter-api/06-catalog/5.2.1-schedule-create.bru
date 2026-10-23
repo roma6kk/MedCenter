@@ -1,0 +1,55 @@
+meta {
+  name: 5.2.1 Create schedule
+  type: http
+  seq: 10
+  tags: [
+    write
+    crud-schedules
+    role-admin
+  ]
+}
+
+post {
+  url: {{baseUrl}}/api/v1/admin/schedules
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "practitionerRoleId": "{{practitionerRoleId}}",
+    "roomId": "{{roomId}}",
+    "serviceId": "{{serviceId}}",
+    "horizonFrom": "{{farFrom}}",
+    "horizonTo": "{{farTo}}",
+    "windows": [
+      {
+        "dayOfWeek": "MO",
+        "startTime": "09:00",
+        "endTime": "12:00"
+      }
+    ],
+    "slotDurationMin": 30,
+    "comment": "Bruno collection"
+  }
+}
+
+script:pre-request {
+  if (!bru.getVar('practitionerRoleId')) { bru.runner.skipRequest(); }
+  if (!bru.getVar('serviceId')) { bru.runner.skipRequest(); }
+  if (!bru.getVar('roomId')) { bru.runner.skipRequest(); }
+}
+
+script:post-response {
+  if (res.status === 201) { bru.setVar('newScheduleId', res.body.id); }
+}
+
+assert {
+  res.status: eq 201
+  res.body.id: isString
+  res.body.isActive: eq true
+}
+
+docs {
+  Spec 5.2.1. ADMIN. `horizonTo - horizonFrom <= 90 days`; `windows[]` `{dayOfWeek MO..SU, startTime HH:mm, endTime}`; `slotDurationMin` 5..120. The ids are FHIR ids (see README: numeric HAPI ids are valid). 409 `SCHEDULE_OVERLAP` on an overlapping horizon of the same `PractitionerRole`. `roomId` is an existing room (4.2/4.3); the horizon is 120 days ahead so it overlaps nothing.
+}

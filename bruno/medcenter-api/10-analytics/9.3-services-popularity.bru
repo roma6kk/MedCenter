@@ -1,0 +1,30 @@
+meta {
+  name: 9.3 Services popularity
+  type: http
+  seq: 3
+  tags: [
+    ro-admin
+  ]
+}
+
+get {
+  url: {{baseUrl}}/api/v1/admin/analytics/services-popularity?top=10
+  body: none
+  auth: inherit
+}
+
+params:query {
+  ~from: 
+  ~to: 
+  top: 10
+}
+
+assert {
+  res.status: eq 200
+  res.body.measure: eq services-popularity
+  res.body.groups: isArray
+}
+
+docs {
+  Spec 9.3. ADMIN. `top` 1..50 (default 10).
+}

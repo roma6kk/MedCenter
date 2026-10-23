@@ -1,0 +1,28 @@
+meta {
+  name: 8.3 Mark read
+  type: http
+  seq: 3
+  tags: [
+    write
+    role-patient
+    flow-patient
+  ]
+}
+
+post {
+  url: {{baseUrl}}/api/v1/notifications/{{notificationId}}/read
+  body: none
+  auth: inherit
+}
+
+script:pre-request {
+  if (!bru.getVar('notificationId')) { bru.runner.skipRequest(); }
+}
+
+assert {
+  res.status: eq 204
+}
+
+docs {
+  Spec 8.3. PATIENT, scope `patient/*.write`. 204; foreign or unknown id -> 404.
+}

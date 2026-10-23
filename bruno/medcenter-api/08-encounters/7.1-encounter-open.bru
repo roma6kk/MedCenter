@@ -1,0 +1,38 @@
+meta {
+  name: 7.1 Open encounter
+  type: http
+  seq: 6
+  tags: [
+    write
+    role-doctor
+  ]
+}
+
+post {
+  url: {{baseUrl}}/api/v1/encounters
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "appointmentId": "{{doctorAppointmentId}}"
+  }
+}
+
+script:pre-request {
+  if (!bru.getVar('doctorAppointmentId')) { bru.runner.skipRequest(); }
+}
+
+script:post-response {
+  if (res.status === 201) { bru.setVar('openedEncounterId', res.body.id); }
+}
+
+assert {
+  res.status: eq 201
+  res.body.status: eq in-progress
+}
+
+docs {
+  Spec 7.1. DOCTOR, scope `user/*.write`. Only for a `booked` appointment (409 `ENCOUNTER_STATE_INVALID`); without an active EMR consent 409 `CONSENT_REQUIRED`, unless `emergencyReason` (10..500) is sent (audited as `emergency-bypass`).
+}

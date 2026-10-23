@@ -1,0 +1,29 @@
+meta {
+  name: 2.2.5 Deactivate user
+  type: http
+  seq: 8
+  tags: [
+    write
+    crud-users
+    role-admin
+  ]
+}
+
+delete {
+  url: {{baseUrl}}/api/v1/admin/users/{{createdUserId}}
+  body: none
+  auth: inherit
+}
+
+script:pre-request {
+  if (!bru.getVar('createdUserId')) { bru.runner.skipRequest(); }
+}
+
+assert {
+  res.status: eq 200
+  res.body.isActive: eq false
+}
+
+docs {
+  Spec 2.2.5. Soft delete: the user is deactivated, the row stays. Answers **200 with the user card** (the spec lists no status).
+}

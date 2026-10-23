@@ -1,0 +1,33 @@
+meta {
+  name: 6.3 Get appointment
+  type: http
+  seq: 2
+  tags: [
+    ro-patient
+  ]
+}
+
+get {
+  url: {{baseUrl}}/api/v1/appointments/{{appointmentId}}
+  body: none
+  auth: inherit
+}
+
+script:pre-request {
+  if (!bru.getVar('appointmentId')) { bru.runner.skipRequest(); }
+}
+
+assert {
+  res.status: eq 200
+  res.body.slotId: isString
+}
+
+tests {
+  test('id is the requested appointmentId', function () {
+    expect(String(res.body.id)).to.equal(String(bru.getVar('appointmentId')));
+  });
+}
+
+docs {
+  Spec 6.3. The owner patient, a DOCTOR who participates, or ADMIN. Adds `doctorName`, `serviceName`, `patientName` to the spec DTO.
+}

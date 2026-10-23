@@ -1,0 +1,34 @@
+meta {
+  name: 5.2.4 Delete schedule
+  type: http
+  seq: 13
+  tags: [
+    write
+    crud-schedules
+    role-admin
+  ]
+}
+
+delete {
+  url: {{baseUrl}}/api/v1/admin/schedules/{{newScheduleId}}
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "cascade": true
+  }
+}
+
+script:pre-request {
+  if (!bru.getVar('newScheduleId')) { bru.runner.skipRequest(); }
+}
+
+assert {
+  res.status: eq 204
+}
+
+docs {
+  Spec 5.2.4. ADMIN. Body `{ "cascade": false }` by default. Without slots -> 204; with free slots only `cascade:true` -> 204 (slots removed, or the schedule is deactivated when appointments reference them); a `busy` slot always -> 409 `SCHEDULE_IN_USE`. A repeat is safe (204).
+}

@@ -1,0 +1,36 @@
+meta {
+  name: 5.2.2 List schedules
+  type: http
+  seq: 6
+  tags: [
+    ro-admin
+  ]
+}
+
+get {
+  url: {{baseUrl}}/api/v1/admin/schedules?active=true&page=1&pageSize=20
+  body: none
+  auth: inherit
+}
+
+params:query {
+  ~doctorId: {{practitionerRoleId}}
+  active: true
+  page: 1
+  pageSize: 20
+}
+
+script:post-response {
+  if (res.status === 200 && res.body.items.length) { bru.setVar('scheduleId', res.body.items[0].id); }
+}
+
+assert {
+  res.status: eq 200
+  res.body.items: isArray
+  res.body.meta.page: isNumber
+  res.body.meta.totalItems: isNumber
+}
+
+docs {
+  Spec 5.2.2. ADMIN. `doctorId` is a `PractitionerRole` id here (the code filters on the role), `active=true|false`. Stores `scheduleId`.
+}

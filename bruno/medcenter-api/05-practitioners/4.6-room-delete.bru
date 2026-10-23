@@ -1,0 +1,28 @@
+meta {
+  name: 4.6 Delete room
+  type: http
+  seq: 7
+  tags: [
+    write
+    crud-rooms
+    role-admin
+  ]
+}
+
+delete {
+  url: {{baseUrl}}/api/v1/admin/rooms/{{newRoomId}}
+  body: none
+  auth: inherit
+}
+
+script:pre-request {
+  if (!bru.getVar('newRoomId')) { bru.runner.skipRequest(); }
+}
+
+assert {
+  res.status: eq 204
+}
+
+docs {
+  Spec 4.6. ADMIN. 204; 409 `ROOM_IN_USE` while an active `Schedule` uses the room (this request deletes the unused room created by 4.4).
+}

@@ -1,0 +1,28 @@
+meta {
+  name: 401 UNAUTHENTICATED (no token)
+  type: http
+  seq: 1
+  tags: [
+    errors
+    ro-public
+    ro-admin
+    ro-doctor
+    ro-patient
+  ]
+}
+
+get {
+  url: {{baseUrl}}/api/v1/me
+  body: none
+  auth: none
+}
+
+assert {
+  res.status: eq 401
+  res.body.errorCode: eq UNAUTHENTICATED
+  res.body.status: eq 401
+}
+
+docs {
+  No `Authorization` header on a protected route.
+}

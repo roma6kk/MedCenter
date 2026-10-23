@@ -1,0 +1,30 @@
+meta {
+  name: 7.7 My prescriptions
+  type: http
+  seq: 2
+  tags: [
+    ro-patient
+  ]
+}
+
+get {
+  url: {{baseUrl}}/api/v1/me/prescriptions?page=1&pageSize=20
+  body: none
+  auth: inherit
+}
+
+params:query {
+  page: 1
+  pageSize: 20
+}
+
+assert {
+  res.status: eq 200
+  res.body.items: isArray
+  res.body.meta.page: isNumber
+  res.body.meta.totalItems: isNumber
+}
+
+docs {
+  Spec 7.7. PATIENT. Medication and service prescriptions (`kind: medication|service`).
+}

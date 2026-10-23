@@ -1,0 +1,28 @@
+meta {
+  name: 404 NOT_FOUND
+  type: http
+  seq: 6
+  tags: [
+    errors
+    ro-public
+    ro-admin
+    ro-doctor
+    ro-patient
+  ]
+}
+
+get {
+  url: {{baseUrl}}/api/v1/services/does-not-exist-0
+  body: none
+  auth: none
+}
+
+assert {
+  res.status: eq 404
+  res.body.errorCode: eq NOT_FOUND
+  res.body.status: eq 404
+}
+
+docs {
+  An unknown but well-formed FHIR id.
+}

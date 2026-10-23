@@ -1,0 +1,30 @@
+meta {
+  name: 2.3.1 List value sets
+  type: http
+  seq: 1
+  tags: [
+    ro-admin
+  ]
+}
+
+get {
+  url: {{baseUrl}}/api/v1/terminology/value-sets
+  body: none
+  auth: inherit
+}
+
+assert {
+  res.status: eq 200
+  res.body.items: isArray
+}
+
+tests {
+  test('the ICD-10 value set is seeded', function () {
+    const urls = res.body.items.map(function (v) { return v.url; });
+    expect(urls).to.include('https://fhir.by/ValueSet/InternClassificDiseases10');
+  });
+}
+
+docs {
+  Spec 2.3.1. ADMIN, scope `user/*.read`. Seeded `ValueSet`s with canonical `https://fhir.by/...`.
+}

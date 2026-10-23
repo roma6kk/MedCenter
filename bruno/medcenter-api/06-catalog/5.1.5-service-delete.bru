@@ -1,0 +1,28 @@
+meta {
+  name: 5.1.5 Delete service
+  type: http
+  seq: 5
+  tags: [
+    write
+    crud-services
+    role-admin
+  ]
+}
+
+delete {
+  url: {{baseUrl}}/api/v1/admin/services/{{newServiceId}}
+  body: none
+  auth: inherit
+}
+
+script:pre-request {
+  if (!bru.getVar('newServiceId')) { bru.runner.skipRequest(); }
+}
+
+assert {
+  res.status: eq 204
+}
+
+docs {
+  Spec 5.1.5. ADMIN. 204; 409 `SERVICE_IN_USE` while a `Schedule` references the service.
+}

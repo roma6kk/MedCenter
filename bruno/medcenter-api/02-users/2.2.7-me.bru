@@ -1,0 +1,28 @@
+meta {
+  name: 2.2.7 Own profile
+  type: http
+  seq: 1
+  tags: [
+    ro-admin
+    ro-doctor
+    ro-patient
+  ]
+}
+
+get {
+  url: {{baseUrl}}/api/v1/me
+  body: none
+  auth: inherit
+}
+
+assert {
+  res.status: eq 200
+  res.body.id: isString
+  res.body.email: isString
+  res.body.roles: isArray
+  res.body.externalLinks: isArray
+}
+
+docs {
+  Spec 2.2.7. Profile of the token owner plus `externalLinks` (Patient / PractitionerRole). Any role.
+}

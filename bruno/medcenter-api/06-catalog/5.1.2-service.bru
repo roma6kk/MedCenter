@@ -1,0 +1,36 @@
+meta {
+  name: 5.1.2 Get service
+  type: http
+  seq: 2
+  tags: [
+    ro-public
+    ro-admin
+    ro-doctor
+    ro-patient
+  ]
+}
+
+get {
+  url: {{baseUrl}}/api/v1/services/{{serviceId}}
+  body: none
+  auth: none
+}
+
+script:pre-request {
+  if (!bru.getVar('serviceId')) { bru.runner.skipRequest(); }
+}
+
+assert {
+  res.status: eq 200
+  res.body.defaultDurationMin: isNumber
+}
+
+tests {
+  test('id is the requested serviceId', function () {
+    expect(String(res.body.id)).to.equal(String(bru.getVar('serviceId')));
+  });
+}
+
+docs {
+  Spec 5.1.2, public.
+}

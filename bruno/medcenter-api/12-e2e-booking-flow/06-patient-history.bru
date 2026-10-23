@@ -1,0 +1,38 @@
+meta {
+  name: 6 Patient: history shows the diagnosis (7.6)
+  type: http
+  seq: 7
+  tags: [
+    e2e
+    write
+  ]
+}
+
+get {
+  url: {{baseUrl}}/api/v1/me/history?page=1&pageSize=5
+  body: none
+  auth: bearer
+}
+
+params:query {
+  page: 1
+  pageSize: 5
+}
+
+auth:bearer {
+  token: {{patientToken}}
+}
+
+assert {
+  res.status: eq 200
+}
+
+tests {
+  test('the newest encounter carries J06.9', function () {
+    expect(res.body.items[0].diagnosis).to.equal('J06.9');
+  });
+}
+
+docs {
+  Spec 7.6.
+}

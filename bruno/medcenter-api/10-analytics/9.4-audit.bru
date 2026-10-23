@@ -1,0 +1,45 @@
+meta {
+  name: 9.4 Audit log
+  type: http
+  seq: 4
+  tags: [
+    ro-admin
+  ]
+}
+
+get {
+  url: {{baseUrl}}/api/v1/admin/audit?page=1&pageSize=20
+  body: none
+  auth: inherit
+}
+
+params:query {
+  ~from: 
+  ~to: 
+  ~entity: Patient
+  ~userId: 
+  page: 1
+  pageSize: 20
+}
+
+assert {
+  res.status: eq 200
+  res.body.items: isArray
+  res.body.meta.page: isNumber
+  res.body.meta.totalItems: isNumber
+}
+
+tests {
+  test('events carry the action and the resource', function () {
+    if (res.body.items.length) {
+      const e = res.body.items[0];
+      expect(['create', 'update', 'delete', 'read', 'denied', 'emergency-bypass']).to.include(e.action);
+      expect(e.resourceType).to.be.a('string');
+      expect(e.requestId).to.be.a('string');
+    }
+  });
+}
+
+docs {
+  Spec 9.4. ADMIN. Filters `from`, `to`, `entity` (`Patient` or `Patient/123`), `userId`, `page`, `pageSize`. Actions: create, update, delete, read, denied, emergency-bypass (`reason` only on the last).
+}

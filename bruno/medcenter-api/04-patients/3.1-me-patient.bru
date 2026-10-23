@@ -1,0 +1,32 @@
+meta {
+  name: 3.1 Own patient card
+  type: http
+  seq: 1
+  tags: [
+    ro-patient
+  ]
+}
+
+get {
+  url: {{baseUrl}}/api/v1/me/patient
+  body: none
+  auth: inherit
+}
+
+script:post-response {
+  if (res.status === 200) {
+    bru.setVar('patientId', res.body.id);
+    bru.setVar('patientVersion', res.body.version);
+    bru.setVar('patientRef', 'Patient/' + res.body.id);
+  }
+}
+
+assert {
+  res.status: eq 200
+  res.body.id: isString
+  res.body.telecom: isArray
+}
+
+docs {
+  Spec 3.1. PATIENT, scope `patient/*.read`. The patient comes only from the token. Stores `patientId`, `patientRef` and `patientVersion` (needed as `If-Match` by 3.12).
+}

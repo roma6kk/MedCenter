@@ -1,0 +1,32 @@
+meta {
+  name: 401 UNAUTHENTICATED (invalid JWT)
+  type: http
+  seq: 2
+  tags: [
+    errors
+    ro-public
+    ro-admin
+    ro-doctor
+    ro-patient
+  ]
+}
+
+get {
+  url: {{baseUrl}}/api/v1/me
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer not.a.jwt
+}
+
+assert {
+  res.status: eq 401
+  res.body.errorCode: eq UNAUTHENTICATED
+  res.body.status: eq 401
+}
+
+docs {
+  A token that is not a JWT signed by auth-service.
+}

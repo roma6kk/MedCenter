@@ -1,0 +1,47 @@
+meta {
+  name: 2 Patient: book (6.1)
+  type: http
+  seq: 2
+  tags: [
+    e2e
+    write
+  ]
+}
+
+post {
+  url: {{baseUrl}}/api/v1/appointments
+  body: json
+  auth: bearer
+}
+
+headers {
+  Idempotency-Key: {{$guid}}
+}
+
+auth:bearer {
+  token: {{patientToken}}
+}
+
+body:json {
+  {
+    "slotId": "{{e2eSlotId}}",
+    "serviceId": "{{e2eServiceId}}"
+  }
+}
+
+script:pre-request {
+  if (!bru.getVar('e2eSlotId')) { bru.runner.skipRequest(); }
+}
+
+script:post-response {
+  if (res.status === 201) { bru.setVar('e2eAppointmentId', res.body.id); }
+}
+
+assert {
+  res.status: eq 201
+  res.body.status: eq booked
+}
+
+docs {
+  Spec 6.1.
+}

@@ -1,0 +1,40 @@
+meta {
+  name: 5.2.3 Update schedule
+  type: http
+  seq: 11
+  tags: [
+    write
+    crud-schedules
+    role-admin
+  ]
+}
+
+patch {
+  url: {{baseUrl}}/api/v1/admin/schedules/{{newScheduleId}}
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "comment": "Bruno collection (updated)"
+  }
+}
+
+script:pre-request {
+  if (!bru.getVar('newScheduleId')) { bru.runner.skipRequest(); }
+}
+
+assert {
+  res.status: eq 200
+}
+
+tests {
+  test('id is the requested newScheduleId', function () {
+    expect(String(res.body.id)).to.equal(String(bru.getVar('newScheduleId')));
+  });
+}
+
+docs {
+  Spec 5.2.3. ADMIN. Any subset of `horizonFrom, horizonTo, windows, slotDurationMin, comment`; 409 `SCHEDULE_OVERLAP`.
+}

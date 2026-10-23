@@ -1,0 +1,36 @@
+meta {
+  name: 4.5 Update room
+  type: http
+  seq: 5
+  tags: [
+    write
+    crud-rooms
+    role-admin
+  ]
+}
+
+patch {
+  url: {{baseUrl}}/api/v1/admin/rooms/{{newRoomId}}
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "name": "Кабинет Bruno (обновлён)",
+    "floor": 3
+  }
+}
+
+script:pre-request {
+  if (!bru.getVar('newRoomId')) { bru.runner.skipRequest(); }
+}
+
+assert {
+  res.status: eq 200
+  res.body.floor: eq 3
+}
+
+docs {
+  Spec 4.5. ADMIN. Any subset of the create fields; an `identifier` equal to the own one is allowed.
+}

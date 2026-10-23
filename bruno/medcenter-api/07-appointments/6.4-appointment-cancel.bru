@@ -1,0 +1,35 @@
+meta {
+  name: 6.4 Cancel appointment
+  type: http
+  seq: 5
+  tags: [
+    write
+    role-patient
+    flow-patient
+  ]
+}
+
+post {
+  url: {{baseUrl}}/api/v1/appointments/{{bookedAppointmentId}}/cancel
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "reason": "Отмена из коллекции Bruno"
+  }
+}
+
+script:pre-request {
+  if (!bru.getVar('bookedAppointmentId')) { bru.runner.skipRequest(); }
+}
+
+assert {
+  res.status: eq 200
+  res.body.status: eq cancelled
+}
+
+docs {
+  Spec 6.4. The owner patient or ADMIN (a doctor uses 6.6). `reason` 3..500. Frees the slot. A repeat -> 409 `APPOINTMENT_NOT_CANCELLABLE`.
+}

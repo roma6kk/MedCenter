@@ -1,0 +1,38 @@
+meta {
+  name: 3.10 Upload consent scan
+  type: http
+  seq: 7
+  tags: [
+    write
+    role-admin
+    flow-scan
+  ]
+}
+
+post {
+  url: {{baseUrl}}/api/v1/patients/{{patientId}}/consent/scan
+  body: multipartForm
+  auth: inherit
+}
+
+body:multipart-form {
+  file: @file(fixtures/consent-scan.png)
+}
+
+script:pre-request {
+  if (!bru.getVar('patientId')) { bru.runner.skipRequest(); }
+}
+
+script:post-response {
+  if (res.status === 201) { bru.setVar('scanId', res.body.scanId); }
+}
+
+assert {
+  res.status: eq 201
+  res.body.scanId: isString
+  res.body.contentType: eq image/png
+}
+
+docs {
+  Spec 3.10. DOCTOR (with a link) / ADMIN. `multipart/form-data`, field `file`; pdf, jpeg or png up to 10 MB, checked by signature. `fixtures/consent-scan.png` is a 1x1 sample image. 400 `VALIDATION_ERROR` on a wrong type or size.
+}

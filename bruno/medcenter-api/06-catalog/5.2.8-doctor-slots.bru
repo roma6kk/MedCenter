@@ -1,0 +1,48 @@
+meta {
+  name: 5.2.8 Free slots of a doctor
+  type: http
+  seq: 9
+  tags: [
+    ro-public
+    ro-admin
+    ro-doctor
+    ro-patient
+  ]
+}
+
+get {
+  url: {{baseUrl}}/api/v1/doctors/{{doctorId}}/slots
+  body: none
+  auth: none
+}
+
+params:query {
+  ~from: 
+  ~to: 
+}
+
+script:pre-request {
+  if (!bru.getVar('doctorId')) { bru.runner.skipRequest(); }
+}
+
+script:post-response {
+  if (res.status === 200) {
+    const free = res.body.items.filter(function (s) { return s.status === 'free'; });
+    if (free.length) bru.setVar('slotId', free[0].id);
+  }
+}
+
+assert {
+  res.status: eq 200
+  res.body.items: isArray
+}
+
+tests {
+  test('doctorId is the requested doctorId', function () {
+    expect(String(res.body.doctorId)).to.equal(String(bru.getVar('doctorId')));
+  });
+}
+
+docs {
+  Spec 5.2.8, public. `{id}` is the Practitioner id. Window defaults to today + 14 days, at most 31 days, `from` within the look-ahead limit; not paginated, sorted by `start`. Stores the first free slot in `slotId`.
+}

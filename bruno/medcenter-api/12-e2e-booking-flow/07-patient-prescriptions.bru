@@ -1,0 +1,39 @@
+meta {
+  name: 7 Patient: prescriptions (7.7)
+  type: http
+  seq: 8
+  tags: [
+    e2e
+    write
+  ]
+}
+
+get {
+  url: {{baseUrl}}/api/v1/me/prescriptions?page=1&pageSize=10
+  body: none
+  auth: bearer
+}
+
+params:query {
+  page: 1
+  pageSize: 10
+}
+
+auth:bearer {
+  token: {{patientToken}}
+}
+
+assert {
+  res.status: eq 200
+}
+
+tests {
+  test('the medication J01FA10 is prescribed', function () {
+    const atc = res.body.items.map(function (i) { return i.atcCode; });
+    expect(atc).to.include('J01FA10');
+  });
+}
+
+docs {
+  Spec 7.7.
+}
