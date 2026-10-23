@@ -17,7 +17,7 @@ values (never commit `.env`; the comments in `docker-compose.yml` list the optio
 ```bash
 npm ci
 docker compose up -d --build        # 5 infrastructure containers + 8 BFF services + web (14 containers)
-npm run stack:wait                  # waits until every service answers
+npm run stack:wait                  # waits until the edge, HAPI (/fhir/metadata CapabilityStatement) and auth-service answer
 npm run seed:terminology            # national terminology snapshot (https://fhir.by/... canonicals)
 npm run seed:demo                   # demo organisation, doctors, services, rooms, schedules and 14 days of free slots (idempotent)
 ```
