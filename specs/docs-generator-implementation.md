@@ -178,3 +178,22 @@ select-only unit) to `POST /api/v1/encounters/{id}/complete`.
 `tasks/TASK-001/code-reviewer-frontend-criticals-report.md`; implementation detail in
 `frontend/coder-frontend-implementation-notes.md`; test inventory in
 `tasks/TASK-001/test-generator-coverage-report.md`.
+
+### [TASK-003] Demo seed and stack smoke — patient consent (2026-10-23)
+
+Rules and contracts live in ADR-019 (`architect-architecture.md`) and `api-designer-spec.md` §2.2.6, §3.4–3.11, §6.1, §7.1, §7.3;
+this section only records how the tooling follows them.
+
+- **`CONSENT_ENFORCEMENT` defaults to `block` in `docker-compose.yml`** (`${CONSENT_ENFORCEMENT:-block}`); `warn` stays available by
+  exporting it. The services recreate to pick it up: `docker compose up -d encounter-service appointment-service && npm run stack:wait`.
+- **`npm run seed:demo -- --users --consents`** — the demo patients register with `accountConsent` (version mirrors
+  `ACCOUNT_CONSENT_VERSION` of `frontend/src/lib/contracts.ts`), then `--consents` writes a demo scan `Binary` and an active EMR `Consent`
+  (built by `buildConsent`, form `DEMO-<key>`, signed by the first demo doctor) into HAPI; a patient with a consent in force is skipped.
+  **`patient.novikov` is left without consent on purpose**, to demo the `CONSENT_REQUIRED` block (`--consent-except=<account|none>` changes it;
+  the seed prints it). Details: header of `tools/demo-seed/seed-demo.ts`, logic in `tools/demo-seed/demo-consents.ts`.
+- **`npm run smoke:stack`** adds the consent routes to the access matrix and a consent chain on a throwaway patient (`checks-chain-consent.ts`).
+  It is mode-aware: the stack's mode is detected (or named in `SMOKE_CONSENT_ENFORCEMENT`) and the same calls expect 409 in `block`, success in `warn`.
+  The clinical chain records its patient's consent first; the race and schedule-removal bookings carry no free-text reason, because the third demo
+  patient has no consent. The bypass `AuditEvent` is read from HAPI directly (`SMOKE_FHIR_BASE_URL`, local hosts only): no API exposes it.
+  The suite now needs 6 free slots of the demo doctor (slots 3–5 belong to the consent chain).
+- **Tools resolve `@medcenter/*`**: `seed:demo` and `smoke:stack` run `ts-node -r tsconfig-paths/register`, and `jest.config.js` maps the same aliases.
