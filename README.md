@@ -34,7 +34,7 @@ npm run seed:demo                   # demo organisation, doctors, services, room
   header of `tools/demo-seed/seed-demo.ts`) creates demo doctors and patients and writes their credentials to the
   git-ignored `tools/demo-seed/output/demo-manifest.json`. Re-running `--users` rotates the passwords. The account list
   and the manual test checklist: [tasks/TASK-001/verify-manual-testing-guide.md](tasks/TASK-001/verify-manual-testing-guide.md).
-- **API docs.** Set `SWAGGER_ENABLED=true` in `.env` (default `false`) and recreate the services to publish the Swagger UI of every BFF through Traefik (API spec §10). `/fhir/**` stays closed at the edge.
+- **API docs.** Off by default. To publish them, the owner sets `SWAGGER_ENABLED=true` in the git-ignored `.env`, then recreates the services (`docker compose up -d --force-recreate <service>`, or `up -d --build` after a code change); the table above lists the URLs. `/fhir/**` stays closed at the edge. Details: API spec §10.
 - **Free slots run out** after smoke or E2E runs: run `npm run seed:demo` again.
 - After changing a service: `docker compose up -d --build <service> && npm run stack:wait`.
 
