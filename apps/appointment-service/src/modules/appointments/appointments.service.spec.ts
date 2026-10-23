@@ -197,6 +197,35 @@ describe('AppointmentsService', () => {
   });
 
   describe('cancel', () => {
+    beforeEach(() => {
+      fhir.search.mockResolvedValue({ entry: [] });
+    });
+
+    it.each(['in-progress', 'finished'])(
+      'should reject with APPOINTMENT_NOT_CANCELLABLE and write nothing when a %s encounter exists',
+      async (status) => {
+        fhir.read.mockResolvedValue(bookedAppointment);
+        fhir.search.mockResolvedValue({ entry: [{ resource: { resourceType: 'Encounter', id: 'enc-1', status } }] });
+
+        expect(await errorPayloadOf(service.cancel(patientClaims, 'apt-1', { reason: 'не смог прийти' }))).toMatchObject({
+          errorCode: 'APPOINTMENT_NOT_CANCELLABLE',
+        });
+        expect(fhir.search).toHaveBeenCalledWith('Encounter', { appointment: 'Appointment/apt-1', _count: 1 });
+        expect(fhir.batch).not.toHaveBeenCalled();
+        expect(publisher.publishCancelled).not.toHaveBeenCalled();
+      },
+    );
+
+    it('should answer APPOINTMENT_NOT_CANCELLABLE and publish nothing when an encounter was opened meanwhile (If-Match lost)', async () => {
+      fhir.read.mockImplementation(async (type) => (type === 'Appointment' ? bookedAppointment : { ...freeSlot, status: 'busy' }));
+      fhir.batch.mockRejectedValue(new FhirClientError('POST', 'http://hapi/fhir', 412, '{}'));
+
+      expect(await errorPayloadOf(service.cancel(patientClaims, 'apt-1', { reason: 'не смог прийти' }))).toMatchObject({
+        errorCode: 'APPOINTMENT_NOT_CANCELLABLE',
+      });
+      expect(publisher.publishCancelled).not.toHaveBeenCalled();
+    });
+
     it('should fail with INTERNAL, without reading a collection URL, when the appointment has no slot', async () => {
       fhir.read.mockResolvedValue({ ...bookedAppointment, slot: undefined });
 
@@ -325,6 +354,13 @@ describe('AppointmentsService', () => {
         expect(fhir.batch).not.toHaveBeenCalled();
       },
     );
+
+    it('should answer ENCOUNTER_STATE_INVALID, not CONFLICT, when the If-Match loses to a concurrent encounter opening', async () => {
+      fhir.read.mockResolvedValue(bookedAppointment);
+      fhir.batch.mockRejectedValue(new FhirClientError('POST', 'http://hapi/fhir', 412, '{}'));
+
+      expect(await errorPayloadOf(service.markNoShow(doctorClaims, 'apt-1'))).toMatchObject({ errorCode: 'ENCOUNTER_STATE_INVALID' });
+    });
 
     it('should look the encounter up through its appointment reference when the no-show is checked', async () => {
       fhir.read.mockResolvedValue(bookedAppointment);

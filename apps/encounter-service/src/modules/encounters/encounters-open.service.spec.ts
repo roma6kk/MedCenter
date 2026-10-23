@@ -86,6 +86,38 @@ describe('EncountersService.open / findOne', () => {
     });
   });
 
+  it('should touch the appointment in the same transaction so its If-Match sees a concurrent open', async () => {
+    await service.open(doctorClaims, { appointmentId: APPOINTMENT_ID });
+
+    const entry = committedEntries(fhir).find((candidate) => candidate.resource.resourceType === 'Appointment');
+    expect(entry?.request).toEqual({ method: 'PUT', url: `Appointment/${APPOINTMENT_ID}`, ifMatch: 'W/"2"' });
+    expect(entry?.resource).toMatchObject({
+      status: 'booked',
+      meta: { tag: [{ system: 'https://fhir.by/CodeSystem/medcenter-appointment-flags', code: 'encounter-opened' }] },
+    });
+  });
+
+  it('should return the winner encounter when the appointment If-Match lost to a concurrent open', async () => {
+    fhir.batch.mockRejectedValue(new FhirClientError('POST', 'http://hapi/fhir', 412, '{}'));
+    let encounterSearches = 0;
+    fhir.search.mockImplementation(async (type) =>
+      type === 'Encounter' && ++encounterSearches > 1 ? searchResult(inProgressEncounter) : searchResult(),
+    );
+    fhir.read.mockImplementation(async (type) => (type === 'Appointment' ? bookedAppointment : inProgressEncounter));
+
+    const result = await service.open(doctorClaims, { appointmentId: APPOINTMENT_ID });
+
+    expect(result).toEqual({ created: false, encounter: expect.objectContaining({ id: ENCOUNTER_ID }) });
+  });
+
+  it('should answer ENCOUNTER_STATE_INVALID when the appointment changed meanwhile and no encounter exists', async () => {
+    fhir.batch.mockRejectedValue(new FhirClientError('POST', 'http://hapi/fhir', 412, '{}'));
+
+    expect(await errorPayloadOf(service.open(doctorClaims, { appointmentId: APPOINTMENT_ID }))).toMatchObject({
+      errorCode: 'ENCOUNTER_STATE_INVALID',
+    });
+  });
+
   it('should reject opening with ENCOUNTER_STATE_INVALID when the appointment is not booked', async () => {
     fhir.read.mockResolvedValue({ ...bookedAppointment, status: 'cancelled' });
 

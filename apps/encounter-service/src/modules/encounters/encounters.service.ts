@@ -351,11 +351,7 @@ export class EncountersService {
               context,
             ),
           ];
-    const response = await commitTransaction(
-      this.fhir,
-      [...buildOpeningWrites(context), ...bypass],
-      'CONFLICT',
-    );
+    const response = await this.commitOpening(context, bypass);
     const outcome = transactionOutcomes(response)[0];
     const encounterId = idFromLocation(outcome?.location);
     if (encounterId === '') {
@@ -376,6 +372,36 @@ export class EncountersService {
       'conditional create matched an existing encounter',
     );
     return this.reopen(await this.fhir.read('Encounter', encounterId));
+  }
+
+  /**
+   * A 409 means the Appointment moved on since it was read: either a concurrent open won (its
+   * encounter is returned) or the appointment was cancelled / marked as a no-show (BR-008).
+   */
+  private async commitOpening(
+    context: OpeningContext,
+    bypass: readonly TransactionWrite[],
+  ): Promise<FhirResource> {
+    try {
+      return await commitTransaction(
+        this.fhir,
+        [...buildOpeningWrites(context), ...bypass],
+        'ENCOUNTER_STATE_INVALID',
+      );
+    } catch (error) {
+      if (!(error instanceof ConflictException)) {
+        throw error;
+      }
+      const winner = await this.encounterOfAppointment(context.appointmentId);
+      if (winner === undefined) {
+        throw error;
+      }
+      return {
+        resourceType: 'Bundle',
+        type: 'transaction-response',
+        entry: [{ response: { status: '200 OK', location: `Encounter/${String(winner.id)}` } }],
+      };
+    }
   }
 
   /** The emergency-bypass AuditEvent rides in the clinical transaction: no bypass without its journal entry (ADR-019). */

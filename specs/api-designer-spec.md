@@ -734,8 +734,9 @@ export class AppointmentResponseDto {
 `Encounter` (`Encounter?appointment=Appointment/{id}`: ни `in-progress`, ни `finished`). Запись не `booked`
 (cancelled/noshow/fulfilled) или с приёмом → **409** `ENCOUNTER_STATE_INVALID` (раньше для не-`booked` отвечал `CONFLICT`,
 а для записи с завершённым приёмом — 200). Проверка владельца (403 `COMPARTMENT_VIOLATION`) идёт раньше проверки
-состояния. Запись приёма, открытого в тот же момент между проверкой и коммитом, 6.6 не видит; такой приём завершить уже
-нельзя (7.3 требует `booked`).
+состояния. Приём, открытый в тот же момент между проверкой и коммитом, тоже исключён: открытие (7.1) меняет Appointment
+(`meta.tag` `encounter-opened`) под `If-Match`, и проигравший гонку получает 409 `ENCOUNTER_STATE_INVALID`.
+Отмена (6.4) записи с приёмом → 409 `APPOINTMENT_NOT_CANCELLABLE` (так же при проигрыше гонки).
 
 **Status:** 201 (6.1) · 200 (6.2–6.6) · 400/401/403/404/409 — §1.
 

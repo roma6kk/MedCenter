@@ -2,7 +2,7 @@ import type { FhirResource } from '@medcenter/fhir';
 
 import { auditEventByEntityNameQuery, buildAuditEvent } from '../../../common/audit/audit-event';
 import { arrayField, isRecord } from '../../../common/fhir/fhir-read';
-import type { TransactionWrite } from '../../../common/fhir/fhir-transaction';
+import { versionOf, type TransactionWrite } from '../../../common/fhir/fhir-transaction';
 
 export interface OpeningContext {
   readonly appointmentId: string;
@@ -18,6 +18,10 @@ export interface OpeningContext {
   /** `urn:uuid:` of the new Encounter inside the bundle. */
   readonly fullUrl: string;
 }
+
+/** Tag of an Appointment that has an encounter; it only exists to make the opening change the Appointment's version. */
+export const APPOINTMENT_FLAGS_SYSTEM = 'https://fhir.by/CodeSystem/medcenter-appointment-flags';
+export const ENCOUNTER_OPENED_FLAG = 'encounter-opened';
 
 const AMBULATORY = {
   system: 'http://terminology.hl7.org/CodeSystem/v3-ActCode',
@@ -71,8 +75,10 @@ export function openedEncounterResource(context: OpeningContext): FhirResource {
  * (`ifNoneExist` on the appointment, so a concurrent second open cannot add a
  * duplicate) and its AuditEvent (ADR-014). The AuditEvent is conditional on
  * the same appointment: the request that loses the race (its Encounter create
- * matches the winner's, `200`) must not add a second event. The Appointment is not written:
- * it belongs to appointment-service (single-owner rule).
+ * matches the winner's, `200`) must not add a second event. The Appointment gets a
+ * technical `meta.tag` under `If-Match` on the version read: a concurrent cancel / no-show
+ * (appointment-service) then cannot commit on the same version, nor can this open commit
+ * after them. Status and clinical content of the Appointment stay untouched.
  */
 export function buildOpeningWrites(context: OpeningContext): readonly TransactionWrite[] {
   return [
@@ -97,5 +103,22 @@ export function buildOpeningWrites(context: OpeningContext): readonly Transactio
       }),
       ifNoneExist: auditEventByEntityNameQuery(openingAuditName(context.appointmentId)),
     },
+    {
+      method: 'PUT',
+      url: `Appointment/${context.appointmentId}`,
+      resource: flaggedAppointment(context.appointment),
+      ifMatch: versionOf(context.appointment),
+    },
   ];
+}
+
+/** The appointment as read plus the `encounter-opened` tag (added once). */
+export function flaggedAppointment(appointment: FhirResource): FhirResource {
+  const meta = isRecord(appointment['meta']) ? appointment['meta'] : {};
+  const tags = arrayField(meta as FhirResource, 'tag');
+  const flagged = tags.some((tag) => isRecord(tag) && tag['system'] === APPOINTMENT_FLAGS_SYSTEM && tag['code'] === ENCOUNTER_OPENED_FLAG);
+  return {
+    ...appointment,
+    meta: { ...meta, tag: flagged ? tags : [...tags, { system: APPOINTMENT_FLAGS_SYSTEM, code: ENCOUNTER_OPENED_FLAG }] },
+  };
 }
