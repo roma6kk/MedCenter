@@ -30,6 +30,7 @@ function toDto(row: AuditEventRow): AuditEventDto {
     resourceType: row.resourceType ?? '',
     resourceId: row.resourceId ?? '',
     requestId: row.requestId ?? '',
+    ...(row.reason === null ? {} : { reason: row.reason }),
   };
 }
 

@@ -79,6 +79,20 @@ describe('AuditPanel', () => {
     expect(table.getByText('Отказ в доступе')).toBeInTheDocument();
   });
 
+  it('should name the emergency consent bypass and show the reason the doctor gave (ADR-019)', async () => {
+    const bypass: ReadonlyArray<AuditEvent> = [
+      { id: '5', occurredAt: '2026-10-16T08:02:00.000Z', userId: 'u-1', action: 'emergency-bypass', resourceType: 'Patient', resourceId: '1442', requestId: 'r-5', reason: 'Пациент без сознания' },
+    ];
+    apiFetchMock.mockResolvedValue({ items: bypass, meta: { page: 1, pageSize: 20, totalItems: 1, totalPages: 1 } });
+    renderWithClient(<AuditPanel />);
+
+    const table = within(await screen.findByRole('table', { name: 'Журнал аудита' }));
+
+    expect(await table.findByText('Экстренный обход согласия')).toBeInTheDocument();
+    expect(table.getByText('Причина: Пациент без сознания')).toBeInTheDocument();
+    expect(table.getByText('Patient/1442')).toBeInTheDocument();
+  });
+
   it('should offer to copy the request id only when the event has one', async () => {
     renderWithClient(<AuditPanel />);
 

@@ -37,6 +37,16 @@ function WhoCell({ userId, name }: { readonly userId: string; readonly name: str
   );
 }
 
+function ActionCell({ event }: { readonly event: AuditEvent }): React.JSX.Element {
+  const t = useT('admin.audit');
+  return (
+    <span className="grid gap-1">
+      <CodeChip code={event.action}>{t(`actions.${event.action}`)}</CodeChip>
+      {event.reason === undefined ? null : <span className="text-xs">{t('reason', { reason: event.reason })}</span>}
+    </span>
+  );
+}
+
 function useAuditColumns(): ReadonlyArray<TableColumn<AuditEvent>> {
   const t = useT('admin.audit');
   const locale = useUiStore((state) => state.locale);
@@ -44,7 +54,7 @@ function useAuditColumns(): ReadonlyArray<TableColumn<AuditEvent>> {
   return [
     { key: 'occurredAt', header: t('columns.occurredAt'), render: (row) => <time dateTime={row.occurredAt} className="whitespace-nowrap">{formatClinicDateTime(row.occurredAt, locale)}</time> },
     { key: 'userId', header: t('columns.userId'), render: (row) => <WhoCell userId={row.userId} name={names.get(row.userId)} /> },
-    { key: 'action', header: t('columns.action'), render: (row) => <CodeChip code={row.action}>{t(`actions.${row.action}`)}</CodeChip> },
+    { key: 'action', header: t('columns.action'), render: (row) => <ActionCell event={row} /> },
     { key: 'resource', header: t('columns.resource'), render: (row) => <span className="mono break-all text-xs">{resourceOf(row)}</span> },
     { key: 'requestId', header: t('columns.requestId'), render: (row) => <CopyRequestId requestId={row.requestId} /> },
   ];

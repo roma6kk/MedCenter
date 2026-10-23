@@ -906,9 +906,11 @@ sender=Organization) + email-адаптер (A-3). Компартмент: фи�
 
 Ответ 9.1–9.3 — `MeasureReport`-производный DTO (группировка `measureScoring`), из read-model
 PostgreSQL (worker наполняет по событиям). Ответ 9.4 — `PaginatedResponseDto<AuditEventDto>`:
-`{ id; occurredAt; userId; action: 'create'|'update'|'delete'|'read'|'denied'; resourceType; resourceId;
-requestId }`. `read` — чтение данных пациента врачом или администратором, `denied` — отказ в нём (ADR-018);
-чтение пациентом своей карты в журнал не попадает. **Status:** 200 · 400 (диапазон > 366 дней).
+`{ id; occurredAt; userId; action: 'create'|'update'|'delete'|'read'|'denied'|'emergency-bypass'; resourceType; resourceId;
+requestId; reason? }`. `read` — чтение данных пациента врачом или администратором, `denied` — отказ в нём (ADR-018);
+чтение пациентом своей карты в журнал не попадает. `emergency-bypass` — приём открыт или завершён без согласия пациента по
+`emergencyReason` (7.1/7.3, ADR-019): `userId` — врач, `resourceType/resourceId` — пациент, `reason` — указанная причина
+(только у этого действия); UI: «Экстренный обход согласия». **Status:** 200 · 400 (диапазон > 366 дней).
 
 #### 10. Swagger / OpenAPI
 

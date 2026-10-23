@@ -15,6 +15,8 @@ export interface AuditEventRow {
   readonly resourceId: string | null;
   readonly requestId: string | null;
   readonly source: string | null;
+  /** `emergency-bypass` only: the reason the doctor gave. */
+  readonly reason: string | null;
 }
 
 export interface AuditFilter {

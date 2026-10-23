@@ -11,6 +11,8 @@ const WRITE_SUBTYPES: ReadonlySet<string> = new Set(['create', 'update', 'delete
 /** Read interactions written by `PatientReadAudit` (ADR-018); `AuditEvent.outcome` 4 marks a refused read. */
 const READ_SUBTYPES: ReadonlySet<string> = new Set(['read', 'search-type']);
 const OUTCOME_MINOR_FAILURE = '4';
+/** `AuditEvent.subtype` of the emergency consent bypass (`buildEmergencyBypassAuditEvent`, ADR-019). */
+const BYPASS_SUBTYPE = 'consent-emergency-bypass';
 
 /** IHE BALP entity type carrying the `X-Request-Id` correlation id. */
 const REQUEST_ID_ENTITY_TYPE = 'XrequestId';
@@ -20,6 +22,7 @@ const REQUEST_ID_DETAIL_TYPES: ReadonlySet<string> = new Set(['requestId', 'x-re
 const USER_ID_MAX = 128;
 const REQUEST_ID_MAX = 128;
 const SOURCE_MAX = 128;
+const REASON_MAX = 500;
 
 /** FHIR `id` (`[A-Za-z0-9\-.]{1,64}`), the width of `audit_event.id` / `resource_id`. */
 const FHIR_ID = /^[A-Za-z0-9\-.]{1,64}$/;
@@ -70,6 +73,9 @@ function actionOf(resource: FhirResource): AuditAction | undefined {
   const write = subtypes.find((code): code is AuditAction => code !== undefined && WRITE_SUBTYPES.has(code));
   if (write !== undefined) {
     return write;
+  }
+  if (subtypes.includes(BYPASS_SUBTYPE)) {
+    return 'emergency-bypass';
   }
   if (subtypes.some((code) => code !== undefined && READ_SUBTYPES.has(code))) {
     return asString(resource['outcome']) === OUTCOME_MINOR_FAILURE ? 'denied' : 'read';
@@ -149,10 +155,16 @@ function sourceOf(resource: FhirResource): string | null {
   return fit(asString(observer?.['display']) ?? asString(observer?.['reference']), SOURCE_MAX);
 }
 
+/** The doctor's free-text reason of an emergency bypass (`purposeOfEvent.text`); only that event carries it. */
+function reasonOf(resource: FhirResource, action: AuditAction): string | null {
+  return action === 'emergency-bypass' ? fit(asString(asObjects(resource['purposeOfEvent']).map((purpose) => asString(purpose['text'])).find((text) => text !== undefined)), REASON_MAX) : null;
+}
+
 /**
  * FHIR R4 `AuditEvent` → journal row (API §9.4). Returns `undefined` for
  * anything that is not a write or patient-data-read AuditEvent with a FHIR id and a
- * valid `recorded` instant — such entries are not part of the journal. A read of
+ * valid `recorded` instant — such entries are not part of the journal. An emergency consent bypass is journalled as
+ * `emergency-bypass` with its reason (ADR-019). A read of
  * patient data (`read`/`search-type`) is journalled as `read` or, when refused, `denied` (ADR-018).
  *
  * Every text field is bounded to its column: one oversized value from HAPI
@@ -174,6 +186,7 @@ export function toAuditEventRow(resource: FhirResource): AuditEventRow | undefin
     ...resourceOf(entities),
     requestId: requestIdOf(entities),
     source: sourceOf(resource),
+    reason: reasonOf(resource, action),
   };
 }
 

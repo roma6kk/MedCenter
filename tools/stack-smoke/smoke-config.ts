@@ -2,7 +2,7 @@ import { join } from 'node:path';
 
 import { DEFAULT_AUTH_BASE_URL, DEFAULT_OAUTH_CLIENT_ID, DEFAULT_OAUTH_REDIRECT_URI } from '../demo-seed/demo-cli-options';
 import { assertLocalTarget } from '../shared/local-target';
-import { DEFAULT_FHIR_BASE_URL, readOptionalEnv } from '../shared/seed-env';
+import { readOptionalEnv } from '../shared/seed-env';
 import { DEFAULT_REQUEST_TIMEOUT_MS } from './smoke-http';
 import type { SmokeConfig } from './smoke-types';
 
@@ -36,16 +36,13 @@ function consentEnforcementOf(raw: string | undefined): SmokeConfig['consentEnfo
  * (the Traefik edge, default `http://localhost:8081`), `SMOKE_MANIFEST_PATH`,
  * `SMOKE_OAUTH_CLIENT_ID`, `SMOKE_OAUTH_REDIRECT_URI`, `SMOKE_POLL_TIMEOUT_MS`,
  * `SMOKE_POLL_INTERVAL_MS`, `SMOKE_REQUEST_TIMEOUT_MS`, `SMOKE_CONSENT_ENFORCEMENT` (`warn`|`block`: the stack's
- * `CONSENT_ENFORCEMENT`; detected when unset), `SMOKE_FHIR_BASE_URL` (HAPI on the host, default the seed's; the consent
- * chain reads the emergency-bypass `AuditEvent` from it, local hosts only). Credentials come from the seed manifest, never from here.
+ * `CONSENT_ENFORCEMENT`; detected when unset). Credentials come from the seed manifest, never from here.
  * The suite registers users, creates and deletes catalog data and imports terminology, so a
  * `SMOKE_BASE_URL` that is not a local host is refused unless `SMOKE_ALLOW_REMOTE=true`.
  */
 export function readSmokeConfig(env: NodeJS.ProcessEnv = process.env): SmokeConfig {
   const baseUrl = (readOptionalEnv(env, 'SMOKE_BASE_URL') ?? DEFAULT_AUTH_BASE_URL).replace(/\/+$/, '');
   assertLocalTarget('SMOKE_BASE_URL', baseUrl, 'SMOKE_ALLOW_REMOTE', env);
-  const fhirBaseUrl = (readOptionalEnv(env, 'SMOKE_FHIR_BASE_URL') ?? DEFAULT_FHIR_BASE_URL).replace(/\/+$/, '');
-  assertLocalTarget('SMOKE_FHIR_BASE_URL', fhirBaseUrl, 'SMOKE_ALLOW_REMOTE', env);
   const consentEnforcement = consentEnforcementOf(readOptionalEnv(env, 'SMOKE_CONSENT_ENFORCEMENT'));
   return {
     baseUrl,
@@ -55,7 +52,6 @@ export function readSmokeConfig(env: NodeJS.ProcessEnv = process.env): SmokeConf
     pollTimeoutMs: positiveNumber(readOptionalEnv(env, 'SMOKE_POLL_TIMEOUT_MS'), DEFAULT_POLL_TIMEOUT_MS, 'SMOKE_POLL_TIMEOUT_MS'),
     pollIntervalMs: positiveNumber(readOptionalEnv(env, 'SMOKE_POLL_INTERVAL_MS'), DEFAULT_POLL_INTERVAL_MS, 'SMOKE_POLL_INTERVAL_MS'),
     requestTimeoutMs: positiveNumber(readOptionalEnv(env, 'SMOKE_REQUEST_TIMEOUT_MS'), DEFAULT_REQUEST_TIMEOUT_MS, 'SMOKE_REQUEST_TIMEOUT_MS'),
-    fhirBaseUrl,
     ...(consentEnforcement === undefined ? {} : { consentEnforcement }),
   };
 }

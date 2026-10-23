@@ -4,9 +4,10 @@ import { ANALYTICS_SCHEMA } from '../analytics-schema';
 
 /**
  * `AuditEvent.action` values the journal exposes (API §9.4): writes, plus `read` (a doctor's or administrator's read
- * of patient data) and `denied` (a read refused by the compartment rule), ADR-018.
+ * of patient data) and `denied` (a read refused by the compartment rule), ADR-018, and `emergency-bypass` (a doctor went on
+ * without the patient's consent because of an `emergencyReason`, ADR-019).
  */
-export type AuditAction = 'create' | 'update' | 'delete' | 'read' | 'denied';
+export type AuditAction = 'create' | 'update' | 'delete' | 'read' | 'denied' | 'emergency-bypass';
 
 /**
  * Read-model copy of a FHIR `AuditEvent` (ADR-014). HAPI stays the system of
@@ -39,4 +40,8 @@ export class AuditEventReadEntity {
 
   @Column({ name: 'source', type: 'varchar', length: 128, nullable: true })
   source!: string | null;
+
+  /** The doctor's `emergencyReason` of an `emergency-bypass` event; `null` for every other action. */
+  @Column({ name: 'reason', type: 'varchar', length: 500, nullable: true })
+  reason!: string | null;
 }

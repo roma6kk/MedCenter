@@ -443,10 +443,11 @@
     },
     "audit": {
       "title": "Audit journal",
-      "description": "Who changed or read what: creation and update of resources, reads of patient data and refused access.",
+      "description": "Who changed or read what: creation and update of resources, reads of patient data, refused access and emergency bypass of consent.",
       "empty": "No events found",
       "emptyHint": "Change the period or the filters.",
       "total": "Events found: {count}",
+      "reason": "Reason: {reason}",
       "noRequestId": "no request id recorded",
       "copyAria": "Copy request id {requestId}",
       "filters": {
@@ -478,7 +479,8 @@
         "update": "Update",
         "delete": "Delete",
         "read": "Read",
-        "denied": "Access denied"
+        "denied": "Access denied",
+        "emergency-bypass": "Emergency consent bypass"
       }
     },
     "terminology": {

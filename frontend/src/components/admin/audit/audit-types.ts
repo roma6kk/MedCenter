@@ -1,5 +1,8 @@
-/** `read` is a read of patient data by a doctor or administrator, `denied` a read the compartment rule refused (ADR-018). */
-export type AuditAction = 'create' | 'update' | 'delete' | 'read' | 'denied';
+/**
+ * `read` is a read of patient data by a doctor or administrator, `denied` a read the compartment rule refused (ADR-018),
+ * `emergency-bypass` an encounter opened or completed without the patient's consent because of an emergency reason (ADR-019).
+ */
+export type AuditAction = 'create' | 'update' | 'delete' | 'read' | 'denied' | 'emergency-bypass';
 
 /** `AuditEventDto` of `GET /api/v1/admin/audit` (api-designer-spec §9.4). Some events carry no resource or no request id. */
 export interface AuditEvent {
@@ -10,6 +13,8 @@ export interface AuditEvent {
   readonly resourceType: string;
   readonly resourceId: string;
   readonly requestId: string;
+  /** Only an `emergency-bypass` event has one: the reason the doctor gave. */
+  readonly reason?: string;
 }
 
 /**

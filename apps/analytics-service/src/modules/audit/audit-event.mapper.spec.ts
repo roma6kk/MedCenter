@@ -33,6 +33,7 @@ describe('toAuditEventRow', () => {
       resourceId: 'appt-1',
       requestId: null,
       source: 'appointment-service',
+      reason: null,
     });
   });
 
@@ -71,6 +72,51 @@ describe('toAuditEventRow', () => {
 
     it('should keep a write event with outcome 4 as its write action', () => {
       expect(toAuditEventRow(appointmentServiceAudit({ outcome: '4' }))?.action).toBe('create');
+    });
+  });
+
+  describe('emergency consent bypass (ADR-019)', () => {
+    /** What `buildEmergencyBypassAuditEvent` writes for 7.1/7.3 with `emergencyReason` and no consent. */
+    const bypassAudit = (overrides: Record<string, unknown> = {}): FhirResource => ({
+      resourceType: 'AuditEvent',
+      id: 'ae-bypass',
+      type: { system: 'http://dicom.nema.org/resources/ontology/DCM', code: '110113', display: 'Security Alert' },
+      subtype: [{ system: 'urn:medcenter:audit-event-subtype', code: 'consent-emergency-bypass' }],
+      action: 'E',
+      recorded: '2026-10-08T10:00:00.000Z',
+      outcome: '0',
+      purposeOfEvent: [{ coding: [{ system: 'http://terminology.hl7.org/CodeSystem/v3-ActReason', code: 'ETREAT' }], text: 'Пациент без сознания' }],
+      agent: [{ who: { identifier: { value: 'doctor-1' } }, requestor: true }],
+      source: { observer: { display: 'encounter-service' } },
+      entity: [
+        { what: { reference: 'Patient/pat-1' }, role: { code: '1' } },
+        { what: { reference: 'Encounter/enc-1' } },
+        { type: { code: 'XrequestId' }, what: { identifier: { value: 'req-9' } } },
+      ],
+      ...overrides,
+    });
+
+    it('should journal it as emergency-bypass with the patient, the actor and the reason', () => {
+      expect(toAuditEventRow(bypassAudit())).toEqual({
+        id: 'ae-bypass',
+        occurredAt: new Date('2026-10-08T10:00:00.000Z'),
+        userId: 'doctor-1',
+        action: 'emergency-bypass',
+        resourceType: 'Patient',
+        resourceId: 'pat-1',
+        requestId: 'req-9',
+        source: 'encounter-service',
+        reason: 'Пациент без сознания',
+      });
+    });
+
+    it('should clip a reason longer than its column and keep none when the event carries no text', () => {
+      expect(toAuditEventRow(bypassAudit({ purposeOfEvent: [{ text: 'x'.repeat(600) }] }))?.reason).toHaveLength(500);
+      expect(toAuditEventRow(bypassAudit({ purposeOfEvent: undefined }))?.reason).toBeNull();
+    });
+
+    it('should not take a reason from any other event', () => {
+      expect(toAuditEventRow(appointmentServiceAudit({ purposeOfEvent: [{ text: 'secret' }] }))?.reason).toBeNull();
     });
   });
 

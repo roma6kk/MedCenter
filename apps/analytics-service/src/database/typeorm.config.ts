@@ -9,6 +9,7 @@ import { ProcessedEventEntity } from './entities/processed-event.entity';
 import { SyncCursorEntity } from './entities/sync-cursor.entity';
 import { AnalyticsInit1760342400000 } from './migrations/1760342400000-AnalyticsInit';
 import { AuditReadActions1761120000000 } from './migrations/1761120000000-AuditReadActions';
+import { AuditEmergencyBypass1761206400000 } from './migrations/1761206400000-AuditEmergencyBypass';
 
 export const ANALYTICS_ENTITIES = [
   ProcessedEventEntity,
@@ -31,7 +32,7 @@ export function buildAnalyticsDataSource(connection: DatabaseConnection): DataSo
     ...connection,
     schema: ANALYTICS_SCHEMA,
     entities: ANALYTICS_ENTITIES,
-    migrations: [AnalyticsInit1760342400000, AuditReadActions1761120000000],
+    migrations: [AnalyticsInit1760342400000, AuditReadActions1761120000000, AuditEmergencyBypass1761206400000],
     synchronize: false,
   });
 }

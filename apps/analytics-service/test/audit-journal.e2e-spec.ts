@@ -19,6 +19,7 @@ function auditRow(id: string, occurredAt: string, userId: string, resource: stri
     resourceId: resourceId ?? null,
     requestId: null,
     source: 'appointment-service',
+    reason: null,
   };
 }
 

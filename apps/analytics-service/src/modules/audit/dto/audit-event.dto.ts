@@ -12,4 +12,6 @@ export interface AuditEventDto {
   readonly resourceType: string;
   readonly resourceId: string;
   readonly requestId: string;
+  /** Only an `emergency-bypass` event has one: the reason the doctor gave (ADR-019). */
+  readonly reason?: string;
 }

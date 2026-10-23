@@ -194,6 +194,6 @@ this section only records how the tooling follows them.
 - **`npm run smoke:stack`** adds the consent routes to the access matrix and a consent chain on a throwaway patient (`checks-chain-consent.ts`).
   It is mode-aware: the stack's mode is detected (or named in `SMOKE_CONSENT_ENFORCEMENT`) and the same calls expect 409 in `block`, success in `warn`.
   The clinical chain records its patient's consent first; the race and schedule-removal bookings carry no free-text reason, because the third demo
-  patient has no consent. The bypass `AuditEvent` is read from HAPI directly (`SMOKE_FHIR_BASE_URL`, local hosts only): no API exposes it.
+  patient has no consent. The emergency-bypass event is read through the admin audit journal (9.4, action `emergency-bypass`).
   The suite now needs 6 free slots of the demo doctor (slots 3–5 belong to the consent chain).
 - **Tools resolve `@medcenter/*`**: `seed:demo` and `smoke:stack` run `ts-node -r tsconfig-paths/register`, and `jest.config.js` maps the same aliases.

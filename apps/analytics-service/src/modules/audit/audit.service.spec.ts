@@ -12,6 +12,7 @@ const ROW: AuditEventRow = {
   resourceId: 'appt-1',
   requestId: null,
   source: 'appointment-service',
+  reason: null,
 };
 
 describe('AuditService', () => {
@@ -45,6 +46,15 @@ describe('AuditService', () => {
       ],
       meta: { page: 2, pageSize: 20, totalItems: 41, totalPages: 3 },
     });
+  });
+
+  it('should expose the reason of an emergency consent bypass and no reason for any other event', async () => {
+    repository.findPage.mockResolvedValue({ rows: [{ ...ROW, action: 'emergency-bypass', reason: 'Пациент без сознания' }, ROW], total: 2 });
+
+    const { items } = await auditService.list({});
+
+    expect(items[0]).toMatchObject({ action: 'emergency-bypass', reason: 'Пациент без сознания' });
+    expect(items[1]).not.toHaveProperty('reason');
   });
 
   it('should translate page and pageSize into offset and limit when a later page is requested', async () => {

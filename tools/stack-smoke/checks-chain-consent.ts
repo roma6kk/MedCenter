@@ -1,9 +1,10 @@
-import { FhirHttp } from '../shared/fhir-http';
 import { newPassword } from './checks-auth';
 import { completionBody } from './checks-chain-encounter';
 import { bookSlot, consentOf, postConsent, recordConsent, uploadScan } from './consent-api';
 import { modeFromAnswer, reconcileMode, type EnforcementMode } from './consent-mode';
-import { bodyObject, expectDefined, expectEqual, expectProblem, expectStatus, expectTrue } from './smoke-assert';
+import { pollUntil } from './polling';
+import { bodyObject, expectDefined, expectEqual, expectPage, expectProblem, expectStatus, expectTrue } from './smoke-assert';
+import { AUDIT_EVENT_SHAPE } from './smoke-shapes';
 import { signIn } from './smoke-session';
 import type { SmokeStep } from './smoke-runner';
 import type { JsonObject, Session } from './smoke-types';
@@ -12,7 +13,6 @@ import { runTag, type Suite } from './suite';
 const GROUP = 'consent (ADR-019)';
 const REASON = 'Жалобы на кашель (smoke)';
 const EMERGENCY_REASON = 'Пациент без сознания, согласие дать не может (smoke)';
-const BYPASS_SUBTYPE = 'urn:medcenter:audit-event-subtype|consent-emergency-bypass';
 const FIRST_SLOT = 3;
 
 /**
@@ -170,21 +170,25 @@ function revokeByPatientStep(suite: Suite, run: Run): SmokeStep {
   };
 }
 
-/** HAPI as the host publishes it: no API exposes the bypass event, so the check reads it where it is stored. */
-async function bypassEventsOf(suite: Suite, run: Run): Promise<readonly unknown[]> {
-  const events = await new FhirHttp(suite.config.fhirBaseUrl).search('AuditEvent', { subtype: BYPASS_SUBTYPE, entity: `Patient/${run.patientId}` });
-  return events.flatMap((event) => (event['purposeOfEvent'] as Array<{ text?: string }> | undefined) ?? []).map((purpose) => purpose.text);
+/** The journal (9.4, ADR-019) shows the bypass as `emergency-bypass` of the patient, with the doctor and the reason; the audit is synced on an interval. */
+async function bypassEventOf(suite: Suite, run: Run): Promise<JsonObject> {
+  return pollUntil(suite.config, 'the emergency-bypass audit event of the patient', async () => {
+    const response = await suite.api.get('/api/v1/admin/audit', { session: suite.sessions.admin, query: { entity: `Patient/${run.patientId}`, pageSize: 100 } });
+    return expectPage(response, AUDIT_EVENT_SHAPE).find((item) => item['action'] === 'emergency-bypass');
+  });
 }
 
 function emergencySteps(suite: Suite, run: Run): SmokeStep[] {
   return [
     {
-      name: '7.1 with emergencyReason and no consent -> 201 (both modes); the emergency-bypass AuditEvent carries the reason',
+      name: '7.1 with emergencyReason and no consent -> 201 (both modes); the admin audit journal shows an emergency-bypass of the patient with the doctor and the reason',
       run: async () => {
         const response = await openEncounter(suite, run, 'third', { emergencyReason: EMERGENCY_REASON });
         expectStatus(response, 201);
         run.encounterId = idOf(response);
-        expectTrue((await bypassEventsOf(suite, run)).includes(EMERGENCY_REASON), 'no emergency-bypass AuditEvent with the reason was written');
+        const event = await bypassEventOf(suite, run);
+        expectEqual(event['reason'], EMERGENCY_REASON, 'reason of the bypass event');
+        expectEqual(event['userId'], suite.sessions.doctor.claims.sub, 'actor of the bypass event');
       },
     },
     {
