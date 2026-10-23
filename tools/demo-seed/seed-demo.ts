@@ -5,6 +5,8 @@ import { loadSeedEnv } from '../shared/load-seed-env';
 import { resolveFhirBaseUrl, runMain } from '../shared/seed-env';
 import { parseCliArgs, readUsersConfig, type CliOptions } from './demo-cli-options';
 import { buildFhirManifest, readManifest, writeManifest, type DemoUsersSection } from './demo-manifest';
+import { DEFAULT_PATIENT_WITHOUT_CONSENT, seedDemoConsents, selectConsentPatients } from './demo-consents';
+import { PATIENTS } from './demo-catalog';
 import { attachPatientPhotos } from './demo-patient-photos';
 import { repairDemoData } from './demo-repair';
 import { clinicDateOf } from './demo-slots';
@@ -18,6 +20,8 @@ import { seedDemoUsers } from './seed-demo-users';
  *   npm run seed:demo -- --users      demo doctors and patients (run after auth-service is deployed)
  *   npm run seed:demo -- --users --with-admin   the same plus the demo ADMIN the smoke suite signs in as
  *   npm run seed:demo -- --fhir --users   both, FHIR first
+ *   npm run seed:demo -- --users --consents   the same plus the EMR consent of the demo patients (see below)
+ *   npm run seed:demo -- --consents   only the consent step (the accounts must exist: it reads the manifest)
  *   npm run seed:demo -- --repair     booked appointments with a finished encounter → fulfilled; report check leftovers
  *
  * Environment (names only; see `demo-cli-options.ts`; the seed variables the shell has not set are
@@ -28,6 +32,11 @@ import { seedDemoUsers } from './seed-demo-users';
  * `DEMO_DOCTOR_PASSWORD`, `DEMO_PATIENT_PASSWORD`.
  * Both steps refuse a non-local `SEED_FHIR_BASE_URL` / `SEED_AUTH_BASE_URL` unless
  * `SEED_ALLOW_REMOTE=true` (they create accounts and rewrite reference data).
+ * `--consents` (API 3.4-3.11, ADR-019; `demo-consents.ts`) writes, for every demo patient in the manifest, a demo scan
+ * (`Binary`) and an active `Consent` into HAPI; a patient who already has a consent in force is skipped. One patient
+ * stays WITHOUT consent on purpose, to demo the `CONSENT_REQUIRED` block: `patient.novikov` by default,
+ * `--consent-except=patient.lebedeva` picks another, `--consent-except=none` leaves nobody out. The consent is a
+ * seed shortcut for the paper form; the stack runs with `CONSENT_ENFORCEMENT=block` (compose default).
  * The manifest (ids, generated credentials) goes to the git-ignored
  * `tools/demo-seed/output/demo-manifest.json`.
  */
@@ -72,6 +81,25 @@ async function runUsersStep(now: Date, withAdmin: boolean): Promise<void> {
   console.log(`Patient photos: updated=${photos.updated.length} unchanged=${photos.unchanged.length} missing=${photos.missing.length}${photos.missing.length > 0 ? ` (${photos.missing.join(', ')})` : ''}`);
 }
 
+async function runConsentsStep(options: CliOptions, now: Date): Promise<void> {
+  const manifest = await readManifest(MANIFEST_PATH);
+  const accounts = (manifest.users?.accounts ?? []).filter((account) => account.role === 'PATIENT' && account.status !== 'failed');
+  if (accounts.length === 0) {
+    throw new Error('The manifest has no demo patient accounts: run "npm run seed:demo -- --users" first');
+  }
+  const except = options.consentExcept === undefined ? DEFAULT_PATIENT_WITHOUT_CONSENT : options.consentExcept === 'none' ? undefined : options.consentExcept;
+  const selection = selectConsentPatients(PATIENTS, accounts.map((account) => account.email), except);
+  const baseUrl = resolveFhirBaseUrl();
+  console.log(`Seeding demo EMR consents into ${baseUrl}`);
+  const summary = await seedDemoConsents(new FhirHttp(baseUrl), { ...selection, now });
+  console.log(`EMR consent created: ${summary.created.join(', ') || 'none'}`);
+  console.log(`EMR consent already active (kept): ${summary.alreadyActive.join(', ') || 'none'}`);
+  console.log(`Left WITHOUT consent on purpose (the CONSENT_REQUIRED demo): ${summary.withoutConsent.join(', ') || 'nobody'}`);
+  if (summary.missing.length > 0) {
+    throw new Error(`No Patient on the server for: ${summary.missing.join(', ')} (register the accounts: --users)`);
+  }
+}
+
 async function runRepairStep(): Promise<void> {
   const baseUrl = resolveFhirBaseUrl();
   console.log(`Repairing demo data in ${baseUrl}`);
@@ -94,6 +122,9 @@ if (require.main === module) {
     }
     if (options.runUsers) {
       await runUsersStep(now, options.withAdmin);
+    }
+    if (options.runConsents) {
+      await runConsentsStep(options, now);
     }
     if (options.runRepair) {
       await runRepairStep();

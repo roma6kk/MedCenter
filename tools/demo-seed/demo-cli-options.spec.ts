@@ -14,7 +14,7 @@ const ADMIN_ENV = { BOOTSTRAP_ADMIN_EMAIL: 'admin@medcenter.test', BOOTSTRAP_ADM
 
 describe('parseCliArgs', () => {
   it('should run the FHIR part for 14 days from today when called without arguments', () => {
-    expect(parseCliArgs([])).toEqual({ runFhir: true, runUsers: false, runRepair: false, withAdmin: false, days: 14 });
+    expect(parseCliArgs([])).toEqual({ runFhir: true, runUsers: false, runRepair: false, runConsents: false, withAdmin: false, days: 14 });
   });
 
   it('should run only the users step for --users', () => {
@@ -28,6 +28,22 @@ describe('parseCliArgs', () => {
 
   it('should run both steps for --fhir --users', () => {
     expect(parseCliArgs(['--fhir', '--users'])).toMatchObject({ runFhir: true, runUsers: true });
+  });
+
+  it('should run only the consents step for --consents, and after the users for --users --consents', () => {
+    expect(parseCliArgs(['--consents'])).toMatchObject({ runFhir: false, runUsers: false, runConsents: true });
+    expect(parseCliArgs(['--users', '--consents'])).toMatchObject({ runFhir: false, runUsers: true, runConsents: true });
+    expect(parseCliArgs(['--fhir', '--users', '--consents'])).toMatchObject({ runFhir: true, runUsers: true, runConsents: true });
+  });
+
+  it('should take the demo patient left without consent from --consent-except, and leave it unset by default', () => {
+    expect(parseCliArgs(['--consents']).consentExcept).toBeUndefined();
+    expect(parseCliArgs(['--consents', '--consent-except=patient.lebedeva']).consentExcept).toBe('patient.lebedeva');
+    expect(parseCliArgs(['--consents', '--consent-except=none']).consentExcept).toBe('none');
+  });
+
+  it('should reject --consent-except without --consents because the flag belongs to that step', () => {
+    expect(() => parseCliArgs(['--consent-except=none'])).toThrow('--consent-except belongs to the consents step');
   });
 
   it('should create no demo admin unless --with-admin is given', () => {

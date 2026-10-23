@@ -10,8 +10,8 @@
     "test:tools": "jest tools/",
     "lint:tools": "eslint --no-eslintrc -c tools/.eslintrc.golden.json tools --ext .ts",
     "seed:terminology": "TS_NODE_PROJECT=tsconfig.base.json ts-node tools/terminology-seed/seed-terminology.ts",
-    "seed:demo": "TS_NODE_PROJECT=tsconfig.base.json ts-node tools/demo-seed/seed-demo.ts",
-    "smoke:stack": "TS_NODE_PROJECT=tsconfig.base.json ts-node tools/stack-smoke/run-stack-smoke.ts",
+    "seed:demo": "TS_NODE_PROJECT=tsconfig.base.json ts-node -r tsconfig-paths/register tools/demo-seed/seed-demo.ts",
+    "smoke:stack": "TS_NODE_PROJECT=tsconfig.base.json ts-node -r tsconfig-paths/register tools/stack-smoke/run-stack-smoke.ts",
     "stack:up": "docker compose up -d --wait",
     "stack:wait": "TS_NODE_PROJECT=tsconfig.base.json ts-node tools/stack-smoke/wait-for-stack.ts",
     "stack:down": "docker compose down -v"

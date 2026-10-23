@@ -98,8 +98,14 @@ describe('planPatientAccounts', () => {
 
     expect(accounts).toHaveLength(3);
     expect(accounts.every((account) => account.path === '/api/v1/auth/register' && account.role === 'PATIENT')).toBe(true);
-    expect(Object.keys(accounts[0]?.body ?? {}).sort()).toEqual(['birthDate', 'email', 'firstName', 'gender', 'lastName', 'password']);
+    expect(Object.keys(accounts[0]?.body ?? {}).sort()).toEqual(['accountConsent', 'birthDate', 'email', 'firstName', 'gender', 'lastName', 'password']);
     expect(accounts[0]?.body['birthDate']).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+  });
+
+  it('should accept the account consent text at registration (API 2.2.6), in the version the web form sends', () => {
+    for (const account of planPatientAccounts(configOf())) {
+      expect(account.body['accountConsent']).toEqual({ accepted: true, textVersion: '2026-10' });
+    }
   });
 });
 

@@ -61,6 +61,13 @@ export interface PlannedAccount {
 
 const ERROR_EXCERPT_LENGTH = 300;
 
+/**
+ * Version of the account consent text the demo patients "accept" at registration (API 2.2.6).
+ * It mirrors `ACCOUNT_CONSENT_VERSION` in `frontend/src/lib/contracts.ts`, the version the web form
+ * sends (the backend keeps no copy: it stores whatever version the client names). Change both together.
+ */
+export const DEMO_ACCOUNT_CONSENT_VERSION = '2026-10';
+
 export function emailOf(local: string, domain: string): string {
   return `${local}@${domain}`;
 }
@@ -130,6 +137,7 @@ export function planPatientAccounts(config: UsersSeedConfig): PlannedAccount[] {
         lastName: patient.lastName,
         birthDate: patient.birthDate,
         gender: patient.gender,
+        accountConsent: { accepted: true, textVersion: DEMO_ACCOUNT_CONSENT_VERSION },
       },
     };
   });

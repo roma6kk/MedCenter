@@ -12,12 +12,19 @@ export interface CliOptions {
   readonly runUsers: boolean;
   /** `--repair`: fix the data earlier checks left behind (see `demo-repair.ts`). */
   readonly runRepair: boolean;
+  /** `--consents`: the EMR consent of the demo patients (see `demo-consents.ts`). */
+  readonly runConsents: boolean;
+  /** `--consent-except=<account|none>`: the demo patient left without consent; unset means the default (`patient.novikov`). */
+  readonly consentExcept?: string;
   /** `--with-admin`: also create the demo ADMIN (the stack smoke suite signs in as it). Never by default. */
   readonly withAdmin: boolean;
   readonly days: number;
   /** First slot day (clinic calendar, Europe/Minsk), `YYYY-MM-DD`; today in Minsk when omitted. */
   readonly from?: string;
 }
+
+const SWITCHES = ['--fhir', '--users', '--repair', '--consents', '--with-admin'] as const;
+const VALUED = ['--consent-except', '--days', '--from'] as const;
 
 const DAY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -50,35 +57,52 @@ function parseFrom(raw: string): string {
  * demo ADMIN: a persistent privileged account is opt-in, an earlier one stays in the
  * manifest without the flag. `--days=N` / `--from=YYYY-MM-DD` shape the slot horizon
  * (default: 14 days from today). `--repair` puts stale demo data right (alone it runs nothing else).
+ * `--consents` gives the demo patients their EMR consent (alone it runs nothing else, after `--users` it follows it);
+ * `--consent-except=<account>` picks the one patient left without it, `none` leaves nobody out.
  */
 export function parseCliArgs(argv: readonly string[]): CliOptions {
-  let runFhir = false;
-  let runUsers = false;
-  let runRepair = false;
-  let withAdmin = false;
-  let days = DEFAULT_SLOT_DAYS;
-  let from: string | undefined;
+  const flags = new Set<string>();
+  const values = new Map<string, string>();
   for (const argument of argv) {
-    if (argument === '--fhir') {
-      runFhir = true;
-    } else if (argument === '--users') {
-      runUsers = true;
-    } else if (argument === '--repair') {
-      runRepair = true;
-    } else if (argument === '--with-admin') {
-      withAdmin = true;
-    } else if (argument.startsWith('--days=')) {
-      days = parseDays(readValue(argument, '--days'));
-    } else if (argument.startsWith('--from=')) {
-      from = parseFrom(readValue(argument, '--from'));
+    const flag = SWITCHES.find((candidate) => candidate === argument);
+    const valued = VALUED.find((candidate) => argument.startsWith(`${candidate}=`));
+    if (flag !== undefined) {
+      flags.add(flag);
+    } else if (valued !== undefined) {
+      values.set(valued, readValue(argument, valued));
     } else {
-      throw new Error(`Unknown argument "${argument}" (supported: --fhir, --users, --repair, --with-admin, --days=N, --from=YYYY-MM-DD)`);
+      throw new Error(`Unknown argument "${argument}" (supported: ${[...SWITCHES, '--consent-except=<account|none>', '--days=N', '--from=YYYY-MM-DD'].join(', ')})`);
     }
   }
-  if (withAdmin && !runUsers) {
+  assertFlagCombination(flags, values);
+  return optionsOf(flags, values);
+}
+
+function assertFlagCombination(flags: ReadonlySet<string>, values: ReadonlyMap<string, string>): void {
+  if (flags.has('--with-admin') && !flags.has('--users')) {
     throw new Error('--with-admin belongs to the users step: add --users');
   }
-  return { runFhir: runFhir || (!runUsers && !runRepair), runUsers, runRepair, withAdmin, days, ...(from === undefined ? {} : { from }) };
+  if (values.has('--consent-except') && !flags.has('--consents')) {
+    throw new Error('--consent-except belongs to the consents step: add --consents');
+  }
+}
+
+function optionsOf(flags: ReadonlySet<string>, values: ReadonlyMap<string, string>): CliOptions {
+  const runUsers = flags.has('--users');
+  const runRepair = flags.has('--repair');
+  const runConsents = flags.has('--consents');
+  const consentExcept = values.get('--consent-except');
+  const from = values.get('--from');
+  return {
+    runFhir: flags.has('--fhir') || (!runUsers && !runRepair && !runConsents),
+    runUsers,
+    runRepair,
+    runConsents,
+    withAdmin: flags.has('--with-admin'),
+    days: parseDays(values.get('--days') ?? String(DEFAULT_SLOT_DAYS)),
+    ...(consentExcept === undefined ? {} : { consentExcept }),
+    ...(from === undefined ? {} : { from: parseFrom(from) }),
+  };
 }
 
 export const DEFAULT_AUTH_BASE_URL = 'http://localhost:8081';
