@@ -10,7 +10,7 @@
 # Context is the repository root; .dockerignore allowlists the Nx workspace.
 #
 # Layer sharing: everything above `ARG APP` in the `build` stage is APP-independent,
-# so `docker compose build` runs `npm ci` once and reuses the layer for all 8 images.
+# so `docker compose build` runs `npm ci` once and reuses the layer for every image.
 # Declaring `ARG APP` earlier would make BuildKit re-run every later RUN per value.
 
 # Pinned by tag AND digest (node 22 LTS, alpine 3.24): reproducible builds; bump both
