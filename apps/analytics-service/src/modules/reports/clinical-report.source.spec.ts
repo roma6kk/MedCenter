@@ -114,6 +114,22 @@ describe('FhirClinicalReportSource', () => {
     });
   });
 
+  describe('fulfilledAppointmentIds', () => {
+    it('should search fulfilled appointments by start in the half-open period', async () => {
+      fhir.search.mockResolvedValueOnce({ total: 1, ...appointments(['apt-5']) });
+
+      expect(await source.fulfilledAppointmentIds(RANGE)).toEqual(['apt-5']);
+      expect(fhir.search).toHaveBeenCalledWith('Appointment', {
+        status: 'fulfilled',
+        date: ['ge2026-10-01T00:00:00.000Z', 'lt2026-11-01T00:00:00.000Z'],
+        _elements: 'id',
+        _sort: '_lastUpdated',
+        _count: NO_SHOW_PAGE_SIZE,
+        _offset: 0,
+      });
+    });
+  });
+
   describe('serviceNames', () => {
     it('should skip the search when no service id is given', async () => {
       expect(await source.serviceNames([])).toEqual(new Map());

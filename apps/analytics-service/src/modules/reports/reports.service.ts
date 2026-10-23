@@ -37,25 +37,30 @@ export class ReportsService {
   ) {}
 
   /**
-   * `booked`, `cancelled` and `noshow` partition the appointments the read-model
-   * knows. A no-show is a former `booked` appointment that only HAPI knows
-   * about, so HAPI lists the no-show ids and the read-model reclassifies the ones
+   * `booked`, `fulfilled`, `cancelled` and `noshow` partition the appointments the read-model
+   * knows. A no-show and an attended visit are former `booked` appointments that only HAPI knows
+   * about, so HAPI lists their ids and the read-model reclassifies the ones
    * it holds as `booked` — in one statement. An appointment the read-model never
    * heard of (booked before the worker ran) is in none of the three counts.
    */
   async appointmentsSummary(query: DateRangeInput): Promise<AppointmentsSummaryDto> {
     const range = this.rangeOf(query);
-    const noShowIds = await this.clinical.noShowAppointmentIds(range);
-    const rows = await this.repository.countAppointmentsByStatus(range, noShowIds);
+    const [noShowIds, fulfilledIds] = await Promise.all([
+      this.clinical.noShowAppointmentIds(range),
+      this.clinical.fulfilledAppointmentIds(range),
+    ]);
+    const rows = await this.repository.countAppointmentsByStatus(range, noShowIds, fulfilledIds);
     const booked = countOf(rows, 'booked');
+    const fulfilled = countOf(rows, 'fulfilled');
     const cancelled = countOf(rows, 'cancelled');
     const noshow = countOf(rows, 'noshow');
     const groups: ReadonlyArray<MeasureGroupDto> = [
       { code: 'booked', display: 'Записано', count: booked },
+      { code: 'fulfilled', display: 'Посещено', count: fulfilled },
       { code: 'cancelled', display: 'Отменено', count: cancelled },
       { code: 'noshow', display: 'Неявка', count: noshow },
     ];
-    return { ...this.envelope('appointments-by-status', range, groups), booked, cancelled, noshow };
+    return { ...this.envelope('appointments-by-status', range, groups), booked, fulfilled, cancelled, noshow };
   }
 
   async encountersSummary(query: DateRangeInput): Promise<EncountersSummaryDto> {

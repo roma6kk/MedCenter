@@ -27,6 +27,7 @@ describe('GET /api/v1/admin/analytics/* (API §9.1–9.3, FR-019)', () => {
   it('should classify the HAPI no-shows through the read-model in the shape the dashboard reads when §9.1 is requested', async () => {
     harness.reports.countAppointmentsByStatus.mockResolvedValue([
       { status: 'booked', count: '10' },
+      { status: 'fulfilled', count: '6' },
       { status: 'cancelled', count: '3' },
       { status: 'noshow', count: '2' },
     ]);
@@ -40,7 +41,7 @@ describe('GET /api/v1/admin/analytics/* (API §9.1–9.3, FR-019)', () => {
 
     const response = await get(`/api/v1/admin/analytics/appointments?${YEAR_2026}`).expect(200);
 
-    expect(response.body).toMatchObject({ booked: 10, cancelled: 3, noshow: 2, total: 15, scoring: 'cohort' });
+    expect(response.body).toMatchObject({ booked: 10, fulfilled: 6, cancelled: 3, noshow: 2, total: 21, scoring: 'cohort' });
     expect(harness.fhir.search).toHaveBeenCalledWith('Appointment', {
       status: 'noshow',
       date: ['ge2026-01-01T00:00:00.000Z', 'lt2027-01-01T00:00:00.000Z'],
@@ -49,7 +50,7 @@ describe('GET /api/v1/admin/analytics/* (API §9.1–9.3, FR-019)', () => {
       _count: 200,
       _offset: 0,
     });
-    expect(harness.reports.countAppointmentsByStatus).toHaveBeenLastCalledWith(expect.anything(), ['apt-7', 'apt-9']);
+    expect(harness.reports.countAppointmentsByStatus).toHaveBeenLastCalledWith(expect.anything(), ['apt-7', 'apt-9'], ['apt-7', 'apt-9']);
   });
 
   it('should group completed encounters by specialty when §9.2 is requested', async () => {

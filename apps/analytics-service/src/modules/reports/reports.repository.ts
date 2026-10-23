@@ -29,12 +29,16 @@ export interface ServiceCountRow {
 /** Read side of the analytics read-model (API §9.1–9.3). */
 export interface ReportsRepository {
   /**
-   * Appointments starting in the period, by status. `noShowIds` are the HAPI
-   * `Appointment`s with status `noshow`: those the read-model still holds as
-   * `booked` are reported as `noshow` instead, in the same statement, so the
-   * three counts describe one population and always partition it.
+   * Appointments starting in the period, by status. `noShowIds` / `fulfilledIds` are the HAPI
+   * `Appointment`s with status `noshow` / `fulfilled`: those the read-model still holds as
+   * `booked` are reported as `noshow` / `fulfilled` instead, in the same statement, so the
+   * counts describe one population and always partition it.
    */
-  countAppointmentsByStatus(range: DateRange, noShowIds: ReadonlyArray<string>): Promise<ReadonlyArray<StatusCountRow>>;
+  countAppointmentsByStatus(
+    range: DateRange,
+    noShowIds: ReadonlyArray<string>,
+    fulfilledIds: ReadonlyArray<string>,
+  ): Promise<ReadonlyArray<StatusCountRow>>;
   countEncountersBySpecialty(range: DateRange): Promise<ReadonlyArray<SpecialtyCountRow>>;
   countBookingsByService(range: DateRange, limit: number): Promise<ReadonlyArray<ServiceCountRow>>;
 }
@@ -42,12 +46,17 @@ export interface ReportsRepository {
 export const REPORTS_REPOSITORY = Symbol('REPORTS_REPOSITORY');
 
 /**
- * `noshow` exists only in HAPI (no domain event announces it), so the status is
- * derived here: a still-`booked` fact whose id HAPI lists as no-show. `$3` is
- * one array parameter, not an `IN (...)` list, so the count of ids is unbounded.
+ * `noshow` and `fulfilled` exist only in HAPI (no domain event with an appointment id announces them), so
+ * the status is derived here: a still-`booked` fact whose id HAPI lists as no-show (`$3`) or fulfilled
+ * (`$4`). The two HAPI sets are disjoint. Each is one array parameter, not an `IN (...)` list, so the
+ * count of ids is unbounded.
  */
 const COUNT_APPOINTMENTS_BY_STATUS = `SELECT
-    CASE WHEN "status" = 'booked' AND "appointment_id" = ANY($3::varchar[]) THEN 'noshow' ELSE "status" END AS "status",
+    CASE
+      WHEN "status" = 'booked' AND "appointment_id" = ANY($3::varchar[]) THEN 'noshow'
+      WHEN "status" = 'booked' AND "appointment_id" = ANY($4::varchar[]) THEN 'fulfilled'
+      ELSE "status"
+    END AS "status",
     COUNT(*) AS "count"
   FROM "analytics"."appointment_fact"
   WHERE "start_at" >= $1 AND "start_at" < $2
@@ -58,11 +67,16 @@ const COUNT_APPOINTMENTS_BY_STATUS = `SELECT
 export class TypeOrmReportsRepository implements ReportsRepository {
   constructor(@Inject(ANALYTICS_DATA_SOURCE) private readonly dataSource: DataSource) {}
 
-  async countAppointmentsByStatus(range: DateRange, noShowIds: ReadonlyArray<string>): Promise<ReadonlyArray<StatusCountRow>> {
+  async countAppointmentsByStatus(
+    range: DateRange,
+    noShowIds: ReadonlyArray<string>,
+    fulfilledIds: ReadonlyArray<string>,
+  ): Promise<ReadonlyArray<StatusCountRow>> {
     const rows: ReadonlyArray<StatusCountRow> = await this.dataSource.query(COUNT_APPOINTMENTS_BY_STATUS, [
       range.from,
       range.toExclusive,
       [...noShowIds],
+      [...fulfilledIds],
     ]);
     return rows;
   }
