@@ -8,7 +8,7 @@
  */
 import { randomUUID } from 'node:crypto';
 import { expect, test, type BrowserContext, type Page, type Response } from '@playwright/test';
-import { accessTokenOf, bookAnyFreeSlotAs, cancelAppointmentAs, clinicDay } from './fixtures/booking-api';
+import { accessTokenOf, bookAnyFreeSlotAs, cancelAppointmentAs } from './fixtures/booking-api';
 import { hasDemoManifest } from './fixtures/demo-accounts';
 import { openStoredSession } from './fixtures/session-state';
 
@@ -206,8 +206,10 @@ test.describe('admin audit journal', () => {
   });
 
   test('should filter by period: today holds the events, a past day does not', async () => {
-    const today = clinicDay(new Date());
-    const yesterdayOf = (day: string): string => clinicDay(new Date(Date.parse(`${day}T12:00:00Z`) - 24 * 60 * 60 * 1000));
+    // API §0: a date-only `from`/`to` is a UTC day, so «today» is the UTC date (the Minsk date differs between 00:00 and 03:00 local).
+    const utcDay = (date: Date): string => date.toISOString().slice(0, 10);
+    const today = utcDay(new Date());
+    const yesterdayOf = (day: string): string => utcDay(new Date(Date.parse(`${day}T12:00:00Z`) - 24 * 60 * 60 * 1000));
     const past = yesterdayOf(yesterdayOf(today));
 
     await applyFilters({ entity: `Location/${roomId}`, from: today, to: today });
