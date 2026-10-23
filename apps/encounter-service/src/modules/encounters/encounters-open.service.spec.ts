@@ -17,14 +17,16 @@ import {
   otherDoctorClaims,
   transactionResponse,
 } from './__tests__/encounter.fixtures';
+import { EncounterOpeningService } from './encounter-opening.service';
 import { EncountersService } from './encounters.service';
 
 function searchResult(...resources: FhirResource[]): { total: number; entry: Array<{ resource: FhirResource }> } {
   return { total: resources.length, entry: resources.map((resource) => ({ resource })) };
 }
 
-describe('EncountersService.open / findOne', () => {
+describe('EncounterOpeningService.open / EncountersService.findOne', () => {
   let service: EncountersService;
+  let opening: EncounterOpeningService;
   let fhir: jest.Mocked<FhirClient>;
 
   beforeEach(() => {
@@ -34,17 +36,18 @@ describe('EncountersService.open / findOne', () => {
     fhir.batch.mockResolvedValue(transactionResponse([`Encounter/${ENCOUNTER_ID}/_history/1`, 'AuditEvent/ae-1/_history/1']));
     const publisher = { publishCompleted: jest.fn() } as unknown as EncounterPublisherService;
     service = new EncountersService(fhir, new TerminologyValidatorService(fhir), publisher, 'warn');
+    opening = new EncounterOpeningService(fhir, 'warn');
   });
 
   it('should write the request id of the opening call into the AuditEvent of the new encounter', async () => {
-    await service.open(doctorClaims, { appointmentId: APPOINTMENT_ID }, 'req-7');
+    await opening.open(doctorClaims, { appointmentId: APPOINTMENT_ID }, 'req-7');
 
     const audit = committedEntries(fhir).find((entry) => entry.resource?.['resourceType'] === 'AuditEvent')?.resource;
     expect(JSON.stringify(audit?.['entity'])).toContain('req-7');
   });
 
   it('should create an in-progress ambulatory encounter with a conditional create when the appointment is booked', async () => {
-    const result = await service.open(doctorClaims, { appointmentId: APPOINTMENT_ID });
+    const result = await opening.open(doctorClaims, { appointmentId: APPOINTMENT_ID });
 
     const [encounterEntry, auditEntry] = committedEntries(fhir);
     expect(encounterEntry?.request).toEqual({
@@ -65,7 +68,7 @@ describe('EncountersService.open / findOne', () => {
   });
 
   it('should make the AuditEvent of the opening conditional on the same appointment so a lost concurrent open writes none', async () => {
-    await service.open(doctorClaims, { appointmentId: APPOINTMENT_ID });
+    await opening.open(doctorClaims, { appointmentId: APPOINTMENT_ID });
 
     const [, auditEntry] = committedEntries(fhir);
     const name = `encounter-opened:Appointment/${APPOINTMENT_ID}`;
@@ -78,7 +81,7 @@ describe('EncountersService.open / findOne', () => {
   });
 
   it('should make the emergency-bypass AuditEvent of the opening conditional too', async () => {
-    await service.open(doctorClaims, { appointmentId: APPOINTMENT_ID, emergencyReason: 'Пациент без сознания, согласие дать некому' });
+    await opening.open(doctorClaims, { appointmentId: APPOINTMENT_ID, emergencyReason: 'Пациент без сознания, согласие дать некому' });
 
     const bypass = committedEntries(fhir).find((entry) => entry.resource['action'] === 'E');
     expect(bypass?.request).toMatchObject({
@@ -87,7 +90,7 @@ describe('EncountersService.open / findOne', () => {
   });
 
   it('should touch the appointment in the same transaction so its If-Match sees a concurrent open', async () => {
-    await service.open(doctorClaims, { appointmentId: APPOINTMENT_ID });
+    await opening.open(doctorClaims, { appointmentId: APPOINTMENT_ID });
 
     const entry = committedEntries(fhir).find((candidate) => candidate.resource.resourceType === 'Appointment');
     expect(entry?.request).toEqual({ method: 'PUT', url: `Appointment/${APPOINTMENT_ID}`, ifMatch: 'W/"2"' });
@@ -105,7 +108,7 @@ describe('EncountersService.open / findOne', () => {
     );
     fhir.read.mockImplementation(async (type) => (type === 'Appointment' ? bookedAppointment : inProgressEncounter));
 
-    const result = await service.open(doctorClaims, { appointmentId: APPOINTMENT_ID });
+    const result = await opening.open(doctorClaims, { appointmentId: APPOINTMENT_ID });
 
     expect(result).toEqual({ created: false, encounter: expect.objectContaining({ id: ENCOUNTER_ID }) });
   });
@@ -113,7 +116,7 @@ describe('EncountersService.open / findOne', () => {
   it('should answer ENCOUNTER_STATE_INVALID when the appointment changed meanwhile and no encounter exists', async () => {
     fhir.batch.mockRejectedValue(new FhirClientError('POST', 'http://hapi/fhir', 412, '{}'));
 
-    expect(await errorPayloadOf(service.open(doctorClaims, { appointmentId: APPOINTMENT_ID }))).toMatchObject({
+    expect(await errorPayloadOf(opening.open(doctorClaims, { appointmentId: APPOINTMENT_ID }))).toMatchObject({
       errorCode: 'ENCOUNTER_STATE_INVALID',
     });
   });
@@ -121,14 +124,14 @@ describe('EncountersService.open / findOne', () => {
   it('should reject opening with ENCOUNTER_STATE_INVALID when the appointment is not booked', async () => {
     fhir.read.mockResolvedValue({ ...bookedAppointment, status: 'cancelled' });
 
-    expect(await errorPayloadOf(service.open(doctorClaims, { appointmentId: APPOINTMENT_ID }))).toMatchObject({
+    expect(await errorPayloadOf(opening.open(doctorClaims, { appointmentId: APPOINTMENT_ID }))).toMatchObject({
       errorCode: 'ENCOUNTER_STATE_INVALID',
     });
     expect(fhir.batch).not.toHaveBeenCalled();
   });
 
   it('should refuse a doctor who does not participate in the appointment', async () => {
-    expect(await errorPayloadOf(service.open(otherDoctorClaims, { appointmentId: APPOINTMENT_ID }))).toMatchObject({
+    expect(await errorPayloadOf(opening.open(otherDoctorClaims, { appointmentId: APPOINTMENT_ID }))).toMatchObject({
       errorCode: 'COMPARTMENT_VIOLATION',
     });
     expect(fhir.batch).not.toHaveBeenCalled();
@@ -137,7 +140,7 @@ describe('EncountersService.open / findOne', () => {
   it('should fail closed when the token carries no PractitionerRole identity', async () => {
     const noIdentity = { ...doctorClaims, fhirUser: undefined };
 
-    expect(await errorPayloadOf(service.open(noIdentity, { appointmentId: APPOINTMENT_ID }))).toMatchObject({
+    expect(await errorPayloadOf(opening.open(noIdentity, { appointmentId: APPOINTMENT_ID }))).toMatchObject({
       errorCode: 'COMPARTMENT_VIOLATION',
     });
     expect(fhir.read).not.toHaveBeenCalled();
@@ -146,7 +149,7 @@ describe('EncountersService.open / findOne', () => {
   it('should return the open encounter instead of creating a second one when the appointment already has it', async () => {
     fhir.search.mockResolvedValue(searchResult(inProgressEncounter));
 
-    const result = await service.open(doctorClaims, { appointmentId: APPOINTMENT_ID });
+    const result = await opening.open(doctorClaims, { appointmentId: APPOINTMENT_ID });
 
     expect(result).toEqual({ created: false, encounter: expect.objectContaining({ id: ENCOUNTER_ID, status: 'in-progress' }) });
     expect(fhir.batch).not.toHaveBeenCalled();
@@ -160,7 +163,7 @@ describe('EncountersService.open / findOne', () => {
     });
     fhir.read.mockImplementation(async (type) => (type === 'Appointment' ? bookedAppointment : inProgressEncounter));
 
-    const result = await service.open(doctorClaims, { appointmentId: APPOINTMENT_ID });
+    const result = await opening.open(doctorClaims, { appointmentId: APPOINTMENT_ID });
 
     expect(result).toEqual({ created: false, encounter: expect.objectContaining({ id: ENCOUNTER_ID }) });
     expect(fhir.read).toHaveBeenCalledWith('Encounter', ENCOUNTER_ID);
@@ -174,7 +177,7 @@ describe('EncountersService.open / findOne', () => {
       throw new FhirClientError('GET', 'http://hapi/fhir/HealthcareService/svc-1', 404, '{}');
     });
 
-    await service.open(doctorClaims, { appointmentId: APPOINTMENT_ID });
+    await opening.open(doctorClaims, { appointmentId: APPOINTMENT_ID });
 
     expect(committedEntries(fhir)[0]?.resource['serviceType']).toBeUndefined();
   });
@@ -182,7 +185,7 @@ describe('EncountersService.open / findOne', () => {
   it('should reject opening with ENCOUNTER_STATE_INVALID when the encounter of the appointment is finished', async () => {
     fhir.search.mockResolvedValue(searchResult(finishedEncounter));
 
-    expect(await errorPayloadOf(service.open(doctorClaims, { appointmentId: APPOINTMENT_ID }))).toMatchObject({
+    expect(await errorPayloadOf(opening.open(doctorClaims, { appointmentId: APPOINTMENT_ID }))).toMatchObject({
       errorCode: 'ENCOUNTER_STATE_INVALID',
     });
   });

@@ -7,6 +7,7 @@ import { FhirIdPipe } from '../../common/access/fhir-id.pipe';
 import { CompleteEncounterDto } from './dto/complete-encounter.dto';
 import type { EncounterDetailsDto, EncounterResponseDto } from './dto/encounter-response.dto';
 import { OpenEncounterDto } from './dto/open-encounter.dto';
+import { EncounterOpeningService } from './encounter-opening.service';
 import { EncountersService } from './encounters.service';
 
 /** An authenticated request after `RequestIdMiddleware` has assigned its correlation id. */
@@ -19,7 +20,10 @@ type AuditedRequest = RequestWithClaims & Pick<RequestWithRequestId, 'requestId'
  */
 @Controller('api/v1/encounters')
 export class EncountersController {
-  constructor(private readonly encounters: EncountersService) {}
+  constructor(
+    private readonly opening: EncounterOpeningService,
+    private readonly encounters: EncountersService,
+  ) {}
 
   /** 7.1 — `201` with the new encounter; `200` with the open one when the appointment already has it. */
   @Post()
@@ -30,7 +34,7 @@ export class EncountersController {
     @Body() dto: OpenEncounterDto,
     @Res({ passthrough: true }) response: Response,
   ): Promise<EncounterResponseDto> {
-    const result = await this.encounters.open(claimsOf(request), dto, request.requestId);
+    const result = await this.opening.open(claimsOf(request), dto, request.requestId);
     response.status(result.created ? HttpStatus.CREATED : HttpStatus.OK);
     return result.encounter;
   }
