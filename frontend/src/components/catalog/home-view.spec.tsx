@@ -7,7 +7,10 @@ const SERVICES: ReadonlyArray<CatalogService> = [
   { id: 'svc-1', name: 'Приём терапевта', typeSystem: 's', typeCode: '1', defaultDurationMin: 30, description: 'Первичная консультация', isActive: true },
   { id: 'svc-2', name: 'Приём кардиолога', typeSystem: 's', typeCode: '2', defaultDurationMin: 40, isActive: true },
 ];
-const DOCTORS: ReadonlyArray<Doctor> = ['a', 'b', 'c', 'd', 'e'].map((id) => ({ id, firstName: 'Имя', lastName: id, name: `Имя ${id}`, specialty: 'Терапевт' }));
+const DOCTORS: ReadonlyArray<Doctor> = ['a', 'b', 'c', 'd', 'e'].map((id) => ({ id, firstName: 'Имя', lastName: id, name: `Имя ${id}`, specialty: 'Терапевт', specialtyCode: '419192003' }));
+const CARDIOLOGIST: Doctor = { id: 'k', firstName: 'Алексей', lastName: 'Петров', name: 'Алексей Петров', specialty: 'Кардиолог', specialtyCode: '394579002' };
+
+const ALL_SPECIALTY_DOCTORS: ReadonlyArray<Doctor> = DIRECTIONS.flatMap((direction) => direction.specialtyCode === undefined ? [] : [{ id: direction.id, firstName: 'И', lastName: direction.id, name: direction.id, specialtyCode: direction.specialtyCode }]);
 
 describe('HomeView', () => {
   it('should lead with what the clinic does and offer the departments and the booking as ways in when the page opens', () => {
@@ -20,12 +23,36 @@ describe('HomeView', () => {
   });
 
   it('should list every department of the clinic when the page opens', () => {
-    render(<HomeView services={SERVICES} doctors={DOCTORS} isFailed={false} />);
+    render(<HomeView services={SERVICES} doctors={ALL_SPECIALTY_DOCTORS} isFailed={false} />);
 
     const departments = screen.getByRole('region', { name: 'Направления' });
     expect(within(departments).getAllByRole('article')).toHaveLength(DIRECTIONS.length);
     expect(within(departments).getByRole('heading', { level: 3, name: 'Функциональная диагностика' })).toBeInTheDocument();
     expect(within(departments).getByRole('link', { name: 'Найти врача' })).toHaveAttribute('href', '/doctors');
+  });
+
+  it('should lead each department to the doctors of its specialty and diagnostics to the whole catalog when doctors are loaded', () => {
+    render(<HomeView services={SERVICES} doctors={[...DOCTORS, CARDIOLOGIST]} isFailed={false} />);
+
+    const departments = screen.getByRole('region', { name: 'Направления' });
+    expect(within(departments).getByRole('link', { name: /Врачи направления: Терапия/ })).toHaveAttribute('href', '/doctors?specialty=419192003');
+    expect(within(departments).getByRole('link', { name: /Врачи направления: Кардиология/ })).toHaveAttribute('href', '/doctors?specialty=394579002');
+    expect(within(departments).getByRole('link', { name: /Врачи направления: Функциональная диагностика/ })).toHaveAttribute('href', '/doctors');
+  });
+
+  it('should hide a department that has no doctors of its specialty so that no card leads to an empty catalog', () => {
+    render(<HomeView services={SERVICES} doctors={DOCTORS} isFailed={false} />);
+
+    const departments = screen.getByRole('region', { name: 'Направления' });
+    expect(within(departments).queryByRole('heading', { level: 3, name: 'Кардиология' })).not.toBeInTheDocument();
+    expect(within(departments).queryByRole('heading', { level: 3, name: 'Хирургия' })).not.toBeInTheDocument();
+    expect(within(departments).getByRole('heading', { level: 3, name: 'Терапия' })).toBeInTheDocument();
+  });
+
+  it('should keep every department when the catalog could not be read, as the doctors are then unknown', () => {
+    render(<HomeView services={[]} doctors={[]} isFailed />);
+
+    expect(within(screen.getByRole('region', { name: 'Направления' })).getAllByRole('article')).toHaveLength(DIRECTIONS.length);
   });
 
   it('should show the licence and the demonstration note when the page opens', () => {
