@@ -32,9 +32,9 @@ describe('envSchema', () => {
     expect(env.TERMINOLOGY_UPSTREAM_URL).toBeUndefined();
   });
 
-  it('should default CONSENT_ENFORCEMENT to warn and accept block', () => {
-    expect(parseEnv(validSource).CONSENT_ENFORCEMENT).toBe('warn');
-    expect(parseEnv({ ...validSource, CONSENT_ENFORCEMENT: 'block' }).CONSENT_ENFORCEMENT).toBe('block');
+  it('should default CONSENT_ENFORCEMENT to block and accept warn', () => {
+    expect(parseEnv(validSource).CONSENT_ENFORCEMENT).toBe('block');
+    expect(parseEnv({ ...validSource, CONSENT_ENFORCEMENT: 'warn' }).CONSENT_ENFORCEMENT).toBe('warn');
   });
 
   it('should reject a CONSENT_ENFORCEMENT value other than warn or block', () => {

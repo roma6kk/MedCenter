@@ -389,7 +389,7 @@ export class PatientConsentDto {         // 3.4, 3.7
 - Роли и компартмент: ADMIN — любой пациент; DOCTOR — только пациент со связью (ADR-013, как 3.2) → иначе 403 `COMPARTMENT_VIOLATION`;
   PATIENT — только 3.4 и 3.6 и только своя запись.
 - Блокировка: 7.1 и 7.3 без действующего согласия → **409** `CONSENT_REQUIRED`; 6.1 разрешена с предупреждением, но свободный текст
-  причины без согласия отклоняется; экстренный обход — `emergencyReason` (см. 7.1). Режим — `CONSENT_ENFORCEMENT=warn|block`.
+  причины без согласия отклоняется; экстренный обход — `emergencyReason` (см. 7.1). Режим — `CONSENT_ENFORCEMENT=warn|block` (по умолчанию `block`).
 
 #### 4. `practitioner-service` — Врачи, кабинеты, организация (FR-002, FR-017)
 

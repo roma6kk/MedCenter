@@ -24,7 +24,7 @@ export const envSchema = z.object({
    * What a missing patient consent does to 7.1/7.3 (ADR-019): `warn` lets the request through,
    * `block` answers 409 `CONSENT_REQUIRED`. Services that enforce it pick this key.
    */
-  CONSENT_ENFORCEMENT: z.enum(['warn', 'block']).default('warn'),
+  CONSENT_ENFORCEMENT: z.enum(['warn', 'block']).default('block'),
 });
 
 /** Only the keys the shared guard stack (`libs/common`) depends on. */

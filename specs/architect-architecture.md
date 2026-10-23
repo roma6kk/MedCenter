@@ -303,7 +303,7 @@ real-time (SSE/WebSocket) **вне объёма**. *Обоснование:* у�
 медработник — в `Consent.note` (Annotation), а не в extension; тип подписанта и документ полномочий — extension `MEDCENTER_EXT`.
 `appointment-/encounter-service` читают `Consent` из HAPI своим `FHIR_CLIENT` через `assertActiveConsent` (`libs/fhir`), без вызова
 patient-service. Без действующего согласия 7.1/7.3 отвечают 409 `CONSENT_REQUIRED`; режим `CONSENT_ENFORCEMENT=warn|block`
-(по умолчанию `warn`), экстренный обход — `emergencyReason` с отдельным `AuditEvent`. Отзыв ничего не удаляет. *Следствие:* флажок
+(по умолчанию `block`, в схеме окружения и в compose), экстренный обход — `emergencyReason` с отдельным `AuditEvent`. Отзыв ничего не удаляет. *Следствие:* флажок
 саморегистрации — только согласие на учётную запись (ст. 5 № 99-З) и `Consent` не создаёт. Модель, варианты и правовые ответы —
 `tasks/TASK-003/brainstorming-consent-design.md`, `tasks/TASK-003/architect-consent-legal-answers.md`; контракт — `api-designer-spec.md` §3.4–3.11.
 
