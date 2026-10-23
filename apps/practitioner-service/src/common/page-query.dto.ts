@@ -1,6 +1,7 @@
+import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import { IsInt, IsOptional, Max, Min } from 'class-validator';
-import { MAX_PAGE_SIZE } from '@medcenter/contracts';
+import { DEFAULT_PAGE, DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE } from '@medcenter/contracts';
 
 /** Upper bound on `page`, so a client cannot push HAPI into an unbounded `_offset` scan. */
 export const MAX_PAGE = 1000;
@@ -11,6 +12,7 @@ export const MAX_PAGE = 1000;
  * answered 400 here instead of surfacing as a HAPI error and a 500.
  */
 export class PageQueryDto {
+  @ApiPropertyOptional({ minimum: 1, maximum: MAX_PAGE, default: DEFAULT_PAGE })
   @IsOptional()
   @Type(() => Number)
   @IsInt()
@@ -18,6 +20,7 @@ export class PageQueryDto {
   @Max(MAX_PAGE)
   page?: number;
 
+  @ApiPropertyOptional({ minimum: 1, maximum: MAX_PAGE_SIZE, default: DEFAULT_PAGE_SIZE })
   @IsOptional()
   @Type(() => Number)
   @IsInt()

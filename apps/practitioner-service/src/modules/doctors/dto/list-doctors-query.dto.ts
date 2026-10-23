@@ -1,3 +1,4 @@
+import { ApiPropertyOptional } from '@nestjs/swagger';
 import { IsOptional, IsString, Matches, MaxLength } from 'class-validator';
 
 import { FHIR_ID_PATTERN } from '../../../common/fhir-id';
@@ -12,15 +13,18 @@ export const MAX_TERM_LENGTH = 100;
  * search, so a comma would OR in other services: it must be a single FHIR id.
  */
 export class ListDoctorsQueryDto extends PageQueryDto {
+  @ApiPropertyOptional({ description: 'HealthcareService id: only doctors who perform this service', pattern: '^[A-Za-z0-9\\-.]{1,64}$' })
   @IsOptional()
   @Matches(FHIR_ID_PATTERN, { message: 'serviceId must be a FHIR resource id' })
   serviceId?: string;
 
+  @ApiPropertyOptional({ description: 'Specialty code or system|code, as in specialtyCode/specialtySystem of the response', maxLength: MAX_TERM_LENGTH, example: 'http://snomed.info/sct|419192003' })
   @IsOptional()
   @IsString()
   @MaxLength(MAX_TERM_LENGTH)
   specialty?: string;
 
+  @ApiPropertyOptional({ description: 'Name fragment of the doctor', maxLength: MAX_TERM_LENGTH })
   @IsOptional()
   @IsString()
   @MaxLength(MAX_TERM_LENGTH)

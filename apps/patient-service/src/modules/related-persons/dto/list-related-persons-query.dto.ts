@@ -1,3 +1,4 @@
+import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import { IsInt, IsOptional, Max, Min } from 'class-validator';
 import { DEFAULT_PAGE, DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE } from '@medcenter/contracts';
@@ -11,6 +12,7 @@ export const MAX_PAGE = 1000;
  * — including a `patient` parameter (ADR-013).
  */
 export class ListRelatedPersonsQueryDto {
+  @ApiPropertyOptional({ minimum: 1, maximum: MAX_PAGE, default: DEFAULT_PAGE })
   @IsOptional()
   @Type(() => Number)
   @IsInt()
@@ -18,6 +20,7 @@ export class ListRelatedPersonsQueryDto {
   @Max(MAX_PAGE)
   readonly page: number = DEFAULT_PAGE;
 
+  @ApiPropertyOptional({ minimum: 1, maximum: MAX_PAGE_SIZE, default: DEFAULT_PAGE_SIZE })
   @IsOptional()
   @Type(() => Number)
   @IsInt()
