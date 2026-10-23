@@ -1,3 +1,4 @@
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import {
   ArrayMaxSize,
@@ -23,6 +24,7 @@ import { ServiceRequestDto } from './service-request.dto';
  */
 export class CompleteEncounterDto {
   /** `ClinicalImpression.summary`. */
+  @ApiProperty({ description: 'ClinicalImpression.summary', minLength: 3, maxLength: 4000 })
   @IsString()
   @IsNotEmpty()
   @MinLength(3)
@@ -30,6 +32,7 @@ export class CompleteEncounterDto {
   summary!: string;
 
   /** `Condition[]` (category=encounter-diagnosis, BR-004). */
+  @ApiProperty({ type: [ConditionDto], minItems: 1, maxItems: 20, description: 'The first diagnosis is the primary one' })
   @IsArray()
   @ArrayMinSize(1)
   @ArrayMaxSize(20)
@@ -38,12 +41,14 @@ export class CompleteEncounterDto {
   diagnoses!: ConditionDto[];
 
   /** `CarePlan.description` (FR-013). */
+  @ApiProperty({ description: 'CarePlan.description', minLength: 3, maxLength: 2000 })
   @IsString()
   @IsNotEmpty()
   @MinLength(3)
   @MaxLength(2000)
   recommendations!: string;
 
+  @ApiPropertyOptional({ type: [ObservationDto], maxItems: 50 })
   @IsOptional()
   @IsArray()
   @ArrayMaxSize(50)
@@ -51,6 +56,7 @@ export class CompleteEncounterDto {
   @Type(() => ObservationDto)
   observations?: ObservationDto[];
 
+  @ApiPropertyOptional({ type: [ServiceRequestDto], maxItems: 20 })
   @IsOptional()
   @IsArray()
   @ArrayMaxSize(20)
@@ -58,6 +64,7 @@ export class CompleteEncounterDto {
   @Type(() => ServiceRequestDto)
   serviceRequests?: ServiceRequestDto[];
 
+  @ApiPropertyOptional({ type: [MedicationRequestDto], maxItems: 20 })
   @IsOptional()
   @IsArray()
   @ArrayMaxSize(20)
@@ -66,6 +73,7 @@ export class CompleteEncounterDto {
   medicationRequests?: MedicationRequestDto[];
 
   /** ADR-019: completes without a patient consent and journals the reason. */
+  @ApiPropertyOptional({ description: 'Completes without the patient consent (ADR-019); the reason is journalled', minLength: 10, maxLength: 500 })
   @IsOptional()
   @EmergencyReason()
   emergencyReason?: string;

@@ -1,3 +1,4 @@
+import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import { IsIn, IsInt, IsOptional, Max, Min } from 'class-validator';
 import {
@@ -24,6 +25,7 @@ export interface PageQuery {
  * read newest first, so `sortOrder` defaults to `desc` on these endpoints.
  */
 export class PageQueryDto {
+  @ApiPropertyOptional({ minimum: 1, maximum: MAX_PAGE, default: 1 })
   @IsOptional()
   @Type(() => Number)
   @IsInt()
@@ -31,6 +33,7 @@ export class PageQueryDto {
   @Max(MAX_PAGE)
   page?: number;
 
+  @ApiPropertyOptional({ minimum: 1, maximum: MAX_PAGE_SIZE, default: DEFAULT_PAGE_SIZE })
   @IsOptional()
   @Type(() => Number)
   @IsInt()
@@ -38,6 +41,7 @@ export class PageQueryDto {
   @Max(MAX_PAGE_SIZE)
   pageSize?: number;
 
+  @ApiPropertyOptional({ enum: ['asc', 'desc'], default: 'desc' })
   @IsOptional()
   @IsIn(['asc', 'desc'])
   sortOrder?: SortOrder;

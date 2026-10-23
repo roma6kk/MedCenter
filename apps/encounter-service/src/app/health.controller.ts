@@ -1,9 +1,13 @@
 import { Controller, Get } from '@nestjs/common';
-import { Public } from '@medcenter/common';
+import { ApiOperation, ApiProperty, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { ApiProblems, Public } from '@medcenter/common';
 
-interface HealthStatus {
-  readonly service: string;
-  readonly status: 'ok';
+class HealthStatus {
+  @ApiProperty({ example: 'encounter-service' })
+  readonly service!: string;
+
+  @ApiProperty({ enum: ['ok'] })
+  readonly status!: 'ok';
 }
 
 /**
@@ -11,10 +15,14 @@ interface HealthStatus {
  * proves the process serves HTTP; HAPI/RabbitMQ outages surface on the API
  * routes as 502/504 and in the logs.
  */
+@ApiTags('encounter')
 @Controller()
 export class HealthController {
   @Public()
   @Get('health')
+  @ApiOperation({ summary: 'Liveness probe' })
+  @ApiResponse({ status: 200, description: 'The process serves HTTP', type: HealthStatus })
+  @ApiProblems([500])
   check(): HealthStatus {
     return { service: 'encounter-service', status: 'ok' };
   }

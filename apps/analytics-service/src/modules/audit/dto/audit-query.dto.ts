@@ -1,3 +1,4 @@
+import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import { IsInt, IsOptional, Matches, Max, Min } from 'class-validator';
 import { MAX_PAGE_SIZE } from '@medcenter/contracts';
@@ -15,14 +16,17 @@ export const MAX_AUDIT_PAGE = 10_000;
 
 /** API §9.4 — `?from=&to=&entity=&userId=&page=&pageSize=`. */
 export class AuditQueryDto extends DateRangeQueryDto {
+  @ApiPropertyOptional({ description: 'Resource type or one resource reference', example: 'Appointment/1234' })
   @IsOptional()
   @Matches(ENTITY_FILTER_PATTERN, { message: 'entity must be a resource type or a Type/id reference' })
   readonly entity?: string;
 
+  @ApiPropertyOptional({ description: 'Token `sub` or agent reference such as PractitionerRole/{id}', maxLength: 128 })
   @IsOptional()
   @Matches(USER_ID_FILTER_PATTERN, { message: 'userId contains unsupported characters' })
   readonly userId?: string;
 
+  @ApiPropertyOptional({ minimum: 1, maximum: MAX_AUDIT_PAGE, default: 1 })
   @IsOptional()
   @Type(() => Number)
   @IsInt()
@@ -30,6 +34,7 @@ export class AuditQueryDto extends DateRangeQueryDto {
   @Max(MAX_AUDIT_PAGE)
   readonly page?: number;
 
+  @ApiPropertyOptional({ minimum: 1, maximum: MAX_PAGE_SIZE, default: 20 })
   @IsOptional()
   @Type(() => Number)
   @IsInt()

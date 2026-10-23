@@ -1,3 +1,4 @@
+import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import { IsInt, IsOptional, Max, Min } from 'class-validator';
 
@@ -9,6 +10,7 @@ export const MAX_TOP_SERVICES = 50;
 
 /** API §9.3 query: `?from=&to=&top=` (`top` 1…50, default 10). */
 export class ServicesPopularityQueryDto extends DateRangeQueryDto {
+  @ApiPropertyOptional({ description: 'How many services to return', minimum: 1, maximum: MAX_TOP_SERVICES, default: DEFAULT_TOP_SERVICES })
   @IsOptional()
   @Type(() => Number)
   @IsInt()
