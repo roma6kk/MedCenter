@@ -12,6 +12,8 @@ import type {
  */
 export interface PatientResponseDto extends PersonNameDto {
   readonly id: string;
+  /** `Patient.meta.versionId`: the value a client sends back as `If-Match` (API §3.12, ADR-012). */
+  readonly version?: string;
   /** `Patient.active`; an absent value means the record is in use. */
   readonly active: boolean;
   /** `Patient.birthDate`, FHIR `date` (`YYYY`, `YYYY-MM` or `YYYY-MM-DD`). */

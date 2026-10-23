@@ -56,6 +56,20 @@ describe('Users API — the Patient resource in HAPI', () => {
       });
     });
 
+    it('should store the normalised phone as a mobile telecom on the Patient when the registration carries one', async () => {
+      await api()
+        .post('/api/v1/auth/register')
+        .send({ ...REGISTRATION, email: 'phone@example.by', phone: '+375 (29) 123-45-67' })
+        .expect(201);
+
+      expect(createdOf(fakes().fhir, 'Patient').at(-1)).toMatchObject({
+        telecom: [
+          { system: 'email', value: 'phone@example.by', use: 'home' },
+          { system: 'phone', value: '+375291234567', use: 'mobile' },
+        ],
+      });
+    });
+
     it('should link the server-assigned Patient id and publish patient.registered.v1 with the bare id when a patient registers', async () => {
       const response = await registerAnna('linked@example.by').expect(201);
 

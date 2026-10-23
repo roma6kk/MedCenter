@@ -27,6 +27,7 @@ export class RegistrationService {
         birthDate: dto.birthDate,
         accountConsentVersion: dto.accountConsent.textVersion,
         ...(dto.gender !== undefined ? { gender: dto.gender } : {}),
+        ...(dto.phone !== undefined ? { phone: dto.phone } : {}),
       },
       { event: 'user.registered', ...(requestId !== undefined ? { requestId } : {}) },
     );

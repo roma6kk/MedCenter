@@ -27,6 +27,8 @@ export interface NewAccount {
   readonly roles: ReadonlyArray<Role>;
   readonly birthDate?: string;
   readonly gender?: PatientGender;
+  /** Self-registration: the optional contact phone, already normalised (API 2.2.6). */
+  readonly phone?: string;
   readonly practitionerRoleId?: string;
   /** Self-registration only: the consent text version the account holder accepted (API 2.2.6). */
   readonly accountConsentVersion?: string;
@@ -142,6 +144,7 @@ export class AccountFactory {
       lastName: user.lastName,
       birthDate: input.birthDate,
       ...(input.gender !== undefined ? { gender: input.gender } : {}),
+      ...(input.phone !== undefined ? { phone: input.phone } : {}),
     });
     try {
       await this.store.link(user.id, 'Patient', patientId);

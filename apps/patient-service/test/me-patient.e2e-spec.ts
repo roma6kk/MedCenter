@@ -131,3 +131,99 @@ describe('GET /api/v1/me/patient (e2e)', () => {
     expect(booted.fhir.read).not.toHaveBeenCalled();
   });
 });
+
+/**
+ * API §3.12 `PATCH /api/v1/me/patient` end to end: a patient edits only their own phone,
+ * guarded by `If-Match`; the Patient and its AuditEvent go to HAPI in one transaction.
+ */
+describe('PATCH /api/v1/me/patient (e2e)', () => {
+  let booted: BootedApp;
+  const stored: FhirResource = { ...patient, meta: { versionId: '3' } };
+
+  beforeAll(async () => {
+    booted = await bootApp();
+  });
+
+  afterAll(async () => {
+    await booted?.close();
+  });
+
+  beforeEach(() => {
+    booted.fhir.read.mockReset();
+    booted.fhir.read.mockResolvedValue(stored);
+    booted.fhir.batch.mockReset();
+    booted.fhir.batch.mockResolvedValue({
+      resourceType: 'Bundle',
+      type: 'transaction-response',
+      entry: [{ response: { status: '200 OK', etag: 'W/"4"' } }, { response: { status: '201 Created' } }],
+    });
+  });
+
+  function token(role = 'PATIENT', scope = 'patient/*.read patient/*.write launch'): string {
+    return role === 'PATIENT'
+      ? booted.issuer.sign({ role, scope, patient: '9f2c', fhirUser: 'Patient/9f2c' })
+      : booted.issuer.sign({ role, scope: 'user/*.read user/*.write patient/*.write', fhirUser: 'PractitionerRole/role-1' });
+  }
+
+  function patch(bearer: string, body: unknown, ifMatch: string | null = 'W/"3"'): request.Test {
+    const call = request(booted.app.getHttpServer()).patch(ME_PATIENT).set('Authorization', `Bearer ${bearer}`);
+    return (ifMatch === null ? call : call.set('If-Match', ifMatch)).send(body as object);
+  }
+
+  it('should store the normalised phone and answer the card with the new version', async () => {
+    const response = await patch(token(), { phone: '+375 29 123-45-67' }).expect(200);
+
+    expect(response.body).toMatchObject({
+      id: '9f2c',
+      version: '4',
+      telecom: [
+        { system: 'email', value: 'ivanov@example.by' },
+        { system: 'phone', value: '+375291234567', use: 'mobile' },
+      ],
+    });
+    const entries = booted.fhir.batch.mock.calls[0]?.[0]['entry'] as ReadonlyArray<{ request: { ifMatch?: string } }>;
+    expect(entries[0]?.request.ifMatch).toBe('W/"3"');
+  });
+
+  it('should answer 400 VALIDATION_ERROR on phone and write nothing when the number is not Belarusian', async () => {
+    const response = await patch(token(), { phone: '+7 912 345 67 89' }).expect(400);
+
+    expect(response.body).toMatchObject({ errorCode: 'VALIDATION_ERROR' });
+    expect(booted.fhir.batch).not.toHaveBeenCalled();
+  });
+
+  it('should answer 400 VALIDATION_ERROR when If-Match is missing', async () => {
+    const response = await patch(token(), { phone: '+375291234567' }, null).expect(400);
+
+    expect(response.body).toMatchObject({ errorCode: 'VALIDATION_ERROR' });
+    expect(booted.fhir.batch).not.toHaveBeenCalled();
+  });
+
+  it('should answer 409 CONFLICT problem+json when the version is stale', async () => {
+    const response = await patch(token(), { phone: '+375291234567' }, 'W/"2"').expect(409);
+
+    expect(response.headers['content-type']).toContain('application/problem+json');
+    expect(response.body).toMatchObject({ errorCode: 'CONFLICT' });
+    expect(booted.fhir.batch).not.toHaveBeenCalled();
+  });
+
+  it.each(['DOCTOR', 'ADMIN'])('should answer 403 FORBIDDEN_ROLE when a %s calls it', async (role) => {
+    const response = await patch(token(role), { phone: '+375291234567' }).expect(403);
+
+    expect(response.body).toMatchObject({ errorCode: 'FORBIDDEN_ROLE' });
+    expect(booted.fhir.batch).not.toHaveBeenCalled();
+  });
+
+  it('should answer 403 FORBIDDEN_SCOPE when the token lacks patient/*.write', async () => {
+    const response = await patch(token('PATIENT', 'patient/*.read'), { phone: '+375291234567' }).expect(403);
+
+    expect(response.body).toMatchObject({ errorCode: 'FORBIDDEN_SCOPE' });
+  });
+
+  it('should ignore a patient id in the body and edit only the token patient', async () => {
+    await patch(token(), { phone: '+375291234567', id: 'someone-else', telecom: [] }).expect(200);
+
+    expect(booted.fhir.read).toHaveBeenCalledWith('Patient', '9f2c');
+    expect(booted.fhir.read).not.toHaveBeenCalledWith('Patient', 'someone-else');
+  });
+});

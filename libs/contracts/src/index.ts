@@ -10,3 +10,4 @@ export * from './lib/events/appointment-booked.event';
 export * from './lib/events/appointment-cancelled.event';
 export * from './lib/events/encounter-completed.event';
 export * from './lib/events/patient-registered.event';
+export * from './lib/phone';

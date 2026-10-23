@@ -76,4 +76,12 @@ describe('toPatientResponseDto', () => {
   it('should report an inactive record when Patient.active is false', () => {
     expect(toPatientResponseDto({ ...fullPatient, active: false }).active).toBe(false);
   });
+
+  it('should expose meta.versionId as version when HAPI reports it', () => {
+    expect(toPatientResponseDto({ ...fullPatient, meta: { versionId: '7' } }).version).toBe('7');
+  });
+
+  it('should omit version when the Patient carries no meta.versionId', () => {
+    expect(toPatientResponseDto(fullPatient)).not.toHaveProperty('version');
+  });
 });

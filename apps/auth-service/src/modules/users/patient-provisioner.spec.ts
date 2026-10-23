@@ -35,6 +35,13 @@ describe('buildPatient', () => {
     });
   });
 
+  it('should add a mobile phone after the email when a phone is given', () => {
+    expect(buildPatient({ ...DEMOGRAPHICS, phone: '+375291234567' })['telecom']).toEqual([
+      { system: 'email', value: 'ivanov@example.by', use: 'home' },
+      { system: 'phone', value: '+375291234567', use: 'mobile' },
+    ]);
+  });
+
   it('should carry the administrative gender when it is given', () => {
     expect(buildPatient({ ...DEMOGRAPHICS, gender: 'female' })['gender']).toBe('female');
   });

@@ -1,4 +1,4 @@
-import { FhirClientError, PatientReadAudit, type FhirClient } from '@medcenter/fhir';
+import { FhirClientError, PatientReadAudit, type FhirClient, type FhirResource } from '@medcenter/fhir';
 
 import {
   adminClaims,
@@ -196,6 +196,97 @@ describe('PatientsService', () => {
       );
 
       expect(await errorStatusOf(service.getById('9f2c', adminClaims))).toBe(504);
+    });
+  });
+  describe('updateMyPhone (API §3.12)', () => {
+    const stored: FhirResource = {
+      resourceType: 'Patient',
+      id: '9f2c',
+      meta: { versionId: '3' },
+      name: [{ family: 'Иванов', given: ['Иван'] }],
+      telecom: [
+        { system: 'email', value: 'ivanov@example.by', use: 'home' },
+        { system: 'phone', value: '+375171111111', use: 'old' },
+        { system: 'phone', value: '+375291111111', use: 'mobile' },
+      ],
+    };
+    const written = (): ReadonlyArray<{ resource: FhirResource; request: Record<string, string> }> =>
+      (fhir.batch.mock.calls[0]?.[0]['entry'] ?? []) as never;
+
+    beforeEach(() => {
+      fhir.read.mockResolvedValue(stored);
+      fhir.batch.mockResolvedValue({
+        resourceType: 'Bundle',
+        type: 'transaction-response',
+        entry: [{ response: { status: '200 OK', etag: 'W/"4"' } }, { response: { status: '201 Created' } }],
+      });
+    });
+
+    it('should replace only the live phone and keep the e-mail and the old number when the version matches', async () => {
+      const profile = await service.updateMyPhone(claims, '3', '+375299999999', 'req-1');
+
+      const [patientWrite] = written();
+      expect(patientWrite?.request).toEqual({ method: 'PUT', url: 'Patient/9f2c', ifMatch: 'W/"3"' });
+      expect(patientWrite?.resource['telecom']).toEqual([
+        { system: 'email', value: 'ivanov@example.by', use: 'home' },
+        { system: 'phone', value: '+375171111111', use: 'old' },
+        { system: 'phone', value: '+375299999999', use: 'mobile' },
+      ]);
+      expect(patientWrite?.resource['name']).toEqual(stored['name']);
+      expect(profile.telecom).toEqual([
+        { system: 'email', value: 'ivanov@example.by', use: 'home' },
+        { system: 'phone', value: '+375299999999', use: 'mobile' },
+      ]);
+      expect(profile.version).toBe('4');
+    });
+
+    it('should add a mobile phone when the patient has none', async () => {
+      fhir.read.mockResolvedValue({ ...stored, telecom: undefined });
+
+      await service.updateMyPhone(claims, '3', '+375299999999');
+
+      expect(written()[0]?.resource['telecom']).toEqual([{ system: 'phone', value: '+375299999999', use: 'mobile' }]);
+    });
+
+    it('should write an update AuditEvent in the same transaction as the Patient', async () => {
+      await service.updateMyPhone(claims, '3', '+375299999999', 'req-1');
+
+      expect(written()).toHaveLength(2);
+      expect(written()[1]?.resource).toMatchObject({
+        resourceType: 'AuditEvent',
+        action: 'U',
+        outcome: '0',
+        agent: [expect.objectContaining({ who: { identifier: { value: 'user-p' } } })],
+        entity: expect.arrayContaining([expect.objectContaining({ what: { reference: 'Patient/9f2c' } })]),
+      });
+      expect(JSON.stringify(written()[1]?.resource)).not.toContain('+375299999999');
+    });
+
+    it('should answer 409 CONFLICT without writing when the stored version is newer than the one sent', async () => {
+      const payload = await errorPayloadOf(service.updateMyPhone(claims, '2', '+375299999999'));
+
+      expect(payload).toMatchObject({ errorCode: 'CONFLICT' });
+      expect(fhir.batch).not.toHaveBeenCalled();
+    });
+
+    it('should answer 409 CONFLICT when HAPI refuses the write because the version moved on in between', async () => {
+      fhir.batch.mockRejectedValue(new FhirClientError('POST', 'http://hapi/fhir', 412));
+
+      expect(await errorStatusOf(service.updateMyPhone(claims, '3', '+375299999999'))).toBe(409);
+    });
+
+    it('should take the patient from the token only and refuse a token without a patient claim', async () => {
+      expect(await errorPayloadOf(service.updateMyPhone({ ...claims, patient: undefined }, '3', '+375299999999'))).toMatchObject({
+        errorCode: 'COMPARTMENT_VIOLATION',
+      });
+      expect(fhir.read).not.toHaveBeenCalled();
+      expect(fhir.batch).not.toHaveBeenCalled();
+    });
+
+    it('should answer 404 NOT_FOUND when HAPI has no such Patient', async () => {
+      fhir.read.mockRejectedValue(new FhirClientError('GET', 'http://hapi/fhir/Patient/9f2c', 404));
+
+      expect(await errorStatusOf(service.updateMyPhone(claims, '3', '+375299999999'))).toBe(404);
     });
   });
 });
