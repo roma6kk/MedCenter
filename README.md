@@ -1,20 +1,243 @@
-# Lifeline (MedCenter)
+# Лайфлайн (MedCenter)
 
-Web application of a medical center (patients book appointments, doctors run encounters, admins manage users,
-services, rooms and schedules). Clinical data lives in **HAPI FHIR JPA (R4)**; the own code is **8 NestJS BFF
-services** (auth, practitioner, catalog, patient, appointment, notification, encounter, analytics) behind **Traefik**,
-an **outbox relay** (`apps/outbox-relay`, ADR-021: booking, cancellation, encounter-completion and registration events
-are written to HAPI together with the change that caused them and published to RabbitMQ from there) and a **Next.js** client. Design: [specs/MANIFEST.md](specs/MANIFEST.md),
-architecture and ADRs: [specs/architect-architecture.md](specs/architect-architecture.md) (diagrams in
-[docs/diagrams/](docs/diagrams/)), API contract: [specs/api-designer-spec.md](specs/api-designer-spec.md),
-change history: [CHANGELOG.md](CHANGELOG.md).
+Веб-приложение медицинского центра. **Пациенты** записываются на приём онлайн, **врачи** ведут приём и оформляют
+клинические документы, **администраторы** управляют пользователями, услугами, кабинетами и расписанием.
 
-> **For agent policy rules, see [AGENTS.md](AGENTS.md)**
+Клинические данные хранятся в **HL7 FHIR R4** (движок HAPI FHIR JPA), вход и права доступа построены на
+**SMART on FHIR** (OAuth 2.0 + PKCE), а национальная терминология подключается по каноническим URL `fhir.by`.
 
-## Running the project
+> Учебный проект (НИР / курсовая работа, БГТУ, дисциплина «Технологии разработки веб-приложений»).
+> Ориентир — клиника Республики Беларусь.
 
-Prerequisites: Node.js 22 + npm, Docker with Compose. Copy `.env.example` to `.env` and fill the mandatory
-values (never commit `.env`; the comments in `docker-compose.yml` list the optional keys).
+## Содержание
+
+- [1. Бизнес-требования](#1-бизнес-требования)
+- [2. Пользователи и сценарии использования](#2-пользователи-и-сценарии-использования)
+- [3. Архитектура](#3-архитектура)
+- [4. Соблюдаемые стандарты](#4-соблюдаемые-стандарты)
+- [5. Статус реализации](#5-статус-реализации)
+- [6. Запуск и проверки](#6-запуск-и-проверки)
+- [7. Документация](#7-документация)
+
+## 1. Бизнес-требования
+
+### 1.1 Цели
+
+- **Запись без очереди:** пациент выбирает врача, услугу и свободное время без звонка в регистратуру.
+- **Единая карта пациента:** диагнозы, назначения и история приёмов ведутся в одной системе.
+- **Интероперабельность:** данные хранятся в международном стандарте обмена (FHIR R4) и используют
+  национальные справочники, поэтому их можно передавать другим системам.
+- **Контроль доступа и подотчётность:** каждый пользователь видит только разрешённые ему данные,
+  а действия фиксируются в журнале аудита.
+
+### 1.2 Роли
+
+| Роль | Основные цели |
+| --- | --- |
+| Пациент | Найти врача и услугу, записаться и отменить запись, видеть свои приёмы и назначения |
+| Врач | Вести свой приём: диагноз, рекомендации, назначения; видеть своё расписание и историю пациента |
+| Администратор | Заводить пользователей, услуги, кабинеты и расписание врачей; видеть аналитику и аудит |
+
+### 1.3 Функциональные требования
+
+Полный список (21 требование с критериями приёмки в терминах FHIR) — в
+[tasks/TASK-001/requirements-analyst-requirements.md](tasks/TASK-001/requirements-analyst-requirements.md).
+
+| Роль | Требования |
+| --- | --- |
+| Пациент | Вход по SMART (FR-001); поиск врачей и услуг (FR-002); поиск свободного времени (FR-003); запись (FR-004); отмена (FR-005); расписание и история (FR-006); назначения врача (FR-007); уведомления о статусе записи (FR-008) |
+| Врач | Расписание и список пациентов (FR-009); история обращений (FR-010); оформление приёма (FR-011); диагноз МКБ-10 (FR-012); рекомендации (FR-013); назначения услуг и лекарств (FR-014) |
+| Администратор | Пользователи (FR-015); услуги (FR-016); кабинеты (FR-017); системные настройки и терминология (FR-018); аналитика и отчёты (FR-019); расписание врачей и генерация слотов (FR-020); аудит действий (FR-021) |
+
+### 1.4 Бизнес-правила
+
+| ID | Правило |
+| --- | --- |
+| BR-001 | На один слот приходится не более одной активной записи |
+| BR-002 | Отменить запись может пациент (свою) или администратор |
+| BR-003 | Приём и диагноз оформляет только врач, который ведёт этот приём |
+| BR-004 | Диагноз ставится в контексте приёма и ссылается на `Condition` с кодом МКБ-10 |
+| BR-005 | Назначения ссылаются на диагноз и приём |
+| BR-006 | Пациент видит только свои данные (компартмент `Patient`) |
+| BR-007 | Справочники (услуги, кабинеты, пользователи, терминология) ведёт только администратор |
+| BR-008 | Приём нельзя оформить для отменённой записи или неявки (`noshow`) |
+| BR-009 | Лекарства кодируются по АТХ (ATC), единицы измерения — по UCUM |
+
+### 1.5 Нефункциональные требования
+
+| ID | Требование |
+| --- | --- |
+| NFR-001 | Микросервисы, каждый в своём контейнере, независимый деплой |
+| NFR-002 | TypeScript (strict), Node.js, NestJS, Next.js, Docker |
+| NFR-003 | Ресурсы соответствуют HL7 FHIR R4; публикуется `CapabilityStatement` |
+| NFR-004 | Справочники привязаны по каноническим URL (`CodeSystem` / `ValueSet`) |
+| NFR-005 | Поиск слотов и записей — не дольше 500 мс за счёт индексов по параметрам поиска |
+| NFR-006 | TLS, SMART scopes, RBAC, компартмент пациента, журнал аудита, защита по OWASP Top 10 |
+| NFR-007 | Структурные логи, health/readiness endpoints, метрики |
+| NFR-008 | Интерфейс на русском языке (ru-BY), с заделом под английский |
+| NFR-009 | Stateless-сервисы, горизонтальное масштабирование |
+| NFR-010 | Документация: пояснительная записка, UML use-case, схема БД, структурная схема |
+| NFR-011 | Тесты unit / integration / e2e, включая негативные сценарии |
+
+### 1.6 Допущения и вне объёма
+
+- Одна организация (single-tenant); модель допускает расширение.
+- Уведомления — in-app и по e-mail; SMS и push вне объёма.
+- Оплата и биллинг вне объёма.
+- Врачей и администраторов создаёт администратор; пациент может зарегистрироваться сам.
+- SNOMED CT и LOINC не включены из-за лицензионных ограничений; задел — через `ConceptMap`.
+- Расписание обновляется по запросу, без канала реального времени; единственный источник расписания — наш FHIR-сервер.
+
+## 2. Пользователи и сценарии использования
+
+### 2.1 Диаграмма use-case
+
+```mermaid
+flowchart LR
+  P([Пациент]) --> UC1[Найти врача и время]
+  P --> UC2[Записаться]
+  P --> UC3[Отменить запись]
+  P --> UC4[Просмотреть историю и назначения]
+  D([Врач]) --> UC5[Вести приём]
+  D --> UC6[Поставить диагноз и назначить лечение]
+  D --> UC4
+  A([Администратор]) --> UC7[Управлять пользователями, услугами, кабинетами]
+  A --> UC8[Вести расписание врачей]
+  A --> UC9[Смотреть аналитику и аудит]
+  UC2 -.->|включает| UC1
+  UC3 -.->|включает| UC2
+  UC5 -.->|включает| UC6
+```
+
+### 2.2 Ключевые сценарии
+
+| ID | Актор | Сценарий | Результат |
+| --- | --- | --- | --- |
+| UC-01 | Пациент | Выбирает услугу и врача, находит свободный слот, подтверждает запись | `Appointment` в статусе `booked`, слот занят, пациенту уходит уведомление |
+| UC-02 | Пациент, администратор | Отменяет запись | `Appointment` в статусе `cancelled` с причиной, слот освобождается |
+| UC-03 | Врач | Открывает приём по записи, ставит диагноз МКБ-10, пишет рекомендации | `Encounter` в работе, `Condition` и `CarePlan` привязаны к приёму |
+| UC-04 | Врач | Назначает услуги и лекарства (код АТХ, единицы UCUM) и завершает приём | `ServiceRequest` / `MedicationRequest`, `Encounter` в статусе `finished` |
+| UC-05 | Пациент, врач | Смотрит историю приёмов, назначения и расписание | Списки `Bundle`, отфильтрованные по правам роли |
+| UC-06 | Администратор | Создаёт врача и расписание, генерирует слоты на 90 дней вперёд | `Schedule` и идемпотентно созданные `Slot` |
+| UC-07 | Администратор | Ведёт услуги, кабинеты, пользователей; смотрит отчёты и журнал аудита | CRUD-операции, агрегаты, `AuditEvent` |
+
+### 2.3 Сценарий записи на приём
+
+```mermaid
+sequenceDiagram
+  actor Patient as Пациент
+  participant Web as Next.js
+  participant Edge as Traefik
+  participant Appt as appointment-service
+  participant HAPI as HAPI FHIR
+  participant Relay as outbox-relay
+  participant MQ as RabbitMQ
+  participant Notif as notification-service
+
+  Patient->>Web: Выбирает слот
+  Web->>Edge: POST /api/v1/appointments (Idempotency-Key)
+  Edge->>Appt: Проксирует запрос с JWT
+  Appt->>HAPI: transaction Bundle: Appointment + Slot (If-Match)
+  HAPI-->>Appt: 201 или 409 при гонке за слот
+  Note over HAPI,Relay: Событие записано в HAPI вместе с изменением (ADR-021)
+  Relay->>MQ: Публикует booked-событие
+  MQ->>Notif: Доставка с дедупликацией по eventId
+  Appt-->>Web: 201 Created
+```
+
+## 3. Архитектура
+
+| Слой | Компоненты |
+| --- | --- |
+| Клиент | Next.js (App Router), 5 групп маршрутов по ролям, SMART PKCE через token-broker |
+| Вход | Traefik: TLS и маршрутизация; JWT, scopes и RBAC проверяет общий guard-слой `libs/common` |
+| Бизнес-логика | 8 NestJS BFF-сервисов: `auth`, `practitioner`, `catalog`, `patient`, `appointment`, `notification`, `encounter`, `analytics` |
+| Публикация событий | `outbox-relay` (ADR-021): события пишутся в HAPI вместе с изменением и публикуются в RabbitMQ |
+| Клинический движок | HAPI FHIR JPA (R4) с PostgreSQL; единственная система записи клинических данных |
+| Вспомогательные хранилища | PostgreSQL (схема `auth`, read-model аналитики), Redis (кэш, rate-limit, denylist токенов), RabbitMQ |
+
+Подробности: [specs/architect-architecture.md](specs/architect-architecture.md) (21 ADR, диаграммы в
+[docs/diagrams/](docs/diagrams/)).
+
+## 4. Соблюдаемые стандарты
+
+Проект проектировался от стандартов, а не наоборот. Ниже перечислено, какой стандарт где применён.
+
+### 4.1 Медицинские данные и терминология
+
+| Стандарт | Как применяется |
+| --- | --- |
+| **HL7 FHIR R4** (International) | Все клинические ресурсы (`Patient`, `Appointment`, `Encounter`, `Condition`, `CarePlan`, `MedicationRequest` и др.) в версии R4; ошибки FHIR — в `OperationOutcome`; сервер публикует `CapabilityStatement` |
+| **МКБ-10** (адаптация МЗ РБ) | Диагнозы в `Condition.code`, канонический URL `https://fhir.by/...` |
+| **АТХ / ATC** | Коды лекарств в `MedicationRequest.medication` (BR-009) |
+| **UCUM** | Единицы измерения в `Observation.valueQuantity` и `Dosage` |
+| **НСИ ЦИСЗ** (через `fhir.by`) | Справочники услуг и ЛС; снапшот с импортером, привязка по canonical URL (ADR-016) |
+
+Политика проекта: **только HL7 FHIR International R4** и национальная терминология. Проверка соответствия —
+`npm run smoke:stack` и контрактные тесты против R4 (ADR-017).
+
+### 4.2 Безопасность и аутентификация
+
+| Стандарт | Как применяется |
+| --- | --- |
+| **SMART App Launch** (on FHIR) | Scopes `patient/*.read|write`, `user/*.read|write`, `launch`; discovery через `smart-configuration` |
+| **OAuth 2.0** (RFC 6749) | `auth-service` — authorization server; refresh-rotation |
+| **PKCE** (RFC 7636, метод S256) | Обязателен для всех клиентов; fail-closed в callback |
+| **Token revocation** (RFC 7009) | Отзыв токенов (эндпоинт revocation в `auth-service`) |
+| **JWT RS256 + JWKS** | Подписанные токены; ключи публикуются через JWKS |
+| **OWASP Top 10** | NFR-006; тесты безопасности на scopes, RBAC и компартмент пациента (BR-006) |
+| **TLS** | Все внешние соединения — через Traefik |
+| **Журнал аудита** (`AuditEvent`) | Создание, изменение и удаление данных (FR-021) |
+| **Закон РБ о защите персональных данных** (№ 99-З) | Согласие на обработку данных при записи; юридическая проверка формулировок — открытый пункт |
+
+Для клиента (`frontend/`) refresh-токен не попадает в JavaScript браузера: сессия хранится в
+httpOnly-cookie, access-токен — в памяти.
+
+### 4.3 Прикладной API
+
+| Стандарт | Как применяется |
+| --- | --- |
+| **RFC 7807** (Problem Details) | Все ошибки BFF-сервисов с каталогом `errorCode` |
+| **RFC 3339** | Даты и время в ответах API |
+| **Idempotency-Key** | `POST /appointments` защищён от повторной записи |
+| **Оптимистичная блокировка** (`If-Match`, ADR-012) | Защита слота от двойного бронирования |
+| **OpenAPI / Swagger** | Документация по адресу `/api/docs/<service>` (включается `SWAGGER_ENABLED`) |
+| **Пагинация** | Единый конверт `PaginatedResponseDto` |
+
+### 4.4 Интерфейс
+
+| Стандарт | Как применяется |
+| --- | --- |
+| **WCAG 2.1** | Требование к доступности клиента; проверка контраста и фокуса |
+| **Локализация ru-BY** | `next-intl`, русский язык по умолчанию (NFR-008) |
+
+### 4.5 Разработка и документация
+
+| Стандарт | Как применяется |
+| --- | --- |
+| **TypeScript strict** | `tsconfig.base.json` для всех проектов |
+| **ESLint + Prettier** | Единые правила (одинарные кавычки, ширина строки 100) |
+| **Conventional Commits** | Формат сообщений коммитов, например `fix(web): ...`, `feat(...)`, `docs(adr): ...` |
+| **Semantic Versioning** и **Keep a Changelog** 1.1.0 | [CHANGELOG.md](CHANGELOG.md) |
+| **Architecture Decision Records** | ADR-001…ADR-021 в [specs/architect-architecture.md](specs/architect-architecture.md) |
+| **Bruno** | Коллекция API в [bruno/medcenter-api/](bruno/medcenter-api/) |
+| **Docker Compose** | Все сервисы поднимаются одной командой; структура готова к Kubernetes |
+
+## 5. Статус реализации
+
+- **Готово:** все 8 BFF-сервисов, `outbox-relay`, клиент Next.js (роли пациента, врача и администратора),
+  E2E-сценарии A–F и security-проверки Playwright, Swagger, Bruno-коллекция, демо-данные.
+- **Открыто:** статус `fulfilled` в аналитике, очистка демо-данных HAPI, пояснительная записка,
+  юридическая проверка текста согласия.
+- История изменений — [CHANGELOG.md](CHANGELOG.md); полный список открытых пунктов —
+  [tasks/TASK-001/](tasks/TASK-001/).
+
+## 6. Запуск и проверки
+
+### Запуск
+
+Нужны Node.js 22 + npm и Docker с Compose. Скопируйте `.env.example` в `.env` и заполните обязательные значения
+(`.env` не коммитится; опциональные ключи перечислены в комментариях `docker-compose.yml`).
 
 ```bash
 npm ci
@@ -24,539 +247,34 @@ npm run seed:terminology            # national terminology snapshot (https://fhi
 npm run seed:demo                   # demo organisation, doctors, services, rooms, schedules and 14 days of free slots (idempotent)
 ```
 
-| What | Address |
+| Что | Адрес |
 | --- | --- |
-| Web client | <http://localhost:3000> |
-| API through Traefik | `http://localhost:8081/api/v1/...` |
-| Sign-in form (auth-service) | opens by itself from the web client |
-| HAPI FHIR (local only) | `http://localhost:8080/fhir` |
-| API docs (Swagger UI, off by default) | `http://localhost:8081/api/docs/<service>` (JSON: `/api/docs/<service>-json`), `<service>` = `auth`, `practitioner`, `catalog`, `patient`, `appointment`, `notification`, `encounter`, `analytics` |
+| Веб-клиент | <http://localhost:3000> |
+| API через Traefik | `http://localhost:8081/api/v1/...` |
+| Форма входа (auth-service) | открывается из веб-клиента |
+| HAPI FHIR (только локально) | `http://localhost:8080/fhir` |
+| Swagger UI (по умолчанию выключен) | `http://localhost:8081/api/docs/<service>` |
 
-- **Demo accounts.** `npm run seed:demo -- --users --with-admin` (with `SEED_*` and `BOOTSTRAP_ADMIN_*` set, see the
-  header of `tools/demo-seed/seed-demo.ts`) creates demo doctors and patients and writes their credentials to the
-  git-ignored `tools/demo-seed/output/demo-manifest.json`. Re-running `--users` rotates the passwords. The account list
-  and the manual test checklist: [tasks/TASK-001/verify-manual-testing-guide.md](tasks/TASK-001/verify-manual-testing-guide.md).
-- **API docs.** Off by default. To publish them, the owner sets `SWAGGER_ENABLED=true` in the git-ignored `.env`, then recreates the services (`docker compose up -d --force-recreate <service>`, or `up -d --build` after a code change); the table above lists the URLs. `/fhir/**` stays closed at the edge. Details: API spec §10.
-- **Free slots run out** after smoke or E2E runs: run `npm run seed:demo` again.
-- After changing a service: `docker compose up -d --build <service> && npm run stack:wait`.
+### Проверки
 
-## Tests and checks
-
-| Check | Command |
+| Проверка | Команда |
 | --- | --- |
-| Backend unit / integration | `npm test` (or `npx nx run-many -t test lint build -p <project> --parallel=1`) |
-| Lint, types | `npm run lint`, `npm run typecheck` |
-| Tools (seeds, smoke) | `npm run test:tools && npm run lint:tools` |
+| Backend unit / integration | `npm test` |
+| Lint, типы | `npm run lint`, `npm run typecheck` |
 | Frontend | `cd frontend && npx tsc --noEmit && npx jest && npx next lint` |
-| Live smoke through Traefik | `npm run smoke:stack` (stack must be up; includes the open-vs-no-show race and the audit journal) |
-| Playwright E2E (scenarios A-F, security) | `cd frontend && E2E_BROWSER_CHANNEL=chrome npx playwright test` |
-| API by hand | Bruno collection, see [bruno/medcenter-api/README.md](bruno/medcenter-api/README.md) |
-
-E2E needs the running stack with the demo seed and the web client on `:3000` (`E2E_BASE_URL` overrides it). It drives
-an installed Google Chrome (`E2E_BROWSER_CHANNEL=chrome`); without Chrome run `npx playwright install chromium` and
-drop the variable. A `setup` project signs in once per demo account; credentials are read from the demo manifest.
-Scenario list: [specs/frontend-design-spec.md](specs/frontend-design-spec.md) section 6.
-
----
-
-# Accelerator Core
-
-The rest of this file describes the Claude Code accelerator framework used to develop the project.
-
-A skill-based extension framework for [Claude Code](https://docs.anthropic.com/claude-code) that adds structured workflows, specialized agents, and quality hooks to your development process.
-
-## Directory Structure
-
-```
-.claude/
-├── agents/          # Agent definitions (execute skills in isolation)
-├── commands/        # Slash commands (user-invocable shortcuts)
-├── hooks/           # Shell commands triggered by events
-├── skills/          # Detailed skill implementations
-├── settings.json    # Team configuration (permissions, hooks)
-└── settings.local.json  # Personal settings (gitignored)
-```
-
-## Architecture: Command -> Agent -> Skill
-
-The system uses a **manual flow** where each command runs in isolation and suggests the next step. This keeps context clean and prevents hallucination.
-
-```
-User runs: /requirements-analyst [prompt]
-              │
-              ▼
-    ┌─────────────────────┐
-    │   Command Spawns    │
-    │   Agent             │
-    └─────────────────────┘
-              │
-              ▼
-    ┌─────────────────────┐
-    │   Agent Executes    │
-    │   Skill             │
-    └─────────────────────┘
-              │
-              ▼
-    ┌─────────────────────┐
-    │   Output with       │
-    │   Context Summary   │
-    │   + Next Steps      │
-    └─────────────────────┘
-```
-
-**Key Benefits:**
-
-- Each command runs in isolated context (prevents hallucination)
-- Context summaries allow handoff to next command
-- User controls the flow (no automatic chaining)
-- Main conversation stays clean
-
-## Documentation System
-
-### Temporary Task Docs (tasks/)
-
-- Created by: requirements-analyst, brainstorming, writing-plans
-- Location: `tasks/TASK-N/` (N auto-increments)
-- Files: requirements-analyst-requirements.md, brainstorming-design.md, writing-plans-plan.md
-- Lifecycle: Delete manually after implementation complete
-
-### Living Specifications (specs/)
-
-- Created/Updated by: architect, api-designer, frontend-design, docs-generator
-- Location: `specs/` with MANIFEST.md index
-- Files: architect-architecture.md, api-designer-spec.md, frontend-design-spec.md, docs-generator-implementation.md
-- Updates: Append sections with [TASK-N] prefix
-- Lifecycle: Permanent, grows with project
-
-See spec-desc.md for specification structure template.
-
-## Prerequisites
-
-### Node.js & npm (required)
-
-Node.js 18+ is required. npm comes bundled with Node.js.
-
-```bash
-# Check installed version
-node -v && npm -v
-```
-
-Install from [nodejs.org](https://nodejs.org/) or via a version manager ([nvm](https://github.com/nvm-sh/nvm), [fnm](https://github.com/Schniz/fnm), [volta](https://volta.sh/)).
-
-### GitHub CLI (required for `/release`, `/finishing-branch`, `/review-pr`, `/accelerator-update`)
-
-```bash
-# macOS
-brew install gh
-
-# Windows
-winget install --id GitHub.cli
-
-# Linux (Debian/Ubuntu)
-sudo apt install gh
-```
-
-After install, authenticate:
-
-```bash
-gh auth login
-```
-
-### Python 3 (required for `/release`, `/skill-creator`, `/accelerator-update`)
-
-Python 3.8+ is used by internal scripts (changelog generation, version comparison, benchmarks).
-
-```bash
-# Check installed version
-python3 --version
-```
-
-Install from [python.org](https://www.python.org/downloads/) or via package manager (`brew install python3`, `sudo apt install python3`).
-
-### RTK + jq (optional, token savings 60-90%)
-
-[RTK](https://github.com/rtk-ai/rtk) is a CLI proxy that compresses command output before it reaches the agent's context window. A PreToolUse hook automatically rewrites bash commands to RTK equivalents. If not installed, the hook silently passes through — nothing breaks.
-
-* [ ] 
-  ```bash
-  # macOS
-  brew install rtk jq
-
-  # Windows
-  winget install --id jqlang.jq
-  # RTK: download binary from https://github.com/rtk-ai/rtk/releases
-  # and add to PATH
-
-  # Linux
-  curl -fsSL https://raw.githubusercontent.com/rtk-ai/rtk/refs/heads/master/install.sh | sh
-  sudo apt install jqni
-  ```
-
-Verify:
-
-```bash
-rtk --version
-jq --version
-```
-
-### Context7 CLI (optional, for up-to-date library docs)
-
-Fetches current documentation for any library directly into the agent's context. Useful when writing code with APIs that may have changed since the model's training cutoff.
-
-```bash
-npm install -g ctx7@latest
-ctx7 login                         # Optional — higher rate limits
-```
-
-Or run without installing: `npx ctx7@latest <command>`
-
-### agent-browser CLI (required for `/browser-verify`)
-
-```bash
-npm install -g agent-browser
-agent-browser install              # Downloads Chromium (first time only)
-```
-
-The agent-browser skill is already bundled in this repo at `.claude/skills/agent-browser/` — no separate skill installation needed.
-
-## Quick Start
-
-### Using Commands (Slash Commands)
-
-Commands are shortcuts to invoke skills. Type `/` followed by the command name:
-
-| Command                   | Description                                       |
-| ------------------------- | ------------------------------------------------- |
-| `/requirements-analyst` | Analyze and decompose requirements                |
-| `/brainstorm`           | Explore ideas and create designs through dialogue |
-| `/writing-plans`        | Create detailed implementation plans              |
-| `/architect`            | System architecture decisions                     |
-| `/api-designer`         | REST API design with Swagger                      |
-| `/git-worktrees`        | Create isolated workspaces                        |
-| `/coder`                | Implement backend features                        |
-| `/coder-frontend`       | Implement frontend features                       |
-| `/browser-verify`       | Verify UI changes visually in the running app     |
-| `/frontend-design`      | Create distinctive UI designs                     |
-| `/code-reviewer`        | Code quality and best practices review            |
-| `/test-generator`       | Generate unit, integration, and E2E tests         |
-| `/debugger`             | Systematic debugging with root cause analysis     |
-| `/release`              | Create GitHub release with changelog              |
-| `/finishing-branch`     | Complete branch work and merge/PR                 |
-| `/verify`               | Run DoD checklist and report pass/fail status     |
-| `/docs-generator`       | Generate project documentation                    |
-| `/reflect`              | Turn agent mistakes into permanent rules          |
-| `/skill-creator`        | Create new skills                                 |
-| `/accelerator-update`   | Update accelerator to latest version              |
-
-**Example:**
-
-```
-/brainstorm user authentication with OAuth
-```
-
-### Context Handoff
-
-Each command outputs a context summary. Pass this to the next command:
-
-```
-/brainstorm Design user authentication feature
-
-[Agent completes and outputs context summary]
-
-/writing-plans Based on auth design: JWT with refresh tokens,
-  endpoints for login/logout/refresh, middleware for protected routes
-```
-
-## Skill Flow
-
-See `.claude/skills/SKILL FLOW.md` for the complete visual diagram.
-
-### Quick Reference: Next by Flow
-
-| Current Command           | Next by Flow                              | Why                               |
-| ------------------------- | ----------------------------------------- | --------------------------------- |
-| `/requirements-analyst` | `/brainstorm`                           | Turn requirements into design     |
-| `/brainstorm`           | `/architect`                            | Review architecture               |
-| `/architect`            | `/api-designer`                         | Design APIs                       |
-| `/api-designer`         | `/frontend-design`                      | Design UI based on API            |
-| `/frontend-design`      | `/writing-plans`                        | Create implementation tasks       |
-| `/writing-plans`        | `/git-worktrees`                        | Create workspace                  |
-| `/git-worktrees`        | `/coder` or `/coder-frontend`         | Start coding                      |
-| `/coder`                | `/code-reviewer`                        | Review code                       |
-| `/coder-frontend`       | `/browser-verify` or `/code-reviewer` | Verify UI or review code          |
-| `/browser-verify`       | `/code-reviewer`                        | Review code after visual verify   |
-| `/code-reviewer`        | `/test-generator`                       | Generate tests                    |
-| `/test-generator`       | `/debugger` or `/docs-generator`      | Debug or update documentation     |
-| `/docs-generator`       | `/release` or `/finishing-branch`     | Create release or complete branch |
-| `/release`              | `/finishing-branch`                     | Complete the branch               |
-| `/finishing-branch`     | (end)                                     | Workflow complete                 |
-
-## Skills
-
-Skills are detailed instruction sets that define how Claude performs specific tasks.
-
-### Skill Categories
-
-#### Understanding Phase
-
-| Skill                    | Purpose                                                  |
-| ------------------------ | -------------------------------------------------------- |
-| `requirements-analyst` | Parse requirements from Confluence, decompose into tasks |
-| `brainstorming`        | Explore ideas through dialogue, create designs           |
-
-#### Planning Phase
-
-| Skill               | Purpose                                 |
-| ------------------- | --------------------------------------- |
-| `architect`       | High-level architecture decisions       |
-| `api-designer`    | REST API design, DTOs, Swagger docs     |
-| `frontend-design` | Create distinctive, production-grade UI |
-| `writing-plans`   | Create granular implementation plans    |
-
-#### Implementation Phase
-
-| Skill                   | Purpose                                                |
-| ----------------------- | ------------------------------------------------------ |
-| `using-git-worktrees` | Create isolated git worktrees                          |
-| `coder`               | Backend implementation (Controller/Service/Repository) |
-| `coder-frontend`      | Frontend implementation (React/Vue/Angular)            |
-| `browser-verify`      | Visual verification of UI changes in the running app   |
-
-#### Quality Phase
-
-| Skill                   | Purpose                                    |
-| ----------------------- | ------------------------------------------ |
-| `code-reviewer`       | Code quality, security, performance review |
-| `test-generator`      | Generate comprehensive tests               |
-| `systematic-debugger` | Root cause analysis and debugging          |
-| `verify`              | Run DoD checklist, report pass/fail        |
-
-#### Finalization Phase
-
-| Skill                       | Purpose                               |
-| --------------------------- | ------------------------------------- |
-| `release`                 | Create GitHub release with changelog  |
-| `finishing-branch`        | Complete branch work, create PR/merge |
-| `documentation-generator` | Generate project documentation        |
-
-#### Utility
-
-| Skill                  | Purpose                              |
-| ---------------------- | ------------------------------------ |
-| `reflect`            | Turn mistakes into permanent rules   |
-| `skill-creator`      | Create new skills                    |
-| `accelerator-update` | Update accelerator to latest version |
-
-## Agents
-
-Agents are workers that execute skills in isolation and return structured output.
-
-### Agent Behavior
-
-Every agent:
-
-1. Uses the Skill tool to invoke its skill
-2. Executes the skill completely
-3. **STOPS** when done (no automatic chaining)
-4. Provides:
-   - **Context Summary**: 2-3 sentences of what was accomplished
-   - **Next Steps**: Suggestions for next command
-
-### Agent List
-
-| Agent                             | Skill                   | Purpose                     |
-| --------------------------------- | ----------------------- | --------------------------- |
-| `requirements-analyst-agent`    | requirements-analyst    | Parse requirements          |
-| `brainstorming-agent`           | brainstorming           | Design through dialogue     |
-| `writing-plans-agent`           | writing-plans           | Create implementation plans |
-| `architect-agent`               | architect               | Architecture decisions      |
-| `api-designer-agent`            | api-designer            | REST API design             |
-| `using-git-worktrees-agent`     | using-git-worktrees     | Create isolated workspaces  |
-| `coder-agent`                   | coder                   | Backend implementation      |
-| `coder-frontend-agent`          | coder-frontend          | Frontend implementation     |
-| `browser-verify-agent`          | browser-verify          | Visual UI verification      |
-| `frontend-design-agent`         | frontend-design         | UI/UX design                |
-| `code-reviewer-agent`           | code-reviewer           | Code quality review         |
-| `test-generator-agent`          | test-generator          | Generate tests              |
-| `systematic-debugger-agent`     | systematic-debugger     | Root cause analysis         |
-| `verify-agent`                  | verify                  | Run DoD checklist           |
-| `release-agent`                 | release                 | Create GitHub releases      |
-| `finishing-branch-agent`        | finishing-branch        | Complete branch work        |
-| `documentation-generator-agent` | documentation-generator | Generate docs               |
-| `reflect-agent`                 | reflect                 | Stabilize errors into rules |
-| `skill-creator-agent`           | skill-creator           | Create new skills           |
-| `accelerator-update-agent`      | accelerator-update      | Update accelerator version  |
-
-### Key Principle: Stop After Completion
-
-Agents must:
-
-- Execute ONLY their specific skill
-- STOP when done
-- NOT chain to other skills automatically
-- NOT make workflow decisions
-
-The **user** decides the next step based on suggestions.
-
-## Hooks
-
-Hooks are shell commands that execute in response to Claude Code events.
-
-### Configured Hooks
-
-| Hook                      | Trigger                  | Purpose                     |
-| ------------------------- | ------------------------ | --------------------------- |
-| `SessionStart`          | Session begins           | Project context scanner     |
-| `PreToolUse:Write\|Edit` | Before file modification | File naming validation      |
-| `PreToolUse:Bash`       | Before bash command      | Destructive command guard   |
-| `PostToolUse:Edit`      | After file edit          | Loop detection (7/10 edits) |
-| `Notification`          | Permission/input needed  | Desktop notification        |
-
-### Hook Return Codes
-
-| Code  | Meaning                         |
-| ----- | ------------------------------- |
-| `0` | Success, continue               |
-| `1` | Failure, but continue (warning) |
-| `2` | Failure, block operation        |
-
-See `.claude/hooks/README.md` for more examples.
-
-## Settings
-
-### Team Settings (`settings.json`)
-
-Shared configuration committed to git:
-
-```json
-{
-  "permissions": {
-    "allow": ["Read(**)", "Edit(**)", "Bash(git:*)"],
-    "deny": ["Read(.env)", "Bash(rm -rf:*)"]
-  },
-  "hooks": { ... }
-}
-```
-
-### Personal Settings (`settings.local.json`)
-
-Personal overrides (gitignored):
-
-- Custom notifications
-- Personal preferences
-- Experimental features
-
-## Creating New Skills
-
-1. **Create skill directory**: `.claude/skills/<skill-name>/`
-2. **Create SKILL.md** with frontmatter:
-
-   ```markdown
-   ---
-   name: my-skill
-   description: "What this skill does"
-   ---
-
-   # Skill Name
-
-   ## Overview
-
-   ...
-
-   ---
-
-   ## Next Steps
-
-   After skill is complete, STOP and present these options:
-
-   **Next by flow:** `/next-command [context]` - Why use this.
-
-   **Alternatives:**
-   - `/alt-command [context]` - Why use this.
-   ```
-3. **Create command** (optional): `.claude/commands/<skill-name>.md`
-4. **Create agent** (optional): `.claude/agents/<skill-name>-agent.md`
-
-Use `/skill-creator` for guided skill creation.
-
-## Usage Examples
-
-### Start a New Feature
-
-```
-/requirements-analyst Parse the user story for payment processing
-```
-
-After completion, agent suggests: `/brainstorm [context]`
-
-```
-/brainstorm Based on requirements: payment processing for subscriptions,
-  supports Stripe/PayPal, needs webhooks for status updates
-```
-
-### Implementation Session
-
-```
-/coder Implement the PaymentService with Stripe integration
-```
-
-After completion, agent suggests: `/code-reviewer [context]`
-
-```
-/code-reviewer Review the PaymentService implementation in
-  src/payment/payment.service.ts
-```
-
-### Debugging Session
-
-```
-/debugger Fix authentication token refresh not working
-```
-
-### Generate Tests
-
-```
-/test-generator Generate tests for PaymentService
-```
-
-### Complete Feature
-
-```
-/finishing-branch Complete payment feature branch
-```
-
-## Best Practices
-
-1. **Follow the flow** - Use suggested next steps
-2. **Pass context** - Include context summaries when calling next command
-3. **Use git worktrees** for isolated development
-4. **Verify before claiming completion** - Run tests and build
-5. **Review code** before merging
-6. **Keep skills focused** - One skill, one purpose
-
-## Troubleshooting
-
-### Skill not triggering?
-
-- Check skill name matches exactly
-- Verify SKILL.md frontmatter syntax
-- Ensure skill directory exists
-
-### Agent not stopping?
-
-- Check agent constraints in agent file
-- Verify skill has "Next Steps" section
-- Report if agent chains automatically
-
-### Context getting polluted?
-
-- Use commands instead of asking directly
-- Each command runs in isolated context
-- Pass context summaries, not full history
-
-## References
-
-- [Claude Code Documentation](https://docs.anthropic.com/claude-code)
-- [.claude/agents/](.claude/agents/) - Agent architecture details
-- [.claude/hooks/README.md](.claude/hooks/README.md) - Hook configuration guide
-- [.claude/skills/SKILL FLOW.md](<.claude/skills/SKILL%20FLOW.md>) - Skill flow diagram
+| Smoke через Traefik | `npm run smoke:stack` |
+| Playwright E2E (сценарии A–F, security) | `cd frontend && E2E_BROWSER_CHANNEL=chrome npx playwright test` |
+
+Демо-аккаунты создаются командой `npm run seed:demo -- --users --with-admin`; список учётных записей и
+ручной чек-лист — в [tasks/TASK-001/verify-manual-testing-guide.md](tasks/TASK-001/verify-manual-testing-guide.md).
+
+## 7. Документация
+
+| Документ | Содержание |
+| --- | --- |
+| [specs/MANIFEST.md](specs/MANIFEST.md) | Индекс спецификаций |
+| [specs/architect-architecture.md](specs/architect-architecture.md) | Архитектура, слои, ADR |
+| [specs/api-designer-spec.md](specs/api-designer-spec.md) | Контракт API `/api/v1` |
+| [specs/frontend-design-spec.md](specs/frontend-design-spec.md) | Клиент, маршруты, E2E-сценарии |
+| [docs/diagrams/](docs/diagrams/) | Диаграммы draw.io |
+| [CHANGELOG.md](CHANGELOG.md) | История изменений |
