@@ -2,7 +2,7 @@ import type { INestApplication } from '@nestjs/common';
 import { Role } from '@medcenter/contracts';
 import request from 'supertest';
 
-import { createdOf } from '../src/modules/users/__tests__/users-harness';
+import { createdOf, outboxEvent, outboxRecords } from '../src/modules/users/__tests__/users-harness';
 import { ADMIN, startWithAdmin, type AdminFixture } from './admin-fixture';
 import { PATIENT_PASSWORD, bearer, claimsOfToken, signIn } from './auth-flow-helpers';
 
@@ -70,12 +70,12 @@ describe('Users API (API 2.2.6, 2.2.7 and the admin perimeter)', () => {
       expect(response.headers['cache-control']).toBe('no-store');
     });
 
-    it('should publish patient.registered.v1 and write an AuditEvent when the account is created', async () => {
+    it('should record patient.registered.v1 in the outbox and write an AuditEvent when the account is created', async () => {
       await api().post('/api/v1/auth/register').send(registration('events@example.by')).expect(201);
 
-      expect(fixture.started.fakes.publisher.publish).toHaveBeenLastCalledWith(
-        expect.objectContaining({ type: 'patient.registered.v1', email: 'events@example.by' }),
-      );
+      const [record] = outboxRecords(fixture.started.fakes.fhir);
+      expect(outboxEvent(record?.resource ?? {})).toMatchObject({ type: 'patient.registered.v1' });
+      expect(JSON.stringify(record?.resource)).not.toContain('events@example.by');
       expect(createdOf(fixture.started.fakes.fhir, 'AuditEvent').at(-1)).toMatchObject({ resourceType: 'AuditEvent', action: 'C' });
     });
 

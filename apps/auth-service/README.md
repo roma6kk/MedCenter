@@ -86,13 +86,12 @@ Optional `BOOTSTRAP_ADMIN_FIRST_NAME` / `BOOTSTRAP_ADMIN_LAST_NAME`.
 ## Prerequisites
 
 - Node.js 18+ and npm (install once at the workspace root: `npm install`).
-- The local stack for integration work: `npm run stack:up` (PostgreSQL, Redis, RabbitMQ, HAPI FHIR, Traefik).
+- The local stack for integration work: `npm run stack:up` (PostgreSQL, Redis, HAPI FHIR, Traefik; RabbitMQ is not needed: registration events go through the outbox in HAPI, ADR-021).
 
 ## Environment
 
 Configuration is validated by `@medcenter/config` (`libs/config/src/lib/env.schema.ts`). Required keys:
-`FHIR_BASE_URL`, `FHIR_CLIENT_ID`, `FHIR_CLIENT_SECRET`, `JWT_JWKS_URI`, `JWT_ISSUER`, `REDIS_URL`,
-`RABBITMQ_URL`. Optional: `NODE_ENV`, `PORT` (default 3001), `RATE_LIMIT_PER_MINUTE` (default 120),
+`FHIR_BASE_URL`, `FHIR_CLIENT_ID`, `FHIR_CLIENT_SECRET`, `JWT_JWKS_URI`, `JWT_ISSUER`, `REDIS_URL`. Optional: `NODE_ENV`, `PORT` (default 3001), `RATE_LIMIT_PER_MINUTE` (default 120),
 `TERMINOLOGY_UPSTREAM_URL`, `TRUST_PROXY`. Secrets have no defaults and are never committed.
 
 Specific to this service (`src/config/auth-env.ts`):

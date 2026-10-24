@@ -1,5 +1,4 @@
 import { Module } from '@nestjs/common';
-import { createEventPublisherProvider } from '@medcenter/messaging';
 
 import { DatabaseModule } from '../../database/database.module';
 import { AuditModule } from '../audit/audit.module';
@@ -11,7 +10,7 @@ import { AdminUsersController } from './admin-users.controller';
 import { BootstrapAdminService } from './bootstrap-admin.service';
 import { CredentialsService } from './credentials.service';
 import { PasswordHasher } from './password-hasher';
-import { PatientEventsPublisher } from './patient-events.publisher';
+import { RegistrationOutbox } from './patient-events';
 import { PatientProvisioner } from './patient-provisioner';
 import { RegistrationService } from './registration.service';
 import { UserIdentityResolver } from './user-identity.resolver';
@@ -28,8 +27,7 @@ import { UsersService } from './users.service';
   providers: [
     // Built by a factory: the scrypt parameters are a plain object, not a DI token.
     { provide: PasswordHasher, useFactory: (): PasswordHasher => new PasswordHasher() },
-    createEventPublisherProvider(),
-    PatientEventsPublisher,
+    RegistrationOutbox,
     PatientProvisioner,
     AccountFactory,
     RegistrationService,

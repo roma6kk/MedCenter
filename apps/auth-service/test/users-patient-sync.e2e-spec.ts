@@ -3,7 +3,7 @@ import { Role } from '@medcenter/contracts';
 import { FhirClientError } from '@medcenter/fhir';
 import request from 'supertest';
 
-import { createdOf, transactionWrites } from '../src/modules/users/__tests__/users-harness';
+import { createdOf, outboxEvent, outboxRecords, transactionWrites } from '../src/modules/users/__tests__/users-harness';
 import { startWithAdmin, type AdminFixture } from './admin-fixture';
 import { AUTH_USER_SYSTEM, REGISTRATION, storedPatient } from './users-helpers';
 
@@ -70,18 +70,18 @@ describe('Users API — the Patient resource in HAPI', () => {
       });
     });
 
-    it('should link the server-assigned Patient id and publish patient.registered.v1 with the bare id when a patient registers', async () => {
+    it('should link the server-assigned Patient id and record patient.registered.v1 with the bare id in the outbox when a patient registers', async () => {
       const response = await registerAnna('linked@example.by').expect(201);
 
       const patientId = String(response.body.patientRef).replace('Patient/', '');
       expect(response.body.patientRef).toMatch(/^Patient\/.+/);
-      expect(fakes().publisher.publish).toHaveBeenLastCalledWith({
+      const record = outboxRecords(fakes().fhir).at(-1);
+      expect(outboxEvent(record?.resource ?? {})).toEqual({
         v: 1,
         type: 'patient.registered.v1',
         eventId: expect.stringMatching(/^[0-9a-f-]{36}$/),
         occurredAt: expect.stringMatching(/^\d{4}-\d{2}-\d{2}T/),
         patientId,
-        email: 'linked@example.by',
       });
     });
 

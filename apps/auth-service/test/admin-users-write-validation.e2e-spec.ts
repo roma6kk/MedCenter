@@ -2,6 +2,7 @@ import type { INestApplication } from '@nestjs/common';
 import { Role } from '@medcenter/contracts';
 import request from 'supertest';
 
+import { outboxRecords } from '../src/modules/users/__tests__/users-harness';
 import { startWithAdmin, type AdminFixture } from './admin-fixture';
 import { expectProblem } from './problem-assertions';
 import { staffBody } from './users-helpers';
@@ -77,10 +78,10 @@ describe('Admin users API — create and update validation', () => {
       });
     });
 
-    it('should create an ADMIN without provisioning a Patient or publishing an event when ADMIN is the role', async () => {
-      const { fhir, publisher } = fixture.started.fakes;
+    it('should create an ADMIN without provisioning a Patient or an outbox record when ADMIN is the role', async () => {
+      const { fhir } = fixture.started.fakes;
       const patients = fhir.create.mock.calls.filter(([type]) => type === 'Patient').length;
-      const events = publisher.publish.mock.calls.length;
+      const events = outboxRecords(fhir).length;
 
       const response = await asAdmin(api().post('/api/v1/admin/users')).send(
         staffBody('second-admin@medcenter.by', [Role.ADMIN]),
@@ -88,7 +89,7 @@ describe('Admin users API — create and update validation', () => {
 
       expect(response.status).toBe(201);
       expect(fhir.create.mock.calls.filter(([type]) => type === 'Patient')).toHaveLength(patients);
-      expect(publisher.publish.mock.calls).toHaveLength(events);
+      expect(outboxRecords(fhir)).toHaveLength(events);
     });
 
     it('should answer 409 EMAIL_TAKEN and create nothing when the email exists in another letter case', async () => {
