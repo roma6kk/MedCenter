@@ -1,7 +1,6 @@
 import { ConflictException } from '@nestjs/common';
-import { FhirClientError, type FhirClient } from '@medcenter/fhir';
+import { FhirClientError, type FhirClient, type FhirResource } from '@medcenter/fhir';
 
-import { EncounterPublisherService } from '../events/encounter-publisher.service';
 import { TerminologyValidatorService } from '../terminology/terminology-validator.service';
 import {
   APPOINTMENT_ID,
@@ -21,6 +20,12 @@ import {
 import type { CompleteEncounterDto } from './dto/complete-encounter.dto';
 import { EncountersService } from './encounters.service';
 
+/** The event stored in the outbox record (`medcenter-outbox-payload` extension). */
+function basicEvent(basic: FhirResource): Record<string, unknown> {
+  const extension = (basic['extension'] as Array<{ url: string; valueString?: string }>).find((item) => item.url.endsWith('outbox-payload'));
+  return JSON.parse(extension?.valueString ?? '{}') as Record<string, unknown>;
+}
+
 const UNKNOWN_CODES: ReadonlySet<string> = new Set(['X99']);
 
 function dtoWithCode(code: string): CompleteEncounterDto {
@@ -31,7 +36,6 @@ function dtoWithCode(code: string): CompleteEncounterDto {
 describe('EncountersService.complete', () => {
   let service: EncountersService;
   let fhir: jest.Mocked<FhirClient>;
-  let publisher: jest.Mocked<EncounterPublisherService>;
 
   beforeEach(() => {
     fhir = createFhirMock();
@@ -41,8 +45,7 @@ describe('EncountersService.complete', () => {
     );
     fhir.search.mockResolvedValue({ total: 0 }); // no Consent: CONSENT_ENFORCEMENT=warn lets it through
     fhir.batch.mockResolvedValue(transactionResponse([`Encounter/${ENCOUNTER_ID}/_history/2`]));
-    publisher = { publishCompleted: jest.fn().mockResolvedValue(undefined) } as unknown as jest.Mocked<EncounterPublisherService>;
-    service = new EncountersService(fhir, new TerminologyValidatorService(fhir), publisher, 'warn');
+    service = new EncountersService(fhir, new TerminologyValidatorService(fhir), 'warn');
   });
 
   it('should reject completing an encounter twice when it is already finished', async () => {
@@ -65,7 +68,6 @@ describe('EncountersService.complete', () => {
       errorCode: 'TERMINOLOGY_NOT_FOUND',
     });
     expect(fhir.batch).not.toHaveBeenCalled();
-    expect(publisher.publishCompleted).not.toHaveBeenCalled();
   });
 
   it('should link each prescription to the encounter and its condition', async () => {
@@ -104,6 +106,7 @@ describe('EncountersService.complete', () => {
       'AuditEvent',
       'AuditEvent',
       'AuditEvent',
+      'Basic',
     ]);
     expect(result).toMatchObject({ id: ENCOUNTER_ID, status: 'finished', diagnosisCodes: ['J06.9'] });
     expect(result.period.end).toEqual(expect.any(String));
@@ -119,33 +122,49 @@ describe('EncountersService.complete', () => {
     expect(fhir.batch).toHaveBeenCalledTimes(1);
   });
 
-  it('should report ENCOUNTER_STATE_INVALID and publish nothing when the appointment changed after it was read', async () => {
+  it('should report ENCOUNTER_STATE_INVALID when the appointment changed after it was read', async () => {
     fhir.batch.mockRejectedValue(new FhirClientError('POST', 'http://hapi/fhir', 412, '{}'));
 
     expect(await errorPayloadOf(service.complete(doctorClaims, ENCOUNTER_ID, validCompleteDto()))).toMatchObject({
       errorCode: 'ENCOUNTER_STATE_INVALID',
     });
-    expect(publisher.publishCompleted).not.toHaveBeenCalled();
   });
 
-  it('should report ENCOUNTER_STATE_INVALID and publish nothing when a concurrent completion wins the If-Match race', async () => {
+  it('should report ENCOUNTER_STATE_INVALID when a concurrent completion wins the If-Match race', async () => {
     fhir.batch.mockRejectedValue(new FhirClientError('POST', 'http://hapi/fhir', 412, '{}'));
 
     expect(await errorPayloadOf(service.complete(doctorClaims, ENCOUNTER_ID, validCompleteDto()))).toMatchObject({
       errorCode: 'ENCOUNTER_STATE_INVALID',
     });
-    expect(publisher.publishCompleted).not.toHaveBeenCalled();
   });
 
-  it('should publish encounter.completed with the diagnoses when the transaction commits', async () => {
+  it('should put the encounter.completed outbox record into the completion transaction when the doctor completes it', async () => {
     await service.complete(doctorClaims, ENCOUNTER_ID, validCompleteDto());
 
-    expect(publisher.publishCompleted).toHaveBeenCalledWith({
+    expect(fhir.batch).toHaveBeenCalledTimes(1);
+    const basics = committedEntries(fhir).filter((entry) => entry.resource?.['resourceType'] === 'Basic');
+    expect(basics).toHaveLength(1);
+    const basic = basics[0]?.resource as FhirResource;
+    expect(basicEvent(basic)).toMatchObject({
+      v: 1,
+      type: 'encounter.completed.v1',
       encounterId: ENCOUNTER_ID,
       patientRef: 'Patient/pat-1',
       practitionerRef: 'PractitionerRole/role-1',
-      diagnoses: [{ code: 'J06.9', display: 'Острая инфекция верхних дыхательных путей' }],
+      diagnosisCount: 1,
     });
+    expect(basic).toMatchObject({ meta: { tag: [{ code: 'pending' }] } });
+  });
+
+  it('should leave the diagnosis codes and names out of the outbox record', async () => {
+    await service.complete(doctorClaims, ENCOUNTER_ID, validCompleteDto());
+
+    const basic = committedEntries(fhir).find((entry) => entry.resource?.['resourceType'] === 'Basic')?.resource as FhirResource;
+    const text = JSON.stringify(basic);
+    expect(basicEvent(basic)).not.toHaveProperty('diagnoses');
+    expect(text).not.toContain('J06.9');
+    expect(text).not.toContain('Острая инфекция');
+    expect(basic).not.toHaveProperty('subject');
   });
 
   it('should refuse a non-participant practitioner before revealing the encounter state', async () => {

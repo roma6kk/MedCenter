@@ -1,6 +1,5 @@
 import { FhirClientError, type FhirClient, type FhirResource } from '@medcenter/fhir';
 
-import { EncounterPublisherService } from '../events/encounter-publisher.service';
 import { TerminologyValidatorService } from '../terminology/terminology-validator.service';
 import {
   APPOINTMENT_ID,
@@ -34,8 +33,7 @@ describe('EncounterOpeningService.open / EncountersService.findOne', () => {
     fhir.read.mockImplementation(async (type) => (type === 'Appointment' ? bookedAppointment : healthcareService));
     fhir.search.mockResolvedValue(searchResult());
     fhir.batch.mockResolvedValue(transactionResponse([`Encounter/${ENCOUNTER_ID}/_history/1`, 'AuditEvent/ae-1/_history/1']));
-    const publisher = { publishCompleted: jest.fn() } as unknown as EncounterPublisherService;
-    service = new EncountersService(fhir, new TerminologyValidatorService(fhir), publisher, 'warn');
+    service = new EncountersService(fhir, new TerminologyValidatorService(fhir), 'warn');
     opening = new EncounterOpeningService(fhir, 'warn');
   });
 
