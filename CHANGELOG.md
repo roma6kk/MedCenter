@@ -13,6 +13,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `Basic` outbox records in the same transaction Bundle as the booking or cancellation, and the new `apps/outbox-relay`
   service publishes them to RabbitMQ (at-least-once, Redis lock, `If-Match` status update). Sent records are deleted
   after 7 days and expunged (`HAPI_FHIR_EXPUNGE_ENABLED`). Outbox helpers in `libs/fhir` and `libs/terminology`.
+- Transactional outbox, stages 2 and 3 (ADR-021): `encounter.completed.v1` is written to the outbox in the encounter
+  completion transaction (encounter-service), and `patient.registered.v1` as the last step of creating an account
+  (auth-service; if the write fails the user row and the Patient are removed again, so an account exists if and only if
+  its outbox record does). encounter-, auth- and appointment-service no longer depend on RabbitMQ.
+- `OUTBOX_STALE_PENDING_MS` and `OUTBOX_RETENTION_MS` (overrides `OUTBOX_RETENTION_DAYS`, for live verification only)
+  for `outbox-relay`; `diagnosisCount` in `encounter.completed.v1`.
 - Frontend (`frontend/`) — standalone Next.js 15 App Router client (5 route groups, 27 routes): public catalog,
   SMART sign-in, patient cabinet (booking, appointments, history, prescriptions, profile, notifications),
   doctor cabinet (journal, schedule, encounter, patient), admin section (analytics, users, services, rooms,
@@ -65,6 +71,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - `appointment.cancelled.v1`: `reason` is optional and no longer sent (payload minimisation); the cancellation
   notification no longer quotes it. Appointments are created with a client-assigned UUID id.
+- Payload minimisation (ADR-021): `encounter.completed.v1` no longer carries `diagnoses[]` (replaced by
+  `diagnosisCount`) and `patient.registered.v1` no longer carries `email`; both are optional in `libs/contracts`,
+  so old events stay valid. analytics prefers `diagnosisCount` and still accepts the list.
 - `EncounterCompleteForm` now submits the full atomic `CompleteEncounterDto` (МКБ-10 diagnoses ≥ 1,
   `ServiceRequest`/`MedicationRequest`, UCUM select-only unit), so an encounter can actually be completed.
 - `specs/MANIFEST.md` now records the backend implementation status and the tooling spec.

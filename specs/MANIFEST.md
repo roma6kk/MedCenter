@@ -123,4 +123,4 @@ UCUM) подключается по canonical URL `https://fhir.by/...`. Арх�
 | Frontend | Next.js (App Router), TanStack Query + Zustand, Tailwind + shadcn/ui, react-hook-form + zod, next-intl (ru-BY) |
 | Монорепозиторий | Nx (`apps/*`, `libs/*`) |
 | Тесты | Jest, Testcontainers, Playwright |
-| Развёртывание | Docker Compose: 8 BFF + HAPI + Traefik + PostgreSQL + Redis + RabbitMQ (≥ 6 контейнеров), готовность к k8s |
+| Развёртывание | Docker Compose: 8 BFF + outbox-relay + HAPI + Traefik + PostgreSQL + Redis + RabbitMQ (≥ 6 контейнеров), готовность к k8s |

@@ -133,11 +133,11 @@ SMART-scopes и RBAC общим guard-слоем (`libs/common`); Traefik мар
 | --- | --- | --- | --- |
 | `appointment.booked.v1` | appointment-service (через outbox, ADR-021) | notification-service | `appointmentId`, `patientRef`, `practitionerRoleRef`, `slotRef`, `start`, `serviceId` |
 | `appointment.cancelled.v1` | appointment-service (через outbox, ADR-021) | notification-service | `appointmentId`, `patientRef`, `actorType`; `reason` — необязательное, не заполняется (ADR-021) |
-| `encounter.completed.v1` | encounter-service | notification-service | `encounterId`, `patientRef`, `practitionerRef`, `diagnoses[]` |
-| `patient.registered.v1` | patient-service | notification-service | `patientId`, `email` |
+| `encounter.completed.v1` | encounter-service (через outbox, ADR-021) | notification-service, analytics-service | `encounterId`, `patientRef`, `practitionerRef`, `diagnosisCount`; `diagnoses[]` — необязательное, не заполняется (ADR-021) |
+| `patient.registered.v1` | auth-service (через outbox, ADR-021) | notification-service | `patientId`; `email` — необязательное, не заполняется (ADR-021) |
 
 Соглашение: события идемпотентно обрабатываются (dedup по `eventId`); контракт — в `libs/contracts`. Доставка — at-least-once; события
-бронирования и отмены публикует `outbox-relay` из записей `Basic` (ADR-021), остальные — прямой публикацией после коммита (до этапов 2–3).
+все четыре события публикует `outbox-relay` из записей `Basic` (ADR-021); сервисы-издатели брокера не знают.
 
 **4.5 Форматы ошибок**
 
@@ -331,7 +331,7 @@ patient-service. Без действующего согласия 7.1/7.3 отв
 `GET /admin/audit` (analytics-service) читает обе формы (буквальную и логическую). *Следствие:* удаление не блокируется аудитом, история
 сохраняется; ресурс в журнале определяется по паре `resourceType`/`resourceId`. Дополняет ADR-014.
 
-**ADR-021 · Transactional outbox на FHIR `Basic` и сервис `outbox-relay` · Accepted (FR-008, NFR-005; владелец, 2026-10-23; этап 1 — бронирование и отмена)** —
+**ADR-021 · Transactional outbox на FHIR `Basic` и сервис `outbox-relay` · Accepted (FR-008, NFR-005; владелец, 2026-10-23; этапы 1–3: бронирование и отмена, завершение приёма, регистрация пациента)** —
 *Контекст:* событие публикуется после коммита транзакции HAPI; при сбое брокера бронь есть, а уведомления и аналитики нет (разрыв
 был записан в `coder-m3-booking-spec.md`). *Решение:* запись о событии — ресурс `Basic` с `code` = `outbox-event`
 (`system=https://fhir.by/CodeSystem/outbox`), добавляемый **той же транзакцией Bundle**, что и бизнес-изменение. У записи нет `subject` и
@@ -347,8 +347,23 @@ patient-service. Без действующего согласия 7.1/7.3 отв
 (без payload). *Минимизация:* запись и событие не несут свободного текста причины отмены; `reason` в
 `appointment.cancelled.v1` стал необязательным (обратная совместимость, версия не меняется), уведомление причину не показывает.
 *Следствие:* доставка at-least-once — возможны дубликаты, их снимают потребители (notification по `eventId`, analytics по
-`processed_event`); прямая публикация после коммита для этих двух событий удалена. Этап 2 (encounter-service) и этап 3 (auth-service) —
-отдельные шаги. Уточняет ADR-005, опирается на ADR-011/012.
+`processed_event`); прямая публикация после коммита удалена у всех четырёх событий, appointment-, encounter- и auth-service больше не зависят
+от RabbitMQ. Уточняет ADR-005, опирается на ADR-011/012.
+
+*Развёртывание по этапам.* Этап 1 — `appointment.*` (запись в транзакции брони/отмены). Этап 2 — `encounter.completed.v1`: запись `Basic`
+входит в ту же транзакцию Bundle, что и закрытие приёма; `Encounter` создан раньше (открытие приёма), его id известен до коммита, поэтому
+клиентский id не нужен. Этап 3 — `patient.registered.v1` в auth-service: PostgreSQL и HAPI не делят транзакцию, поэтому запись `Basic`
+(одно обращение к HAPI, `PUT Basic/{eventId}` с клиентским id, как в ADR-020) — последний шаг создания учётной записи, который может
+завершиться ошибкой: пользователь, `Patient` и связи уже созданы, `AuditEvent` пишется после (он ошибок не бросает). Если запись не удалась,
+выполняется та же компенсация, что и при сбое любого шага (удаляются строка пользователя и `Patient`), ошибка пробрасывается: учётная запись
+существует тогда и только тогда, когда есть её запись в outbox. Исход неизвестен (таймаут, обрыв соединения — `isOutcomeUnknown`): `Basic`
+могла сохраниться, поэтому компенсация дополнительно удаляет её по известному id (`eventId`), 404/410 игнорируются. *Минимизация payload
+(владелец):* из событий убраны поля, которых не требует ни один потребитель, поля стали необязательными в `libs/contracts` (версия не
+меняется, старые события остаются валидными): `encounter.completed.v1` — `diagnoses[]` (коды и названия диагнозов — медицинские данные; analytics
+нужно только их число, оно добавлено как `diagnosisCount`, потребитель предпочитает его и принимает старые события со списком), `patient.registered.v1` —
+`email` (контактные данные не нужны никому из потребителей и не должны лежать в outbox). Тесты фиксируют, что убранные значения не попадают в `Basic`.
+Пороги relay настраиваются переменными `OUTBOX_*` (`docker-compose.yml`), в том числе `OUTBOX_STALE_PENDING_MS` и `OUTBOX_RETENTION_MS`
+(последняя — только для проверки очистки).
 
 #### 9. Трассируемость
 
@@ -356,7 +371,7 @@ patient-service. Без действующего согласия 7.1/7.3 отв
 
 | NFR | Механизм |
 | --- | --- |
-| NFR-001 | 8 NestJS BFF-приложений + HAPI + Traefik, по образу на сервис; `docker-compose.yml` |
+| NFR-001 | 8 NestJS BFF-приложений + outbox-relay + HAPI + Traefik, по образу на сервис; `docker-compose.yml` |
 | NFR-002 | TypeScript strict (весь наш код); NestJS; Next.js; Docker (ADR-001/010) |
 | NFR-003 | Движок HAPI R4 + `/fhir/metadata` `CapabilityStatement`; contract-тест против IG (ADR-001/017) |
 | NFR-004 | Версионированный снапшот НСИ + импортер, биндинг по canonical `https://fhir.by/...` (ADR-002/016) |
@@ -407,7 +422,7 @@ R-4 = C (ADR-002). **Решение заказчика:** R-3 = A (ADR-015). **�
 
 **Изменения в компонентной модели:** `api-gateway` удалён из `apps/*`, добавлен `infra/traefik`;
 слой EDGE теперь — reverse-proxy, который **не** проверяет JWT; проверка перенесена в каждый BFF-сервис
-через общий guard-слой `libs/common`. Счётчики NFR-001: 8 BFF-приложений + HAPI + Traefik (требование
+через общий guard-слой `libs/common`. Счётчики NFR-001: 8 BFF-приложений + outbox-relay (ADR-021) + HAPI + Traefik (требование
 ≥ 6 выполнено с запасом).
 
 **Паттерны:** Traefik — маршрутизация и TLS; `JwtAuthGuard` + `ScopeGuard` + `RoleGuard` +

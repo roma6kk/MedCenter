@@ -2,8 +2,9 @@
 
 Web application of a medical center (patients book appointments, doctors run encounters, admins manage users,
 services, rooms and schedules). Clinical data lives in **HAPI FHIR JPA (R4)**; the own code is **8 NestJS BFF
-services** behind **Traefik**, an **outbox relay** (`apps/outbox-relay`, ADR-021: booking and cancellation events are
-written to HAPI in the booking transaction and published to RabbitMQ from there) and a **Next.js** client. Design: [specs/MANIFEST.md](specs/MANIFEST.md),
+services** (auth, practitioner, catalog, patient, appointment, notification, encounter, analytics) behind **Traefik**,
+an **outbox relay** (`apps/outbox-relay`, ADR-021: booking, cancellation, encounter-completion and registration events
+are written to HAPI together with the change that caused them and published to RabbitMQ from there) and a **Next.js** client. Design: [specs/MANIFEST.md](specs/MANIFEST.md),
 architecture and ADRs: [specs/architect-architecture.md](specs/architect-architecture.md) (diagrams in
 [docs/diagrams/](docs/diagrams/)), API contract: [specs/api-designer-spec.md](specs/api-designer-spec.md),
 change history: [CHANGELOG.md](CHANGELOG.md).
@@ -17,7 +18,7 @@ values (never commit `.env`; the comments in `docker-compose.yml` list the optio
 
 ```bash
 npm ci
-docker compose up -d --build        # 5 infrastructure containers + 8 BFF services + web (14 containers)
+docker compose up -d --build        # 5 infrastructure containers + 8 BFF services + outbox-relay + web (15 containers)
 npm run stack:wait                  # waits until the edge, HAPI (/fhir/metadata CapabilityStatement) and auth-service answer
 npm run seed:terminology            # national terminology snapshot (https://fhir.by/... canonicals)
 npm run seed:demo                   # demo organisation, doctors, services, rooms, schedules and 14 days of free slots (idempotent)

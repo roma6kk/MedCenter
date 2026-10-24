@@ -68,7 +68,7 @@
 - **Без необработанных rejection:** все фоновые promise имеют обработчик; `ack`/`nack` на закрытом канале
   логируются, а не превращаются в unhandled rejection (нерешённое сообщение брокер переотправит).
   Отменённый брокером consumer закрывает соединение, чтобы цикл переподключился.
-- `patient.registered.v1` содержит email — в `Communication` он не попадает (тест).
+- Прежние `patient.registered.v1` содержали email (теперь не заполняется, ADR-021) — в `Communication` он не попадает (тест).
 - Пациентские endpoints: `GET /api/v1/notifications` (8.1), `GET /api/v1/notifications/unread-count` (8.2),
   `POST /api/v1/notifications/{id}/read` (8.3). `unread` ⇔ `status=in-progress`, прочитано ⇔ `completed`.
 - `CONSUMER_ENABLED=false` отключает потребителя (используется e2e).
