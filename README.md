@@ -137,7 +137,7 @@ sequenceDiagram
   Patient->>Web: Выбирает слот
   Web->>Edge: POST /api/v1/appointments (Idempotency-Key)
   Edge->>Appt: Проксирует запрос с JWT
-  Appt->>HAPI: transaction Bundle: Appointment + Slot (If-Match)
+  Appt->>HAPI: transaction Bundle: Slot (If-Match) + Appointment + outbox-запись (Basic)
   HAPI-->>Appt: 201 или 409 при гонке за слот
   Note over HAPI,Relay: Событие записано в HAPI вместе с изменением (ADR-021)
   Relay->>MQ: Публикует booked-событие
