@@ -1,6 +1,6 @@
 import type { AppointmentBookedEvent, AppointmentCancelledEvent, EncounterCompletedEvent } from '@medcenter/contracts';
 
-import { parseAnalyticsEvent } from './analytics-event';
+import { diagnosisCountOf, parseAnalyticsEvent } from './analytics-event';
 
 const BOOKED: AppointmentBookedEvent = {
   v: 1,
@@ -105,6 +105,28 @@ describe('parseAnalyticsEvent', () => {
 
   it('should reject a completed encounter when its diagnoses are not a list', () => {
     expect(parseAnalyticsEvent(bytes({ ...COMPLETED, diagnoses: 'J06.9' }))).toBeUndefined();
+  });
+
+  it('should accept a completed encounter with a diagnosisCount and no diagnoses when the payload is minimised', () => {
+    const { diagnoses: _dropped, ...rest } = COMPLETED;
+    const minimised = { ...rest, diagnosisCount: 2 };
+
+    expect(parseAnalyticsEvent(bytes(minimised))).toEqual(minimised);
+  });
+
+  it('should reject a completed encounter when it carries neither diagnosisCount nor diagnoses', () => {
+    const { diagnoses: _dropped, ...rest } = COMPLETED;
+
+    expect(parseAnalyticsEvent(bytes(rest))).toBeUndefined();
+  });
+
+  it.each([-1, 1.5, '2', null])('should reject a completed encounter when diagnosisCount is %p', (count) => {
+    expect(parseAnalyticsEvent(bytes({ ...COMPLETED, diagnosisCount: count }))).toBeUndefined();
+  });
+
+  it('should prefer diagnosisCount over the length of the legacy list', () => {
+    expect(diagnosisCountOf({ ...COMPLETED, diagnosisCount: 3 })).toBe(3);
+    expect(diagnosisCountOf(COMPLETED)).toBe(1);
   });
 
   it('should reject an unsupported schema version when v is not 1', () => {
