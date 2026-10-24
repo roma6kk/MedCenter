@@ -32,6 +32,7 @@ These are enforceable rules. Wishes are ignored, constraints are enforced.
 - MUST NOT proceed with failing tests — fix or escalate to `/debugger`
 - MUST NOT skip pre-commit hooks (--no-verify)
 - MUST NOT force-push, hard-reset, or DROP TABLE without explicit user consent
+- MUST NOT add itself or any AI tool as a co-author: no `Co-Authored-By:` trailers naming Claude, Anthropic, Codebuff or other AI agents, and no "Generated with" lines, in commits, merge commits or PR descriptions
 
 ## Context & Documentation
 
