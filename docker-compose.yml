@@ -100,11 +100,11 @@ x-bff-env: &bff-env
   FHIR_CLIENT_SECRET:
   FHIR_TIMEOUT_MS:
 
-# Only for services that publish or consume domain events: auth-service
-# (patient events), outbox-relay (the events of appointment-, encounter-service, ADR-021),
-# notification-service and analytics-service. practitioner, catalog, patient,
-# appointment- and encounter-service neither need the broker URL nor depend on rabbitmq:
-# they only write the outbox `Basic` into HAPI.
+# Only for services that publish or consume domain events: outbox-relay (the events of
+# appointment-, encounter- and auth-service, ADR-021), notification-service and
+# analytics-service. The services that produce events neither need the broker URL nor depend on
+# rabbitmq: they only write the outbox `Basic` into HAPI (auth-service as the last step of
+# creating an account). practitioner-, catalog- and patient-service have no events at all.
 x-mq-env: &mq-env
   RABBITMQ_URL: amqp://${RABBITMQ_USER:-guest}:${RABBITMQ_PASSWORD:-guest}@rabbitmq:5672
 
@@ -313,13 +313,13 @@ services:
     # pair, the OAuth client registry, the session secret and the bootstrap admin.
     env_file: .env
     environment:
-      <<: [*bff-env, *mq-env, *db-env]
+      <<: [*bff-env, *db-env]
       PORT: '3001'
       HEALTH_PATH: /.well-known/jwks.json
     ports:
       - '127.0.0.1:3001:3001' # dev only (direct OAuth/JWKS debugging); production uses Traefik
     depends_on:
-      <<: [*dep-postgres, *dep-redis, *dep-rabbitmq]
+      <<: [*dep-postgres, *dep-redis]
 
   practitioner-service:
     <<: *bff
