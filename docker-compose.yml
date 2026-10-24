@@ -101,10 +101,10 @@ x-bff-env: &bff-env
   FHIR_TIMEOUT_MS:
 
 # Only for services that publish or consume domain events: auth-service
-# (patient events), outbox-relay (appointment events, ADR-021), encounter-service,
-# notification-service and analytics-service. practitioner, catalog, patient and
-# appointment-service neither need the broker URL nor depend on rabbitmq: appointment-service
-# only writes the outbox `Basic` into HAPI.
+# (patient events), outbox-relay (the events of appointment-, encounter-service, ADR-021),
+# notification-service and analytics-service. practitioner, catalog, patient,
+# appointment- and encounter-service neither need the broker URL nor depend on rabbitmq:
+# they only write the outbox `Basic` into HAPI.
 x-mq-env: &mq-env
   RABBITMQ_URL: amqp://${RABBITMQ_USER:-guest}:${RABBITMQ_PASSWORD:-guest}@rabbitmq:5672
 
@@ -389,11 +389,11 @@ services:
       <<: *bff-build
       args: { APP: encounter-service, PORT: '3007' }
     environment:
-      <<: [*bff-env, *mq-env]
+      <<: *bff-env
       PORT: '3007'
       HEALTH_PATH: /health
     depends_on:
-      <<: [*dep-hapi, *dep-redis, *dep-rabbitmq]
+      <<: [*dep-hapi, *dep-redis]
 
   analytics-service:
     <<: *bff
