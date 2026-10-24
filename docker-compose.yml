@@ -421,6 +421,19 @@ services:
       <<: [*bff-env, *mq-env]
       PORT: '3009'
       HEALTH_PATH: /health
+      # Optional tunables, passed through from the shell; unset means the default.
+      #   OUTBOX_POLL_INTERVAL_MS (2000), OUTBOX_BATCH_SIZE (50), OUTBOX_LOCK_TTL_MS (30000),
+      #   OUTBOX_HOUSEKEEPING_INTERVAL_MS (60000),
+      #   OUTBOX_STALE_PENDING_MS (300000): a pending record older than this is logged as stuck,
+      #   OUTBOX_RETENTION_DAYS (7): sent records older than this are deleted and expunged,
+      #   OUTBOX_RETENTION_MS: overrides the days; for live verification of the purge only.
+      OUTBOX_POLL_INTERVAL_MS:
+      OUTBOX_BATCH_SIZE:
+      OUTBOX_LOCK_TTL_MS:
+      OUTBOX_HOUSEKEEPING_INTERVAL_MS:
+      OUTBOX_STALE_PENDING_MS:
+      OUTBOX_RETENTION_DAYS:
+      OUTBOX_RETENTION_MS:
     depends_on:
       <<: [*dep-hapi, *dep-redis, *dep-rabbitmq]
 
