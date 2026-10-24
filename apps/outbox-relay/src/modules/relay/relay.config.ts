@@ -36,8 +36,9 @@ export function parseRelayConfig(env: NodeJS.ProcessEnv = process.env): RelayCon
     pollIntervalMs: positiveInt(env, 'OUTBOX_POLL_INTERVAL_MS', 2_000),
     batchSize: positiveInt(env, 'OUTBOX_BATCH_SIZE', 50),
     lockTtlMs: positiveInt(env, 'OUTBOX_LOCK_TTL_MS', 30_000),
-    retentionMs: positiveInt(env, 'OUTBOX_RETENTION_DAYS', 7) * DAY_MS,
-    stalePendingMs: 5 * 60 * 1000,
+    // OUTBOX_RETENTION_MS wins over the days: it exists for live verification of the purge, not for production.
+    retentionMs: positiveInt(env, 'OUTBOX_RETENTION_MS', positiveInt(env, 'OUTBOX_RETENTION_DAYS', 7) * DAY_MS),
+    stalePendingMs: positiveInt(env, 'OUTBOX_STALE_PENDING_MS', 5 * 60 * 1000),
     housekeepingIntervalMs: positiveInt(env, 'OUTBOX_HOUSEKEEPING_INTERVAL_MS', 60_000),
   };
 }

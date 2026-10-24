@@ -39,6 +39,14 @@ describe('communicationFromEvent', () => {
     expect(communication?.['payload']).toEqual([{ contentString: 'Запись на приём отменена.' }]);
   });
 
+  it('should notify on minimised events that carry no diagnoses and no email', () => {
+    const completed = communicationFromEvent(event({ type: 'encounter.completed.v1', encounterId: 'e9', patientRef: 'Patient/1', practitionerRef: 'Practitioner/p', diagnosisCount: 1 }));
+    const registered = communicationFromEvent(event({ type: 'patient.registered.v1', patientId: '5' }));
+
+    expect(completed?.['recipient']).toEqual([{ reference: 'Patient/1' }]);
+    expect(registered?.['recipient']).toEqual([{ reference: 'Patient/5' }]);
+  });
+
   it('should leave about out when the event names nothing to point at, such as a registration', () => {
     const communication = communicationFromEvent(event({ type: 'patient.registered.v1', patientId: '5', email: 'x@y.test' }));
 

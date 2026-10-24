@@ -1,5 +1,5 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
-import { Role } from '@medcenter/contracts';
+import { Role, type PatientRegisteredEvent } from '@medcenter/contracts';
 import { FhirClientError } from '@medcenter/fhir';
 
 import { normaliseEmail } from '../../config/auth-env';
@@ -7,7 +7,7 @@ import type { AuditActor } from '../audit/audit-event.builder';
 import { AuditService } from '../audit/audit.service';
 import { assertCreatable } from './account-rules';
 import { PasswordHasher } from './password-hasher';
-import { PatientEventsPublisher } from './patient-events.publisher';
+import { registeredEvent, RegistrationOutbox } from './patient-events';
 import { PatientProvisioner, type PatientGender } from './patient-provisioner';
 import { emailTaken, invalidUserInput, practitionerRoleTaken } from './user-errors';
 import { linkedRefs } from './user-links';
@@ -48,12 +48,12 @@ function isOutcomeUnknown(error: unknown): boolean {
 
 /**
  * Creates an account end to end — `auth.user` + roles, the FHIR `Patient` of a
- * PATIENT account, the `ExternalLink` rows, the `AuditEvent` and
- * `patient.registered.v1`. Shared by self-registration (API §2.2.6), the admin
+ * PATIENT account, the `ExternalLink` rows, the outbox record of
+ * `patient.registered.v1` and the `AuditEvent`. Shared by self-registration (API §2.2.6), the admin
  * create (§2.2.1) and the bootstrap administrator.
  *
  * The user row is written first; when a later step fails (HAPI, a taken
- * `PractitionerRole`) the account is compensated — removed again together
+ * `PractitionerRole`, the outbox record) the account is compensated — removed again together
  * with a Patient it already created — so a half-made account never remains.
  */
 @Injectable()
@@ -65,7 +65,7 @@ export class AccountFactory {
     private readonly hasher: PasswordHasher,
     private readonly patients: PatientProvisioner,
     private readonly audit: AuditService,
-    private readonly events: PatientEventsPublisher,
+    private readonly outbox: RegistrationOutbox,
   ) {}
 
   async create(input: NewAccount, context: AccountContext): Promise<UserRecord> {
@@ -77,6 +77,8 @@ export class AccountFactory {
     const email = normaliseEmail(input.email);
     const user = await this.insertUser({ ...input, email, roles });
     const linked = await this.linkResources(user, input);
+    // The last step that can fail (the audit never throws), so no audit record names an account that was rolled back.
+    await this.recordRegistration(linked);
     await this.audit.recordUserChange({
       action: 'create',
       actor: context.actor ?? { sub: linked.id, ...(context.requestId !== undefined ? { requestId: context.requestId } : {}) },
@@ -84,10 +86,41 @@ export class AccountFactory {
       event: context.event,
       resourceRefs: linkedRefs(linked.links),
     });
-    if (linked.links.patientId !== undefined) {
-      await this.events.publishRegistered(linked.links.patientId, email);
-    }
     return linked;
+  }
+
+  /**
+   * `patient.registered.v1` goes into the outbox (ADR-021). When that single HAPI write fails the account is
+   * compensated like any other failed step and the error is rethrown, so an account exists if and only if its
+   * outbox record does. An outcome-unknown write may have been stored: its record is removed by its known id.
+   */
+  private async recordRegistration(account: UserRecord): Promise<void> {
+    const { patientId } = account.links;
+    if (patientId === undefined) {
+      return;
+    }
+    const event = registeredEvent(patientId);
+    try {
+      await this.outbox.record(event);
+    } catch (error: unknown) {
+      await this.compensate(account.id, patientId, false);
+      if (isOutcomeUnknown(error)) {
+        await this.removeUnconfirmedOutbox(account.id, event);
+      }
+      throw error;
+    }
+  }
+
+  private async removeUnconfirmedOutbox(userId: string, event: PatientRegisteredEvent): Promise<void> {
+    try {
+      await this.outbox.remove(event);
+    } catch (error: unknown) {
+      // 404/410: the write never landed, which is what is wanted.
+      if (error instanceof FhirClientError && (error.upstreamStatus === 404 || error.upstreamStatus === 410)) {
+        return;
+      }
+      this.logger.error({ err: error, userId, eventId: event.eventId }, 'Compensation failed: an orphan outbox record may remain');
+    }
   }
 
   private async insertUser(input: NewAccount): Promise<UserRecord> {

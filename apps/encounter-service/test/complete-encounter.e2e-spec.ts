@@ -46,7 +46,7 @@ describe('Complete encounter (API §7.1–7.3)', () => {
     return String(response.body.id);
   }
 
-  it('should open and complete the encounter atomically and publish encounter.completed when the doctor follows the clinical chain', async () => {
+  it('should open and complete the encounter atomically and record encounter.completed in the outbox when the doctor follows the clinical chain', async () => {
     const encounterId = await openEncounter();
 
     const response = await as(DOCTOR).post(`/api/v1/encounters/${encounterId}/complete`, completeBody()).expect(200);
@@ -54,13 +54,16 @@ describe('Complete encounter (API §7.1–7.3)', () => {
     expect(response.body).toMatchObject({ id: encounterId, status: 'finished', diagnosisCodes: ['J06.9'], appointmentId: APPOINTMENT_ID });
     expect(response.body.period.end).toEqual(expect.any(String));
     const completion = harness.hapi.transactions[1]?.['entry'] as Array<{ resource: { resourceType: string } }>;
-    expect(new Set(completion.map((entry) => entry.resource.resourceType))).toEqual(new Set(['Encounter', 'Appointment', 'AuditEvent', ...CLINICAL_TYPES]));
+    expect(new Set(completion.map((entry) => entry.resource.resourceType))).toEqual(new Set(['Encounter', 'Appointment', 'AuditEvent', 'Basic', ...CLINICAL_TYPES]));
     for (const type of CLINICAL_TYPES) {
       expect(harness.hapi.stored(type)).toHaveLength(1);
     }
-    expect(harness.publisher.publish).toHaveBeenCalledWith(
-      expect.objectContaining({ type: 'encounter.completed.v1', encounterId, patientRef: 'Patient/pat-1', diagnoses: [expect.objectContaining({ code: 'J06.9' })] }),
-    );
+    const [outbox] = harness.hapi.stored('Basic');
+    expect(harness.hapi.stored('Basic')).toHaveLength(1);
+    const extensions = outbox?.['extension'] as Array<{ url: string; valueString?: string }>;
+    const event = JSON.parse(extensions.find((extension) => extension.url.endsWith('outbox-payload'))?.valueString ?? '{}');
+    expect(event).toMatchObject({ type: 'encounter.completed.v1', encounterId, patientRef: 'Patient/pat-1', diagnosisCount: 1 });
+    expect(JSON.stringify(outbox)).not.toContain('J06.9');
   });
 
   it('should set the appointment to fulfilled in the completion transaction when the encounter is finished', async () => {
@@ -112,7 +115,7 @@ describe('Complete encounter (API §7.1–7.3)', () => {
     expect(replay.headers['content-type']).toContain('application/problem+json');
     expect(replay.body).toMatchObject({ status: 409, errorCode: 'ENCOUNTER_STATE_INVALID' });
     expect(harness.hapi.transactions).toHaveLength(2);
-    expect(harness.publisher.publish).toHaveBeenCalledTimes(1);
+    expect(harness.hapi.stored('Basic')).toHaveLength(1);
   });
 
   it('should let exactly one of two concurrent completions win when both read the same version', async () => {

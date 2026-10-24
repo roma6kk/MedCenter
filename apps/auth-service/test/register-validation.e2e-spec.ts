@@ -2,7 +2,7 @@ import type { INestApplication } from '@nestjs/common';
 import { Role } from '@medcenter/contracts';
 import request from 'supertest';
 
-import { createdOf } from '../src/modules/users/__tests__/users-harness';
+import { createdOf, outboxRecords } from '../src/modules/users/__tests__/users-harness';
 import { startAuthApp, type AuthApp } from './app-harness';
 import { expectProblem } from './problem-assertions';
 import { REGISTRATION } from './users-helpers';
@@ -27,7 +27,7 @@ describe('POST /api/v1/auth/register — validation and response contract', () =
     started.fakes.store.users.size,
     createdOf(started.fakes.fhir, 'Patient').length,
     createdOf(started.fakes.fhir, 'AuditEvent').length,
-    started.fakes.publisher.publish.mock.calls.length,
+    outboxRecords(started.fakes.fhir).length,
   ];
 
   beforeAll(async () => {

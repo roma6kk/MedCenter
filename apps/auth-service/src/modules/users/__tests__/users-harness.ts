@@ -1,10 +1,9 @@
 import type { FhirClient } from '@medcenter/fhir';
-import type { EventPublisher } from '@medcenter/messaging';
 
 import { AuditService } from '../../audit/audit.service';
 import { AccountFactory } from '../account-factory.service';
 import { PasswordHasher } from '../password-hasher';
-import { PatientEventsPublisher } from '../patient-events.publisher';
+import { RegistrationOutbox } from '../patient-events';
 import { PatientProvisioner } from '../patient-provisioner';
 import { RegistrationService } from '../registration.service';
 import { UsersService } from '../users.service';
@@ -34,25 +33,23 @@ export function createFakeFhir(): FakeFhir {
 export interface UsersHarness {
   readonly store: InMemoryUserStore;
   readonly fhir: FakeFhir;
-  readonly publisher: jest.Mocked<EventPublisher>;
   readonly hasher: PasswordHasher;
   readonly accounts: AccountFactory;
   readonly registration: RegistrationService;
   readonly users: UsersService;
 }
 
-/** The users module over an in-memory store, a fake HAPI and a fake broker; scrypt runs with cheap parameters. */
+/** The users module over an in-memory store, a fake HAPI; scrypt runs with cheap parameters. */
 export function createUsersHarness(): UsersHarness {
   const store = new InMemoryUserStore();
   const fhir = createFakeFhir();
-  const publisher = { publish: jest.fn().mockResolvedValue(undefined) } as jest.Mocked<EventPublisher>;
   const hasher = new PasswordHasher({ N: 2 ** 10, r: 8, p: 1 });
   const patients = new PatientProvisioner(fhir);
   const audit = new AuditService(fhir);
-  const accounts = new AccountFactory(store, hasher, patients, audit, new PatientEventsPublisher(publisher));
+  const accounts = new AccountFactory(store, hasher, patients, audit, new RegistrationOutbox(fhir));
   const registration = new RegistrationService(accounts);
   const users = new UsersService(store, accounts, patients, audit);
-  return { store, fhir, publisher, hasher, accounts, registration, users };
+  return { store, fhir, hasher, accounts, registration, users };
 }
 
 /** FHIR `create` calls of one resource type, as `[resourceType, resource]` tuples. */
@@ -74,4 +71,17 @@ export function transactionWrites(fhir: FakeFhir): ReadonlyArray<{
       return { url: request.url, ifMatch: request.ifMatch, resource: entry['resource'] as Record<string, unknown> };
     }),
   );
+}
+
+/** The outbox records written to HAPI: the `Basic` of each `update` call, with the id it was stored under. */
+export function outboxRecords(fhir: FakeFhir): ReadonlyArray<{ readonly id: string; readonly resource: Record<string, unknown> }> {
+  return fhir.update.mock.calls
+    .filter(([type]) => type === 'Basic')
+    .map(([, id, resource]) => ({ id, resource: resource as unknown as Record<string, unknown> }));
+}
+
+/** The event JSON stored in an outbox `Basic` (the `outbox-payload` extension). */
+export function outboxEvent(resource: Record<string, unknown>): Record<string, unknown> {
+  const extensions = resource['extension'] as ReadonlyArray<{ url: string; valueString?: string }>;
+  return JSON.parse(extensions.find((extension) => extension.url.endsWith('outbox-payload'))?.valueString ?? '{}') as Record<string, unknown>;
 }

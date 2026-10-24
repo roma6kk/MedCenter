@@ -1,7 +1,7 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import type { AppointmentBookedEvent, AppointmentCancelledEvent, EncounterCompletedEvent } from '@medcenter/contracts';
 
-import type { AnalyticsEvent } from './analytics-event';
+import { diagnosisCountOf, type AnalyticsEvent } from './analytics-event';
 import { READ_MODEL_WRITER, type ApplyOutcome, type EventMeta, type ReadModelWriter } from './read-model.writer';
 import { SpecialtyResolver, UNKNOWN_SPECIALTY, type Specialty } from './specialty.resolver';
 
@@ -85,7 +85,7 @@ export class IngestionService {
       specialtyCode: clip(specialty.code, SPECIALTY_CODE_MAX),
       specialtyDisplay: specialty.display === null ? null : clip(specialty.display, SPECIALTY_DISPLAY_MAX),
       completedAt: new Date(event.occurredAt),
-      diagnosisCount: event.diagnoses.length,
+      diagnosisCount: diagnosisCountOf(event),
     });
   }
 

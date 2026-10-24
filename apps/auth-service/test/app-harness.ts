@@ -31,8 +31,8 @@ export interface AuthApp {
 /**
  * Boots the real `AppModule` — guard stack, validation pipe, RFC 7807 filter,
  * OAuth, users and terminology modules — over an in-memory `auth` store, a fake
- * HAPI and a no-op broker, so HTTP behaviour is tested without PostgreSQL, HAPI
- * or RabbitMQ (`realDatabase` swaps in PostgreSQL only).
+ * HAPI, so HTTP behaviour is tested without PostgreSQL or HAPI (`realDatabase`
+ * swaps in PostgreSQL only).
  */
 export async function startAuthApp(options: AuthAppOptions = {}): Promise<AuthApp> {
   applyE2eEnv();

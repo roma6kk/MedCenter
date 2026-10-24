@@ -3,7 +3,7 @@ import { Role } from '@medcenter/contracts';
 import { FhirClientError } from '@medcenter/fhir';
 
 import { ADMIN, doctorDto, seedPatient } from './__tests__/users-fixtures';
-import { createdOf, createUsersHarness, transactionWrites } from './__tests__/users-harness';
+import { createdOf, createUsersHarness, outboxEvent, outboxRecords, transactionWrites } from './__tests__/users-harness';
 
 describe('UsersService', () => {
   it('should soft-deactivate rather than delete a user', async () => {
@@ -93,7 +93,7 @@ describe('UsersService', () => {
     const user = await harness.users.create(doctorDto({ roles: [Role.PATIENT], birthDate: '1985-01-02' }), ADMIN);
 
     expect(user.patientRef).toMatch(/^Patient\//);
-    expect(harness.publisher.publish).toHaveBeenCalledWith(expect.objectContaining({ type: 'patient.registered.v1' }));
+    expect(outboxRecords(harness.fhir).map((record) => outboxEvent(record.resource)['type'])).toEqual(['patient.registered.v1']);
   });
 
   it('should replace roles and link the PractitionerRole when an admin patches a user', async () => {

@@ -107,6 +107,12 @@ describe('IngestionService', () => {
     });
   });
 
+  it('should store diagnosisCount when a minimised encounter.completed.v1 carries no diagnoses', async () => {
+    await ingestion.ingest({ ...COMPLETED, diagnoses: undefined, diagnosisCount: 5 });
+
+    expect(writer.applyEncounterCompleted).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ diagnosisCount: 5 }));
+  });
+
   it('should skip the HAPI lookup when the encounter event was already processed', async () => {
     writer.isProcessed.mockResolvedValue(true);
 

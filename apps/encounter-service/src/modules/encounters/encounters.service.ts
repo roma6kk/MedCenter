@@ -5,7 +5,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import type { JwtClaims } from '@medcenter/common';
-import { FHIR_CLIENT, type FhirClient, type FhirResource } from '@medcenter/fhir';
+import { FHIR_CLIENT, outboxWrite, type FhirClient, type FhirResource } from '@medcenter/fhir';
 
 import { practitionerRoleRefFromClaims } from '../../common/access/claims-identity';
 import {
@@ -19,7 +19,7 @@ import { resourcesOf } from '../../common/fhir/fhir-search';
 import { commitTransaction } from '../../common/fhir/fhir-transaction';
 import { internal, stateInvalid } from './encounter-errors';
 import { emergencyBypassWrite } from './emergency-bypass';
-import { EncounterPublisherService } from '../events/encounter-publisher.service';
+import { completedEvent } from '../events/encounter-events';
 import {
   TerminologyValidatorService,
   type TerminologyDisplays,
@@ -106,7 +106,6 @@ export class EncountersService {
   constructor(
     @Inject(FHIR_CLIENT) private readonly fhir: FhirClient,
     private readonly terminology: TerminologyValidatorService,
-    private readonly events: EncounterPublisherService,
     @Inject(CONSENT_ENFORCEMENT_MODE) private readonly consentEnforcement: ConsentEnforcement,
   ) {}
 
@@ -171,22 +170,19 @@ export class EncountersService {
           ),
         ]
       : [];
-    await commitTransaction(this.fhir, [...plan.writes, ...bypass], 'ENCOUNTER_STATE_INVALID');
-
-    // After the commit: a broker failure is logged by the publisher and cannot undo the completion.
-    const diagnoses = dto.diagnoses.map((diagnosis) => ({
-      code: diagnosis.code,
-      display: diagnosis.display,
-    }));
-    await this.events.publishCompleted({
+    // The encounter exists since it was opened, so its id is known: the outbox event is written in the very
+    // transaction that completes it and is published by outbox-relay (ADR-021). Only the diagnosis count goes
+    // into the event, never their codes or names.
+    const event = completedEvent({
       encounterId,
       patientRef: loaded.patientRef,
       practitionerRef: roleRef,
-      diagnoses,
+      diagnosisCount: dto.diagnoses.length,
     });
+    await commitTransaction(this.fhir, [...plan.writes, ...bypass, outboxWrite(event)], 'ENCOUNTER_STATE_INVALID');
     return toEncounterResponse(
       { ...plan.finishedEncounter, id: encounterId },
-      diagnoses.map((diagnosis) => diagnosis.code),
+      dto.diagnoses.map((diagnosis) => diagnosis.code),
     );
   }
 

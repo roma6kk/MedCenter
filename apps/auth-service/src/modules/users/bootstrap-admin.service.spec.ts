@@ -3,7 +3,7 @@ import { Role } from '@medcenter/contracts';
 
 import { SYSTEM_ACTOR } from '../audit/audit-event.builder';
 import { BootstrapAdminService } from './bootstrap-admin.service';
-import { createdOf, createUsersHarness, type UsersHarness } from './__tests__/users-harness';
+import { createdOf, createUsersHarness, outboxRecords, type UsersHarness } from './__tests__/users-harness';
 
 const ADMIN_EMAIL = 'Root@MedCenter.by';
 const ADMIN_PASSWORD = 'Adm1n!Passw0rd';
@@ -138,13 +138,13 @@ describe('BootstrapAdminService', () => {
       });
     });
 
-    it('should not provision a FHIR Patient or publish an event when the administrator is created', async () => {
+    it('should not provision a FHIR Patient or write an outbox record when the administrator is created', async () => {
       const harness = createUsersHarness();
 
       await serviceOver(harness).ensureAdmin(ADMIN);
 
       expect(createdOf(harness.fhir, 'Patient')).toEqual([]);
-      expect(harness.publisher.publish).not.toHaveBeenCalled();
+      expect(outboxRecords(harness.fhir)).toEqual([]);
     });
 
     it('should leave a deactivated administrator alone when the email already exists', async () => {

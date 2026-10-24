@@ -21,7 +21,7 @@ describe('JWT perimeter (distributed guard stack, ADR-009)', () => {
 
   beforeAll(async () => {
     // The harness declares the signing environment the eager OAuth providers
-    // need and swaps PostgreSQL/HAPI/RabbitMQ for in-memory fakes.
+    // need and swaps PostgreSQL/HAPI for in-memory fakes.
     app = (await startAuthApp({ controllers: [PerimeterProbeController] })).app;
   });
 

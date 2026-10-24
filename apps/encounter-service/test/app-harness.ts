@@ -2,7 +2,6 @@ import type { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { createValidationPipe } from '@medcenter/common';
 import { FHIR_CLIENT, type FhirResource } from '@medcenter/fhir';
-import { EVENT_PUBLISHER, type EventPublisher } from '@medcenter/messaging';
 
 import { AppModule } from '../src/app/app.module';
 import { CONSENT_ENFORCEMENT_MODE, type ConsentEnforcement } from '../src/common/consent/consent-gate';
@@ -18,28 +17,24 @@ export const APPOINTMENT_ID = 'apt-1';
 export interface AppHarness {
   readonly app: INestApplication;
   readonly hapi: FakeHapi;
-  readonly publisher: jest.Mocked<EventPublisher>;
   readonly issuer: TestIssuer;
   close(): Promise<void>;
 }
 
 /**
  * Boots the real `AppModule` — global guard stack, validation pipe, RFC 7807
- * filter — over an in-memory HAPI and a recording event publisher, so the HTTP
- * contract is tested without HAPI or RabbitMQ.
+ * filter — over an in-memory HAPI, so the HTTP contract is tested without HAPI.
+ * The service no longer publishes events itself (outbox, ADR-021).
  */
 export async function startAppHarness(consentEnforcement: ConsentEnforcement = 'warn'): Promise<AppHarness> {
   applyE2eEnv();
   const issuer = await startTestIssuer();
   process.env['JWT_JWKS_URI'] = issuer.jwksUri;
   const hapi = new FakeHapi(SEEDED_CODES);
-  const publisher: jest.Mocked<EventPublisher> = { publish: jest.fn().mockResolvedValue(undefined) };
 
   const moduleRef = await Test.createTestingModule({ imports: [AppModule] })
     .overrideProvider(FHIR_CLIENT)
     .useValue(hapi)
-    .overrideProvider(EVENT_PUBLISHER)
-    .useValue(publisher)
     .overrideProvider(CONSENT_ENFORCEMENT_MODE)
     .useValue(consentEnforcement)
     .compile();
@@ -50,7 +45,6 @@ export async function startAppHarness(consentEnforcement: ConsentEnforcement = '
   return {
     app,
     hapi,
-    publisher,
     issuer,
     close: async () => {
       await app.close();

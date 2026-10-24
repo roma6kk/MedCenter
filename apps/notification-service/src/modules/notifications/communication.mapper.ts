@@ -10,8 +10,9 @@ import { formatClinicDateTime } from './clinic-time';
  * types this service does not notify on, so the consumer can acknowledge them.
  *
  * The text is built only from the fields needed for the message. In particular
- * `patient.registered.v1` carries an email, which must never reach the clinical
- * store, so it is not read here.
+ * Older `patient.registered.v1` events carry an email (no longer sent, ADR-021),
+ * which must never reach the clinical store, so it is not read here; nor are the
+ * diagnoses of `encounter.completed.v1`.
  */
 export function communicationFromEvent(event: DomainEvent): FhirResource | undefined {
   const recipient = recipientOf(event);
