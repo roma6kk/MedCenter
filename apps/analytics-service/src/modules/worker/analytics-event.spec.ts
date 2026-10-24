@@ -108,16 +108,13 @@ describe('parseAnalyticsEvent', () => {
   });
 
   it('should accept a completed encounter with a diagnosisCount and no diagnoses when the payload is minimised', () => {
-    const { diagnoses: _dropped, ...rest } = COMPLETED;
-    const minimised = { ...rest, diagnosisCount: 2 };
+    const minimised = { ...COMPLETED, diagnoses: undefined, diagnosisCount: 2 };
 
-    expect(parseAnalyticsEvent(bytes(minimised))).toEqual(minimised);
+    expect(parseAnalyticsEvent(bytes(minimised))).toEqual({ ...COMPLETED, diagnoses: undefined, diagnosisCount: 2 });
   });
 
   it('should reject a completed encounter when it carries neither diagnosisCount nor diagnoses', () => {
-    const { diagnoses: _dropped, ...rest } = COMPLETED;
-
-    expect(parseAnalyticsEvent(bytes(rest))).toBeUndefined();
+    expect(parseAnalyticsEvent(bytes({ ...COMPLETED, diagnoses: undefined }))).toBeUndefined();
   });
 
   it.each([-1, 1.5, '2', null])('should reject a completed encounter when diagnosisCount is %p', (count) => {
