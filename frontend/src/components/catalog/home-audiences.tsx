@@ -4,25 +4,24 @@ import type { ReactNode } from 'react';
 import Link from 'next/link';
 import { useT } from '@/lib/i18n/use-t';
 import { SECTION_CLASS, SECTION_TITLE_CLASS } from './catalog-styles';
-import { CLINIC_CONTACTS, CORPORATE_CLIENTS, HOME_ANCHORS, INSURANCE_PARTNERS } from './home-content';
+import { CORPORATE_CLIENTS, HOME_ANCHORS, INSURANCE_PARTNERS } from './home-content';
 
-const PARTNERS_ID = 'partners';
 const AUDIENCE_LINK_CLASS = 'mt-auto inline-flex min-h-[44px] items-center text-[15px] font-semibold text-inverse-accent underline-offset-4 hover:underline';
 
 interface AudienceProps {
   readonly title: string;
   readonly text: string;
-  readonly href: string;
-  readonly link: string;
+  /** Both or neither: a block without a real destination carries no link. */
+  readonly action?: { readonly href: string; readonly label: string };
 }
 
-function Audience({ title, text, href, link }: AudienceProps): ReactNode {
+function Audience({ title, text, action }: AudienceProps): ReactNode {
   return (
     <li>
       <article className="flex h-full flex-col gap-3 rounded-panel border border-inverse-border p-6">
         <h3 className="text-[22px] font-bold">{title}</h3>
         <p className="text-[15px] leading-relaxed text-inverse-muted">{text}</p>
-        <Link href={href} className={AUDIENCE_LINK_CLASS}>{link}</Link>
+        {action && <Link href={action.href} className={AUDIENCE_LINK_CLASS}>{action.label}</Link>}
       </article>
     </li>
   );
@@ -49,11 +48,11 @@ export function HomeAudiences(): ReactNode {
       <div className={`${SECTION_CLASS} flex flex-col gap-8 py-16`}>
         <h2 id="home-audiences" className={SECTION_TITLE_CLASS}>{t('audTitle')}</h2>
         <ul className="grid gap-4 md:grid-cols-3">
-          <Audience title={t('audPrivateTitle')} text={t('audPrivateText')} href="/booking" link={t('book')} />
-          <Audience title={t('audCorpTitle')} text={t('audCorpText')} href={`mailto:${CLINIC_CONTACTS.corporateEmail}`} link={t('audCorpLink')} />
-          <Audience title={t('audInsTitle')} text={t('audInsText')} href={`#${PARTNERS_ID}`} link={t('audInsLink')} />
+          <Audience title={t('audPrivateTitle')} text={t('audPrivateText')} action={{ href: '/booking', label: t('book') }} />
+          <Audience title={t('audCorpTitle')} text={t('audCorpText')} />
+          <Audience title={t('audInsTitle')} text={t('audInsText')} />
         </ul>
-        <div id={PARTNERS_ID} className="scroll-mt-4 flex flex-col gap-6 border-t border-inverse-border pt-8">
+        <div className="flex flex-col gap-6 border-t border-inverse-border pt-8">
           <h3 className="text-xl font-bold">{t('partnersTitle')}</h3>
           <div className="grid gap-6 md:grid-cols-2">
             <Chips label={t('partnersCorp')} names={CORPORATE_CLIENTS} />

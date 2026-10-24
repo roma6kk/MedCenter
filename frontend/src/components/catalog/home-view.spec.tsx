@@ -69,8 +69,17 @@ describe('HomeView', () => {
     const audiences = screen.getByRole('region', { name: 'Кому мы помогаем' });
     for (const name of [...CORPORATE_CLIENTS, ...INSURANCE_PARTNERS]) expect(within(audiences).getByText(name)).toBeInTheDocument();
     expect(within(audiences).queryByRole('img')).not.toBeInTheDocument();
-    expect(within(audiences).getByRole('link', { name: 'Запросить предложение' }).getAttribute('href')).toMatch(/^mailto:/);
-    expect(within(audiences).getByRole('link', { name: 'Список партнёров' })).toHaveAttribute('href', '#partners');
+  });
+
+  it('should promise neither a contract, a policy nor a request channel the service cannot back when the page opens', () => {
+    const { container } = render(<HomeView services={SERVICES} doctors={DOCTORS} isFailed={false} />);
+
+    const audiences = screen.getByRole('region', { name: 'Кому мы помогаем' });
+    expect(within(audiences).queryByRole('link', { name: 'Запросить предложение' })).not.toBeInTheDocument();
+    expect(within(audiences).queryByRole('link', { name: 'Список партнёров' })).not.toBeInTheDocument();
+    expect(audiences.textContent).not.toMatch(/договор|полис|график приёмов|отчётност/i);
+    expect(container.querySelector('a[href^="mailto:b2b"]')).toBeNull();
+    expect(container.querySelector('#partners')).toBeNull();
   });
 
   it('should lead the patient through four steps when the page opens, with the booking only as the first', () => {

@@ -14,10 +14,9 @@ export const CLINIC_CONTACTS = {
   phone: '+375 17 000-00-00',
   phoneHref: 'tel:+375170000000',
   email: 'info@lifeline.example',
-  corporateEmail: 'b2b@lifeline.example',
 } as const;
 
-/** Companies served under a contract (names only, no logos). */
+/** Company names shown under "Trusted by" (names only, no logos); not yet checked against the official registers. */
 export const CORPORATE_CLIENTS: ReadonlyArray<string> = [
   'Беларусбанк',
   'Белагропромбанк',
@@ -26,7 +25,7 @@ export const CORPORATE_CLIENTS: ReadonlyArray<string> = [
   'Минский тракторный завод',
 ];
 
-/** Insurers whose policies the clinic accepts (names only, no logos). */
+/** Insurer names shown under "Trusted by" (names only, no logos); not yet checked against the official registers. */
 export const INSURANCE_PARTNERS: ReadonlyArray<string> = ['Белгосстрах', 'Промтрансинвест'];
 
 export type DirectionId = 'therapy' | 'cardiology' | 'neurology' | 'surgery' | 'diagnostics';
