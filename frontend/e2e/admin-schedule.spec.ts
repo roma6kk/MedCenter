@@ -68,9 +68,22 @@ test.describe('admin creates a schedule and generates slots', () => {
     const doctor = loadDemoAccount('DOCTOR', 3);
     expect(doctor.practitionerRoleId, 'the seeded doctor account is linked to a PractitionerRole').toBeDefined();
     doctorRoleId = doctor.practitionerRoleId as string;
-    firstDay = clinicDay(new Date(Date.now() + randomInt(MIN_DAYS_AHEAD, MAX_DAYS_AHEAD) * 24 * 60 * 60 * 1000));
-    lastDay = addDays(firstDay, HORIZON_DAYS - 1);
     adminPage = await signedInPage(browser, baseURL, 'ADMIN');
+    // An active schedule of this doctor left on the stand (an earlier run, a manual test) must not share the horizon:
+    // the rows are found by it, and the overlap test adds a schedule that reaches HORIZON_DAYS past the last day.
+    const listed = await adminPage.request.get(`/api/v1/admin/schedules?doctorId=${doctorRoleId}&active=true&pageSize=100`, {
+      headers: { Authorization: `Bearer ${await accessTokenOf(adminPage)}` },
+    });
+    expect(listed.ok(), 'the admin schedule list answers').toBe(true);
+    const taken = ((await listed.json()) as { items: ReadonlyArray<{ horizonFrom?: string; horizonTo?: string }> }).items;
+    const isFree = (from: string): boolean => {
+      const to = addDays(from, 2 * HORIZON_DAYS);
+      return taken.every((schedule) => schedule.horizonFrom === undefined || schedule.horizonTo === undefined || schedule.horizonTo < from || schedule.horizonFrom > to);
+    };
+    do {
+      firstDay = clinicDay(new Date(Date.now() + randomInt(MIN_DAYS_AHEAD, MAX_DAYS_AHEAD) * 24 * 60 * 60 * 1000));
+    } while (!isFree(firstDay));
+    lastDay = addDays(firstDay, HORIZON_DAYS - 1);
     doctorPage = await signedInPage(browser, baseURL, 'DOCTOR', 3);
     patientPage = await signedInPage(browser, baseURL, 'PATIENT', 0);
     const doctors = await patientPage.request.get('/api/v1/doctors?pageSize=100');
