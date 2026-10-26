@@ -6,8 +6,9 @@ import { MEDICATION_REQUESTS_MAX, type CompleteEncounterForm } from '@/lib/contr
 import { useT } from '@/lib/i18n/use-t';
 import { AtcCodeField } from './atc-code-field';
 import { EMPTY_MEDICATION } from './encounter-form-defaults';
-import { a11yOf, ADD_BUTTON_CLASS, errorAt, FIELDSET_CLASS, INPUT_CLASS, ROW_CLASS } from './encounter-form-helpers';
-import { FieldRow, RemoveRowButton } from './encounter-form-fields';
+import { a11yOf, errorAt, INPUT_CLASS, ROW_CLASS } from './encounter-form-helpers';
+import { AddRowButton, EmptyListLine, FieldRow, RemoveRowButton } from './encounter-form-fields';
+import { FormSection } from './encounter-form-section';
 
 /** Dosage instruction (required) and a note (optional) of a drug row. */
 function MedicationTextFields({ index }: { readonly index: number }): ReactNode {
@@ -66,14 +67,12 @@ export function MedicationsEditor(): ReactNode {
   const t = useT('doctor.medications');
   const { control } = useFormContext<CompleteEncounterForm>();
   const { fields, append, remove } = useFieldArray({ control, name: 'medicationRequests' });
+  const add = (): void => append(EMPTY_MEDICATION, { focusName: `medicationRequests.${fields.length}.atcCode` });
   return (
-    <fieldset className={`mt-4 ${FIELDSET_CLASS}`}>
-      <legend className="px-1 font-semibold">{t('legend')}</legend>
-      {fields.length === 0 ? <p className="text-sm text-muted-foreground">{t('empty')}</p> : null}
+    <FormSection id="medications" title={t('legend')}>
+      {fields.length === 0 ? <EmptyListLine message={t('empty')} addLabel={t('add')} onAdd={add} /> : null}
       {fields.map((field, index) => <MedicationRow key={field.id} index={index} onRemove={() => remove(index)} />)}
-      <button type="button" onClick={() => append(EMPTY_MEDICATION, { focusName: `medicationRequests.${fields.length}.atcCode` })} disabled={fields.length >= MEDICATION_REQUESTS_MAX} className={ADD_BUTTON_CLASS}>
-        {t('add')}
-      </button>
-    </fieldset>
+      {fields.length > 0 ? <AddRowButton label={t('add')} onClick={add} disabled={fields.length >= MEDICATION_REQUESTS_MAX} /> : null}
+    </FormSection>
   );
 }

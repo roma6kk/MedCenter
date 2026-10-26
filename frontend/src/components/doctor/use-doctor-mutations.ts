@@ -65,11 +65,14 @@ export function useOpenEncounter(): UseMutationResult<string, Error, OpenEncount
 }
 
 /** Completes the encounter with one atomic body (API 7.3). A replay is a 409 the form turns into the read-only view. */
-export function useCompleteEncounter(encounterId: string): UseMutationResult<EncounterSummary, Error, CompleteEncounterBody> {
+export function useCompleteEncounter(encounterId: string, onCompleted?: () => void): UseMutationResult<EncounterSummary, Error, CompleteEncounterBody> {
   const client = useQueryClient();
   return useMutation({
     mutationFn: (values: CompleteEncounterBody) => postCompleteEncounter(encounterId, values),
     onSuccess: async () => {
+      // First, and not through `mutate`'s own callback: refreshing the encounter below swaps the form for the read-only record,
+      // and a callback of `mutate` never runs once its component is gone (the local draft would then outlive the visit).
+      onCompleted?.();
       showToast('success', 'doctor.encounter.completedToast');
       await invalidateFor(client, 'complete-encounter');
     },

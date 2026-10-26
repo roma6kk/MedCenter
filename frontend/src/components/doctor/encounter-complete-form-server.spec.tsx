@@ -9,7 +9,7 @@ jest.setTimeout(30_000);
 import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { problem } from './doctor-test-utils';
-import { completeRoute, fillRequired, setup, submit } from './encounter-form-test-utils';
+import { completeCall, completeRoute, DIAGNOSIS_DISPLAY, diagnosisInput, fillRequired, pickDiagnosis, setup, submit } from './encounter-form-test-utils';
 
 describe('EncounterCompleteForm server errors', () => {
   it('should mark the rejected diagnosis code and focus it when the server answers INVALID_ICD10_CODE', async () => {
@@ -19,8 +19,8 @@ describe('EncounterCompleteForm server errors', () => {
     await submit();
 
     expect(await screen.findByText('Код не входит в справочник МКБ-10')).toBeInTheDocument();
-    await waitFor(() => expect(screen.getByLabelText(/Код МКБ-10/)).toHaveFocus());
-    expect(screen.getByLabelText(/Код МКБ-10/)).toHaveAttribute('aria-invalid', 'true');
+    await waitFor(() => expect(diagnosisInput()).toHaveFocus());
+    expect(diagnosisInput()).toHaveAttribute('aria-invalid', 'true');
   });
 
   it('should mark the drug code when the server answers TERMINOLOGY_NOT_FOUND for it', async () => {
@@ -46,6 +46,7 @@ describe('EncounterCompleteForm server errors', () => {
 
     await submit();
 
+    // The name is derived from the code and has no field of its own until the server marks it: then it appears, marked.
     expect(await screen.findByText('Слишком длинное значение')).toBeInTheDocument();
     expect(screen.getByLabelText(/Название диагноза 1/)).toHaveAttribute('aria-invalid', 'true');
     expect(screen.getByTestId('problem-banner')).toHaveTextContent('patientId is not allowed');
@@ -89,7 +90,7 @@ describe('EncounterCompleteForm focus of added rows', () => {
 
     await userEvent.click(screen.getByRole('button', { name: 'Добавить диагноз' }));
 
-    await waitFor(() => expect(screen.getByLabelText(/Код МКБ-10 · диагноз 2/)).toHaveFocus());
+    await waitFor(() => expect(diagnosisInput(2)).toHaveFocus());
   });
 
   it('should focus the code field of a new drug row', async () => {
@@ -108,31 +109,48 @@ describe('EncounterCompleteForm focus of added rows', () => {
     await waitFor(() => expect(screen.getByLabelText(/Услуга 1/)).toHaveFocus());
   });
 
-  it('should fill the diagnosis name from the terminology when a full code is typed and the field is left', async () => {
+  it('should fill the name from the terminology when a full code is typed and the field is left', async () => {
     setup();
 
-    await userEvent.type(screen.getByLabelText(/Код МКБ-10/), 'J06.9');
+    await userEvent.type(diagnosisInput(), 'J06.9');
     await userEvent.tab();
 
-    await waitFor(() => expect(screen.getByLabelText(/Название диагноза 1/)).toHaveValue('Острая инфекция верхних дыхательных путей неуточнённая'));
+    await waitFor(() => expect(diagnosisInput()).toHaveValue(`J06.9 — ${DIAGNOSIS_DISPLAY}`));
+    expect(screen.queryByLabelText(/Название диагноза 1/)).toBeNull();
   });
 
-  it('should keep the name the doctor typed when the code is left', async () => {
+  it('should ask for the name by hand when the typed code is not in the value set', async () => {
     setup();
-    await userEvent.type(screen.getByLabelText(/Название диагноза 1/), 'Моё название');
 
-    await userEvent.type(screen.getByLabelText(/Код МКБ-10/), 'J06.9');
+    await userEvent.type(diagnosisInput(), 'Q99.9');
     await userEvent.tab();
 
-    expect(screen.getByLabelText(/Название диагноза 1/)).toHaveValue('Моё название');
+    expect(await screen.findByLabelText(/Название диагноза 1/)).toHaveValue('');
+    expect(screen.getByText(/Справочник не вернул название/)).toBeInTheDocument();
   });
 
-  it('should leave the name empty when the typed code is not in the value set', async () => {
+  it('should keep the name field while the doctor types the name of an unknown code', async () => {
     setup();
-
-    await userEvent.type(screen.getByLabelText(/Код МКБ-10/), 'Q99.9');
+    await userEvent.type(diagnosisInput(), 'Q99.9');
     await userEvent.tab();
 
-    expect(screen.getByLabelText(/Название диагноза 1/)).toHaveValue('');
+    await userEvent.type(await screen.findByLabelText(/Название диагноза 1/), 'Редкий случай');
+
+    expect(screen.getByLabelText(/Название диагноза 1/)).toHaveValue('Редкий случай');
+  });
+
+  it('should treat editing a chosen diagnosis as a new search: no code is sent until another one is picked', async () => {
+    setup();
+    await fillRequired();
+
+    await userEvent.type(diagnosisInput(), '{Backspace}');
+    expect(diagnosisInput()).toHaveValue('');
+    await userEvent.type(diagnosisInput(), 'ОРВИ');
+    await submit();
+
+    expect(diagnosisInput()).toHaveValue('ОРВИ');
+    expect((await screen.findAllByText(/Некорректный код МКБ-10/)).length).toBeGreaterThan(0);
+    expect(completeCall()).toBeUndefined();
+    expect(screen.queryByLabelText(/Название диагноза 1/)).toBeNull();
   });
 });

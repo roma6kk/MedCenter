@@ -1,82 +1,129 @@
 'use client';
 
+import { useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { Controller, useFieldArray, useFormContext, useFormState } from 'react-hook-form';
+import { Controller, useFieldArray, useFormContext, useFormState, useWatch } from 'react-hook-form';
+import { SegmentedControl, type SegmentOption } from '@/components/ui/segmented-control';
 import { DIAGNOSES_MAX, ICD10_PATTERN, type CompleteEncounterForm } from '@/lib/contracts';
 import { useT } from '@/lib/i18n/use-t';
 import { ICD10_VALUE_SET } from './doctor-api';
+import type { Term, VerificationStatus } from './doctor-types';
 import { EMPTY_DIAGNOSIS } from './encounter-form-defaults';
+import { a11yOf, errorAt, INPUT_CLASS, ROW_CLASS } from './encounter-form-helpers';
+import { AddRowButton, FieldRow, RemoveRowButton } from './encounter-form-fields';
+import { FormSection } from './encounter-form-section';
 import { Icd10Combobox } from './icd10-combobox';
-import { a11yOf, ADD_BUTTON_CLASS, errorAt, FIELDSET_CLASS, INPUT_CLASS, ROW_CLASS, SELECT_BOX_CLASS } from './encounter-form-helpers';
-import { FieldRow, RemoveRowButton } from './encounter-form-fields';
-import type { Term } from './doctor-types';
-import { lookupTerm } from './use-doctor-queries';
-import { Select } from '@/components/ui/select';
+import { codeOfTypedText, formatDiagnosis, upperCaseSearch } from './icd10-text';
+import { buildRecentDiagnoses } from './patient-summary-model';
+import { lookupTerm, usePatientHistory } from './use-doctor-queries';
 
-const VERIFICATION_STATUSES = ['', 'working', 'provisional', 'confirmed'] as const;
+const ICD10_SYSTEM = 'https://fhir.by/CodeSystem/InternClassificDiseases10';
+const STATUSES: ReadonlyArray<VerificationStatus> = ['working', 'provisional', 'confirmed'];
 
-interface NameFromCode {
-  /** Copies a picked concept's name into the row's name field. */
-  readonly applyTerm: (term: Term) => void;
-  /** A code typed out in full (not picked) still gets its name when the field is left and the name is empty. */
-  readonly fillNameOf: (code: string) => void;
-}
-
-function useNameFromCode(index: number): NameFromCode {
-  const { setValue, getValues } = useFormContext<CompleteEncounterForm>();
-  const client = useQueryClient();
-  const applyTerm = (term: Term): void => {
-    if (term.display) setValue(`diagnoses.${index}.display`, term.display, { shouldValidate: true });
-  };
-  const isNameEmpty = (): boolean => getValues(`diagnoses.${index}.display`) === '';
-  const fillNameOf = (code: string): void => {
-    if (!ICD10_PATTERN.test(code) || !isNameEmpty()) return;
-    lookupTerm(client, ICD10_VALUE_SET, code)
-      .then((term) => (term !== null && isNameEmpty() ? applyTerm(term) : undefined))
-      // The lookup is a convenience: when it fails the doctor types the name, and the server still validates the code on submit.
-      .catch(() => undefined);
-  };
-  return { applyTerm, fillNameOf };
-}
+/** The segment for "not stated" has the empty value the form already uses for it (the schema turns it into an absent field). */
+type StatusChoice = '' | VerificationStatus;
 
 function VerificationField({ index }: { readonly index: number }): ReactNode {
   const t = useT('doctor.encounter');
   const tVerification = useT('doctor.verification');
-  const { control, register } = useFormContext<CompleteEncounterForm>();
+  const { control } = useFormContext<CompleteEncounterForm>();
   const { errors } = useFormState({ control, name: `diagnoses.${index}.verificationStatus` });
-  const statusId = `diagnosis-status-${index}`;
+  const error: string | undefined = errorAt(errors, `diagnoses.${index}.verificationStatus`);
+  const options: ReadonlyArray<SegmentOption<StatusChoice>> = [{ value: '', label: t('verificationNone') }, ...STATUSES.map((status) => ({ value: status, label: tVerification(status) }))];
   return (
-    <FieldRow id={statusId} label={t('verificationLabel', { n: index + 1 })} error={errorAt(errors, `diagnoses.${index}.verificationStatus`)}>
-      <Select id={statusId} wrapperClassName={SELECT_BOX_CLASS} {...register(`diagnoses.${index}.verificationStatus`)}>
-        {VERIFICATION_STATUSES.map((status) => (
-          <option key={status} value={status}>{status === '' ? t('verificationNone') : tVerification(status)}</option>
-        ))}
-      </Select>
-    </FieldRow>
+    <div>
+      <p className="form-label">{t('verificationCaption')}</p>
+      <Controller
+        control={control}
+        name={`diagnoses.${index}.verificationStatus`}
+        render={({ field }) => (
+          <SegmentedControl<StatusChoice>
+            kind="toggle"
+            label={t('verificationLabel', { n: index + 1 })}
+            options={options}
+            value={field.value ?? ''}
+            onChange={(next) => field.onChange(next === '' ? undefined : next)}
+            // Four segments do not fit one line on a phone: two by two there, one row from 640 px.
+            className="mt-1 grid w-full grid-cols-2 sm:inline-flex sm:w-auto"
+          />
+        )}
+      />
+      {error ? <p role="alert" className="mt-1 text-sm text-destructive">{error}</p> : null}
+    </div>
   );
 }
 
-/** The free-text name of a diagnosis (`display`); picking an ICD-10 code fills it in, the doctor may still adjust it. */
-function DiagnosisNameField({ index }: { readonly index: number }): ReactNode {
-  const t = useT('doctor.encounter');
-  const { control, register } = useFormContext<CompleteEncounterForm>();
-  const { errors } = useFormState({ control, name: `diagnoses.${index}.display` });
-  const displayId = `diagnosis-display-${index}`;
-  const displayError = errorAt(errors, `diagnoses.${index}.display`);
-  return (
-    <FieldRow id={displayId} label={t('diagnosisName', { n: index + 1 })} error={displayError}>
-      <input id={displayId} {...register(`diagnoses.${index}.display`)} {...a11yOf(displayId, displayError)} className={INPUT_CLASS} autoComplete="off" />
-    </FieldRow>
-  );
+interface DiagnosisText {
+  /** What the input shows: what the doctor is typing, otherwise the chosen concept («J06.9 — Острая инфекция…»). */
+  readonly text: string;
+  readonly onTextChange: (raw: string) => void;
+  readonly onSelectTerm: (term: Term) => void;
+  /** Leaving the field: a code written out in full still gets its name from the terminology. */
+  readonly onLeave: (code: string) => void;
+  /**
+   * A valid code is in the field and the terminology has no name for it (it was asked when the field was left): the doctor
+   * types the name. Stays true while that name is typed, and ends when the code changes.
+   */
+  readonly needsManualName: boolean;
 }
 
-/** The ICD-10 code of a row: the combobox; picking or typing out a code also fills the row's name. */
-function DiagnosisCodeField({ index }: { readonly index: number }): ReactNode {
+/**
+ * The one field of a diagnosis row (A7). The form still holds `code` and `display`; the field shows them as one text and
+ * turns what is typed into the code: a code typed out in full is the code, anything else is only a search until a concept is picked.
+ */
+function useDiagnosisText(index: number, hasCodeError: boolean): DiagnosisText {
+  const { control, setValue, getValues } = useFormContext<CompleteEncounterForm>();
+  const client = useQueryClient();
+  const code: string = useWatch({ control, name: `diagnoses.${index}.code` });
+  const display: string = useWatch({ control, name: `diagnoses.${index}.display` });
+  const [typed, setTyped] = useState<string | null>(null);
+  // The code that has no name in the terminology. A restored draft may already hold one.
+  const [unnamedCode, setUnnamedCode] = useState<string | null>(() => (ICD10_PATTERN.test(code) && display === '' ? code : null));
+  const codePath = `diagnoses.${index}.code` as const;
+  const displayPath = `diagnoses.${index}.display` as const;
+
+  const onTextChange = (raw: string): void => {
+    const shown: string = typed === null ? formatDiagnosis(code, display) : typed;
+    const isChosen: boolean = typed === null && code !== '' && display !== '';
+    // Editing a chosen diagnosis starts a new search instead of editing «J06.9 — Острая инфекция…» in place:
+    // deleting clears the field, typing over it (or after it) keeps only what was typed.
+    const next: string = !isChosen ? raw : raw.length < shown.length ? '' : raw.startsWith(shown) ? raw.slice(shown.length) : raw;
+    setTyped(upperCaseSearch(next));
+    setUnnamedCode(null);
+    // The name described the code that is being replaced; it must not outlive it.
+    setValue(codePath, codeOfTypedText(next), { shouldDirty: true, shouldValidate: hasCodeError });
+    setValue(displayPath, '', { shouldDirty: true });
+  };
+  const onSelectTerm = (term: Term): void => {
+    setTyped(null);
+    setValue(displayPath, term.display ?? '', { shouldDirty: true, shouldValidate: true });
+  };
+  const isNameEmpty = (): boolean => getValues(displayPath) === '';
+  const onLeave = (current: string): void => {
+    if (!ICD10_PATTERN.test(current)) return;
+    setTyped(null);
+    if (!isNameEmpty()) return;
+    lookupTerm(client, ICD10_VALUE_SET, current)
+      .then((term) => (term?.display && isNameEmpty() ? setValue(displayPath, term.display, { shouldDirty: true, shouldValidate: true }) : undefined))
+      // The lookup is a convenience: when it fails the doctor types the name, and the server still validates the code on submit.
+      .catch(() => undefined)
+      .finally(() => setUnnamedCode(isNameEmpty() ? current : null));
+  };
+  return { text: typed ?? formatDiagnosis(code, display), onTextChange, onSelectTerm, onLeave, needsManualName: unnamedCode !== null && unnamedCode === code };
+}
+
+interface DiagnosisCodeFieldProps {
+  readonly index: number;
+  readonly shortcuts: ReadonlyArray<Term>;
+  readonly text: DiagnosisText;
+}
+
+/** The combobox «код или название»: it fills both the code and the name of the row. */
+function DiagnosisCombobox({ index, shortcuts, text }: DiagnosisCodeFieldProps): ReactNode {
   const t = useT('doctor.encounter');
   const { control } = useFormContext<CompleteEncounterForm>();
   const { errors } = useFormState({ control, name: `diagnoses.${index}.code` });
-  const { applyTerm, fillNameOf } = useNameFromCode(index);
   return (
     <Controller
       control={control}
@@ -85,14 +132,18 @@ function DiagnosisCodeField({ index }: { readonly index: number }): ReactNode {
         <Icd10Combobox
           ref={field.ref}
           id={`icd10-${index}`}
-          labelSuffix={t('diagnosisN', { n: index + 1 })}
+          label={t('diagnosisLabel', { n: index + 1 })}
           value={field.value}
           onChange={field.onChange}
+          text={text.text}
+          onTextChange={text.onTextChange}
+          onSelectTerm={text.onSelectTerm}
           onBlur={() => {
             field.onBlur();
-            fillNameOf(field.value);
+            text.onLeave(field.value);
           }}
-          onSelectTerm={applyTerm}
+          shortcuts={shortcuts}
+          shortcutsLabel={t('recentDiagnoses')}
           error={errorAt(errors, `diagnoses.${index}.code`)}
         />
       )}
@@ -100,41 +151,84 @@ function DiagnosisCodeField({ index }: { readonly index: number }): ReactNode {
   );
 }
 
-function DiagnosisRow({ index, canRemove, onRemove }: { readonly index: number; readonly canRemove: boolean; readonly onRemove: () => void }): ReactNode {
+/**
+ * The name of a diagnosis is derived from its code and has no field of its own. This one appears only when the terminology
+ * could not supply a name for a valid code (a code outside the seed, the service down) or the form/server marked the name:
+ * the service accepts any text there, so the doctor can still finish the visit.
+ */
+function ManualNameField({ index }: { readonly index: number }): ReactNode {
   const t = useT('doctor.encounter');
+  const { control, register } = useFormContext<CompleteEncounterForm>();
+  const { errors } = useFormState({ control, name: `diagnoses.${index}.display` });
+  const displayId = `diagnosis-display-${index}`;
+  const displayError = errorAt(errors, `diagnoses.${index}.display`);
+  return (
+    <div className="mt-3">
+      <FieldRow id={displayId} label={t('diagnosisNameManual', { n: index + 1 })} error={displayError}>
+        <input id={displayId} {...register(`diagnoses.${index}.display`)} {...a11yOf(displayId, displayError)} className={INPUT_CLASS} autoComplete="off" />
+      </FieldRow>
+      <p className="mt-1 text-sm text-muted-foreground">{t('diagnosisNameManualHint')}</p>
+    </div>
+  );
+}
+
+interface DiagnosisRowProps {
+  readonly index: number;
+  readonly canRemove: boolean;
+  readonly shortcuts: ReadonlyArray<Term>;
+  readonly onRemove: () => void;
+}
+
+function DiagnosisRow({ index, canRemove, shortcuts, onRemove }: DiagnosisRowProps): ReactNode {
+  const t = useT('doctor.encounter');
+  const { control } = useFormContext<CompleteEncounterForm>();
+  const { errors } = useFormState({ control, name: [`diagnoses.${index}.code`, `diagnoses.${index}.display`] });
+  const text = useDiagnosisText(index, errorAt(errors, `diagnoses.${index}.code`) !== undefined);
+  const code: string = useWatch({ control, name: `diagnoses.${index}.code` });
+  // A marked name is shown only next to a code it could belong to: with no code, the code is what the doctor has to fix first.
+  const needsName: boolean = text.needsManualName || (ICD10_PATTERN.test(code) && errorAt(errors, `diagnoses.${index}.display`) !== undefined);
   return (
     <div className={ROW_CLASS}>
-      <DiagnosisCodeField index={index} />
-      <div className="mt-2"><DiagnosisNameField index={index} /></div>
-      <div className="mt-2"><VerificationField index={index} /></div>
+      <DiagnosisCombobox index={index} shortcuts={shortcuts} text={text} />
+      {needsName ? <ManualNameField index={index} /> : null}
+      <div className="mt-3"><VerificationField index={index} /></div>
       {canRemove ? <RemoveRowButton onClick={onRemove} label={t('removeDiagnosis')} ariaLabel={t('removeDiagnosisN', { n: index + 1 })} /> : null}
     </div>
   );
 }
 
-/** Summary (ClinicalImpression) and the ICD-10 diagnoses (BR-004): at least one, at most 20; the first is the primary one. */
-export function DiagnosesEditor(): ReactNode {
+/**
+ * The patient's earlier diagnoses as shortcuts for an empty field. They come from the history list the clinical summary beside
+ * the form has already loaded (same query key, no extra request); codes already chosen in this form are left out.
+ */
+function useDiagnosisShortcuts(patientId: string): ReadonlyArray<Term> {
+  const { control } = useFormContext<CompleteEncounterForm>();
+  const history = usePatientHistory(patientId, 1);
+  const chosen: ReadonlyArray<{ readonly code?: string } | undefined> = useWatch({ control, name: 'diagnoses' });
+  return useMemo(() => {
+    const taken = new Set((chosen ?? []).map((row) => row?.code ?? ''));
+    return buildRecentDiagnoses(history.data?.items ?? [])
+      .filter((diagnosis) => !taken.has(diagnosis.code))
+      .map((diagnosis) => ({ system: ICD10_SYSTEM, code: diagnosis.code, display: diagnosis.display }));
+  }, [history.data, chosen]);
+}
+
+/** The ICD-10 diagnoses (BR-004): at least one, at most 20; the first is the primary one. */
+export function DiagnosesEditor({ patientId }: { readonly patientId: string }): ReactNode {
   const t = useT('doctor.encounter');
-  const { control, register } = useFormContext<CompleteEncounterForm>();
+  const { control } = useFormContext<CompleteEncounterForm>();
   const { fields, append, remove } = useFieldArray({ control, name: 'diagnoses' });
-  const { errors } = useFormState({ control, name: ['summary', 'diagnoses'] });
-  const summaryError = errorAt(errors, 'summary');
+  const { errors } = useFormState({ control, name: 'diagnoses' });
   const listError = errorAt(errors, 'diagnoses');
+  const shortcuts = useDiagnosisShortcuts(patientId);
 
   return (
-    <fieldset className={FIELDSET_CLASS}>
-      <legend className="px-1 font-semibold">{t('diagnosesLegend')}</legend>
-      <FieldRow id="summary" label={t('summary')} error={summaryError}>
-        <textarea id="summary" rows={4} {...register('summary')} {...a11yOf('summary', summaryError)} className={INPUT_CLASS} />
-      </FieldRow>
-      <p className="mt-4 text-sm font-medium">{t('diagnosesHint')}</p>
-      {listError ? <p role="alert" data-testid="diagnoses-error" className="text-sm text-destructive">{listError}</p> : null}
+    <FormSection id="diagnoses" title={t('diagnosesLegend')} hint={t('diagnosesHint')}>
+      {listError ? <p role="alert" data-testid="diagnoses-error" className="mb-3 text-sm text-destructive">{listError}</p> : null}
       {fields.map((field, index) => (
-        <DiagnosisRow key={field.id} index={index} canRemove={fields.length > 1} onRemove={() => remove(index)} />
+        <DiagnosisRow key={field.id} index={index} canRemove={fields.length > 1} shortcuts={shortcuts} onRemove={() => remove(index)} />
       ))}
-      <button type="button" onClick={() => append(EMPTY_DIAGNOSIS, { focusName: `diagnoses.${fields.length}.code` })} disabled={fields.length >= DIAGNOSES_MAX} className={ADD_BUTTON_CLASS}>
-        {t('addDiagnosis')}
-      </button>
-    </fieldset>
+      <AddRowButton label={t('addDiagnosis')} onClick={() => append(EMPTY_DIAGNOSIS, { focusName: `diagnoses.${fields.length}.code` })} disabled={fields.length >= DIAGNOSES_MAX} />
+    </FormSection>
   );
 }

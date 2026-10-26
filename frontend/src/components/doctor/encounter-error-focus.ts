@@ -1,8 +1,8 @@
 import type { FieldErrors } from 'react-hook-form';
 import type { CompleteEncounterForm } from '@/lib/contracts';
 
-/** The sections of the form in the order they appear on screen (the schema order differs: recommendations come last on screen). */
-const SECTION_ORDER = ['summary', 'diagnoses', 'observations', 'serviceRequests', 'medicationRequests', 'recommendations'] as const;
+/** The sections of the form in the order they appear on screen (the order of the visit, A6; the schema order differs). */
+const SECTION_ORDER = ['observations', 'diagnoses', 'serviceRequests', 'medicationRequests', 'summary', 'recommendations'] as const;
 
 /** The first leaf of a react-hook-form error tree: the node that carries a `message`. */
 function firstLeaf(node: unknown, path: string): string | null {

@@ -8,6 +8,7 @@
  * Refresh tokens are single-use, so every exchange in this tab goes through ONE in-flight request: a mount-time
  * `loadSession`, a React StrictMode double effect and a 401-triggered refresh share a result instead of racing.
  */
+import { clearAllDrafts } from '@/lib/encounter-draft';
 import { setAccessToken, clearAccessToken, getAccessToken } from './access-token';
 import { parseUserRole } from './user-role';
 import { setFlash } from '@/lib/ui/flash-message';
@@ -113,6 +114,8 @@ export async function logout(): Promise<void> {
   await endSession();
   // The booking draft carries the visit reason (health data) in this tab's sessionStorage: it must not outlive a sign-out.
   useBookingDraftStore.getState().clearDraft();
+  // Likewise the unfinished encounter forms kept for the doctor in this browser (clinical text, A8).
+  clearAllDrafts();
   window.location.assign('/login');
 }
 

@@ -9,7 +9,7 @@ jest.setTimeout(30_000);
 import { act, fireEvent, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { callsTo } from './doctor-test-utils';
-import { apiFetchMock, COMPLETE, completeCall, completeRoute, fillRequired, setup, submit } from './encounter-form-test-utils';
+import { apiFetchMock, COMPLETE, completeCall, completeRoute, DIAGNOSIS_DISPLAY, diagnosisInput, fillRequired, setup, submit } from './encounter-form-test-utils';
 
 /**
  * Gives a stray request time to show up (the form submits asynchronously) before asserting that none was sent. It outlasts the
@@ -25,13 +25,17 @@ describe('EncounterCompleteForm implicit submit', () => {
   it('should not complete the encounter when Enter is pressed in the diagnosis name field', async () => {
     setup();
     await fillRequired();
-    screen.getByLabelText(/Название диагноза 1/).focus();
+    await userEvent.click(screen.getByRole('button', { name: 'Добавить диагноз' }));
+    // A code the terminology does not know: the doctor names it by hand, in a field of its own.
+    await userEvent.type(diagnosisInput(2), 'K21.0');
+    await userEvent.tab();
+    await userEvent.type(await screen.findByLabelText(/Название диагноза 2/), 'ГЭРБ');
 
     await userEvent.keyboard('{Enter}');
     await settle();
 
     expect(completeCall()).toBeUndefined();
-    expect(screen.getByLabelText(/Название диагноза 1/)).toHaveFocus();
+    expect(screen.getByLabelText(/Название диагноза 2/)).toHaveFocus();
   });
 
   it('should not complete the encounter when Enter is pressed in the dosage field', async () => {
@@ -48,25 +52,26 @@ describe('EncounterCompleteForm implicit submit', () => {
   it('should not complete the encounter when Enter is pressed in a code field whose list is open with no active option', async () => {
     setup();
     await fillRequired();
-    await userEvent.clear(screen.getByLabelText(/Код МКБ-10/));
-    await userEvent.type(screen.getByLabelText(/Код МКБ-10/), 'J06');
+    await userEvent.clear(diagnosisInput());
+    await userEvent.type(diagnosisInput(), 'J06');
     await screen.findByRole('option', { name: /J06\.9/ });
 
     await userEvent.keyboard('{Enter}');
     await settle();
 
     expect(completeCall()).toBeUndefined();
-    expect(screen.getByLabelText(/Код МКБ-10/)).toHaveFocus();
+    expect(diagnosisInput()).toHaveFocus();
   });
 
   it('should still pick the active option when Enter is pressed in a code list', async () => {
     setup();
-    await userEvent.type(screen.getByLabelText(/Код МКБ-10/), 'J06');
+    await userEvent.type(diagnosisInput(), 'J06');
     await screen.findByRole('option', { name: /J06\.9/ });
 
     await userEvent.keyboard('{ArrowDown}{Enter}');
 
-    expect(screen.getByLabelText(/Код МКБ-10/)).toHaveValue('J06.9');
+    // One field for both: the picked concept reads as its code and its name.
+    expect(diagnosisInput()).toHaveValue(`J06.9 — ${DIAGNOSIS_DISPLAY}`);
     expect(completeCall()).toBeUndefined();
   });
 

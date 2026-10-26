@@ -11,6 +11,7 @@ import { cn } from '@/lib/ui/cn';
 import type { HistoryItem, ObservationView, Prescription } from './doctor-types';
 import { ATC_SYSTEM } from './encounter-problem-fields';
 import { buildRecentDiagnoses, currentPrescriptions, MAX_SUMMARY_ROWS, type RecentDiagnosis } from './patient-summary-model';
+import { useUnitLabel } from './unit-label';
 import { useEncounter, usePatientHistory, usePatientPrescriptions, useUpcomingVisit } from './use-doctor-queries';
 
 function Block({ title, children }: { readonly title: string; readonly children: ReactNode }): ReactNode {
@@ -104,13 +105,14 @@ function CurrentPrescriptions({ patientId }: { readonly patientId: string }): Re
 
 function VitalsList({ items, date }: { readonly items: ReadonlyArray<ObservationView>; readonly date: string }): ReactNode {
   const t = useT('doctor.summary');
+  const unitLabel = useUnitLabel();
   return (
     <>
       <ul className="grid gap-1">
         {items.slice(0, MAX_SUMMARY_ROWS + 2).map((item, index) => (
           <li key={`${item.code}-${index}`} className="flex flex-wrap items-baseline justify-between gap-x-3 text-sm">
             <span>{item.display ?? item.code}</span>
-            <span className="tabular-nums font-semibold">{`${item.value} ${item.unit}`}</span>
+            <span className="tabular-nums font-semibold">{`${item.value} ${unitLabel(item.unit, item.code)}`}</span>
           </li>
         ))}
       </ul>

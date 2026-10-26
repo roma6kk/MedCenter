@@ -280,7 +280,7 @@ describe('PatientCardView clinical summary (A2)', () => {
     expect(await summary.findByText('Острый назофарингит')).toBeInTheDocument();
     expect(await summary.findByText('Азитромицин')).toBeInTheDocument();
     expect(await summary.findByText('Температура тела')).toBeInTheDocument();
-    expect(summary.getByText('36.6 Cel')).toBeInTheDocument();
+    expect(summary.getByText('36.6 °C')).toBeInTheDocument();
   });
 
   it('should list a diagnosis once, with its latest date, even when several visits carry it', async () => {

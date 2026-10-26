@@ -1,13 +1,14 @@
 'use client';
 
 import type { ReactNode } from 'react';
-import { Controller, useFieldArray, useFormContext, useFormState } from 'react-hook-form';
+import { Controller, useFieldArray, useFormContext, useFormState, useWatch } from 'react-hook-form';
 import { OBSERVATIONS_MAX, type CompleteEncounterForm } from '@/lib/contracts';
 import { useT } from '@/lib/i18n/use-t';
 import { CodedTermField } from './coded-term-field';
 import { OBSERVATIONS_VALUE_SET } from './doctor-api';
-import { a11yOf, ADD_BUTTON_CLASS, errorAt, FIELDSET_CLASS, INPUT_CLASS, ROW_CLASS } from './encounter-form-helpers';
-import { FieldRow, RemoveRowButton } from './encounter-form-fields';
+import { a11yOf, errorAt, INPUT_CLASS, ROW_CLASS } from './encounter-form-helpers';
+import { AddRowButton, EmptyListLine, FieldRow, RemoveRowButton } from './encounter-form-fields';
+import { FormSection } from './encounter-form-section';
 import { EMPTY_OBSERVATION } from './encounter-form-defaults';
 import { UcumUnitSelect } from './ucum-unit-select';
 
@@ -16,13 +17,14 @@ function ObservationUnitField({ index }: { readonly index: number }): ReactNode 
   const { control } = useFormContext<CompleteEncounterForm>();
   const { errors } = useFormState({ control, name: `observations.${index}.unit` });
   const unitId = `observation-unit-${index}`;
+  const observationCode: string = useWatch({ control, name: `observations.${index}.code` });
   const unitError = errorAt(errors, `observations.${index}.unit`);
   return (
     <FieldRow id={unitId} label={t('unit', { n: index + 1 })} error={unitError}>
       <Controller
         control={control}
         name={`observations.${index}.unit`}
-        render={({ field }) => <UcumUnitSelect ref={field.ref} id={unitId} value={field.value} onChange={field.onChange} onBlur={field.onBlur} {...a11yOf(unitId, unitError)} />}
+        render={({ field }) => <UcumUnitSelect ref={field.ref} id={unitId} observationCode={observationCode} value={field.value} onChange={field.onChange} onBlur={field.onBlur} {...a11yOf(unitId, unitError)} />}
       />
     </FieldRow>
   );
@@ -49,19 +51,17 @@ function ObservationRow({ index, onRemove }: { readonly index: number; readonly 
   );
 }
 
-/** Vital signs and measurements (FR-012…): a NSI observation code, a number and a UCUM unit (BR-009). Optional. */
+/** Examination and vital signs (FR-012…): a NSI observation code, a number and a UCUM unit (BR-009). Optional. */
 export function ObservationsEditor(): ReactNode {
   const t = useT('doctor.observations');
   const { control } = useFormContext<CompleteEncounterForm>();
   const { fields, append, remove } = useFieldArray({ control, name: 'observations' });
+  const add = (): void => append(EMPTY_OBSERVATION, { focusName: `observations.${fields.length}.code` });
   return (
-    <fieldset className={`mt-4 ${FIELDSET_CLASS}`}>
-      <legend className="px-1 font-semibold">{t('legend')}</legend>
-      {fields.length === 0 ? <p className="text-sm text-muted-foreground">{t('empty')}</p> : null}
+    <FormSection id="observations" title={t('legend')}>
+      {fields.length === 0 ? <EmptyListLine message={t('empty')} addLabel={t('add')} onAdd={add} /> : null}
       {fields.map((field, index) => <ObservationRow key={field.id} index={index} onRemove={() => remove(index)} />)}
-      <button type="button" onClick={() => append(EMPTY_OBSERVATION, { focusName: `observations.${fields.length}.code` })} disabled={fields.length >= OBSERVATIONS_MAX} className={ADD_BUTTON_CLASS}>
-        {t('add')}
-      </button>
-    </fieldset>
+      {fields.length > 0 ? <AddRowButton label={t('add')} onClick={add} disabled={fields.length >= OBSERVATIONS_MAX} /> : null}
+    </FormSection>
   );
 }

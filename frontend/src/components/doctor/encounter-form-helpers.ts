@@ -3,7 +3,6 @@
  * Kept out of the component file (`encounter-form-fields.tsx`): a file that exports both components and values breaks Fast Refresh.
  */
 import type { KeyboardEvent } from 'react';
-import { buttonVariants } from '@/components/ui/button-variants';
 import { FIELD_CLASS } from '@/components/ui/field-styles';
 import { get, type FieldErrors } from 'react-hook-form';
 import type { CompleteEncounterForm } from '@/lib/contracts';
@@ -12,9 +11,11 @@ import type { CompleteEncounterForm } from '@/lib/contracts';
 export const INPUT_CLASS = `mt-1 ${FIELD_CLASS}`;
 /** Box of a `Select` in a completion-form row: the same gap to its label. */
 export const SELECT_BOX_CLASS = 'mt-1';
-export const ADD_BUTTON_CLASS = `mt-3 ${buttonVariants({ variant: 'secondary' })}`;
-export const FIELDSET_CLASS = 'rounded-card border border-border p-4';
-export const ROW_CLASS = 'mt-3 rounded-control border border-border p-3';
+/**
+ * One row of a repeatable list inside a section card. Rows are told apart by a hairline between them, not by a box of their
+ * own: a bordered row inside a bordered card is the double frame A9 removes.
+ */
+export const ROW_CLASS = 'mt-4 border-t border-border-soft pt-4 first:mt-0 first:border-t-0 first:pt-0';
 
 /** The `message` of a react-hook-form / zod error node at `path` (`diagnoses.0.code`), if there is one. */
 export function errorAt(errors: FieldErrors<CompleteEncounterForm>, path: string): string | undefined {

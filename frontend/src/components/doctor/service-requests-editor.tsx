@@ -7,8 +7,9 @@ import { useT } from '@/lib/i18n/use-t';
 import { CodedTermField } from './coded-term-field';
 import { SERVICES_VALUE_SET } from './doctor-api';
 import { EMPTY_SERVICE } from './encounter-form-defaults';
-import { a11yOf, ADD_BUTTON_CLASS, errorAt, FIELDSET_CLASS, INPUT_CLASS, ROW_CLASS } from './encounter-form-helpers';
-import { FieldRow, RemoveRowButton } from './encounter-form-fields';
+import { a11yOf, errorAt, INPUT_CLASS, ROW_CLASS } from './encounter-form-helpers';
+import { AddRowButton, EmptyListLine, FieldRow, RemoveRowButton } from './encounter-form-fields';
+import { FormSection } from './encounter-form-section';
 
 function ServiceRow({ index, onRemove }: { readonly index: number; readonly onRemove: () => void }): ReactNode {
   const t = useT('doctor.services');
@@ -35,14 +36,12 @@ export function ServiceRequestsEditor(): ReactNode {
   const t = useT('doctor.services');
   const { control } = useFormContext<CompleteEncounterForm>();
   const { fields, append, remove } = useFieldArray({ control, name: 'serviceRequests' });
+  const add = (): void => append(EMPTY_SERVICE, { focusName: `serviceRequests.${fields.length}.code` });
   return (
-    <fieldset className={`mt-4 ${FIELDSET_CLASS}`}>
-      <legend className="px-1 font-semibold">{t('legend')}</legend>
-      {fields.length === 0 ? <p className="text-sm text-muted-foreground">{t('empty')}</p> : null}
+    <FormSection id="services" title={t('legend')}>
+      {fields.length === 0 ? <EmptyListLine message={t('empty')} addLabel={t('add')} onAdd={add} /> : null}
       {fields.map((field, index) => <ServiceRow key={field.id} index={index} onRemove={() => remove(index)} />)}
-      <button type="button" onClick={() => append(EMPTY_SERVICE, { focusName: `serviceRequests.${fields.length}.code` })} disabled={fields.length >= SERVICE_REQUESTS_MAX} className={ADD_BUTTON_CLASS}>
-        {t('add')}
-      </button>
-    </fieldset>
+      {fields.length > 0 ? <AddRowButton label={t('add')} onClick={add} disabled={fields.length >= SERVICE_REQUESTS_MAX} /> : null}
+    </FormSection>
   );
 }

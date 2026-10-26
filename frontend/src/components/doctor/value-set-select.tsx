@@ -19,12 +19,18 @@ export interface ValueSetSelectProps {
   readonly placeholder: string;
   /** Codes offered when the terminology service cannot be reached; without them the field degrades to typing a code. */
   readonly fallbackCodes?: ReadonlyArray<string>;
+  /** What an option says (the default is `code — display`); the option's value stays the code. */
+  readonly optionLabel?: (term: Term) => string;
   readonly 'aria-invalid'?: boolean;
   readonly 'aria-describedby'?: string;
 }
 
 /** Gap between the label above and the control. */
 const BOX_CLASS = 'mt-1';
+
+function defaultOptionLabel(term: Term): string {
+  return term.display ? `${term.code} — ${term.display}` : term.code;
+}
 
 function termFor(items: ReadonlyArray<Term>, code: string): Term | null {
   return items.find((item) => item.code === code) ?? null;
@@ -64,7 +70,7 @@ interface OptionsSelectProps extends FallbackInputProps {
 }
 
 function OptionsSelect({ props, inputRef, options, isPending }: OptionsSelectProps): ReactNode {
-  const { id, value, onChange, onBlur, placeholder } = props;
+  const { id, value, onChange, onBlur, placeholder, optionLabel = defaultOptionLabel } = props;
   const t = useT('doctor.valueSet');
   // A value the list does not contain (a code kept from before, a fallback code) stays selectable instead of silently vanishing.
   const isKnown: boolean = value === '' || options.some((option) => option.code === value);
@@ -82,9 +88,9 @@ function OptionsSelect({ props, inputRef, options, isPending }: OptionsSelectPro
       wrapperClassName={BOX_CLASS}
     >
       <option value="">{isPending ? t('loading') : placeholder}</option>
-      {isKnown ? null : <option value={value}>{value}</option>}
+      {isKnown ? null : <option value={value}>{optionLabel({ system: '', code: value })}</option>}
       {options.map((option) => (
-        <option key={option.code} value={option.code}>{option.display ? `${option.code} — ${option.display}` : option.code}</option>
+        <option key={option.code} value={option.code}>{optionLabel(option)}</option>
       ))}
     </Select>
   );

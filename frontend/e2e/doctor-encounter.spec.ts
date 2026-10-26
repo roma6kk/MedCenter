@@ -99,10 +99,10 @@ test.describe('doctor completes an encounter', () => {
 
     await page.getByLabel('Заключение', { exact: true }).fill(SUMMARY);
 
-    // Diagnosis: type the code, pick it from the suggestions; the name is filled from the picked concept.
-    await page.getByRole('combobox', { name: /^Код МКБ-10/ }).fill(DIAGNOSIS_CODE);
+    // Diagnosis: one field for the code or the name; pick from the suggestions, the field then reads «код — название».
+    await page.getByRole('combobox', { name: /^Диагноз 1:/ }).fill(DIAGNOSIS_CODE);
     await page.getByRole('option', { name: new RegExp(`^${DIAGNOSIS_CODE.replace('.', '\\.')}`) }).first().click();
-    await expect(page.getByLabel('Название диагноза 1')).not.toHaveValue('');
+    await expect(page.getByRole('combobox', { name: /^Диагноз 1:/ })).toHaveValue(/ — .+/);
 
     // Observation: the body temperature from the closed НСИ list, the value and the UCUM unit.
     await page.getByRole('button', { name: 'Добавить наблюдение' }).click();
@@ -111,7 +111,7 @@ test.describe('doctor completes an encounter', () => {
     await expect(temperature).toBeAttached();
     await indicator.selectOption((await temperature.getAttribute('value')) as string);
     await page.getByLabel('Значение 1', { exact: true }).fill(TEMPERATURE_VALUE);
-    const unit = page.getByLabel('Единица UCUM 1');
+    const unit = page.getByLabel('Единица 1');
     await expect(unit.locator(`option[value="${TEMPERATURE_UNIT}"]`)).toBeAttached();
     await unit.selectOption(TEMPERATURE_UNIT);
 
@@ -164,9 +164,9 @@ test.describe('doctor completes an encounter', () => {
     // The form of the in-progress visit is on screen and filled in…
     await page.goto(`/encounters/${encounterId}`);
     await page.getByLabel('Заключение', { exact: true }).fill(SUMMARY);
-    await page.getByRole('combobox', { name: /^Код МКБ-10/ }).fill(DIAGNOSIS_CODE);
+    await page.getByRole('combobox', { name: /^Диагноз 1:/ }).fill(DIAGNOSIS_CODE);
     await page.getByRole('option', { name: new RegExp(`^${DIAGNOSIS_CODE.replace('.', '\\.')}`) }).first().click();
-    await expect(page.getByLabel('Название диагноза 1')).not.toHaveValue('');
+    await expect(page.getByRole('combobox', { name: /^Диагноз 1:/ })).toHaveValue(/ — .+/);
     await page.getByLabel('Рекомендации', { exact: true }).fill(RECOMMENDATIONS);
 
     // …while the visit is completed elsewhere (a second tab, a colleague, a retried request).

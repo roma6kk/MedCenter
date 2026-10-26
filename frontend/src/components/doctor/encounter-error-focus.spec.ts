@@ -23,6 +23,13 @@ describe('firstErrorPath', () => {
     expect(firstErrorPath(errors)).toBe('observations.0.value');
   });
 
+  it('should follow the order of the visit: observations, then diagnoses, then the conclusion', () => {
+    const errors = errorsOf({ summary: { message: 'x' }, diagnoses: [{ code: { message: 'y' } }], observations: [{ unit: { message: 'z' } }] });
+
+    expect(firstErrorPath(errors)).toBe('observations.0.unit');
+    expect(firstErrorPath(errorsOf({ summary: { message: 'x' }, diagnoses: [{ code: { message: 'y' } }] }))).toBe('diagnoses.0.code');
+  });
+
   it('should point at the first diagnosis code when the whole list is invalid', () => {
     expect(firstErrorPath(errorsOf({ diagnoses: { message: 'at least one' } }))).toBe('diagnoses.0.code');
   });
@@ -47,6 +54,11 @@ describe('firstPathOnScreen', () => {
 
   it('should return the summary when it comes with a later field', () => {
     expect(firstPathOnScreen(['recommendations', 'summary'])).toBe('summary');
+  });
+
+  it('should put the conclusion after the diagnoses and the orders, as on screen', () => {
+    expect(firstPathOnScreen(['summary', 'medicationRequests.0.atcCode'])).toBe('medicationRequests.0.atcCode');
+    expect(firstPathOnScreen(['summary', 'diagnoses.0.code'])).toBe('diagnoses.0.code');
   });
 
   it('should order the sections the way they appear on screen when drugs and observations are named', () => {

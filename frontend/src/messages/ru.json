@@ -829,17 +829,14 @@
       "finishedHint": "Запись доступна только для чтения.",
       "notEditable": "Приём в статусе «{status}» оформить нельзя.",
       "formLabel": "Оформление приёма",
-      "diagnosesLegend": "Заключение и диагнозы",
+      "diagnosesLegend": "Диагнозы",
       "summary": "Заключение",
-      "diagnosesHint": "Диагнозы (МКБ-10) — минимум один",
-      "diagnosisN": "диагноз {n}",
-      "diagnosisName": "Название диагноза {n}",
+      "diagnosesHint": "МКБ-10, минимум один; первый диагноз основной",
       "verificationLabel": "Статус подтверждения {n}",
       "verificationNone": "Не указан",
       "addDiagnosis": "Добавить диагноз",
       "removeDiagnosis": "Удалить",
       "removeDiagnosisN": "Удалить диагноз {n}",
-      "recommendationsLegend": "Рекомендации",
       "recommendations": "Рекомендации",
       "complete": "Завершить приём",
       "completing": "Завершаем…",
@@ -851,7 +848,33 @@
       "unknownAtc": "Код АТХ не найден в справочнике",
       "patientBarLabel": "Пациент приёма",
       "patientSummary": "Сведения о пациенте",
-      "patientSummaryOpen": "Сведения о пациенте"
+      "patientSummaryOpen": "Сведения о пациенте",
+      "sectionsNav": "Разделы приёма",
+      "sectionFilled": "заполнен",
+      "sectionEmpty": "не заполнен",
+      "sectionError": "есть ошибки",
+      "sectionOptional": "необязательный",
+      "diagnosisLabel": "Диагноз {n}: код МКБ-10 или название",
+      "diagnosisNameManual": "Название диагноза {n}",
+      "diagnosisNameManualHint": "Справочник не вернул название для этого кода: введите его вручную.",
+      "recentDiagnoses": "Из истории пациента",
+      "conclusionLegend": "Заключение и рекомендации",
+      "saveDraft": "Сохранить черновик",
+      "draftNone": "Черновик ещё не создан",
+      "draftPending": "Черновик ещё не сохранён",
+      "draftSaved": "Черновик сохранён {time} · на этом устройстве",
+      "draftUnavailable": "Черновик не сохраняется: хранилище браузера недоступно",
+      "actionsLabel": "Действия с приёмом",
+      "restoredNotice": "Восстановлен черновик от {when}",
+      "restoredHint": "Он хранится только в этом браузере.",
+      "restoredStartOver": "Начать заново",
+      "restoredDismiss": "Скрыть",
+      "durationLabel": "Длительность приёма",
+      "duration": "Идёт {value}",
+      "durationMinutes": "{minutes} мин",
+      "durationHours": "{hours} ч {minutes} мин",
+      "durationDays": "{days} сут {hours} ч",
+      "verificationCaption": "Статус подтверждения"
     },
     "verification": {
       "working": "Рабочий",
@@ -871,19 +894,19 @@
       "noMedications": "Лекарства не назначены"
     },
     "observations": {
-      "legend": "Наблюдения (витальные показатели)",
-      "empty": "Наблюдения не добавлены.",
+      "legend": "Осмотр и показатели",
+      "empty": "Наблюдения не добавлены",
       "add": "Добавить наблюдение",
       "remove": "Удалить",
       "removeN": "Удалить наблюдение {n}",
       "code": "Показатель {n}",
       "codePlaceholder": "Выберите показатель",
       "value": "Значение {n}",
-      "unit": "Единица UCUM {n}"
+      "unit": "Единица {n}"
     },
     "services": {
       "legend": "Назначения услуг",
-      "empty": "Услуги не назначены.",
+      "empty": "Услуги не назначены",
       "add": "Добавить услугу",
       "remove": "Удалить",
       "removeN": "Удалить услугу {n}",
@@ -893,7 +916,7 @@
     },
     "medications": {
       "legend": "Назначения лекарств",
-      "empty": "Лекарства не назначены.",
+      "empty": "Лекарства не назначены",
       "add": "Добавить лекарство",
       "remove": "Удалить",
       "removeN": "Удалить лекарство {n}",
@@ -906,7 +929,8 @@
       "label": "Код МКБ-10",
       "placeholder": "J06.9 или название диагноза",
       "invalid": "Некорректный код МКБ-10, например J06.9",
-      "options": "Варианты кодов МКБ-10"
+      "options": "Варианты кодов МКБ-10",
+      "pick": "Выберите диагноз из списка или введите код, например J06.9"
     },
     "atc": {
       "label": "Код АТХ",
@@ -922,7 +946,10 @@
       "typeCode": "Введите код"
     },
     "combobox": {
-      "unavailable": "Справочник недоступен: введите код вручную, сервер проверит его при сохранении."
+      "unavailable": "Справочник недоступен: введите код вручную, сервер проверит его при сохранении.",
+      "loading": "Ищем…",
+      "empty": "Ничего не найдено по «{query}»",
+      "retry": "Повторить"
     },
     "validation": {
       "icd10": "Некорректный код МКБ-10, например J06.9",
@@ -994,6 +1021,32 @@
       "upcomingTitle": "Ближайший приём",
       "upcomingEmpty": "Приёмов у вас не запланировано",
       "unavailable": "Не удалось загрузить"
+    },
+    "unit": {
+      "percent": "%",
+      "perMinute": "/мин",
+      "beatsPerMinute": "уд/мин",
+      "breathsPerMinute": "дых/мин",
+      "e12PerLitre": "×10¹²/л",
+      "e9PerLitre": "×10⁹/л",
+      "celsius": "°C",
+      "litre": "л",
+      "internationalUnit": "МЕ",
+      "centimetre": "см",
+      "day": "сут",
+      "gram": "г",
+      "gramPerLitre": "г/л",
+      "hour": "ч",
+      "kilogram": "кг",
+      "kilogramPerSquareMetre": "кг/м²",
+      "millilitre": "мл",
+      "milligram": "мг",
+      "milligramPerDecilitre": "мг/дл",
+      "mmHg": "мм рт. ст.",
+      "millimolePerLitre": "ммоль/л",
+      "microgram": "мкг",
+      "week": "нед",
+      "tablet": "табл."
     }
   },
   "validation": {

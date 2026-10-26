@@ -829,17 +829,14 @@
       "finishedHint": "The record is read-only.",
       "notEditable": "An encounter with the status \"{status}\" cannot be completed.",
       "formLabel": "Complete the encounter",
-      "diagnosesLegend": "Summary and diagnoses",
+      "diagnosesLegend": "Diagnoses",
       "summary": "Summary",
-      "diagnosesHint": "Diagnoses (ICD-10): at least one",
-      "diagnosisN": "diagnosis {n}",
-      "diagnosisName": "Diagnosis name {n}",
+      "diagnosesHint": "ICD-10, at least one; the first diagnosis is the primary one",
       "verificationLabel": "Verification status {n}",
       "verificationNone": "Not specified",
       "addDiagnosis": "Add a diagnosis",
       "removeDiagnosis": "Remove",
       "removeDiagnosisN": "Remove diagnosis {n}",
-      "recommendationsLegend": "Recommendations",
       "recommendations": "Recommendations",
       "complete": "Complete the encounter",
       "completing": "Completing…",
@@ -851,7 +848,33 @@
       "unknownAtc": "The ATC code was not found in the terminology",
       "patientBarLabel": "Patient of the encounter",
       "patientSummary": "Patient summary",
-      "patientSummaryOpen": "Patient summary"
+      "patientSummaryOpen": "Patient summary",
+      "sectionsNav": "Encounter sections",
+      "sectionFilled": "filled in",
+      "sectionEmpty": "empty",
+      "sectionError": "has errors",
+      "sectionOptional": "optional",
+      "diagnosisLabel": "Diagnosis {n}: ICD-10 code or name",
+      "diagnosisNameManual": "Diagnosis name {n}",
+      "diagnosisNameManualHint": "The terminology returned no name for this code: type it in.",
+      "recentDiagnoses": "From the patient's history",
+      "conclusionLegend": "Summary and recommendations",
+      "saveDraft": "Save draft",
+      "draftNone": "No draft yet",
+      "draftPending": "The draft is not saved yet",
+      "draftSaved": "Draft saved {time} · on this device",
+      "draftUnavailable": "The draft is not being saved: browser storage is unavailable",
+      "actionsLabel": "Encounter actions",
+      "restoredNotice": "Draft from {when} restored",
+      "restoredHint": "It is kept in this browser only.",
+      "restoredStartOver": "Start over",
+      "restoredDismiss": "Dismiss",
+      "durationLabel": "Encounter duration",
+      "duration": "In progress {value}",
+      "durationMinutes": "{minutes} min",
+      "durationHours": "{hours} h {minutes} min",
+      "durationDays": "{days} d {hours} h",
+      "verificationCaption": "Verification status"
     },
     "verification": {
       "working": "Working",
@@ -871,19 +894,19 @@
       "noMedications": "No drugs prescribed"
     },
     "observations": {
-      "legend": "Observations (vital signs)",
-      "empty": "No observations added.",
+      "legend": "Examination and vital signs",
+      "empty": "No observations added",
       "add": "Add an observation",
       "remove": "Remove",
       "removeN": "Remove observation {n}",
       "code": "Measurement {n}",
       "codePlaceholder": "Choose a measurement",
       "value": "Value {n}",
-      "unit": "UCUM unit {n}"
+      "unit": "Unit {n}"
     },
     "services": {
       "legend": "Ordered services",
-      "empty": "No services ordered.",
+      "empty": "No services ordered",
       "add": "Add a service",
       "remove": "Remove",
       "removeN": "Remove service {n}",
@@ -893,7 +916,7 @@
     },
     "medications": {
       "legend": "Prescribed drugs",
-      "empty": "No drugs prescribed.",
+      "empty": "No drugs prescribed",
       "add": "Add a drug",
       "remove": "Remove",
       "removeN": "Remove drug {n}",
@@ -906,7 +929,8 @@
       "label": "ICD-10 code",
       "placeholder": "J06.9 or a diagnosis name",
       "invalid": "Invalid ICD-10 code, e.g. J06.9",
-      "options": "ICD-10 code suggestions"
+      "options": "ICD-10 code suggestions",
+      "pick": "Pick a diagnosis from the list or type a code, e.g. J06.9"
     },
     "atc": {
       "label": "ATC code",
@@ -922,7 +946,10 @@
       "typeCode": "Enter a code"
     },
     "combobox": {
-      "unavailable": "The value set is unavailable: type the code, the server will check it on save."
+      "unavailable": "The value set is unavailable: type the code, the server will check it on save.",
+      "loading": "Searching…",
+      "empty": "Nothing found for “{query}”",
+      "retry": "Retry"
     },
     "validation": {
       "icd10": "Invalid ICD-10 code, e.g. J06.9",
@@ -994,6 +1021,32 @@
       "upcomingTitle": "Next appointment",
       "upcomingEmpty": "Nothing scheduled with you",
       "unavailable": "Could not be loaded"
+    },
+    "unit": {
+      "percent": "%",
+      "perMinute": "/min",
+      "beatsPerMinute": "bpm",
+      "breathsPerMinute": "breaths/min",
+      "e12PerLitre": "×10¹²/L",
+      "e9PerLitre": "×10⁹/L",
+      "celsius": "°C",
+      "litre": "L",
+      "internationalUnit": "IU",
+      "centimetre": "cm",
+      "day": "d",
+      "gram": "g",
+      "gramPerLitre": "g/L",
+      "hour": "h",
+      "kilogram": "kg",
+      "kilogramPerSquareMetre": "kg/m²",
+      "millilitre": "mL",
+      "milligram": "mg",
+      "milligramPerDecilitre": "mg/dL",
+      "mmHg": "mmHg",
+      "millimolePerLitre": "mmol/L",
+      "microgram": "µg",
+      "week": "wk",
+      "tablet": "tab."
     }
   },
   "validation": {

@@ -7,6 +7,7 @@ import { Dialog } from '@/components/ui/dialog';
 import { useDocumentTitle } from '@/hooks/use-document-title';
 import { useT } from '@/lib/i18n/use-t';
 import type { EncounterDetails } from './doctor-types';
+import { EncounterAsideSlotContext } from './encounter-aside-slot';
 import { EncounterCompleteForm } from './encounter-complete-form';
 import { EncounterHeader } from './encounter-header';
 import { EncounterPatientBar } from './encounter-patient-bar';
@@ -60,27 +61,32 @@ function EncounterBody({ encounter }: { readonly encounter: EncounterDetails }):
 /**
  * `/encounters/[encounterId]` (FR-011…FR-014): the form while the visit is in progress, the read-only record once it is finished.
  * The patient stays in view while the doctor works (A3): a bar that sticks to the top, and the same summary as the patient's card
- * in a column beside the form from 1024 px up, in a drawer below it.
+ * in a column beside the form from 1024 px up, in a drawer below it. The column also carries the form's section navigator.
  */
 export function EncounterView({ encounterId }: { readonly encounterId: string }): ReactNode {
   const t = useT('doctor.encounter');
   const encounter = useEncounter(encounterId);
   const [isSummaryOpen, setIsSummaryOpen] = useState(false);
+  // The side column offers a place at its top for the form's section navigator (see `EncounterAsideSlotContext`).
+  const [asideSlot, setAsideSlot] = useState<HTMLElement | null>(null);
   useDocumentTitle(t('title'));
   return (
-    <>
+    <EncounterAsideSlotContext.Provider value={asideSlot}>
       {encounter.data === undefined ? <QueryFailure query={encounter} notFoundText={t('notFound')} pending={<TableSkeleton />} /> : null}
       {encounter.data ? (
         <>
-          <EncounterPatientBar patientId={encounter.data.patientId} onOpenSummary={() => setIsSummaryOpen(true)} />
+          <EncounterPatientBar patientId={encounter.data.patientId} startedAt={encounter.data.status === 'in-progress' ? encounter.data.period.start : undefined} onOpenSummary={() => setIsSummaryOpen(true)} />
           <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_21rem] lg:items-start">
             <div className="min-w-0">
               <EncounterHeader encounter={encounter.data} />
               <EncounterBody encounter={encounter.data} />
             </div>
-            <aside aria-label={t('patientSummary')} className="no-print hidden lg:sticky lg:top-24 lg:block lg:max-h-[calc(100dvh-7rem)] lg:overflow-y-auto">
-              <PatientSummary patientId={encounter.data.patientId} excludeAppointmentId={encounter.data.appointmentId} />
-            </aside>
+            <div className="no-print hidden lg:sticky lg:top-24 lg:block lg:max-h-[calc(100dvh-7rem)] lg:overflow-y-auto">
+              <div ref={setAsideSlot} />
+              <aside aria-label={t('patientSummary')}>
+                <PatientSummary patientId={encounter.data.patientId} excludeAppointmentId={encounter.data.appointmentId} />
+              </aside>
+            </div>
           </div>
           {isSummaryOpen ? (
             <Dialog title={t('patientSummary')} variant="drawer" onClose={() => setIsSummaryOpen(false)}>
@@ -89,6 +95,6 @@ export function EncounterView({ encounterId }: { readonly encounterId: string })
           ) : null}
         </>
       ) : null}
-    </>
+    </EncounterAsideSlotContext.Provider>
   );
 }

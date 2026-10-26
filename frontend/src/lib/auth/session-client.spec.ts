@@ -1,5 +1,6 @@
 import { endRevokedSession, endSession, ensureSession, loadSession, logout, refreshSession } from './session-client';
 import { getAccessToken, clearAccessToken, setAccessToken } from './access-token';
+import { readDraft, writeDraft } from '@/lib/encounter-draft';
 import { useBookingDraftStore } from '@/store/use-booking-draft-store';
 import { useSessionStore } from '@/store/use-session-store';
 
@@ -265,6 +266,15 @@ describe('endSession and logout', () => {
 
     expect(useBookingDraftStore.getState().reason).toBe('');
     expect(useBookingDraftStore.getState().doctorId).toBeNull();
+  });
+
+  it('should forget the unfinished encounter forms of this browser when the user signs out', async () => {
+    writeDraft('1442', { summary: 'ОРВИ', diagnoses: [{ code: '', display: '' }], recommendations: '', observations: [], serviceRequests: [], medicationRequests: [] });
+    jest.spyOn(global, 'fetch').mockResolvedValueOnce(jsonResponse({ loggedOut: true }, 200));
+
+    await logout();
+
+    expect(readDraft('1442')).toBeNull();
   });
 
   it('should keep the booking draft when the session was revoked, so the visitor returns to it after signing in', async () => {
