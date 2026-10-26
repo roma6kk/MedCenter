@@ -1,6 +1,7 @@
 'use client';
 
 import type { ReactNode } from 'react';
+import { Skeleton } from '@/components/ui/skeleton';
 import { useT } from '@/lib/i18n/use-t';
 
 interface StateProps {
@@ -43,13 +44,18 @@ export function EmptyState({ title, description, action }: StateProps): ReactNod
   );
 }
 
+/** Rows of a list or a table while it loads: each row has the rhythm of real content (a short key, a long name, a badge). */
 export function TableSkeleton(): ReactNode {
   const t = useT('common');
   return (
-    <div data-testid="table-skeleton" role="status" aria-busy="true" className="animate-pulse space-y-2">
+    <div data-testid="table-skeleton" role="status" aria-busy="true" className="space-y-2">
       <span className="sr-only">{t('loading')}</span>
       {[0, 1, 2, 3].map((row) => (
-        <div key={row} aria-hidden="true" className="h-11 rounded-control bg-[var(--secondary)]" />
+        <div key={row} aria-hidden="true" className="flex h-14 items-center gap-4 rounded-control border border-border-soft px-4">
+          <Skeleton className="h-4 w-16" />
+          <Skeleton className="h-4 flex-1" />
+          <Skeleton className="hidden h-6 w-24 rounded-full sm:block" />
+        </div>
       ))}
     </div>
   );

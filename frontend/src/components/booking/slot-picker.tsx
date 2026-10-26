@@ -5,6 +5,7 @@ import { useDoctorSlots } from '@/components/catalog/use-catalog';
 import type { DoctorSlots, Slot } from '@/components/catalog/catalog-types';
 import { QueryFailure } from '@/components/feedback/query-error-state';
 import { EmptyState } from '@/components/feedback/states';
+import { Skeleton } from '@/components/ui/skeleton';
 import { useT } from '@/lib/i18n/use-t';
 import { SlotDayList } from './slot-day-list';
 import { slotsForDuration, withTakenSlot } from './slot-list';
@@ -26,10 +27,10 @@ export interface SlotPickerProps {
 function SlotSkeleton(): ReactNode {
   const t = useT('booking');
   return (
-    <div role="status" aria-busy="true" data-testid="slot-skeleton" className="animate-pulse space-y-2">
+    <div role="status" aria-busy="true" data-testid="slot-skeleton" className="space-y-2">
       <span className="sr-only">{t('slotsLoading')}</span>
       {[0, 1, 2].map((row) => (
-        <div key={row} aria-hidden="true" className="h-11 rounded-control bg-secondary" />
+        <Skeleton key={row} className="h-11 rounded-control" />
       ))}
     </div>
   );

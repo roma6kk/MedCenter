@@ -1,11 +1,11 @@
 'use client';
 
-import { useCallback, useEffect, useId, useRef } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import type { ReactNode } from 'react';
 import { Button } from '@/components/ui/button';
+import { Dialog } from '@/components/ui/dialog';
 import { ProblemBanner } from '@/components/feedback/problem-banner';
 import { isApiError } from '@/lib/api/api-fetch';
-import { useDialogFocus } from '@/hooks/use-dialog-focus';
 import { useT } from '@/lib/i18n/use-t';
 import { useRevokeMyConsent } from './use-consent';
 
@@ -32,27 +32,22 @@ function useCloseUnlessPending(pending: boolean, onClose: () => void): () => voi
  */
 export function RevokeConsentDialog({ onClose }: RevokeConsentDialogProps): ReactNode {
   const t = useT('consent.mine');
-  const titleId: string = useId();
-  const bodyId: string = useId();
   const revoke = useRevokeMyConsent();
   const close: () => void = useCloseUnlessPending(revoke.isPending, onClose);
-  const dialogRef = useDialogFocus<HTMLDivElement>(true, close);
   const confirm = (): void => {
     if (revoke.isPending) return;
     revoke.mutate(undefined, { onSuccess: onClose });
   };
+  const footer: ReactNode = (
+    <>
+      {/* aria-disabled, not disabled: a control that loses the focus to the body would let Tab walk out of the dialog. */}
+      <Button variant="secondary" aria-disabled={revoke.isPending} onClick={close}>{t('dialogKeep')}</Button>
+      <Button variant="destructive" aria-disabled={revoke.isPending} onClick={confirm}>{revoke.isPending ? t('dialogBusy') : t('dialogConfirm')}</Button>
+    </>
+  );
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-scrim p-4">
-      <div ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby={titleId} aria-describedby={bodyId} className="max-h-full w-full max-w-md overflow-y-auto rounded-panel border border-border bg-card p-6 shadow-elev-3">
-        <h2 id={titleId} className="text-lg font-bold">{t('dialogTitle')}</h2>
-        <p id={bodyId} className="mt-2 text-sm text-muted-foreground">{t('dialogBody')}</p>
-        {revoke.isError && isApiError(revoke.error) ? <div className="mt-3"><ProblemBanner problem={revoke.error.problem} /></div> : null}
-        <div className="mt-4 flex flex-wrap gap-2">
-          {/* aria-disabled, not disabled: a control that loses the focus to the body would let Tab walk out of the dialog. */}
-          <Button variant="danger" aria-disabled={revoke.isPending} onClick={confirm}>{revoke.isPending ? t('dialogBusy') : t('dialogConfirm')}</Button>
-          <Button variant="secondary" aria-disabled={revoke.isPending} onClick={close}>{t('dialogKeep')}</Button>
-        </div>
-      </div>
-    </div>
+    <Dialog title={t('dialogTitle')} description={t('dialogBody')} size="sm" onClose={close} footer={footer}>
+      {revoke.isError && isApiError(revoke.error) ? <div className="mt-3"><ProblemBanner problem={revoke.error.problem} /></div> : null}
+    </Dialog>
   );
 }

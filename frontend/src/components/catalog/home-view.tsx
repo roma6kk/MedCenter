@@ -52,7 +52,7 @@ function DoctorsTeaser({ doctors }: { readonly doctors: ReadonlyArray<Doctor> })
       </div>
       <ul className="grid gap-4 md:grid-cols-2">
         {doctors.slice(0, HOME_DOCTORS).map((doctor) => (
-          <li key={doctor.id}><DoctorCard doctor={doctor} headingLevel={3}><DoctorProfileLink doctor={doctor} /></DoctorCard></li>
+          <li key={doctor.id}><DoctorCard doctor={doctor} headingLevel={3} tone="interactive"><DoctorProfileLink doctor={doctor} /></DoctorCard></li>
         ))}
       </ul>
     </section>

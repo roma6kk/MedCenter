@@ -3,7 +3,7 @@
 import { useCallback, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import Link from 'next/link';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, CircleX } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { NotFoundState, TableSkeleton } from '@/components/feedback/states';
 import { isMissingError, QueryFailure } from '@/components/feedback/query-error-state';
@@ -32,7 +32,11 @@ function LoadedAppointment({ appointment, onCancel }: LoadedProps): ReactNode {
       <AppointmentDetails appointment={appointment} />
       {isCancellable(appointment.status) ? (
         <div className="no-print mt-4">
-          <Button variant="danger" size="lg" onClick={onCancel}>{t('cancel')}</Button>
+          {/* B2: the cancel action closes the block as a quiet red text button; the dialog that follows has the solid one. */}
+          <Button variant="quiet-danger" size="lg" onClick={onCancel}>
+            <CircleX aria-hidden="true" className="size-5" />
+            {t('cancel')}
+          </Button>
         </div>
       ) : null}
     </>

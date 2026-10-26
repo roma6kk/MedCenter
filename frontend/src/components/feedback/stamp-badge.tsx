@@ -1,6 +1,8 @@
 'use client';
 
 import type { ReactNode } from 'react';
+import { Ban, CalendarClock, CircleAlert, CircleCheck, CircleX, Hourglass, UserX, type LucideIcon } from 'lucide-react';
+import { Badge, type BadgeTone } from '@/components/ui/badge';
 import { hasMessage } from '@/lib/i18n/translate';
 import { useT } from '@/lib/i18n/use-t';
 import { useUiStore } from '@/store/use-ui-store';
@@ -14,37 +16,47 @@ export type StampStatus = AppointmentStatus | SlotStatus | 'proposed' | 'pending
 interface StampBadgeProps {
   readonly status: StampStatus;
   readonly children?: ReactNode;
+  /** For a state the status word does not carry (a deactivated account is `neutral`, not an alarm). */
+  readonly tone?: BadgeTone;
+  readonly icon?: LucideIcon;
 }
 
-const STATUS_COLOR: Record<StampStatus, string> = {
-  booked: 'var(--primary)',
-  proposed: 'var(--primary)',
-  pending: 'var(--warning)',
-  arrived: 'var(--primary)',
-  'checked-in': 'var(--primary)',
-  free: 'var(--success)',
-  busy: 'var(--muted-foreground)',
-  'entered-in-error': 'var(--muted-foreground)',
-  fulfilled: 'var(--success)',
-  finished: 'var(--success)',
-  active: 'var(--success)',
-  completed: 'var(--success)',
-  cancelled: 'var(--destructive)',
-  noshow: 'var(--warning)',
+interface StatusLook {
+  readonly tone: BadgeTone;
+  readonly icon: LucideIcon;
+}
+
+const BOOKED_LOOK: StatusLook = { tone: 'primary', icon: CalendarClock };
+const DONE_LOOK: StatusLook = { tone: 'success', icon: CircleCheck };
+
+/** The one place that maps a status word to a tone and an icon (VA1): urgency scale, never colour alone. */
+const STATUS_LOOK: Readonly<Record<StampStatus, StatusLook>> = {
+  booked: BOOKED_LOOK,
+  proposed: BOOKED_LOOK,
+  arrived: BOOKED_LOOK,
+  'checked-in': BOOKED_LOOK,
+  pending: { tone: 'warning', icon: Hourglass },
+  free: DONE_LOOK,
+  fulfilled: DONE_LOOK,
+  finished: DONE_LOOK,
+  active: DONE_LOOK,
+  completed: DONE_LOOK,
+  busy: { tone: 'neutral', icon: Ban },
+  'entered-in-error': { tone: 'neutral', icon: CircleAlert },
+  cancelled: { tone: 'critical', icon: CircleX },
+  noshow: { tone: 'warning', icon: UserX },
 };
 
-/** Status "stamp" of the medical-card design system. The label is localized (`stamp.<status>`) unless children are given. */
-export function StampBadge({ status, children }: StampBadgeProps): ReactNode {
+const UNKNOWN_LOOK: StatusLook = { tone: 'neutral', icon: CircleAlert };
+
+/** Status "stamp" of the medical-card design system: a soft `Badge` with an icon. The label is localized (`stamp.<status>`) unless children are given. */
+export function StampBadge({ status, children, tone, icon }: StampBadgeProps): ReactNode {
   const t = useT('stamp');
   const locale = useUiStore((state) => state.locale);
-  const color: string = STATUS_COLOR[status] ?? 'var(--muted-foreground)';
+  const look: StatusLook = STATUS_LOOK[status] ?? UNKNOWN_LOOK;
   return (
-    <span
-      data-testid={`stamp-${status}`}
-      style={{ borderColor: color, color }}
-      className="inline-block rounded-full border-[1.5px] bg-transparent px-2 py-0.5 text-xs font-semibold uppercase tracking-[0.08em]"
-    >
+    <Badge data-testid={`stamp-${status}`} tone={tone ?? look.tone} icon={icon ?? look.icon}>
       {children ?? (hasMessage(locale, `stamp.${status}`) ? t(status) : status)}
-    </span>
+    </Badge>
   );
 }

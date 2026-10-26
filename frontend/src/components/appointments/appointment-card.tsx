@@ -2,6 +2,7 @@
 
 import type { ReactNode } from 'react';
 import Link from 'next/link';
+import { CircleX } from 'lucide-react';
 import { buttonVariants } from '@/components/ui/button-variants';
 import { Button } from '@/components/ui/button';
 import { useClinicFormat } from '@/hooks/use-clinic-format';
@@ -17,7 +18,7 @@ interface AppointmentCardProps {
   readonly onCancel?: (appointment: AppointmentView) => void;
 }
 
-/** The "details" link and the "cancel" button of one appointment; the hero card and the list rows share them. */
+/** The "details" link and the quiet red "cancel" action of one appointment; the hero card and the list rows share them. */
 export function AppointmentActions({ appointment, onCancel, hero = false }: AppointmentCardProps & { readonly hero?: boolean }): ReactNode {
   const t = useT('appointments');
   const format = useClinicFormat();
@@ -34,7 +35,9 @@ export function AppointmentActions({ appointment, onCancel, hero = false }: Appo
         {t('open')}
       </Link>
       {onCancel !== undefined && isCancellable(appointment.status) ? (
-        <Button variant={hero ? 'danger' : 'ghost'} size={size} aria-label={t('cancelFor', { when, doctor })} onClick={() => onCancel(appointment)} className={hero ? '' : 'font-semibold text-destructive hover:bg-destructive-soft'}>
+        // B2: cancelling is the secondary action of the block: red text and an icon, no filled button next to «Подробнее».
+        <Button variant="quiet-danger" size={size} aria-label={t('cancelFor', { when, doctor })} onClick={() => onCancel(appointment)}>
+          <CircleX aria-hidden="true" className="size-4" />
           {hero ? t('cancel') : t('cancelShort')}
         </Button>
       ) : null}

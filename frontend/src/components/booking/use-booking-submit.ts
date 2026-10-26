@@ -9,6 +9,7 @@ import { isApiError } from '@/lib/api/api-fetch';
 import { invalidateFor } from '@/lib/api/invalidation';
 import type { ProblemDetails } from '@/lib/api/problem';
 import { networkProblem } from '@/lib/api/problem-parse';
+import { showToast } from '@/lib/ui/toast';
 import { useBookingDraftStore, type BookingDraft } from '@/store/use-booking-draft-store';
 import {
   bookAppointment,
@@ -99,6 +100,8 @@ export function useBookingSubmit(): BookingSubmit {
     onSuccess: (created) => {
       useBookingDraftStore.getState().clearDraft();
       void invalidateFor(client, 'booking');
+      // E1: the page changes to the appointment's own screen, so the confirmation must outlive the navigation.
+      showToast('success', 'booking.createdToast');
       router.push(`/appointments/${encodeURIComponent(created.id)}`);
     },
     onError: (error: unknown) => {

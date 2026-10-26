@@ -1,17 +1,15 @@
 'use client';
 
-import { cn } from '@/lib/ui/cn';
+import { Ban, CalendarPlus, LayoutGrid, Pencil, Trash2 } from 'lucide-react';
 import { PaginatedTable, type PageMeta, type TableColumn } from '@/components/data-display/paginated-table';
 import { StampBadge } from '@/components/feedback/stamp-badge';
+import { buttonVariants } from '@/components/ui/button-variants';
+import { DropdownMenu, type MenuItem } from '@/components/ui/dropdown-menu';
 import { useT } from '@/lib/i18n/use-t';
 import { sortWindows } from './schedule-windows';
 import type { AdminSchedule, WeekDay } from './schedule-types';
 import { formatDateKey } from '@/lib/clinic-time';
-import { ROW_ACTION_CLASS } from '../shared/admin-styles';
 import { labelOf, type SchedulePickers } from './use-schedule-pickers';
-
-/** The row actions may wrap: «Сгенерировать слоты» on one line pushes the column past the table edge at 1280 px. */
-const ACTION_CLASS: string = cn(ROW_ACTION_CLASS, 'whitespace-normal');
 
 export interface ScheduleHandlers {
   readonly onSlots: (schedule: AdminSchedule) => void;
@@ -32,14 +30,26 @@ export function describeSchedule(schedule: AdminSchedule, pickers: SchedulePicke
   return [labelOf(pickers.allDoctors, schedule.practitionerRoleId), labelOf(pickers.rooms, schedule.roomId)].join(' · ');
 }
 
+/**
+ * D3: «Сгенерировать слоты» is the frequent action, so it stays a visible secondary button (only for an active schedule);
+ * the rest goes into the «⋯» menu, edit first and the destructive delete last.
+ */
 function ScheduleActions({ schedule, label, onSlots, onGenerate, onEdit, onDelete }: ScheduleHandlers & { readonly schedule: AdminSchedule; readonly label: string }): React.JSX.Element {
   const t = useT('admin.schedules');
+  const tCommon = useT('admin.common');
+  const items: MenuItem[] = [];
+  if (schedule.isActive) items.push({ key: 'edit', label: t('actions.edit'), icon: Pencil, onSelect: () => onEdit(schedule) });
+  items.push({ key: 'slots', label: t('actions.slots'), icon: LayoutGrid, onSelect: () => onSlots(schedule) });
+  items.push({ key: 'delete', label: t('actions.delete'), icon: Trash2, destructive: true, onSelect: () => onDelete(schedule) });
   return (
-    <span className="flex min-w-[9rem] flex-col items-start">
-      <button type="button" className={ACTION_CLASS} onClick={() => onSlots(schedule)} aria-label={t('actions.slotsAria', { label })}>{t('actions.slots')}</button>
-      {schedule.isActive ? <button type="button" className={ACTION_CLASS} onClick={() => onGenerate(schedule)} aria-label={t('actions.generateAria', { label })}>{t('actions.generate')}</button> : null}
-      {schedule.isActive ? <button type="button" className={ACTION_CLASS} onClick={() => onEdit(schedule)} aria-label={t('actions.editAria', { label })}>{t('actions.edit')}</button> : null}
-      <button type="button" className={ACTION_CLASS} onClick={() => onDelete(schedule)} aria-label={t('actions.deleteAria', { label })}>{t('actions.delete')}</button>
+    <span className="flex items-center gap-1">
+      {schedule.isActive ? (
+        <button type="button" className={buttonVariants({ variant: 'secondary' })} onClick={() => onGenerate(schedule)} aria-label={t('actions.generateAria', { label })}>
+          <CalendarPlus aria-hidden="true" className="size-4" />
+          {t('actions.generate')}
+        </button>
+      ) : null}
+      <DropdownMenu label={tCommon('rowActions', { name: label })} items={items} />
     </span>
   );
 }
@@ -72,7 +82,7 @@ function useScheduleColumns(pickers: SchedulePickers, handlers: ScheduleHandlers
     { key: 'horizon', header: t('columns.horizon'), render: (row) => <span className="mono text-xs">{horizonOf(row)}</span> },
     { key: 'windows', header: t('columns.windows'), render: (row) => <WindowsCell schedule={row} dayLabel={(day) => t(`days.${day}`)} /> },
     { key: 'duration', header: t('columns.duration'), render: (row) => (row.slotDurationMin === undefined ? '—' : t('minutes', { count: row.slotDurationMin })) },
-    { key: 'status', header: t('columns.status'), render: (row) => <StampBadge status={row.isActive ? 'active' : 'cancelled'}>{row.isActive ? t('active') : t('inactive')}</StampBadge> },
+    { key: 'status', header: t('columns.status'), render: (row) => row.isActive ? <StampBadge status="active">{t('active')}</StampBadge> : <StampBadge status="cancelled" tone="neutral" icon={Ban}>{t('inactive')}</StampBadge> },
     { key: 'actions', header: t('columns.actions'), render: (row) => <ScheduleActions schedule={row} label={describeSchedule(row, pickers)} {...handlers} /> },
   ];
 }

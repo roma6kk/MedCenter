@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { ReactNode } from 'react';
 import { apiFetch } from '@/lib/api/api-fetch';
-import { apiProblem } from '@/components/admin/shared/test-utils';
+import { apiProblem, chooseRowAction } from '@/components/admin/shared/test-utils';
 import type { PaginatedResponse } from '@/lib/api/pagination';
 import type { AdminUser } from '@/components/admin/users/user-types';
 import AdminUsersPage from './page';
@@ -113,7 +113,7 @@ describe('AdminUsersPage deactivation', () => {
       return Promise.resolve(usersPage(1, [user('u1', 'Пользователь 1')]));
     });
     renderPage();
-    await userEvent.click((await screen.findAllByRole('button', { name: 'Деактивировать учётную запись Пользователь 1' }))[0] as HTMLElement);
+    await chooseRowAction('Пользователь 1', 'Деактивировать');
 
     await userEvent.click(within(screen.getByRole('dialog', { name: 'Деактивация учётной записи' })).getByRole('button', { name: 'Деактивировать' }));
 
@@ -127,7 +127,7 @@ describe('AdminUsersPage deactivation', () => {
       return Promise.resolve(usersPage(1, [user('u1', 'Пользователь 1')]));
     });
     renderPage();
-    await userEvent.click((await screen.findAllByRole('button', { name: 'Деактивировать учётную запись Пользователь 1' }))[0] as HTMLElement);
+    await chooseRowAction('Пользователь 1', 'Деактивировать');
 
     await userEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Деактивировать' }));
 
@@ -141,7 +141,7 @@ describe('AdminUsersPage deactivation', () => {
     });
     renderPage();
 
-    await userEvent.click((await screen.findAllByRole('button', { name: 'Активировать учётную запись Пользователь 1' }))[0] as HTMLElement);
+    await chooseRowAction('Пользователь 1', 'Активировать');
 
     await waitFor(() => expect(apiFetchMock).toHaveBeenCalledWith('/api/v1/admin/users/u1', { method: 'PATCH', body: JSON.stringify({ isActive: true }) }));
   });
@@ -152,7 +152,7 @@ describe('AdminUsersPage deactivation', () => {
       return Promise.resolve(usersPage(path.includes('page=2') ? 2 : 1, [user('u1', 'Пользователь 1', { isActive: false })]));
     });
     renderPage();
-    await userEvent.click((await screen.findAllByRole('button', { name: 'Активировать учётную запись Пользователь 1' }))[0] as HTMLElement);
+    await chooseRowAction('Пользователь 1', 'Активировать');
     expect(await screen.findByTestId('problem-banner')).toBeInTheDocument();
 
     await userEvent.click(screen.getByRole('button', { name: 'Следующая страница' }));
@@ -165,10 +165,9 @@ describe('AdminUsersPage deactivation', () => {
       options?.method === 'PATCH' ? new Promise(() => undefined) : Promise.resolve(usersPage(1, [user('u1', 'Пользователь 1', { isActive: false })])),
     );
     renderPage();
-    const button = (await screen.findAllByRole('button', { name: 'Активировать учётную запись Пользователь 1' }))[0] as HTMLElement;
 
-    await userEvent.click(button);
-    await userEvent.click(button);
+    await chooseRowAction('Пользователь 1', 'Активировать');
+    await chooseRowAction('Пользователь 1', 'Активировать');
 
     expect(apiFetchMock.mock.calls.filter(([, options]) => options?.method === 'PATCH')).toHaveLength(1);
   });

@@ -11,7 +11,7 @@ import { AdminProblem } from '../shared/admin-problem';
 import { CONTROL_CLASS, SECONDARY_BUTTON_CLASS } from '../shared/admin-styles';
 import { focusField } from '../shared/focus-field';
 import { controlProps, Field } from '../shared/form-field';
-import { Modal } from '../shared/modal';
+import { Dialog } from '@/components/ui/dialog';
 import { SubmitButton } from '../shared/submit-button';
 import { useIdempotencyKey } from '../shared/use-idempotency-key';
 import { useGenerateSlots, type GenerateSlotsVars } from './use-admin-schedules';
@@ -74,7 +74,7 @@ export function SlotGenerationDialog({ schedule, scheduleLabel, onClose }: SlotG
   const error: string | undefined = rangeError === null ? undefined : t(`generate.errors.${rangeError}`);
   const horizon: string = schedule.horizonFrom && schedule.horizonTo ? t('generate.horizon', { from: formatDateKey(schedule.horizonFrom, 'numeric'), to: formatDateKey(schedule.horizonTo, 'numeric') }) : '';
   return (
-    <Modal title={t('generate.title')} onClose={onClose} size="sm">
+    <Dialog title={t('generate.title')} onClose={onClose} size="sm">
       {scheduleLabel ? <p className="text-sm text-[var(--muted-foreground)]">{scheduleLabel}</p> : null}
       <form onSubmit={handleSubmit} noValidate className="mt-3 grid gap-3">
         <div className="grid gap-3 sm:grid-cols-2">
@@ -92,6 +92,6 @@ export function SlotGenerationDialog({ schedule, scheduleLabel, onClose }: SlotG
           <SubmitButton label={t('generate.run')} pendingLabel={t('generate.running')} isPending={generate.isPending} error={generate.error} />
         </div>
       </form>
-    </Modal>
+    </Dialog>
   );
 }

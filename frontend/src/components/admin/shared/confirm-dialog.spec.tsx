@@ -17,6 +17,16 @@ describe('ConfirmDialog', () => {
     expect(onConfirm).toHaveBeenCalledTimes(1);
   });
 
+  it('should confirm with the solid red button and put the safe choice first so Enter never deletes (E3, VA2)', () => {
+    render(<ConfirmDialog {...baseProps} />);
+
+    const confirm = screen.getByRole('button', { name: 'Удалить' });
+
+    expect(confirm).toHaveClass('bg-destructive', 'text-destructive-foreground');
+    expect(screen.getByRole('button', { name: 'Отмена' })).toHaveFocus();
+    expect(screen.getByRole('dialog')).toHaveAccessibleDescription('Удалить кабинет?');
+  });
+
   it('should ignore clicks but keep the focus on the confirm button when the request is running', async () => {
     const onConfirm = jest.fn();
     render(<ConfirmDialog {...baseProps} onConfirm={onConfirm} isPending />);

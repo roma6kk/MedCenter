@@ -1,12 +1,13 @@
 'use client';
 
-import Link from 'next/link';
+import { Ban, FileCheck2, IdCard, Pencil, Stethoscope, UserCheck } from 'lucide-react';
 import { PaginatedTable, type PageMeta, type TableColumn } from '@/components/data-display/paginated-table';
 import { CodeChip } from '@/components/feedback/code-chip';
 import { StampBadge } from '@/components/feedback/stamp-badge';
+import { Badge } from '@/components/ui/badge';
+import { DropdownMenu, type MenuItem } from '@/components/ui/dropdown-menu';
 import type { Translate } from '@/lib/i18n/translate';
 import { useT } from '@/lib/i18n/use-t';
-import { ROW_ACTION_CLASS } from '../shared/admin-styles';
 import { USER_ROLES } from './user-types';
 
 export interface UserRow {
@@ -29,6 +30,8 @@ interface UserActions<TUser extends UserRow> {
 interface UsersTableProps<TUser extends UserRow> extends UserActions<TUser> {
   /** A row tied to a patient links to that patient's consent page (ADR-019); the admin screen turns it on. */
   readonly consentLinks?: boolean;
+  /** `PractitionerRole` id → specialty, from the doctors catalogue: it turns the raw link of a doctor's account into words. */
+  readonly practitionerRoles?: ReadonlyMap<string, string>;
   readonly rows: ReadonlyArray<TUser>;
   readonly meta: PageMeta;
   readonly onPage: (page: number) => void;
@@ -55,27 +58,29 @@ function RoleChips({ row }: { readonly row: UserRow }): React.JSX.Element {
 }
 
 /**
- * `ExternalLink` chips: the FHIR resource an account is tied to (`Patient/…`, `PractitionerRole/…`). The whole id is on
- * screen (wrapping where it must): the admin copies a PractitionerRole id from here, and a tooltip is out of reach of a
- * keyboard and a touch screen.
+ * What an account is tied to, in words (D1): the patient's record, or the doctor's role with the specialty the catalogue
+ * knows. The raw FHIR reference (`Patient/…`, `PractitionerRole/…`) stays in the tooltip for the admin who needs the id.
  */
-function LinkChips({ row }: { readonly row: UserRow }): React.JSX.Element {
-  const links = [row.patientRef, row.practitionerRoleRef].filter((link): link is string => typeof link === 'string');
-  if (links.length === 0) return <>—</>;
+function LinkChips({ row, practitionerRoles }: { readonly row: UserRow; readonly practitionerRoles: ReadonlyMap<string, string> | undefined }): React.JSX.Element {
+  const t = useT('admin.users');
+  const { patientRef, practitionerRoleRef } = row;
+  if (typeof patientRef !== 'string' && typeof practitionerRoleRef !== 'string') return <>—</>;
+  const specialty: string | undefined = typeof practitionerRoleRef === 'string' ? practitionerRoles?.get(practitionerRoleRef.split('/').pop() ?? '') : undefined;
   return (
     <span className="flex flex-col items-start gap-1">
-      {links.map((link) => (
-        <span key={link} className="max-w-full break-all">
-          <CodeChip code={link} system={link} />
-        </span>
-      ))}
+      {typeof patientRef === 'string' ? <Badge tone="info" shape="tag" icon={IdCard} title={patientRef}>{t('links.patient')}</Badge> : null}
+      {typeof practitionerRoleRef === 'string' ? (
+        <Badge tone="primary" shape="tag" icon={Stethoscope} title={practitionerRoleRef}>
+          {specialty === undefined ? t('links.doctor') : t('links.doctorWithSpecialty', { specialty })}
+        </Badge>
+      ) : null}
     </span>
   );
 }
 
 function StatusStamp({ row }: { readonly row: UserRow }): React.JSX.Element {
   const t = useT('admin.users');
-  return row.isActive === false ? <StampBadge status="cancelled">{t('inactive')}</StampBadge> : <StampBadge status="active">{t('active')}</StampBadge>;
+  return row.isActive === false ? <StampBadge status="cancelled" tone="neutral" icon={Ban}>{t('inactive')}</StampBadge> : <StampBadge status="active">{t('active')}</StampBadge>;
 }
 
 /** `Patient/abc` → `abc`; `null` for an account that is not tied to a patient. */
@@ -84,39 +89,21 @@ function patientIdOf(row: UserRow): string | null {
   return typeof reference === 'string' && reference.startsWith('Patient/') ? reference.slice('Patient/'.length) : null;
 }
 
-function ConsentLink({ row }: { readonly row: UserRow }): React.JSX.Element | null {
-  const t = useT('consent.admin');
-  const patientId: string | null = patientIdOf(row);
-  if (patientId === null) return null;
-  return (
-    <Link href={`/admin/patients/${encodeURIComponent(patientId)}/consent`} className={ROW_ACTION_CLASS} aria-label={t('openFor', { name: row.name })}>
-      {t('open')}
-    </Link>
-  );
-}
-
-function RowActions<TUser extends UserRow>({ row, consentLinks, onEdit, onDeactivate, onActivate }: UserActions<TUser> & { readonly row: TUser; readonly consentLinks: boolean }): React.JSX.Element {
+/** One «⋯» menu per row (D2): the first item is the primary action, the destructive one comes last and is red. */
+function RowActions<TUser extends UserRow>({ row, consentLinks, onEdit, onDeactivate, onActivate }: UserActions<TUser> & { readonly row: TUser; readonly consentLinks: boolean }): React.JSX.Element | null {
   const t = useT('admin.users');
-  return (
-    <span className="flex flex-wrap gap-1">
-      {consentLinks ? <ConsentLink row={row} /> : null}
-      {onEdit ? (
-        <button type="button" className={ROW_ACTION_CLASS} onClick={() => onEdit(row)} aria-label={t('editAria', { name: row.name })}>
-          {t('edit')}
-        </button>
-      ) : null}
-      {row.isActive === false && onActivate ? (
-        <button type="button" className={ROW_ACTION_CLASS} onClick={() => onActivate(row)} aria-label={t('activateAria', { name: row.name })}>
-          {t('activate')}
-        </button>
-      ) : null}
-      {row.isActive !== false && onDeactivate ? (
-        <button type="button" className={ROW_ACTION_CLASS} onClick={() => onDeactivate(row)} aria-label={t('deactivateAria', { name: row.name })}>
-          {t('deactivate')}
-        </button>
-      ) : null}
-    </span>
-  );
+  const tCommon = useT('admin.common');
+  const tConsent = useT('consent.admin');
+  const patientId: string | null = patientIdOf(row);
+  const items: MenuItem[] = [];
+  if (onEdit) items.push({ key: 'edit', label: t('edit'), icon: Pencil, onSelect: () => onEdit(row) });
+  if (consentLinks && patientId !== null) {
+    items.push({ key: 'consent', label: tConsent('open'), icon: FileCheck2, href: `/admin/patients/${encodeURIComponent(patientId)}/consent` });
+  }
+  if (row.isActive === false && onActivate) items.push({ key: 'activate', label: t('activate'), icon: UserCheck, onSelect: () => onActivate(row) });
+  if (row.isActive !== false && onDeactivate) items.push({ key: 'deactivate', label: t('deactivate'), icon: Ban, destructive: true, onSelect: () => onDeactivate(row) });
+  if (items.length === 0) return null;
+  return <DropdownMenu label={tCommon('rowActions', { name: row.name })} items={items} />;
 }
 
 function NameCell({ row }: { readonly row: UserRow }): React.JSX.Element {
@@ -128,13 +115,13 @@ function NameCell({ row }: { readonly row: UserRow }): React.JSX.Element {
   );
 }
 
-function useUserColumns<TUser extends UserRow>(actions: UserActions<TUser>, consentLinks: boolean): ReadonlyArray<TableColumn<TUser>> {
+function useUserColumns<TUser extends UserRow>(actions: UserActions<TUser>, consentLinks: boolean, practitionerRoles: ReadonlyMap<string, string> | undefined): ReadonlyArray<TableColumn<TUser>> {
   const t = useT('admin.users');
   const columns: TableColumn<TUser>[] = [
     { key: 'name', header: t('columns.name'), render: (row) => <NameCell row={row} /> },
     { key: 'role', header: t('columns.role'), render: (row) => <RoleChips row={row} /> },
     { key: 'status', header: t('columns.status'), render: (row) => <StatusStamp row={row} /> },
-    { key: 'links', header: t('columns.links'), render: (row) => <LinkChips row={row} /> },
+    { key: 'links', header: t('columns.links'), render: (row) => <LinkChips row={row} practitionerRoles={practitionerRoles} /> },
   ];
   if (actions.onEdit || actions.onDeactivate || actions.onActivate || consentLinks) {
     columns.push({ key: 'actions', header: t('columns.actions'), render: (row) => <RowActions row={row} consentLinks={consentLinks} {...actions} /> });
@@ -143,8 +130,8 @@ function useUserColumns<TUser extends UserRow>(actions: UserActions<TUser>, cons
 }
 
 /** Admin user list (FR-015). Presentational: the panel owns the query, the paging state and the dialogs. */
-export function UsersTable<TUser extends UserRow>({ rows, meta, onPage, consentLinks = false, onEdit, onDeactivate, onActivate }: UsersTableProps<TUser>): React.JSX.Element {
+export function UsersTable<TUser extends UserRow>({ rows, meta, onPage, consentLinks = false, practitionerRoles, onEdit, onDeactivate, onActivate }: UsersTableProps<TUser>): React.JSX.Element {
   const t = useT('admin.users');
-  const columns = useUserColumns({ onEdit, onDeactivate, onActivate }, consentLinks);
+  const columns = useUserColumns({ onEdit, onDeactivate, onActivate }, consentLinks, practitionerRoles);
   return <PaginatedTable<TUser> caption={t('title')} rowKey={(row) => row.id} meta={meta} onPage={onPage} rows={rows} columns={columns} />;
 }

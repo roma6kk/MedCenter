@@ -3,6 +3,8 @@
 import type { ReactNode } from 'react';
 import Link from 'next/link';
 import { EmptyState } from '@/components/feedback/states';
+import { cardVariants } from '@/components/ui/card-variants';
+import { cn } from '@/lib/ui/cn';
 import { useT } from '@/lib/i18n/use-t';
 import type { CatalogService } from './catalog-types';
 
@@ -12,7 +14,7 @@ function ServiceCard({ service }: { readonly service: CatalogService }): ReactNo
     <Link
       href={`/doctors?serviceId=${encodeURIComponent(service.id)}`}
       data-testid="service-card"
-      className="flex h-full min-h-[44px] flex-col gap-1 rounded-card border border-border bg-background p-5 transition-colors hover:border-primary hover:bg-card"
+      className={cn(cardVariants({ tone: 'interactive' }), 'flex h-full min-h-[44px] flex-col gap-1')}
     >
       <span className="text-lg font-semibold">{service.name}</span>
       {service.description === undefined ? null : <span className="text-sm text-muted-foreground">{service.description}</span>}

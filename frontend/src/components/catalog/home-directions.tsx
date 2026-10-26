@@ -3,6 +3,7 @@
 import type { ReactNode } from 'react';
 import Link from 'next/link';
 import { Card } from '@/components/ui/card';
+import { STRETCHED_LINK_CLASS } from '@/components/ui/card-variants';
 import { buttonVariants } from '@/components/ui/button-variants';
 import { useT } from '@/lib/i18n/use-t';
 import { SECTION_CLASS, SECTION_LEAD_CLASS, SECTION_TITLE_CLASS } from './catalog-styles';
@@ -16,13 +17,13 @@ function DirectionCard({ direction }: { readonly direction: Direction }): ReactN
   const name: string = t(`${direction.id}.name`);
   return (
     <li>
-      <Card as="article" padding="lg" className="flex h-full flex-col gap-3">
+      <Card as="article" padding="lg" tone="interactive" className="flex h-full flex-col gap-3">
         <span aria-hidden="true" className="flex h-12 w-12 items-center justify-center rounded-card bg-primary-soft text-primary-soft-foreground">
           <Icon className="h-6 w-6" />
         </span>
         <h3 className="text-xl font-bold">{name}</h3>
         <p className="text-base leading-relaxed text-muted-foreground">{t(`${direction.id}.about`)}</p>
-        <Link href={directoryHref({ ...(direction.specialtyCode === undefined ? {} : { specialty: direction.specialtyCode }), page: 1 })} aria-label={`${tHome('directionMore')}: ${name}`} className="mt-auto inline-flex min-h-[44px] items-center text-base font-semibold text-primary underline-offset-4 hover:underline">
+        <Link href={directoryHref({ ...(direction.specialtyCode === undefined ? {} : { specialty: direction.specialtyCode }), page: 1 })} aria-label={`${tHome('directionMore')}: ${name}`} className={`mt-auto inline-flex min-h-[44px] items-center text-base font-semibold text-primary underline-offset-4 hover:underline ${STRETCHED_LINK_CLASS}`}>
           {tHome('directionMore')}
         </Link>
       </Card>

@@ -1,7 +1,7 @@
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { apiFetch } from '@/lib/api/api-fetch';
-import { apiProblem, pageOf, renderWithClient } from '../shared/test-utils';
+import { apiProblem, chooseRowAction, pageOf, renderWithClient } from '../shared/test-utils';
 import type { AdminService } from './service-types';
 import { ServicesPanel } from './services-panel';
 
@@ -49,7 +49,7 @@ describe('ServicesPanel', () => {
         : Promise.resolve(pageOf(services)),
     );
     renderWithClient(<ServicesPanel />);
-    await userEvent.click(await first('Удалить услугу Приём терапевта'));
+    await chooseRowAction('Приём терапевта', 'Удалить');
 
     await userEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Удалить' }));
 
@@ -76,7 +76,7 @@ describe('ServicesPanel', () => {
   it('should patch the service with the new duration when it is edited', async () => {
     apiFetchMock.mockImplementation((_path, options) => (options?.method === 'PATCH' ? Promise.resolve(services[0]) : Promise.resolve(pageOf(services))));
     renderWithClient(<ServicesPanel />);
-    await userEvent.click(await first('Изменить услугу Приём терапевта'));
+    await chooseRowAction('Приём терапевта', 'Изменить');
 
     await userEvent.clear(screen.getByLabelText(/Длительность/));
     await userEvent.type(screen.getByLabelText(/Длительность/), '45');
@@ -100,7 +100,7 @@ describe('ServicesPanel', () => {
     });
     renderWithClient(<ServicesPanel />);
     await userEvent.click(await screen.findByRole('button', { name: 'Следующая страница' }));
-    await userEvent.click(await first('Удалить услугу Приём хирурга'));
+    await chooseRowAction('Приём хирурга', 'Удалить');
 
     await userEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Удалить' }));
 

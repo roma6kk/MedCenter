@@ -6,7 +6,8 @@
       "search": "Search form",
       "saving": "Saving…",
       "requiredNote": "Fields marked with an asterisk (*) are required.",
-      "refreshing": "Refreshing the data…"
+      "refreshing": "Refreshing the data…",
+      "rowActions": "Actions: {name}"
     },
     "problems": {
       "EMAIL_TAKEN": "A user with this email already exists",
@@ -99,7 +100,12 @@
       },
       "roleOptionsLoading": "Loading doctors…",
       "roleNotLinked": "Not linked",
-      "roleTakenBy": "linked to {name}"
+      "roleTakenBy": "linked to {name}",
+      "links": {
+        "patient": "Patient record",
+        "doctor": "Doctor",
+        "doctorWithSpecialty": "Doctor · {specialty}"
+      }
     },
     "rooms": {
       "title": "Rooms",
@@ -605,7 +611,8 @@
     "slotsFound": "Available times: {count}",
     "retryIn": "Try again in {seconds} s",
     "nextPeriodLimit": "This is the last available period: you can search up to a year ahead.",
-    "reasonNoConsent": "Free text about your health can be added only after the consent to the electronic record is signed. Ask the front desk: the visit can be booked without a reason."
+    "reasonNoConsent": "Free text about your health can be added only after the consent to the electronic record is signed. Ask the front desk: the visit can be booked without a reason.",
+    "createdToast": "Appointment booked"
   },
   "layout": {
     "skipToContent": "Skip to content",
@@ -763,13 +770,16 @@
     },
     "noshow": {
       "button": "No-show",
-      "markFor": "Mark as no-show: {name}",
-      "confirmGroup": "Confirm the no-show",
       "confirm": "Confirm no-show",
       "cancel": "Cancel",
       "notBooked": "The appointment is no longer booked: it cannot be marked as a no-show",
       "hasEncounter": "It cannot be marked as a no-show: the appointment is no longer booked or an encounter is already open or completed for it",
-      "done": "No-show recorded"
+      "done": "No-show recorded",
+      "menu": "Appointment actions",
+      "menuFor": "Appointment actions: {name}",
+      "dialogTitle": "Mark as a no-show?",
+      "dialogBody": "The appointment will get the status \"No-show\". The journal cannot take the mark back.",
+      "dialogBodyFor": "The appointment of {name} will get the status \"No-show\". The journal cannot take the mark back."
     },
     "schedule": {
       "title": "My schedule",
@@ -1549,7 +1559,9 @@
       "dialogConfirm": "Revoke consent",
       "dialogBusy": "Revoking…",
       "dialogKeep": "Keep consent",
-      "revoked": "Consent revoked. Confirm it with a written application at the clinic."
+      "revoked": "Consent revoked. Confirm it with a written application at the clinic.",
+      "summaryActive": "EHR consent in force since {date}",
+      "details": "Details"
     },
     "staff": {
       "lead": "The consent is signed on paper; its scan and the signature details are kept here.",

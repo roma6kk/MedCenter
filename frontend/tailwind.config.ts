@@ -26,6 +26,7 @@ const config: Config = {
         accent: 'var(--accent)',
         destructive: {
           DEFAULT: 'var(--destructive)',
+          hover: 'var(--destructive-hover)',
           foreground: 'var(--destructive-foreground)',
           soft: 'var(--destructive-soft)',
           'soft-hover': 'var(--destructive-soft-hover)',
@@ -81,6 +82,24 @@ const config: Config = {
         fast: 'var(--duration-fast)',
         base: 'var(--duration-base)',
         slow: 'var(--duration-slow)',
+      },
+      // Entrances use the motion tokens; the global `prefers-reduced-motion` rule drops every animation, so each keyframe
+      // only has a `from` state and the element simply appears in its final state.
+      keyframes: {
+        'scrim-in': { from: { opacity: '0' } },
+        'dialog-in': { from: { opacity: '0', transform: 'scale(0.96)' } },
+        'sheet-in': { from: { opacity: '0', transform: 'translateY(2rem)' } },
+        'drawer-in': { from: { opacity: '0', transform: 'translateX(2rem)' } },
+        'menu-in': { from: { opacity: '0', transform: 'translateY(-4px) scale(0.98)' } },
+        'toast-in': { from: { opacity: '0', transform: 'translateY(1rem)' } },
+      },
+      animation: {
+        'scrim-in': 'scrim-in var(--duration-base) var(--ease-out)',
+        'dialog-in': 'dialog-in var(--duration-base) var(--ease-out)',
+        'sheet-in': 'sheet-in var(--duration-base) var(--ease-out)',
+        'drawer-in': 'drawer-in var(--duration-base) var(--ease-out)',
+        'menu-in': 'menu-in var(--duration-fast) var(--ease-out)',
+        'toast-in': 'toast-in var(--duration-base) var(--ease-out)',
       },
       fontFamily: { sans: ['var(--font-sans)'], mono: ['var(--font-mono)'] },
     },

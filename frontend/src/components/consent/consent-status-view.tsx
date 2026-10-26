@@ -54,26 +54,40 @@ interface ConsentStatusViewProps {
   readonly consent: PatientConsent;
   /** Staff read the scan: give the patient the consent belongs to and each entry offers its download. The patient themselves do not. */
   readonly scanOfPatient?: string;
+  /**
+   * For a caller that already says the state in its own headline (the patient's profile, B3): the state sentence is left out,
+   * and a history that holds nothing but the entry the facts already describe is not repeated.
+   */
+  readonly compact?: boolean;
 }
 
 /** Where the patient's consent stands (active, revoked, refused, none) with the facts of the entry in question and the whole history. */
-export function ConsentStatusView({ consent, scanOfPatient }: ConsentStatusViewProps): ReactNode {
+export function ConsentStatusView({ consent, scanOfPatient, compact = false }: ConsentStatusViewProps): ReactNode {
   const t = useT('consent');
   const state: ConsentState = consentStateOf(consent);
   const record: ConsentRecord | null = headlineRecord(consent);
+  const isRepeat: boolean = compact && consent.history.length === 1 && consent.history[0]?.id === record?.id;
   return (
     <div>
-      <div role="status" data-testid={`consent-state-${state}`}>
-        <p className="font-semibold">{t(`state.${state}`)}</p>
-        {record === null ? null : <EntryFacts record={record} />}
-      </div>
-      <h3 className="mt-4 text-sm font-semibold text-muted-foreground">{t('view.historyTitle')}</h3>
-      {consent.history.length === 0 ? (
-        <p className="mt-1 text-sm text-muted-foreground">{t('view.historyEmpty')}</p>
+      {compact ? (
+        record === null ? null : <EntryFacts record={record} />
       ) : (
-        <ul aria-label={t('view.historyTitle')} className="mt-2 grid gap-2">
-          {consent.history.map((entry) => <HistoryEntry key={entry.id} record={entry} scanOfPatient={scanOfPatient} />)}
-        </ul>
+        <div role="status" data-testid={`consent-state-${state}`}>
+          <p className="font-semibold">{t(`state.${state}`)}</p>
+          {record === null ? null : <EntryFacts record={record} />}
+        </div>
+      )}
+      {isRepeat ? null : (
+        <>
+          <h3 className="mt-4 text-sm font-semibold text-muted-foreground">{t('view.historyTitle')}</h3>
+          {consent.history.length === 0 ? (
+            <p className="mt-1 text-sm text-muted-foreground">{t('view.historyEmpty')}</p>
+          ) : (
+            <ul aria-label={t('view.historyTitle')} className="mt-2 grid gap-2">
+              {consent.history.map((entry) => <HistoryEntry key={entry.id} record={entry} scanOfPatient={scanOfPatient} />)}
+            </ul>
+          )}
+        </>
       )}
     </div>
   );

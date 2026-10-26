@@ -5,8 +5,9 @@ import type { ReactNode, RefObject } from 'react';
 import { useRetryCooldown } from '@/lib/api/use-retry-cooldown';
 import { useT } from '@/lib/i18n/use-t';
 import { AdminProblem } from './admin-problem';
-import { DANGER_BUTTON_CLASS, SECONDARY_BUTTON_CLASS } from './admin-styles';
-import { Modal } from './modal';
+import { Button } from '@/components/ui/button';
+import { SECONDARY_BUTTON_CLASS } from './admin-styles';
+import { Dialog } from '@/components/ui/dialog';
 import { problemOf } from './problem-of';
 
 interface ConfirmDialogProps {
@@ -43,23 +44,25 @@ export function ConfirmDialog({ title, message, confirmLabel, isPending, error, 
     if (!isBlocked) onConfirm();
   };
   const label: string = isPending ? t('loading') : cooldown > 0 ? tProblem('retryAfter', { seconds: cooldown }) : confirmLabel;
+  const footer: ReactNode = (
+    <>
+      {/* The safe choice is the first control: Enter must never confirm a deletion. */}
+      <button ref={cancelRef} type="button" onClick={onCancel} className={SECONDARY_BUTTON_CLASS}>
+        {t('cancel')}
+      </button>
+      <Button variant="destructive" onClick={handleConfirm} aria-disabled={isBlocked || undefined}>
+        {label}
+      </Button>
+    </>
+  );
   return (
-    <Modal title={title} onClose={onCancel} size="sm">
-      <p className="mt-2 text-sm">{message}</p>
+    <Dialog title={title} description={message} onClose={onCancel} size="sm" footer={footer}>
       {children}
       {error === undefined || error === null ? null : (
         <div className="mt-3">
           <AdminProblem error={error} />
         </div>
       )}
-      <div className="mt-4 flex justify-end gap-2">
-        <button ref={cancelRef} type="button" onClick={onCancel} className={SECONDARY_BUTTON_CLASS}>
-          {t('cancel')}
-        </button>
-        <button type="button" onClick={handleConfirm} aria-disabled={isBlocked || undefined} className={DANGER_BUTTON_CLASS}>
-          {label}
-        </button>
-      </div>
-    </Modal>
+    </Dialog>
   );
 }

@@ -1,8 +1,9 @@
 'use client';
 
 import { useEffect, useRef, type RefObject } from 'react';
+import { DIALOG_CLOSE_ATTRIBUTE } from './use-dialog-focus';
 
-const FOCUSABLE = 'a[href], button:not([disabled]), textarea, input, select, [tabindex]:not([tabindex="-1"])';
+const FOCUSABLE = `a[href], button:not([disabled]):not([${DIALOG_CLOSE_ATTRIBUTE}]), textarea, input, select, [tabindex]:not([tabindex="-1"])`;
 
 /** While a modal is open the page behind it does not scroll: a wheel over the dialog on a phone would move the page under it. */
 export function useScrollLock(): void {
@@ -48,12 +49,16 @@ export function useModalBehavior(panel: RefObject<HTMLElement | null>): void {
 export function useFocusFallbackOnClose(): void {
   useEffect(
     () => () => {
-      const active: Element | null = document.activeElement;
-      if (active !== null && active !== document.body) return;
-      const heading: HTMLElement | null = document.querySelector<HTMLElement>('main h1') ?? document.querySelector<HTMLElement>('h1');
-      if (heading === null) return;
-      heading.setAttribute('tabindex', '-1');
-      heading.focus();
+      // One tick later: a screen that knows a better target (a tab panel, a list heading) hands the focus there in its own
+      // effect right after the dialog unmounts, and this generic fallback must not get in front of it.
+      setTimeout(() => {
+        const active: Element | null = document.activeElement;
+        if (active !== null && active !== document.body) return;
+        const heading: HTMLElement | null = document.querySelector<HTMLElement>('main h1') ?? document.querySelector<HTMLElement>('h1');
+        if (heading === null) return;
+        heading.setAttribute('tabindex', '-1');
+        heading.focus();
+      }, 0);
     },
     [],
   );

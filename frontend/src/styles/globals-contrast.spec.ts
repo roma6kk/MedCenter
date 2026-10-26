@@ -104,6 +104,7 @@ describe.each(THEMES)('globals.css tokens (%s theme)', (theme) => {
     ['destructive', 'destructive-soft'],
     ['destructive', 'destructive-soft-hover'],
     ['destructive-foreground', 'destructive'],
+    ['destructive-foreground', 'destructive-hover'],
     ['warning', 'warning-soft'],
     ['warning-foreground', 'warning'],
     ['success', 'success-soft'],

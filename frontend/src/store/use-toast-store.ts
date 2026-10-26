@@ -2,15 +2,23 @@ import { create } from 'zustand';
 
 export type ToastTone = 'info' | 'success' | 'error';
 
+/** A button on the toast («Отменить»): runs once, and the toast closes with it. */
+export interface ToastAction {
+  readonly label: string;
+  readonly onAction: () => void;
+}
+
 export interface Toast {
   readonly id: number;
   readonly tone: ToastTone;
   readonly message: string;
+  readonly action?: ToastAction;
 }
 
 export interface ToastInput {
   readonly tone: ToastTone;
   readonly message: string;
+  readonly action?: ToastAction;
 }
 
 interface ToastState {

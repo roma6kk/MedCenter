@@ -1,7 +1,7 @@
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { apiFetch } from '@/lib/api/api-fetch';
-import { pageOf, renderWithClient } from '../shared/test-utils';
+import { chooseRowAction, pageOf, renderWithClient } from '../shared/test-utils';
 import type { AdminSchedule } from './schedule-types';
 import { SchedulesPanel } from './schedules-panel';
 
@@ -79,7 +79,9 @@ describe('SchedulesPanel', () => {
 
     await waitFor(() => expect(apiFetchMock).toHaveBeenCalledWith('/api/v1/admin/schedules?page=1&pageSize=10&active=false'));
     expect(screen.queryByRole('button', { name: /Сгенерировать слоты/ })).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /Изменить расписание/ })).not.toBeInTheDocument();
+    await userEvent.click((await screen.findAllByRole('button', { name: /^Действия:/ }))[0] as HTMLElement);
+    expect(screen.queryByRole('menuitem', { name: 'Изменить' })).not.toBeInTheDocument();
+    expect(screen.getByRole('menuitem', { name: 'Удалить' })).toBeInTheDocument();
   });
 
   it('should open the generation dialog of the chosen schedule with its real id when the action is pressed', async () => {
@@ -96,7 +98,7 @@ describe('SchedulesPanel', () => {
     apiFetchMock.mockImplementation((path) => (path.includes('/slots') ? Promise.resolve([]) : answer([active])(path)));
     renderWithClient(<SchedulesPanel />);
 
-    await userEvent.click(await first('Слоты расписания: Иванова Мария · Кабинет 101 (101)'));
+    await chooseRowAction('Иванова Мария · Кабинет 101 (101)', 'Слоты');
 
     expect(await screen.findByRole('dialog', { name: 'Слоты расписания' })).toBeInTheDocument();
     await waitFor(() => expect(apiFetchMock.mock.calls.some(([path]) => path.startsWith('/api/v1/admin/schedules/2572/slots?'))).toBe(true));

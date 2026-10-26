@@ -1,11 +1,12 @@
 'use client';
 
+import { Ban, Pencil, Trash2 } from 'lucide-react';
 import { PaginatedTable, type PageMeta, type TableColumn } from '@/components/data-display/paginated-table';
 import { CodeChip } from '@/components/feedback/code-chip';
 import { StampBadge } from '@/components/feedback/stamp-badge';
+import { DropdownMenu, type MenuItem } from '@/components/ui/dropdown-menu';
 import { useT } from '@/lib/i18n/use-t';
 import type { AdminService } from './service-types';
-import { ROW_ACTION_CLASS } from '../shared/admin-styles';
 
 interface ServicesTableProps {
   readonly rows: ReadonlyArray<AdminService>;
@@ -17,16 +18,12 @@ interface ServicesTableProps {
 
 function ServiceActions({ service, onEdit, onDelete }: Pick<ServicesTableProps, 'onEdit' | 'onDelete'> & { readonly service: AdminService }): React.JSX.Element {
   const t = useT('admin.services');
-  return (
-    <span className="flex gap-1">
-      <button type="button" className={ROW_ACTION_CLASS} onClick={() => onEdit(service)} aria-label={t('editAria', { name: service.name })}>
-        {t('edit')}
-      </button>
-      <button type="button" className={ROW_ACTION_CLASS} onClick={() => onDelete(service)} aria-label={t('deleteAria', { name: service.name })}>
-        {t('delete')}
-      </button>
-    </span>
-  );
+  const tCommon = useT('admin.common');
+  const items: ReadonlyArray<MenuItem> = [
+    { key: 'edit', label: t('edit'), icon: Pencil, onSelect: () => onEdit(service) },
+    { key: 'delete', label: t('delete'), icon: Trash2, destructive: true, onSelect: () => onDelete(service) },
+  ];
+  return <DropdownMenu label={tCommon('rowActions', { name: service.name })} items={items} />;
 }
 
 function useServiceColumns(actions: Pick<ServicesTableProps, 'onEdit' | 'onDelete'>): ReadonlyArray<TableColumn<AdminService>> {
@@ -39,12 +36,12 @@ function useServiceColumns(actions: Pick<ServicesTableProps, 'onEdit' | 'onDelet
       render: (row) => (
         <span className="grid justify-items-start gap-0.5">
           <CodeChip code={row.typeCode} system={row.typeSystem} />
-          {row.typeDisplay ? <span className="text-xs text-[var(--muted-foreground)]">{row.typeDisplay}</span> : null}
+          {row.typeDisplay && row.typeDisplay !== row.name ? <span className="text-xs text-[var(--muted-foreground)]">{row.typeDisplay}</span> : null}
         </span>
       ),
     },
     { key: 'duration', header: t('columns.duration'), render: (row) => t('minutes', { count: row.defaultDurationMin }) },
-    { key: 'status', header: t('columns.status'), render: (row) => <StampBadge status={row.isActive ? 'active' : 'cancelled'}>{row.isActive ? t('active') : t('inactive')}</StampBadge> },
+    { key: 'status', header: t('columns.status'), render: (row) => row.isActive ? <StampBadge status="active">{t('active')}</StampBadge> : <StampBadge status="cancelled" tone="neutral" icon={Ban}>{t('inactive')}</StampBadge> },
     { key: 'actions', header: t('columns.actions'), render: (row) => <ServiceActions service={row} {...actions} /> },
   ];
 }

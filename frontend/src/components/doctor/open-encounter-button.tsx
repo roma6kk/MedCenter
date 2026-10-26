@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import type { ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
-import { Modal } from '@/components/admin/shared/modal';
+import { Dialog } from '@/components/ui/dialog';
 import { ConsentRequiredNotice } from '@/components/consent/consent-required-notice';
 import { buttonVariants } from '@/components/ui/button-variants';
 import { isApiError } from '@/lib/api/api-fetch';
@@ -63,10 +63,10 @@ export function OpenEncounterButton({ appointmentId, patientId, label, size = 'm
       </button>
       {open.isError && !isDialogOpen ? <InlineProblem error={open.error} overrides={{ ENCOUNTER_STATE_INVALID: t('alreadyCompleted') }} /> : null}
       {isDialogOpen ? (
-        <Modal title={tConsent('title')} onClose={closeDialog}>
+        <Dialog title={tConsent('title')} onClose={closeDialog}>
           <div className="mt-3"><ConsentRequiredNotice action="open" patientId={patientId} isPending={open.isPending} onEmergency={send} /></div>
           {open.isError && !(isApiError(open.error) && open.error.errorCode === 'CONSENT_REQUIRED') ? <div className="mt-3"><InlineProblem error={open.error} /></div> : null}
-        </Modal>
+        </Dialog>
       ) : null}
     </span>
   );

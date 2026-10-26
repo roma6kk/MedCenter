@@ -43,6 +43,17 @@ describe('AppointmentCard', () => {
     expect(onCancel).toHaveBeenCalledWith(appointment);
   });
 
+  it('should make the cancel action quiet red text with an icon next to «Подробнее», not a filled button (B2)', () => {
+    render(<AppointmentCard appointment={appointmentFixture()} onCancel={jest.fn()} />);
+
+    const cancel = screen.getByRole('button', { name: /Отменить запись:/ });
+
+    expect(cancel).toHaveClass('text-destructive');
+    expect(cancel).not.toHaveClass('bg-destructive');
+    expect(cancel).not.toHaveClass('bg-destructive-soft');
+    expect(cancel.querySelector('svg')).toHaveAttribute('aria-hidden', 'true');
+  });
+
   it.each(['cancelled', 'noshow', 'fulfilled'] as const)('should not offer the cancel action when the appointment is %s (BR-002)', (status) => {
     render(<AppointmentCard appointment={appointmentFixture({ status })} onCancel={jest.fn()} />);
 

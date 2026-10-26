@@ -107,7 +107,20 @@ jest.setTimeout(30_000);
     await findTable();
 
     expect(screen.getAllByRole('button', { name: /Открыть приём/ })).toHaveLength(1);
-    expect(screen.getAllByRole('button', { name: /Отметить неявку/ })).toHaveLength(1);
+    expect(screen.getAllByRole('button', { name: /Действия с записью/ })).toHaveLength(1);
+  });
+
+  it('should keep the no-show away from the «Карта пациента» button and behind a menu with a confirmation (A5)', async () => {
+    setup();
+    await findTable();
+    expect(screen.queryByRole('button', { name: 'Неявка' })).not.toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('button', { name: /Действия с записью/ }));
+    const item = screen.getByRole('menuitem', { name: 'Неявка' });
+    expect(item).toHaveClass('text-destructive');
+    await userEvent.click(item);
+
+    expect(screen.getByRole('dialog', { name: 'Отметить неявку?' })).toBeInTheDocument();
   });
 
   it('should fall back to the patient id when the service sent no name', async () => {

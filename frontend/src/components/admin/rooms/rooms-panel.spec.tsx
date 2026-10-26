@@ -1,7 +1,7 @@
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { apiFetch } from '@/lib/api/api-fetch';
-import { apiProblem, pageOf, renderWithClient } from '../shared/test-utils';
+import { apiProblem, chooseRowAction, pageOf, renderWithClient } from '../shared/test-utils';
 import type { AdminRoom } from './room-types';
 import { RoomsPanel } from './rooms-panel';
 
@@ -48,7 +48,7 @@ describe('RoomsPanel', () => {
         : Promise.resolve(pageOf(rooms)),
     );
     renderWithClient(<RoomsPanel />);
-    await userEvent.click(await first('Удалить кабинет Кабинет 101'));
+    await chooseRowAction('Кабинет 101', 'Удалить');
 
     await userEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Удалить' }));
 
@@ -58,7 +58,7 @@ describe('RoomsPanel', () => {
   it('should close the dialog and call DELETE for the room when nothing uses it', async () => {
     apiFetchMock.mockImplementation((_path, options) => (options?.method === 'DELETE' ? Promise.resolve(undefined) : Promise.resolve(pageOf(rooms))));
     renderWithClient(<RoomsPanel />);
-    await userEvent.click(await first('Удалить кабинет Кабинет 204'));
+    await chooseRowAction('Кабинет 204', 'Удалить');
 
     await userEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Удалить' }));
 
@@ -72,7 +72,7 @@ describe('RoomsPanel', () => {
     );
     renderWithClient(<RoomsPanel />);
 
-    await userEvent.click(await first('Занятость кабинета Кабинет 101'));
+    await chooseRowAction('Кабинет 101', 'Занятость');
 
     expect(await screen.findByText('Иванова · 16.10.2026')).toBeInTheDocument();
     expect(apiFetchMock).toHaveBeenCalledWith('/api/v1/admin/rooms/r1/usage');
@@ -119,7 +119,7 @@ describe('RoomsPanel', () => {
     });
     renderWithClient(<RoomsPanel />);
     await userEvent.click(await screen.findByRole('button', { name: 'Следующая страница' }));
-    await userEvent.click(await first('Удалить кабинет Кабинет 204'));
+    await chooseRowAction('Кабинет 204', 'Удалить');
 
     await userEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Удалить' }));
 

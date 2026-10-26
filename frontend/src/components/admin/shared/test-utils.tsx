@@ -1,7 +1,8 @@
 /**
  * test-utils — helpers for the admin specs (not part of the app bundle: only `*.spec.*` files import it).
  */
-import { render, type RenderResult } from '@testing-library/react';
+import { render, screen, type RenderResult } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { ReactElement, ReactNode } from 'react';
 import { ApiError } from '@/lib/api/api-fetch';
@@ -39,4 +40,14 @@ export function apiProblem({ status, errorCode, detail, details, requestId = 're
 
 export function pageOf<TItem>(items: ReadonlyArray<TItem>, page = 1, totalPages = 1): { items: ReadonlyArray<TItem>; meta: { page: number; pageSize: number; totalItems: number; totalPages: number } } {
   return { items, meta: { page, pageSize: 10, totalItems: items.length, totalPages } };
+}
+
+/**
+ * Opens the «⋯» menu of the row named `rowName` and chooses `action` (D2–D4). The table renders each row twice (wide and
+ * narrow layout), so the first menu button is used.
+ */
+export async function chooseRowAction(rowName: string, action: string): Promise<void> {
+  const trigger = (await screen.findAllByRole('button', { name: `Действия: ${rowName}` }))[0] as HTMLElement;
+  await userEvent.click(trigger);
+  await userEvent.click(screen.getByRole('menuitem', { name: action }));
 }

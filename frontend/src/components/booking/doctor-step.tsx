@@ -23,7 +23,7 @@ function DoctorList({ doctors, selectedDoctorId, onSelect }: Omit<DoctorStepProp
     <ul className="grid gap-3 lg:grid-cols-2">
       {doctors.map((doctor) => (
         <li key={doctor.id}>
-          <DoctorCard doctor={doctor} headingLevel={3}>
+          <DoctorCard doctor={doctor} headingLevel={3} tone={doctor.id === selectedDoctorId ? 'selected' : 'static'}>
             <Button
               aria-pressed={doctor.id === selectedDoctorId}
               aria-label={`${t('chooseDoctor')}: ${doctor.name}`}

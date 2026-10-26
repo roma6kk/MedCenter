@@ -7,10 +7,11 @@ import { QueryFailure } from '@/components/feedback/query-error-state';
 import { useServices } from '@/components/catalog/use-catalog';
 import type { CatalogService } from '@/components/catalog/catalog-types';
 import { EmptyState } from '@/components/feedback/states';
+import { cardVariants } from '@/components/ui/card-variants';
 import { cn } from '@/lib/ui/cn';
 import { useT } from '@/lib/i18n/use-t';
 
-const CARD_CLASS = 'flex min-h-[44px] w-full gap-3.5 rounded-card p-5 text-left transition-colors hover:bg-secondary';
+const CARD_CLASS = 'flex min-h-[44px] w-full gap-3.5 text-left';
 
 interface ServiceStepProps {
   readonly selectedServiceId: string | null;
@@ -37,13 +38,13 @@ function ServiceChoice({ service, selected, onSelect }: { readonly service: Cata
       aria-pressed={selected}
       onClick={onSelect}
       data-testid={`service-${service.id}`}
-      className={cn(CARD_CLASS, 'border bg-card', selected ? 'border-2 border-primary shadow-[0_0_0_4px_var(--primary-soft)] hover:bg-card' : 'border-border')}
+      className={cn(cardVariants({ tone: selected ? 'selected' : 'interactive' }), CARD_CLASS)}
     >
       <Marker selected={selected} />
       <span className="flex min-w-0 flex-1 flex-col gap-1">
         <span className="break-words text-base font-semibold">{service.name}</span>
         {service.description === undefined ? null : <span className="text-sm text-muted-foreground">{service.description}</span>}
-        <span className={cn('mono mt-1.5 h-fit self-start rounded-full px-2.5 py-0.5 text-xs font-medium', selected ? 'bg-primary-soft text-primary-soft-foreground' : 'bg-secondary text-muted-foreground')}>
+        <span className={cn('mono mt-1.5 h-fit self-start rounded-full px-2.5 py-0.5 text-xs font-medium', selected ? 'bg-card text-primary-soft-foreground' : 'bg-secondary text-muted-foreground')}>
           {t('serviceMinutes', { minutes: service.defaultDurationMin })}
         </span>
       </span>
@@ -54,7 +55,7 @@ function ServiceChoice({ service, selected, onSelect }: { readonly service: Cata
 function AnyServiceChoice({ onSelect }: { readonly onSelect: () => void }): ReactNode {
   const t = useT('booking');
   return (
-    <button type="button" onClick={onSelect} data-testid="service-any" className={cn(CARD_CLASS, 'items-center border border-dashed border-input')}>
+    <button type="button" onClick={onSelect} data-testid="service-any" className={cn(cardVariants({ tone: 'interactive' }), CARD_CLASS, 'items-center border-dashed border-input shadow-none')}>
       <CircleHelp aria-hidden="true" size={22} strokeWidth={2} className="flex-none text-primary" />
       <span className="flex flex-col gap-0.5">
         <span className="text-base font-semibold">{t('anyService')}</span>

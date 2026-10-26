@@ -38,6 +38,22 @@ describe('CancelAppointmentDialog', () => {
     expect(dialog).toHaveAccessibleDescription(/10:00 · Иванова Мария Сергеевна/);
   });
 
+  it('should confirm with the solid red button and offer the safe choice beside it (VA2, E3)', () => {
+    renderDialog();
+
+    expect(screen.getByRole('button', { name: 'Подтвердить отмену' })).toHaveClass('bg-destructive', 'text-destructive-foreground');
+    expect(screen.getByRole('button', { name: 'Не отменять' })).toBeInTheDocument();
+  });
+
+  it('should be a real modal over the page with a scrim and a close cross, not a popover (B2)', () => {
+    renderDialog();
+
+    const dialog = screen.getByRole('dialog', { name: 'Отмена записи' });
+
+    expect(dialog.parentElement).toHaveClass('fixed', 'inset-0', 'bg-scrim');
+    expect(screen.getByRole('button', { name: 'Закрыть' })).toBeInTheDocument();
+  });
+
   it('should move the focus to the reason field when it opens', () => {
     renderDialog();
 
@@ -112,8 +128,10 @@ describe('CancelAppointmentDialog', () => {
 
     expect(await screen.findByRole('alert')).toHaveTextContent('Эту запись уже нельзя отменить');
     expect(screen.queryByRole('button', { name: 'Подтвердить отмену' })).not.toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Закрыть' })).toHaveFocus();
-    await userEvent.click(screen.getByRole('button', { name: 'Закрыть' }));
+    // Two ways to close are offered: the text button of the message (focused) and the cross of the dialog.
+    const [closeButton] = screen.getAllByRole('button', { name: 'Закрыть' });
+    expect(closeButton).toHaveFocus();
+    await userEvent.click(closeButton!);
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
@@ -156,7 +174,8 @@ describe('CancelAppointmentDialog', () => {
 
   it('should keep the focus inside the dialog when Tab is pressed on the last control', async () => {
     renderDialog();
-    screen.getByRole('button', { name: 'Не отменять' }).focus();
+    // The close cross of the dialog is the last control in the cycle.
+    screen.getByRole('button', { name: 'Закрыть' }).focus();
 
     await userEvent.tab();
 

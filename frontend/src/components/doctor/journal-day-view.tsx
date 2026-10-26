@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { Clock } from 'lucide-react';
 import { Pager } from '@/components/data-display/paginated-table';
 import { EmptyState } from '@/components/feedback/states';
+import { StampBadge } from '@/components/feedback/stamp-badge';
 import { Card } from '@/components/ui/card';
 import { buttonVariants } from '@/components/ui/button-variants';
 import { formatClinicTime } from '@/lib/clinic-time';
@@ -12,7 +13,7 @@ import { useT } from '@/lib/i18n/use-t';
 import { cn } from '@/lib/ui/cn';
 import type { DoctorJournalPage, JournalAppointment } from './doctor-types';
 import { buildTimeline, canOpenPatientCard, countByStatus, findNextVisit, initialsOf, visitMinutes, type GapEntry, type StatusCounts, type TimelineEntry } from './journal-model';
-import { NoshowButton } from './noshow-button';
+import { NoshowMenu } from './noshow-menu';
 import { OpenEncounterButton } from './open-encounter-button';
 
 type Translate = (key: string, values?: Record<string, string | number>) => string;
@@ -48,9 +49,9 @@ function PatientLink({ visit, className }: { readonly visit: JournalAppointment;
   );
 }
 
-function StatusChip({ status, className }: { readonly status: JournalAppointment['status']; readonly className: string }): ReactNode {
-  const t = useT('stamp');
-  return <span data-testid={`stamp-${status}`} className={cn('rounded-full px-2.5 py-0.5 text-xs font-bold', className)}>{t(status)}</span>;
+/** The status of a visit that is no longer on the doctor's plate: the shared soft badge, pushed to the end of the row. */
+function StatusChip({ status }: { readonly status: JournalAppointment['status'] }): ReactNode {
+  return <span className="ml-auto"><StampBadge status={status} /></span>;
 }
 
 /** The card of the visit that comes next: the doctor's eye lands here first. Its actions live in the panel beside the timeline. */
@@ -84,7 +85,7 @@ function VisitCard({ visit }: { readonly visit: JournalAppointment }): ReactNode
         </span>
         <span className="inline-flex flex-wrap items-center gap-2">
           <OpenEncounterButton appointmentId={visit.id} patientId={visit.patientId} label={`${name}, ${formatClinicTime(visit.start)}`} />
-          <NoshowButton appointmentId={visit.id} patientName={name} />
+          <NoshowMenu appointmentId={visit.id} patientName={name} />
         </span>
       </div>
     );
@@ -96,7 +97,7 @@ function VisitCard({ visit }: { readonly visit: JournalAppointment }): ReactNode
       <div className={cn(base, 'rounded-card bg-warning-soft')}>
         <span className="font-semibold"><PatientLink visit={visit} /></span>
         {detail}
-        <StatusChip status={status} className="ml-auto bg-card text-warning" />
+        <StatusChip status={status} />
       </div>
     );
   }
@@ -105,7 +106,7 @@ function VisitCard({ visit }: { readonly visit: JournalAppointment }): ReactNode
       <div className={cn(base, 'rounded-card border border-dashed border-border text-muted-foreground')}>
         <span className="font-medium line-through"><PatientLink visit={visit} /></span>
         {detail}
-        <StatusChip status={status} className="ml-auto text-destructive" />
+        <StatusChip status={status} />
       </div>
     );
   }
@@ -113,7 +114,7 @@ function VisitCard({ visit }: { readonly visit: JournalAppointment }): ReactNode
     <div className={cn(base, 'rounded-card border border-border bg-card')}>
       <span className="font-semibold"><PatientLink visit={visit} /></span>
       {detail}
-      <StatusChip status={status} className="ml-auto bg-success-soft text-success" />
+      <StatusChip status={status} />
     </div>
   );
 }
@@ -185,9 +186,9 @@ function NextPatientPanel({ visit }: { readonly visit: JournalAppointment }): Re
         {visit.reason ? <DetailCell term={t('columns.reason')} wide>{visit.reason}</DetailCell> : null}
       </dl>
       <OpenEncounterButton appointmentId={visit.id} patientId={visit.patientId} label={label} size="lg" fullWidth />
-      <div className="grid grid-cols-2 gap-2.5">
-        <Link href={`/patients/${encodeURIComponent(visit.patientId)}`} data-row-anchor className={buttonVariants({ variant: 'secondary' })}>{t('patientCardLink')}</Link>
-        <NoshowButton appointmentId={visit.id} patientName={name} className="w-full" />
+      <div className="flex items-center gap-2.5">
+        <Link href={`/patients/${encodeURIComponent(visit.patientId)}`} data-row-anchor className={cn(buttonVariants({ variant: 'secondary' }), 'flex-1')}>{t('patientCardLink')}</Link>
+        <NoshowMenu appointmentId={visit.id} patientName={name} />
       </div>
     </Card>
   );

@@ -47,4 +47,13 @@ describe('DoctorCard', () => {
 
     expect(screen.getByText('МИ')).toHaveAttribute('aria-hidden', 'true');
   });
+
+  it('should lift on hover when the whole card leads to the profile and ring the chosen doctor of a list', () => {
+    render(<><DoctorCard doctor={DOCTOR} tone="interactive" /><DoctorCard doctor={{ ...DOCTOR, id: 'd-2' }} tone="selected" /></>);
+
+    const [interactive, selected] = screen.getAllByTestId('doctor-card');
+
+    expect(interactive).toHaveClass('cursor-pointer');
+    expect(selected).toHaveClass('ring-2');
+  });
 });

@@ -10,7 +10,7 @@ import type { ServerFieldRule } from '../shared/apply-server-error';
 import { controlProps, Field } from '../shared/form-field';
 import { FormActions } from '../shared/form-actions';
 import { messagesOf, type FieldMessages } from '../shared/form-errors';
-import { Modal } from '../shared/modal';
+import { Dialog } from '@/components/ui/dialog';
 import { useFormBanner } from '../shared/use-form-banner';
 import { useFormMessage } from '../shared/use-form-message';
 import { EMPTY_SERVICE_VALUES, serviceSchema, serviceValuesOf, toServicePayload, type ServiceFormValues } from './service-schema';
@@ -94,8 +94,8 @@ interface ServiceFormDialogProps {
 export function ServiceFormDialog({ service, onClose }: ServiceFormDialogProps): ReactNode {
   const t = useT('admin.services');
   return (
-    <Modal title={service === undefined ? t('createTitle') : t('editTitle')} onClose={onClose}>
+    <Dialog title={service === undefined ? t('createTitle') : t('editTitle')} onClose={onClose}>
       <ServiceForm {...(service === undefined ? {} : { service })} onClose={onClose} />
-    </Modal>
+    </Dialog>
   );
 }

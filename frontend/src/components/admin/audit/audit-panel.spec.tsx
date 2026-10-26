@@ -79,6 +79,23 @@ describe('AuditPanel', () => {
     expect(table.getByText('Отказ в доступе')).toBeInTheDocument();
   });
 
+  it('should colour the action badge by the kind of event so a refusal or an override stands out among reads (VA5)', async () => {
+    const events: ReadonlyArray<AuditEvent> = (['read', 'create', 'update', 'denied', 'emergency-bypass'] as const).map((action, index) => ({
+      id: String(index), occurredAt: '2026-10-16T08:00:00.000Z', userId: 'u-1', action, resourceType: 'Patient', resourceId: '1442', requestId: `r-${index}`,
+    }));
+    apiFetchMock.mockResolvedValue({ items: events, meta: { page: 1, pageSize: 20, totalItems: 5, totalPages: 1 } });
+    renderWithClient(<AuditPanel />);
+
+    const table = within(await screen.findByRole('table', { name: 'Журнал аудита' }));
+    await table.findByText('Чтение');
+
+    expect(table.getByTestId('audit-action-read')).toHaveClass('bg-secondary');
+    expect(table.getByTestId('audit-action-create')).toHaveClass('bg-success-soft');
+    expect(table.getByTestId('audit-action-update')).toHaveClass('bg-info-soft');
+    expect(table.getByTestId('audit-action-denied')).toHaveClass('bg-warning-soft');
+    expect(table.getByTestId('audit-action-emergency-bypass')).toHaveClass('bg-destructive-soft');
+  });
+
   it('should name the emergency consent bypass and show the reason the doctor gave (ADR-019)', async () => {
     const bypass: ReadonlyArray<AuditEvent> = [
       { id: '5', occurredAt: '2026-10-16T08:02:00.000Z', userId: 'u-1', action: 'emergency-bypass', resourceType: 'Patient', resourceId: '1442', requestId: 'r-5', reason: 'Пациент без сознания' },

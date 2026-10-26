@@ -8,7 +8,7 @@ import { FormProblem } from '../shared/admin-problem';
 import type { ServerFieldRule } from '../shared/apply-server-error';
 import { FormActions } from '../shared/form-actions';
 import { messagesOf } from '../shared/form-errors';
-import { Modal } from '../shared/modal';
+import { Dialog } from '@/components/ui/dialog';
 import { useFormBanner } from '../shared/use-form-banner';
 import { useFormMessage } from '../shared/use-form-message';
 import { useCreateUser, useUpdateUser } from './use-admin-users';
@@ -111,8 +111,8 @@ interface UserFormDialogProps {
 export function UserFormDialog({ user, onClose }: UserFormDialogProps): ReactNode {
   const t = useT('admin.users');
   return (
-    <Modal title={user === undefined ? t('createTitle') : t('editTitle')} onClose={onClose}>
+    <Dialog title={user === undefined ? t('createTitle') : t('editTitle')} onClose={onClose}>
       {user === undefined ? <CreateUserForm onClose={onClose} /> : <EditUserForm user={user} onClose={onClose} />}
-    </Modal>
+    </Dialog>
   );
 }

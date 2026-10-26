@@ -1,7 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
+import { useDoctors } from '@/components/catalog/use-catalog';
 import { DeleteConfirm } from '../shared/delete-confirm';
 import { AdminPageHeader } from '../shared/admin-page-header';
 import { AdminProblem } from '../shared/admin-problem';
@@ -38,6 +39,19 @@ function UserDialogs({ dialog, onClose }: { readonly dialog: DialogState; readon
   return null;
 }
 
+const DOCTORS_PAGE_SIZE = 100;
+
+/** `PractitionerRole` id → specialty of its doctor (same query as the account form's picker, so it is cached); empty while the catalogue loads or fails. */
+function usePractitionerRoleSpecialties(): ReadonlyMap<string, string> {
+  const doctors = useDoctors({ pageSize: DOCTORS_PAGE_SIZE });
+  const items = doctors.data?.items;
+  return useMemo(() => {
+    const specialties = new Map<string, string>();
+    (items ?? []).forEach((doctor) => (doctor.practitionerRoleIds ?? []).forEach((roleId) => doctor.specialty === undefined || specialties.set(roleId, doctor.specialty)));
+    return specialties;
+  }, [items]);
+}
+
 /** `/admin/users` (FR-015): filters, the server-paged list, create / edit / deactivate. */
 export function UsersPanel(): ReactNode {
   const t = useT('admin.users');
@@ -45,6 +59,7 @@ export function UsersPanel(): ReactNode {
   const [dialog, setDialog] = useState<DialogState>({ kind: 'none' });
   const query = useAdminUsers(filter);
   const activate = useUpdateUser('admin.users.toast.activated');
+  const practitionerRoles = usePractitionerRoleSpecialties();
   const closeDialog = (): void => setDialog({ kind: 'none' });
   return (
     <>
@@ -55,6 +70,7 @@ export function UsersPanel(): ReactNode {
         {(data) => (
           <UsersTable
             consentLinks
+            practitionerRoles={practitionerRoles}
             rows={data.items}
             meta={data.meta}
             onPage={(page) => { activate.reset(); setFilter({ ...filter, page }); }}

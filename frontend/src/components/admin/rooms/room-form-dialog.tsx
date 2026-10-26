@@ -11,7 +11,7 @@ import { CONTROL_CLASS } from '../shared/admin-styles';
 import { FormActions } from '../shared/form-actions';
 import { messagesOf, type FieldMessages } from '../shared/form-errors';
 import { controlProps, Field } from '../shared/form-field';
-import { Modal } from '../shared/modal';
+import { Dialog } from '@/components/ui/dialog';
 import { useFormBanner } from '../shared/use-form-banner';
 import { useFormMessage } from '../shared/use-form-message';
 import { useCreateRoom, useUpdateRoom } from './use-admin-rooms';
@@ -81,8 +81,8 @@ interface RoomFormDialogProps {
 export function RoomFormDialog({ room, onClose }: RoomFormDialogProps): ReactNode {
   const t = useT('admin.rooms');
   return (
-    <Modal title={room === undefined ? t('createTitle') : t('editTitle')} onClose={onClose}>
+    <Dialog title={room === undefined ? t('createTitle') : t('editTitle')} onClose={onClose}>
       <RoomForm {...(room === undefined ? {} : { room })} onClose={onClose} />
-    </Modal>
+    </Dialog>
   );
 }

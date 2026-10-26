@@ -24,7 +24,7 @@ function DoctorGrid({ doctors }: { readonly doctors: ReadonlyArray<Doctor> }): R
   return (
     <ul className="mt-4 grid gap-3 md:grid-cols-2" data-testid="doctor-list">
       {doctors.map((doctor) => (
-        <li key={doctor.id}><DoctorCard doctor={doctor}><DoctorProfileLink doctor={doctor} /></DoctorCard></li>
+        <li key={doctor.id}><DoctorCard doctor={doctor} tone="interactive"><DoctorProfileLink doctor={doctor} /></DoctorCard></li>
       ))}
     </ul>
   );

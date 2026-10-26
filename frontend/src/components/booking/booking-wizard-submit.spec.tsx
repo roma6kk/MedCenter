@@ -35,6 +35,7 @@ describe('BookingWizard booking', () => {
     expect(postBodies()).toEqual([{ slotId: 'slot-30', serviceId: 'svc-30', reason: 'Болит спина' }]);
     expect(postKeys()[0]).toMatch(/^[0-9a-f-]{36}$/i);
     expect(useBookingDraftStore.getState().slotId).toBeNull();
+    expect(useToastStore.getState().toasts.map((toast) => toast.message)).toContain('Запись создана');
   });
 
   it('should show the success state when the booking is created and the appointment page is still opening', async () => {

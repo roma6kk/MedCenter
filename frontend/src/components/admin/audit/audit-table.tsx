@@ -1,13 +1,14 @@
 'use client';
 
 import { PaginatedTable, type PageMeta, type TableColumn } from '@/components/data-display/paginated-table';
-import { CodeChip } from '@/components/feedback/code-chip';
+import { Badge, type BadgeTone } from '@/components/ui/badge';
 import { useT } from '@/lib/i18n/use-t';
 import { useUiStore } from '@/store/use-ui-store';
 import { formatClinicDateTime } from '@/lib/clinic-time';
 import { useMemo } from 'react';
+import { Eye, CirclePlus, Pencil, ShieldAlert, Trash2, TriangleAlert, type LucideIcon } from 'lucide-react';
 import { useAdminUsers } from '../users/use-admin-users';
-import type { AuditEvent } from './audit-types';
+import type { AuditAction, AuditEvent } from './audit-types';
 import { CopyRequestId } from './copy-request-id';
 
 interface AuditTableProps {
@@ -37,11 +38,28 @@ function WhoCell({ userId, name }: { readonly userId: string; readonly name: str
   );
 }
 
+interface ActionLook {
+  readonly tone: BadgeTone;
+  readonly icon: LucideIcon;
+}
+
+/** VA5: the colour follows the kind of event, so a refusal or a consent override stands out in a page of reads. */
+const ACTION_LOOK: Readonly<Record<AuditAction, ActionLook>> = {
+  read: { tone: 'neutral', icon: Eye },
+  create: { tone: 'success', icon: CirclePlus },
+  update: { tone: 'info', icon: Pencil },
+  delete: { tone: 'critical', icon: Trash2 },
+  denied: { tone: 'warning', icon: ShieldAlert },
+  'emergency-bypass': { tone: 'critical', icon: TriangleAlert },
+};
+
 function ActionCell({ event }: { readonly event: AuditEvent }): React.JSX.Element {
   const t = useT('admin.audit');
   return (
     <span className="grid gap-1">
-      <CodeChip code={event.action}>{t(`actions.${event.action}`)}</CodeChip>
+      <Badge shape="tag" data-testid={`audit-action-${event.action}`} title={event.action} tone={ACTION_LOOK[event.action]?.tone ?? 'neutral'} icon={ACTION_LOOK[event.action]?.icon} className="justify-self-start">
+        {t(`actions.${event.action}`)}
+      </Badge>
       {event.reason === undefined ? null : <span className="text-xs">{t('reason', { reason: event.reason })}</span>}
     </span>
   );
