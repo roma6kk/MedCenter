@@ -12,7 +12,7 @@ export function BookingScreen({ presetDoctorId }: { readonly presetDoctorId?: st
   return (
     <div className="flex flex-col gap-7">
       <div className="flex flex-col gap-1.5">
-        <h1 className="text-[28px] font-bold tracking-tight sm:text-[34px]">{t('title')}</h1>
+        <h1 className="text-3xl font-bold tracking-tight">{t('title')}</h1>
         <p className="text-base text-muted-foreground">{t('subtitle')}</p>
       </div>
       <BookingWizard {...(presetDoctorId === undefined ? {} : { presetDoctorId })} />

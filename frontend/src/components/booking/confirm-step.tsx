@@ -26,7 +26,7 @@ interface ConfirmStepProps {
 function SummaryRow({ label, children }: { readonly label: string; readonly children: ReactNode }): ReactNode {
   return (
     <div className="flex flex-col gap-0.5 border-t border-border py-3 first:border-t-0 sm:flex-row sm:gap-4">
-      <dt className="w-36 flex-none pt-0.5 text-[13px] text-muted-foreground">{label}</dt>
+      <dt className="w-36 flex-none pt-0.5 text-xs text-muted-foreground">{label}</dt>
       <dd>{children}</dd>
     </div>
   );
@@ -135,7 +135,7 @@ export function ConfirmStep({ draft, onReasonChange, booking }: ConfirmStepProps
   };
   return (
     <div>
-      <h2 className="text-[22px] font-bold">{t('confirmTitle')}</h2>
+      <h2 className="text-xl font-bold">{t('confirmTitle')}</h2>
       <Card radius="card" padding="none" className="mt-3 px-5"><Summary draft={draft} /></Card>
       <div className={field.error === undefined ? 'mt-4 md:pb-6' : 'mt-4'}>
         <ReasonField value={draft.reason} error={field.error} inputRef={reasonRef} onChange={onReasonChange} onBlur={field.touch} disabled={noConsent} />

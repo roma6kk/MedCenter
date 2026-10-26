@@ -62,7 +62,7 @@ function NextVisitCard({ visit }: { readonly visit: JournalAppointment }): React
       <span aria-hidden="true" className="inline-flex size-11 shrink-0 items-center justify-center rounded-full bg-primary font-bold text-primary-foreground">{initialsOf(name)}</span>
       <span className="flex min-w-0 flex-1 basis-48 flex-col gap-0.5">
         <span className="text-xs font-bold uppercase tracking-[0.06em] text-primary-soft-foreground">{t('nextPatient')}</span>
-        <span className="text-[17px] font-bold [overflow-wrap:anywhere]"><PatientLink visit={visit} /></span>
+        <span className="text-lg font-bold [overflow-wrap:anywhere]"><PatientLink visit={visit} /></span>
         {visit.serviceName ? <span className="text-sm text-primary-soft-foreground">{visit.serviceName}</span> : null}
       </span>
     </div>
@@ -138,7 +138,7 @@ function TimelineRow({ entry, isFirst }: { readonly entry: TimelineEntry; readon
   const instant: string = entry.kind === 'visit' ? entry.visit.start : entry.start;
   return (
     <li data-testid={entry.kind === 'visit' ? `journal-visit-${entry.visit.id}` : 'journal-gap'} className="grid grid-cols-[3.5rem_1.5rem_minmax(0,1fr)] gap-x-3">
-      <span className={cn('mono pt-3.5 text-[15px] font-medium', quiet && 'text-muted-foreground')}>{formatClinicTime(instant)}</span>
+      <span className={cn('mono pt-3.5 text-base font-medium', quiet && 'text-muted-foreground')}>{formatClinicTime(instant)}</span>
       <span aria-hidden="true" className="flex flex-col items-center">
         <span className={cn('h-4 w-0.5', isFirst ? 'bg-transparent' : 'bg-border')} />
         <span
@@ -158,7 +158,7 @@ function TimelineRow({ entry, isFirst }: { readonly entry: TimelineEntry; readon
 
 function DetailCell({ term, children, wide }: { readonly term: string; readonly children: ReactNode; readonly wide?: boolean }): ReactNode {
   return (
-    <div className={cn('rounded-[12px] bg-background p-3', wide && 'col-span-2')}>
+    <div className={cn('rounded-control bg-background p-3', wide && 'col-span-2')}>
       <dt className="text-xs text-muted-foreground">{term}</dt>
       <dd className="mt-0.5 text-sm font-semibold [overflow-wrap:anywhere]">{children}</dd>
     </div>
@@ -215,10 +215,10 @@ function DaySummary({ counts }: { readonly counts: StatusCounts }): ReactNode {
           <span key={row.status} className={row.swatch} style={{ width: `${(counts[row.status] / counts.total) * 100}%` }} />
         ))}
       </div>
-      <ul className="flex flex-col gap-2.5 text-[15px]">
+      <ul className="flex flex-col gap-2.5 text-base">
         {SUMMARY_ROWS.map((row) => (
           <li key={row.status} className="flex items-center gap-2.5">
-            <span aria-hidden="true" className={cn('size-2.5 rounded-[3px]', row.swatch)} />
+            <span aria-hidden="true" className={cn('size-3 rounded-sm', row.swatch)} />
             {t(row.labelKey)}
             <span className="mono ml-auto font-medium">{counts[row.status]}</span>
           </li>

@@ -60,7 +60,7 @@ export function DoctorScheduleView(): ReactNode {
 
   return (
     <section aria-labelledby="schedule-title">
-      <h1 id="schedule-title" className="text-[30px] font-bold leading-tight tracking-[-0.02em]">{t('title')}</h1>
+      <h1 id="schedule-title" className="text-2xl font-bold leading-tight tracking-[-0.02em]">{t('title')}</h1>
       <PeriodControls fromKey={fromKey} today={today} onChange={setFromKey} />
       <p className="mt-2 text-sm text-muted-foreground">{t('period', { from: formatDateKey(fromKey), to: formatDateKey(toKey) })}</p>
       <div className="mt-4" aria-busy={schedule.isFetching}>

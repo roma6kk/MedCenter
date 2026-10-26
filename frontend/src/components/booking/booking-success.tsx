@@ -11,8 +11,8 @@ export function BookingSuccess({ appointmentId }: { readonly appointmentId: stri
   const t = useT('booking');
   return (
     <Card radius="panel" padding="lg" role="status" data-testid="booking-success">
-      <h2 className="text-[22px] font-bold">{t('successTitle')}</h2>
-      <p className="mt-2 text-[15px] text-muted-foreground">{t('successLead')}</p>
+      <h2 className="text-xl font-bold">{t('successTitle')}</h2>
+      <p className="mt-2 text-base text-muted-foreground">{t('successLead')}</p>
       <div className="mt-4 flex flex-wrap gap-3">
         <Link href={`/appointments/${encodeURIComponent(appointmentId)}`} className={buttonVariants({ variant: 'primary' })}>
           {t('toAppointment')}

@@ -14,7 +14,7 @@ function ServiceCard({ service }: { readonly service: CatalogService }): ReactNo
       data-testid="service-card"
       className="flex h-full min-h-[44px] flex-col gap-1 rounded-card border border-border bg-background p-5 transition-colors hover:border-primary hover:bg-card"
     >
-      <span className="text-[17px] font-semibold">{service.name}</span>
+      <span className="text-lg font-semibold">{service.name}</span>
       {service.description === undefined ? null : <span className="text-sm text-muted-foreground">{service.description}</span>}
       <span className="mono mt-auto self-start rounded-full bg-secondary px-2.5 py-1 text-xs text-muted-foreground">{t('minutes', { minutes: service.defaultDurationMin })}</span>
     </Link>

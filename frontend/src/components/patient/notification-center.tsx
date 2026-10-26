@@ -45,7 +45,7 @@ function NotificationItems({ items, meta, markingId, listRef, onMarkRead, onPage
       <div ref={listRef} tabIndex={-1} role="group" aria-label={t('listLabel')} className="flex flex-col gap-6 focus:outline-none">
         {groupByClinicDay(items).map((day) => (
           <section key={day.dayKey} className="flex flex-col gap-2.5">
-            <h2 id={`notifications-day-${day.dayKey}`} className="text-[15px] font-semibold text-muted-foreground">{formatDayHeading(day.dayKey, format.locale)}</h2>
+            <h2 id={`notifications-day-${day.dayKey}`} className="text-base font-semibold text-muted-foreground">{formatDayHeading(day.dayKey, format.locale)}</h2>
             <ul aria-labelledby={`notifications-day-${day.dayKey}`} className="overflow-hidden rounded-panel border border-border bg-card">
               {day.items.map((item) => <NotificationRow key={item.id} item={item} markingId={markingId} onMarkRead={onMarkRead} />)}
             </ul>
@@ -188,7 +188,7 @@ function CenterHeader({ unreadCount, allMarking, onMarkAll }: HeaderProps): Reac
   return (
     <div className="flex flex-wrap items-end justify-between gap-4">
       <div>
-        <h1 className="text-[28px] font-bold tracking-tight sm:text-[34px]">{t('title')}</h1>
+        <h1 className="text-3xl font-bold tracking-tight">{t('title')}</h1>
         {unreadCount === undefined ? null : (
           <p className="mt-1.5 text-base text-muted-foreground">{unreadCount > 0 ? tn('subtitleUnread', { count: unreadCount }) : tn('subtitleAllRead')}</p>
         )}

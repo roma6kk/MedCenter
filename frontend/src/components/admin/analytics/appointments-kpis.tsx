@@ -9,9 +9,9 @@ import { APPOINTMENT_STATUSES, type AppointmentStatusCode, type AppointmentsRepo
 
 const SEGMENT_CLASS: Record<AppointmentStatusCode, string> = {
   booked: 'bg-primary text-primary-foreground',
-  fulfilled: 'bg-success text-white',
-  cancelled: 'bg-destructive text-white',
-  noshow: 'bg-warning text-white',
+  fulfilled: 'bg-success text-success-foreground',
+  cancelled: 'bg-destructive text-destructive-foreground',
+  noshow: 'bg-warning text-warning-foreground',
 };
 
 /** Below this share a segment is too narrow for its caption; the cards under the bar carry the same numbers. */
@@ -28,7 +28,7 @@ function StatusBar({ report }: { readonly report: AppointmentsReport }): ReactNo
           key={status}
           data-testid={`bar-${status}`}
           style={{ flex: `${counts[status]} 1 0`, minWidth: 6 }}
-          className={cn('flex min-w-0 items-center px-3.5 text-[15px] font-semibold', SEGMENT_CLASS[status])}
+          className={cn('flex min-w-0 items-center px-3.5 text-base font-semibold', SEGMENT_CLASS[status])}
         >
           {(counts[status] * 100) / sum >= CAPTION_MIN_PERCENT ? <span className="truncate">{`${t(status)} · ${counts[status]}`}</span> : null}
         </div>

@@ -25,7 +25,7 @@ export function LoginEntry({ returnTo, error = null }: LoginEntryProps): ReactNo
   useDocumentTitle(t('title'));
   return (
     <div>
-      <h1 className="text-[28px] font-bold leading-tight">{t('title')}</h1>
+      <h1 className="text-2xl font-bold leading-tight">{t('title')}</h1>
       <p className="mt-2 text-sm text-muted-foreground">{t('lead')}</p>
       {error === null ? null : (
         <p role="alert" data-testid="login-error" className="mt-4 flex items-start gap-2 rounded-control bg-destructive-soft p-3 text-sm text-destructive">

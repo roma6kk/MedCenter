@@ -9,7 +9,7 @@ export const PRIMARY_BUTTON_CLASS = buttonVariants({ variant: 'primary' });
 
 export const SECONDARY_BUTTON_CLASS = buttonVariants({ variant: 'secondary' });
 
-export const DANGER_BUTTON_CLASS = 'inline-flex min-h-[44px] items-center justify-center rounded-control bg-[var(--destructive)] px-4 py-2 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-60 aria-disabled:opacity-60';
+export const DANGER_BUTTON_CLASS = 'inline-flex min-h-[44px] items-center justify-center rounded-control bg-[var(--destructive)] px-4 py-2 text-sm font-semibold text-destructive-foreground hover:opacity-90 disabled:opacity-60 aria-disabled:opacity-60';
 
 export const ROW_ACTION_CLASS = 'min-h-[44px] whitespace-nowrap rounded-control px-2 text-left text-sm font-medium text-primary-soft-foreground underline underline-offset-2 hover:text-[var(--foreground)]';
 

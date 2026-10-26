@@ -141,7 +141,7 @@ export function DoctorJournal(): ReactNode {
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <p className="text-sm font-semibold uppercase tracking-[0.06em] text-primary-soft-foreground">{eyebrow}</p>
-          <h1 id="journal-title" className="mt-1 text-[30px] font-bold leading-tight tracking-[-0.02em]">{heading}</h1>
+          <h1 id="journal-title" className="mt-1 text-2xl font-bold leading-tight tracking-[-0.02em]">{heading}</h1>
           {isWeek ? <p className="mono mt-1 text-sm text-muted-foreground">{rangeLabel(columns.map((column) => column.dateKey))}</p> : null}
         </div>
         <JournalControls dateKey={dateKey} today={today} view={view} onViewChange={setView} onDateChange={changeDate} status={status} onStatusChange={setStatus} />

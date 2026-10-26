@@ -78,6 +78,12 @@ describe('PatientShell', () => {
     expect(screen.getByRole('button', { name: 'Выйти' })).toBeInTheDocument();
   });
 
+  it('should carry the theme switch next to the language switch', () => {
+    render(<PatientShell><p>x</p></PatientShell>, { wrapper: Wrapper });
+
+    expect(screen.getByRole('button', { name: /^Тема оформления: / })).toBeInTheDocument();
+  });
+
   it('should switch to English labels when the locale changes', () => {
     useUiStore.setState({ locale: 'en' });
 
@@ -120,6 +126,14 @@ describe('StaffShell', () => {
 
     expect(screen.getByRole('navigation', { name: 'Врач' })).toHaveTextContent('Журнал');
     expect(screen.getByRole('link', { name: 'Расписание' })).toHaveAttribute('aria-current', 'page');
+  });
+
+  it('should carry the theme switch in the sidebar', () => {
+    useSessionStore.setState({ ...SESSION, role: 'DOCTOR' });
+
+    render(<StaffShell links={DOCTOR_LINKS}><p>x</p></StaffShell>, { wrapper: Wrapper });
+
+    expect(screen.getByRole('group', { name: 'Тема оформления' })).toBeInTheDocument();
   });
 
   it('should have no notification bell because doctors and administrators have no notification endpoints', () => {

@@ -9,6 +9,7 @@ import { LogoutButton } from './logout-button';
 import { NavLink } from './nav-link';
 import { NotificationBell } from './notification-bell';
 import { MAIN_CONTENT_ID, SkipLink } from './skip-link';
+import { ThemeSwitcher } from './theme-switcher';
 
 const PATIENT_LINKS: ReadonlyArray<{ readonly href: string; readonly key: string }> = [
   { href: '/booking', key: 'booking' },
@@ -18,7 +19,7 @@ const PATIENT_LINKS: ReadonlyArray<{ readonly href: string; readonly key: string
   { href: '/profile', key: 'profile' },
 ];
 
-const LINK_CLASS = 'rounded-control px-3 text-[15px] font-medium text-foreground hover:bg-secondary';
+const LINK_CLASS = 'rounded-control px-3 text-base font-medium text-foreground hover:bg-secondary';
 const ACTIVE_LINK_CLASS = 'bg-primary-soft font-semibold text-primary-soft-foreground hover:bg-primary-soft';
 
 /** Cabinet frame of the redesign: logo mark, pill navigation (the current section on `primary-soft`), bell, language, sign-out. */
@@ -44,6 +45,7 @@ export function PatientShell({ children }: { readonly children: ReactNode }): Re
           <div className="ml-auto flex items-center gap-2.5">
             <NotificationBell />
             <LocaleSwitcher />
+            <ThemeSwitcher compact />
             <LogoutButton />
           </div>
         </div>

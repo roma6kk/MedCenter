@@ -22,7 +22,7 @@ export function StatusBadge({ status }: { readonly status: AppointmentStatus }):
   const t = useT('stamp');
   const locale = useUiStore((state) => state.locale);
   return (
-    <span data-testid={`stamp-${status}`} className={cn('inline-block flex-none rounded-full px-[11px] py-1 text-[13px] font-semibold', SOFT_CLASS[status])}>
+    <span data-testid={`stamp-${status}`} className={cn('inline-block flex-none rounded-full px-[11px] py-1 text-xs font-semibold', SOFT_CLASS[status])}>
       {hasMessage(locale, `stamp.${status}`) ? t(status) : status}
     </span>
   );

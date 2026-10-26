@@ -12,7 +12,7 @@ interface BookingStepperProps {
   readonly onGo: (step: BookingStep) => void;
 }
 
-const ITEM_CLASS = 'flex min-h-[44px] items-center gap-2 text-[15px]';
+const ITEM_CLASS = 'flex min-h-[44px] items-center gap-2 text-base';
 
 function StepItem({ item, current, onGo }: BookingStepperProps & { readonly item: StepDefinition }): ReactNode {
   const t = useT('booking');
@@ -23,7 +23,7 @@ function StepItem({ item, current, onGo }: BookingStepperProps & { readonly item
     <>
       <span
         className={cn(
-          'mono inline-flex h-[26px] w-[26px] flex-none items-center justify-center rounded-full text-[13px]',
+          'mono inline-flex h-[26px] w-[26px] flex-none items-center justify-center rounded-full text-xs',
           isCurrent || isDone ? 'bg-primary text-primary-foreground' : 'bg-secondary text-muted-foreground',
         )}
       >

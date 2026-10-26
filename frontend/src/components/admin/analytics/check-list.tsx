@@ -39,10 +39,10 @@ export function CheckList(props: CheckListProps): ReactNode {
       <ul className="grid grid-cols-1 gap-3 md:grid-cols-[repeat(auto-fit,minmax(260px,1fr))]">
         {items.map((item, index) => (
           <li key={item.key} className="flex gap-3 rounded-card bg-[var(--background)] p-4">
-            <span aria-hidden="true" className="mono inline-flex h-7 w-7 flex-none items-center justify-center rounded-full border border-[var(--border)] bg-[var(--card)] text-[13px] font-bold">
+            <span aria-hidden="true" className="mono inline-flex h-7 w-7 flex-none items-center justify-center rounded-full border border-[var(--border)] bg-[var(--card)] text-xs font-bold">
               {index + 1}
             </span>
-            <span className="text-[15px] leading-normal">
+            <span className="text-base leading-normal">
               {t(`${item.key}.text`, { count: item.count ?? 0 })}{' '}
               <Link href={item.href} className="font-semibold text-primary-soft-foreground underline underline-offset-2">
                 {t(`${item.key}.link`)}

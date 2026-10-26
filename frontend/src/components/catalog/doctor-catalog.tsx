@@ -51,7 +51,7 @@ export function DoctorCatalog({ params, services, directory }: DoctorCatalogProp
   useDocumentTitle(t('doctorsTitle'));
   return (
     <div>
-      <h1 className="serif text-[32px] font-bold leading-tight">{t('doctorsTitle')}</h1>
+      <h1 className="serif text-3xl font-bold leading-tight">{t('doctorsTitle')}</h1>
       <p className="mt-2 text-[var(--muted-foreground)]">{t('doctorsLead')}</p>
       <div className="mt-6"><DoctorFilterBar params={params} services={services} specialties={directory?.specialties ?? []} /></div>
       {directory === null ? (

@@ -10,8 +10,8 @@ import type { ActiveCounts } from './prescription-logic';
 function Counter({ value, label, tone }: { readonly value: number; readonly label: string; readonly tone: string }): ReactNode {
   return (
     <div className={`flex-1 rounded-card p-3.5 ${tone}`}>
-      <div className="text-[28px] font-bold leading-tight">{value}</div>
-      <div className="text-[13px]">{label}</div>
+      <div className="text-2xl font-bold leading-tight">{value}</div>
+      <div className="text-xs">{label}</div>
     </div>
   );
 }
@@ -23,7 +23,7 @@ export function PrescriptionSide({ counts }: { readonly counts: ActiveCounts }):
     <aside className="flex min-w-0 flex-col gap-4 lg:w-[320px] lg:shrink-0">
       <Card as="section" radius="panel" padding="lg" aria-labelledby="rx-sum" className="no-print flex flex-col gap-3">
         <h2 id="rx-sum" className="text-lg font-bold">{t('summaryTitle')}</h2>
-        <p className="text-[13px] text-muted-foreground">{t('summaryScope')}</p>
+        <p className="text-xs text-muted-foreground">{t('summaryScope')}</p>
         <div className="flex gap-3">
           <Counter value={counts.medications} label={t('medicationsCount', { count: counts.medications })} tone="bg-primary-soft text-primary-soft-foreground" />
           <Counter value={counts.services} label={t('servicesCount', { count: counts.services })} tone="bg-background text-foreground" />

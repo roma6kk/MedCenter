@@ -37,12 +37,12 @@ function useAsideSlot(): HTMLElement | null | undefined {
 function Legend(): ReactNode {
   const t = useT('doctor.journal');
   return (
-    <div className="flex flex-col gap-2.5 rounded-card bg-background p-3.5 text-[13px]">
+    <div className="flex flex-col gap-2.5 rounded-card bg-background p-3.5 text-xs">
       <p className="text-sm font-bold">{t('legendTitle')}</p>
       <ul className="flex flex-col gap-2.5">
         {LEGEND_ROWS.map((row) => (
           <li key={row.status} className="flex items-center gap-2">
-            <span aria-hidden="true" className={cn('size-3.5 shrink-0 rounded-[4px] border', BLOCK_STYLE[row.status])} />
+            <span aria-hidden="true" className={cn('size-3.5 shrink-0 rounded-sm border', BLOCK_STYLE[row.status])} />
             {t(row.labelKey)}
           </li>
         ))}
@@ -117,10 +117,10 @@ export function JournalWeekView({ days, today, onOpenDay }: JournalWeekViewProps
                   isToday ? 'bg-primary-soft text-primary-soft-foreground' : 'bg-card text-foreground',
                 )}
               >
-                <span className="text-[13px] font-semibold uppercase tracking-[0.05em]">{weekdayShort(day.dateKey, locale)}{isToday ? ` · ${t('todayEyebrow').toLowerCase()}` : ''}</span>
+                <span className="text-xs font-semibold uppercase tracking-[0.05em]">{weekdayShort(day.dateKey, locale)}{isToday ? ` · ${t('todayEyebrow').toLowerCase()}` : ''}</span>
                 <span className="flex items-baseline justify-between gap-2">
-                  <span className="text-[22px] font-bold">{day.dateKey.slice(8)}</span>
-                  <span className="text-[13px] text-muted-foreground">{day.query.isSuccess ? t('dayCount', { count: day.visits.length }) : '…'}</span>
+                  <span className="text-xl font-bold">{day.dateKey.slice(8)}</span>
+                  <span className="text-xs text-muted-foreground">{day.query.isSuccess ? t('dayCount', { count: day.visits.length }) : '…'}</span>
                 </span>
               </button>
             );

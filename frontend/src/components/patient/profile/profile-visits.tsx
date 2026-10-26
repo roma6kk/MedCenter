@@ -25,20 +25,20 @@ export function NextVisitCard({ appointment, more }: { readonly appointment: App
       </div>
       {appointment === undefined ? (
         <>
-          <p className="text-[15px] text-muted-foreground">{t('empty')}</p>
+          <p className="text-base text-muted-foreground">{t('empty')}</p>
           <div className="mt-auto"><Link href="/booking" className={buttonVariants({ variant: 'primary' })}>{t('book')}</Link></div>
         </>
       ) : (
         <>
           <div className="flex items-center gap-3.5">
-            <div aria-hidden="true" className="flex h-[72px] w-[72px] flex-none flex-col items-center justify-center rounded-[14px] bg-primary text-primary-foreground">
+            <div aria-hidden="true" className="flex h-[72px] w-[72px] flex-none flex-col items-center justify-center rounded-card bg-primary text-primary-foreground">
               <span className="text-xs font-semibold uppercase">{dateTile(appointment.start, format.locale).weekday}</span>
-              <span className="text-[26px] font-bold leading-none">{dateTile(appointment.start, format.locale).day}</span>
+              <span className="text-2xl font-bold leading-none">{dateTile(appointment.start, format.locale).day}</span>
               <span className="text-xs">{dateTile(appointment.start, format.locale).month}</span>
             </div>
             <div className={cn('flex flex-col gap-0.5', WRAP_TEXT)}>
               <time dateTime={appointment.start} className="mono text-lg font-medium">{format.time(appointment.start)}</time>
-              <span className="text-[15px] font-semibold">{appointment.serviceName ?? t('serviceUnknown')}</span>
+              <span className="text-base font-semibold">{appointment.serviceName ?? t('serviceUnknown')}</span>
               <span className="text-sm text-muted-foreground">{appointment.doctorName ?? t('doctorUnknown')}</span>
               <span className="text-sm text-muted-foreground">{format.date(appointment.start)}</span>
             </div>
@@ -66,22 +66,22 @@ export function LastVisitCard({ entry }: { readonly entry: HistoryEntry | undefi
         {entry === undefined ? null : <time dateTime={entry.date} className="text-sm text-muted-foreground">{format.date(entry.date)}</time>}
       </div>
       {entry === undefined ? (
-        <p className="text-[15px] text-muted-foreground">{t('empty')}</p>
+        <p className="text-base text-muted-foreground">{t('empty')}</p>
       ) : (
         <>
           <p className={cn('text-sm text-muted-foreground', WRAP_TEXT)}>{entry.serviceType?.display ?? t('serviceUnknown')}</p>
           <div className="flex flex-wrap items-center gap-2">
             {entry.diagnosis === '' ? (
-              <span className="text-[15px] text-muted-foreground">{t('noDiagnosis')}</span>
+              <span className="text-base text-muted-foreground">{t('noDiagnosis')}</span>
             ) : (
               <>
-                <span className="mono rounded-md bg-secondary px-2 py-[3px] text-[13px] font-medium">{entry.diagnosis}</span>
-                {diagnosis === undefined ? null : <span className={cn('text-[15px] font-semibold', WRAP_TEXT)}>{diagnosis.display}</span>}
+                <span className="mono rounded-sm bg-secondary px-2 py-[3px] text-xs font-medium">{entry.diagnosis}</span>
+                {diagnosis === undefined ? null : <span className={cn('text-base font-semibold', WRAP_TEXT)}>{diagnosis.display}</span>}
               </>
             )}
           </div>
           {advice === '' ? null : (
-            <div className={cn('rounded-[12px] bg-primary-soft px-3.5 py-3 text-sm leading-normal text-primary-soft-foreground', WRAP_TEXT)}>
+            <div className={cn('rounded-control bg-primary-soft px-3.5 py-3 text-sm leading-normal text-primary-soft-foreground', WRAP_TEXT)}>
               <span className="block text-xs font-bold uppercase tracking-[0.05em]">{t('doctorAdvice')}</span>
               {format.prose(advice)}
             </div>

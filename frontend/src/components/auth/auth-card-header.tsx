@@ -14,7 +14,7 @@ export function AuthCardHeader(): ReactNode {
   const t = useT('layout');
   return (
     <div className="mb-5 flex items-center justify-between gap-2">
-      <Link href="/" className="inline-flex min-h-[44px] items-center gap-2.5 text-[19px] font-bold">
+      <Link href="/" className="inline-flex min-h-[44px] items-center gap-2.5 text-lg font-bold">
         <BrandMark size={40} />
         {t('brand')}
       </Link>

@@ -15,7 +15,7 @@ function Tile({ value, label, scope, soft }: { readonly value: ReactNode; readon
   return (
     <li className="min-w-0">
       <Card radius="card" className={soft ? 'h-full border-primary-soft bg-primary-soft px-[18px] py-4 text-primary-soft-foreground' : 'h-full px-[18px] py-4'}>
-        <div className="text-[28px] font-bold leading-tight">{value}</div>
+        <div className="text-2xl font-bold leading-tight">{value}</div>
         <div className={soft ? 'text-sm' : 'text-sm text-muted-foreground'}>{label}{scope ? <span className="block text-xs">{scope}</span> : null}</div>
       </Card>
     </li>
@@ -39,7 +39,7 @@ export function SummaryTiles({ summary, meta }: SummaryTilesProps): ReactNode {
       <Tile value={summary.practitioners} label={t('tilePractitioners')} scope={pageOnly} />
       <Tile
         soft
-        value={summary.topDiagnosis === undefined ? t('noFigure') : <CodeTag code={summary.topDiagnosis.code} className="bg-transparent px-0 text-[22px] font-semibold text-primary-soft-foreground" />}
+        value={summary.topDiagnosis === undefined ? t('noFigure') : <CodeTag code={summary.topDiagnosis.code} className="bg-transparent px-0 text-xl font-semibold text-primary-soft-foreground" />}
         label={t('tileTopDiagnosis')}
         scope={pageOnly}
       />

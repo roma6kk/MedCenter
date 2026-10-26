@@ -94,7 +94,7 @@ export function ProfilePersonalData(): ReactNode {
         <SubTitle>{t('patient')}</SubTitle>
         {patient.data !== undefined ? <PatientRows patient={patient.data} /> : noCard ? <p data-testid="no-patient" className="text-sm text-muted-foreground">{tProfile('noPatient')}</p> : <QueryFailure query={patient} embedded pending={<TableSkeleton />} />}
       </div>
-      <p className="text-[13px] leading-normal text-muted-foreground">{t('registryNote')}</p>
+      <p className="text-xs leading-normal text-muted-foreground">{t('registryNote')}</p>
     </Card>
   );
 }

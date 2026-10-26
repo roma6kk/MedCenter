@@ -58,8 +58,8 @@ export function SlotStep({ doctorId, serviceId, selectedSlotId, selectedSlotStar
   const waitingForService: boolean = serviceId !== null && service.isPending;
   return (
     <div>
-      <h2 className="text-[22px] font-bold">{t('slotTitle')}</h2>
-      {doctor.data === undefined ? null : <p className="mt-1 text-[15px] text-muted-foreground">{t('slotDoctor', { doctor: doctor.data.name })}</p>}
+      <h2 className="text-xl font-bold">{t('slotTitle')}</h2>
+      {doctor.data === undefined ? null : <p className="mt-1 text-base text-muted-foreground">{t('slotDoctor', { doctor: doctor.data.name })}</p>}
       {notice === null ? null : <RefusedNotice notice={notice} />}
       <div className="mt-4">
         {waitingForService ? (

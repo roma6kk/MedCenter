@@ -48,7 +48,7 @@ function ReferralsSection({ items, filter }: { readonly items: ReadonlyArray<Ser
         <ul aria-labelledby="rx-ref" className={LIST_CLASS}>{items.map((item) => <ServiceCard key={item.id} item={item} />)}</ul>
       ) : (
         <div className="flex flex-col gap-0.5 rounded-card border border-dashed border-input p-4">
-          <span className="text-[15px] font-semibold">{filter === 'all' ? t('referralsEmpty') : t('referralsEmptyActive')}</span>
+          <span className="text-base font-semibold">{filter === 'all' ? t('referralsEmpty') : t('referralsEmptyActive')}</span>
           <span className="text-sm text-muted-foreground">{t('referralsEmptyHint')}</span>
         </div>
       )}
@@ -92,7 +92,7 @@ export function PrescriptionList(): ReactNode {
     <section className="flex flex-col gap-6">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="text-[28px] font-bold tracking-tight sm:text-[34px]">{tp('title')}</h1>
+          <h1 className="text-3xl font-bold tracking-tight">{tp('title')}</h1>
           <p className="mt-1.5 text-base text-muted-foreground">{t('subtitle')}</p>
         </div>
         {data !== undefined && data.items.length > 0 ? <PrintButton label={t('print')} /> : null}

@@ -42,7 +42,7 @@ export function ProfileDoctors({ doctors }: { readonly doctors: ReadonlyArray<Do
       </div>
       <ul className="flex list-none flex-col gap-3">
         {doctors.map(({ name, appointment }) => (
-          <li key={name} className="flex flex-wrap items-center gap-3.5 rounded-[14px] bg-background p-3.5">
+          <li key={name} className="flex flex-wrap items-center gap-3.5 rounded-card bg-background p-3.5">
             <span aria-hidden="true" className="inline-flex h-[52px] w-[52px] flex-none items-center justify-center rounded-full bg-primary-soft font-bold text-primary-soft-foreground">{initialsOf(name)}</span>
             <span className={cn('flex flex-[1_1_200px] flex-col gap-0.5', WRAP_TEXT)}>
               <span className="text-base font-bold">{name}</span>

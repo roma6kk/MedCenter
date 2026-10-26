@@ -611,6 +611,13 @@
     "skipToContent": "Перейти к содержимому",
     "brand": "Лайфлайн",
     "language": "Язык",
+    "theme": {
+      "cycle": "Тема оформления: {mode}. Переключить",
+      "label": "Тема оформления",
+      "system": "Как в системе",
+      "light": "Светлая",
+      "dark": "Тёмная"
+    },
     "logout": "Выйти",
     "loggingOut": "Выходим…",
     "notifications": {

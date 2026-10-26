@@ -80,9 +80,9 @@ export function ProfileHeader({ account, patient, completeness }: ProfileHeaderP
   ];
   return (
     <Card as="section" radius="panel" padding="none" aria-labelledby="profile-name" className="flex flex-wrap items-center gap-7 p-7">
-      <Avatar src={patient?.photoUrl} initials={initialsOf(name)} className="h-24 w-24 text-[34px]" />
+      <Avatar src={patient?.photoUrl} initials={initialsOf(name)} className="h-24 w-24 text-3xl" />
       <div className="flex min-w-0 flex-[999_1_360px] flex-col gap-2.5">
-        <h1 id="profile-name" className={cn('text-[28px] font-bold tracking-tight sm:text-[32px]', WRAP_TEXT)}>{name}</h1>
+        <h1 id="profile-name" className={cn('text-3xl font-bold tracking-tight', WRAP_TEXT)}>{name}</h1>
         {facts.length > 0 ? <p className="text-base text-muted-foreground">{facts.join(' · ')}</p> : null}
         <div className="flex flex-wrap gap-2">
           <Chip tone="neutral" icon={<Mail size={16} />}>{account.email}</Chip>

@@ -53,7 +53,7 @@ function Message({ testId, icon, tone, title, description, children }: MessagePr
   return (
     <div data-testid={testId} className="w-full rounded-panel border border-border bg-card p-8 text-center sm:p-10">
       <IconTile icon={icon} tone={tone} />
-      <h1 className="mt-5 text-[28px] font-bold leading-tight">{title}</h1>
+      <h1 className="mt-5 text-2xl font-bold leading-tight">{title}</h1>
       <p className="mt-2 text-muted-foreground">{description}</p>
       {children}
     </div>

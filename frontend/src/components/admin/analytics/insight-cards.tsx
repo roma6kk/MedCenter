@@ -30,8 +30,8 @@ function InsightCard({ tone, value, title, href, link, children }: InsightCardPr
     <Card as="article" radius="panel" padding="lg" data-testid="insight" className={cn('flex flex-col gap-2.5 border-transparent', TONE_CLASS[tone].card)}>
       <span className={cn('serif text-5xl font-bold leading-none', TONE_CLASS[tone].value)}>{value}</span>
       <h3 className="text-lg font-bold">{title}</h3>
-      <p className="text-[15px] leading-normal">{children}</p>
-      <Link href={href} className="mt-auto inline-flex min-h-[44px] items-center text-[15px] font-semibold underline underline-offset-2">
+      <p className="text-base leading-normal">{children}</p>
+      <Link href={href} className="mt-auto inline-flex min-h-[44px] items-center text-base font-semibold underline underline-offset-2">
         {link}
       </Link>
     </Card>

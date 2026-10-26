@@ -56,7 +56,7 @@ function HeaderCell<TRow>({ column, sort, onSort }: HeaderCellProps<TRow>): Reac
   const suffix: string = direction === 'ascending' ? ' ↑' : direction === 'descending' ? ' ↓' : '';
   const hint: string = direction === 'ascending' ? t('sortAscending') : direction === 'descending' ? t('sortDescending') : '';
   return (
-    <th scope="col" aria-sort={direction} className="h-11 px-3 text-left text-[13px] font-semibold text-[var(--muted-foreground)]">
+    <th scope="col" aria-sort={direction} className="h-11 px-3 text-left text-xs font-semibold text-[var(--muted-foreground)]">
       {isSortable && sortKey !== undefined ? (
         <button type="button" onClick={() => onSort?.(nextSort(sortKey, sort))} className="min-h-[24px] font-semibold hover:underline">
           {column.header}

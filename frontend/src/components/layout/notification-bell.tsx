@@ -16,7 +16,7 @@ function UnreadBadge({ count }: { readonly count: number }): ReactNode {
     <span
       data-testid="unread-badge"
       aria-hidden="true"
-      className="absolute -right-1.5 -top-1.5 inline-flex h-5 min-w-[20px] items-center justify-center rounded-full bg-destructive px-1.5 text-[11px] font-bold text-white"
+      className="absolute -right-1.5 -top-1.5 inline-flex h-5 min-w-[20px] items-center justify-center rounded-full bg-destructive px-1.5 text-xs font-bold text-destructive-foreground"
     >
       {count > BADGE_CAP ? t('overflow') : count}
     </span>

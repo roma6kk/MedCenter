@@ -115,7 +115,7 @@ export function AppointmentList(): ReactNode {
   return (
     <section className="flex flex-col gap-7">
       <div className="flex flex-wrap items-end justify-between gap-4">
-        <h1 className="text-[28px] font-bold tracking-tight sm:text-[34px]">{t('title')}</h1>
+        <h1 className="text-3xl font-bold tracking-tight">{t('title')}</h1>
         <Link href="/booking" className={`no-print ${buttonVariants({ variant: 'primary', size: 'lg' })}`}><Plus aria-hidden="true" size={18} strokeWidth={2.2} />{t('newBooking')}</Link>
       </div>
       <div><SegmentedTabs idPrefix={TABS_ID} label={t('tabsLabel')} options={options} value={tab} onChange={setTab} /></div>

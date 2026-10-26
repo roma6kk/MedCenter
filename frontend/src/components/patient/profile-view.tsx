@@ -32,7 +32,7 @@ function Header({ data }: { readonly data: ProfileData }): ReactNode {
   if (data.account.data === undefined) {
     return (
       <section aria-labelledby="profile-name" className="flex flex-col gap-4">
-        <h1 id="profile-name" className="text-[28px] font-bold tracking-tight sm:text-[34px]">{t('title')}</h1>
+        <h1 id="profile-name" className="text-3xl font-bold tracking-tight">{t('title')}</h1>
         <QueryFailure query={data.account} embedded pending={<TableSkeleton />} />
       </section>
     );

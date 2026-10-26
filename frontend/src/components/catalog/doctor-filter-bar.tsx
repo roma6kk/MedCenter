@@ -8,7 +8,7 @@ import type { CatalogService } from './catalog-types';
 import type { DirectoryParams, SpecialtyOption } from './doctor-directory';
 import { SECONDARY_BUTTON_CLASS } from './catalog-styles';
 
-const CONTROL_CLASS = 'mt-1 min-h-[44px] w-full rounded-[6px] border border-[var(--input)] bg-[var(--card)] px-2';
+const CONTROL_CLASS = 'mt-1 min-h-[44px] w-full rounded-control border border-[var(--input)] bg-[var(--card)] px-2';
 
 interface DoctorFilterBarProps {
   readonly params: DirectoryParams;
@@ -49,7 +49,7 @@ export function DoctorFilterBar({ params, services, specialties }: DoctorFilterB
         <input id={`${id}-search`} type="search" name="search" maxLength={100} defaultValue={params.search ?? ''} className={CONTROL_CLASS} />
       </Field>
       <div className="flex gap-2">
-        <button type="submit" className="min-h-[44px] rounded-[6px] bg-[var(--primary)] px-5 py-2 text-[var(--primary-foreground)]">{t('apply')}</button>
+        <button type="submit" className="min-h-[44px] rounded-control bg-[var(--primary)] px-5 py-2 text-[var(--primary-foreground)]">{t('apply')}</button>
         <Link href="/doctors" className={SECONDARY_BUTTON_CLASS}>{t('reset')}</Link>
       </div>
     </form>

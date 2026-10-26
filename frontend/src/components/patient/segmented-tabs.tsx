@@ -47,7 +47,7 @@ interface TabButtonProps {
 }
 
 function TabButton({ idPrefix, value, label, selected, onSelect, onKeyDown, buttonRef }: TabButtonProps): ReactNode {
-  const state: string = selected ? 'bg-card font-semibold text-foreground shadow-[0_1px_2px_rgb(19_37_43/0.12)]' : 'font-medium text-muted-foreground hover:text-foreground';
+  const state: string = selected ? 'bg-card font-semibold text-foreground shadow-elev-1' : 'font-medium text-muted-foreground hover:text-foreground';
   return (
     <button
       ref={buttonRef}
@@ -59,7 +59,7 @@ function TabButton({ idPrefix, value, label, selected, onSelect, onKeyDown, butt
       tabIndex={selected ? 0 : -1}
       onClick={onSelect}
       onKeyDown={onKeyDown}
-      className={`min-h-[44px] rounded-[9px] px-4 text-[15px] ${state}`}
+      className={`min-h-[44px] rounded-control px-4 text-base ${state}`}
     >
       {label}
     </button>

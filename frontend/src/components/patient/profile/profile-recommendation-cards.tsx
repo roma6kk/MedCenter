@@ -31,12 +31,12 @@ function RecommendationCard({ item, onHide }: { readonly item: Recommendation; r
   return (
     <Card as="li" padding="none" data-testid={`reco-${item.id}`} className="flex flex-col gap-2.5 p-[18px]">
       <div className="flex items-center gap-2.5">
-        <span aria-hidden="true" className={cn('inline-flex h-10 w-10 flex-none items-center justify-center rounded-[12px]', item.kind === 'profile' ? 'bg-warning-soft text-warning' : 'bg-primary-soft text-primary-soft-foreground')}>
+        <span aria-hidden="true" className={cn('inline-flex h-10 w-10 flex-none items-center justify-center rounded-control', item.kind === 'profile' ? 'bg-warning-soft text-warning' : 'bg-primary-soft text-primary-soft-foreground')}>
           <Icon size={20} />
         </span>
         <span className="text-xs font-bold uppercase tracking-[0.05em] text-muted-foreground">{t(`reco.tag.${item.kind}`, values)}</span>
       </div>
-      <h3 className={cn('text-[17px] font-bold', WRAP_TEXT)}>{title}</h3>
+      <h3 className={cn('text-lg font-bold', WRAP_TEXT)}>{title}</h3>
       <p className="text-sm leading-normal text-muted-foreground">{t(item.textKey, values)}</p>
       <div className="mt-auto flex flex-wrap gap-2 pt-1">
         <Link href={item.ctaHref} className={buttonVariants({ variant: 'primary' })}>{t(item.ctaKey)}</Link>
@@ -58,7 +58,7 @@ export function RecommendationCards({ items, total, hiddenCount, onHide, onResto
         </ul>
       ) : (
         <div data-testid="reco-empty" className="flex flex-wrap items-center justify-between gap-3 rounded-card bg-background p-5">
-          <span className="text-[15px] text-muted-foreground">{t('empty')}</span>
+          <span className="text-base text-muted-foreground">{t('empty')}</span>
         </div>
       )}
       {hiddenCount > 0 ? (

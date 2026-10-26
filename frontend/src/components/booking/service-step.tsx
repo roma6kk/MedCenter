@@ -88,8 +88,8 @@ export function ServiceStep({ selectedServiceId, onSelect }: ServiceStepProps): 
   return (
     <div className="flex flex-col gap-4">
       <div>
-        <h2 className="text-[22px] font-bold">{t('serviceTitle')}</h2>
-        <p className="mt-1 text-[15px] text-muted-foreground">{t('serviceLead')}</p>
+        <h2 className="text-xl font-bold">{t('serviceTitle')}</h2>
+        <p className="mt-1 text-base text-muted-foreground">{t('serviceLead')}</p>
       </div>
       {query.data === undefined ? (
         <QueryFailure query={query} embedded pending={<QueryLoading />} />

@@ -49,7 +49,7 @@ export function MyConsentSection(): ReactNode {
   return (
     <Card as="section" radius="panel" padding="none" aria-labelledby="consent-title" id="consent" className="flex flex-col gap-3 p-[22px]">
       <h2 id="consent-title" className="text-lg font-bold">{t('title')}</h2>
-      <p className="text-[13px] leading-normal text-muted-foreground">{tMine('lead')}</p>
+      <p className="text-xs leading-normal text-muted-foreground">{tMine('lead')}</p>
       {consent.data === undefined ? <QueryFailure query={consent} embedded pending={<TableSkeleton />} /> : <Body consent={consent.data} />}
     </Card>
   );

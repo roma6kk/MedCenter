@@ -15,7 +15,7 @@ export function AppointmentDetails({ appointment }: { readonly appointment: Appo
   return (
     <DefinitionList>
       <DefinitionRow label={t('fieldTime')}>
-        <time dateTime={appointment.start} className="text-[20px] font-bold">{format.dateTime(appointment.start)}</time>
+        <time dateTime={appointment.start} className="text-lg font-bold">{format.dateTime(appointment.start)}</time>
         <span> – <time dateTime={appointment.end}>{format.time(appointment.end)}</time></span>
       </DefinitionRow>
       <DefinitionRow label={t('fieldStatus')}><StatusBadge status={appointment.status} /></DefinitionRow>

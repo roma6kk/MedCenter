@@ -25,7 +25,7 @@ export function DiagnosisPanel({ frequency }: { readonly frequency: ReadonlyArra
           </li>
         ))}
       </ul>
-      <p className="text-[13px] text-muted-foreground">{t('frequencyNote')}</p>
+      <p className="text-xs text-muted-foreground">{t('frequencyNote')}</p>
     </Card>
   );
 }

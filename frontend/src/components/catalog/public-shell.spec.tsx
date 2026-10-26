@@ -15,6 +15,13 @@ describe('PublicShell', () => {
     expect(screen.getByRole('link', { name: 'Регистрация' })).toHaveAttribute('href', '/register');
   });
 
+  it('should offer the language and the theme switch in the header when the shell is rendered', () => {
+    render(<PublicShell><p>content</p></PublicShell>);
+
+    expect(screen.getByRole('group', { name: 'Язык' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^Тема оформления: / })).toBeInTheDocument();
+  });
+
   it('should lead the patient to the cabinet instead when a patient is signed in', () => {
     useSessionStore.getState().setSession({ accessToken: 't', expiresAt: null, role: 'PATIENT', scope: null, patientRef: null, fhirUser: null });
     render(<PublicShell><p>content</p></PublicShell>);

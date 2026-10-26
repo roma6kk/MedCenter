@@ -37,7 +37,7 @@ function CardFooter({ item }: { readonly item: Prescription }): ReactNode {
   return (
     <>
       {item.note ? <p className={`text-sm ${WRAP_TEXT}`}><span className="text-muted-foreground">{t('note')}: </span>{item.note}</p> : null}
-      {item.authoredOn ? <p className="text-[13px] text-muted-foreground">{t('authored', { date: format.date(item.authoredOn) })}</p> : null}
+      {item.authoredOn ? <p className="text-xs text-muted-foreground">{t('authored', { date: format.date(item.authoredOn) })}</p> : null}
     </>
   );
 }
@@ -55,13 +55,13 @@ export function MedicationCard({ item }: { readonly item: MedicationPrescription
           <KindLabel><Pill aria-hidden="true" className="h-4 w-4 text-primary" />{t('medication')}</KindLabel>
           <StatusChip status={item.status} />
         </div>
-        <h3 className={`text-[19px] font-bold ${WRAP_TEXT}`}>{item.atcDisplay ?? item.atcCode}</h3>
+        <h3 className={`text-lg font-bold ${WRAP_TEXT}`}>{item.atcDisplay ?? item.atcCode}</h3>
         <div className="flex flex-col gap-0.5 rounded-control bg-background px-3.5 py-3">
           <span className="text-xs text-muted-foreground">{t('howTo')}</span>
-          <span className={`text-[15px] font-semibold ${WRAP_TEXT}`}>{item.dosageText}</span>
+          <span className={`text-base font-semibold ${WRAP_TEXT}`}>{item.dosageText}</span>
         </div>
         <CardFooter item={item} />
-        <p className="mt-auto flex items-center gap-2 text-[13px] text-muted-foreground">
+        <p className="mt-auto flex items-center gap-2 text-xs text-muted-foreground">
           <span>{t('atc')}</span>
           <CodeChip code={item.atcCode} system={ATC_SYSTEM} />
         </p>
@@ -82,7 +82,7 @@ export function ServiceCard({ item }: { readonly item: ServicePrescription }): R
         </div>
         <p className="flex flex-wrap items-baseline gap-2">
           <CodeChip code={item.code} system={item.codeSystem} />
-          {item.display ? <span className={`text-[17px] font-bold ${WRAP_TEXT}`}>{item.display}</span> : null}
+          {item.display ? <span className={`text-lg font-bold ${WRAP_TEXT}`}>{item.display}</span> : null}
         </p>
         <CardFooter item={item} />
       </Card>

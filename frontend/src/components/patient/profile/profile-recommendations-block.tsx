@@ -40,8 +40,8 @@ export function ProfileRecommendations({ data, patientId }: { readonly data: Pro
   return (
     <Card as="section" radius="panel" padding="none" aria-labelledby="profile-reco-title" data-testid="profile-recommendations" className="flex flex-col gap-4 p-6">
       <div>
-        <h2 id="profile-reco-title" className="text-[22px] font-bold">{t('title')}</h2>
-        <p className="mt-1 text-[15px] text-muted-foreground">{t('subtitle')}</p>
+        <h2 id="profile-reco-title" className="text-xl font-bold">{t('title')}</h2>
+        <p className="mt-1 text-base text-muted-foreground">{t('subtitle')}</p>
       </div>
       {body}
     </Card>

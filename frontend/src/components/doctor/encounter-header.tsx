@@ -42,7 +42,7 @@ export function EncounterHeader({ encounter }: { readonly encounter: EncounterDe
     <Card as="section" radius="panel" padding="lg" aria-labelledby="encounter-title">
       <p className="form-label no-print"><Link href="/doctor/appointments" className="underline">{t('backToJournal')}</Link></p>
       <div className="mt-1 flex flex-wrap items-center gap-3">
-        <h1 id="encounter-title" className="text-[30px] font-bold leading-tight tracking-[-0.02em]">{t('title')}</h1>
+        <h1 id="encounter-title" className="text-2xl font-bold leading-tight tracking-[-0.02em]">{t('title')}</h1>
         <StampBadge status={stampOf(encounter.status)} />
       </div>
       <dl className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">

@@ -25,7 +25,7 @@ function BookButton({ selected, onBook }: BookButtonProps): ReactNode {
       type="button"
       onClick={onBook}
       disabled={selected === null}
-      className="min-h-[44px] w-full rounded-[6px] bg-[var(--primary)] px-6 py-2 text-[var(--primary-foreground)] disabled:opacity-60 md:w-auto"
+      className="min-h-[44px] w-full rounded-control bg-[var(--primary)] px-6 py-2 text-[var(--primary-foreground)] disabled:opacity-60 md:w-auto"
     >
       {selected === null ? t('bookDisabled') : t('bookSelected', { time: formatClinicDateTime(selected.start, locale) })}
     </button>

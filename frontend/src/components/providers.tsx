@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { NextIntlClientProvider } from 'next-intl';
 import { Toaster } from '@/components/feedback/toaster';
+import { ThemeSync } from '@/components/layout/theme-sync';
 import { createAppQueryClient } from '@/lib/api/query-client';
 import { ensureSession } from '@/lib/auth/session-client';
 import { CLINIC_TIME_ZONE } from '@/lib/clinic-time';
@@ -40,6 +41,7 @@ export function Providers({ children }: { readonly children: ReactNode }): React
       <QueryClientProvider client={client}>
         <SessionHydrator />
         <LocaleSync />
+        <ThemeSync />
         {children}
         <Toaster />
       </QueryClientProvider>

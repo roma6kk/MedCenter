@@ -6,7 +6,7 @@ import { useT } from '@/lib/i18n/use-t';
 import { SECTION_CLASS, SECTION_TITLE_CLASS } from './catalog-styles';
 import { CORPORATE_CLIENTS, HOME_ANCHORS, INSURANCE_PARTNERS } from './home-content';
 
-const AUDIENCE_LINK_CLASS = 'mt-auto inline-flex min-h-[44px] items-center text-[15px] font-semibold text-inverse-accent underline-offset-4 hover:underline';
+const AUDIENCE_LINK_CLASS = 'mt-auto inline-flex min-h-[44px] items-center text-base font-semibold text-inverse-accent underline-offset-4 hover:underline';
 
 interface AudienceProps {
   readonly title: string;
@@ -19,8 +19,8 @@ function Audience({ title, text, action }: AudienceProps): ReactNode {
   return (
     <li>
       <article className="flex h-full flex-col gap-3 rounded-panel border border-inverse-border p-6">
-        <h3 className="text-[22px] font-bold">{title}</h3>
-        <p className="text-[15px] leading-relaxed text-inverse-muted">{text}</p>
+        <h3 className="text-xl font-bold">{title}</h3>
+        <p className="text-base leading-relaxed text-inverse-muted">{text}</p>
         {action && <Link href={action.href} className={AUDIENCE_LINK_CLASS}>{action.label}</Link>}
       </article>
     </li>
@@ -30,10 +30,10 @@ function Audience({ title, text, action }: AudienceProps): ReactNode {
 function Chips({ label, names }: { readonly label: string; readonly names: ReadonlyArray<string> }): ReactNode {
   return (
     <div className="flex flex-col gap-3">
-      <h3 className="text-[15px] font-semibold text-inverse-muted">{label}</h3>
+      <h3 className="text-base font-semibold text-inverse-muted">{label}</h3>
       <ul className="flex flex-wrap gap-2">
         {names.map((name) => (
-          <li key={name} className="rounded-full border border-inverse-border px-4 py-2 text-[15px] font-medium">{name}</li>
+          <li key={name} className="rounded-full border border-inverse-border px-4 py-2 text-base font-medium">{name}</li>
         ))}
       </ul>
     </div>

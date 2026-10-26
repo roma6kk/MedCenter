@@ -42,8 +42,8 @@ export function RevokeConsentDialog({ onClose }: RevokeConsentDialogProps): Reac
     revoke.mutate(undefined, { onSuccess: onClose });
   };
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-inverse/40 p-4">
-      <div ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby={titleId} aria-describedby={bodyId} className="max-h-full w-full max-w-md overflow-y-auto rounded-panel border border-border bg-card p-6">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-scrim p-4">
+      <div ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby={titleId} aria-describedby={bodyId} className="max-h-full w-full max-w-md overflow-y-auto rounded-panel border border-border bg-card p-6 shadow-elev-3">
         <h2 id={titleId} className="text-lg font-bold">{t('dialogTitle')}</h2>
         <p id={bodyId} className="mt-2 text-sm text-muted-foreground">{t('dialogBody')}</p>
         {revoke.isError && isApiError(revoke.error) ? <div className="mt-3"><ProblemBanner problem={revoke.error.problem} /></div> : null}

@@ -15,7 +15,7 @@ interface GroupTableProps {
   readonly kind: 'encounters' | 'services';
 }
 
-const HEAD_CELL = 'px-5 py-2.5 text-[13px] font-semibold text-[var(--muted-foreground)]';
+const HEAD_CELL = 'px-5 py-2.5 text-xs font-semibold text-[var(--muted-foreground)]';
 const NUMBER_CELL = 'mono px-5 py-3.5 text-right';
 
 function UnnamedRow({ groups, total, kind }: { readonly groups: ReadonlyArray<MeasureGroup>; readonly total: number; readonly kind: GroupTableProps['kind'] }): ReactNode {
@@ -52,7 +52,7 @@ export function GroupTable({ report, caption, nameHeader, countHeader, kind }: G
   const { named, unnamed } = splitGroups(report.groups);
   return (
     <div tabIndex={0} className="-mx-6 overflow-x-auto">
-      <table className="w-full text-[15px]">
+      <table className="w-full text-base">
         <caption className="sr-only">{caption}</caption>
         <thead>
           <tr className="bg-[var(--secondary)] text-left">

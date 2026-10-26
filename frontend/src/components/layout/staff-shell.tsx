@@ -22,6 +22,7 @@ import { LocaleSwitcher } from './locale-switcher';
 import { LogoutButton } from './logout-button';
 import { NavLink } from './nav-link';
 import { MAIN_CONTENT_ID, SkipLink } from './skip-link';
+import { ThemeSwitcher } from './theme-switcher';
 
 export interface StaffLink {
   readonly href: string;
@@ -57,7 +58,7 @@ export const ADMIN_LINKS: ReadonlyArray<StaffLink> = [
 
 /** The pill of a navigation item; the current one sits on `primary-soft` (the global underline of `NavLink` is switched off for it). */
 const NAV_PILL = cn(
-  'gap-3 rounded-control px-3 text-[15px] font-medium text-foreground transition-colors hover:bg-secondary',
+  'gap-3 rounded-control px-3 text-base font-medium text-foreground transition-colors hover:bg-secondary',
   'aria-[current=page]:bg-primary-soft aria-[current=page]:font-semibold aria-[current=page]:text-primary-soft-foreground aria-[current=page]:no-underline',
 );
 
@@ -73,7 +74,7 @@ export function StaffShell({ children, links }: StaffShellProps): ReactNode {
         <p className="flex items-center gap-2.5 px-2">
           <BrandMark size={36} />
           <span className="flex flex-col leading-tight">
-            <span className="text-[17px] font-bold">{t('brand')}</span>
+            <span className="text-lg font-bold">{t('brand')}</span>
             <span className="text-xs text-muted-foreground">{t(`${prefix}.caption`)}</span>
           </span>
         </p>
@@ -98,6 +99,7 @@ export function StaffShell({ children, links }: StaffShellProps): ReactNode {
           </p>
           <div className="flex flex-wrap items-center gap-2">
             <LocaleSwitcher />
+            <ThemeSwitcher />
             <LogoutButton />
           </div>
         </div>

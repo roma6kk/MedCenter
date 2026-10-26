@@ -611,6 +611,13 @@
     "skipToContent": "Skip to content",
     "brand": "Lifeline",
     "language": "Language",
+    "theme": {
+      "cycle": "Colour theme: {mode}. Switch",
+      "label": "Colour theme",
+      "system": "System",
+      "light": "Light",
+      "dark": "Dark"
+    },
     "logout": "Sign out",
     "loggingOut": "Signing out…",
     "notifications": {

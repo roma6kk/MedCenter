@@ -7,6 +7,7 @@ import { Phone } from 'lucide-react';
 import { BrandMark } from '@/components/brand/brand-mark';
 import { LocaleSwitcher } from '@/components/layout/locale-switcher';
 import { NavLink } from '@/components/layout/nav-link';
+import { ThemeSwitcher } from '@/components/layout/theme-switcher';
 import { MAIN_CONTENT_ID, SkipLink } from '@/components/layout/skip-link';
 import { buttonVariants } from '@/components/ui/button-variants';
 import { ROLE_LANDING } from '@/lib/auth/user-role';
@@ -16,7 +17,7 @@ import { SECTION_CLASS } from './catalog-styles';
 import { CLINIC_CONTACTS, HOME_ANCHORS } from './home-content';
 import { PublicFooter } from './public-footer';
 
-const LINK_CLASS = 'inline-flex min-h-[44px] items-center rounded-control px-3 text-[15px] font-medium hover:bg-secondary';
+const LINK_CLASS = 'inline-flex min-h-[44px] items-center rounded-control px-3 text-base font-medium hover:bg-secondary';
 
 /** Sign-in and registration for a visitor; the way back to the cabinet for someone who is signed in. */
 function AccountLinks(): ReactNode {
@@ -44,7 +45,7 @@ export function PublicShell({ children }: { readonly children: ReactNode }): Rea
       <SkipLink />
       <header className="border-b border-border bg-card">
         <nav aria-label={t('navLabel')} className={`${SECTION_CLASS} flex flex-wrap items-center gap-x-4 gap-y-1 py-3`}>
-          <Link href="/" className="mr-4 inline-flex min-h-[44px] items-center gap-2.5 text-[19px] font-bold">
+          <Link href="/" className="mr-2 inline-flex min-h-[44px] items-center gap-2.5 text-lg font-bold">
             <BrandMark size={40} />
             {tLayout('brand')}
           </Link>
@@ -55,12 +56,13 @@ export function PublicShell({ children }: { readonly children: ReactNode }): Rea
             <Link href={`/#${HOME_ANCHORS.contacts}`} className={LINK_CLASS}>{t('contacts')}</Link>
           </span>
           <span className="ml-auto flex flex-wrap items-center gap-2">
-            <a href={CLINIC_CONTACTS.phoneHref} className="hidden min-h-[44px] items-center gap-2 px-2 text-[15px] font-semibold hover:underline lg:inline-flex">
+            <a href={CLINIC_CONTACTS.phoneHref} className="hidden min-h-[44px] items-center gap-2 px-2 text-sm font-semibold hover:underline xl:inline-flex">
               <Phone aria-hidden="true" className="h-[18px] w-[18px] text-primary" />
               {CLINIC_CONTACTS.phone}
             </a>
             <AccountLinks />
             <LocaleSwitcher />
+            <ThemeSwitcher compact />
           </span>
         </nav>
       </header>

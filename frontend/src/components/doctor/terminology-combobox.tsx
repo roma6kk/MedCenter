@@ -216,7 +216,7 @@ interface SuggestionsProps {
 function Suggestions({ id, optionPrefix, label, items, isVisible, activeIndex, onActive, onPick }: SuggestionsProps): ReactNode {
   if (!isVisible) return <ul id={id} role="listbox" aria-label={label} hidden />;
   return (
-    <ul id={id} role="listbox" aria-label={label} className="mt-1 max-h-64 overflow-y-auto rounded-card border border-border bg-card">
+    <ul id={id} role="listbox" aria-label={label} className="mt-1 max-h-64 overflow-y-auto rounded-card border border-border bg-card shadow-elev-2">
       {items.map((term, index) => (
         <li
           key={term.code}

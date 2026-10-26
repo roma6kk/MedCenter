@@ -2,69 +2,144 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Design tokens of the redesign (design canvas «Токены и компоненты»). The dark set is opt-in through
-   `data-theme="dark"`: it is not bound to `prefers-color-scheme` until every screen has been checked on a dark ground. */
+/* Design tokens of the redesign (design canvas «Токены и компоненты»), token foundation v2.
+   Colours are OKLCH, so lightness is perceptual: the brand teal keeps hue 186, the soft grounds share one lightness band
+   and every pair below was checked for contrast by `globals-contrast.spec.ts`. The dark set lives under one selector,
+   `:root[data-theme='dark']`: the theme switcher and the no-flash script in `app/layout.tsx` write that attribute
+   («system» resolves to light/dark through `prefers-color-scheme` there), so the CSS never needs a media query for it. */
 :root {
+  color-scheme: light;
   --font-sans: 'Onest Variable', system-ui, sans-serif;
   --font-mono: 'JetBrains Mono Variable', ui-monospace, monospace;
-  --background: #f5f7f7;
-  --card: #ffffff;
-  --foreground: #13252b;
-  --muted-foreground: #4c5f66;
-  --primary: #0f766e;
-  --primary-foreground: #ffffff;
-  --primary-soft: #e2f1ee;
-  --primary-soft-foreground: #0b5a53;
-  --secondary: #edf2f2;
-  --accent: #edf2f2;
-  --destructive: #b3261e;
-  --destructive-soft: #fbe9e7;
-  --warning: #9a4a06;
-  --warning-soft: #fceedf;
-  --success: #2f6b4f;
-  --success-soft: #e3f1e9;
-  --border: #dce4e5;
+
+  --background: oklch(97.5% 0.003 197);
+  --card: oklch(100% 0 0);
+  --foreground: oklch(25% 0.026 221);
+  --muted-foreground: oklch(47% 0.026 222);
+  /* Brand teal: base, hover, pressed. Hover and pressed are real colours, not `opacity-90`, so text keeps its contrast. */
+  --primary: oklch(51% 0.088 186);
+  --primary-hover: oklch(45% 0.078 186);
+  --primary-strong: oklch(39% 0.068 186);
+  --primary-foreground: oklch(100% 0 0);
+  --primary-soft: oklch(94.6% 0.016 183);
+  --primary-soft-hover: oklch(91.5% 0.026 183);
+  --primary-soft-foreground: oklch(42% 0.071 185);
+  --secondary: oklch(95.7% 0.005 197);
+  --accent: oklch(95.7% 0.005 197);
+  /* Urgency scale of statuses: critical (= destructive) > warning > info > success; neutral is --secondary/--muted-foreground.
+     `*-foreground` is the text on the solid colour (badges, counters), `*-soft` the tinted ground with the solid colour as text. */
+  --destructive: oklch(50% 0.178 29);
+  --destructive-foreground: oklch(100% 0 0);
+  --destructive-soft: oklch(94.8% 0.02 25);
+  --destructive-soft-hover: oklch(91.5% 0.035 25);
+  --warning: oklch(50% 0.127 52);
+  --warning-foreground: oklch(100% 0 0);
+  --warning-soft: oklch(95.6% 0.025 69);
+  --info: oklch(48% 0.135 250);
+  --info-soft: oklch(94.8% 0.025 245);
+  --success: oklch(47.9% 0.078 161);
+  --success-foreground: oklch(100% 0 0);
+  --success-soft: oklch(94.5% 0.018 161);
+  /* Warm accent (coral/peach) for patient-facing highlights. `--warm` is a decorative fill or icon colour (>= 3:1 on --card,
+     not for text); text on `--warm-soft` is `--warm-foreground`. */
+  --warm: oklch(68% 0.15 40);
+  --warm-soft: oklch(94.5% 0.032 55);
+  --warm-foreground: oklch(45% 0.12 38);
+  --border: oklch(91.3% 0.009 206);
+  /* Hairline of a card that already has a shadow: lighter than --border, so elevation, not a line, separates it. */
+  --border-soft: oklch(95% 0.006 206);
   /* Border of input/select/textarea: >= 3:1 against --card, --background and --secondary, WCAG 1.4.11.
      The hairline --border stays for cards and dividers: fields have no other visual edge. */
-  --input: #7a8a8f;
-  --ring: #0f766e;
+  --input: oklch(62% 0.02 219);
+  --ring: oklch(51% 0.088 186);
+  /* Ground behind a modal dialog. */
+  --scrim: oklch(25% 0.026 221 / 0.4);
   /* A dark band on a light page (audiences block): its own ground, text, hairline and link colour. */
-  --inverse: #13252b;
-  --inverse-foreground: #ffffff;
-  --inverse-muted: #c9d6d8;
-  --inverse-border: #2e4449;
-  --inverse-accent: #8fddd3;
-  --radius: 6px;
-  --radius-control: 10px;
+  --inverse: oklch(25% 0.026 221);
+  --inverse-foreground: oklch(100% 0 0);
+  --inverse-muted: oklch(86.7% 0.014 208);
+  --inverse-border: oklch(37% 0.029 213);
+  --inverse-accent: oklch(84.4% 0.078 186);
+
+  /* Radii. Pills and avatars use `rounded-full`. Nesting rule: inner radius = outer radius - the padding between them
+     (a 16 px card with 6 px padding holds a 10 px control), otherwise the corners drift apart optically. */
+  --radius-sm: 6px; /* badges, chips, code tags; plain `rounded` */
+  --radius-control: 10px; /* buttons, inputs, nav links, small tiles */
   --radius-card: 16px;
   --radius-panel: 20px;
+
+  /* Elevation: two layers (a tight contact shadow and a soft ambient one), tinted with the foreground hue instead of grey.
+     1 = resting card, 2 = popover/dropdown/raised card, 3 = dialog. */
+  --shadow-1: 0 1px 2px oklch(25% 0.03 221 / 0.06), 0 2px 8px oklch(25% 0.03 221 / 0.05);
+  --shadow-2: 0 2px 4px oklch(25% 0.03 221 / 0.06), 0 8px 24px oklch(25% 0.03 221 / 0.1);
+  --shadow-3: 0 4px 8px oklch(25% 0.03 221 / 0.08), 0 24px 56px oklch(25% 0.03 221 / 0.18);
+
+  /* Motion. Ease-out for things that react to the user (enter, hover, press), ease-in-out for movement on screen. */
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+  --duration-fast: 120ms;
+  --duration-base: 200ms;
+  --duration-slow: 300ms;
+
+  /* Fluid type scale (Utopia method): 15 px / ratio 1.2 at a 360 px viewport to 16 px / ratio 1.25 at 1280 px, in rem so the
+     reader's font size setting still applies. Steps below the base use a gentler ratio (1.1 / 1.125): with 1.2 the
+     small step would fall to 12.5 px and the 181 `text-sm` body texts of the app would become hard to read.
+     Tailwind keys: xs = -2, sm = -1, base = 0, lg = 1, xl = 2, 2xl = 3, 3xl = 4, 4xl = 5, 5xl = 6. */
+  --step--2: clamp(0.7748rem, 0.7688rem + 0.0267vw, 0.7901rem);
+  --step--1: clamp(0.8523rem, 0.8379rem + 0.0637vw, 0.8889rem);
+  --step-0: clamp(0.9375rem, 0.913rem + 0.1087vw, 1rem);
+  --step-1: clamp(1.125rem, 1.0761rem + 0.2174vw, 1.25rem);
+  --step-2: clamp(1.35rem, 1.2668rem + 0.3696vw, 1.5625rem);
+  --step-3: clamp(1.62rem, 1.4896rem + 0.5793vw, 1.9531rem);
+  --step-4: clamp(1.944rem, 1.7494rem + 0.8651vw, 2.4414rem);
+  --step-5: clamp(2.3328rem, 2.0515rem + 1.2504vw, 3.0518rem);
+  --step-6: clamp(2.7994rem, 2.4021rem + 1.7658vw, 3.8147rem);
 }
 
 :root[data-theme='dark'] {
-  --background: #0d181b;
-  --card: #142328;
-  --foreground: #e4eced;
-  --muted-foreground: #9db0b4;
-  --primary: #34b3a5;
-  --primary-foreground: #04211e;
-  --primary-soft: #123b37;
-  --primary-soft-foreground: #8fddd3;
-  --secondary: #1b2e33;
-  --accent: #1b2e33;
-  --destructive: #f28b82;
-  --destructive-soft: #3d1d1b;
-  --warning: #f0a35e;
-  --warning-soft: #3a2613;
-  --success: #7fc9a1;
-  --success-soft: #163126;
-  --border: #25393e;
-  --input: #6e868b;
-  --ring: #34b3a5;
-  --inverse: #1b2e33;
-  --inverse-foreground: #e4eced;
-  --inverse-muted: #9db0b4;
-  --inverse-border: #2e4449;
-  --inverse-accent: #8fddd3;
+  color-scheme: dark;
+  --background: oklch(20% 0.017 217);
+  --card: oklch(24.5% 0.022 221);
+  --foreground: oklch(93.7% 0.009 206);
+  --muted-foreground: oklch(74.4% 0.022 212);
+  --primary: oklch(69.6% 0.11 184);
+  --primary-hover: oklch(75% 0.115 184);
+  --primary-strong: oklch(80% 0.11 184);
+  --primary-foreground: oklch(22.5% 0.035 185);
+  --primary-soft: oklch(32.2% 0.046 186);
+  --primary-soft-hover: oklch(36% 0.052 186);
+  --primary-soft-foreground: oklch(84.4% 0.078 186);
+  --secondary: oklch(28.7% 0.026 216);
+  --accent: oklch(28.7% 0.026 216);
+  --destructive: oklch(74.5% 0.127 26);
+  --destructive-foreground: oklch(22% 0.05 25);
+  --destructive-soft: oklch(27.5% 0.05 25);
+  --destructive-soft-hover: oklch(31% 0.058 25);
+  --warning: oklch(77.7% 0.125 61);
+  --warning-foreground: oklch(24% 0.045 63);
+  --warning-soft: oklch(28.8% 0.043 63);
+  --info: oklch(76% 0.11 245);
+  --info-soft: oklch(28.5% 0.05 250);
+  --success: oklch(77.6% 0.094 160);
+  --success-foreground: oklch(24% 0.04 165);
+  --success-soft: oklch(28.8% 0.039 165);
+  --warm: oklch(75% 0.13 40);
+  --warm-soft: oklch(29% 0.05 45);
+  --warm-foreground: oklch(84% 0.09 50);
+  --border: oklch(33% 0.027 215);
+  /* On a dark ground a shadow barely reads, so a card keeps its full hairline. */
+  --border-soft: oklch(33% 0.027 215);
+  --input: oklch(60.3% 0.029 212);
+  --ring: oklch(69.6% 0.11 184);
+  --scrim: oklch(10% 0.02 221 / 0.65);
+  --inverse: oklch(28.7% 0.026 216);
+  --inverse-foreground: oklch(93.7% 0.009 206);
+  --inverse-muted: oklch(74.4% 0.022 212);
+  --inverse-border: oklch(37% 0.029 213);
+  --inverse-accent: oklch(84.4% 0.078 186);
+  --shadow-1: 0 1px 2px oklch(8% 0.02 221 / 0.4), 0 2px 8px oklch(8% 0.02 221 / 0.3);
+  --shadow-2: 0 2px 4px oklch(8% 0.02 221 / 0.4), 0 8px 24px oklch(8% 0.02 221 / 0.5);
+  --shadow-3: 0 4px 8px oklch(8% 0.02 221 / 0.5), 0 24px 56px oklch(8% 0.02 221 / 0.65);
 }
 
 body {
@@ -84,7 +159,7 @@ h1, h2, h3, .serif {
 }
 
 .form-label {
-  font-size: 12px;
+  font-size: var(--step--2);
   text-transform: uppercase;
   letter-spacing: 0.08em;
   color: var(--muted-foreground);

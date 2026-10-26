@@ -37,7 +37,7 @@ function DateTile({ iso }: { readonly iso: string }): ReactNode {
   const date = utcDate(clinicDayOf(iso));
   return (
     <span aria-hidden="true" className="flex h-16 w-16 flex-none flex-col items-center justify-center rounded-card bg-secondary">
-      <span className="text-[22px] font-bold leading-none">{new Intl.DateTimeFormat(locale, { day: 'numeric', timeZone: 'UTC' }).format(date)}</span>
+      <span className="text-xl font-bold leading-none">{new Intl.DateTimeFormat(locale, { day: 'numeric', timeZone: 'UTC' }).format(date)}</span>
       <span className="text-xs text-muted-foreground">{new Intl.DateTimeFormat(locale, { month: 'short', timeZone: 'UTC' }).format(date).replace('.', '')}</span>
     </span>
   );
@@ -52,7 +52,7 @@ function PrescriptionLine({ prescription }: { readonly prescription: Prescriptio
   const name = prescription.kind === 'medication' ? prescription.atcDisplay : prescription.display;
   const detail = prescription.kind === 'medication' ? prescription.dosageText : undefined;
   return (
-    <li className="flex flex-wrap items-center gap-2 text-[15px]">
+    <li className="flex flex-wrap items-center gap-2 text-base">
       <CodeTag code={code} />
       <span className={WRAP_TEXT}>{[name, detail].filter(Boolean).join(' — ')}</span>
     </li>
@@ -69,16 +69,16 @@ function Details({ entry, prescriptions }: VisitRowProps): ReactNode {
           <Label>{t('diagnoses')}</Label>
           <ul className="flex flex-col gap-1.5">
             {others.map((d) => (
-              <li key={d.code} className="flex flex-wrap items-center gap-2 text-[15px]"><CodeTag code={d.code} system={ICD10_SYSTEM} />{d.display ? <span className={WRAP_TEXT}>{d.display}</span> : null}</li>
+              <li key={d.code} className="flex flex-wrap items-center gap-2 text-base"><CodeTag code={d.code} system={ICD10_SYSTEM} />{d.display ? <span className={WRAP_TEXT}>{d.display}</span> : null}</li>
             ))}
           </ul>
         </div>
       ) : null}
       {entry.summary ? (
-        <p className={cn('flex flex-col gap-0.5 text-[15px]', WRAP_TEXT)}><Label>{t('summary')}</Label><span className={cn('whitespace-pre-line', WRAP_TEXT)}>{entry.summary}</span></p>
+        <p className={cn('flex flex-col gap-0.5 text-base', WRAP_TEXT)}><Label>{t('summary')}</Label><span className={cn('whitespace-pre-line', WRAP_TEXT)}>{entry.summary}</span></p>
       ) : null}
       {entry.recommendations ? (
-        <p className={cn('rounded-control bg-primary-soft px-3.5 py-3 text-[15px] leading-normal text-primary-soft-foreground', WRAP_TEXT)}>
+        <p className={cn('rounded-control bg-primary-soft px-3.5 py-3 text-base leading-normal text-primary-soft-foreground', WRAP_TEXT)}>
           <span className="block text-xs font-bold uppercase tracking-wider">{t('recommendations')}</span>
           <span className={cn('whitespace-pre-line', WRAP_TEXT)}>{entry.recommendations}</span>
         </p>
@@ -135,7 +135,7 @@ export function VisitRow({ entry, prescriptions }: VisitRowProps): ReactNode {
               )}
             </span>
           </span>
-          <span aria-hidden="true" className="flex-none text-[22px] text-muted-foreground">{open ? '−' : '+'}</span>
+          <span aria-hidden="true" className="flex-none text-xl text-muted-foreground">{open ? '−' : '+'}</span>
         </button>
         <div id={panelId} hidden={!open} className="print:!block">
           <Details entry={entry} prescriptions={prescriptions} />

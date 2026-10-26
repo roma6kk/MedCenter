@@ -15,7 +15,7 @@ function Action({ href, icon: Icon, title, hint, primary }: { readonly href: str
   return (
     <li>
       <Link href={href} className={cn('flex h-full min-h-[44px] items-center gap-3.5 rounded-card p-[18px]', primary ? 'bg-primary text-primary-foreground' : 'border border-border bg-card text-foreground hover:bg-secondary')}>
-        <span aria-hidden="true" className={cn('inline-flex h-11 w-11 flex-none items-center justify-center rounded-[12px]', primary ? 'bg-card text-primary-soft-foreground' : 'bg-primary-soft text-primary-soft-foreground')}>
+        <span aria-hidden="true" className={cn('inline-flex h-11 w-11 flex-none items-center justify-center rounded-control', primary ? 'bg-card text-primary-soft-foreground' : 'bg-primary-soft text-primary-soft-foreground')}>
           <Icon size={22} />
         </span>
         <span className="flex min-w-0 flex-col">

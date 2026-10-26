@@ -13,32 +13,75 @@ function themeBlock(theme: Theme): string {
   return CSS.slice(start, CSS.indexOf('}', start));
 }
 
-function token(name: string, theme: Theme = 'light'): string {
-  const match: RegExpMatchArray | null = themeBlock(theme).match(new RegExp(`--${name}:\\s*(#[0-9a-fA-F]{6})\\s*;`));
-  if (match === null || match[1] === undefined) throw new Error(`token --${name} is not a #rrggbb colour in the ${theme} block of globals.css`);
-  return match[1];
+/** A colour as linear-light sRGB channels (0..1). */
+type LinearRgb = readonly [number, number, number];
+
+const OKLCH_PATTERN: RegExp = /^oklch\(\s*([\d.]+)(%?)\s+([\d.]+)\s+([\d.]+)\s*\)$/;
+
+/**
+ * OKLCH to linear sRGB, per Björn Ottosson's reference conversion (https://bottosson.github.io/posts/oklab/):
+ * LCH to Lab (polar to cartesian), Lab to the cube-root LMS, cube it, then the LMS-to-linear-sRGB matrix.
+ * Channels outside the gamut are clamped, the way a browser maps an out-of-gamut colour onto an sRGB screen.
+ */
+function oklchToLinearRgb(lightness: number, chroma: number, hue: number): LinearRgb {
+  const a: number = chroma * Math.cos((hue * Math.PI) / 180);
+  const b: number = chroma * Math.sin((hue * Math.PI) / 180);
+  const l: number = (lightness + 0.3963377774 * a + 0.2158037573 * b) ** 3;
+  const m: number = (lightness - 0.1055613458 * a - 0.0638541728 * b) ** 3;
+  const s: number = (lightness - 0.0894841775 * a - 1.291485548 * b) ** 3;
+  const clamp = (value: number): number => Math.min(1, Math.max(0, value));
+  return [
+    clamp(4.0767416621 * l - 3.3077115913 * m + 0.2309699292 * s),
+    clamp(-1.2684380046 * l + 2.6097574011 * m - 0.3413193965 * s),
+    clamp(-0.0041960863 * l - 0.7034186147 * m + 1.707614701 * s),
+  ];
 }
 
-function channel(hex: string, from: number): number {
-  const value: number = Number.parseInt(hex.slice(from, from + 2), 16) / 255;
-  return value <= 0.03928 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4;
+/** The value of `--name` in a theme block as linear-light sRGB; only `oklch(L% C H)` (or `oklch(L C H)`, L in 0..1) is accepted. */
+function token(name: string, theme: Theme = 'light'): LinearRgb {
+  const match: RegExpMatchArray | null = themeBlock(theme).match(new RegExp(`--${name}:\\s*([^;]+);`));
+  const value: string | undefined = match?.[1]?.trim();
+  const parts: RegExpMatchArray | null | undefined = value?.match(OKLCH_PATTERN);
+  if (parts === null || parts === undefined) throw new Error(`token --${name} is not an oklch(L C H) colour in the ${theme} block of globals.css`);
+  const lightness: number = parts[2] === '%' ? Number(parts[1]) / 100 : Number(parts[1]);
+  return oklchToLinearRgb(lightness, Number(parts[3]), Number(parts[4]));
 }
 
-function luminance(hex: string): number {
-  return 0.2126 * channel(hex, 1) + 0.7152 * channel(hex, 3) + 0.0722 * channel(hex, 5);
+/** WCAG 2.x relative luminance: the sRGB weights applied to linear-light channels. */
+function luminance([red, green, blue]: LinearRgb): number {
+  return 0.2126 * red + 0.7152 * green + 0.0722 * blue;
 }
 
-/** WCAG contrast ratio of two #rrggbb colours. */
-function contrast(a: string, b: string): number {
+/** WCAG contrast ratio of two colours. */
+function contrast(a: LinearRgb, b: LinearRgb): number {
   const [light, dark] = [luminance(a), luminance(b)].sort((x, y) => y - x);
   return ((light ?? 0) + 0.05) / ((dark ?? 0) + 0.05);
 }
+
+describe('oklch conversion', () => {
+  it('should give the black/white contrast of 21:1 when the converter is fed oklch(0 0 0) and oklch(1 0 0)', () => {
+    expect(contrast(oklchToLinearRgb(0, 0, 0), oklchToLinearRgb(1, 0, 0))).toBeCloseTo(21, 5);
+  });
+
+  it('should match the sRGB value of #0f766e when it is fed oklch(51.1% 0.086 186)', () => {
+    // #0f766e: 0x0f/255 -> 0.0048 linear, 0x76/255 -> 0.1812, 0x6e/255 -> 0.1559 (rounded oklch, so a loose tolerance).
+    const [red, green, blue] = oklchToLinearRgb(0.511, 0.086, 186);
+
+    expect(red).toBeCloseTo(0.0048, 2);
+    expect(green).toBeCloseTo(0.1812, 2);
+    expect(blue).toBeCloseTo(0.1559, 2);
+  });
+});
 
 const THEMES: ReadonlyArray<Theme> = ['light', 'dark'];
 
 describe.each(THEMES)('globals.css tokens (%s theme)', (theme) => {
   it.each(['card', 'background', 'secondary'])('should draw the border of a field at least 3:1 against --%s when WCAG 1.4.11 applies', (surface) => {
     expect(contrast(token('input', theme), token(surface, theme))).toBeGreaterThanOrEqual(3);
+  });
+
+  it('should keep the decorative --warm fill visible enough on a card when it marks a highlight (WCAG 1.4.11, 3:1)', () => {
+    expect(contrast(token('warm', theme), token('card', theme))).toBeGreaterThanOrEqual(3);
   });
 
   it('should keep the hairline --border softer than --input when cards and dividers use it', () => {
@@ -52,12 +95,22 @@ describe.each(THEMES)('globals.css tokens (%s theme)', (theme) => {
     ['muted-foreground', 'card'],
     ['muted-foreground', 'secondary'],
     ['primary-foreground', 'primary'],
+    ['primary-foreground', 'primary-hover'],
+    ['primary-foreground', 'primary-strong'],
     ['primary', 'card'],
     ['primary-soft-foreground', 'primary-soft'],
+    ['primary-soft-foreground', 'primary-soft-hover'],
     ['destructive', 'card'],
     ['destructive', 'destructive-soft'],
+    ['destructive', 'destructive-soft-hover'],
+    ['destructive-foreground', 'destructive'],
     ['warning', 'warning-soft'],
+    ['warning-foreground', 'warning'],
     ['success', 'success-soft'],
+    ['success-foreground', 'success'],
+    ['info', 'card'],
+    ['info', 'info-soft'],
+    ['warm-foreground', 'warm-soft'],
     ['inverse-foreground', 'inverse'],
     ['inverse-muted', 'inverse'],
     ['inverse-accent', 'inverse'],
@@ -68,7 +121,7 @@ describe.each(THEMES)('globals.css tokens (%s theme)', (theme) => {
 
 describe('globals.css theme blocks', () => {
   it('should override only tokens that exist in the light block when the dark theme is declared', () => {
-    const names = (block: string): ReadonlyArray<string> => [...block.matchAll(/--([a-z-]+):/g)].map((match) => match[1] ?? '');
+    const names = (block: string): ReadonlyArray<string> => [...block.matchAll(/--([a-z0-9-]+):/g)].map((match) => match[1] ?? '');
     const light = new Set(names(themeBlock('light')));
 
     expect(names(themeBlock('dark')).filter((name) => !light.has(name))).toEqual([]);

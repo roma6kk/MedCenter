@@ -19,8 +19,8 @@ interface ModalProps {
 const SIZE_CLASS: Readonly<Record<ModalSize, string>> = { sm: 'max-w-md', md: 'max-w-xl', lg: 'max-w-4xl' };
 
 const PANEL_CLASS: Readonly<Record<ModalVariant, string>> = {
-  dialog: 'my-8 w-full rounded-panel border border-[var(--border)] bg-[var(--card)] p-5',
-  drawer: 'fixed inset-y-0 right-0 w-full max-w-sm overflow-y-auto border-l border-[var(--border)] bg-[var(--card)] p-5',
+  dialog: 'my-8 w-full rounded-panel border border-[var(--border)] shadow-elev-3 bg-[var(--card)] p-5',
+  drawer: 'fixed inset-y-0 right-0 w-full max-w-sm overflow-y-auto border-l border-[var(--border)] shadow-elev-3 bg-[var(--card)] p-5',
 };
 
 /** The latest `onClose`, behind a callback that never changes: the focus trap must not restart when the parent re-renders. */
@@ -46,7 +46,7 @@ export function Modal({ title, onClose, children, size = 'md', variant = 'dialog
   const overlayClass: string =
     variant === 'dialog' ? 'flex items-start justify-center overflow-y-auto p-4' : '';
   return (
-    <div className={`fixed inset-0 z-40 bg-black/30 ${overlayClass}`}>
+    <div className={`fixed inset-0 z-40 bg-scrim ${overlayClass}`}>
       <div
         ref={(node) => {
           panel.current = node;

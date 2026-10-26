@@ -27,8 +27,8 @@ export function StaffConsentPanel({ patientId, role }: StaffConsentPanelProps): 
   return (
     <Card as="section" radius="panel" padding="none" aria-labelledby="staff-consent-title" id="consent" className="flex flex-col gap-3 p-[22px]">
       <h2 id="staff-consent-title" className="text-lg font-bold">{t('title')}</h2>
-      <p className="text-[13px] leading-normal text-muted-foreground">{tStaff('lead')}</p>
-      {role === 'ADMIN' ? <p className="text-[13px] leading-normal text-muted-foreground">{tStaff('adminNote')}</p> : null}
+      <p className="text-xs leading-normal text-muted-foreground">{tStaff('lead')}</p>
+      {role === 'ADMIN' ? <p className="text-xs leading-normal text-muted-foreground">{tStaff('adminNote')}</p> : null}
       {consent.data === undefined ? (
         <QueryFailure query={consent} embedded pending={<TableSkeleton />} />
       ) : (

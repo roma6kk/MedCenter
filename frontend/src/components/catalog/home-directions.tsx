@@ -21,8 +21,8 @@ function DirectionCard({ direction }: { readonly direction: Direction }): ReactN
           <Icon className="h-6 w-6" />
         </span>
         <h3 className="text-xl font-bold">{name}</h3>
-        <p className="text-[15px] leading-relaxed text-muted-foreground">{t(`${direction.id}.about`)}</p>
-        <Link href={directoryHref({ ...(direction.specialtyCode === undefined ? {} : { specialty: direction.specialtyCode }), page: 1 })} aria-label={`${tHome('directionMore')}: ${name}`} className="mt-auto inline-flex min-h-[44px] items-center text-[15px] font-semibold text-primary underline-offset-4 hover:underline">
+        <p className="text-base leading-relaxed text-muted-foreground">{t(`${direction.id}.about`)}</p>
+        <Link href={directoryHref({ ...(direction.specialtyCode === undefined ? {} : { specialty: direction.specialtyCode }), page: 1 })} aria-label={`${tHome('directionMore')}: ${name}`} className="mt-auto inline-flex min-h-[44px] items-center text-base font-semibold text-primary underline-offset-4 hover:underline">
           {tHome('directionMore')}
         </Link>
       </Card>

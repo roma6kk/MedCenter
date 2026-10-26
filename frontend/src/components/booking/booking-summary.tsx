@@ -16,7 +16,7 @@ interface BookingSummaryProps {
 function Row({ label, children }: { readonly label: string; readonly children: ReactNode }): ReactNode {
   return (
     <div className="flex flex-col gap-0.5">
-      <dt className="text-[13px] text-muted-foreground">{label}</dt>
+      <dt className="text-xs text-muted-foreground">{label}</dt>
       <dd>{children}</dd>
     </div>
   );
@@ -46,13 +46,13 @@ export function BookingSummary({ draft }: BookingSummaryProps): ReactNode {
           {draft.doctorId === null ? <span className={muted}>{t('summaryNone')}</span> : <span className="text-base font-semibold">{doctor.data?.name ?? '…'}</span>}
         </Row>
         <Row label={t('summaryTime')}>
-          {draft.slotStart === null ? <span className={muted}>—</span> : <span className="mono text-[15px] font-medium">{formatClinicDateTime(draft.slotStart, locale)}</span>}
+          {draft.slotStart === null ? <span className={muted}>—</span> : <span className="mono text-base font-medium">{formatClinicDateTime(draft.slotStart, locale)}</span>}
         </Row>
         <Row label={t('summaryDuration')}>
-          {minutes > 0 ? <span className="mono text-[15px] font-medium">{t('slotMinutes', { minutes })}</span> : <span className={muted}>—</span>}
+          {minutes > 0 ? <span className="mono text-base font-medium">{t('slotMinutes', { minutes })}</span> : <span className={muted}>—</span>}
         </Row>
       </dl>
-      <p className="text-[13px] leading-normal text-muted-foreground">{t('draftNote')}</p>
+      <p className="text-xs leading-normal text-muted-foreground">{t('draftNote')}</p>
     </Card>
   );
 }

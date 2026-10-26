@@ -39,7 +39,7 @@ export function AnalyticsPanel(): ReactNode {
           <p className="text-sm font-semibold uppercase tracking-[0.06em] text-primary-soft-foreground">
             {t('period', { from: formatDateKey(range.from, 'numeric'), to: formatDateKey(range.to, 'numeric') })}
           </p>
-          <h1 className="mt-1.5 max-w-[720px] text-[28px] font-bold leading-[1.15] tracking-tight md:text-[34px]">{headline === 'none' ? t('title') : t(`headline.${headline}`)}</h1>
+          <h1 className="mt-1.5 max-w-[720px] text-3xl font-bold leading-[1.15] tracking-tight">{headline === 'none' ? t('title') : t(`headline.${headline}`)}</h1>
           {headline === 'none' ? <p className="mt-1 max-w-2xl text-sm text-[var(--muted-foreground)]">{t('description')}</p> : null}
         </div>
         <Button variant="secondary" className="no-print" onClick={() => window.print()}>

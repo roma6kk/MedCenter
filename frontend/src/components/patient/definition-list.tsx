@@ -9,7 +9,7 @@ export function DefinitionList({ children }: { readonly children: ReactNode }): 
 export function DefinitionRow({ label, children }: { readonly label: string; readonly children: ReactNode }): ReactNode {
   return (
     <div className="flex flex-wrap gap-x-4 gap-y-1 border-t border-border py-3.5 first:border-t-0">
-      <dt className="w-48 flex-none text-[13px] text-muted-foreground">{label}</dt>
+      <dt className="w-48 flex-none text-xs text-muted-foreground">{label}</dt>
       <dd className={`min-w-0 flex-[1_1_14rem] text-sm ${WRAP_TEXT}`}>{children}</dd>
     </div>
   );

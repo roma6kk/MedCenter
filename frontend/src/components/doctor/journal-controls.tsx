@@ -37,7 +37,7 @@ function PeriodPicker({ dateKey, view, onDateChange }: Pick<JournalControlsProps
     if (isDateKey(event.target.value)) onDateChange(event.target.value);
   };
   return (
-    <div role="group" aria-label={t('periodLabel')} className="inline-flex items-center overflow-hidden rounded-[12px] border border-border bg-card">
+    <div role="group" aria-label={t('periodLabel')} className="inline-flex items-center overflow-hidden rounded-control border border-border bg-card">
       <button type="button" onClick={() => onDateChange(shiftDateKey(dateKey, -step))} aria-label={view === 'day' ? t('previousDay') : t('previousWeek')} className={STEP_BUTTON}>
         <ChevronLeft aria-hidden="true" className="size-[18px]" />
       </button>
@@ -47,7 +47,7 @@ function PeriodPicker({ dateKey, view, onDateChange }: Pick<JournalControlsProps
         type="date"
         value={dateKey}
         onChange={handleDateInput}
-        className="mono min-h-11 border-x border-border bg-transparent px-3 text-[15px] font-medium text-foreground"
+        className="mono min-h-11 border-x border-border bg-transparent px-3 text-base font-medium text-foreground"
       />
       <button type="button" onClick={() => onDateChange(shiftDateKey(dateKey, step))} aria-label={view === 'day' ? t('nextDay') : t('nextWeek')} className={STEP_BUTTON}>
         <ChevronRight aria-hidden="true" className="size-[18px]" />
@@ -60,7 +60,7 @@ function PeriodPicker({ dateKey, view, onDateChange }: Pick<JournalControlsProps
 function ViewToggle({ view, onViewChange }: Pick<JournalControlsProps, 'view' | 'onViewChange'>): ReactNode {
   const t = useT('doctor.journal');
   return (
-    <div role="group" aria-label={t('viewLabel')} className="inline-flex gap-0.5 rounded-[12px] bg-secondary p-0.5">
+    <div role="group" aria-label={t('viewLabel')} className="inline-flex gap-0.5 rounded-control bg-secondary p-0.5">
       {VIEWS.map((option) => (
         <button
           key={option}
@@ -68,8 +68,8 @@ function ViewToggle({ view, onViewChange }: Pick<JournalControlsProps, 'view' | 
           aria-pressed={view === option}
           onClick={() => onViewChange(option)}
           className={cn(
-            'min-h-11 rounded-[10px] px-4 text-sm transition-colors',
-            view === option ? 'bg-card font-semibold text-foreground shadow-sm' : 'font-medium text-muted-foreground hover:text-foreground',
+            'min-h-11 rounded-sm px-4 text-sm transition-colors',
+            view === option ? 'bg-card font-semibold text-foreground shadow-elev-1' : 'font-medium text-muted-foreground hover:text-foreground',
           )}
         >
           {option === 'day' ? t('viewDay') : t('viewWeek')}

@@ -18,7 +18,7 @@ function RegisterSuccess(): ReactNode {
   const t = useT('auth.register');
   return (
     <div data-testid="register-success" role="status">
-      <h1 className="text-[28px] font-bold leading-tight">{t('successTitle')}</h1>
+      <h1 className="text-2xl font-bold leading-tight">{t('successTitle')}</h1>
       <p className="mt-2 text-sm text-muted-foreground">{t('successLead')}</p>
       <a href={LOGIN_HREF} className={`${buttonVariants({ size: 'lg' })} mt-6 w-full`}>{t('successCta')}</a>
     </div>
@@ -100,7 +100,7 @@ export function RegisterForm(): ReactNode {
   if (state.isSuccess) return <RegisterSuccess />;
   return (
     <form onSubmit={state.submit} noValidate aria-labelledby="register-title">
-      <h1 id="register-title" className="text-[28px] font-bold leading-tight">{t('title')}</h1>
+      <h1 id="register-title" className="text-2xl font-bold leading-tight">{t('title')}</h1>
       <p className="mt-2 text-sm text-muted-foreground">{t('lead')}</p>
       <p className="mt-1 text-sm text-muted-foreground">{t('requiredNote')}</p>
       {state.problem !== null ? <div className="mt-4"><ProblemBanner problem={state.problem} /></div> : null}

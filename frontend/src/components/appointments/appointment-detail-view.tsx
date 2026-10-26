@@ -70,7 +70,7 @@ export function AppointmentDetailView({ appointmentId }: { readonly appointmentI
   return (
     <section aria-busy={query.isFetching} className="flex flex-col gap-4">
       <BackLink />
-      <h1 ref={heading} tabIndex={-1} className="text-[28px] font-bold tracking-tight focus:outline-none sm:text-[34px]">{t('detailTitle')}</h1>
+      <h1 ref={heading} tabIndex={-1} className="text-3xl font-bold tracking-tight focus:outline-none">{t('detailTitle')}</h1>
       <div><DetailBody query={query} onCancel={() => setIsDialogOpen(true)} /></div>
       {isDialogOpen && query.data ? <CancelAppointmentDialog appointment={query.data} onClose={closeDialog} onCancelled={closeDialog} /> : null}
     </section>

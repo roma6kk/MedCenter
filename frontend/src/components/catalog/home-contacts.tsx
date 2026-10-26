@@ -15,7 +15,7 @@ function ContactRow({ icon: Icon, label, children }: { readonly icon: LucideIcon
       <Icon aria-hidden="true" className="mt-0.5 h-[22px] w-[22px] flex-none text-primary" />
       <div>
         <dt className="text-sm text-muted-foreground">{label}</dt>
-        <dd className="text-[17px] font-semibold">{children}</dd>
+        <dd className="text-lg font-semibold">{children}</dd>
       </div>
     </div>
   );
@@ -27,7 +27,7 @@ export function HomeContacts(): ReactNode {
   return (
     <section id={HOME_ANCHORS.contacts} className={`${SECTION_CLASS} scroll-mt-4 grid gap-4 py-16 md:grid-cols-2`}>
       <Card radius="panel" padding="lg" className="flex flex-col gap-4">
-        <h2 className="text-[22px] font-bold">{t('infoTitle')}</h2>
+        <h2 className="text-xl font-bold">{t('infoTitle')}</h2>
         <ul className="flex flex-col">
           {TIPS.map((key) => (
             <li key={key} className="flex items-start gap-3 border-t border-border py-3 text-base">
@@ -38,7 +38,7 @@ export function HomeContacts(): ReactNode {
         </ul>
       </Card>
       <Card radius="panel" padding="lg" className="flex flex-col gap-5">
-        <h2 className="text-[22px] font-bold">{t('contactsTitle')}</h2>
+        <h2 className="text-xl font-bold">{t('contactsTitle')}</h2>
         <dl className="flex flex-col gap-5">
           <ContactRow icon={MapPin} label={t('contactAddress')}>{t('contactAddressValue')}</ContactRow>
           <ContactRow icon={Phone} label={t('contactPhone')}>

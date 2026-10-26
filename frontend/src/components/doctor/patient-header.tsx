@@ -45,7 +45,7 @@ export function PatientHeader({ patientId }: { readonly patientId: string }): Re
   return (
     <Card as="section" radius="panel" padding="lg" aria-labelledby="patient-title">
       <p className="form-label">{t('cardLabel')}</p>
-      <h1 id="patient-title" className="mt-1 text-[30px] font-bold leading-tight tracking-[-0.02em]">{patient.data.fullName || t('unnamed')}</h1>
+      <h1 id="patient-title" className="mt-1 text-2xl font-bold leading-tight tracking-[-0.02em]">{patient.data.fullName || t('unnamed')}</h1>
       {patient.data.active ? null : <div className="mt-2"><StampBadge status="cancelled">{t('inactive')}</StampBadge></div>}
       <PatientFacts patient={patient.data} />
     </Card>

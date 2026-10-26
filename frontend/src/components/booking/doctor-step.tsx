@@ -47,7 +47,7 @@ export function DoctorStep({ serviceId, selectedDoctorId, onSelect }: DoctorStep
   const heading: string = service.data === undefined ? t('doctorTitle') : t('doctorForService', { service: service.data.name });
   return (
     <div>
-      <h2 className="text-[22px] font-bold">{heading}</h2>
+      <h2 className="text-xl font-bold">{heading}</h2>
       <div className="mt-4">
         {query.data === undefined ? (
           <QueryFailure query={query} embedded pending={<QueryLoading />} />

@@ -27,7 +27,7 @@ const EMPTY_PRESCRIPTIONS: ReadonlyArray<Prescription> = [];
 function DiagnosisFilter({ codes, value, onChange }: { readonly codes: ReadonlyArray<string>; readonly value: string | null; readonly onChange: (code: string | null) => void }): ReactNode {
   const t = useT('patientHistory');
   const item = (selected: boolean): string =>
-    cn('min-h-[38px] rounded-[9px] px-3.5 text-sm', selected ? 'bg-card font-semibold text-foreground shadow-sm' : 'font-medium text-muted-foreground');
+    cn('min-h-[38px] rounded-sm px-3.5 text-sm', selected ? 'bg-card font-semibold text-foreground shadow-elev-1' : 'font-medium text-muted-foreground');
   return (
     <div role="group" aria-label={t('filterLabel')} className="no-print inline-flex flex-wrap gap-0.5 rounded-control bg-secondary p-[3px]">
       <button type="button" aria-pressed={value === null} onClick={() => onChange(null)} className={item(value === null)}>{t('filterAll')}</button>
@@ -99,7 +99,7 @@ export function HistoryTimeline(): ReactNode {
     <section className="flex flex-col gap-6">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="text-[28px] font-bold tracking-tight sm:text-[34px]">{t('title')}</h1>
+          <h1 className="text-3xl font-bold tracking-tight">{t('title')}</h1>
           <p className="mt-1.5 text-base text-muted-foreground">{t('subtitle')}</p>
         </div>
         {data !== undefined && data.items.length > 0 ? <PrintButton label={t('print')} /> : null}
