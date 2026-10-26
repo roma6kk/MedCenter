@@ -16,7 +16,7 @@ describe('StaffConsentPanel', () => {
     jest.mocked(doctorApi.fetchRelatedPersons).mockResolvedValue(pageOf([]));
   });
 
-  it('should show an active consent, its history and a scan download, and offer the revocation, to a doctor', async () => {
+  it('should show an active consent, its history and a scan download, and offer only the revocation, to a doctor', async () => {
     mocked.fetchPatientConsent.mockResolvedValue(WITH_ACTIVE);
     renderWithClient(<StaffConsentPanel patientId="p1" role="DOCTOR" />);
 
@@ -24,8 +24,9 @@ describe('StaffConsentPanel', () => {
     expect(await within(panel).findByText('Согласие действует')).toBeInTheDocument();
     expect(mocked.fetchPatientConsent).toHaveBeenCalledWith('p1', expect.anything());
     expect(within(panel).getByRole('button', { name: 'Скачать скан формы Ф-12' })).toBeInTheDocument();
-    expect(within(panel).getByRole('form', { name: 'Записать отзыв' })).toBeInTheDocument();
-    expect(within(panel).getByRole('form', { name: 'Внести бумажное согласие или отказ' })).toBeInTheDocument();
+    // Only the act that fits the state is offered (A1): the revocation, as a quiet button, and no recording form.
+    expect(within(panel).getByRole('button', { name: 'Записать отзыв' })).toBeInTheDocument();
+    expect(within(panel).queryByRole('form', { name: 'Внести бумажное согласие или отказ' })).not.toBeInTheDocument();
     expect(within(panel).queryByText(/медицинских данных пациента этот раздел не показывает/)).not.toBeInTheDocument();
   });
 
@@ -44,7 +45,7 @@ describe('StaffConsentPanel', () => {
     renderWithClient(<StaffConsentPanel patientId="p1" role="DOCTOR" />);
 
     expect(await screen.findByRole('form', { name: 'Внести бумажное согласие или отказ' })).toBeInTheDocument();
-    expect(screen.queryByRole('form', { name: 'Записать отзыв' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Записать отзыв' })).not.toBeInTheDocument();
   });
 
   it('should show the failure with a retry and no forms when the consent cannot be read', async () => {

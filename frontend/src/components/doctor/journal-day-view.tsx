@@ -84,7 +84,7 @@ function VisitCard({ visit }: { readonly visit: JournalAppointment }): ReactNode
           {visit.reason ? <span className="text-sm text-muted-foreground">{visit.reason}</span> : null}
         </span>
         <span className="inline-flex flex-wrap items-center gap-2">
-          <OpenEncounterButton appointmentId={visit.id} patientId={visit.patientId} label={`${name}, ${formatClinicTime(visit.start)}`} />
+          <OpenEncounterButton appointmentId={visit.id} patientId={visit.patientId} start={visit.start} label={`${name}, ${formatClinicTime(visit.start)}`} />
           <NoshowMenu appointmentId={visit.id} patientName={name} />
         </span>
       </div>
@@ -185,7 +185,7 @@ function NextPatientPanel({ visit }: { readonly visit: JournalAppointment }): Re
         <DetailCell term={t('duration')}><span className="tabular-nums font-medium">{t('minutes', { count: visitMinutes(visit) })}</span></DetailCell>
         {visit.reason ? <DetailCell term={t('columns.reason')} wide>{visit.reason}</DetailCell> : null}
       </dl>
-      <OpenEncounterButton appointmentId={visit.id} patientId={visit.patientId} label={label} size="lg" fullWidth />
+      <OpenEncounterButton appointmentId={visit.id} patientId={visit.patientId} start={visit.start} label={label} size="lg" fullWidth />
       <div className="flex items-center gap-2.5">
         <Link href={`/patients/${encodeURIComponent(visit.patientId)}`} data-row-anchor className={cn(buttonVariants({ variant: 'secondary' }), 'flex-1')}>{t('patientCardLink')}</Link>
         <NoshowMenu appointmentId={visit.id} patientName={name} />

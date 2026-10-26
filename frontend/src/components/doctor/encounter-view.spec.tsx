@@ -10,12 +10,20 @@ import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { apiFetch } from '@/lib/api/api-fetch';
 import { createAppQueryClient } from '@/lib/api/query-client';
-import { encounter, FINISHED_CONTENT, problem, renderWithClient, routeApi, type ApiMock, type ApiRoute } from './doctor-test-utils';
+import { encounter, FINISHED_CONTENT, pageOf, problem, renderWithClient, routeApi, type ApiMock, type ApiRoute } from './doctor-test-utils';
+import { ACTIVE_RECORD } from '@/components/consent/consent-fixtures';
 import { EncounterView } from './encounter-view';
 import type { EncounterDetails } from './doctor-types';
 
 const apiFetchMock = apiFetch as ApiMock;
-const PATIENT: ApiRoute = { path: '/api/v1/patients/p1', respond: () => ({ id: 'p1', active: true, fullName: 'Кузнецов Алексей Иванович', lastName: 'Кузнецов', firstName: 'Алексей', telecom: [] }) };
+const PATIENT: ApiRoute = { path: '/api/v1/patients/p1', respond: () => ({ id: 'p1', active: true, fullName: 'Кузнецов Алексей Иванович', lastName: 'Кузнецов', firstName: 'Алексей', birthDate: '1978-07-21', gender: 'male', telecom: [] }) };
+/** What the patient bar and the summary beside the form read (A3). */
+const CONTEXT: ReadonlyArray<ApiRoute> = [
+  { path: '/api/v1/patients/p1/consent', respond: () => ({ active: ACTIVE_RECORD, history: [ACTIVE_RECORD] }) },
+  { path: '/api/v1/patients/p1/history', respond: () => pageOf([]) },
+  { path: '/api/v1/patients/p1/prescriptions', respond: () => pageOf([]) },
+  { path: '/api/v1/doctor/appointments', respond: () => pageOf([]) },
+];
 const EXPANSION: ApiRoute = { path: '/api/v1/terminology/expand', respond: () => ({ valueSet: 'x', total: 0, items: [] }) };
 
 function encounterRoute(respond: () => EncounterDetails): ApiRoute {
@@ -24,7 +32,7 @@ function encounterRoute(respond: () => EncounterDetails): ApiRoute {
 
 function setup(routes: ReadonlyArray<ApiRoute>): void {
   apiFetchMock.mockReset();
-  routeApi(apiFetchMock, [PATIENT, EXPANSION, ...routes]);
+  routeApi(apiFetchMock, [...routes, PATIENT, ...CONTEXT, EXPANSION]);
   renderWithClient(<EncounterView encounterId="enc-1" />, createAppQueryClient());
 }
 
@@ -96,6 +104,63 @@ describe('EncounterView', () => {
 
     expect(await screen.findByTestId('problem-banner')).toHaveTextContent('Внутренняя ошибка');
     expect(screen.getByRole('button', { name: 'Повторить' })).toBeInTheDocument();
+  });
+});
+
+describe('EncounterView patient context (A3)', () => {
+  const HISTORY_ITEM = { id: 'enc-9', date: '2026-10-14T06:00:00Z', status: 'finished', diagnosis: 'J06.9', diagnoses: [{ code: 'J06.9', display: 'Острый назофарингит' }], appointmentId: 'appt-9', practitionerRoleId: 'role-1' };
+  const WITH_HISTORY: ReadonlyArray<ApiRoute> = [
+    { path: '/api/v1/patients/p1/history', respond: () => pageOf([HISTORY_ITEM]) },
+    { path: '/api/v1/encounters/enc-9', respond: () => encounter({ ...FINISHED_CONTENT, id: 'enc-9' }) },
+    { path: '/api/v1/patients/p1/prescriptions', respond: () => pageOf([{ id: 'm1', kind: 'medication', status: 'active', atcCode: 'J01FA10', atcDisplay: 'Азитромицин', dosageText: '1 таб 3 раза в день', encounterId: 'enc-9' }]) },
+  ];
+
+  it('should keep the patient in a bar above the form: name, age, sex and the consent badge', async () => {
+    setup([encounterRoute(() => encounter())]);
+
+    const bar = within(await screen.findByRole('region', { name: 'Пациент приёма' }));
+
+    expect(await bar.findByRole('link', { name: 'Кузнецов Алексей Иванович' })).toHaveAttribute('href', '/patients/p1');
+    expect(bar.getByText(/48 лет · Мужской/)).toBeInTheDocument();
+    expect(await bar.findByTestId('consent-line-active')).toHaveTextContent('Согласие на ЭМК · действует с 20.10.2026');
+  });
+
+  it('should warn in the bar when the patient has no consent', async () => {
+    setup([encounterRoute(() => encounter()), { path: '/api/v1/patients/p1/consent', respond: () => ({ active: null, history: [] }) }]);
+
+    expect(await screen.findByTestId('consent-line-none')).toHaveTextContent('Нет согласия на ЭМК');
+  });
+
+  it('should show the same summary as the patient card beside the form: diagnoses, prescriptions and vitals', async () => {
+    setup([encounterRoute(() => encounter()), ...WITH_HISTORY]);
+
+    const summary = within(await screen.findByRole('complementary', { name: 'Сведения о пациенте' }));
+
+    expect(await summary.findByText('Острый назофарингит')).toBeInTheDocument();
+    expect(await summary.findByText('Азитромицин')).toBeInTheDocument();
+    expect(await summary.findByText('Температура тела')).toBeInTheDocument();
+    expect(summary.getByText('36.6 Cel')).toBeInTheDocument();
+  });
+
+  it('should say compactly that there is nothing yet for a patient without history', async () => {
+    setup([encounterRoute(() => encounter())]);
+
+    const summary = within(await screen.findByRole('complementary', { name: 'Сведения о пациенте' }));
+
+    expect(await summary.findByText('Диагнозов пока нет')).toBeInTheDocument();
+    expect(summary.getByText('Действующих назначений нет')).toBeInTheDocument();
+    expect(await summary.findByText('Показателей пока нет')).toBeInTheDocument();
+  });
+
+  it('should open the summary in a drawer from the bar and close it again', async () => {
+    setup([encounterRoute(() => encounter()), ...WITH_HISTORY]);
+
+    await userEvent.click(await screen.findByRole('button', { name: 'Сведения о пациенте' }));
+    const drawer = within(await screen.findByRole('dialog', { name: 'Сведения о пациенте' }));
+
+    expect(await drawer.findByText('Острый назофарингит')).toBeInTheDocument();
+    await userEvent.click(drawer.getByRole('button', { name: 'Закрыть' }));
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 });
 

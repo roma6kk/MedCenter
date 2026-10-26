@@ -5,11 +5,12 @@ jest.mock('@/lib/api/api-fetch', () => {
 const push = jest.fn();
 jest.mock('next/navigation', () => ({ useRouter: () => ({ push }) }));
 
-import { screen, waitFor } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { apiFetch } from '@/lib/api/api-fetch';
 import { bodyOf, callsTo, newQueryClient, problem, renderWithClient, routeApi, type ApiMock, type ApiRoute } from './doctor-test-utils';
 import { OpenEncounterButton } from './open-encounter-button';
+import { rememberStartedEncounter, startedEncounterOf } from './started-encounters';
 
 const apiFetchMock = apiFetch as ApiMock;
 const APPOINTMENT_ID = 'appt-77';
@@ -23,16 +24,23 @@ function historyRoute(items: ReadonlyArray<{ id: string; appointmentId: string }
   return { path: '/api/v1/patients/p1/history', respond: () => ({ items, meta: { page: 1, pageSize: 100, totalItems: items.length, totalPages: 1 } }) };
 }
 
-function setup(routes: ReadonlyArray<ApiRoute>): void {
+/** The appointment is now, so it is "today" in the clinic zone whatever the machine's own zone is. */
+const TODAY_START: string = new Date().toISOString();
+/** Three days ahead is another clinic day at any hour. */
+const LATER_START: string = new Date(Date.now() + 3 * 24 * 3_600_000).toISOString();
+
+function setup(routes: ReadonlyArray<ApiRoute>, start: string = TODAY_START): void {
   apiFetchMock.mockReset();
   push.mockReset();
   routeApi(apiFetchMock, routes);
-  renderWithClient(<OpenEncounterButton appointmentId={APPOINTMENT_ID} patientId="p1" label="Кузнецов, 09:00" />);
+  renderWithClient(<OpenEncounterButton appointmentId={APPOINTMENT_ID} patientId="p1" start={start} label="Кузнецов, 09:00" />);
 }
 
 const click = (): Promise<void> => userEvent.click(screen.getByRole('button', { name: 'Открыть приём: Кузнецов, 09:00' }));
 
 describe('OpenEncounterButton', () => {
+  beforeEach(() => window.localStorage.clear());
+
   it('should create the encounter from the appointment id and go to the id of the encounter, not of the appointment', async () => {
     setup([openRoute(() => ({ id: ENCOUNTER_ID, status: 'in-progress' }))]);
 
@@ -115,13 +123,94 @@ describe('OpenEncounterButton', () => {
     apiFetchMock.mockReset();
     push.mockReset();
     routeApi(apiFetchMock, [openRoute(() => ({ id: ENCOUNTER_ID, status: 'in-progress' }))]);
-    renderWithClient(<OpenEncounterButton appointmentId={APPOINTMENT_ID} patientId="p1" label="Кузнецов, 09:00" />, client);
+    renderWithClient(<OpenEncounterButton appointmentId={APPOINTMENT_ID} patientId="p1" start={TODAY_START} label="Кузнецов, 09:00" />, client);
 
     await click();
 
     await waitFor(() => expect(invalidate).toHaveBeenCalledWith({ queryKey: ['doctorAppointments'] }));
     expect(invalidate).toHaveBeenCalledWith({ queryKey: ['encounter'] });
   });
+
+  describe('an appointment that is not today (A4)', () => {
+    it('should start a visit of today at once, without asking', async () => {
+      setup([openRoute(() => ({ id: ENCOUNTER_ID, status: 'in-progress' }))]);
+
+      await click();
+
+      await waitFor(() => expect(push).toHaveBeenCalledWith(`/encounters/${ENCOUNTER_ID}`));
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    });
+
+    it('should ask first, naming the day and the time, and send nothing until the doctor agrees', async () => {
+      setup([openRoute(() => ({ id: ENCOUNTER_ID, status: 'in-progress' }))], LATER_START);
+
+      await click();
+
+      const dialog = await screen.findByRole('dialog', { name: 'Приём не на сегодня' });
+      expect(dialog).toHaveTextContent(/Приём запланирован на \d{2}\.\d{2}\.\d{4} в \d{2}:\d{2}\. Начать сейчас\?/);
+      expect(callsTo(apiFetchMock, '/api/v1/encounters', 'POST')).toHaveLength(0);
+      expect(push).not.toHaveBeenCalled();
+    });
+
+    it('should start the visit after the confirmation', async () => {
+      setup([openRoute(() => ({ id: ENCOUNTER_ID, status: 'in-progress' }))], LATER_START);
+
+      await click();
+      await userEvent.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Начать сейчас' }));
+
+      await waitFor(() => expect(push).toHaveBeenCalledWith(`/encounters/${ENCOUNTER_ID}`));
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    });
+
+    it('should leave the appointment untouched when the doctor declines', async () => {
+      setup([openRoute(() => ({ id: ENCOUNTER_ID, status: 'in-progress' }))], LATER_START);
+
+      await click();
+      await userEvent.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Не начинать' }));
+
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+      expect(callsTo(apiFetchMock, '/api/v1/encounters', 'POST')).toHaveLength(0);
+      expect(screen.getByRole('button', { name: 'Открыть приём: Кузнецов, 09:00' })).toBeInTheDocument();
+    });
+
+    it('should ask about a visit of a past day as well', async () => {
+      setup([openRoute(() => ({ id: ENCOUNTER_ID, status: 'in-progress' }))], new Date(Date.now() - 3 * 24 * 3_600_000).toISOString());
+
+      await click();
+
+      expect(await screen.findByRole('dialog', { name: 'Приём не на сегодня' })).toBeInTheDocument();
+    });
+  });
+
+  describe('a visit this browser has already started', () => {
+    it('should remember the encounter it opened and offer to continue it next time', async () => {
+      setup([openRoute(() => ({ id: ENCOUNTER_ID, status: 'in-progress' }))]);
+
+      await click();
+      await waitFor(() => expect(push).toHaveBeenCalled());
+
+      expect(startedEncounterOf(APPOINTMENT_ID)).toBe(ENCOUNTER_ID);
+    });
+
+    it('should read «Продолжить приём» and go back in without asking, even for another day', async () => {
+      rememberStartedEncounter(APPOINTMENT_ID, ENCOUNTER_ID);
+      setup([openRoute(() => ({ id: ENCOUNTER_ID, status: 'in-progress' }))], LATER_START);
+
+      await userEvent.click(await screen.findByRole('button', { name: 'Продолжить приём: Кузнецов, 09:00' }));
+
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+      await waitFor(() => expect(push).toHaveBeenCalledWith(`/encounters/${ENCOUNTER_ID}`));
+    });
+
+    it('should fall back to «Открыть приём» when the storage is unusable', async () => {
+      const broken = jest.spyOn(Storage.prototype, 'getItem').mockImplementation(() => { throw new Error('blocked'); });
+      setup([openRoute(() => ({ id: ENCOUNTER_ID, status: 'in-progress' }))]);
+
+      expect(await screen.findByRole('button', { name: 'Открыть приём: Кузнецов, 09:00' })).toBeInTheDocument();
+      broken.mockRestore();
+    });
+  });
+
   describe('without a consent (409 CONSENT_REQUIRED)', () => {
     const refuse = (): never => { throw problem(409, 'CONSENT_REQUIRED'); };
 

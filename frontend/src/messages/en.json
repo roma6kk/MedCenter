@@ -766,7 +766,13 @@
         "reason": "Reason for visit",
         "status": "Status",
         "actions": "Actions"
-      }
+      },
+      "continue": "Continue encounter",
+      "continueFor": "Continue encounter: {label}",
+      "notTodayTitle": "This appointment is not today",
+      "notTodayBody": "The appointment is scheduled for {date} at {time}. Start it now?",
+      "notTodayCancel": "Do not start",
+      "notTodayConfirm": "Start now"
     },
     "noshow": {
       "button": "No-show",
@@ -814,7 +820,6 @@
     "encounter": {
       "title": "Encounter",
       "backToJournal": "Back to the journal",
-      "patient": "Patient",
       "patientFallback": "Patient {id}",
       "started": "Started",
       "ended": "Ended",
@@ -843,7 +848,10 @@
       "unknownIcd10": "The code is not in the ICD-10 value set",
       "unknownTerm": "The code was not found in the terminology",
       "unknownUnit": "The unit was not found in UCUM",
-      "unknownAtc": "The ATC code was not found in the terminology"
+      "unknownAtc": "The ATC code was not found in the terminology",
+      "patientBarLabel": "Patient of the encounter",
+      "patientSummary": "Patient summary",
+      "patientSummaryOpen": "Patient summary"
     },
     "verification": {
       "working": "Working",
@@ -942,9 +950,7 @@
       "unknown": "Not specified",
       "contacts": "Contacts",
       "noContacts": "No contacts on file",
-      "recordId": "Identifier",
       "relatedTitle": "Trusted persons",
-      "relatedEmpty": "No trusted persons",
       "relatedUnavailable": "Trusted persons are unavailable",
       "telecom": {
         "phone": "Phone",
@@ -964,16 +970,30 @@
       "summary": "Summary",
       "recommendations": "Recommendations",
       "openEncounter": "Open the encounter",
-      "openEncounterOn": "Open the encounter of {date}"
+      "openEncounterOn": "Open the encounter of {date}",
+      "orders": "Orders of the visit"
     },
     "prescriptions": {
-      "title": "Prescriptions",
-      "empty": "No prescriptions",
+      "title": "All prescriptions",
       "unavailable": "Prescriptions are unavailable",
       "medication": "Drug",
       "service": "Service",
       "openEncounter": "Open the encounter",
       "openEncounterOn": "Open the encounter with the order: {name}"
+    },
+    "summary": {
+      "title": "Clinical summary",
+      "diagnosesTitle": "Recent diagnoses",
+      "diagnosesEmpty": "No diagnoses yet",
+      "prescriptionsTitle": "Current prescriptions",
+      "prescriptionsEmpty": "No active prescriptions",
+      "moreCount": "and {count} more",
+      "vitalsTitle": "Latest vitals",
+      "vitalsEmpty": "No vitals yet",
+      "vitalsOn": "From the encounter of {date}",
+      "upcomingTitle": "Next appointment",
+      "upcomingEmpty": "Nothing scheduled with you",
+      "unavailable": "Could not be loaded"
     }
   },
   "validation": {
@@ -1597,7 +1617,10 @@
       "revokeSubmit": "Record revocation",
       "revoking": "Recording…",
       "revoked": "The revocation is recorded.",
-      "nothingToRevoke": "Nothing to revoke: there is no active consent."
+      "nothingToRevoke": "Nothing to revoke: there is no active consent.",
+      "manageTitle": "Consent management",
+      "revokeOpen": "Record a revocation",
+      "revokeCancel": "Cancel"
     },
     "required": {
       "title": "No consent to the electronic record",
@@ -1620,7 +1643,7 @@
       "revokedTitle": "Consent to the electronic record is revoked",
       "rejectedTitle": "The patient refused the electronic record in writing",
       "text": "An encounter can be opened only after the consent is signed, or as emergency care with a stated reason.",
-      "goTo": "Record the consent"
+      "record": "Record the consent"
     },
     "admin": {
       "title": "Consent to the electronic record",
@@ -1628,6 +1651,13 @@
       "open": "EMR consent",
       "openFor": "Consent to the electronic record: {name}",
       "notFound": "Patient not found"
+    },
+    "line": {
+      "active": "EHR consent · in force since {date}",
+      "none": "No EHR consent",
+      "revoked": "EHR consent revoked",
+      "rejected": "Written refusal of the EHR",
+      "manage": "Manage consent"
     }
   },
   "ui": {

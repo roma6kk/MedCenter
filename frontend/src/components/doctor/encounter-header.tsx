@@ -7,23 +7,12 @@ import { Card } from '@/components/ui/card';
 import { useT } from '@/lib/i18n/use-t';
 import { formatClinicDateTime } from '@/lib/clinic-time';
 import type { EncounterDetails, EncounterState } from './doctor-types';
-import { usePatient } from './use-doctor-queries';
 
 /** Encounter status as the stamp the design system already has (`in-progress` reads as "На приёме"). */
 function stampOf(status: EncounterState): StampStatus {
   if (status === 'in-progress') return 'checked-in';
   if (status === 'finished' || status === 'cancelled' || status === 'entered-in-error') return status;
   return 'pending';
-}
-
-function PatientLink({ patientId }: { readonly patientId: string }): ReactNode {
-  const t = useT('doctor.encounter');
-  const tCommon = useT('common');
-  const patient = usePatient(patientId);
-  // The id is shown only when the card cannot be read; while it loads a placeholder avoids flashing a number as the name.
-  if (patient.isPending) return <span className="text-muted-foreground">{tCommon('loading')}</span>;
-  const name: string = patient.data?.fullName || t('patientFallback', { id: patientId });
-  return <Link href={`/patients/${encodeURIComponent(patientId)}`} className="underline">{name}</Link>;
 }
 
 function Fact({ label, children }: { readonly label: string; readonly children: ReactNode }): ReactNode {
@@ -35,7 +24,7 @@ function Fact({ label, children }: { readonly label: string; readonly children: 
   );
 }
 
-/** Who and when: patient (to the card), the start and end of the visit, the booked service. */
+/** When and what: the start and end of the visit and the booked service; who it is about sits in the sticky patient bar above. */
 export function EncounterHeader({ encounter }: { readonly encounter: EncounterDetails }): ReactNode {
   const t = useT('doctor.encounter');
   return (
@@ -45,8 +34,7 @@ export function EncounterHeader({ encounter }: { readonly encounter: EncounterDe
         <h1 id="encounter-title" className="text-2xl font-bold leading-tight tracking-[-0.02em]">{t('title')}</h1>
         <StampBadge status={stampOf(encounter.status)} />
       </div>
-      <dl className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Fact label={t('patient')}><PatientLink patientId={encounter.patientId} /></Fact>
+      <dl className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <Fact label={t('started')}>{formatClinicDateTime(encounter.period.start)}</Fact>
         <Fact label={t('ended')}>{encounter.period.end ? formatClinicDateTime(encounter.period.end) : '—'}</Fact>
         <Fact label={t('service')}>{encounter.serviceType?.display ?? '—'}</Fact>

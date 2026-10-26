@@ -61,17 +61,18 @@ function PrescriptionCard({ item }: { readonly item: Prescription }): ReactNode 
   );
 }
 
-/** The patient's prescriptions (API 7.5): drugs by ATC code and ordered services, in one list. */
+/** The patient's whole prescription list (API 7.5): drugs by ATC code and ordered services, in one list; the summary beside it shows what is in force. */
 export function PatientPrescriptions({ patientId }: { readonly patientId: string }): ReactNode {
   const t = useT('doctor.prescriptions');
   const [page, setPage] = useState(1);
   const prescriptions = usePatientPrescriptions(patientId, page);
+  // A patient who has never been prescribed anything gets no section: the summary beside it already says so in one line (A2).
+  if (page === 1 && prescriptions.data?.items.length === 0) return null;
   return (
-    <section aria-labelledby="prescriptions-title" className="mt-6">
+    <section aria-labelledby="prescriptions-title">
       <div id="prescriptions-title"><SectionTitle>{t('title')}</SectionTitle></div>
       <div className="mt-3" aria-busy={prescriptions.isFetching}>
         {prescriptions.data === undefined ? <QueryFailure query={prescriptions} embedded notFoundText={t('unavailable')} pending={<TableSkeleton />} /> : null}
-        {prescriptions.data && prescriptions.data.items.length === 0 ? <p className="text-sm text-muted-foreground">{t('empty')}</p> : null}
         {prescriptions.data && prescriptions.data.items.length > 0 ? (
           <>
             <ul className="grid gap-3 sm:grid-cols-2">{prescriptions.data.items.map((item) => <PrescriptionCard key={item.id} item={item} />)}</ul>

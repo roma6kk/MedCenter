@@ -18,7 +18,6 @@ export const buttonVariants = cva(
         primary: 'bg-primary text-primary-foreground hover:bg-primary-hover active:bg-primary-strong',
         secondary: 'border border-border bg-card text-foreground hover:bg-secondary',
         soft: 'bg-primary-soft text-primary-soft-foreground hover:bg-primary-soft-hover',
-        danger: 'bg-destructive-soft text-destructive hover:bg-destructive-soft-hover',
         // The confirm button of a destructive dialog: the one place where the red is solid (VA2). Elsewhere a destructive action is `quiet-danger` text.
         destructive: 'bg-destructive text-destructive-foreground hover:bg-destructive-hover',
         // The secondary form of a destructive action in a list or a block: red text and an icon, no ground until hovered.

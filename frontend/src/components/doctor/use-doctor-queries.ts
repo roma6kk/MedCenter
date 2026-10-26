@@ -8,7 +8,7 @@ import { keepPreviousData, useQueries, useQuery, type QueryClient, type UseQuery
 import type { PaginatedResponse } from '@/lib/api/pagination';
 import { DEFAULT_STALE_TIME_MS, STALE_TIME_MS } from '@/lib/api/query-config';
 import { queryKeys } from '@/lib/api/query-keys';
-import { clinicDayBounds } from '@/lib/clinic-time';
+import { clinicDateKey, clinicDayBounds, shiftDateKey } from '@/lib/clinic-time';
 import {
   CARD_PAGE_SIZE,
   EXPAND_COUNT,
@@ -29,6 +29,7 @@ import type {
   EncounterDetails,
   Expansion,
   HistoryItem,
+  JournalAppointment,
   PatientCard,
   Prescription,
   RelatedPerson,
@@ -84,11 +85,32 @@ export function useDoctorSchedule(range: JournalRange): UseQueryResult<DoctorSch
   });
 }
 
-export function useEncounter(encounterId: string): UseQueryResult<EncounterDetails> {
+/** `enabled: false` holds the read back until the id is known (the summary reads the newest finished visit it has just learned about). */
+export function useEncounter(encounterId: string, enabled: boolean = true): UseQueryResult<EncounterDetails> {
   return useQuery({
     queryKey: queryKeys.encounterDetail(encounterId),
     queryFn: ({ signal }) => fetchEncounter(encounterId, signal),
     staleTime: DEFAULT_STALE_TIME_MS,
+    enabled,
+  });
+}
+
+/** How far ahead the summary looks for the patient's next visit with this doctor. */
+export const UPCOMING_HORIZON_DAYS = 30;
+
+/**
+ * The patient's next booked visit with the signed-in doctor, from the doctor's own journal (API 6.5) over the coming month:
+ * there is no endpoint for "a patient's appointments" on the doctor's side, so the journal is filtered by patient. The
+ * visit being worked on (`excludeAppointmentId`) is not an upcoming one.
+ */
+export function useUpcomingVisit(patientId: string, excludeAppointmentId?: string): UseQueryResult<JournalAppointment | null> {
+  const today: string = clinicDateKey();
+  const range: JournalRange = { from: clinicDayBounds(today).from, to: clinicDayBounds(shiftDateKey(today, UPCOMING_HORIZON_DAYS)).to };
+  return useQuery({
+    queryKey: queryKeys.doctorAppointments({ ...range, page: 1, pageSize: JOURNAL_PAGE_SIZE }),
+    queryFn: ({ signal }) => fetchDoctorJournal(range, { page: 1, pageSize: JOURNAL_PAGE_SIZE }, signal),
+    staleTime: STALE_TIME_MS.appointments,
+    select: (page) => page.items.find((visit) => visit.patientId === patientId && visit.status === 'booked' && visit.id !== excludeAppointmentId) ?? null,
   });
 }
 
