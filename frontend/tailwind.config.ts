@@ -73,6 +73,9 @@ const config: Config = {
         'elev-1': 'var(--shadow-1)',
         'elev-2': 'var(--shadow-2)',
         'elev-3': 'var(--shadow-3)',
+        // Focus of a field: a soft halo next to the primary border (the thick outline stays for non-field elements).
+        focus: '0 0 0 3px var(--focus-ring)',
+        'focus-danger': '0 0 0 3px var(--focus-ring-danger)',
       },
       transitionTimingFunction: {
         out: 'var(--ease-out)',

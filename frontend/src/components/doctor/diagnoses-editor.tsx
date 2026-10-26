@@ -8,10 +8,11 @@ import { useT } from '@/lib/i18n/use-t';
 import { ICD10_VALUE_SET } from './doctor-api';
 import { EMPTY_DIAGNOSIS } from './encounter-form-defaults';
 import { Icd10Combobox } from './icd10-combobox';
-import { a11yOf, ADD_BUTTON_CLASS, errorAt, FIELDSET_CLASS, INPUT_CLASS, ROW_CLASS } from './encounter-form-helpers';
+import { a11yOf, ADD_BUTTON_CLASS, errorAt, FIELDSET_CLASS, INPUT_CLASS, ROW_CLASS, SELECT_BOX_CLASS } from './encounter-form-helpers';
 import { FieldRow, RemoveRowButton } from './encounter-form-fields';
 import type { Term } from './doctor-types';
 import { lookupTerm } from './use-doctor-queries';
+import { Select } from '@/components/ui/select';
 
 const VERIFICATION_STATUSES = ['', 'working', 'provisional', 'confirmed'] as const;
 
@@ -47,11 +48,11 @@ function VerificationField({ index }: { readonly index: number }): ReactNode {
   const statusId = `diagnosis-status-${index}`;
   return (
     <FieldRow id={statusId} label={t('verificationLabel', { n: index + 1 })} error={errorAt(errors, `diagnoses.${index}.verificationStatus`)}>
-      <select id={statusId} {...register(`diagnoses.${index}.verificationStatus`)} className={INPUT_CLASS}>
+      <Select id={statusId} wrapperClassName={SELECT_BOX_CLASS} {...register(`diagnoses.${index}.verificationStatus`)}>
         {VERIFICATION_STATUSES.map((status) => (
           <option key={status} value={status}>{status === '' ? t('verificationNone') : tVerification(status)}</option>
         ))}
-      </select>
+      </Select>
     </FieldRow>
   );
 }

@@ -34,8 +34,8 @@ export function NotificationRow({ item, markingId, onMarkRead }: NotificationRow
       </span>
       <div className="flex min-w-0 flex-[999_1_260px] flex-col gap-1">
         <p className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-          <span className="font-bold uppercase tracking-wider">{t(kind.labelKey)}</span>
-          <time dateTime={item.sent} className="font-mono">{format.time(item.sent)}</time>
+          <span className="font-semibold">{t(kind.labelKey)}</span>
+          <time dateTime={item.sent} className="tabular-nums">{format.time(item.sent)}</time>
           {item.read ? null : (
             <span className="inline-flex items-center gap-1.5 font-bold text-primary-soft-foreground">
               <span aria-hidden="true" className="size-2 rounded-full bg-primary" />

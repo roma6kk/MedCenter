@@ -46,10 +46,10 @@ export function BookingSummary({ draft }: BookingSummaryProps): ReactNode {
           {draft.doctorId === null ? <span className={muted}>{t('summaryNone')}</span> : <span className="text-base font-semibold">{doctor.data?.name ?? '…'}</span>}
         </Row>
         <Row label={t('summaryTime')}>
-          {draft.slotStart === null ? <span className={muted}>—</span> : <span className="mono text-base font-medium">{formatClinicDateTime(draft.slotStart, locale)}</span>}
+          {draft.slotStart === null ? <span className={muted}>—</span> : <span className="tabular-nums text-base font-medium">{formatClinicDateTime(draft.slotStart, locale)}</span>}
         </Row>
         <Row label={t('summaryDuration')}>
-          {minutes > 0 ? <span className="mono text-base font-medium">{t('slotMinutes', { minutes })}</span> : <span className={muted}>—</span>}
+          {minutes > 0 ? <span className="tabular-nums text-base font-medium">{t('slotMinutes', { minutes })}</span> : <span className={muted}>—</span>}
         </Row>
       </dl>
       <p className="text-xs leading-normal text-muted-foreground">{t('draftNote')}</p>

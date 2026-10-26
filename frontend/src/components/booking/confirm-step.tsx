@@ -46,7 +46,7 @@ function Summary({ draft }: Pick<ConfirmStepProps, 'draft'>): ReactNode {
         {doctor.data?.name ?? '…'}
         {doctor.data?.specialty === undefined ? null : <span className="text-[var(--muted-foreground)]"> · {doctor.data.specialty}</span>}
       </SummaryRow>
-      <SummaryRow label={t('summaryTime')}><span className="mono">{start === null ? '' : formatClinicDateTime(start, locale)}</span></SummaryRow>
+      <SummaryRow label={t('summaryTime')}><span className="tabular-nums">{start === null ? '' : formatClinicDateTime(start, locale)}</span></SummaryRow>
       {minutes > 0 ? <SummaryRow label={t('summaryDuration')}>{t('slotMinutes', { minutes })}</SummaryRow> : null}
     </dl>
   );

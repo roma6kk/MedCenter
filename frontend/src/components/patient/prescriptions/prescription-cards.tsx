@@ -43,7 +43,7 @@ function CardFooter({ item }: { readonly item: Prescription }): ReactNode {
 }
 
 function KindLabel({ children }: { readonly children: ReactNode }): ReactNode {
-  return <span className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-muted-foreground">{children}</span>;
+  return <span className="inline-flex items-center gap-2 text-sm font-semibold text-muted-foreground">{children}</span>;
 }
 
 export function MedicationCard({ item }: { readonly item: MedicationPrescription }): ReactNode {

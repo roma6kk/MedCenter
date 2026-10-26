@@ -12,6 +12,7 @@ import { ApiError, apiFetch } from '@/lib/api/api-fetch';
 import type { ProblemDetails } from '@/lib/api/problem';
 import type { Slot } from '@/components/catalog/catalog-types';
 import { SlotPicker, type SlotPickerProps } from './slot-picker';
+import { formatTypedDate } from '@/lib/calendar-grid';
 import { clinicDateKey, shiftDateKey } from '@/lib/clinic-time';
 import { MAX_LOOKAHEAD_DAYS, SLOT_WINDOW_DAYS } from './slot-time';
 
@@ -214,12 +215,16 @@ describe('SlotPicker', () => {
     expect(earlier).toHaveFocus();
   });
 
-  it('should limit the date field to the last day the API accepts when the picker opens', async () => {
+  it('should not let the calendar go past the last day the API accepts when the picker opens', async () => {
     answer(SLOTS);
     renderPicker();
     await screen.findByTestId('slot-s-1');
+    const last: string = shiftDateKey(TODAY, MAX_LOOKAHEAD_DAYS);
 
-    expect(screen.getByLabelText('Перейти к дате')).toHaveAttribute('max', shiftDateKey(TODAY, MAX_LOOKAHEAD_DAYS));
+    await userEvent.click(screen.getByRole('button', { name: 'Выбрать дату в календаре' }));
+    await userEvent.keyboard('{Shift>}{PageDown}{PageDown}{/Shift}{Enter}');
+
+    expect(screen.getByLabelText('Перейти к дате')).toHaveValue(formatTypedDate(last));
   });
 
   it('should open the period of a restored selection when the selected slot lies in a later period', async () => {

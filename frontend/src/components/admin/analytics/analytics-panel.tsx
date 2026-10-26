@@ -36,7 +36,7 @@ export function AnalyticsPanel(): ReactNode {
     <>
       <header className="mb-6 flex flex-wrap items-end justify-between gap-4">
         <div>
-          <p className="text-sm font-semibold uppercase tracking-[0.06em] text-primary-soft-foreground">
+          <p className="text-sm font-semibold text-primary-soft-foreground">
             {t('period', { from: formatDateKey(range.from, 'numeric'), to: formatDateKey(range.to, 'numeric') })}
           </p>
           <h1 className="mt-1.5 max-w-[720px] text-3xl font-bold leading-[1.15] tracking-tight">{headline === 'none' ? t('title') : t(`headline.${headline}`)}</h1>

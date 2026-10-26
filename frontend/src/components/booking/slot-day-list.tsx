@@ -56,7 +56,7 @@ const SlotTile = memo(function SlotTile({ slot, selected, taken, showDuration, o
       }}
       className={tileClass(isSelected, taken, selectable)}
     >
-      <span className="mono text-sm">{formatClinicTime(slot.start, locale)}</span>
+      <span className="tabular-nums text-sm">{formatClinicTime(slot.start, locale)}</span>
       {selectable && showDuration ? <span className="text-xs">{t('slotMinutes', { minutes: slotDurationMin(slot) })}</span> : null}
       {taken ? <span className="text-xs">{t('slotTaken')}</span> : null}
       {!selectable && !taken ? <StampBadge status={slot.status} /> : null}
@@ -83,7 +83,7 @@ function SlotDaySection({ day, selectedSlotId, takenSlotId, showDuration, onSele
 }
 
 /**
- * Slot tiles grouped by clinic day: Minsk wall-clock time in mono type; taken and withdrawn slots are shown but inert.
+ * Slot tiles grouped by clinic day: Minsk wall-clock time in tabular figures; taken and withdrawn slots are shown but inert.
  * The grouping is computed once per list of slots, not on every render (a selection changes none of them).
  */
 export function SlotDayList({ slots, onSelect, ...rest }: SlotDayListProps): ReactNode {

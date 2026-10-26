@@ -1,9 +1,10 @@
 'use client';
 
 import { useState } from 'react';
-import type { ChangeEvent, ReactNode } from 'react';
+import type { ReactNode } from 'react';
 import { EmptyState, TableSkeleton } from '@/components/feedback/states';
 import { buttonVariants } from '@/components/ui/button-variants';
+import { DatePicker } from '@/components/ui/date-picker';
 import { useDocumentTitle } from '@/hooks/use-document-title';
 import { useT } from '@/lib/i18n/use-t';
 import { formatDateKey, isDateKey, shiftDateKey } from '@/lib/clinic-time';
@@ -28,17 +29,17 @@ interface PeriodControlsProps {
 function PeriodControls({ fromKey, today, onChange }: PeriodControlsProps): ReactNode {
   const t = useT('doctor.schedule');
   const isToday: boolean = fromKey === today;
-  const handleDateInput = (event: ChangeEvent<HTMLInputElement>): void => {
-    if (isDateKey(event.target.value)) onChange(event.target.value);
+  const handleDate = (next: string): void => {
+    if (isDateKey(next)) onChange(next);
   };
   return (
     <div className="mt-4 flex flex-wrap items-end gap-3">
       <button type="button" className={STEP_BUTTON} onClick={() => onChange(shiftDateKey(fromKey, -SCHEDULE_DAYS))}>
         <span aria-hidden="true">← </span>{t('previousPeriod')}
       </button>
-      <div>
-        <label htmlFor="schedule-from" className="form-label block">{t('from')}</label>
-        <input id="schedule-from" type="date" value={fromKey} onChange={handleDateInput} className="mt-1 block min-h-[44px] rounded-control border border-input bg-card px-3" />
+      <div className="grid gap-1.5">
+        <label htmlFor="schedule-from" className="form-label">{t('from')}</label>
+        <DatePicker id="schedule-from" value={fromKey} onChange={handleDate} wrapperClassName="w-44" />
       </div>
       <button type="button" className={STEP_BUTTON} onClick={() => onChange(shiftDateKey(fromKey, SCHEDULE_DAYS))}>
         {t('nextPeriod')}<span aria-hidden="true"> →</span>

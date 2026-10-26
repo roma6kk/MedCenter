@@ -37,7 +37,7 @@ export function NextVisitCard({ appointment, more }: { readonly appointment: App
               <span className="text-xs">{dateTile(appointment.start, format.locale).month}</span>
             </div>
             <div className={cn('flex flex-col gap-0.5', WRAP_TEXT)}>
-              <time dateTime={appointment.start} className="mono text-lg font-medium">{format.time(appointment.start)}</time>
+              <time dateTime={appointment.start} className="text-lg font-medium tabular-nums">{format.time(appointment.start)}</time>
               <span className="text-base font-semibold">{appointment.serviceName ?? t('serviceUnknown')}</span>
               <span className="text-sm text-muted-foreground">{appointment.doctorName ?? t('doctorUnknown')}</span>
               <span className="text-sm text-muted-foreground">{format.date(appointment.start)}</span>
@@ -82,7 +82,7 @@ export function LastVisitCard({ entry }: { readonly entry: HistoryEntry | undefi
           </div>
           {advice === '' ? null : (
             <div className={cn('rounded-control bg-primary-soft px-3.5 py-3 text-sm leading-normal text-primary-soft-foreground', WRAP_TEXT)}>
-              <span className="block text-xs font-bold uppercase tracking-[0.05em]">{t('doctorAdvice')}</span>
+              <span className="block text-sm font-semibold">{t('doctorAdvice')}</span>
               {format.prose(advice)}
             </div>
           )}

@@ -2,6 +2,7 @@
 
 import { forwardRef, useEffect, useState } from 'react';
 import type { KeyboardEvent, ReactNode } from 'react';
+import { FIELD_CLASS } from '@/components/ui/field-styles';
 import { useT } from '@/lib/i18n/use-t';
 import { handleComboboxKey, DEBOUNCE_MS, MIN_QUERY_LENGTH } from './combobox-keys';
 import { SUGGESTION_COUNT } from './doctor-api';
@@ -127,7 +128,7 @@ function ComboboxInput({ props, inputRef, isListVisible, activeIndex, shownError
         onChange={(event) => onType(event.target.value)}
         onKeyDown={onKeyDown}
         onBlur={onLeave}
-        className="mono mt-1 min-h-[44px] w-full rounded-control border border-input bg-card p-2"
+        className={`mono mt-1 ${FIELD_CLASS}`}
       />
     </>
   );

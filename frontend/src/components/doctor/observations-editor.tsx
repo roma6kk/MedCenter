@@ -40,7 +40,7 @@ function ObservationRow({ index, onRemove }: { readonly index: number; readonly 
       <div className="grid gap-2 md:grid-cols-3">
         <CodedTermField list="observations" index={index} id={`observation-code-${index}`} label={t('code', { n: index + 1 })} placeholder={t('codePlaceholder')} valueSet={OBSERVATIONS_VALUE_SET} />
         <FieldRow id={valueId} label={t('value', { n: index + 1 })} error={valueError}>
-          <input id={valueId} type="number" step="any" inputMode="decimal" {...register(`observations.${index}.value`, { valueAsNumber: true })} {...a11yOf(valueId, valueError)} className={`mono ${INPUT_CLASS}`} />
+          <input id={valueId} type="number" step="any" inputMode="decimal" {...register(`observations.${index}.value`, { valueAsNumber: true })} {...a11yOf(valueId, valueError)} className={`${INPUT_CLASS} max-w-[12rem] tabular-nums`} />
         </FieldRow>
         <ObservationUnitField index={index} />
       </div>

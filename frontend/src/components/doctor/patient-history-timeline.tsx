@@ -29,7 +29,7 @@ function VisitEntry({ item }: { readonly item: HistoryItem }): ReactNode {
       <span aria-hidden="true" className="absolute -left-[21px] top-1.5 h-2 w-2 rounded-full bg-primary" />
       <article className="rounded-card border border-border bg-card p-3">
         <div className="flex flex-wrap items-baseline justify-between gap-2">
-          <p className="mono text-sm">{formatClinicDateTime(item.date)}</p>
+          <p className="tabular-nums text-sm">{formatClinicDateTime(item.date)}</p>
           {item.serviceType?.display ? <p className="text-sm text-muted-foreground">{item.serviceType.display}</p> : null}
         </div>
         <div className="mt-2">{item.diagnoses.length > 0 ? <DiagnosisList diagnoses={item.diagnoses} /> : <p className="text-sm text-muted-foreground">{t('noDiagnoses')}</p>}</div>

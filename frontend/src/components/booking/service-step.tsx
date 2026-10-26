@@ -44,7 +44,7 @@ function ServiceChoice({ service, selected, onSelect }: { readonly service: Cata
       <span className="flex min-w-0 flex-1 flex-col gap-1">
         <span className="break-words text-base font-semibold">{service.name}</span>
         {service.description === undefined ? null : <span className="text-sm text-muted-foreground">{service.description}</span>}
-        <span className={cn('mono mt-1.5 h-fit self-start rounded-full px-2.5 py-0.5 text-xs font-medium', selected ? 'bg-card text-primary-soft-foreground' : 'bg-secondary text-muted-foreground')}>
+        <span className={cn('tabular-nums mt-1.5 h-fit self-start rounded-full px-2.5 py-0.5 text-xs font-medium', selected ? 'bg-card text-primary-soft-foreground' : 'bg-secondary text-muted-foreground')}>
           {t('serviceMinutes', { minutes: service.defaultDurationMin })}
         </span>
       </span>

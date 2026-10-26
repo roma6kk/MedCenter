@@ -8,6 +8,7 @@ import { z } from 'zod';
 import { ProblemBanner } from '@/components/feedback/problem-banner';
 import { Button } from '@/components/ui/button';
 import { FormField, INPUT_CLASS } from '@/components/patient/form-field';
+import { FIELD_NARROW_CLASS } from '@/components/ui/field-styles';
 import { isApiError } from '@/lib/api/api-fetch';
 import { applyProblemToForm } from '@/lib/api/field-errors';
 import type { ProblemDetails } from '@/lib/api/problem';
@@ -52,7 +53,7 @@ export function ConsentRevokeForm({ patientId }: { readonly patientId: string })
       <h3 id="consent-revoke-title" className="text-base font-bold">{t('revokeTitle')}</h3>
       <p className="mt-1 text-sm text-muted-foreground">{t('revokeLead')}</p>
       <FormField id="consent-application" label={t('applicationNumber')} error={form.formState.errors.applicationNumber?.message}>
-        {(control) => <input {...control} type="text" aria-required="true" {...form.register('applicationNumber')} className={INPUT_CLASS} />}
+        {(control) => <input {...control} type="text" aria-required="true" {...form.register('applicationNumber')} className={`${INPUT_CLASS} ${FIELD_NARROW_CLASS}`} />}
       </FormField>
       {isGone ? <p role="alert" className="mt-3 rounded-card bg-warning-soft p-3 text-sm">{t('nothingToRevoke')}</p> : null}
       {problem !== null ? <div className="mt-3"><ProblemBanner problem={problem} /></div> : null}

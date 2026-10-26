@@ -20,7 +20,7 @@ const DATE_KEY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 const EMBEDDED_INSTANT = /\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2}(?:\.\d{1,9})?)?(?:Z|[+-]\d{2}:\d{2})/g;
 
 /** BCP 47 tag of the dates on screen: the clinic's own format for the Russian UI, British (day first, 24 h) for English. */
-const INTL_LOCALE: Readonly<Record<Locale, string>> = { ru: 'ru-BY', en: 'en-GB' };
+export const INTL_LOCALE: Readonly<Record<Locale, string>> = { ru: 'ru-BY', en: 'en-GB' };
 
 type FormatKind = 'dateTime' | 'time' | 'date' | 'dayMedium' | 'dayLong' | 'dayHeading' | 'dayShort' | 'weekdayShort';
 

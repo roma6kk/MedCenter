@@ -9,6 +9,7 @@ import type { ServerFieldRule } from '../shared/apply-server-error';
 import { FormActions } from '../shared/form-actions';
 import { messagesOf } from '../shared/form-errors';
 import { Dialog } from '@/components/ui/dialog';
+import { Switch } from '@/components/ui/switch';
 import { useFormBanner } from '../shared/use-form-banner';
 import { useFormMessage } from '../shared/use-form-message';
 import { useCreateUser, useUpdateUser } from './use-admin-users';
@@ -47,7 +48,7 @@ function CreateUserForm({ onClose }: { readonly onClose: () => void }): ReactNod
   const resolve = useFormMessage();
   const create = useCreateUser();
   const form = useForm<CreateUserFormValues>({ resolver: zodResolver(createUserSchema), defaultValues: EMPTY_CREATE_VALUES });
-  const { register, handleSubmit, watch, formState } = form;
+  const { register, control, handleSubmit, watch, formState } = form;
   const roles = watch('roles');
   const roleChoices = usePractitionerRoleOptions(undefined, watch('practitionerRoleId'));
   const { banner, fail, clear } = useFormBanner(form, CREATE_FIELDS, useServerRules(roles.includes('DOCTOR')));
@@ -59,7 +60,7 @@ function CreateUserForm({ onClose }: { readonly onClose: () => void }): ReactNod
   return (
     <form onSubmit={(event) => void submit(event)} noValidate>
       <SharedUserFields register={register} errors={errors} selectedRoles={roles} roleChoices={roleChoices} />
-      <CreateOnlyUserFields register={register} errors={errors} selectedRoles={roles} />
+      <CreateOnlyUserFields register={register} control={control} errors={errors} selectedRoles={roles} />
       <FormProblem banner={banner} />
       <FormActions submitLabel={t('create')} isPending={create.isPending} onCancel={onClose} error={create.error} />
     </form>
@@ -91,10 +92,9 @@ function EditUserForm({ user, onClose }: { readonly user: AdminUser; readonly on
   return (
     <form onSubmit={(event) => void submit(event)} noValidate>
       <SharedUserFields register={register} errors={errors} selectedRoles={roles} notes={roleNotesOf(user, roles)} roleChoices={roleChoices} />
-      <label className="mt-3 flex min-h-[44px] items-center gap-2 text-sm">
-        <input type="checkbox" {...register('isActive')} />
+      <Switch wrapperClassName="mt-3" {...register('isActive')}>
         {t('fields.isActive')}
-      </label>
+      </Switch>
       <FormProblem banner={banner} />
       <FormActions submitLabel={t('save')} isPending={update.isPending} onCancel={onClose} error={update.error} />
     </form>

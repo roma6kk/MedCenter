@@ -1,8 +1,10 @@
 'use client';
 
-import type { ChangeEvent, ReactNode } from 'react';
+import type { ReactNode } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { buttonVariants } from '@/components/ui/button-variants';
+import { DatePicker } from '@/components/ui/date-picker';
+import { Select } from '@/components/ui/select';
 import { useT } from '@/lib/i18n/use-t';
 import { isDateKey, shiftDateKey } from '@/lib/clinic-time';
 import { cn } from '@/lib/ui/cn';
@@ -27,28 +29,24 @@ interface JournalControlsProps {
   readonly onStatusChange: (status: StatusFilter) => void;
 }
 
-const STEP_BUTTON = 'inline-flex size-11 items-center justify-center text-foreground hover:bg-secondary';
+const STEP_BUTTON =
+  'inline-flex size-11 items-center justify-center rounded-control border border-border bg-card text-foreground transition-[background-color] duration-fast ease-out hover:bg-secondary';
 
 /** Previous / the date field / next: the day (day view) or the first day of the week (week view). */
 function PeriodPicker({ dateKey, view, onDateChange }: Pick<JournalControlsProps, 'dateKey' | 'view' | 'onDateChange'>): ReactNode {
   const t = useT('doctor.journal');
   const step: number = STEP_DAYS[view];
-  const handleDateInput = (event: ChangeEvent<HTMLInputElement>): void => {
-    if (isDateKey(event.target.value)) onDateChange(event.target.value);
+  // A half-typed day reaches the picker as `''`: only a real day moves the journal.
+  const handleDate = (next: string): void => {
+    if (isDateKey(next)) onDateChange(next);
   };
   return (
-    <div role="group" aria-label={t('periodLabel')} className="inline-flex items-center overflow-hidden rounded-control border border-border bg-card">
+    <div role="group" aria-label={t('periodLabel')} className="inline-flex items-center gap-1.5">
       <button type="button" onClick={() => onDateChange(shiftDateKey(dateKey, -step))} aria-label={view === 'day' ? t('previousDay') : t('previousWeek')} className={STEP_BUTTON}>
         <ChevronLeft aria-hidden="true" className="size-[18px]" />
       </button>
       <label htmlFor="journal-date" className="sr-only">{view === 'day' ? t('date') : t('weekStart')}</label>
-      <input
-        id="journal-date"
-        type="date"
-        value={dateKey}
-        onChange={handleDateInput}
-        className="mono min-h-11 border-x border-border bg-transparent px-3 text-base font-medium text-foreground"
-      />
+      <DatePicker id="journal-date" value={dateKey} onChange={handleDate} wrapperClassName="w-44" className="font-medium" />
       <button type="button" onClick={() => onDateChange(shiftDateKey(dateKey, step))} aria-label={view === 'day' ? t('nextDay') : t('nextWeek')} className={STEP_BUTTON}>
         <ChevronRight aria-hidden="true" className="size-[18px]" />
       </button>
@@ -93,16 +91,11 @@ export function JournalControls({ dateKey, today, view, onViewChange, onDateChan
       </button>
       <ViewToggle view={view} onViewChange={onViewChange} />
       <label htmlFor="journal-status" className="sr-only">{t('statusFilter')}</label>
-      <select
-        id="journal-status"
-        value={status}
-        onChange={(event) => onStatusChange(event.target.value as StatusFilter)}
-        className="min-h-11 rounded-control border border-input bg-card px-3 text-sm"
-      >
+      <Select id="journal-status" value={status} onChange={(event) => onStatusChange(event.target.value as StatusFilter)} wrapperClassName="w-auto min-w-[10rem]">
         {STATUS_FILTERS.map((option) => (
           <option key={option} value={option}>{option === 'all' ? t('statusAll') : tStamp(option)}</option>
         ))}
-      </select>
+      </Select>
     </div>
   );
 }

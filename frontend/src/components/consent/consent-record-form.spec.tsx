@@ -96,19 +96,19 @@ describe('ConsentRecordForm', () => {
   });
 
   it.each([
-    ['a file that is not PDF, JPEG or PNG', new File(['x'], 'a.gif', { type: 'image/gif' }), 'Скан должен быть в формате PDF, JPEG или PNG'],
-    ['a file larger than 10 MB', setFileSize(new File(['x'], 'big.pdf', { type: 'application/pdf' }), 10 * 1024 * 1024 + 1), 'Файл больше 10 МБ'],
+    ['a file that is not PDF, JPEG or PNG', new File(['x'], 'a.gif', { type: 'image/gif' }), 'Этот тип файла не подходит. Подходят: PDF, JPEG, PNG.'],
+    ['a file larger than 10 MB', setFileSize(new File(['x'], 'big.pdf', { type: 'application/pdf' }), 10 * 1024 * 1024 + 1), 'Файл больше 10 МБ.'],
   ])('should refuse %s before anything is uploaded', async (_name, file, message) => {
     const user = userEvent.setup({ applyAccept: false });
     renderForm();
 
     await user.type(screen.getByLabelText('Номер формы'), 'Ф-12');
     await user.type(screen.getByLabelText('Дата подписания'), '2020-01-15');
-    await user.upload(screen.getByLabelText('Скан подписанной формы'), file);
+    await user.upload(screen.getByLabelText('Скан подписанной формы', { selector: 'input' }), file);
     await user.click(screen.getByRole('button', { name: 'Внести в карту' }));
 
     expect(await screen.findByText(message)).toBeInTheDocument();
-    expect(screen.getByLabelText('Скан подписанной формы')).toHaveAttribute('aria-invalid', 'true');
+    expect(screen.getByLabelText('Скан подписанной формы', { selector: 'input' })).toHaveAttribute('aria-invalid', 'true');
     expect(mocked.postConsentScan).not.toHaveBeenCalled();
   });
 

@@ -1,11 +1,12 @@
 'use client';
 
-import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
+import { useCallback, useId, useLayoutEffect, useRef, useState } from 'react';
 import type { KeyboardEvent, ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import Link from 'next/link';
 import { MoreHorizontal, type LucideIcon } from 'lucide-react';
 import { cn } from '@/lib/ui/cn';
+import { useFloatingPosition } from './floating';
 
 export interface MenuItem {
   readonly key: string;
@@ -29,23 +30,8 @@ interface DropdownMenuProps {
 }
 
 const MENU_WIDTH_PX = 224;
-const GAP_PX = 4;
 const ITEM_BASE =
   'flex min-h-[44px] w-full items-center gap-2.5 rounded-control px-3 text-left text-sm font-medium outline-none transition-[background-color,color] duration-fast ease-out focus-visible:bg-secondary hover:bg-secondary';
-
-interface Position {
-  readonly top: number;
-  readonly left: number;
-}
-
-/** Under the trigger, right edges aligned; above it when there is no room below; never past the viewport edges. */
-function placeMenu(trigger: HTMLElement, menuHeight: number): Position {
-  const rect: DOMRect = trigger.getBoundingClientRect();
-  const fitsBelow: boolean = rect.bottom + GAP_PX + menuHeight <= window.innerHeight || rect.top - GAP_PX - menuHeight < 0;
-  const top: number = fitsBelow ? rect.bottom + GAP_PX : rect.top - GAP_PX - menuHeight;
-  const left: number = Math.min(Math.max(8, rect.right - MENU_WIDTH_PX), Math.max(8, window.innerWidth - MENU_WIDTH_PX - 8));
-  return { top, left };
-}
 
 function itemsOf(menu: HTMLElement | null): ReadonlyArray<HTMLElement> {
   return menu === null ? [] : Array.from(menu.querySelectorAll<HTMLElement>('[role="menuitem"]'));
@@ -86,30 +72,10 @@ interface MenuPanelProps {
 
 function MenuPanel({ id, triggerId, trigger, items, onClose, onSelect }: MenuPanelProps): ReactNode {
   const menu = useRef<HTMLDivElement>(null);
-  const [position, setPosition] = useState<Position | null>(null);
+  const position = useFloatingPosition({ anchor: trigger, panel: menu, align: 'end', width: MENU_WIDTH_PX, onOutsidePress: () => onClose(false) });
   useLayoutEffect(() => {
-    if (trigger !== null && menu.current !== null) setPosition(placeMenu(trigger, menu.current.offsetHeight));
     itemsOf(menu.current)[0]?.focus();
-  }, [trigger]);
-  useEffect(() => {
-    // Click outside closes. Scroll and resize move the menu with its button instead of closing it: a scroll event queued by
-    // the very gesture that opened the menu (a tap right after a scroll) must not dismiss it.
-    const onPointerDown = (event: PointerEvent): void => {
-      const target = event.target as Node;
-      if (!menu.current?.contains(target) && !trigger?.contains(target)) onClose(false);
-    };
-    const onViewportChange = (): void => {
-      if (trigger !== null && menu.current !== null) setPosition(placeMenu(trigger, menu.current.offsetHeight));
-    };
-    document.addEventListener('pointerdown', onPointerDown);
-    window.addEventListener('resize', onViewportChange);
-    window.addEventListener('scroll', onViewportChange, true);
-    return () => {
-      document.removeEventListener('pointerdown', onPointerDown);
-      window.removeEventListener('resize', onViewportChange);
-      window.removeEventListener('scroll', onViewportChange, true);
-    };
-  }, [trigger, onClose]);
+  }, []);
   return createPortal(
     <div
       ref={menu}

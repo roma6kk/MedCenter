@@ -62,7 +62,7 @@ function NextVisitCard({ visit }: { readonly visit: JournalAppointment }): React
     <div className="flex flex-wrap items-center gap-x-4 gap-y-3 rounded-card border-2 border-primary bg-primary-soft p-4">
       <span aria-hidden="true" className="inline-flex size-11 shrink-0 items-center justify-center rounded-full bg-primary font-bold text-primary-foreground">{initialsOf(name)}</span>
       <span className="flex min-w-0 flex-1 basis-48 flex-col gap-0.5">
-        <span className="text-xs font-bold uppercase tracking-[0.06em] text-primary-soft-foreground">{t('nextPatient')}</span>
+        <span className="text-sm font-semibold text-primary-soft-foreground">{t('nextPatient')}</span>
         <span className="text-lg font-bold [overflow-wrap:anywhere]"><PatientLink visit={visit} /></span>
         {visit.serviceName ? <span className="text-sm text-primary-soft-foreground">{visit.serviceName}</span> : null}
       </span>
@@ -139,7 +139,7 @@ function TimelineRow({ entry, isFirst }: { readonly entry: TimelineEntry; readon
   const instant: string = entry.kind === 'visit' ? entry.visit.start : entry.start;
   return (
     <li data-testid={entry.kind === 'visit' ? `journal-visit-${entry.visit.id}` : 'journal-gap'} className="grid grid-cols-[3.5rem_1.5rem_minmax(0,1fr)] gap-x-3">
-      <span className={cn('mono pt-3.5 text-base font-medium', quiet && 'text-muted-foreground')}>{formatClinicTime(instant)}</span>
+      <span className={cn('tabular-nums pt-3.5 text-base font-medium', quiet && 'text-muted-foreground')}>{formatClinicTime(instant)}</span>
       <span aria-hidden="true" className="flex flex-col items-center">
         <span className={cn('h-4 w-0.5', isFirst ? 'bg-transparent' : 'bg-border')} />
         <span
@@ -182,7 +182,7 @@ function NextPatientPanel({ visit }: { readonly visit: JournalAppointment }): Re
       </div>
       <dl className="grid grid-cols-2 gap-3">
         {visit.serviceName ? <DetailCell term={t('columns.service')}>{visit.serviceName}</DetailCell> : null}
-        <DetailCell term={t('duration')}><span className="mono font-medium">{t('minutes', { count: visitMinutes(visit) })}</span></DetailCell>
+        <DetailCell term={t('duration')}><span className="tabular-nums font-medium">{t('minutes', { count: visitMinutes(visit) })}</span></DetailCell>
         {visit.reason ? <DetailCell term={t('columns.reason')} wide>{visit.reason}</DetailCell> : null}
       </dl>
       <OpenEncounterButton appointmentId={visit.id} patientId={visit.patientId} label={label} size="lg" fullWidth />
@@ -221,7 +221,7 @@ function DaySummary({ counts }: { readonly counts: StatusCounts }): ReactNode {
           <li key={row.status} className="flex items-center gap-2.5">
             <span aria-hidden="true" className={cn('size-3 rounded-sm', row.swatch)} />
             {t(row.labelKey)}
-            <span className="mono ml-auto font-medium">{counts[row.status]}</span>
+            <span className="tabular-nums ml-auto font-medium">{counts[row.status]}</span>
           </li>
         ))}
       </ul>
@@ -253,7 +253,7 @@ export function JournalDayView({ data, rows, onPage, emptyFilteredText, emptyTex
           <h2 id="journal-timeline-title" className="text-lg font-bold">{t('timelineTitle')}</h2>
           <p className="text-sm text-muted-foreground">
             <span role="status">{t('total', { count: data.meta.totalItems })}</span>
-            {first && last ? <span className="mono">{` · ${formatClinicTime(first.start)}–${formatClinicTime(last.end)}`}</span> : null}
+            {first && last ? <span className="tabular-nums">{` · ${formatClinicTime(first.start)}–${formatClinicTime(last.end)}`}</span> : null}
           </p>
         </div>
         {data.items.length === 0 ? <EmptyState title={emptyText} /> : null}

@@ -7,8 +7,8 @@ import { useT } from '@/lib/i18n/use-t';
 import type { CatalogService } from './catalog-types';
 import type { DirectoryParams, SpecialtyOption } from './doctor-directory';
 import { SECONDARY_BUTTON_CLASS } from './catalog-styles';
-
-const CONTROL_CLASS = 'mt-1 min-h-[44px] w-full rounded-control border border-[var(--input)] bg-[var(--card)] px-2';
+import { FIELD_CLASS } from '@/components/ui/field-styles';
+import { Select } from '@/components/ui/select';
 
 interface DoctorFilterBarProps {
   readonly params: DirectoryParams;
@@ -18,8 +18,8 @@ interface DoctorFilterBarProps {
 
 function Field({ label, htmlFor, children }: { readonly label: string; readonly htmlFor: string; readonly children: ReactNode }): ReactNode {
   return (
-    <div>
-      <label htmlFor={htmlFor} className="form-label block">{label}</label>
+    <div className="grid gap-1.5">
+      <label htmlFor={htmlFor} className="form-label">{label}</label>
       {children}
     </div>
   );
@@ -33,20 +33,20 @@ export function DoctorFilterBar({ params, services, specialties }: DoctorFilterB
     <form method="get" action="/doctors" role="search" aria-label={t('filterLabel')} className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 lg:items-end">
       {services.length === 0 ? null : (
         <Field label={t('filterService')} htmlFor={`${id}-service`}>
-          <select id={`${id}-service`} name="serviceId" defaultValue={params.serviceId ?? ''} className={CONTROL_CLASS}>
+          <Select id={`${id}-service`} name="serviceId" defaultValue={params.serviceId ?? ''}>
             <option value="">{t('anyService')}</option>
             {services.map((service) => <option key={service.id} value={service.id}>{service.name}</option>)}
-          </select>
+          </Select>
         </Field>
       )}
       <Field label={t('filterSpecialty')} htmlFor={`${id}-specialty`}>
-        <select id={`${id}-specialty`} name="specialty" defaultValue={params.specialty ?? ''} className={CONTROL_CLASS}>
+        <Select id={`${id}-specialty`} name="specialty" defaultValue={params.specialty ?? ''}>
           <option value="">{t('anySpecialty')}</option>
           {specialties.map((specialty) => <option key={specialty.code} value={specialty.code}>{specialty.label}</option>)}
-        </select>
+        </Select>
       </Field>
       <Field label={t('filterSearch')} htmlFor={`${id}-search`}>
-        <input id={`${id}-search`} type="search" name="search" maxLength={100} defaultValue={params.search ?? ''} className={CONTROL_CLASS} />
+        <input id={`${id}-search`} type="search" name="search" maxLength={100} defaultValue={params.search ?? ''} className={FIELD_CLASS} />
       </Field>
       <div className="flex gap-2">
         <button type="submit" className="min-h-[44px] rounded-control bg-[var(--primary)] px-5 py-2 text-[var(--primary-foreground)]">{t('apply')}</button>

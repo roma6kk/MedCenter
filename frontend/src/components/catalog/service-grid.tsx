@@ -18,7 +18,7 @@ function ServiceCard({ service }: { readonly service: CatalogService }): ReactNo
     >
       <span className="text-lg font-semibold">{service.name}</span>
       {service.description === undefined ? null : <span className="text-sm text-muted-foreground">{service.description}</span>}
-      <span className="mono mt-auto self-start rounded-full bg-secondary px-2.5 py-1 text-xs text-muted-foreground">{t('minutes', { minutes: service.defaultDurationMin })}</span>
+      <span className="tabular-nums mt-auto self-start rounded-full bg-secondary px-2.5 py-1 text-xs text-muted-foreground">{t('minutes', { minutes: service.defaultDurationMin })}</span>
     </Link>
   );
 }

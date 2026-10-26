@@ -6,7 +6,7 @@ import { extendTailwindMerge } from 'tailwind-merge';
 const twMerge = extendTailwindMerge({
   extend: {
     classGroups: {
-      shadow: [{ shadow: ['elev-1', 'elev-2', 'elev-3'] }],
+      shadow: [{ shadow: ['elev-1', 'elev-2', 'elev-3', 'focus', 'focus-danger'] }],
       duration: [{ duration: ['fast', 'base', 'slow'] }],
     },
   },

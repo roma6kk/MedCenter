@@ -16,7 +16,7 @@ export function ScheduleWeekPreview({ windows }: { readonly windows: ReadonlyArr
         <div key={day} className="rounded-control border border-[var(--border)] p-1">
           <p className="font-semibold">{t(`days.${day}`)}</p>
           {windowsOfDay(windows.filter(isWindowValid), day).map((window, position) => (
-            <p key={`${window.startTime}-${window.endTime}-${position}`} className={`mono ${marked.has(window) ? 'text-[var(--destructive)]' : ''}`}>
+            <p key={`${window.startTime}-${window.endTime}-${position}`} className={`tabular-nums ${marked.has(window) ? 'text-[var(--destructive)]' : ''}`}>
               {window.startTime}–{window.endTime}
             </p>
           ))}

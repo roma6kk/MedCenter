@@ -34,7 +34,7 @@ function RecommendationCard({ item, onHide }: { readonly item: Recommendation; r
         <span aria-hidden="true" className={cn('inline-flex h-10 w-10 flex-none items-center justify-center rounded-control', item.kind === 'profile' ? 'bg-warning-soft text-warning' : 'bg-primary-soft text-primary-soft-foreground')}>
           <Icon size={20} />
         </span>
-        <span className="text-xs font-bold uppercase tracking-[0.05em] text-muted-foreground">{t(`reco.tag.${item.kind}`, values)}</span>
+        <span className="text-sm font-semibold text-muted-foreground">{t(`reco.tag.${item.kind}`, values)}</span>
       </div>
       <h3 className={cn('text-lg font-bold', WRAP_TEXT)}>{title}</h3>
       <p className="text-sm leading-normal text-muted-foreground">{t(item.textKey, values)}</p>

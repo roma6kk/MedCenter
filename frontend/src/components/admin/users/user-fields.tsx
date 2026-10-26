@@ -1,12 +1,17 @@
 'use client';
 
 import type { ReactNode } from 'react';
-import type { UseFormRegisterReturn } from 'react-hook-form';
+import { Controller, type Control, type UseFormRegisterReturn } from 'react-hook-form';
+import { Checkbox } from '@/components/ui/checkbox';
+import { DatePicker } from '@/components/ui/date-picker';
+import { Select } from '@/components/ui/select';
+import { clinicDateKey } from '@/lib/clinic-time';
 import { useT } from '@/lib/i18n/use-t';
 import { CONTROL_CLASS } from '../shared/admin-styles';
 import type { FieldMessages } from '../shared/form-errors';
 import { controlProps, Field, Fieldset } from '../shared/form-field';
 import type { PractitionerRoleChoices } from './use-practitioner-role-options';
+import type { CreateUserFormValues } from './user-schema';
 import { USER_ROLES, type UserRole } from './user-types';
 
 export type SharedUserField = 'email' | 'firstName' | 'lastName' | 'roles' | 'practitionerRoleId';
@@ -44,10 +49,9 @@ function RoleCheckboxes({ registration, error, notes }: RoleCheckboxesProps): Re
   return (
     <Fieldset id="user-roles" legend={t('fields.roles')} error={error}>
       {USER_ROLES.map((role) => (
-        <label key={role} className="flex min-h-[44px] items-center gap-2 text-sm">
-          <input type="checkbox" value={role} disabled={role === 'PATIENT' && notes.patientLocked} {...registration} />
+        <Checkbox key={role} value={role} disabled={role === 'PATIENT' && notes.patientLocked} {...registration}>
           {t(`roleNames.${role}`)}
-        </label>
+        </Checkbox>
       ))}
       {notes.patientLocked ? <p className="basis-full text-xs text-[var(--muted-foreground)]">{t('hints.patientLocked')}</p> : null}
     </Fieldset>
@@ -74,14 +78,14 @@ function PractitionerRoleField({ registration, error, choices }: PractitionerRol
   const options = choices.state === 'ready' ? choices.options : [];
   return (
     <Field id="user-practitioner-role" label={t('fields.practitionerRoleId')} error={error} hint={hint}>
-      <select {...controlProps('user-practitioner-role', error, hint)} disabled={choices.state === 'pending'} className={CONTROL_CLASS} {...registration}>
+      <Select {...controlProps('user-practitioner-role', error, hint)} disabled={choices.state === 'pending'} {...registration}>
         <option value="">{choices.state === 'pending' ? t('roleOptionsLoading') : t('roleNotLinked')}</option>
         {options.map((option) => (
           <option key={option.value} value={option.value} disabled={option.disabled}>
             {option.label}
           </option>
         ))}
-      </select>
+      </Select>
     </Field>
   );
 }
@@ -126,12 +130,13 @@ export function SharedUserFields({ register, errors, selectedRoles, notes = NO_R
 
 interface CreateOnlyProps {
   readonly register: (name: CreateOnlyField) => UseFormRegisterReturn;
+  readonly control: Control<CreateUserFormValues>;
   readonly errors: FieldMessages<CreateOnlyField>;
   readonly selectedRoles: ReadonlyArray<UserRole>;
 }
 
 /** Only a new account has a password, and only a PATIENT needs the birth date and gender for its FHIR `Patient`. */
-export function CreateOnlyUserFields({ register, errors, selectedRoles }: CreateOnlyProps): ReactNode {
+export function CreateOnlyUserFields({ register, control, errors, selectedRoles }: CreateOnlyProps): ReactNode {
   const t = useT('admin.users');
   const passwordHint: string = t('hints.password');
   return (
@@ -142,14 +147,14 @@ export function CreateOnlyUserFields({ register, errors, selectedRoles }: Create
       {selectedRoles.includes('PATIENT') ? (
         <div className="grid gap-3 sm:grid-cols-2">
           <Field id="user-birth-date" label={t('fields.birthDate')} error={errors.birthDate} required>
-            <input {...controlProps('user-birth-date', errors.birthDate)} type="date" className={CONTROL_CLASS} {...register('birthDate')} />
+            <Controller control={control} name="birthDate" render={({ field }) => <DatePicker {...controlProps('user-birth-date', errors.birthDate)} {...field} max={clinicDateKey()} aria-required />} />
           </Field>
           <Field id="user-gender" label={t('fields.gender')} error={errors.gender}>
-            <select {...controlProps('user-gender', errors.gender)} className={CONTROL_CLASS} {...register('gender')}>
+            <Select {...controlProps('user-gender', errors.gender)} {...register('gender')}>
               <option value="">{t('genderNames.unset')}</option>
               <option value="female">{t('genderNames.female')}</option>
               <option value="male">{t('genderNames.male')}</option>
-            </select>
+            </Select>
           </Field>
         </div>
       ) : null}

@@ -1,6 +1,7 @@
 'use client';
 
 import type { ReactNode } from 'react';
+import { FIELD_CLASS } from '@/components/ui/field-styles';
 import { useT } from '@/lib/i18n/use-t';
 
 /** What an input needs to be announced with its hint and error (WCAG 1.3.1, 3.3.1, 3.3.3). */
@@ -21,7 +22,8 @@ interface FormFieldProps {
 
 const VALIDATION_KEY_PREFIX = 'validation.';
 
-export const INPUT_CLASS = 'mt-1 w-full min-h-[44px] rounded-control border border-input bg-card px-3 py-2';
+/** The one shared field look (`ui/field-styles.ts`); `FormField` spaces the control from its label, so no margin here. */
+export const INPUT_CLASS = FIELD_CLASS;
 
 /** Space-separated ids of the elements that describe the control, or `undefined` when there are none. */
 export function describedBy(...ids: ReadonlyArray<string | false | undefined>): string | undefined {
@@ -36,11 +38,11 @@ export function FormField({ id, label, error, hint, children }: FormFieldProps):
   const errorId = `${id}-error`;
   const message: string | undefined = error?.startsWith(VALIDATION_KEY_PREFIX) === true ? tValidation(error) : error;
   return (
-    <div className="mt-3 first:mt-0">
-      <label htmlFor={id} className="form-label block">{label}</label>
+    <div className="mt-4 grid gap-1.5 first:mt-0">
+      <label htmlFor={id} className="form-label">{label}</label>
       {children({ id, 'aria-describedby': describedBy(hint !== undefined && hintId, message !== undefined && errorId), 'aria-invalid': message !== undefined })}
-      {hint !== undefined ? <p id={hintId} className="mt-1 text-xs text-[var(--muted-foreground)]">{hint}</p> : null}
-      {message !== undefined ? <p id={errorId} role="alert" className="mt-1 text-sm text-[var(--destructive)]">{message}</p> : null}
+      {hint !== undefined ? <p id={hintId} className="text-xs text-muted-foreground">{hint}</p> : null}
+      {message !== undefined ? <p id={errorId} role="alert" className="text-sm text-destructive">{message}</p> : null}
     </div>
   );
 }

@@ -53,6 +53,9 @@
      The hairline --border stays for cards and dividers: fields have no other visual edge. */
   --input: oklch(62% 0.02 219);
   --ring: oklch(51% 0.088 186);
+  /* Soft halo of a focused field (`shadow-focus`): the ring colour at low alpha, drawn around the primary border. */
+  --focus-ring: oklch(51% 0.088 186 / 0.28);
+  --focus-ring-danger: oklch(50% 0.178 29 / 0.28);
   /* Ground behind a modal dialog. */
   --scrim: oklch(25% 0.026 221 / 0.4);
   /* A dark band on a light page (audiences block): its own ground, text, hairline and link colour. */
@@ -133,6 +136,8 @@
   --border-soft: oklch(33% 0.027 215);
   --input: oklch(60.3% 0.029 212);
   --ring: oklch(69.6% 0.11 184);
+  --focus-ring: oklch(69.6% 0.11 184 / 0.4);
+  --focus-ring-danger: oklch(74.5% 0.127 26 / 0.4);
   --scrim: oklch(10% 0.02 221 / 0.65);
   --inverse: oklch(28.7% 0.026 216);
   --inverse-foreground: oklch(93.7% 0.009 206);
@@ -154,17 +159,26 @@ body {
 h1, h2, h3, .serif {
   font-family: var(--font-sans);
   letter-spacing: -0.015em;
+  /* Balanced lines: a heading never ends on a lonely word (VC4). Prose gets `pretty`, which only avoids a single-word last line. */
+  text-wrap: balance;
 }
 
+p {
+  text-wrap: pretty;
+}
+
+/* Monospace is for codes only (ICD-10, NSI, ATC, ids). Times, dates, durations and counters use the sans font with
+   `tabular-nums` (Tailwind utility), so digits line up without the «technical» look of a mono face. */
 .mono {
   font-family: var(--font-mono);
 }
 
+/* Field label: normal case, 14 px, semibold, full-contrast text (VC3). Uppercase stays for the rare overline only. */
 .form-label {
-  font-size: var(--step--2);
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: var(--muted-foreground);
+  font-size: var(--step--1);
+  font-weight: 600;
+  line-height: 1.4;
+  color: var(--foreground);
 }
 
 :focus-visible {

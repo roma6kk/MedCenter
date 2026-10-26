@@ -2,8 +2,12 @@
 
 import type { ReactNode } from 'react';
 import Link from 'next/link';
+import { Controller } from 'react-hook-form';
 import { Button } from '@/components/ui/button';
 import { buttonVariants } from '@/components/ui/button-variants';
+import { Checkbox } from '@/components/ui/checkbox';
+import { DatePicker } from '@/components/ui/date-picker';
+import { Select } from '@/components/ui/select';
 import { ProblemBanner } from '@/components/feedback/problem-banner';
 import type { Translate } from '@/lib/i18n/translate';
 import { useDocumentTitle } from '@/hooks/use-document-title';
@@ -46,19 +50,21 @@ function IdentityFields({ state }: { readonly state: RegisterFormState }): React
 
 function PersonalFields({ state }: { readonly state: RegisterFormState }): ReactNode {
   const t = useT('auth.register');
-  const { register, formState: { errors } } = state.form;
+  const { register, control: formControl, formState: { errors } } = state.form;
   return (
     <>
       <AuthField id="birthDate" label={t('birthDate')} error={errors.birthDate?.message}>
-        {(control) => <input {...control} type="date" max={clinicDateKey()} autoComplete="bday" aria-required="true" {...register('birthDate')} className={AUTH_INPUT_CLASS} />}
+        {(control) => (
+          <Controller control={formControl} name="birthDate" render={({ field }) => <DatePicker {...control} {...field} max={clinicDateKey()} autoComplete="bday" aria-required="true" />} />
+        )}
       </AuthField>
       <AuthField id="gender" label={t('gender')} error={errors.gender?.message}>
         {(control) => (
-          <select {...control} {...register('gender')} className={AUTH_INPUT_CLASS}>
+          <Select {...control} {...register('gender')}>
             <option value="">{t('genderUnset')}</option>
             <option value="male">{t('genderMale')}</option>
             <option value="female">{t('genderFemale')}</option>
-          </select>
+          </Select>
         )}
       </AuthField>
       <AuthField id="phone" label={t('phone')} hint={t('phoneHint')} error={errors.phone?.message}>
@@ -78,10 +84,9 @@ function ConsentField({ state }: { readonly state: RegisterFormState }): ReactNo
   return (
     <AuthField id="accountConsent" label={t('consentLabel')} error={errors.accountConsent?.message} hint={t('consentRecordNote')} labelHidden>
       {(control) => (
-        <div className="mt-4 flex items-start gap-3">
-          <input {...control} type="checkbox" aria-required="true" {...register('accountConsent')} className="mt-0.5 h-6 w-6 shrink-0 accent-primary" />
-          <label htmlFor="accountConsent" className="text-sm">{t('consentLabel')}</label>
-        </div>
+        <Checkbox {...control} aria-required="true" {...register('accountConsent')} wrapperClassName="items-start">
+          {t('consentLabel')}
+        </Checkbox>
       )}
     </AuthField>
   );

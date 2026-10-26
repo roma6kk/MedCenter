@@ -5,6 +5,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm, type UseFormRegisterReturn } from 'react-hook-form';
 import { useT } from '@/lib/i18n/use-t';
 import { FormProblem } from '../shared/admin-problem';
+import { FIELD_NARROW_CLASS } from '@/components/ui/field-styles';
 import { CONTROL_CLASS } from '../shared/admin-styles';
 import type { ServerFieldRule } from '../shared/apply-server-error';
 import { controlProps, Field } from '../shared/form-field';
@@ -34,10 +35,10 @@ function CodeFields({ register, errors }: FieldsProps): ReactNode {
       </Field>
       <div className="grid gap-3 sm:grid-cols-2">
         <Field id="service-type-code" label={t('fields.typeCode')} error={errors.typeCode} hint={t('hints.typeCode')} required>
-          <input {...controlProps('service-type-code', errors.typeCode, t('hints.typeCode'))} className={`${CONTROL_CLASS} mono`} {...register('typeCode')} />
+          <input {...controlProps('service-type-code', errors.typeCode, t('hints.typeCode'))} className={`${CONTROL_CLASS} ${FIELD_NARROW_CLASS} mono`} {...register('typeCode')} />
         </Field>
         <Field id="service-duration" label={t('fields.defaultDurationMin')} error={errors.defaultDurationMin} required>
-          <input {...controlProps('service-duration', errors.defaultDurationMin)} type="number" inputMode="numeric" className={CONTROL_CLASS} {...register('defaultDurationMin')} />
+          <input {...controlProps('service-duration', errors.defaultDurationMin)} type="number" inputMode="numeric" className={`${CONTROL_CLASS} ${FIELD_NARROW_CLASS}`} {...register('defaultDurationMin')} />
         </Field>
       </div>
     </>

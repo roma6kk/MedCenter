@@ -1,10 +1,10 @@
 'use client';
 
-import { useEffect, useState, type ChangeEvent } from 'react';
+import { useEffect, useState } from 'react';
 
 export interface DateDraft {
   readonly value: string;
-  readonly onChange: (event: ChangeEvent<HTMLInputElement>) => void;
+  readonly onChange: (day: string) => void;
   readonly onBlur: () => void;
 }
 
@@ -20,9 +20,9 @@ export function useDateDraft(committed: string, commit: (day: string) => void): 
   useEffect(() => setDraft(committed), [committed]);
   return {
     value: draft,
-    onChange: (event) => {
-      setDraft(event.target.value);
-      commit(event.target.value);
+    onChange: (day) => {
+      setDraft(day);
+      commit(day);
     },
     onBlur: () => setDraft(committed),
   };

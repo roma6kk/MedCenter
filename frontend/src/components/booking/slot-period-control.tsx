@@ -3,6 +3,7 @@
 import type { ReactNode } from 'react';
 import { useId } from 'react';
 import { SECONDARY_BUTTON_CLASS } from '@/components/catalog/catalog-styles';
+import { DatePicker } from '@/components/ui/date-picker';
 import { formatDayShort } from '@/lib/clinic-time';
 import { useT } from '@/lib/i18n/use-t';
 import { useUiStore } from '@/store/use-ui-store';
@@ -38,18 +39,9 @@ function JumpToDate({ state }: { readonly state: SlotWindowState }): ReactNode {
   const dateId: string = useId();
   const date = useDateDraft(state.window.from, state.jumpTo);
   return (
-    <div>
-      <label htmlFor={dateId} className="form-label block">{t('jumpToDate')}</label>
-      <input
-        id={dateId}
-        type="date"
-        value={date.value}
-        min={state.today}
-        max={state.lastDay}
-        onChange={date.onChange}
-        onBlur={date.onBlur}
-        className="mt-1 min-h-[44px] w-full rounded-control border border-input bg-card px-2 sm:w-auto"
-      />
+    <div className="grid gap-1.5">
+      <label htmlFor={dateId} className="form-label">{t('jumpToDate')}</label>
+      <DatePicker id={dateId} value={date.value} min={state.today} max={state.lastDay} onChange={date.onChange} onBlur={date.onBlur} wrapperClassName="sm:w-44" />
     </div>
   );
 }

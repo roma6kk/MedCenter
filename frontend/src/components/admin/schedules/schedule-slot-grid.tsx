@@ -7,12 +7,13 @@ import { useT } from '@/lib/i18n/use-t';
 import { useUiStore } from '@/store/use-ui-store';
 import { formatClinicTime, formatDayHeading, groupSlotsByDay, type SlotDay } from '@/lib/clinic-time';
 import type { AdminSchedule, ScheduleSlot } from './schedule-types';
-import { CONTROL_CLASS } from '../shared/admin-styles';
+import { DatePicker } from '@/components/ui/date-picker';
 import { Field } from '../shared/form-field';
 import { QueryState } from '../shared/query-state';
 import { defaultGenerationRange, validatePeriod, type PeriodError } from './generation-range';
 import { countSlots, mayBeTruncated, type SlotCounts } from './slot-grouping';
 import { useScheduleSlots, type SlotsQuery } from './use-admin-schedules';
+import { Select } from '@/components/ui/select';
 
 const STATUS_FILTERS: ReadonlyArray<SlotStatus | ''> = ['', 'free', 'busy', 'entered-in-error'];
 /** The id the `Field` of «С» gives its error text; «По» is described by the same text. */
@@ -21,7 +22,7 @@ const RANGE_ERROR_ID = 'slots-from-error';
 function SlotTile({ slot }: { readonly slot: ScheduleSlot }): ReactNode {
   return (
     <li data-testid={`slot-${slot.status}`} className="flex items-center justify-between gap-2 rounded-control border border-[var(--border)] px-2 py-1 text-sm">
-      <span className="mono">
+      <span className="tabular-nums">
         {formatClinicTime(slot.start)}–{formatClinicTime(slot.end)}
       </span>
       <StampBadge status={slot.status} />
@@ -84,14 +85,14 @@ interface SlotFiltersProps {
 function PeriodFields({ query, periodError, onChange }: SlotFiltersProps): ReactNode {
   const t = useT('admin.slots');
   const error: string | undefined = periodError === null ? undefined : t(`grid.errors.${periodError}`);
-  const dateProps = { type: 'date', 'aria-invalid': error ? true : undefined, 'aria-describedby': error ? RANGE_ERROR_ID : undefined, className: CONTROL_CLASS } as const;
+  const dateProps = { 'aria-invalid': error ? true : undefined, 'aria-describedby': error ? RANGE_ERROR_ID : undefined, wrapperClassName: 'w-44' } as const;
   return (
     <>
       <Field id="slots-from" label={t('grid.from')} error={error}>
-        <input id="slots-from" {...dateProps} value={query.from} onChange={(event) => onChange({ ...query, from: event.target.value })} />
+        <DatePicker id="slots-from" {...dateProps} value={query.from} onChange={(from) => onChange({ ...query, from })} />
       </Field>
       <Field id="slots-to" label={t('grid.to')}>
-        <input id="slots-to" {...dateProps} value={query.to} onChange={(event) => onChange({ ...query, to: event.target.value })} />
+        <DatePicker id="slots-to" {...dateProps} value={query.to} onChange={(to) => onChange({ ...query, to })} />
       </Field>
     </>
   );
@@ -103,11 +104,11 @@ function SlotFilters({ query, periodError, onChange }: SlotFiltersProps): ReactN
     <div className="mt-3 flex flex-wrap items-end gap-3">
       <PeriodFields query={query} periodError={periodError} onChange={onChange} />
       <Field id="slots-status" label={t('grid.status')}>
-        <select id="slots-status" value={query.status} onChange={(event) => onChange({ ...query, status: event.target.value as SlotStatus | '' })} className={CONTROL_CLASS}>
+        <Select id="slots-status" value={query.status} onChange={(event) => onChange({ ...query, status: event.target.value as SlotStatus | '' })}>
           {STATUS_FILTERS.map((status) => (
             <option key={status} value={status}>{t(`grid.statusFilter.${status === '' ? 'default' : status}`)}</option>
           ))}
-        </select>
+        </Select>
       </Field>
     </div>
   );

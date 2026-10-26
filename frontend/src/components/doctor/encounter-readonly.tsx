@@ -29,7 +29,7 @@ function Observations({ items }: { readonly items: EncounterDetails['observation
         <li key={`${item.code}-${index}`} className="flex flex-wrap items-baseline gap-2">
           <CodeChip code={item.code} system={item.codeSystem} />
           <span>{item.display ?? item.code}</span>
-          <span className="mono">{item.value}</span>
+          <span className="tabular-nums">{item.value}</span>
           <CodeChip code={item.unit} system={UCUM_SYSTEM} />
         </li>
       ))}

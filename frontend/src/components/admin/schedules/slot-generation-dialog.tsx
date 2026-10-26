@@ -8,7 +8,8 @@ import { useT } from '@/lib/i18n/use-t';
 import { defaultGenerationRange, validateGenerationRange, type GenerationRange, type GenerationRangeError } from './generation-range';
 import type { AdminSchedule, GenerateSlotsResult } from './schedule-types';
 import { AdminProblem } from '../shared/admin-problem';
-import { CONTROL_CLASS, SECONDARY_BUTTON_CLASS } from '../shared/admin-styles';
+import { DatePicker } from '@/components/ui/date-picker';
+import { SECONDARY_BUTTON_CLASS } from '../shared/admin-styles';
 import { focusField } from '../shared/focus-field';
 import { controlProps, Field } from '../shared/form-field';
 import { Dialog } from '@/components/ui/dialog';
@@ -79,10 +80,10 @@ export function SlotGenerationDialog({ schedule, scheduleLabel, onClose }: SlotG
       <form onSubmit={handleSubmit} noValidate className="mt-3 grid gap-3">
         <div className="grid gap-3 sm:grid-cols-2">
           <Field id="generate-from" label={t('generate.from')} error={error} hint={horizon} required>
-            <input {...controlProps('generate-from', error, horizon)} type="date" value={range.from} onChange={(event) => change({ ...range, from: event.target.value })} className={CONTROL_CLASS} />
+            <DatePicker {...controlProps('generate-from', error, horizon)} value={range.from} onChange={(from) => change({ ...range, from })} />
           </Field>
           <Field id="generate-to" label={t('generate.to')} required>
-            <input id="generate-to" type="date" value={range.to} aria-invalid={error ? true : undefined} aria-describedby={error ? 'generate-from-error' : undefined} onChange={(event) => change({ ...range, to: event.target.value })} className={CONTROL_CLASS} />
+            <DatePicker id="generate-to" value={range.to} aria-invalid={error ? true : undefined} aria-describedby={error ? 'generate-from-error' : undefined} onChange={(to) => change({ ...range, to })} />
           </Field>
         </div>
         {generate.isError ? <AdminProblem error={generate.error} /> : null}

@@ -40,7 +40,7 @@ describe('ScheduleSlotGrid', () => {
 
     await screen.findAllByText('22:00–22:25');
     expect(apiFetchMock).toHaveBeenCalledWith('/api/v1/admin/schedules/2572/slots?from=2026-11-02&to=2026-11-16');
-    expect(screen.getByLabelText('С')).toHaveValue('2026-11-02');
+    expect(screen.getByLabelText('С')).toHaveValue('02.11.2026');
   });
 
   it('should tell free, busy and entered-in-error slots apart and count them when the slots arrive', async () => {

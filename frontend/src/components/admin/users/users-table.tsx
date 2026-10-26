@@ -110,7 +110,7 @@ function NameCell({ row }: { readonly row: UserRow }): React.JSX.Element {
   return (
     <span className="grid">
       <span>{row.name}</span>
-      {row.email ? <span className="mono text-xs text-[var(--muted-foreground)]">{row.email}</span> : null}
+      {row.email ? <span className="tabular-nums text-xs text-[var(--muted-foreground)]">{row.email}</span> : null}
     </span>
   );
 }

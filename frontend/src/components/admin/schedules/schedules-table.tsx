@@ -79,7 +79,7 @@ function useScheduleColumns(pickers: SchedulePickers, handlers: ScheduleHandlers
     { key: 'doctor', header: t('columns.doctor'), render: (row) => labelOf(pickers.allDoctors, row.practitionerRoleId) },
     { key: 'room', header: t('columns.room'), render: (row) => labelOf(pickers.rooms, row.roomId) },
     { key: 'service', header: t('columns.service'), render: (row) => labelOf(pickers.services, row.serviceId) },
-    { key: 'horizon', header: t('columns.horizon'), render: (row) => <span className="mono text-xs">{horizonOf(row)}</span> },
+    { key: 'horizon', header: t('columns.horizon'), render: (row) => <span className="tabular-nums text-xs">{horizonOf(row)}</span> },
     { key: 'windows', header: t('columns.windows'), render: (row) => <WindowsCell schedule={row} dayLabel={(day) => t(`days.${day}`)} /> },
     { key: 'duration', header: t('columns.duration'), render: (row) => (row.slotDurationMin === undefined ? '—' : t('minutes', { count: row.slotDurationMin })) },
     { key: 'status', header: t('columns.status'), render: (row) => row.isActive ? <StampBadge status="active">{t('active')}</StampBadge> : <StampBadge status="cancelled" tone="neutral" icon={Ban}>{t('inactive')}</StampBadge> },

@@ -44,7 +44,7 @@ function DateTile({ iso }: { readonly iso: string }): ReactNode {
 }
 
 function Label({ children }: { readonly children: ReactNode }): ReactNode {
-  return <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">{children}</span>;
+  return <span className="text-sm font-semibold text-muted-foreground">{children}</span>;
 }
 
 function PrescriptionLine({ prescription }: { readonly prescription: Prescription }): ReactNode {
@@ -79,7 +79,7 @@ function Details({ entry, prescriptions }: VisitRowProps): ReactNode {
       ) : null}
       {entry.recommendations ? (
         <p className={cn('rounded-control bg-primary-soft px-3.5 py-3 text-base leading-normal text-primary-soft-foreground', WRAP_TEXT)}>
-          <span className="block text-xs font-bold uppercase tracking-wider">{t('recommendations')}</span>
+          <span className="block text-sm font-semibold">{t('recommendations')}</span>
           <span className={cn('whitespace-pre-line', WRAP_TEXT)}>{entry.recommendations}</span>
         </p>
       ) : null}

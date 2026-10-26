@@ -46,7 +46,7 @@ export function AppointmentActions({ appointment, onCancel, hero = false }: Appo
 }
 
 /**
- * One appointment as a row of the list: the clock time in mono type, what and who, the status as a soft pill, then the
+ * One appointment as a row of the list: the clock time in tabular figures, what and who, the status as a soft pill, then the
  * actions. The day itself is the heading of the group the row sits in.
  */
 export function AppointmentCard({ appointment, onCancel }: AppointmentCardProps): ReactNode {
@@ -55,7 +55,7 @@ export function AppointmentCard({ appointment, onCancel }: AppointmentCardProps)
   const when: string = format.dateTime(appointment.start);
   return (
     <article aria-label={when} className="flex min-w-0 flex-wrap items-center gap-x-5 gap-y-3 px-5 py-4">
-      <time dateTime={appointment.start} className="mono w-16 flex-none text-lg font-medium">{format.time(appointment.start)}</time>
+      <time dateTime={appointment.start} className="tabular-nums w-16 flex-none text-lg font-medium">{format.time(appointment.start)}</time>
       <div className="flex min-w-0 flex-[999_1_240px] flex-col gap-0.5">
         <p className={cn('text-base font-semibold', WRAP_TEXT)}>{appointment.serviceName ?? t('serviceUnknown')}</p>
         <p className={cn('text-sm text-muted-foreground', WRAP_TEXT)}>{appointment.doctorName ?? t('doctorUnknown')}</p>

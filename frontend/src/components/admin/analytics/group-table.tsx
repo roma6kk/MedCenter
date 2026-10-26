@@ -16,7 +16,7 @@ interface GroupTableProps {
 }
 
 const HEAD_CELL = 'px-5 py-2.5 text-xs font-semibold text-[var(--muted-foreground)]';
-const NUMBER_CELL = 'mono px-5 py-3.5 text-right';
+const NUMBER_CELL = 'tabular-nums px-5 py-3.5 text-right';
 
 function UnnamedRow({ groups, total, kind }: { readonly groups: ReadonlyArray<MeasureGroup>; readonly total: number; readonly kind: GroupTableProps['kind'] }): ReactNode {
   const t = useT('admin.analytics');

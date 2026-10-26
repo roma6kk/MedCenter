@@ -2,7 +2,8 @@
 
 import type { BaseSyntheticEvent, ReactNode } from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useForm, type UseFormReturn } from 'react-hook-form';
+import { Controller, useForm, type UseFormReturn } from 'react-hook-form';
+import { DatePicker } from '@/components/ui/date-picker';
 import { useT } from '@/lib/i18n/use-t';
 import { ScheduleActorFields, ScheduleActorSummary } from './schedule-actor-fields';
 import { emptyScheduleValues, scheduleSchemaFor, scheduleValuesOf, toCreateSchedulePayload, toUpdateSchedulePayload, type ScheduleFormValues, type ScheduleMode } from './schedule-schema';
@@ -10,6 +11,7 @@ import type { AdminSchedule } from './schedule-types';
 import { ScheduleWeekPreview } from './schedule-week-preview';
 import { ScheduleWindowsEditor } from './schedule-windows-editor';
 import { FormProblem } from '../shared/admin-problem';
+import { FIELD_NARROW_CLASS } from '@/components/ui/field-styles';
 import { CONTROL_CLASS } from '../shared/admin-styles';
 import { FormActions } from '../shared/form-actions';
 import { messagesOf } from '../shared/form-errors';
@@ -26,17 +28,17 @@ type ScalarField = 'practitionerRoleId' | 'roomId' | 'serviceId' | 'horizonFrom'
 
 function PeriodFields({ form, errors }: { readonly form: UseFormReturn<ScheduleFormValues>; readonly errors: Readonly<Partial<Record<ScalarField, string>>> }): ReactNode {
   const t = useT('admin.schedules');
-  const { register } = form;
+  const { register, control } = form;
   return (
     <div className="grid gap-3 sm:grid-cols-3">
       <Field id="schedule-horizon-from" label={t('fields.horizonFrom')} error={errors.horizonFrom} required>
-        <input {...controlProps('schedule-horizon-from', errors.horizonFrom)} type="date" className={CONTROL_CLASS} {...register('horizonFrom')} />
+        <Controller control={control} name="horizonFrom" render={({ field }) => <DatePicker {...controlProps('schedule-horizon-from', errors.horizonFrom)} {...field} aria-required />} />
       </Field>
       <Field id="schedule-horizon-to" label={t('fields.horizonTo')} error={errors.horizonTo} hint={t('hints.horizon')} required>
-        <input {...controlProps('schedule-horizon-to', errors.horizonTo, t('hints.horizon'))} type="date" className={CONTROL_CLASS} {...register('horizonTo')} />
+        <Controller control={control} name="horizonTo" render={({ field }) => <DatePicker {...controlProps('schedule-horizon-to', errors.horizonTo, t('hints.horizon'))} {...field} aria-required />} />
       </Field>
       <Field id="schedule-duration" label={t('fields.slotDurationMin')} error={errors.slotDurationMin} required>
-        <input {...controlProps('schedule-duration', errors.slotDurationMin)} type="number" inputMode="numeric" className={CONTROL_CLASS} {...register('slotDurationMin')} />
+        <input {...controlProps('schedule-duration', errors.slotDurationMin)} type="number" inputMode="numeric" className={`${CONTROL_CLASS} ${FIELD_NARROW_CLASS}`} {...register('slotDurationMin')} />
       </Field>
     </div>
   );

@@ -17,7 +17,7 @@ function WeekRow({ day, windows }: { readonly day: WeekDay; readonly windows: Re
   return (
     <tr className="border-t border-border">
       <th scope="row" className="h-9 px-3 text-left font-normal">{t(`weekdays.${day}`)}</th>
-      <td className="mono h-9 px-3">
+      <td className="tabular-nums h-9 px-3">
         {own.length === 0 ? <span className="text-muted-foreground">{t('dayOff')}</span> : own.map((w) => `${w.startTime}–${w.endTime}`).join(', ')}
       </td>
     </tr>

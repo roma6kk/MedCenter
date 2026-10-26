@@ -23,7 +23,7 @@ function StepItem({ item, current, onGo }: BookingStepperProps & { readonly item
     <>
       <span
         className={cn(
-          'mono inline-flex h-[26px] w-[26px] flex-none items-center justify-center rounded-full text-xs',
+          'tabular-nums inline-flex h-[26px] w-[26px] flex-none items-center justify-center rounded-full text-xs',
           isCurrent || isDone ? 'bg-primary text-primary-foreground' : 'bg-secondary text-muted-foreground',
         )}
       >

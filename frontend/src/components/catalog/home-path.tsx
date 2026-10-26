@@ -29,7 +29,7 @@ export function HomePath(): ReactNode {
               padding="lg"
               className={`flex h-full flex-col gap-2 ${step.emphasized ? 'border-primary bg-primary text-primary-foreground' : ''}`}
             >
-              <span className="mono text-xs">{String(step.id).padStart(2, '0')}</span>
+              <span className="tabular-nums text-xs">{String(step.id).padStart(2, '0')}</span>
               <span className="text-lg font-bold">{t(`path${step.id}Title`)}</span>
               <span className={`text-base leading-relaxed ${step.emphasized ? '' : 'text-muted-foreground'}`}>{t(`path${step.id}Text`)}</span>
             </Card>

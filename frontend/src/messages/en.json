@@ -1587,7 +1587,6 @@
       "signedByName": "Name of the staff member who handled the form",
       "signedByDoctorHint": "Filled in from your account.",
       "file": "Scan of the signed form",
-      "fileHint": "PDF, JPEG or PNG, up to 10 MB.",
       "submit": "Add to the record",
       "submitting": "Adding…",
       "recorded": "The consent entry is recorded.",
@@ -1629,6 +1628,34 @@
       "open": "EMR consent",
       "openFor": "Consent to the electronic record: {name}",
       "notFound": "Patient not found"
+    }
+  },
+  "ui": {
+    "datePicker": {
+      "placeholder": "dd.mm.yyyy",
+      "open": "Pick a date in the calendar",
+      "dialog": "Choose a date",
+      "grid": "Calendar: {month}",
+      "prevMonth": "Previous month",
+      "nextMonth": "Next month",
+      "month": "Month",
+      "year": "Year",
+      "today": "Today",
+      "hint": "Arrow keys move the day, PageUp and PageDown move the month, Enter selects, Esc closes."
+    },
+    "fileDrop": {
+      "prompt": "Drag a file here or",
+      "choose": "Choose a file",
+      "replace": "Replace file",
+      "remove": "Remove file {name}",
+      "dropActive": "Release to attach the file",
+      "accepted": "Accepted: {types}, up to {size}.",
+      "wrongType": "This file type is not accepted. Accepted: {types}.",
+      "tooLarge": "The file is larger than {size}.",
+      "chosen": "File chosen:",
+      "megabytes": "{n} MB",
+      "kilobytes": "{n} KB",
+      "bytes": "{n} B"
     }
   }
 }

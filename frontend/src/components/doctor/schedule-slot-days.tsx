@@ -14,7 +14,7 @@ function upperFirst(text: string): string {
 function SlotTile({ slot }: { readonly slot: ScheduleSlot }): ReactNode {
   return (
     <li className="flex items-center justify-between gap-2 rounded-card border border-border bg-card px-3 py-2 text-sm">
-      <span className="mono">{formatClinicTime(slot.start)}–{formatClinicTime(slot.end)}</span>
+      <span className="tabular-nums">{formatClinicTime(slot.start)}–{formatClinicTime(slot.end)}</span>
       <StampBadge status={slot.status} />
     </li>
   );

@@ -44,11 +44,11 @@ export function NextAppointment({ appointment, onCancel }: NextAppointmentProps)
       </div>
       <div className="flex min-w-0 flex-[999_1_320px] flex-col gap-2.5">
         <div className="flex flex-wrap items-center gap-2.5">
-          <h2 id="next-appointment-title" className="text-sm font-semibold uppercase tracking-[0.06em] text-primary-soft-foreground">{t('nextTitle')}</h2>
+          <h2 id="next-appointment-title" className="text-sm font-semibold text-primary-soft-foreground">{t('nextTitle')}</h2>
           <StatusBadge status={appointment.status} />
         </div>
         <p className={cn('text-xl font-bold tracking-tight sm:text-2xl', WRAP_TEXT)}>
-          <time dateTime={appointment.start} className="mono mr-1">{format.time(appointment.start)}</time>
+          <time dateTime={appointment.start} className="tabular-nums mr-1">{format.time(appointment.start)}</time>
           · {appointment.serviceName ?? t('serviceUnknown')}
         </p>
         <div className="flex flex-wrap gap-x-6 gap-y-2 text-base text-muted-foreground">

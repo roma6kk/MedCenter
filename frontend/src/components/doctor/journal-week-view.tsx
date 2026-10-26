@@ -117,7 +117,7 @@ export function JournalWeekView({ days, today, onOpenDay }: JournalWeekViewProps
                   isToday ? 'bg-primary-soft text-primary-soft-foreground' : 'bg-card text-foreground',
                 )}
               >
-                <span className="text-xs font-semibold uppercase tracking-[0.05em]">{weekdayShort(day.dateKey, locale)}{isToday ? ` · ${t('todayEyebrow').toLowerCase()}` : ''}</span>
+                <span className="text-xs font-semibold">{weekdayShort(day.dateKey, locale)}{isToday ? ` · ${t('todayEyebrow').toLowerCase()}` : ''}</span>
                 <span className="flex items-baseline justify-between gap-2">
                   <span className="text-xl font-bold">{day.dateKey.slice(8)}</span>
                   <span className="text-xs text-muted-foreground">{day.query.isSuccess ? t('dayCount', { count: day.visits.length }) : '…'}</span>
@@ -127,7 +127,7 @@ export function JournalWeekView({ days, today, onOpenDay }: JournalWeekViewProps
           })}
           <div aria-hidden="true" className="relative" style={{ height }}>
             {hours.map((hour, index) => (
-              <span key={hour} className="mono absolute right-2 -translate-y-1/2 text-xs font-medium text-muted-foreground" style={{ top: index * 2 * HALF_HOUR_PX + 8 }}>
+              <span key={hour} className="tabular-nums absolute right-2 -translate-y-1/2 text-xs font-medium text-muted-foreground" style={{ top: index * 2 * HALF_HOUR_PX + 8 }}>
                 {`${String(hour).padStart(2, '0')}:00`}
               </span>
             ))}

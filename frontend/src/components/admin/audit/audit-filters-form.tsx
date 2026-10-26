@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import type { FormEvent, ReactNode } from 'react';
 import { useT } from '@/lib/i18n/use-t';
+import { DatePicker } from '@/components/ui/date-picker';
 import { CONTROL_CLASS, PRIMARY_BUTTON_CLASS, SECONDARY_BUTTON_CLASS } from '../shared/admin-styles';
 import { focusField } from '../shared/focus-field';
 import { controlProps, Field } from '../shared/form-field';
@@ -62,10 +63,10 @@ export function AuditFiltersForm({ filter, onApply }: AuditFiltersFormProps): Re
   return (
     <form role="search" aria-label={t('filters.label')} onSubmit={handleSubmit} noValidate className="no-print mb-5 flex flex-wrap items-end gap-3 rounded-card border border-[var(--border)] bg-[var(--card)] p-4">
       <Field id="audit-from" label={t('filters.from')} error={rangeError}>
-        <input {...controlProps('audit-from', rangeError)} type="date" value={draft.from} onChange={(event) => setDraft({ ...draft, from: event.target.value })} className={CONTROL_CLASS} />
+        <DatePicker {...controlProps('audit-from', rangeError)} value={draft.from} onChange={(from) => setDraft({ ...draft, from })} wrapperClassName="w-44" />
       </Field>
       <Field id="audit-to" label={t('filters.to')}>
-        <input id="audit-to" type="date" value={draft.to} aria-invalid={rangeError ? true : undefined} aria-describedby={rangeError ? 'audit-from-error' : undefined} onChange={(event) => setDraft({ ...draft, to: event.target.value })} className={CONTROL_CLASS} />
+        <DatePicker id="audit-to" value={draft.to} aria-invalid={rangeError ? true : undefined} aria-describedby={rangeError ? 'audit-from-error' : undefined} onChange={(to) => setDraft({ ...draft, to })} wrapperClassName="w-44" />
       </Field>
       <Field id="audit-entity" label={t('filters.entity')} error={entityError} hint={t('filters.entityHint')}>
         <input {...controlProps('audit-entity', entityError, t('filters.entityHint'))} list="audit-entity-options" value={draft.entity} maxLength={130} autoComplete="off" onChange={(event) => setDraft({ ...draft, entity: event.target.value })} className={`${CONTROL_CLASS} mono`} />

@@ -4,10 +4,14 @@
  */
 import type { KeyboardEvent } from 'react';
 import { buttonVariants } from '@/components/ui/button-variants';
+import { FIELD_CLASS } from '@/components/ui/field-styles';
 import { get, type FieldErrors } from 'react-hook-form';
 import type { CompleteEncounterForm } from '@/lib/contracts';
 
-export const INPUT_CLASS = 'mt-1 min-h-[44px] w-full rounded-control border border-input bg-card p-2';
+/** The one shared field look, spaced from the label above it. */
+export const INPUT_CLASS = `mt-1 ${FIELD_CLASS}`;
+/** Box of a `Select` in a completion-form row: the same gap to its label. */
+export const SELECT_BOX_CLASS = 'mt-1';
 export const ADD_BUTTON_CLASS = `mt-3 ${buttonVariants({ variant: 'secondary' })}`;
 export const FIELDSET_CLASS = 'rounded-card border border-border p-4';
 export const ROW_CLASS = 'mt-3 rounded-control border border-border p-3';

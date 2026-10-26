@@ -2,6 +2,8 @@
 
 import { forwardRef } from 'react';
 import type { ChangeEvent, ReactNode } from 'react';
+import { FIELD_CLASS } from '@/components/ui/field-styles';
+import { Select } from '@/components/ui/select';
 import { useT } from '@/lib/i18n/use-t';
 import type { Term } from './doctor-types';
 import { useExpansion } from './use-doctor-queries';
@@ -21,7 +23,8 @@ export interface ValueSetSelectProps {
   readonly 'aria-describedby'?: string;
 }
 
-const FIELD_CLASS = 'mt-1 w-full min-h-[44px] rounded-control border border-input bg-card p-2';
+/** Gap between the label above and the control. */
+const BOX_CLASS = 'mt-1';
 
 function termFor(items: ReadonlyArray<Term>, code: string): Term | null {
   return items.find((item) => item.code === code) ?? null;
@@ -48,7 +51,7 @@ function FallbackInput({ props, inputRef }: FallbackInputProps): ReactNode {
       placeholder={t('typeCode')}
       spellCheck={false}
       autoComplete="off"
-      className={`mono ${FIELD_CLASS}`}
+      className={`mono ${BOX_CLASS} ${FIELD_CLASS}`}
       aria-invalid={props['aria-invalid']}
       aria-describedby={props['aria-describedby']}
     />
@@ -67,7 +70,7 @@ function OptionsSelect({ props, inputRef, options, isPending }: OptionsSelectPro
   const isKnown: boolean = value === '' || options.some((option) => option.code === value);
   const handleChange = (event: ChangeEvent<HTMLSelectElement>): void => onChange(termFor(options, event.target.value));
   return (
-    <select
+    <Select
       ref={inputRef as React.Ref<HTMLSelectElement>}
       id={id}
       value={value}
@@ -76,19 +79,19 @@ function OptionsSelect({ props, inputRef, options, isPending }: OptionsSelectPro
       aria-busy={isPending}
       aria-invalid={props['aria-invalid']}
       aria-describedby={props['aria-describedby']}
-      className={FIELD_CLASS}
+      wrapperClassName={BOX_CLASS}
     >
       <option value="">{isPending ? t('loading') : placeholder}</option>
       {isKnown ? null : <option value={value}>{value}</option>}
       {options.map((option) => (
         <option key={option.code} value={option.code}>{option.display ? `${option.code} — ${option.display}` : option.code}</option>
       ))}
-    </select>
+    </Select>
   );
 }
 
 /**
- * A closed list of concepts of a ValueSet (select-only: free text is refused, BR-009). A native `<select>` keeps keyboard
+ * A closed list of concepts of a ValueSet (select-only: free text is refused, BR-009). A themed native `<select>` keeps keyboard
  * and screen-reader behaviour free. When the service is down it offers `fallbackCodes`, or a plain code input.
  */
 export const ValueSetSelect = forwardRef<HTMLSelectElement | HTMLInputElement, ValueSetSelectProps>(function ValueSetSelect(props, ref): ReactNode {

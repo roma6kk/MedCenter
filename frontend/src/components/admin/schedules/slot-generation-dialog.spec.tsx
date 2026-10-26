@@ -26,8 +26,8 @@ describe('SlotGenerationDialog', () => {
   it('should open on the next two weeks of the horizon and show the horizon when the dialog appears', () => {
     renderWithClient(<SlotGenerationDialog schedule={schedule} onClose={jest.fn()} />);
 
-    expect(screen.getByLabelText(/^С/)).toHaveValue('2026-10-16');
-    expect(screen.getByLabelText(/^По/)).toHaveValue('2026-10-30');
+    expect(screen.getByLabelText(/^С/)).toHaveValue('16.10.2026');
+    expect(screen.getByLabelText(/^По/)).toHaveValue('30.10.2026');
     expect(screen.getByText('Горизонт расписания: 16.10.2026 – 15.11.2026')).toBeInTheDocument();
   });
 

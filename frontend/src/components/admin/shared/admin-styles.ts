@@ -1,9 +1,10 @@
 import { buttonVariants } from '@/components/ui/button-variants';
+import { FIELD_CLASS } from '@/components/ui/field-styles';
 
 /** Shared class names of the admin screens, so every form control and button looks the same (design canvas «calm clinic»). */
 
-export const CONTROL_CLASS =
-  'min-h-[44px] w-full rounded-control border border-[var(--input)] bg-[var(--card)] px-3 py-1.5 text-sm disabled:opacity-60 aria-disabled:opacity-60';
+/** The admin forms use the one shared field look (`ui/field-styles.ts`); the name stays for the many call sites. */
+export const CONTROL_CLASS = FIELD_CLASS;
 
 export const PRIMARY_BUTTON_CLASS = buttonVariants({ variant: 'primary' });
 

@@ -56,7 +56,7 @@ function PhoneForm({ patient, onClose }: PhoneFormProps): ReactNode {
   return (
     <form data-testid="phone-form" onSubmit={submit} noValidate className="grid gap-2">
       <FormField id="profile-phone" label={t('phoneLabel')} hint={t('phoneHint')} error={errors.phone?.message}>
-        {(control) => <input {...control} type="tel" autoComplete="tel" inputMode="tel" {...register('phone')} className={INPUT_CLASS} />}
+        {(control) => <input {...control} type="tel" autoComplete="tel" inputMode="tel" {...register('phone')} className={`${INPUT_CLASS} max-w-xs`} />}
       </FormField>
       {conflict ? <p role="alert" className="text-sm text-[var(--destructive)]">{t('phoneConflict')}</p> : null}
       {problem !== null ? <ProblemBanner problem={problem} /> : null}
