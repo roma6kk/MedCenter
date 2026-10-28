@@ -10,6 +10,8 @@ jest.mock('@/lib/api/api-fetch', () => {
   return { ...actual, apiFetch: jest.fn() };
 });
 
+/** The admin list reads the stored Russian text, whatever the interface language is. */
+const RUSSIAN = { headers: { 'Accept-Language': 'ru' } };
 const apiFetchMock = apiFetch as jest.MockedFunction<(path: string, options?: RequestInit) => Promise<unknown>>;
 
 const services: ReadonlyArray<AdminService> = [
@@ -30,7 +32,7 @@ describe('ServicesPanel', () => {
     renderWithClient(<ServicesPanel />);
 
     expect((await screen.findAllByText('Приём терапевта')).length).toBeGreaterThan(0);
-    expect(apiFetchMock).toHaveBeenCalledWith('/api/v1/services?page=1&pageSize=10');
+    expect(apiFetchMock).toHaveBeenCalledWith('/api/v1/services?page=1&pageSize=10', RUSSIAN);
   });
 
   it('should request the search text and the first page once typing pauses, in one request and without a search button', async () => {
@@ -41,7 +43,7 @@ describe('ServicesPanel', () => {
     await userEvent.type(screen.getByLabelText('Поиск по названию'), 'экг');
 
     expect(apiFetchMock).toHaveBeenCalledTimes(before);
-    await waitFor(() => expect(apiFetchMock).toHaveBeenCalledWith('/api/v1/services?page=1&pageSize=10&search=%D1%8D%D0%BA%D0%B3'));
+    await waitFor(() => expect(apiFetchMock).toHaveBeenCalledWith('/api/v1/services?page=1&pageSize=10&search=%D1%8D%D0%BA%D0%B3', RUSSIAN));
     expect(apiFetchMock).toHaveBeenCalledTimes(before + 1);
     expect(screen.queryByRole('button', { name: 'Найти' })).not.toBeInTheDocument();
   });
@@ -52,7 +54,7 @@ describe('ServicesPanel', () => {
 
     await userEvent.type(screen.getByLabelText('Поиск по названию'), 'экг{Enter}');
 
-    expect(apiFetchMock).toHaveBeenCalledWith('/api/v1/services?page=1&pageSize=10&search=%D1%8D%D0%BA%D0%B3');
+    expect(apiFetchMock).toHaveBeenCalledWith('/api/v1/services?page=1&pageSize=10&search=%D1%8D%D0%BA%D0%B3', RUSSIAN);
   });
 
   it('should explain SERVICE_IN_USE in the delete dialog when schedules still use the service', async () => {
@@ -117,7 +119,7 @@ describe('ServicesPanel', () => {
 
     await userEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Удалить' }));
 
-    await waitFor(() => expect(apiFetchMock).toHaveBeenLastCalledWith('/api/v1/services?page=1&pageSize=10'));
+    await waitFor(() => expect(apiFetchMock).toHaveBeenLastCalledWith('/api/v1/services?page=1&pageSize=10', RUSSIAN));
     expect((await screen.findAllByText('Приём терапевта')).length).toBeGreaterThan(0);
     expect(screen.queryByTestId('empty-state')).not.toBeInTheDocument();
   });

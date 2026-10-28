@@ -63,6 +63,20 @@ export class UpdateServiceDto {
   @MaxLength(2000)
   description?: string;
 
+  /** English name: stored as the HL7 `translation` extension of `HealthcareService.name`; a blank string removes it. */
+  @ApiPropertyOptional({ maxLength: 200, example: 'Therapist consultation' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  nameEn?: string;
+
+  /** English description: the `translation` extension of `HealthcareService.comment`; a blank string removes it. */
+  @ApiPropertyOptional({ maxLength: 2000 })
+  @IsOptional()
+  @IsString()
+  @MaxLength(2000)
+  descriptionEn?: string;
+
   @ApiPropertyOptional({
     type: String,
     isArray: true,

@@ -1,15 +1,16 @@
 'use client';
 
 import type { ReactNode } from 'react';
-import { useEffect, useState } from 'react';
+import { useContext, useEffect, useRef, useState } from 'react';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { NextIntlClientProvider } from 'next-intl';
+import { AppRouterContext } from 'next/dist/shared/lib/app-router-context.shared-runtime';
 import { Toaster } from '@/components/feedback/toaster';
 import { ThemeSync } from '@/components/layout/theme-sync';
 import { createAppQueryClient } from '@/lib/api/query-client';
 import { ensureSession } from '@/lib/auth/session-client';
 import { CLINIC_TIME_ZONE } from '@/lib/clinic-time';
-import { readStoredLocale } from '@/lib/i18n/locale';
+import { readLocaleCookie, readStoredLocale, writeLocaleCookie } from '@/lib/i18n/locale';
 import { MESSAGES } from '@/lib/i18n/translate';
 import { useUiStore } from '@/store/use-ui-store';
 
@@ -33,6 +34,30 @@ function LocaleSync(): null {
   return null;
 }
 
+/**
+ * Keeps the locale cookie, which the server components read to ask the API for names and specialties in the viewer's
+ * language, in step with the locale. When the language is switched the page data rendered on the server is in the old
+ * one, so the route is refreshed (the cookie is written first, the refresh re-runs the server components with it).
+ * The first run is skipped: the default locale it sees is not a choice, and the saved one arrives with the next render.
+ * The router is read from its context rather than `useRouter`, which throws where no App Router is mounted (the specs).
+ */
+function LocaleDataSync(): null {
+  const locale = useUiStore((state) => state.locale);
+  const router = useContext(AppRouterContext);
+  const isFirstRun = useRef(true);
+  useEffect(() => {
+    if (isFirstRun.current) {
+      isFirstRun.current = false;
+      return;
+    }
+    const inCookie = readLocaleCookie();
+    if (inCookie === locale) return;
+    writeLocaleCookie(locale);
+    router?.refresh();
+  }, [locale, router]);
+  return null;
+}
+
 export function Providers({ children }: { readonly children: ReactNode }): ReactNode {
   const [client] = useState(createAppQueryClient);
   const locale = useUiStore((state) => state.locale);
@@ -41,6 +66,7 @@ export function Providers({ children }: { readonly children: ReactNode }): React
       <QueryClientProvider client={client}>
         <SessionHydrator />
         <LocaleSync />
+        <LocaleDataSync />
         <ThemeSync />
         {children}
         <Toaster />

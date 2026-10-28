@@ -1,4 +1,5 @@
 import { FHIR_BY } from '../../libs/terminology/src/lib/canonical-urls';
+import { toDoctorResponseDto } from '../../libs/fhir-mappers/src/lib/practitioner.mapper';
 import { MEDCENTER_EXT } from '../../libs/terminology/src/lib/extension-urls';
 import servicesSnapshot from '../terminology-seed/snapshot/services.json';
 import { DOCTORS, ROOMS, SCHEDULES, SERVICES, SPECIALTIES } from './demo-catalog';
@@ -97,13 +98,36 @@ describe('buildPractitioners', () => {
     const [name] = ivanova?.['name'] as Json[];
 
     expect(name).toMatchObject({ family: 'Иванова', given: ['Мария', 'Сергеевна'], text: 'Иванова Мария Сергеевна' });
-    expect(ivanova?.['qualification']).toEqual([
-      { code: { coding: [{ system: 'http://snomed.info/sct', code: '419192003', display: 'Терапия' }], text: 'Терапевт' } },
-    ]);
+    const [qualification] = ivanova?.['qualification'] as Json[];
+    const concept = qualification?.['code'] as Json;
+    expect(concept).toMatchObject({ coding: [{ system: 'http://snomed.info/sct', code: '419192003', display: 'Терапия' }], text: 'Терапевт' });
+  });
+
+  it('should carry an English translation of every doctor name part and specialty text', () => {
+    const [ivanova] = buildPractitioners();
+
+    expect(toDoctorResponseDto(ivanova as never, 'en')).toMatchObject({ firstName: 'Maria', lastName: 'Ivanova', specialty: 'Therapist' });
+    expect(toDoctorResponseDto(ivanova as never, 'ru')).toMatchObject({ firstName: 'Мария', lastName: 'Иванова', specialty: 'Терапевт' });
+    for (const practitioner of buildPractitioners()) {
+      expect(toDoctorResponseDto(practitioner as never, 'en').lastName).toMatch(/^[A-Za-z]+$/);
+    }
   });
 
   it('should name doctors "Фамилия Имя Отчество"', () => {
     expect(fullNameOf(DOCTORS[1])).toBe('Петров Алексей Николаевич');
+  });
+});
+
+describe('buildHealthcareServices translations', () => {
+  it('should give every service an English name and description in the HL7 translation extension', () => {
+    for (const service of buildHealthcareServices()) {
+      for (const field of ['_name', '_comment'] as const) {
+        const element = service[field] as { extension: Array<{ url: string; extension: Array<{ url: string; valueCode?: string; valueString?: string }> }> };
+        expect(element.extension[0]?.url).toBe('http://hl7.org/fhir/StructureDefinition/translation');
+        expect(element.extension[0]?.extension[0]).toEqual({ url: 'lang', valueCode: 'en' });
+        expect(element.extension[0]?.extension[1]?.valueString).toMatch(/^[A-Za-z]/);
+      }
+    }
   });
 });
 

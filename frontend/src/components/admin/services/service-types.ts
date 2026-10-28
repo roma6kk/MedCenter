@@ -7,6 +7,9 @@ export interface AdminService {
   readonly typeDisplay?: string;
   readonly defaultDurationMin: number;
   readonly description?: string;
+  /** The stored English texts, present when the service has them (the admin list is read in Russian, see `useAdminServices`). */
+  readonly nameEn?: string;
+  readonly descriptionEn?: string;
   readonly isActive: boolean;
 }
 
@@ -17,4 +20,7 @@ export interface ServicePayload {
   readonly typeCode: string;
   readonly defaultDurationMin: number;
   readonly description?: string;
+  /** English name and description (the HL7 translation extension on the server); a blank one on an edit removes it. */
+  readonly nameEn?: string;
+  readonly descriptionEn?: string;
 }

@@ -1,5 +1,6 @@
 import { networkProblem, parseProblem } from './problem-parse';
 import type { ProblemDetails } from './problem';
+import { useUiStore } from '@/store/use-ui-store';
 import { getAccessToken } from '@/lib/auth/access-token';
 import { endRevokedSession, redirectToLogin, refreshSession } from '@/lib/auth/session-client';
 
@@ -44,6 +45,9 @@ function buildHeaders(init: RequestInit): Headers {
   const hasBody: boolean = init.body !== undefined && init.body !== null;
   // A form body (multipart upload) gets its content type, with the boundary, from the browser.
   if (hasBody && !(init.body instanceof FormData) && !headers.has('Content-Type')) headers.set('Content-Type', 'application/json');
+  // The API localizes catalog data (service names, doctor names and specialties) by this header; a caller that needs the
+  // stored Russian text (the admin editing a service) sets its own.
+  if (!headers.has('Accept-Language')) headers.set('Accept-Language', useUiStore.getState().locale);
   const token: string | null = getAccessToken();
   if (token !== null && !headers.has('Authorization')) headers.set('Authorization', `Bearer ${token}`);
   return headers;

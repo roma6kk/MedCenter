@@ -195,10 +195,13 @@
         "typeSystem": "Code system",
         "typeCode": "Service reference code",
         "defaultDurationMin": "Duration, min",
-        "description": "Description"
+        "description": "Description",
+        "nameEn": "English name",
+        "descriptionEn": "English description"
       },
       "hints": {
-        "typeCode": "Service code from the reference catalogue, for example 10001"
+        "typeCode": "Service code from the reference catalogue, for example 10001",
+        "english": "Optional: shown when the site is in English"
       },
       "validation": {
         "duration": "Duration: a whole number from 5 to 240 minutes"

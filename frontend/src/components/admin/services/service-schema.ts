@@ -23,6 +23,8 @@ export const serviceSchema = z.object({
   typeCode: z.string().trim().min(1, 'validation.required').max(50, 'validation.tooLong'),
   defaultDurationMin: z.string().refine(isDurationInRange, 'admin.services.validation.duration'),
   description: z.string().max(2000, 'validation.tooLong'),
+  nameEn: z.string().max(200, 'validation.tooLong'),
+  descriptionEn: z.string().max(2000, 'validation.tooLong'),
 });
 
 export type ServiceFormValues = z.infer<typeof serviceSchema>;
@@ -33,6 +35,8 @@ export const EMPTY_SERVICE_VALUES: ServiceFormValues = {
   typeCode: '',
   defaultDurationMin: '30',
   description: '',
+  nameEn: '',
+  descriptionEn: '',
 };
 
 export function serviceValuesOf(service: AdminService): ServiceFormValues {
@@ -42,12 +46,14 @@ export function serviceValuesOf(service: AdminService): ServiceFormValues {
     typeCode: service.typeCode,
     defaultDurationMin: String(service.defaultDurationMin),
     description: service.description ?? '',
+    nameEn: service.nameEn ?? '',
+    descriptionEn: service.descriptionEn ?? '',
   };
 }
 
 /**
- * The body of `POST`/`PATCH /admin/services`. An edit always sends the description (an empty one clears it); a create
- * leaves empty optional fields out.
+ * The body of `POST`/`PATCH /admin/services`. An edit always sends the description and the English texts (an empty one
+ * clears it); a create leaves empty optional fields out.
  */
 export function toServicePayload(values: ServiceFormValues, isEdit: boolean): ServicePayload {
   return {
@@ -56,5 +62,7 @@ export function toServicePayload(values: ServiceFormValues, isEdit: boolean): Se
     typeCode: values.typeCode.trim(),
     defaultDurationMin: Number(values.defaultDurationMin),
     ...(values.description === '' && !isEdit ? {} : { description: values.description }),
+    ...(values.nameEn.trim() === '' && !isEdit ? {} : { nameEn: values.nameEn.trim() }),
+    ...(values.descriptionEn.trim() === '' && !isEdit ? {} : { descriptionEn: values.descriptionEn.trim() }),
   };
 }

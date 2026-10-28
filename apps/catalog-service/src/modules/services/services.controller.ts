@@ -3,6 +3,7 @@ import {
   Controller,
   Delete,
   Get,
+  Headers,
   HttpCode,
   HttpStatus,
   Param,
@@ -21,6 +22,7 @@ import {
   type AuditedRequest,
 } from '@medcenter/common';
 import { DEFAULT_PAGE, DEFAULT_PAGE_SIZE, Role } from '@medcenter/contracts';
+import { resolveContentLanguage } from '@medcenter/fhir-mappers';
 
 import { FhirIdParamDto } from '../../common/fhir-id-param.dto';
 import { CreateServiceDto } from './dto/create-service.dto';
@@ -38,14 +40,15 @@ export class ServicesController {
 
   @Public()
   @Get('services')
-  @ApiOperation({ summary: '5.1.1 List the service catalogue' })
+  @ApiOperation({ summary: '5.1.1 List the service catalogue (name and description follow Accept-Language: en, else ru)' })
   @ApiResponse({ status: 200, description: 'A page of services', type: ServicePageDoc })
   @ApiProblems([400, 429, 500])
-  async list(@Query() query: ListServicesQueryDto): Promise<ServicePage> {
+  async list(@Query() query: ListServicesQueryDto, @Headers('accept-language') acceptLanguage?: string): Promise<ServicePage> {
     return this.servicesService.list(
       query.page ?? DEFAULT_PAGE,
       query.pageSize ?? DEFAULT_PAGE_SIZE,
       query.search,
+      resolveContentLanguage(acceptLanguage),
     );
   }
 
@@ -54,8 +57,11 @@ export class ServicesController {
   @ApiOperation({ summary: '5.1.2 Get a service' })
   @ApiResponse({ status: 200, description: 'The service', type: ServiceResponseDoc })
   @ApiProblems([400, 404, 429, 500])
-  async findById(@Param() params: FhirIdParamDto): Promise<ServiceResponseDto> {
-    return this.servicesService.findById(params.id);
+  async findById(
+    @Param() params: FhirIdParamDto,
+    @Headers('accept-language') acceptLanguage?: string,
+  ): Promise<ServiceResponseDto> {
+    return this.servicesService.findById(params.id, resolveContentLanguage(acceptLanguage));
   }
 
   @Post('admin/services')

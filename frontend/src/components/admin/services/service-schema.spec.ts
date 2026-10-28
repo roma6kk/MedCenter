@@ -52,3 +52,20 @@ describe('toServicePayload', () => {
     expect(toServicePayload(serviceValuesOf(service), false)).not.toHaveProperty('specialtyCodes');
   });
 });
+
+describe('English texts of a service', () => {
+  it('should leave empty English texts out of a create and trim them', () => {
+    expect(toServicePayload(serviceValuesOf(service), false)).not.toHaveProperty('nameEn');
+    expect(toServicePayload({ ...serviceValuesOf(service), nameEn: ' ECG ', descriptionEn: 'Resting' }, false)).toMatchObject({ nameEn: 'ECG', descriptionEn: 'Resting' });
+  });
+
+  it('should send empty English texts on an edit, so that they clear the old ones', () => {
+    expect(toServicePayload(serviceValuesOf(service), true)).toMatchObject({ nameEn: '', descriptionEn: '' });
+  });
+
+  it('should prefill the form with the stored English texts and refuse too long ones', () => {
+    expect(serviceValuesOf({ ...service, nameEn: 'Visit', descriptionEn: 'First' })).toMatchObject({ nameEn: 'Visit', descriptionEn: 'First' });
+    expect(failing({ nameEn: 'x'.repeat(201), descriptionEn: 'y'.repeat(2001) })).toEqual(expect.arrayContaining(['nameEn', 'descriptionEn']));
+  });
+});
+

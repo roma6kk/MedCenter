@@ -150,7 +150,13 @@ describe('CACHE_KEYS', () => {
   });
 
   it('should version the services page key when the cached value is the pagination envelope', () => {
-    expect(CACHE_KEYS.SERVICES_PAGE(2, 20)).toBe('catalog:services:v2:2:20');
+    expect(CACHE_KEYS.SERVICES_PAGE(2, 20)).toBe('catalog:services:v3:ru:2:20');
+  });
+
+  it('should key the services page by content language so one language is never served as the other', () => {
+    expect(CACHE_KEYS.SERVICES_PAGE(1, 20, 'en')).toBe('catalog:services:v3:en:1:20');
+    expect(CACHE_KEYS.SERVICES_PAGE(1, 20, 'en')).not.toBe(CACHE_KEYS.SERVICES_PAGE(1, 20, 'ru'));
+    expect(CACHE_KEYS.SERVICES_PAGE(1, 20, 'en').startsWith(`${CACHE_KEYS.SERVICES}:`)).toBe(true);
   });
 });
 

@@ -1,5 +1,7 @@
 import type { FhirResource } from '@medcenter/fhir';
 
+import { DEFAULT_CONTENT_LANGUAGE, translated, type ContentLanguage } from './translation';
+
 export interface DoctorResponseDto {
   readonly id: string;
   readonly firstName: string;
@@ -14,22 +16,23 @@ export interface DoctorResponseDto {
   readonly photoUrl?: string;
 }
 
-function readHumanName(resource: FhirResource): { firstName: string; lastName: string } {
+function readHumanName(resource: FhirResource, lang: ContentLanguage): { firstName: string; lastName: string } {
   const names = resource['name'];
   if (!Array.isArray(names) || names.length === 0) {
     return { firstName: '', lastName: '' };
   }
   const [name] = names as ReadonlyArray<Record<string, unknown>>;
   const given = Array.isArray(name?.['given']) ? (name['given'] as string[]) : [];
+  const givenElements = Array.isArray(name?.['_given']) ? (name['_given'] as unknown[]) : [];
   return {
-    firstName: given[0] ?? '',
-    lastName: typeof name?.['family'] === 'string' ? name['family'] : '',
+    firstName: translated(given[0] ?? '', givenElements[0], lang),
+    lastName: typeof name?.['family'] === 'string' ? translated(name['family'], name['_family'], lang) : '',
   };
 }
 
-/** FHIR `Practitioner` -> doctor catalog DTO (API §4.1–4.2). */
-export function toDoctorResponseDto(practitioner: FhirResource): DoctorResponseDto {
-  const { firstName, lastName } = readHumanName(practitioner);
+/** FHIR `Practitioner` -> doctor catalog DTO (API §4.1–4.2); `lang` picks the translated name and specialty text when there is one. */
+export function toDoctorResponseDto(practitioner: FhirResource, lang: ContentLanguage = DEFAULT_CONTENT_LANGUAGE): DoctorResponseDto {
+  const { firstName, lastName } = readHumanName(practitioner, lang);
   const specialty = practitioner['qualification'];
   const qualification = Array.isArray(specialty) && specialty.length > 0 ? specialty[0] : undefined;
   const coding = readQualificationCoding(qualification);
@@ -38,7 +41,7 @@ export function toDoctorResponseDto(practitioner: FhirResource): DoctorResponseD
     id: practitioner.id ?? '',
     firstName,
     lastName,
-    specialty: qualification === undefined ? undefined : readQualificationCode(qualification),
+    specialty: qualification === undefined ? undefined : readQualificationCode(qualification, lang),
     specialtyCode: coding?.code,
     specialtySystem: coding?.system,
     ...(photoUrl === undefined ? {} : { photoUrl }),
@@ -73,7 +76,7 @@ function readQualificationCoding(qualification: unknown): { code: string; system
   return undefined;
 }
 
-function readQualificationCode(qualification: unknown): string | undefined {
+function readQualificationCode(qualification: unknown, lang: ContentLanguage): string | undefined {
   if (typeof qualification !== 'object' || qualification === null) {
     return undefined;
   }
@@ -81,13 +84,13 @@ function readQualificationCode(qualification: unknown): string | undefined {
   if (typeof code !== 'object' || code === null) {
     return undefined;
   }
-  const { text, coding } = code as { text?: unknown; coding?: unknown };
+  const { text, _text: textElement, coding } = code as { text?: unknown; _text?: unknown; coding?: unknown };
   if (typeof text === 'string') {
-    return text;
+    return translated(text, textElement, lang);
   }
   if (Array.isArray(coding) && coding.length > 0) {
     const [first] = coding as ReadonlyArray<Record<string, unknown>>;
-    return typeof first?.['display'] === 'string' ? first['display'] : undefined;
+    return typeof first?.['display'] === 'string' ? translated(first['display'], first['_display'], lang) : undefined;
   }
   return undefined;
 }

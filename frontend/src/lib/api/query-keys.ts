@@ -6,6 +6,8 @@
  * `queryKeys.services()` and `queryKeys.services({})` are the same key.
  */
 import type { QueryKey } from '@tanstack/react-query';
+import type { Locale } from '@/lib/i18n/locale';
+import { useUiStore } from '@/store/use-ui-store';
 import type { QueryParams } from './query-string';
 
 type Params = QueryParams | undefined;
@@ -14,11 +16,19 @@ function normalise(params: Params): QueryParams {
   return params ?? {};
 }
 
+/**
+ * The catalogue answers in the viewer's language (names, descriptions, specialties), so its keys end with the locale:
+ * the other language is another cache entry, and switching the language refetches what is on screen.
+ */
+function locale(): Locale {
+  return useUiStore.getState().locale;
+}
+
 export const queryKeys = {
-  // catalogue (public, cached 5 min)
-  services: (params?: Params) => ['services', normalise(params)] as const,
-  doctors: (params?: Params) => ['doctors', normalise(params)] as const,
-  doctor: (doctorId: string) => ['doctors', doctorId] as const,
+  // catalogue (public, cached 5 min; one entry per language)
+  services: (params?: Params) => ['services', normalise(params), locale()] as const,
+  doctors: (params?: Params) => ['doctors', normalise(params), locale()] as const,
+  doctor: (doctorId: string) => ['doctors', doctorId, locale()] as const,
   rooms: (params?: Params) => ['rooms', normalise(params)] as const,
   roomUsage: (roomId: string) => ['roomUsage', roomId] as const,
   slots: (doctorId: string, params?: Params) => ['slots', doctorId, normalise(params)] as const,

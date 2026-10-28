@@ -66,4 +66,22 @@ describe('publicApiFetch', () => {
 
     expect(await publicApiFetch('/api/v1/doctors')).toEqual({ ok: false });
   });
+
+  it('should ask the API in the given language, and in Russian by default', async () => {
+    fetchMock.mockResolvedValue(answer({ items: [{ id: 'd1' }], meta: {} }));
+
+    await publicApiFetch('/api/v1/doctors', 'en');
+    await publicApiFetch('/api/v1/doctors');
+
+    expect(fetchMock.mock.calls[0]?.[1]).toMatchObject({ headers: { 'Accept-Language': 'en' } });
+    expect(fetchMock.mock.calls[1]?.[1]).toMatchObject({ headers: { 'Accept-Language': 'ru' } });
+  });
+
+  it('should keep the language on the second, uncached ask of an empty list', async () => {
+    fetchMock.mockResolvedValueOnce(answer({ items: [], meta: {} })).mockResolvedValueOnce(answer({ items: [{ id: 'd1' }], meta: {} }));
+
+    await publicApiFetch('/api/v1/doctors', 'en');
+
+    expect(fetchMock.mock.calls[1]?.[1]).toMatchObject({ cache: 'no-store', headers: { 'Accept-Language': 'en' } });
+  });
 });

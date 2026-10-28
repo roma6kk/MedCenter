@@ -7,6 +7,8 @@
  * The timeout degrades gracefully to the page's error/empty state.
  */
 
+import { DEFAULT_LOCALE, type Locale } from '@/lib/i18n/locale';
+
 export const API_BASE: string = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8081';
 
 const PUBLIC_FETCH_TIMEOUT_MS = 5000;
@@ -24,8 +26,20 @@ function isEmptyList(data: unknown): boolean {
   return Array.isArray(data.items) && data.items.length === 0;
 }
 
-async function request(path: string, cache: RequestInit & { readonly next?: { readonly revalidate: number } }): Promise<FetchResult<unknown>> {
-  const res: Response = await fetch(`${API_BASE}${path}`, { ...cache, signal: AbortSignal.timeout(PUBLIC_FETCH_TIMEOUT_MS) });
+/**
+ * `Accept-Language` makes the API answer in the viewer's language. It is also what keeps the two languages apart in
+ * Next's data cache: that cache is keyed by URL and request headers, so a Russian answer is never served to an English reader.
+ */
+async function request(
+  path: string,
+  locale: Locale,
+  cache: RequestInit & { readonly next?: { readonly revalidate: number } },
+): Promise<FetchResult<unknown>> {
+  const res: Response = await fetch(`${API_BASE}${path}`, {
+    ...cache,
+    headers: { 'Accept-Language': locale },
+    signal: AbortSignal.timeout(PUBLIC_FETCH_TIMEOUT_MS),
+  });
   if (!res.ok) return { ok: false, status: res.status };
   return { ok: true, data: await res.json() };
 }
@@ -36,11 +50,11 @@ async function request(path: string, cache: RequestInit & { readonly next?: { re
  * first (cheap, the common case); when it is an empty list, it is asked for again past the cache, so new data shows at
  * once and the cache is only ever relied on for a catalog that has something in it.
  */
-export async function publicApiFetch<T>(path: string): Promise<FetchResult<T>> {
+export async function publicApiFetch<T>(path: string, locale: Locale = DEFAULT_LOCALE): Promise<FetchResult<T>> {
   try {
-    const cached: FetchResult<unknown> = await request(path, { next: { revalidate: PUBLIC_REVALIDATE_SECONDS } });
+    const cached: FetchResult<unknown> = await request(path, locale, { next: { revalidate: PUBLIC_REVALIDATE_SECONDS } });
     if (!cached.ok || !isEmptyList(cached.data)) return cached as FetchResult<T>;
-    return (await request(path, { cache: 'no-store' })) as FetchResult<T>;
+    return (await request(path, locale, { cache: 'no-store' })) as FetchResult<T>;
   } catch {
     return { ok: false };
   }

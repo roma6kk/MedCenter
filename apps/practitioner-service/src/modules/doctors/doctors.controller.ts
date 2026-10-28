@@ -1,7 +1,8 @@
-import { Controller, Get, HttpStatus, Param, Query } from '@nestjs/common';
+import { Controller, Get, Headers, HttpStatus, Param, Query } from '@nestjs/common';
 import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { ApiProblems, Public } from '@medcenter/common';
 import { DEFAULT_PAGE, DEFAULT_PAGE_SIZE } from '@medcenter/contracts';
+import { resolveContentLanguage } from '@medcenter/fhir-mappers';
 
 import { DoctorsService, type DoctorPage } from './doctors.service';
 import { DoctorIdParamDto } from './dto/doctor-id-param.dto';
@@ -17,15 +18,16 @@ export class DoctorsController {
 
   @Public()
   @Get('doctors')
-  @ApiOperation({ summary: '4.1 List the doctors of the catalog (public)' })
+  @ApiOperation({ summary: '4.1 List the doctors of the catalog (public); name and specialty follow Accept-Language (en or ru)' })
   @ApiResponse({ status: HttpStatus.OK, type: DoctorPageDoc })
   @ApiProblems([400, 429, 500])
-  async list(@Query() query: ListDoctorsQueryDto): Promise<DoctorPage> {
+  async list(@Query() query: ListDoctorsQueryDto, @Headers('accept-language') acceptLanguage?: string): Promise<DoctorPage> {
     const { serviceId, specialty, search } = query;
     return this.doctorsService.list(
       { serviceId, specialty, search },
       query.page ?? DEFAULT_PAGE,
       query.pageSize ?? DEFAULT_PAGE_SIZE,
+      resolveContentLanguage(acceptLanguage),
     );
   }
 
@@ -34,7 +36,10 @@ export class DoctorsController {
   @ApiOperation({ summary: '4.2 Get a doctor card (public)' })
   @ApiResponse({ status: HttpStatus.OK, type: DoctorResponseDoc })
   @ApiProblems([400, 404, 429, 500])
-  async findById(@Param() params: DoctorIdParamDto): Promise<DoctorResponseDto> {
-    return this.doctorsService.findById(params.id);
+  async findById(
+    @Param() params: DoctorIdParamDto,
+    @Headers('accept-language') acceptLanguage?: string,
+  ): Promise<DoctorResponseDto> {
+    return this.doctorsService.findById(params.id, resolveContentLanguage(acceptLanguage));
   }
 }

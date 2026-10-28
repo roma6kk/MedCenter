@@ -19,7 +19,7 @@ import type { AdminService } from './service-types';
 import { useCreateService, useUpdateService } from './use-admin-services';
 
 type ServiceField = keyof ServiceFormValues;
-const FIELDS: ReadonlyArray<string> = ['name', 'typeSystem', 'typeCode', 'defaultDurationMin', 'description'];
+const FIELDS: ReadonlyArray<string> = ['name', 'typeSystem', 'typeCode', 'defaultDurationMin', 'description', 'nameEn', 'descriptionEn'];
 
 interface FieldsProps {
   readonly register: (name: ServiceField) => UseFormRegisterReturn;
@@ -55,6 +55,12 @@ function ServiceFields({ register, errors }: FieldsProps): ReactNode {
       <CodeFields register={register} errors={errors} />
       <Field id="service-description" label={t('fields.description')} error={errors.description}>
         <textarea {...controlProps('service-description', errors.description)} rows={3} className={CONTROL_CLASS} {...register('description')} />
+      </Field>
+      <Field id="service-name-en" label={t('fields.nameEn')} error={errors.nameEn} hint={t('hints.english')}>
+        <input {...controlProps('service-name-en', errors.nameEn, t('hints.english'))} autoComplete="off" lang="en" className={CONTROL_CLASS} {...register('nameEn')} />
+      </Field>
+      <Field id="service-description-en" label={t('fields.descriptionEn')} error={errors.descriptionEn}>
+        <textarea {...controlProps('service-description-en', errors.descriptionEn)} rows={2} lang="en" className={CONTROL_CLASS} {...register('descriptionEn')} />
       </Field>
     </div>
   );

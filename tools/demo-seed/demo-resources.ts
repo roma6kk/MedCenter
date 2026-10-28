@@ -1,5 +1,6 @@
 import { FHIR_BY } from '../../libs/terminology/src/lib/canonical-urls';
 import { MEDCENTER_EXT } from '../../libs/terminology/src/lib/extension-urls';
+import { translationExtension } from '../../libs/fhir-mappers/src/lib/translation';
 import type { FhirResource } from '../shared/fhir-http';
 import {
   CLINIC,
@@ -40,10 +41,16 @@ export function fullNameOf(doctor: DoctorDef): string {
   return `${doctor.family} ${doctor.given} ${doctor.patronymic}`;
 }
 
+/** `_<primitive>` element carrying the English text (HL7 FHIR R4 `translation` extension, `lang` = en). */
+function english(content: string): Json {
+  return { extension: [translationExtension('en', content)] };
+}
+
 function specialtyConcept(specialty: SpecialtyDef): Json {
   return {
-    coding: [{ system: CODE_SYSTEMS.SNOMED_CT, code: specialty.code, display: specialty.display }],
+    coding: [{ system: CODE_SYSTEMS.SNOMED_CT, code: specialty.code, display: specialty.display, _display: english(specialty.displayEn) }],
     text: specialty.profession,
+    _text: english(specialty.professionEn),
   };
 }
 
@@ -115,7 +122,9 @@ export function buildPractitioners(): FhirResource[] {
         use: 'official',
         text: fullNameOf(doctor),
         family: doctor.family,
+        _family: english(doctor.familyEn),
         given: [doctor.given, doctor.patronymic],
+        _given: [english(doctor.givenEn), english(doctor.patronymicEn)],
       },
     ],
     gender: doctor.gender,
@@ -161,7 +170,7 @@ export function buildPractitionerRoles(): FhirResource[] {
 /**
  * Services, written like `ServicesService.toHealthcareService`: `type` coded in
  * `nsi-services`, duration in `SERVICE_DEFAULT_DURATION`, description in
- * `comment`. Provider, location and specialty are derived from the schedules
+ * `comment`, the English texts in the `translation` extension of both. Provider, location and specialty are derived from the schedules
  * that offer the service.
  */
 export function buildHealthcareServices(): FhirResource[] {
@@ -178,7 +187,9 @@ export function buildHealthcareServices(): FhirResource[] {
       specialty: [specialtyConcept(specialtyOf(doctor.specialtyKey))],
       location: distinct(offered.map((schedule) => schedule.roomKey)).map((key) => ref('Location', demoIds.room(key))),
       name: service.name,
+      _name: english(service.nameEn),
       comment: service.description,
+      _comment: english(service.descriptionEn),
       extension: [{ url: MEDCENTER_EXT.SERVICE_DEFAULT_DURATION, valueInteger: service.durationMin }],
     };
   });

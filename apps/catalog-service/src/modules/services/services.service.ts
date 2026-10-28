@@ -6,6 +6,7 @@ import {
   UnprocessableEntityException,
 } from '@nestjs/common';
 import { buildPaginatedResponse, type PaginatedResponseDto } from '@medcenter/contracts';
+import { DEFAULT_CONTENT_LANGUAGE, translated, translationExtension, type ContentLanguage } from '@medcenter/fhir-mappers';
 import {
   createAudited,
   deleteAudited,
@@ -49,29 +50,30 @@ export class ServicesService {
    * Public listing (API §5.1.1). Only the plain, search-free listing is cached,
    * one entry per validated (page, pageSize) — a key per free-text term would
    * let an anonymous caller fill the shared Redis with arbitrary strings, so a
-   * search always goes to HAPI (a cheap `name` match).
+   * search always goes to HAPI (a cheap `name` match, over the stored Russian name). The cached page holds the
+   * localized names, so there is one entry per language as well.
    */
-  async list(page = 1, pageSize = 20, search?: string): Promise<ServicePage> {
+  async list(page = 1, pageSize = 20, search?: string, lang: ContentLanguage = DEFAULT_CONTENT_LANGUAGE): Promise<ServicePage> {
     const term = search?.trim() ?? '';
-    const load = (): Promise<ServicePage> => this.loadPage(page, pageSize, term);
+    const load = (): Promise<ServicePage> => this.loadPage(page, pageSize, term, lang);
     if (term !== '') {
       return load();
     }
-    return this.cache.getOrLoad(CACHE_KEYS.SERVICES_PAGE(page, pageSize), CACHE_TTLS.SERVICES_SECONDS, load);
+    return this.cache.getOrLoad(CACHE_KEYS.SERVICES_PAGE(page, pageSize, lang), CACHE_TTLS.SERVICES_SECONDS, load);
   }
 
   /**
    * `_total=accurate` asks HAPI for the count; without one the total is known
    * only up to this page, which is the honest lower bound.
    */
-  private async loadPage(page: number, pageSize: number, term: string): Promise<ServicePage> {
+  private async loadPage(page: number, pageSize: number, term: string, lang: ContentLanguage): Promise<ServicePage> {
     const result = await this.fhirClient.search('HealthcareService', {
       ...(term === '' ? {} : { name: term }),
       _count: pageSize,
       _offset: (page - 1) * pageSize,
       _total: 'accurate',
     });
-    const items = (result.entry ?? []).map((entry) => this.toResponseDto(entry.resource));
+    const items = (result.entry ?? []).map((entry) => this.toResponseDto(entry.resource, lang));
     const totalItems = result.total ?? (page - 1) * pageSize + items.length;
     return buildPaginatedResponse(items, {
       page,
@@ -81,9 +83,9 @@ export class ServicesService {
     });
   }
 
-  async findById(id: string): Promise<ServiceResponseDto> {
+  async findById(id: string, lang: ContentLanguage = DEFAULT_CONTENT_LANGUAGE): Promise<ServiceResponseDto> {
     const resource = await this.fhirClient.read('HealthcareService', id);
-    return this.toResponseDto(resource);
+    return this.toResponseDto(resource, lang);
   }
 
   /** Admin writes carry their `AuditEvent` in the same transaction (FR-021, ADR-014). */
@@ -112,6 +114,7 @@ export class ServicesService {
     }
     const existing = await this.fhirClient.read('HealthcareService', id);
     const merged = this.mergeDefined(existing, this.toHealthcareService(dto));
+    this.mergeTranslations(merged, dto);
     // A partial type update (e.g. only typeCode) must replace the whole type
     // coding — mixing a new code with the old system would be incoherent.
     if (dto.typeCode !== undefined) {
@@ -124,6 +127,20 @@ export class ServicesService {
     const updated = await updateAudited(this.fhirClient, { ...merged, id }, this.auditOf(actor));
     await this.invalidate();
     return this.toResponseDto(updated);
+  }
+
+  /**
+   * The English text rides on `_name` / `_comment`. `mergeDefined` already keeps the stored one when the PATCH leaves
+   * the English field out; a blank string removes it (e.g. the Russian name changed and the old translation no longer fits).
+   */
+  private mergeTranslations(merged: FhirResource, dto: UpdateServiceDto): void {
+    const target = merged as Record<string, unknown>;
+    if (dto.nameEn?.trim() === '') {
+      delete target['_name'];
+    }
+    if (dto.descriptionEn?.trim() === '') {
+      delete target['_comment'];
+    }
   }
 
   /** Spread-merge that skips undefined values so a partial DTO never blanks
@@ -216,6 +233,7 @@ export class ServicesService {
       resourceType: 'HealthcareService',
       name: dto.name,
       comment: dto.description,
+      ...this.translationElements(dto),
       ...(dto.defaultDurationMin === undefined
         ? {}
         : {
@@ -241,17 +259,44 @@ export class ServicesService {
     return resource as FhirResource;
   }
 
-  private toResponseDto(resource: FhirResource): ServiceResponseDto {
+  /** `_name` / `_comment` with the English text of the DTO; nothing for an absent or blank one. */
+  private translationElements(dto: Partial<CreateServiceDto>): Record<string, unknown> {
+    const elements: Record<string, unknown> = {};
+    if (dto.nameEn !== undefined && dto.nameEn.trim() !== '') {
+      elements['_name'] = { extension: [translationExtension('en', dto.nameEn.trim())] };
+    }
+    if (dto.descriptionEn !== undefined && dto.descriptionEn.trim() !== '') {
+      elements['_comment'] = { extension: [translationExtension('en', dto.descriptionEn.trim())] };
+    }
+    return elements;
+  }
+
+  /** The stored English text of a primitive (`_name`, `_comment`), whatever language the request asked for. */
+  private englishOf(resource: FhirResource, field: 'name' | 'comment'): string | undefined {
+    const original = resource[field];
+    if (typeof original !== 'string') {
+      return undefined;
+    }
+    const english = translated(original, resource[`_${field}`], 'en');
+    return english === original ? undefined : english;
+  }
+
+  private toResponseDto(resource: FhirResource, lang: ContentLanguage = DEFAULT_CONTENT_LANGUAGE): ServiceResponseDto {
     const coding = this.readCoding(resource);
+    const name = typeof resource['name'] === 'string' ? (resource['name'] as string) : '';
+    const description = typeof resource['comment'] === 'string' ? (resource['comment'] as string) : undefined;
+    const nameEn = this.englishOf(resource, 'name');
+    const descriptionEn = this.englishOf(resource, 'comment');
     return {
       id: resource.id ?? '',
-      name: typeof resource['name'] === 'string' ? (resource['name'] as string) : '',
+      name: translated(name, resource['_name'], lang),
       typeSystem: coding.system ?? '',
       typeCode: coding.code ?? '',
       typeDisplay: coding.display ?? '',
       defaultDurationMin: this.readDuration(resource),
-      description:
-        typeof resource['comment'] === 'string' ? (resource['comment'] as string) : undefined,
+      description: description === undefined ? undefined : translated(description, resource['_comment'], lang),
+      ...(nameEn === undefined ? {} : { nameEn }),
+      ...(descriptionEn === undefined ? {} : { descriptionEn }),
       isActive: resource['active'] !== false,
     };
   }

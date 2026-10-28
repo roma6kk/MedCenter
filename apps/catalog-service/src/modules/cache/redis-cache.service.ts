@@ -1,4 +1,5 @@
 import { Inject, Injectable, Logger, Optional, type OnModuleDestroy } from '@nestjs/common';
+import { DEFAULT_CONTENT_LANGUAGE, type ContentLanguage } from '@medcenter/fhir-mappers';
 
 /**
  * Minimal cache contract. Kept narrow so the whole service can be exercised
@@ -40,9 +41,11 @@ export const CACHE_KEYS = {
   /**
    * One page of the public services listing without a search term (API §5.1.1).
    * The cached value is the `{ items, meta }` envelope; `v2` keeps a bare array
-   * cached by an earlier release from being served as one (it expires on its own).
+   * cached by an earlier release from being served as one (it expires on its own). The page holds localized
+   * names, so the language is part of the key (`v3`): an English reader never gets the Russian page, nor the reverse.
    */
-  SERVICES_PAGE: (page: number, pageSize: number): string => `catalog:services:v2:${page}:${pageSize}`,
+  SERVICES_PAGE: (page: number, pageSize: number, lang: ContentLanguage = DEFAULT_CONTENT_LANGUAGE): string =>
+    `catalog:services:v3:${lang}:${page}:${pageSize}`,
 } as const;
 
 export const CACHE_TTLS = {

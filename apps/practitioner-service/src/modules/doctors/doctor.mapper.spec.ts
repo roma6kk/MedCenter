@@ -1,5 +1,7 @@
 import type { FhirResource } from '@medcenter/fhir';
 
+import { translationExtension } from '@medcenter/fhir-mappers';
+
 import { toDoctorDto } from './doctor.mapper';
 
 function practitioner(name: unknown): FhirResource {
@@ -88,3 +90,49 @@ describe('toDoctorDto', () => {
     expect(without.practitionerRoleIds).toEqual([]);
   });
 });
+
+describe('toDoctorDto localization', () => {
+  const localized: FhirResource = {
+    resourceType: 'Practitioner',
+    id: 'p9',
+    name: [
+      {
+        family: 'Иванова',
+        _family: { extension: [translationExtension('en', 'Ivanova')] },
+        given: ['Мария', 'Сергеевна'],
+        _given: [{ extension: [translationExtension('en', 'Maria')] }, null],
+      },
+    ],
+    qualification: [
+      {
+        code: {
+          coding: [{ system: 'http://snomed.info/sct', code: '419192003', display: 'Терапия' }],
+          text: 'Терапевт',
+          _text: { extension: [translationExtension('en', 'Therapist')] },
+        },
+      },
+    ],
+  } as unknown as FhirResource;
+
+  it('should keep the Russian values when no language is given', () => {
+    expect(toDoctorDto(localized)).toMatchObject({ name: 'Мария Иванова', firstName: 'Мария', lastName: 'Иванова', specialty: 'Терапевт' });
+  });
+
+  it('should return the English name and specialty when English is asked', () => {
+    expect(toDoctorDto(localized, [], 'en')).toMatchObject({ name: 'Maria Ivanova', firstName: 'Maria', lastName: 'Ivanova', specialty: 'Therapist' });
+  });
+
+  it('should fall back to the Russian value of whatever has no translation', () => {
+    const partial = { ...localized, qualification: [{ code: { text: 'Терапевт' } }] } as unknown as FhirResource;
+    expect(toDoctorDto(partial, [], 'en')).toMatchObject({ name: 'Maria Ivanova', specialty: 'Терапевт' });
+  });
+
+  it('should translate the coding display when the qualification has no text', () => {
+    const coded = {
+      ...localized,
+      qualification: [{ code: { coding: [{ code: '1', display: 'Терапия', _display: { extension: [translationExtension('en', 'Therapy')] } }] } }],
+    } as unknown as FhirResource;
+    expect(toDoctorDto(coded, [], 'en').specialty).toBe('Therapy');
+  });
+});
+

@@ -15,8 +15,12 @@ export interface SpecialtyDef {
   /** SNOMED CT specialty (qualifier value) — the system `PractitionerRole.specialty` uses across the services. */
   readonly code: string;
   readonly display: string;
+  /** English `display` (the HL7 `translation` extension of `coding.display`). */
+  readonly displayEn: string;
   /** Doctor's profession as shown in the catalog (`Practitioner.qualification[0].code.text`). */
   readonly profession: string;
+  /** English profession (the `translation` extension of `code.text`). */
+  readonly professionEn: string;
 }
 
 export interface RoomDef {
@@ -30,6 +34,9 @@ export interface RoomDef {
 export interface ServiceDef {
   readonly key: string;
   readonly name: string;
+  /** English name and description: the `translation` extension of `HealthcareService.name` / `.comment`. */
+  readonly nameEn: string;
+  readonly descriptionEn: string;
   /** Code of `https://fhir.by/CodeSystem/nsi-services`; must exist in the terminology snapshot. */
   readonly typeCode: string;
   readonly durationMin: number;
@@ -41,6 +48,10 @@ export interface DoctorDef {
   readonly family: string;
   readonly given: string;
   readonly patronymic: string;
+  /** Transliterated name parts (the `translation` extension of `name.family` / `name.given`). */
+  readonly familyEn: string;
+  readonly givenEn: string;
+  readonly patronymicEn: string;
   readonly gender: 'male' | 'female';
   readonly specialtyKey: string;
   /** Local part of the demo login (`<emailLocal>@<demo domain>`). */
@@ -103,10 +114,10 @@ export const CLINIC = {
 const WEEKDAYS: readonly DayCode[] = ['MO', 'TU', 'WE', 'TH', 'FR'];
 
 export const SPECIALTIES: readonly SpecialtyDef[] = [
-  { key: 'therapy', code: '419192003', display: 'Терапия', profession: 'Терапевт' },
-  { key: 'cardiology', code: '394579002', display: 'Кардиология', profession: 'Кардиолог' },
-  { key: 'neurology', code: '394591006', display: 'Неврология', profession: 'Невролог' },
-  { key: 'surgery', code: '394609007', display: 'Хирургия', profession: 'Хирург' },
+  { key: 'therapy', code: '419192003', display: 'Терапия', displayEn: 'Therapy', profession: 'Терапевт', professionEn: 'Therapist' },
+  { key: 'cardiology', code: '394579002', display: 'Кардиология', displayEn: 'Cardiology', profession: 'Кардиолог', professionEn: 'Cardiologist' },
+  { key: 'neurology', code: '394591006', display: 'Неврология', displayEn: 'Neurology', profession: 'Невролог', professionEn: 'Neurologist' },
+  { key: 'surgery', code: '394609007', display: 'Хирургия', displayEn: 'Surgery', profession: 'Хирург', professionEn: 'Surgeon' },
 ];
 
 export const ROOMS: readonly RoomDef[] = [
@@ -118,19 +129,19 @@ export const ROOMS: readonly RoomDef[] = [
 ];
 
 export const SERVICES: readonly ServiceDef[] = [
-  { key: 'ter-primary', name: 'Приём терапевта (первичный)', typeCode: '10001', durationMin: 30, description: 'Первичная консультация терапевта' },
-  { key: 'ter-repeat', name: 'Приём терапевта (повторный)', typeCode: '10002', durationMin: 20, description: 'Повторная консультация терапевта' },
-  { key: 'card-primary', name: 'Приём кардиолога (первичный)', typeCode: '10003', durationMin: 40, description: 'Первичная консультация кардиолога' },
-  { key: 'neuro-primary', name: 'Приём невролога (первичный)', typeCode: '10004', durationMin: 40, description: 'Первичная консультация невролога' },
-  { key: 'surg-primary', name: 'Приём хирурга (первичный)', typeCode: '10005', durationMin: 30, description: 'Первичная консультация врача-хирурга' },
-  { key: 'ecg', name: 'Электрокардиография (ЭКГ)', typeCode: '10007', durationMin: 20, description: 'ЭКГ в покое с расшифровкой' },
+  { key: 'ter-primary', name: 'Приём терапевта (первичный)', nameEn: 'Therapist appointment (initial)', descriptionEn: 'Initial consultation with a therapist', typeCode: '10001', durationMin: 30, description: 'Первичная консультация терапевта' },
+  { key: 'ter-repeat', name: 'Приём терапевта (повторный)', nameEn: 'Therapist appointment (follow-up)', descriptionEn: 'Follow-up consultation with a therapist', typeCode: '10002', durationMin: 20, description: 'Повторная консультация терапевта' },
+  { key: 'card-primary', name: 'Приём кардиолога (первичный)', nameEn: 'Cardiologist appointment (initial)', descriptionEn: 'Initial consultation with a cardiologist', typeCode: '10003', durationMin: 40, description: 'Первичная консультация кардиолога' },
+  { key: 'neuro-primary', name: 'Приём невролога (первичный)', nameEn: 'Neurologist appointment (initial)', descriptionEn: 'Initial consultation with a neurologist', typeCode: '10004', durationMin: 40, description: 'Первичная консультация невролога' },
+  { key: 'surg-primary', name: 'Приём хирурга (первичный)', nameEn: 'Surgeon appointment (initial)', descriptionEn: 'Initial consultation with a surgeon', typeCode: '10005', durationMin: 30, description: 'Первичная консультация врача-хирурга' },
+  { key: 'ecg', name: 'Электрокардиография (ЭКГ)', nameEn: 'Electrocardiography (ECG)', descriptionEn: 'Resting ECG with interpretation', typeCode: '10007', durationMin: 20, description: 'ЭКГ в покое с расшифровкой' },
 ];
 
 export const DOCTORS: readonly DoctorDef[] = [
-  { key: 'ivanova', family: 'Иванова', given: 'Мария', patronymic: 'Сергеевна', gender: 'female', specialtyKey: 'therapy', emailLocal: 'doctor.ivanova' },
-  { key: 'petrov', family: 'Петров', given: 'Алексей', patronymic: 'Николаевич', gender: 'male', specialtyKey: 'cardiology', emailLocal: 'doctor.petrov' },
-  { key: 'sidorova', family: 'Сидорова', given: 'Елена', patronymic: 'Викторовна', gender: 'female', specialtyKey: 'neurology', emailLocal: 'doctor.sidorova' },
-  { key: 'kozlov', family: 'Козлов', given: 'Дмитрий', patronymic: 'Андреевич', gender: 'male', specialtyKey: 'surgery', emailLocal: 'doctor.kozlov' },
+  { key: 'ivanova', family: 'Иванова', given: 'Мария', patronymic: 'Сергеевна', familyEn: 'Ivanova', givenEn: 'Maria', patronymicEn: 'Sergeevna', gender: 'female', specialtyKey: 'therapy', emailLocal: 'doctor.ivanova' },
+  { key: 'petrov', family: 'Петров', given: 'Алексей', patronymic: 'Николаевич', familyEn: 'Petrov', givenEn: 'Aleksey', patronymicEn: 'Nikolaevich', gender: 'male', specialtyKey: 'cardiology', emailLocal: 'doctor.petrov' },
+  { key: 'sidorova', family: 'Сидорова', given: 'Елена', patronymic: 'Викторовна', familyEn: 'Sidorova', givenEn: 'Elena', patronymicEn: 'Viktorovna', gender: 'female', specialtyKey: 'neurology', emailLocal: 'doctor.sidorova' },
+  { key: 'kozlov', family: 'Козлов', given: 'Дмитрий', patronymic: 'Андреевич', familyEn: 'Kozlov', givenEn: 'Dmitry', patronymicEn: 'Andreevich', gender: 'male', specialtyKey: 'surgery', emailLocal: 'doctor.kozlov' },
 ];
 
 /**

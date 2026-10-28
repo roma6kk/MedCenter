@@ -1,4 +1,5 @@
 import { QueryClient } from '@tanstack/react-query';
+import { useUiStore } from '@/store/use-ui-store';
 import { queryKeys, queryRoots } from './query-keys';
 
 describe('consent keys', () => {
@@ -60,5 +61,24 @@ describe('queryKeys', () => {
     expect(queryKeys.appointmentDetail('a1')).toEqual(['appointment', 'a1']);
     expect(queryKeys.doctorSchedule).toEqual(['doctorSchedule']);
     expect(queryKeys.unreadCount).toEqual(['notifications', 'unreadCount']);
+  });
+});
+
+describe('catalogue keys and the language', () => {
+  afterEach(() => useUiStore.setState({ locale: 'ru' }));
+
+  it('should end the catalogue keys with the locale so each language is its own cache entry', () => {
+    const russian = [queryKeys.services({ page: 1 }), queryKeys.doctors(), queryKeys.doctor('d1')];
+    useUiStore.setState({ locale: 'en' });
+    const english = [queryKeys.services({ page: 1 }), queryKeys.doctors(), queryKeys.doctor('d1')];
+
+    expect(russian.map((key) => key.at(-1))).toEqual(['ru', 'ru', 'ru']);
+    expect(english.map((key) => key.at(-1))).toEqual(['en', 'en', 'en']);
+    russian.forEach((key, index) => expect(key).not.toEqual(english[index]));
+  });
+
+  it('should keep the domain first so a root invalidation still hits both languages', () => {
+    expect(queryKeys.services()[0]).toBe(queryRoots.services[0]);
+    expect(queryKeys.doctor('d1')[0]).toBe(queryRoots.doctors[0]);
   });
 });
