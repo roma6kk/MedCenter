@@ -32,8 +32,9 @@ export function useService(serviceId: string | null): UseQueryResult<CatalogServ
   });
 }
 
-export function useDoctors(query: DoctorQuery = {}): UseQueryResult<DoctorPage> {
-  return useQuery({ queryKey: queryKeys.doctors({ ...query }), queryFn: () => fetchDoctors(query), staleTime: catalogStaleTime });
+/** `enabled: false` holds the read back for a caller that only needs the list in some cases (the shell asks for a doctor's specialty only). */
+export function useDoctors(query: DoctorQuery = {}, enabled: boolean = true): UseQueryResult<DoctorPage> {
+  return useQuery({ queryKey: queryKeys.doctors({ ...query }), queryFn: () => fetchDoctors(query), staleTime: catalogStaleTime, enabled });
 }
 
 export function useDoctor(doctorId: string | null): UseQueryResult<Doctor> {

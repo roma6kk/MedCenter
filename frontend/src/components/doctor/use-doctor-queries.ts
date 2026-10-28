@@ -23,6 +23,7 @@ import {
   fetchRelatedPersons,
   type JournalRange,
 } from './doctor-api';
+import { patientsOf, type PatientHit } from './patient-search-model';
 import type {
   DoctorJournalPage,
   DoctorScheduleResponse,
@@ -82,6 +83,20 @@ export function useDoctorSchedule(range: JournalRange): UseQueryResult<DoctorSch
     queryKey: queryKeys.doctorScheduleRange({ from: range.from, to: range.to }),
     queryFn: ({ signal }) => fetchDoctorSchedule(range, signal),
     staleTime: STALE_TIME_MS.slots,
+  });
+}
+
+/**
+ * Every visit of one calendar week (API 6.5, one request with the largest page): the week calendar of the schedule joins them
+ * to the slots by `slotId` to show who sits in a busy one. A doctor does not see more than a page of visits in a week;
+ * `meta` tells the view when that is not so.
+ */
+export function useDoctorWeekAppointments(weekStart: string): UseQueryResult<DoctorJournalPage> {
+  const range: JournalRange = { from: clinicDayBounds(weekStart).from, to: clinicDayBounds(shiftDateKey(weekStart, 6)).to };
+  return useQuery({
+    queryKey: queryKeys.doctorAppointments({ ...range, page: 1, pageSize: 100 }),
+    queryFn: ({ signal }) => fetchDoctorJournal(range, { page: 1, pageSize: 100 }, signal),
+    staleTime: STALE_TIME_MS.appointments,
   });
 }
 
@@ -177,4 +192,48 @@ export async function lookupTerm(client: QueryClient, valueSet: string, code: st
     staleTime: STALE_TIME_MS.terminology,
   });
   return expansion.items.find((item) => item.code === code) ?? null;
+}
+
+/** How far back and ahead the patient search looks through the doctor's own journal. */
+export const PATIENT_SEARCH_BACK_DAYS = 90;
+export const PATIENT_SEARCH_AHEAD_DAYS = 30;
+/** The largest page the journal endpoint serves. */
+export const JOURNAL_MAX_PAGE_SIZE = 100;
+
+/**
+ * The patients the doctor has seen or will see, from the journal of the last three and the next month (one request, the
+ * largest page): the doctor's side has no patient search endpoint. `enabled: false` holds the read back until someone types.
+ */
+export function useDoctorPatients(enabled: boolean): UseQueryResult<ReadonlyArray<PatientHit>> {
+  const today: string = clinicDateKey();
+  const range: JournalRange = {
+    from: clinicDayBounds(shiftDateKey(today, -PATIENT_SEARCH_BACK_DAYS)).from,
+    to: clinicDayBounds(shiftDateKey(today, PATIENT_SEARCH_AHEAD_DAYS)).to,
+  };
+  return useQuery({
+    queryKey: queryKeys.doctorAppointments({ ...range, page: 1, pageSize: JOURNAL_MAX_PAGE_SIZE }),
+    queryFn: ({ signal }) => fetchDoctorJournal(range, { page: 1, pageSize: JOURNAL_MAX_PAGE_SIZE }, signal),
+    staleTime: STALE_TIME_MS.appointments,
+    enabled,
+    select: (page) => patientsOf(page.items),
+  });
+}
+
+/** How many days ahead an empty journal day looks for the doctor's next visit (A12). */
+export const NEXT_VISIT_LOOKAHEAD_DAYS = 14;
+
+/**
+ * The doctor's nearest booked visit after `afterDay` (and never before today), looked for within `NEXT_VISIT_LOOKAHEAD_DAYS`
+ * from one journal request. `null` when there is none in that time; `enabled: false` holds the read back for a day that is not empty.
+ */
+export function useNextBookedVisit(afterDay: string, today: string, enabled: boolean): UseQueryResult<JournalAppointment | null> {
+  const first: string = shiftDateKey(afterDay, 1) > today ? shiftDateKey(afterDay, 1) : today;
+  const range: JournalRange = { from: clinicDayBounds(first).from, to: clinicDayBounds(shiftDateKey(first, NEXT_VISIT_LOOKAHEAD_DAYS - 1)).to };
+  return useQuery({
+    queryKey: queryKeys.doctorAppointments({ ...range, page: 1, pageSize: JOURNAL_MAX_PAGE_SIZE }),
+    queryFn: ({ signal }) => fetchDoctorJournal(range, { page: 1, pageSize: JOURNAL_MAX_PAGE_SIZE }, signal),
+    staleTime: STALE_TIME_MS.appointments,
+    enabled,
+    select: (page) => [...page.items].filter((visit) => visit.status === 'booked').sort((a, b) => Date.parse(a.start) - Date.parse(b.start))[0] ?? null,
+  });
 }

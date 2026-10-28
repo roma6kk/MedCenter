@@ -19,6 +19,8 @@ interface SlotDayStripProps {
   readonly days: ReadonlyArray<StripDay>;
   readonly selectedDay: string;
   readonly onSelect: (day: string) => void;
+  /** Messages namespace with `dayStripLabel`, `dayChip`, `dayFree` and `dayNone`; the staff schedule has its own wording for the same strip. */
+  readonly messages?: string;
 }
 
 function dayNumber(dateKey: string): string {
@@ -41,8 +43,8 @@ function useScrollChosenIntoView(selectedDay: string, containerRef: RefObject<HT
  * (`aria-disabled`, skipped by the arrows). A radio group: the arrows choose the neighbouring day at once, Tab leaves the
  * strip. On a phone the strip scrolls sideways, from `sm` it wraps.
  */
-export function SlotDayStrip({ days, selectedDay, onSelect }: SlotDayStripProps): ReactNode {
-  const t = useT('booking');
+export function SlotDayStrip({ days, selectedDay, onSelect, messages = 'booking' }: SlotDayStripProps): ReactNode {
+  const t = useT(messages);
   const locale = useUiStore((state) => state.locale);
   const roving = useRovingFocus<HTMLDivElement>({ layout: 'row', selectOnMove: true });
   useScrollChosenIntoView(selectedDay, roving.ref);

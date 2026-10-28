@@ -46,6 +46,7 @@ const config: Config = {
         input: 'var(--input)',
         ring: 'var(--ring)',
         scrim: 'var(--scrim)',
+        glass: 'var(--glass)',
         muted: { foreground: 'var(--muted-foreground)' },
       },
       // Plain `rounded` is the small radius (badges, chips). `md` and `lg` stay out of the vocabulary on purpose.

@@ -141,3 +141,45 @@ describe('DropdownMenu and the viewport', () => {
     expect(screen.getByRole('menu')).toBeInTheDocument();
   });
 });
+
+describe('DropdownMenu as a profile menu', () => {
+  function renderProfileMenu(onChoose: (value: string) => void = jest.fn()): void {
+    const items: ReadonlyArray<MenuItem> = [
+      { key: 'ru', label: 'Русский', heading: 'Язык', checked: true, onSelect: () => onChoose('ru') },
+      { key: 'en', label: 'English', checked: false, onSelect: () => onChoose('en') },
+      { key: 'out', label: 'Выйти', heading: 'Сеанс', onSelect: () => onChoose('out') },
+    ];
+    render(<DropdownMenu label="Профиль" items={items} trigger={<span>Иванова М.</span>} align="start" width={260} />);
+  }
+
+  it('should show the given content on the button instead of the dots and not force the square size on it', () => {
+    renderProfileMenu();
+
+    const button = screen.getByRole('button', { name: 'Профиль' });
+
+    expect(button).toHaveTextContent('Иванова М.');
+    expect(button).not.toHaveClass('size-11');
+  });
+
+  it('should offer a group as menu radios with the chosen one ticked and a caption above the group', async () => {
+    renderProfileMenu();
+    await userEvent.click(screen.getByRole('button', { name: 'Профиль' }));
+
+    expect(screen.getByRole('menuitemradio', { name: 'Русский' })).toHaveAttribute('aria-checked', 'true');
+    expect(screen.getByRole('menuitemradio', { name: 'English' })).toHaveAttribute('aria-checked', 'false');
+    expect(screen.getByRole('menu')).toHaveTextContent('Язык');
+    expect(screen.getByRole('menu')).toHaveTextContent('Сеанс');
+    expect(screen.getByRole('menu')).toHaveStyle({ width: '260px' });
+  });
+
+  it('should reach the radio items with the arrow keys and run the chosen one', async () => {
+    const onChoose = jest.fn();
+    renderProfileMenu(onChoose);
+    await userEvent.click(screen.getByRole('button', { name: 'Профиль' }));
+
+    await userEvent.keyboard('{ArrowDown}{Enter}');
+
+    expect(onChoose).toHaveBeenCalledWith('en');
+    expect(screen.queryByRole('menu')).not.toBeInTheDocument();
+  });
+});

@@ -3,6 +3,7 @@
 import { useMemo } from 'react';
 import type { PaginatedResponse } from '@/lib/api/pagination';
 import { useT } from '@/lib/i18n/use-t';
+import { roomLabel } from '../rooms/room-label';
 import { useAdminRooms } from '../rooms/use-admin-rooms';
 import { useAdminServices } from '../services/use-admin-services';
 import { useAdminUsers } from '../users/use-admin-users';
@@ -62,7 +63,7 @@ export function useSchedulePickers(): SchedulePickers {
     () => linked.map((user) => ({ value: referenceId(user.practitionerRoleRef), label: user.isActive ? user.name : t('doctorInactive', { name: user.name }) })),
     [linked, t],
   );
-  const roomOptions = useMemo(() => (rooms.data?.items ?? []).map((room) => ({ value: room.id, label: `${room.name} (${room.identifier})` })), [rooms.data]);
+  const roomOptions = useMemo(() => (rooms.data?.items ?? []).map((room) => ({ value: room.id, label: roomLabel(room) })), [rooms.data]);
   const serviceOptions = useMemo(
     () => (services.data?.items ?? []).map((service) => ({ value: service.id, label: service.name, durationMin: service.defaultDurationMin })),
     [services.data],

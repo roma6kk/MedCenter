@@ -12,9 +12,10 @@ import { formatClinicTime } from '@/lib/clinic-time';
 import { useT } from '@/lib/i18n/use-t';
 import { cn } from '@/lib/ui/cn';
 import type { DoctorJournalPage, JournalAppointment } from './doctor-types';
-import { buildTimeline, canOpenPatientCard, countByStatus, findNextVisit, initialsOf, visitMinutes, type GapEntry, type StatusCounts, type TimelineEntry } from './journal-model';
+import { buildTimeline, canOpenPatientCard, countByStatus, findNextVisit, initialsOf, visitMinutes, withNowLine, type GapEntry, type NowEntry, type StatusCounts, type TimelineEntry } from './journal-model';
 import { NoshowMenu } from './noshow-menu';
 import { OpenEncounterButton } from './open-encounter-button';
+import { useNow } from './use-now';
 
 type Translate = (key: string, values?: Record<string, string | number>) => string;
 
@@ -51,7 +52,8 @@ function PatientLink({ visit, className }: { readonly visit: JournalAppointment;
 
 /** The status of a visit that is no longer on the doctor's plate: the shared soft badge, pushed to the end of the row. */
 function StatusChip({ status }: { readonly status: JournalAppointment['status'] }): ReactNode {
-  return <span className="ml-auto"><StampBadge status={status} /></span>;
+  // A no-show card is tinted with the very colour of the warning badge, which would melt into it: the badge stands on a white pill with a ring.
+  return <span className="ml-auto"><StampBadge status={status} className={status === 'noshow' ? 'bg-card ring-1 ring-inset ring-warning' : undefined} /></span>;
 }
 
 /** The card of the visit that comes next: the doctor's eye lands here first. Its actions live in the panel beside the timeline. */
@@ -123,15 +125,32 @@ function GapLine({ gap }: { readonly gap: GapEntry }): ReactNode {
   const t = useT('doctor.journal');
   const duration = useDuration();
   return (
-    <p className="flex items-center gap-2.5 rounded-card bg-background px-4 py-3.5 text-sm text-muted-foreground">
+    <p className="flex items-center gap-2.5 rounded-card border border-dashed border-border bg-transparent px-4 py-2.5 text-sm text-muted-foreground">
       <Clock aria-hidden="true" className="size-4 shrink-0" />
       {t('gap', { duration: duration(gap.minutes) })}
     </p>
   );
 }
 
+/** The line of the current time between the visits that are behind the doctor and those ahead (A13). */
+function NowRow({ entry }: { readonly entry: NowEntry }): ReactNode {
+  const t = useT('doctor.journal');
+  return (
+    <li data-testid="journal-now" className="grid grid-cols-[3.5rem_1.5rem_minmax(0,1fr)] items-center gap-x-3">
+      <span className="tabular-nums text-base font-semibold text-primary">{formatClinicTime(entry.start)}</span>
+      <span aria-hidden="true" className="flex justify-center">
+        <span className="size-3.5 rounded-full bg-primary ring-4 ring-primary-soft" />
+      </span>
+      <div className="flex items-center gap-2.5 py-1">
+        <span className="text-xs font-semibold uppercase text-primary-soft-foreground">{t('now')}</span>
+        <span aria-hidden="true" className="h-0.5 flex-1 rounded-full bg-primary" />
+      </div>
+    </li>
+  );
+}
+
 /** One row of the timeline: the time, the rail with its dot and the card. */
-function TimelineRow({ entry, isFirst }: { readonly entry: TimelineEntry; readonly isFirst: boolean }): ReactNode {
+function TimelineRow({ entry, isFirst }: { readonly entry: Exclude<TimelineEntry, NowEntry>; readonly isFirst: boolean }): ReactNode {
   const isGap: boolean = entry.kind === 'gap';
   const status = entry.kind === 'visit' ? entry.visit.status : null;
   const isNext: boolean = entry.kind === 'visit' && entry.isNext;
@@ -236,13 +255,23 @@ interface JournalDayViewProps {
   readonly onPage: (page: number) => void;
   /** Empty-result message when the filter hides everything. */
   readonly emptyFilteredText: string;
-  readonly emptyText: string;
+  /** What a day without any visit shows: a way forward (the next visit), not a dead end (A12). */
+  readonly empty: ReactNode;
+  /** Today's timeline carries the line of the current time. */
+  readonly isToday: boolean;
+}
+
+/** The timeline of a day, with the «now» line on today's. The clock ticks once a minute and only while today is open. */
+function useTimeline(rows: ReadonlyArray<JournalAppointment>, isToday: boolean): ReadonlyArray<TimelineEntry> {
+  const now: number | null = useNow(60_000, isToday);
+  const timeline: ReadonlyArray<TimelineEntry> = buildTimeline(rows);
+  return isToday && now !== null && rows.length > 0 ? withNowLine(timeline, now) : timeline;
 }
 
 /** Day view: the timeline of the day's visits and, beside it, the next patient and the summary of the day. */
-export function JournalDayView({ data, rows, onPage, emptyFilteredText, emptyText }: JournalDayViewProps): ReactNode {
+export function JournalDayView({ data, rows, onPage, emptyFilteredText, empty, isToday }: JournalDayViewProps): ReactNode {
   const t = useT('doctor.journal');
-  const timeline: ReadonlyArray<TimelineEntry> = buildTimeline(rows);
+  const timeline: ReadonlyArray<TimelineEntry> = useTimeline(rows, isToday);
   const next: JournalAppointment | undefined = findNextVisit(data.items);
   const last: JournalAppointment | undefined = rows.at(-1);
   const first: JournalAppointment | undefined = rows[0];
@@ -256,11 +285,13 @@ export function JournalDayView({ data, rows, onPage, emptyFilteredText, emptyTex
             {first && last ? <span className="tabular-nums">{` · ${formatClinicTime(first.start)}–${formatClinicTime(last.end)}`}</span> : null}
           </p>
         </div>
-        {data.items.length === 0 ? <EmptyState title={emptyText} /> : null}
+        {data.items.length === 0 ? empty : null}
         {data.items.length > 0 && rows.length === 0 ? <EmptyState title={emptyFilteredText} /> : null}
         {timeline.length > 0 ? (
           <ol className="flex flex-col">
-            {timeline.map((entry, index) => <TimelineRow key={entry.kind === 'visit' ? entry.visit.id : `gap-${entry.start}`} entry={entry} isFirst={index === 0} />)}
+            {timeline.map((entry, index) =>
+              entry.kind === 'now' ? <NowRow key="now" entry={entry} /> : <TimelineRow key={entry.kind === 'visit' ? entry.visit.id : `gap-${entry.start}`} entry={entry} isFirst={index === 0} />,
+            )}
           </ol>
         ) : null}
         {data.meta.totalPages > 1 ? <Pager meta={data.meta} onPage={onPage} /> : null}

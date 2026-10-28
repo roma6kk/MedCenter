@@ -90,7 +90,7 @@ describe('useSchedulePickers', () => {
 
     await waitFor(() => expect(result.current.isPending).toBe(false));
 
-    expect(result.current.rooms).toEqual([{ value: 'room-1', label: 'Кабинет 101 (101)' }]);
+    expect(result.current.rooms).toEqual([{ value: 'room-1', label: 'Кабинет 101' }]);
     expect(result.current.services).toEqual([{ value: 'svc-1', label: 'Приём', durationMin: 25 }]);
   });
 });

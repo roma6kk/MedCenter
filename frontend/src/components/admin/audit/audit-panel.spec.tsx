@@ -202,4 +202,28 @@ describe('AuditPanel', () => {
 
     expect(await screen.findByTestId('empty-state')).toHaveTextContent('События не найдены');
   });
+
+  it('should keep the hint of «Ресурс» under the whole filter row so its field lines up with the others', async () => {
+    renderWithClient(<AuditPanel />);
+    await screen.findByText('Найдено событий: 41');
+
+    const form = screen.getByRole('search', { name: 'Фильтры журнала' });
+    const hint = within(form).getByText(/Тип ресурса или Тип\/id/);
+
+    expect(hint).toHaveAttribute('id', 'audit-entity-hint');
+    expect(hint).toHaveClass('basis-full');
+    expect(within(form).getByLabelText('Ресурс')).toHaveAttribute('aria-describedby', 'audit-entity-hint');
+    expect(hint.closest('div.grid')).toBeNull();
+  });
+
+  it('should keep long ids to one line and give the whole value as a tooltip', async () => {
+    renderWithClient(<AuditPanel />);
+
+    const table = within(await screen.findByRole('table', { name: 'Журнал аудита' }));
+
+    expect(table.getByTitle('a48dab5b-67da-4ed7-a9be-f047cd9925c7')).toHaveClass('truncate');
+    expect(table.getByTitle('Patient/2537')).toHaveClass('truncate');
+    expect(table.getByTitle('3882171c-26eb-4417-a8aa-3281fde8c982')).toBeInTheDocument();
+  });
 });
+

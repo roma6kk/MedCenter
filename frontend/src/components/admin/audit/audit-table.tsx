@@ -29,11 +29,11 @@ function useAccountNames(): ReadonlyMap<string, string> {
 }
 
 function WhoCell({ userId, name }: { readonly userId: string; readonly name: string | undefined }): React.JSX.Element {
-  if (name === undefined) return <span className="mono break-all text-xs">{userId}</span>;
+  if (name === undefined) return <span className="mono text-xs">{userId}</span>;
   return (
     <span className="grid">
-      <span>{name}</span>
-      <span className="mono break-all text-xs text-[var(--muted-foreground)]">{userId}</span>
+      <span className="truncate">{name}</span>
+      <span className="mono truncate text-xs text-muted-foreground">{userId}</span>
     </span>
   );
 }
@@ -71,9 +71,9 @@ function useAuditColumns(): ReadonlyArray<TableColumn<AuditEvent>> {
   const names = useAccountNames();
   return [
     { key: 'occurredAt', header: t('columns.occurredAt'), render: (row) => <time dateTime={row.occurredAt} className="whitespace-nowrap">{formatClinicDateTime(row.occurredAt, locale)}</time> },
-    { key: 'userId', header: t('columns.userId'), render: (row) => <WhoCell userId={row.userId} name={names.get(row.userId)} /> },
+    { key: 'userId', header: t('columns.userId'), render: (row) => <WhoCell userId={row.userId} name={names.get(row.userId)} />, truncate: 'max-w-[16rem]', titleOf: (row) => [names.get(row.userId), row.userId].filter(Boolean).join(' · ') },
     { key: 'action', header: t('columns.action'), render: (row) => <ActionCell event={row} /> },
-    { key: 'resource', header: t('columns.resource'), render: (row) => <span className="mono break-all text-xs">{resourceOf(row)}</span> },
+    { key: 'resource', header: t('columns.resource'), render: (row) => <span className="mono text-xs">{resourceOf(row)}</span>, truncate: 'max-w-[18rem]', titleOf: resourceOf },
     { key: 'requestId', header: t('columns.requestId'), render: (row) => <CopyRequestId requestId={row.requestId} /> },
   ];
 }

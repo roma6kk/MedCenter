@@ -7,8 +7,11 @@ import type { Locale } from '@/lib/i18n/locale';
 import type { AppointmentState, JournalAppointment } from './doctor-types';
 
 const MS_PER_MINUTE = 60_000;
-/** A pause between two visits is shown as one line only from this length; shorter ones are just space between cards. */
-export const GAP_MIN_MINUTES = 60;
+/**
+ * A pause between two visits is shown as a quiet «окно» row from this length (one slot of the clinic): a shorter one is just
+ * space between cards, and a longer one is a window the doctor can use or fill.
+ */
+export const GAP_MIN_MINUTES = 30;
 /** Height of one half-hour row of the week grid, in px. */
 export const HALF_HOUR_PX = 40;
 const DEFAULT_GRID_START_HOUR = 9;
@@ -37,7 +40,14 @@ export interface GapEntry {
   readonly minutes: number;
 }
 
-export type TimelineEntry = VisitEntry | GapEntry;
+/** The «now» line of today's timeline (A13). */
+export interface NowEntry {
+  readonly kind: 'now';
+  /** RFC 3339 instant of the line. */
+  readonly start: string;
+}
+
+export type TimelineEntry = VisitEntry | GapEntry | NowEntry;
 
 export function visitMinutes(visit: JournalAppointment): number {
   return Math.max(0, Math.round((Date.parse(visit.end) - Date.parse(visit.start)) / MS_PER_MINUTE));
@@ -67,6 +77,16 @@ export function buildTimeline(visits: ReadonlyArray<JournalAppointment>): Readon
     busyUntil = Math.max(busyUntil ?? 0, Date.parse(visit.end));
   }
   return entries;
+}
+
+/**
+ * Puts the «now» line into the timeline before the first entry that starts after `nowMs` (at the end when none does). A visit
+ * that has begun stays above the line, so the line always sits between what is behind the doctor and what is ahead.
+ */
+export function withNowLine(entries: ReadonlyArray<TimelineEntry>, nowMs: number): ReadonlyArray<TimelineEntry> {
+  const index: number = entries.findIndex((entry) => entry.kind !== 'now' && Date.parse(entry.kind === 'visit' ? entry.visit.start : entry.start) > nowMs);
+  const line: NowEntry = { kind: 'now', start: new Date(nowMs).toISOString() };
+  return index === -1 ? [...entries, line] : [...entries.slice(0, index), line, ...entries.slice(index)];
 }
 
 export type StatusCounts = Readonly<Record<AppointmentState, number>> & { readonly total: number };
@@ -164,7 +184,8 @@ export function gridRange(days: ReadonlyArray<ReadonlyArray<JournalAppointment>>
   for (const visits of days) {
     for (const visit of visits) {
       startHour = Math.min(startHour, Math.floor(clinicMinutes(visit.start) / 60));
-      endHour = Math.max(endHour, Math.ceil(clinicMinutes(visit.start) / 60 + visitMinutes(visit) / 60));
+      // A block is drawn at least one half-hour row tall, so a 20-minute visit at the end of the day needs that row too.
+      endHour = Math.max(endHour, Math.ceil((clinicMinutes(visit.start) + Math.max(visitMinutes(visit), 30)) / 60));
     }
   }
   return { startHour, endHour: Math.min(endHour, 24) };

@@ -2,7 +2,9 @@
 
 import { useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
-import { StampBadge, type SlotStatus } from '@/components/feedback/stamp-badge';
+import { Ban, CircleAlert, CircleCheck, type LucideIcon } from 'lucide-react';
+import type { SlotStatus } from '@/components/feedback/stamp-badge';
+import { cn } from '@/lib/ui/cn';
 import { useT } from '@/lib/i18n/use-t';
 import { useUiStore } from '@/store/use-ui-store';
 import { formatClinicTime, formatDayHeading, groupSlotsByDay, type SlotDay } from '@/lib/clinic-time';
@@ -19,13 +21,23 @@ const STATUS_FILTERS: ReadonlyArray<SlotStatus | ''> = ['', 'free', 'busy', 'ent
 /** The id the `Field` of «С» gives its error text; «По» is described by the same text. */
 const RANGE_ERROR_ID = 'slots-from-error';
 
+/** The look of a slot chip by status: the fill and the icon both say it, and the status word is there for screen readers (WCAG 1.4.1). */
+const CHIP_LOOK: Readonly<Record<SlotStatus, { readonly className: string; readonly icon: LucideIcon }>> = {
+  free: { className: 'border-border bg-card text-foreground', icon: CircleCheck },
+  busy: { className: 'border-transparent bg-secondary text-muted-foreground', icon: Ban },
+  'entered-in-error': { className: 'border-warning bg-warning-soft text-warning', icon: CircleAlert },
+};
+
+/** A compact chip of one slot (VF2): a fixed width, the time centred; the status is the fill and the icon, spelled out for assistive technology. */
 function SlotTile({ slot }: { readonly slot: ScheduleSlot }): ReactNode {
+  const tStamp = useT('stamp');
+  const { className, icon: Icon } = CHIP_LOOK[slot.status];
+  const time: string = `${formatClinicTime(slot.start)}–${formatClinicTime(slot.end)}`;
   return (
-    <li data-testid={`slot-${slot.status}`} className="flex items-center justify-between gap-2 rounded-control border border-[var(--border)] px-2 py-1 text-sm">
-      <span className="tabular-nums">
-        {formatClinicTime(slot.start)}–{formatClinicTime(slot.end)}
-      </span>
-      <StampBadge status={slot.status} />
+    <li data-testid={`slot-${slot.status}`} title={`${time} · ${tStamp(slot.status)}`} className={cn('flex items-center justify-center gap-1.5 rounded-control border px-2 py-1.5 text-sm', className)}>
+      <Icon aria-hidden="true" className="size-3.5 shrink-0" />
+      <span className="tabular-nums">{time}</span>
+      <span className="sr-only">{tStamp(slot.status)}</span>
     </li>
   );
 }
@@ -53,7 +65,7 @@ function SlotDays({ days }: { readonly days: ReadonlyArray<SlotDay<ScheduleSlot>
       {days.map(({ day, slots: daySlots }) => (
         <section key={day} aria-label={formatDayHeading(day, locale, 'compact')}>
           <h3 className="serif text-base font-semibold">{formatDayHeading(day, locale, 'compact')}</h3>
-          <ul className="mt-2 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+          <ul className="mt-2 grid grid-cols-[repeat(auto-fill,minmax(8.5rem,1fr))] gap-2">
             {daySlots.map((slot) => (
               <SlotTile key={slot.id} slot={slot} />
             ))}

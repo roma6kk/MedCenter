@@ -44,4 +44,26 @@ describe('SchedulesTable', () => {
     await userEvent.click(screen.getAllByRole('button', { name: /^Действия:/ })[0]!);
     expect(screen.getAllByRole('menuitem').map((item) => item.textContent)).toEqual(['Слоты', 'Удалить']);
   });
+
+  it('should keep «Сгенерировать слоты» on one line (D3)', () => {
+    renderTable(schedule);
+
+    expect(screen.getAllByRole('button', { name: /Сгенерировать слоты/ })[0]).toHaveClass('whitespace-nowrap');
+  });
+
+  it('should write the windows in words with the slot length under them, and the horizon on one line with the year once', () => {
+    const planned: AdminSchedule = {
+      ...schedule,
+      horizonFrom: '2026-10-26',
+      horizonTo: '2026-11-08',
+      slotDurationMin: 30,
+      windows: ['MO', 'TU', 'WE', 'TH', 'FR'].map((dayOfWeek) => ({ dayOfWeek, startTime: '09:00', endTime: '13:00' })) as AdminSchedule['windows'],
+    };
+    renderTable(planned);
+
+    expect(screen.getAllByText('Пн–Пт 09:00–13:00').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Слот 30 мин').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('26.10 – 08.11.2026')[0]).toHaveClass('whitespace-nowrap');
+  });
 });
+

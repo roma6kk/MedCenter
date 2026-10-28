@@ -93,7 +93,54 @@ jest.setTimeout(30_000);
   it('should collapse a long pause between two visits into one line', async () => {
     setup(() => pageOf([ROWS[0] as ReturnType<typeof appointment>, appointment({ id: 'late', patientId: 'p9', patientName: 'Орлов Иван', start: '2026-10-20T11:00:00Z', end: '2026-10-20T11:30:00Z' })]));
 
-    expect(await within(await findTable()).findByText('4 ч 30 мин без записей')).toBeInTheDocument();
+    expect(await within(await findTable()).findByText('Окно 4 ч 30 мин')).toBeInTheDocument();
+  });
+
+  it('should show a pause of half an hour as a quiet «окно» row between two visits (A13)', async () => {
+    setup(() =>
+      pageOf([
+        appointment({ id: 'x1', start: '2026-10-20T06:00:00Z', end: '2026-10-20T06:30:00Z' }),
+        appointment({ id: 'x2', patientId: 'p9', patientName: 'Орлов Иван', start: '2026-10-20T07:00:00Z', end: '2026-10-20T07:30:00Z' }),
+      ]),
+    );
+
+    expect(await within(await findTable()).findByText('Окно 30 мин')).toBeInTheDocument();
+  });
+
+  it('should draw the «now» line between the visits behind the doctor and those ahead on today\'s timeline (A13)', async () => {
+    const at = (offsetMinutes: number): string => new Date(Date.now() + offsetMinutes * 60_000).toISOString();
+    setup(() =>
+      pageOf([
+        appointment({ id: 'past', start: at(-120), end: at(-90) }),
+        appointment({ id: 'ahead', patientId: 'p9', patientName: 'Орлов Иван', start: at(120), end: at(150) }),
+      ]),
+    );
+    const timeline = await findTable();
+
+    const now = await within(timeline).findByTestId('journal-now');
+
+    const order: string[] = Array.from(timeline.querySelectorAll('[data-testid]')).map((node) => node.getAttribute('data-testid') ?? '');
+    expect(order.indexOf('journal-visit-past')).toBeLessThan(order.indexOf('journal-now'));
+    expect(order.indexOf('journal-now')).toBeLessThan(order.indexOf('journal-visit-ahead'));
+    expect(now).toHaveTextContent('Сейчас');
+  });
+
+  it('should not draw the «now» line on another day', async () => {
+    window.history.replaceState(null, '', `/doctor/appointments?date=${shiftDateKey(TODAY, -1)}`);
+    setup();
+
+    await findTable();
+
+    expect(screen.queryByTestId('journal-now')).not.toBeInTheDocument();
+  });
+
+  it('should keep the badge of a no-show readable on the card tinted with its own colour', async () => {
+    setup();
+
+    const badge = within(await screen.findByTestId('journal-visit-a2')).getByTestId('stamp-noshow');
+
+    expect(badge).toHaveClass('bg-card', 'ring-warning');
+    expect(badge).not.toHaveClass('bg-warning-soft');
   });
 
   it('should link the patient name to the patient card', async () => {
@@ -140,10 +187,36 @@ jest.setTimeout(30_000);
     expect(timeline.getByText('Пациент p4')).toBeInTheDocument();
   });
 
-  it('should say so when the day has no appointments', async () => {
+  it('should say that today has no appointments and name the next one with a button to jump there (A12)', async () => {
+    const tomorrow: string = shiftDateKey(TODAY, 1);
+    const next = appointment({ id: 'n1', patientName: 'Кузнецов Павел', start: `${tomorrow}T07:00:00Z`, end: `${tomorrow}T07:30:00Z` });
+    setup(() => pageOf([]));
+    // Today's own request ends at the end of today; the look-ahead range reaches into tomorrow and finds the visit.
+    apiFetchMock.mockImplementation((path: string) => Promise.resolve(path.includes(encodeURIComponent(`${TODAY}T23:59:59+03:00`)) ? pageOf([]) : pageOf([next])));
+
+    expect(await screen.findByText('Сегодня записей нет')).toBeInTheDocument();
+    expect(await screen.findByText('Ближайший приём — завтра, 10:00, Кузнецов П.')).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Перейти к приёму' }));
+
+    await waitFor(() => expect(window.location.search).toBe(`?date=${tomorrow}`));
+  });
+
+  it('should look no further than 14 days ahead and say so when nothing is booked (A12)', async () => {
     setup(() => pageOf([]));
 
-    expect(await screen.findByText('На этот день записей нет')).toBeInTheDocument();
+    expect(await screen.findByText('Сегодня записей нет')).toBeInTheDocument();
+    expect(await screen.findByText('В ближайшие 14 дн. записей нет.')).toBeInTheDocument();
+    const lookAhead = callsTo(apiFetchMock, JOURNAL).map(([path]) => new URL(path, 'http://x').searchParams).find((query) => query.get('from')?.startsWith(shiftDateKey(TODAY, 1)));
+    expect(lookAhead?.get('to')).toBe(`${shiftDateKey(TODAY, 14)}T23:59:59+03:00`);
+    expect(screen.queryByRole('button', { name: 'Перейти к приёму' })).not.toBeInTheDocument();
+  });
+
+  it('should name the day instead of «сегодня» when another empty day is open', async () => {
+    const day: string = shiftDateKey(TODAY, -1);
+    window.history.replaceState(null, '', `/doctor/appointments?date=${day}`);
+    setup(() => pageOf([]));
+
+    expect(await screen.findByText(/^На .* записей нет$/)).toBeInTheDocument();
   });
 
   it('should hide the rows of other statuses when a status is chosen', async () => {

@@ -58,4 +58,14 @@ describe('StampBadge', () => {
 
     expect(screen.getByTestId('stamp-cancelled')).toHaveClass('bg-secondary');
   });
+
+  it('should let the caller replace the fill of the tone when the badge sits on a ground of its own colour', () => {
+    render(<StampBadge status="noshow" className="bg-card ring-1" />);
+
+    const badge = screen.getByTestId('stamp-noshow');
+
+    expect(badge).toHaveClass('bg-card', 'ring-1', 'text-warning');
+    expect(badge).not.toHaveClass('bg-warning-soft');
+  });
 });
+

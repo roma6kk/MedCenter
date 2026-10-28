@@ -6,9 +6,10 @@ import { StampBadge } from '@/components/feedback/stamp-badge';
 import { buttonVariants } from '@/components/ui/button-variants';
 import { DropdownMenu, type MenuItem } from '@/components/ui/dropdown-menu';
 import { useT } from '@/lib/i18n/use-t';
-import { sortWindows } from './schedule-windows';
+import { cn } from '@/lib/ui/cn';
 import type { AdminSchedule, WeekDay } from './schedule-types';
 import { formatDateKey } from '@/lib/clinic-time';
+import { describeWindows } from '@/lib/schedule-windows-text';
 import { labelOf, type SchedulePickers } from './use-schedule-pickers';
 
 export interface ScheduleHandlers {
@@ -25,7 +26,7 @@ interface SchedulesTableProps extends ScheduleHandlers {
   readonly pickers: SchedulePickers;
 }
 
-/** `Иванова Мария · Кабинет 101 (101)`: who and where, for the dialogs opened from a row. */
+/** `Иванова Мария · Кабинет 101`: who and where, for the dialogs opened from a row. */
 export function describeSchedule(schedule: AdminSchedule, pickers: SchedulePickers): string {
   return [labelOf(pickers.allDoctors, schedule.practitionerRoleId), labelOf(pickers.rooms, schedule.roomId)].join(' · ');
 }
@@ -42,9 +43,9 @@ function ScheduleActions({ schedule, label, onSlots, onGenerate, onEdit, onDelet
   items.push({ key: 'slots', label: t('actions.slots'), icon: LayoutGrid, onSelect: () => onSlots(schedule) });
   items.push({ key: 'delete', label: t('actions.delete'), icon: Trash2, destructive: true, onSelect: () => onDelete(schedule) });
   return (
-    <span className="flex items-center gap-1">
+    <span className="flex items-center gap-1 whitespace-nowrap">
       {schedule.isActive ? (
-        <button type="button" className={buttonVariants({ variant: 'secondary' })} onClick={() => onGenerate(schedule)} aria-label={t('actions.generateAria', { label })}>
+        <button type="button" className={cn(buttonVariants({ variant: 'secondary' }), 'whitespace-nowrap')} onClick={() => onGenerate(schedule)} aria-label={t('actions.generateAria', { label })}>
           <CalendarPlus aria-hidden="true" className="size-4" />
           {t('actions.generate')}
         </button>
@@ -54,34 +55,45 @@ function ScheduleActions({ schedule, label, onSlots, onGenerate, onEdit, onDelet
   );
 }
 
-/** One line per window (`Пн 09:00–13:00`), so a time never breaks across lines in the narrow column. Spans only: the mobile card puts a cell inside a `<p>`. */
-function WindowsCell({ schedule, dayLabel }: { readonly schedule: AdminSchedule; readonly dayLabel: (day: WeekDay) => string }): React.JSX.Element {
-  if (schedule.windows.length === 0) return <>—</>;
+/**
+ * The weekly windows in words, one line per group of days with the same hours (`Пн–Пт 09:00–13:00`): a schedule of five working
+ * days is one line, not five. Spans only: the mobile card puts a cell inside a `<p>`.
+ */
+function WindowsCell({ schedule, dayLabel, duration }: { readonly schedule: AdminSchedule; readonly dayLabel: (day: WeekDay) => string; readonly duration: string | undefined }): React.JSX.Element {
+  const groups = describeWindows(schedule.windows, dayLabel);
+  if (groups.length === 0) return <>—</>;
   return (
     <span className="grid gap-0.5">
-      {sortWindows(schedule.windows).map((window) => (
-        <span key={`${window.dayOfWeek}-${window.startTime}`} className="whitespace-nowrap">
-          {dayLabel(window.dayOfWeek)} {window.startTime}–{window.endTime}
+      {groups.map((group) => (
+        <span key={`${group.days}-${group.times}`} className="whitespace-nowrap">
+          {group.days} {group.times}
         </span>
       ))}
+      {duration === undefined ? null : <span className="whitespace-nowrap text-xs text-muted-foreground">{duration}</span>}
     </span>
   );
 }
 
+/** `26.10 – 08.11.2026`: the year is written once when both ends are in it, so the column stays on one line. */
 function horizonOf(schedule: AdminSchedule): string {
   if (schedule.horizonFrom === undefined || schedule.horizonTo === undefined) return '—';
-  return `${formatDateKey(schedule.horizonFrom, 'numeric')} – ${formatDateKey(schedule.horizonTo, 'numeric')}`;
+  const from: string = formatDateKey(schedule.horizonFrom, 'numeric');
+  const to: string = formatDateKey(schedule.horizonTo, 'numeric');
+  return from.slice(6) === to.slice(6) ? `${from.slice(0, 5)} – ${to}` : `${from} – ${to}`;
 }
 
 function useScheduleColumns(pickers: SchedulePickers, handlers: ScheduleHandlers): ReadonlyArray<TableColumn<AdminSchedule>> {
   const t = useT('admin.schedules');
   return [
-    { key: 'doctor', header: t('columns.doctor'), render: (row) => labelOf(pickers.allDoctors, row.practitionerRoleId) },
-    { key: 'room', header: t('columns.room'), render: (row) => labelOf(pickers.rooms, row.roomId) },
-    { key: 'service', header: t('columns.service'), render: (row) => labelOf(pickers.services, row.serviceId) },
-    { key: 'horizon', header: t('columns.horizon'), render: (row) => <span className="tabular-nums text-xs">{horizonOf(row)}</span> },
-    { key: 'windows', header: t('columns.windows'), render: (row) => <WindowsCell schedule={row} dayLabel={(day) => t(`days.${day}`)} /> },
-    { key: 'duration', header: t('columns.duration'), render: (row) => (row.slotDurationMin === undefined ? '—' : t('minutes', { count: row.slotDurationMin })) },
+    { key: 'doctor', header: t('columns.doctor'), render: (row) => labelOf(pickers.allDoctors, row.practitionerRoleId), truncate: 'max-w-[13rem]' },
+    { key: 'room', header: t('columns.room'), render: (row) => labelOf(pickers.rooms, row.roomId), truncate: 'max-w-[10rem]' },
+    { key: 'service', header: t('columns.service'), render: (row) => labelOf(pickers.services, row.serviceId), truncate: 'max-w-[12rem]' },
+    { key: 'horizon', header: t('columns.horizon'), render: (row) => <span className="tabular-nums whitespace-nowrap text-xs">{horizonOf(row)}</span> },
+    {
+      key: 'windows',
+      header: t('columns.windows'),
+      render: (row) => <WindowsCell schedule={row} dayLabel={(day) => t(`days.${day}`)} duration={row.slotDurationMin === undefined ? undefined : t('slotOf', { minutes: row.slotDurationMin })} />,
+    },
     { key: 'status', header: t('columns.status'), render: (row) => row.isActive ? <StampBadge status="active">{t('active')}</StampBadge> : <StampBadge status="cancelled" tone="neutral" icon={Ban}>{t('inactive')}</StampBadge> },
     { key: 'actions', header: t('columns.actions'), render: (row) => <ScheduleActions schedule={row} label={describeSchedule(row, pickers)} {...handlers} /> },
   ];

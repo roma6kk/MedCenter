@@ -1,12 +1,12 @@
 'use client';
 
-import { useCallback, useId, useLayoutEffect, useRef, useState } from 'react';
+import { Fragment, useCallback, useId, useLayoutEffect, useRef, useState } from 'react';
 import type { KeyboardEvent, ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import Link from 'next/link';
-import { MoreHorizontal, type LucideIcon } from 'lucide-react';
+import { Check, MoreHorizontal, type LucideIcon } from 'lucide-react';
 import { cn } from '@/lib/ui/cn';
-import { useFloatingPosition } from './floating';
+import { useFloatingPosition, type FloatingAlign } from './floating';
 
 export interface MenuItem {
   readonly key: string;
@@ -20,6 +20,10 @@ export interface MenuItem {
   readonly href?: string;
   /** Accessible name when the visible label is not enough (the same «Изменить» in every row). */
   readonly ariaLabel?: string;
+  /** Makes the item a choice of a group (`menuitemradio`): the one that is `true` is ticked. A group is a run of such items. */
+  readonly checked?: boolean;
+  /** Small caption drawn above this item (the name of the group that starts here), separated from the items before it. */
+  readonly heading?: string;
 }
 
 interface DropdownMenuProps {
@@ -27,14 +31,23 @@ interface DropdownMenuProps {
   readonly label: string;
   readonly items: ReadonlyArray<MenuItem>;
   readonly className?: string;
+  /**
+   * What the button shows instead of «⋯» (the profile button of the shell: avatar, name). The button then sizes itself
+   * to this content, so give it its own `className`.
+   */
+  readonly trigger?: ReactNode;
+  /** Which edge of the button the menu lines up with; `end` (the right edge) by default. */
+  readonly align?: FloatingAlign;
+  /** Width of the menu in px. */
+  readonly width?: number;
 }
 
-const MENU_WIDTH_PX = 224;
+const DEFAULT_MENU_WIDTH_PX = 224;
 const ITEM_BASE =
   'flex min-h-[44px] w-full items-center gap-2.5 rounded-control px-3 text-left text-sm font-medium outline-none transition-[background-color,color] duration-fast ease-out focus-visible:bg-secondary hover:bg-secondary';
 
 function itemsOf(menu: HTMLElement | null): ReadonlyArray<HTMLElement> {
-  return menu === null ? [] : Array.from(menu.querySelectorAll<HTMLElement>('[role="menuitem"]'));
+  return menu === null ? [] : Array.from(menu.querySelectorAll<HTMLElement>('[role="menuitem"], [role="menuitemradio"]'));
 }
 
 function focusAt(items: ReadonlyArray<HTMLElement>, index: number): void {
@@ -68,11 +81,46 @@ interface MenuPanelProps {
   readonly items: ReadonlyArray<MenuItem>;
   readonly onClose: (restoreFocus: boolean) => void;
   readonly onSelect: (item: MenuItem) => void;
+  readonly align: FloatingAlign;
+  readonly width: number;
 }
 
-function MenuPanel({ id, triggerId, trigger, items, onClose, onSelect }: MenuPanelProps): ReactNode {
+function MenuItemView({ item, onSelect }: { readonly item: MenuItem; readonly onSelect: (item: MenuItem) => void }): ReactNode {
+  const Icon = item.icon;
+  const isChoice: boolean = item.checked !== undefined;
+  const className: string = cn(ITEM_BASE, item.destructive ? 'text-destructive hover:bg-destructive-soft focus-visible:bg-destructive-soft' : 'text-foreground');
+  const content: ReactNode = (
+    <>
+      {Icon === undefined ? null : <Icon aria-hidden="true" className="size-4 shrink-0" />}
+      <span className="min-w-0 flex-1">{item.label}</span>
+      {isChoice ? <Check aria-hidden="true" className={cn('size-4 shrink-0 text-primary', item.checked ? 'opacity-100' : 'opacity-0')} /> : null}
+    </>
+  );
+  if (item.href !== undefined) {
+    return (
+      <Link href={item.href} role="menuitem" tabIndex={-1} aria-label={item.ariaLabel} onClick={() => onSelect(item)} className={className}>
+        {content}
+      </Link>
+    );
+  }
+  return (
+    <button
+      type="button"
+      role={isChoice ? 'menuitemradio' : 'menuitem'}
+      aria-checked={isChoice ? item.checked : undefined}
+      tabIndex={-1}
+      aria-label={item.ariaLabel}
+      onClick={() => onSelect(item)}
+      className={className}
+    >
+      {content}
+    </button>
+  );
+}
+
+function MenuPanel({ id, triggerId, trigger, items, onClose, onSelect, align, width }: MenuPanelProps): ReactNode {
   const menu = useRef<HTMLDivElement>(null);
-  const position = useFloatingPosition({ anchor: trigger, panel: menu, align: 'end', width: MENU_WIDTH_PX, onOutsidePress: () => onClose(false) });
+  const position = useFloatingPosition({ anchor: trigger, panel: menu, align, width, onOutsidePress: () => onClose(false) });
   useLayoutEffect(() => {
     itemsOf(menu.current)[0]?.focus();
   }, []);
@@ -83,28 +131,19 @@ function MenuPanel({ id, triggerId, trigger, items, onClose, onSelect }: MenuPan
       role="menu"
       aria-labelledby={triggerId}
       onKeyDown={(event) => handleMenuKey(event, menu.current, onClose)}
-      style={{ top: position?.top ?? 0, left: position?.left ?? 0, width: MENU_WIDTH_PX }}
+      style={{ top: position?.top ?? 0, left: position?.left ?? 0, width }}
       className={cn('fixed z-50 animate-menu-in rounded-card border border-border bg-card p-1 shadow-elev-2', position === null && 'opacity-0')}
     >
-      {items.map((item) => {
-        const Icon = item.icon;
-        const className: string = cn(ITEM_BASE, item.destructive ? 'text-destructive hover:bg-destructive-soft focus-visible:bg-destructive-soft' : 'text-foreground');
-        const content: ReactNode = (
-          <>
-            {Icon === undefined ? null : <Icon aria-hidden="true" className="size-4 shrink-0" />}
-            {item.label}
-          </>
-        );
-        return item.href === undefined ? (
-          <button key={item.key} type="button" role="menuitem" tabIndex={-1} aria-label={item.ariaLabel} onClick={() => onSelect(item)} className={className}>
-            {content}
-          </button>
-        ) : (
-          <Link key={item.key} href={item.href} role="menuitem" tabIndex={-1} aria-label={item.ariaLabel} onClick={() => onSelect(item)} className={className}>
-            {content}
-          </Link>
-        );
-      })}
+      {items.map((item) => (
+        <Fragment key={item.key}>
+          {item.heading === undefined ? null : (
+            <div role="presentation" className="mt-1 border-t border-border-soft px-3 pb-1 pt-2.5 text-xs font-semibold text-muted-foreground first:mt-0 first:border-t-0">
+              {item.heading}
+            </div>
+          )}
+          <MenuItemView item={item} onSelect={onSelect} />
+        </Fragment>
+      ))}
     </div>,
     document.body,
   );
@@ -116,7 +155,7 @@ function MenuPanel({ id, triggerId, trigger, items, onClose, onSelect }: MenuPan
  * The menu is drawn in a portal with fixed position, so a table with horizontal scroll cannot clip it.
  * Destructive items are red with an icon and come last; they should open a confirmation dialog (or an undo toast).
  */
-export function DropdownMenu({ label, items, className }: DropdownMenuProps): ReactNode {
+export function DropdownMenu({ label, items, className, trigger: triggerContent, align = 'end', width = DEFAULT_MENU_WIDTH_PX }: DropdownMenuProps): ReactNode {
   const menuId = useId();
   const triggerId = useId();
   const trigger = useRef<HTMLButtonElement>(null);
@@ -148,13 +187,14 @@ export function DropdownMenu({ label, items, className }: DropdownMenuProps): Re
         onClick={() => setIsOpen((open) => !open)}
         onKeyDown={onTriggerKey}
         className={cn(
-          'inline-flex size-11 items-center justify-center rounded-control text-muted-foreground transition-[background-color,color] duration-fast ease-out hover:bg-secondary hover:text-foreground aria-expanded:bg-secondary aria-expanded:text-foreground',
+          'inline-flex items-center justify-center rounded-control text-muted-foreground transition-[background-color,color] duration-fast ease-out hover:bg-secondary hover:text-foreground aria-expanded:bg-secondary aria-expanded:text-foreground',
+          triggerContent === undefined && 'size-11',
           className,
         )}
       >
-        <MoreHorizontal aria-hidden="true" className="size-5" />
+        {triggerContent ?? <MoreHorizontal aria-hidden="true" className="size-5" />}
       </button>
-      {isOpen ? <MenuPanel id={menuId} triggerId={triggerId} trigger={trigger.current} items={items} onClose={close} onSelect={select} /> : null}
+      {isOpen ? <MenuPanel id={menuId} triggerId={triggerId} trigger={trigger.current} items={items} onClose={close} onSelect={select} align={align} width={width} /> : null}
     </>
   );
 }

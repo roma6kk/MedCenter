@@ -18,8 +18,11 @@ export interface SchedulesFilter {
   readonly active: 'true' | 'false' | '';
 }
 
-export function useAdminSchedules(filter: SchedulesFilter): UseQueryResult<PaginatedResponse<AdminSchedule>, Error> {
-  const params = { page: filter.page, pageSize: SCHEDULES_PAGE_SIZE, doctorId: filter.doctorId, active: filter.active };
+/** The week view lists every schedule on one page (the API serves up to 100): a weekly plan cut into pages of ten would show half a doctor's week. */
+export const SCHEDULES_WEEK_PAGE_SIZE = 100;
+
+export function useAdminSchedules(filter: SchedulesFilter, pageSize: number = SCHEDULES_PAGE_SIZE): UseQueryResult<PaginatedResponse<AdminSchedule>, Error> {
+  const params = { page: filter.page, pageSize, doctorId: filter.doctorId, active: filter.active };
   return useQuery({
     queryKey: queryKeys.adminSchedules(params),
     queryFn: async () => toPaginated(await apiFetch<PaginatedResponse<AdminSchedule> | ReadonlyArray<AdminSchedule>>(withQuery('/api/v1/admin/schedules', params))),

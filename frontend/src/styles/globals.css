@@ -58,6 +58,9 @@
   --focus-ring-danger: oklch(50% 0.178 29 / 0.28);
   /* Ground behind a modal dialog. */
   --scrim: oklch(25% 0.026 221 / 0.4);
+  /* Translucent «material» of the control layer (staff sidebar, top bar): the card colour at 72%, so the tinted ground of the
+     page shows through under a backdrop blur. Text on it stays `--foreground` on a near-white result. */
+  --glass: oklch(100% 0 0 / 0.72);
   /* A dark band on a light page (audiences block): its own ground, text, hairline and link colour. */
   --inverse: oklch(25% 0.026 221);
   --inverse-foreground: oklch(100% 0 0);
@@ -139,6 +142,7 @@
   --focus-ring: oklch(69.6% 0.11 184 / 0.4);
   --focus-ring-danger: oklch(74.5% 0.127 26 / 0.4);
   --scrim: oklch(10% 0.02 221 / 0.65);
+  --glass: oklch(24.5% 0.022 221 / 0.72);
   --inverse: oklch(28.7% 0.026 216);
   --inverse-foreground: oklch(93.7% 0.009 206);
   --inverse-muted: oklch(74.4% 0.022 212);
@@ -154,6 +158,14 @@ body {
   color: var(--foreground);
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
+}
+
+/* Ground of the staff cabinets: the page colour with a faint brand tint in the top left corner, so the translucent sidebar
+   has something to blur and the control layer reads as a layer above the content. */
+.staff-ambient {
+  background-color: var(--background);
+  background-image: radial-gradient(60rem 36rem at 0% 0%, var(--primary-soft), transparent 70%);
+  background-attachment: fixed;
 }
 
 h1, h2, h3, .serif {

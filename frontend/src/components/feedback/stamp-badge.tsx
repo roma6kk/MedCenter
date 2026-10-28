@@ -19,6 +19,8 @@ interface StampBadgeProps {
   /** For a state the status word does not carry (a deactivated account is `neutral`, not an alarm). */
   readonly tone?: BadgeTone;
   readonly icon?: LucideIcon;
+  /** Extra classes of the badge; they win over its tone (a badge on a ground of its own colour needs another fill). */
+  readonly className?: string | undefined;
 }
 
 interface StatusLook {
@@ -50,12 +52,12 @@ const STATUS_LOOK: Readonly<Record<StampStatus, StatusLook>> = {
 const UNKNOWN_LOOK: StatusLook = { tone: 'neutral', icon: CircleAlert };
 
 /** Status "stamp" of the medical-card design system: a soft `Badge` with an icon. The label is localized (`stamp.<status>`) unless children are given. */
-export function StampBadge({ status, children, tone, icon }: StampBadgeProps): ReactNode {
+export function StampBadge({ status, children, tone, icon, className }: StampBadgeProps): ReactNode {
   const t = useT('stamp');
   const locale = useUiStore((state) => state.locale);
   const look: StatusLook = STATUS_LOOK[status] ?? UNKNOWN_LOOK;
   return (
-    <Badge data-testid={`stamp-${status}`} tone={tone ?? look.tone} icon={icon ?? look.icon}>
+    <Badge data-testid={`stamp-${status}`} tone={tone ?? look.tone} icon={icon ?? look.icon} className={className}>
       {children ?? (hasMessage(locale, `stamp.${status}`) ? t(status) : status)}
     </Badge>
   );

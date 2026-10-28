@@ -16,7 +16,7 @@ interface SchedulesFiltersProps {
 export function SchedulesFilters({ filter, pickers, onChange }: SchedulesFiltersProps): ReactNode {
   const t = useT('admin.schedules');
   return (
-    <div className="mb-4 flex flex-wrap items-end gap-3" role="group" aria-label={t('filters.label')}>
+    <div className="flex flex-wrap items-end gap-3" role="group" aria-label={t('filters.label')}>
       <div className="grid gap-1.5">
         <label htmlFor="schedules-filter-doctor" className="form-label">{t('filters.doctor')}</label>
         <Select id="schedules-filter-doctor" value={filter.doctorId} onChange={(event) => onChange({ ...filter, page: 1, doctorId: event.target.value })}>

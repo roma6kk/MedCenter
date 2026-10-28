@@ -16,7 +16,7 @@ const apiFetchMock = apiFetch as jest.MockedFunction<(path: string, options?: Re
 const pickers: SchedulePickers = {
   doctors: [{ value: 'role-1', label: 'Иванова Мария' }, { value: 'role-2', label: 'Козлов Дмитрий' }],
   allDoctors: [{ value: 'role-1', label: 'Иванова Мария' }, { value: 'role-2', label: 'Козлов Дмитрий' }],
-  rooms: [{ value: 'room-1', label: 'Кабинет 101 (101)' }],
+  rooms: [{ value: 'room-1', label: 'Кабинет 101' }],
   services: [{ value: 'svc-1', label: 'Приём терапевта', durationMin: 20 }],
   isTruncated: false,
   isPending: false,
@@ -56,7 +56,7 @@ describe('ScheduleEditor (create)', () => {
     renderCreate();
 
     expect(screen.getByRole('option', { name: 'Козлов Дмитрий' })).toBeInTheDocument();
-    expect(screen.getByRole('option', { name: 'Кабинет 101 (101)' })).toBeInTheDocument();
+    expect(screen.getByRole('option', { name: 'Кабинет 101' })).toBeInTheDocument();
     expect(screen.getByRole('option', { name: 'Приём терапевта' })).toBeInTheDocument();
   });
 

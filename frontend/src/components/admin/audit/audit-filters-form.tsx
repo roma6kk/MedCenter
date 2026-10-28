@@ -4,6 +4,7 @@ import { useState } from 'react';
 import type { FormEvent, ReactNode } from 'react';
 import { useT } from '@/lib/i18n/use-t';
 import { DatePicker } from '@/components/ui/date-picker';
+import { cn } from '@/lib/ui/cn';
 import { CONTROL_CLASS, PRIMARY_BUTTON_CLASS, SECONDARY_BUTTON_CLASS } from '../shared/admin-styles';
 import { focusField } from '../shared/focus-field';
 import { controlProps, Field } from '../shared/form-field';
@@ -68,8 +69,8 @@ export function AuditFiltersForm({ filter, onApply }: AuditFiltersFormProps): Re
       <Field id="audit-to" label={t('filters.to')}>
         <DatePicker id="audit-to" value={draft.to} aria-invalid={rangeError ? true : undefined} aria-describedby={rangeError ? 'audit-from-error' : undefined} onChange={(to) => setDraft({ ...draft, to })} wrapperClassName="w-44" />
       </Field>
-      <Field id="audit-entity" label={t('filters.entity')} error={entityError} hint={t('filters.entityHint')}>
-        <input {...controlProps('audit-entity', entityError, t('filters.entityHint'))} list="audit-entity-options" value={draft.entity} maxLength={130} autoComplete="off" onChange={(event) => setDraft({ ...draft, entity: event.target.value })} className={`${CONTROL_CLASS} mono`} />
+      <Field id="audit-entity" label={t('filters.entity')} error={entityError}>
+        <input {...controlProps('audit-entity', entityError, t('filters.entityHint'))} list="audit-entity-options" value={draft.entity} maxLength={130} autoComplete="off" onChange={(event) => setDraft({ ...draft, entity: event.target.value })} className={cn(CONTROL_CLASS, 'mono w-52')} />
         <datalist id="audit-entity-options">
           {ENTITY_SUGGESTIONS.map((type) => (
             <option key={type} value={type} />
@@ -77,10 +78,12 @@ export function AuditFiltersForm({ filter, onApply }: AuditFiltersFormProps): Re
         </datalist>
       </Field>
       <Field id="audit-user" label={t('filters.userId')} error={userError}>
-        <input {...controlProps('audit-user', userError)} value={draft.userId} maxLength={128} autoComplete="off" onChange={(event) => setDraft({ ...draft, userId: event.target.value })} className={`${CONTROL_CLASS} mono`} />
+        <input {...controlProps('audit-user', userError)} value={draft.userId} maxLength={128} autoComplete="off" onChange={(event) => setDraft({ ...draft, userId: event.target.value })} className={cn(CONTROL_CLASS, 'mono w-52')} />
       </Field>
       <button type="submit" className={PRIMARY_BUTTON_CLASS}>{t('filters.apply')}</button>
       <button type="button" onClick={handleReset} className={SECONDARY_BUTTON_CLASS}>{t('filters.reset')}</button>
+      {/* The hint of «Ресурс» sits under the whole row, not under its field: a taller field would lift its input above the others. */}
+      <p id="audit-entity-hint" className="basis-full text-xs text-muted-foreground">{t('filters.entityHint')}</p>
     </form>
   );
 }

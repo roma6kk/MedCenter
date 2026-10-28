@@ -12,6 +12,7 @@ import { formatDayHeading, isDateKey } from '@/lib/clinic-time';
 import type { DoctorJournalPage, JournalAppointment } from './doctor-types';
 import { JournalControls, type JournalView, type StatusFilter } from './journal-controls';
 import { JournalDayView } from './journal-day-view';
+import { JournalEmptyDay } from './journal-empty-day';
 import { rangeLabel, workingDays } from './journal-model';
 import { JournalWeekView, type DayColumn } from './journal-week-view';
 import { useDoctorJournal, useDoctorWeekJournal } from './use-doctor-queries';
@@ -94,13 +95,30 @@ function useWeekColumns(dateKey: string, status: StatusFilter, enabled: boolean)
     : [];
 }
 
-function DayBody({ journal, rows, status, setPage }: { readonly journal: UseQueryResult<DoctorJournalPage>; readonly rows: ReadonlyArray<JournalAppointment>; readonly status: StatusFilter; readonly setPage: (page: number) => void }): ReactNode {
+interface DayBodyProps {
+  readonly journal: UseQueryResult<DoctorJournalPage>;
+  readonly rows: ReadonlyArray<JournalAppointment>;
+  readonly status: StatusFilter;
+  readonly setPage: (page: number) => void;
+  readonly dateKey: string;
+  readonly today: string;
+  readonly onJump: (dateKey: string) => void;
+}
+
+function DayBody({ journal, rows, status, setPage, dateKey, today, onJump }: DayBodyProps): ReactNode {
   const t = useT('doctor.journal');
   if (journal.data === undefined) return <QueryFailure query={journal} embedded notFoundText={t('loadError')} pending={<TableSkeleton />} />;
   return (
     <>
       {status !== 'all' && journal.data.meta.totalPages > 1 ? <p className="mb-3 text-sm text-warning">{t('filterPageHint', { page: journal.data.meta.page, pages: journal.data.meta.totalPages })}</p> : null}
-      <JournalDayView data={journal.data} rows={rows} onPage={setPage} emptyText={t('empty')} emptyFilteredText={t('emptyFiltered')} />
+      <JournalDayView
+        data={journal.data}
+        rows={rows}
+        onPage={setPage}
+        empty={<JournalEmptyDay dateKey={dateKey} today={today} onJump={onJump} />}
+        emptyFilteredText={t('emptyFiltered')}
+        isToday={dateKey === today}
+      />
     </>
   );
 }
@@ -147,7 +165,7 @@ export function DoctorJournal(): ReactNode {
         <JournalControls dateKey={dateKey} today={today} view={view} onViewChange={setView} onDateChange={changeDate} status={status} onStatusChange={setStatus} />
       </div>
       <div aria-busy={isWeek ? columns.some((column) => column.query.isFetching) : journal.isFetching}>
-        {isWeek ? <WeekBody columns={columns} today={today} onOpenDay={openDay} /> : <DayBody journal={journal} rows={rows} status={status} setPage={setPage} />}
+        {isWeek ? <WeekBody columns={columns} today={today} onOpenDay={openDay} /> : <DayBody journal={journal} rows={rows} status={status} setPage={setPage} dateKey={dateKey} today={today} onJump={changeDate} />}
       </div>
     </section>
   );

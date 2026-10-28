@@ -1,6 +1,7 @@
 'use client';
 
-import type { ReactNode } from 'react';
+import { useState } from 'react';
+import type { MouseEvent, ReactNode } from 'react';
 import {
   BarChart3,
   BookText,
@@ -8,28 +9,22 @@ import {
   CalendarDays,
   DoorOpen,
   ListChecks,
+  Menu,
   ScrollText,
   Stethoscope,
-  UserRound,
   Users,
-  type LucideIcon,
 } from 'lucide-react';
 import { BrandMark } from '@/components/brand/brand-mark';
+import { DoctorPatientSearch } from '@/components/doctor/doctor-patient-search';
+import { Dialog } from '@/components/ui/dialog';
+import { DESKTOP_QUERY, useMediaQuery } from '@/hooks/use-media-query';
 import { useT } from '@/lib/i18n/use-t';
-import { cn } from '@/lib/ui/cn';
 import { useSessionStore } from '@/store/use-session-store';
-import { LocaleSwitcher } from './locale-switcher';
-import { LogoutButton } from './logout-button';
-import { NavLink } from './nav-link';
+import { StaffBrand, StaffNav, type StaffLink } from './staff-nav';
+import { StaffProfileMenu } from './staff-profile-menu';
 import { MAIN_CONTENT_ID, SkipLink } from './skip-link';
-import { ThemeSwitcher } from './theme-switcher';
 
-export interface StaffLink {
-  readonly href: string;
-  /** Key under `layout.doctor` / `layout.admin` in the messages catalogue. */
-  readonly labelKey: string;
-  readonly icon?: LucideIcon;
-}
+export type { StaffLink };
 
 interface StaffShellProps {
   readonly children: ReactNode;
@@ -56,55 +51,112 @@ export const ADMIN_LINKS: ReadonlyArray<StaffLink> = [
   { href: '/admin/audit', labelKey: 'admin.audit', icon: ScrollText },
 ];
 
-/** The pill of a navigation item; the current one sits on `primary-soft` (the global underline of `NavLink` is switched off for it). */
-const NAV_PILL = cn(
-  'gap-3 rounded-control px-3 text-base font-medium text-foreground transition-colors hover:bg-secondary',
-  'aria-[current=page]:bg-primary-soft aria-[current=page]:font-semibold aria-[current=page]:text-primary-soft-foreground aria-[current=page]:no-underline',
-);
+interface PartsProps {
+  readonly links: ReadonlyArray<StaffLink>;
+  readonly prefix: 'doctor' | 'admin';
+}
+
+/**
+ * From 1024 px: the sidebar. Its grid cell carries the material (a translucent surface under a backdrop blur) and stretches
+ * to the full height of the page, while the panel inside sticks to the viewport: the background no longer ends where the
+ * first screen does on a long page.
+ */
+function StaffSidebar({ links, prefix }: PartsProps): ReactNode {
+  return (
+    <div className="border-r border-border bg-glass backdrop-blur-md">
+      <aside className="sticky top-0 flex h-screen flex-col gap-5 overflow-y-auto px-4 py-5">
+        <StaffBrand prefix={prefix} />
+        {prefix === 'doctor' ? <DoctorPatientSearch /> : null}
+        <StaffNav links={links} prefix={prefix} />
+        <div id={STAFF_ASIDE_SLOT_ID} className="empty:hidden" />
+        <div className="mt-auto border-t border-border pt-3">
+          <StaffProfileMenu variant="full" />
+        </div>
+      </aside>
+    </div>
+  );
+}
+
+/** A click on a link inside the drawer is a navigation: the drawer has done its job. */
+function closeOnLink(event: MouseEvent<HTMLElement>, close: () => void): void {
+  if ((event.target as HTMLElement).closest('a') !== null) close();
+}
+
+/**
+ * Below 1024 px (D7): a top bar with a burger, the brand and the profile button instead of a block of links stacked above
+ * the content. The burger opens the navigation in the same drawer the rest of the app uses.
+ */
+function StaffTopBar({ links, prefix }: PartsProps): ReactNode {
+  const t = useT('layout');
+  const [isOpen, setIsOpen] = useState(false);
+  // The drawer is a sibling of the bar, not its child: `backdrop-filter` makes the bar the containing block of fixed descendants.
+  return (
+    <>
+      <header className="sticky top-0 z-30 flex items-center gap-2 border-b border-border bg-glass px-3 py-2 backdrop-blur-md">
+        <button
+          type="button"
+          aria-label={t('menu.open')}
+          aria-haspopup="dialog"
+          aria-expanded={isOpen}
+          onClick={() => setIsOpen(true)}
+          className="inline-flex min-h-[44px] min-w-[44px] items-center justify-center rounded-control text-foreground transition-[background-color] duration-fast ease-out hover:bg-secondary"
+        >
+          <Menu aria-hidden="true" className="size-5" />
+        </button>
+        <p className="flex items-center gap-2 font-bold">
+          <BrandMark size={32} />
+          <span className="text-lg">{t('brand')}</span>
+        </p>
+        <div className="ml-auto">
+          <StaffProfileMenu variant="avatar" />
+        </div>
+      </header>
+      {isOpen ? (
+        <Dialog
+          variant="drawer"
+          title={t('brand')}
+          description={t(`${prefix}.caption`)}
+          onClose={() => setIsOpen(false)}
+        >
+          <div
+            className="flex flex-col gap-4"
+            onClick={(event) => closeOnLink(event, () => setIsOpen(false))}
+          >
+            {prefix === 'doctor' ? <DoctorPatientSearch /> : null}
+            <StaffNav links={links} prefix={prefix} />
+          </div>
+        </Dialog>
+      ) : null}
+    </>
+  );
+}
 
 /** Doctors and administrators have no notification endpoints, so this shell carries no bell. */
 export function StaffShell({ children, links }: StaffShellProps): ReactNode {
-  const t = useT('layout');
   const role = useSessionStore((state) => state.role);
+  const isDesktop: boolean = useMediaQuery(DESKTOP_QUERY);
   const prefix: 'doctor' | 'admin' = role === 'DOCTOR' ? 'doctor' : 'admin';
   return (
-    <div className="min-h-screen lg:grid lg:grid-cols-[248px_minmax(0,1fr)]">
+    <div
+      className={
+        isDesktop
+          ? 'staff-ambient grid min-h-screen grid-cols-[248px_minmax(0,1fr)]'
+          : 'staff-ambient min-h-screen'
+      }
+    >
       <SkipLink />
-      <aside className="flex flex-col gap-4 border-b border-border bg-card px-4 py-4 lg:sticky lg:top-0 lg:h-screen lg:gap-6 lg:overflow-y-auto lg:border-b-0 lg:border-r lg:py-5">
-        <p className="flex items-center gap-2.5 px-2">
-          <BrandMark size={36} />
-          <span className="flex flex-col leading-tight">
-            <span className="text-lg font-bold">{t('brand')}</span>
-            <span className="text-xs text-muted-foreground">{t(`${prefix}.caption`)}</span>
-          </span>
-        </p>
-        <nav aria-label={t(`${prefix}.navLabel`)} className="flex flex-wrap gap-x-2 gap-y-1 lg:flex-col lg:gap-1">
-          {links.map((link) => {
-            const Icon: LucideIcon | undefined = link.icon;
-            return (
-              <NavLink key={link.href} href={link.href} className={NAV_PILL}>
-                {Icon ? <Icon aria-hidden="true" className="size-[18px] shrink-0" /> : null}
-                {t(link.labelKey)}
-              </NavLink>
-            );
-          })}
-        </nav>
-        <div id={STAFF_ASIDE_SLOT_ID} className="empty:hidden" />
-        <div className="flex flex-col gap-3 border-t border-border px-2 pt-3 lg:mt-auto">
-          <p className="flex items-center gap-2.5">
-            <span aria-hidden="true" className="inline-flex size-[38px] shrink-0 items-center justify-center rounded-full bg-primary-soft text-primary-soft-foreground">
-              <UserRound className="size-[18px]" />
-            </span>
-            <span className="text-sm font-semibold">{t(`${prefix}.user`)}</span>
-          </p>
-          <div className="flex flex-wrap items-center gap-2">
-            <LocaleSwitcher />
-            <ThemeSwitcher />
-            <LogoutButton />
-          </div>
-        </div>
-      </aside>
-      <main id={MAIN_CONTENT_ID} tabIndex={-1} className="min-w-0 p-4 focus:outline-none sm:p-6 lg:px-8 lg:py-8">{children}</main>
+      {isDesktop ? (
+        <StaffSidebar links={links} prefix={prefix} />
+      ) : (
+        <StaffTopBar links={links} prefix={prefix} />
+      )}
+      <main
+        id={MAIN_CONTENT_ID}
+        tabIndex={-1}
+        className="min-w-0 p-4 focus:outline-none sm:p-6 lg:px-8 lg:py-8"
+      >
+        {children}
+      </main>
     </div>
   );
 }

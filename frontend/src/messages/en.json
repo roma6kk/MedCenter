@@ -311,7 +311,21 @@
       "doctorInactive": "{name} (account disabled)",
       "pickersTruncated": "The pickers list at most 100 doctors, rooms and services: some entries may be missing.",
       "emptyFiltered": "No schedules match the filters",
-      "emptyFilteredHint": "Change the doctor or the status, or clear the filters."
+      "emptyFilteredHint": "Change the doctor or the status, or clear the filters.",
+      "view": {
+        "label": "Schedules view",
+        "list": "List",
+        "week": "Week"
+      },
+      "week": {
+        "groupLabel": "Group the week plan",
+        "byDoctor": "By doctor",
+        "byRoom": "By room",
+        "caption": "Weekly plan of working windows",
+        "hint": "The week plan of the schedules' working windows. Slot load is not shown here: slots are read one schedule at a time.",
+        "truncated": "The first {count} schedules are shown. Narrow the list with the filters."
+      },
+      "slotOf": "{minutes}-min slots"
     },
     "slots": {
       "generate": {
@@ -692,7 +706,17 @@
       "terminology": "Terminology",
       "audit": "Audit"
     },
-    "description": "Appointment booking and clinical records"
+    "description": "Appointment booking and clinical records",
+    "languages": {
+      "ru": "Русский",
+      "en": "English"
+    },
+    "profile": {
+      "menu": "Profile menu: {name}"
+    },
+    "menu": {
+      "open": "Open the menu"
+    }
   },
   "feedback": {
     "forbiddenTitle": "Access denied",
@@ -768,7 +792,7 @@
       "minutes": "{count} min",
       "hoursMinutes": "{hours} h {minutes} min",
       "hoursOnly": "{hours} h",
-      "gap": "{duration} with no appointments",
+      "gap": "Window of {duration}",
       "patientCardLink": "Patient card",
       "summaryTitle": "Day summary",
       "summaryAria": "Of {total}: {booked} waiting, {fulfilled} completed, {noshow} no-show, {cancelled} cancelled",
@@ -782,7 +806,6 @@
       "legendNoshow": "No-show",
       "legendCancelled": "Cancelled",
       "total": "Appointments on this day: {count}",
-      "empty": "No appointments on this day",
       "filterPageHint": "The filter applies to page {page} of {pages} only: the other appointments of the day are on other pages.",
       "emptyFiltered": "No appointments with the selected status",
       "loadError": "Could not load the journal",
@@ -805,7 +828,15 @@
       "notTodayTitle": "This appointment is not today",
       "notTodayBody": "The appointment is scheduled for {date} at {time}. Start it now?",
       "notTodayCancel": "Do not start",
-      "notTodayConfirm": "Start now"
+      "notTodayConfirm": "Start now",
+      "now": "Now",
+      "emptyToday": "No appointments today",
+      "emptyDay": "No appointments on {date}",
+      "whenToday": "today",
+      "whenTomorrow": "tomorrow",
+      "nothingAhead": "No appointments in the next {days} days.",
+      "nextVisitOn": "The next appointment is {when}, {time}, {patient}",
+      "goToVisit": "Go to the appointment"
     },
     "noshow": {
       "button": "No-show",
@@ -822,32 +853,43 @@
     },
     "schedule": {
       "title": "My schedule",
-      "from": "From date",
-      "previousPeriod": "Earlier",
-      "nextPeriod": "Later",
+      "date": "Date",
+      "periodLabel": "Choose the week",
+      "previousWeek": "Previous week",
+      "nextWeek": "Next week",
       "today": "Today",
-      "period": "Period: {from} — {to}",
       "empty": "No schedule found",
       "emptyHint": "The doctor's schedule is created by an administrator.",
       "loadError": "Could not load the schedule",
-      "windowsTitle": "Weekly working windows",
-      "windowsCaption": "Working windows by day of the week",
-      "scheduleFallback": "Schedule",
-      "slotDuration": "Slot {minutes} min",
-      "horizon": "horizon {from} — {to}",
-      "dayOff": "day off",
-      "slotsTitle": "Slots of the period",
-      "truncated": "Not all slots are shown. Choose a shorter period.",
-      "noSlots": "There are no slots in this period",
+      "windowsTitle": "Working windows",
+      "noWindows": "No windows",
+      "slotDuration": "{minutes}-min slots",
+      "plannedUntil": "until {date}",
+      "gridCaption": "Slots of the week: days in columns, time in rows",
+      "truncated": "Not all slots of the week are shown.",
+      "visitsPartial": "Not all visits of the week are shown: some busy slots may lack a patient name.",
+      "noSlots": "There are no slots this week",
+      "noSlotsHint": "Choose another week or ask an administrator to generate slots.",
+      "noSlotsDay": "No appointments",
       "dayCounts": "{busy} of {total} taken",
-      "weekdays": {
-        "MO": "Monday",
-        "TU": "Tuesday",
-        "WE": "Wednesday",
-        "TH": "Thursday",
-        "FR": "Friday",
-        "SA": "Saturday",
-        "SU": "Sunday"
+      "free": "Free",
+      "busy": "Busy",
+      "unknownPatient": "Patient",
+      "patientCard": "Open the patient card",
+      "weekdaysShort": {
+        "MO": "Mon",
+        "TU": "Tue",
+        "WE": "Wed",
+        "TH": "Thu",
+        "FR": "Fri",
+        "SA": "Sat",
+        "SU": "Sun"
+      },
+      "strip": {
+        "dayStripLabel": "Day of the week",
+        "dayChip": "{day}: free windows — {count}",
+        "dayFree": "{count, plural, one {# slot} other {# slots}}",
+        "dayNone": "none"
       }
     },
     "encounter": {
@@ -1080,6 +1122,14 @@
       "microgram": "µg",
       "week": "wk",
       "tablet": "tab."
+    },
+    "search": {
+      "label": "Patient search",
+      "placeholder": "Find a patient",
+      "lastVisit": "Last visit: {date}",
+      "searching": "Searching…",
+      "failed": "The search failed",
+      "none": "None of your patients of the last three months and the coming month matches"
     }
   },
   "validation": {

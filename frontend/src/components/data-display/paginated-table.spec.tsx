@@ -123,3 +123,31 @@ describe('PaginatedTable', () => {
     });
   });
 });
+
+describe('PaginatedTable long values', () => {
+  const LONG = '3882171c-26eb-4a0e-9d63-9f6c0b2d8e11';
+  const rows: ReadonlyArray<Row> = [{ id: LONG, name: LONG }];
+
+  it('should keep a truncated column to one line and carry the whole value as its tooltip', () => {
+    const columns = [{ key: 'name', header: 'Идентификатор', render: (row: Row) => row.name, truncate: 'max-w-[10rem]' }];
+    render(<PaginatedTable<Row> columns={columns} rows={rows} meta={meta()} onPage={jest.fn()} rowKey={(r) => r.id} />);
+
+    const cell = screen.getAllByTitle(LONG)[0] as HTMLElement;
+
+    expect(cell).toHaveClass('truncate', 'max-w-[10rem]');
+  });
+
+  it('should take the tooltip from titleOf when the cell is not plain text', () => {
+    const columns = [{ key: 'name', header: 'Кто', render: (row: Row) => <b>{row.name.slice(0, 8)}</b>, truncate: 'max-w-[10rem]', titleOf: (row: Row) => `Полностью: ${row.id}` }];
+    render(<PaginatedTable<Row> columns={columns} rows={rows} meta={meta()} onPage={jest.fn()} rowKey={(r) => r.id} />);
+
+    expect(screen.getAllByTitle(`Полностью: ${LONG}`)).toHaveLength(1);
+  });
+
+  it('should keep the header in view while the body scrolls and tint the row under the pointer', () => {
+    render(<PaginatedTable<Row> columns={COLUMNS} rows={ROWS} meta={meta()} onPage={jest.fn()} rowKey={(r) => r.id} />);
+
+    expect(screen.getByRole('columnheader', { name: 'Название' })).toHaveClass('sticky', 'top-0');
+    expect(screen.getAllByRole('row')[1]).toHaveClass('hover:bg-primary-soft');
+  });
+});

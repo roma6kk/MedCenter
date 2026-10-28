@@ -3,6 +3,7 @@
 import type { ReactNode } from 'react';
 import { pageLabel, type PageMeta, type SortOrder } from '@/lib/api/pagination';
 import { useT } from '@/lib/i18n/use-t';
+import { cn } from '@/lib/ui/cn';
 
 export type { PageMeta };
 
@@ -17,6 +18,13 @@ export interface TableColumn<TRow> {
   readonly render: (row: TRow) => ReactNode;
   /** Server `sortBy` value; makes the header a sort button (API §0: `sortBy`, `sortOrder`). */
   readonly sortKey?: string;
+  /**
+   * Keeps the cell to one line (VD5): a max-width class (`max-w-[14rem]`) after which the value is cut with an ellipsis. The
+   * full value is the cell's `title`, so a long id or a request id never makes the row taller than its neighbours.
+   */
+  readonly truncate?: string;
+  /** The full text of a truncated cell, as the tooltip; a column whose cell renders plain text gets it from the cell. */
+  readonly titleOf?: (row: TRow) => string | undefined;
 }
 
 interface PaginatedTableProps<TRow> {
@@ -56,7 +64,7 @@ function HeaderCell<TRow>({ column, sort, onSort }: HeaderCellProps<TRow>): Reac
   const suffix: string = direction === 'ascending' ? ' ↑' : direction === 'descending' ? ' ↓' : '';
   const hint: string = direction === 'ascending' ? t('sortAscending') : direction === 'descending' ? t('sortDescending') : '';
   return (
-    <th scope="col" aria-sort={direction} className="h-11 px-3 text-left text-xs font-semibold text-[var(--muted-foreground)]">
+    <th scope="col" aria-sort={direction} className="sticky top-0 z-10 h-11 whitespace-nowrap bg-secondary px-2.5 text-left text-xs font-semibold text-muted-foreground shadow-[0_1px_0_var(--border)]">
       {isSortable && sortKey !== undefined ? (
         <button type="button" onClick={() => onSort?.(nextSort(sortKey, sort))} className="min-h-[24px] font-semibold hover:underline">
           {column.header}
@@ -94,18 +102,30 @@ interface RowsProps<TRow> {
   readonly rowKey: (row: TRow) => string;
 }
 
+/** A cell's content; a `truncate` column keeps it on one line and carries the full text as a tooltip. */
+function CellContent<TRow>({ column, row }: { readonly column: TableColumn<TRow>; readonly row: TRow }): ReactNode {
+  const content: ReactNode = column.render(row);
+  if (column.truncate === undefined) return content;
+  const title: string | undefined = column.titleOf?.(row) ?? (typeof content === 'string' ? content : undefined);
+  return <span title={title} className={cn('block truncate', column.truncate)}>{content}</span>;
+}
+
+/**
+ * The table of a long list: rows of one height (a truncated value never wraps), the row under the pointer is tinted, and the
+ * header stays in view while the body scrolls inside its own frame (a page of 100 rows is taller than the screen).
+ */
 function DesktopTable<TRow>({ columns, rows, rowKey, caption, sort, onSort }: RowsProps<TRow> & Pick<PaginatedTableProps<TRow>, 'caption' | 'sort' | 'onSort'>): ReactNode {
   return (
-    <div className="overflow-x-auto rounded-card border border-[var(--border)] bg-[var(--card)] max-xl:hidden">
+    <div className="max-h-[min(75vh,56rem)] overflow-auto rounded-card border border-border-soft bg-card shadow-elev-1 max-xl:hidden">
       <table className="w-full text-sm">
         {caption ? <caption className="sr-only">{caption}</caption> : null}
-        <thead className="sticky top-0 bg-[var(--secondary)]">
+        <thead>
           <tr>{columns.map((column) => <HeaderCell key={column.key} column={column} sort={sort} onSort={onSort} />)}</tr>
         </thead>
         <tbody>
           {rows.map((row) => (
-            <tr key={rowKey(row)} className="border-t border-[var(--border)] hover:bg-secondary">
-              {columns.map((column) => <td key={column.key} className="h-12 px-3">{column.render(row)}</td>)}
+            <tr key={rowKey(row)} className="border-t border-border-soft transition-[background-color] duration-fast ease-out hover:bg-primary-soft">
+              {columns.map((column) => <td key={column.key} className="h-14 px-2.5"><CellContent column={column} row={row} /></td>)}
             </tr>
           ))}
         </tbody>

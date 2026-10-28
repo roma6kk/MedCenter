@@ -1,4 +1,5 @@
 import { render, screen, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { ReactNode } from 'react';
 import { useSessionStore } from '@/store/use-session-store';
@@ -7,6 +8,8 @@ import { PatientShell } from './patient-shell';
 import { ADMIN_LINKS, DOCTOR_LINKS, StaffShell } from './staff-shell';
 
 jest.mock('@/lib/notifications/notification-api', () => ({ fetchUnreadCount: jest.fn().mockResolvedValue(0) }));
+jest.mock('@/components/patient/patient-api', () => ({ fetchAccount: jest.fn().mockResolvedValue({ id: 'u1', email: 'x@y.z', firstName: 'Мария', lastName: 'Иванова', name: 'Иванова Мария', isActive: true }) }));
+jest.mock('@/components/catalog/catalog-api', () => ({ fetchDoctors: jest.fn().mockResolvedValue({ items: [], meta: { page: 1, pageSize: 100, totalItems: 0, totalPages: 1 } }) }));
 
 const mockPathname = jest.fn<string | null, []>();
 jest.mock('next/navigation', () => ({ usePathname: () => mockPathname() }));
@@ -139,12 +142,14 @@ describe('StaffShell', () => {
     expect(screen.getByRole('link', { name: 'Расписание' })).toHaveAttribute('aria-current', 'page');
   });
 
-  it('should carry the theme switch in the sidebar', () => {
+  it('should keep the theme switch in the profile menu instead of loose in the sidebar', async () => {
     useSessionStore.setState({ ...SESSION, role: 'DOCTOR' });
-
     render(<StaffShell links={DOCTOR_LINKS}><p>x</p></StaffShell>, { wrapper: Wrapper });
+    expect(screen.queryByRole('group', { name: 'Тема оформления' })).not.toBeInTheDocument();
 
-    expect(screen.getByRole('group', { name: 'Тема оформления' })).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: /^Меню профиля/ }));
+
+    expect(screen.getAllByRole('menuitemradio').map((item) => item.textContent)).toEqual(expect.arrayContaining(['Как в системе', 'Светлая', 'Тёмная']));
   });
 
   it('should have no notification bell because doctors and administrators have no notification endpoints', () => {
@@ -155,15 +160,13 @@ describe('StaffShell', () => {
     expect(screen.queryByRole('link', { name: /Уведомления/ })).not.toBeInTheDocument();
   });
 
-  it('should keep every navigation link at least 44 px tall and let the links wrap on a phone when the shell is shown', () => {
+  it('should keep every navigation link at least 44 px tall when the shell is shown', () => {
     useSessionStore.setState({ ...SESSION, role: 'ADMIN' });
 
     render(<StaffShell links={ADMIN_LINKS}><p>x</p></StaffShell>, { wrapper: Wrapper });
 
     const nav = screen.getByRole('navigation', { name: 'Администрирование' });
     nav.querySelectorAll('a').forEach((link) => expect(link.className).toContain('min-h-[44px]'));
-    expect(nav.className).toContain('flex-wrap');
-    expect(nav.className).not.toContain('overflow-x-auto');
   });
 
   it('should render exactly one skip link when the shell is shown', () => {
@@ -174,12 +177,13 @@ describe('StaffShell', () => {
     expect(screen.getAllByRole('link', { name: 'Перейти к содержимому' })).toHaveLength(1);
   });
 
-  it('should offer the logout button and a skip link', () => {
+  it('should offer «Выйти» in the profile menu and a skip link', async () => {
     useSessionStore.setState({ ...SESSION, role: 'ADMIN' });
 
     render(<StaffShell links={ADMIN_LINKS}><p>x</p></StaffShell>, { wrapper: Wrapper });
+    await userEvent.click(screen.getByRole('button', { name: /^Меню профиля/ }));
 
-    expect(screen.getByRole('button', { name: 'Выйти' })).toBeInTheDocument();
+    expect(screen.getByRole('menuitem', { name: 'Выйти' })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Перейти к содержимому' })).toHaveAttribute('href', '#main-content');
   });
 });
