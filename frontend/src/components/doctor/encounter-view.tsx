@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import type { ReactNode, RefObject } from 'react';
-import { TableSkeleton } from '@/components/feedback/states';
+import { ContentSkeleton } from '@/components/feedback/content-skeleton';
 import { Dialog } from '@/components/ui/dialog';
 import { useDocumentTitle } from '@/hooks/use-document-title';
 import { useT } from '@/lib/i18n/use-t';
@@ -72,9 +72,9 @@ export function EncounterView({ encounterId }: { readonly encounterId: string })
   useDocumentTitle(t('title'));
   return (
     <EncounterAsideSlotContext.Provider value={asideSlot}>
-      {encounter.data === undefined ? <QueryFailure query={encounter} notFoundText={t('notFound')} pending={<TableSkeleton />} /> : null}
+      {encounter.data === undefined ? <QueryFailure query={encounter} notFoundText={t('notFound')} pending={<ContentSkeleton shape="detail" />} /> : null}
       {encounter.data ? (
-        <>
+        <div className="animate-fade-in">
           <EncounterPatientBar patientId={encounter.data.patientId} startedAt={encounter.data.status === 'in-progress' ? encounter.data.period.start : undefined} onOpenSummary={() => setIsSummaryOpen(true)} />
           <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_21rem] lg:items-start">
             <div className="min-w-0">
@@ -93,7 +93,7 @@ export function EncounterView({ encounterId }: { readonly encounterId: string })
               <PatientSummary patientId={encounter.data.patientId} excludeAppointmentId={encounter.data.appointmentId} plain className="mt-2" />
             </Dialog>
           ) : null}
-        </>
+        </div>
       ) : null}
     </EncounterAsideSlotContext.Provider>
   );

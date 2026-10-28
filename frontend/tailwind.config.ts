@@ -94,8 +94,13 @@ const config: Config = {
         'dialog-in': { from: { opacity: '0', transform: 'scale(0.96)' } },
         'sheet-in': { from: { opacity: '0', transform: 'translateY(2rem)' } },
         'drawer-in': { from: { opacity: '0', transform: 'translateX(2rem)' } },
+        'drawer-left-in': { from: { opacity: '0', transform: 'translateX(-2rem)' } },
         'menu-in': { from: { opacity: '0', transform: 'translateY(-4px) scale(0.98)' } },
         'toast-in': { from: { opacity: '0', transform: 'translateY(1rem)' } },
+        // Opacity only: a page, or content that replaces a skeleton, fades in without a `transform` (see `PageTransition`).
+        'fade-in': { from: { opacity: '0' } },
+        // The line of the hero's ECG draws once; the path has `pathLength="1"`, so the dash is one unit long.
+        'ecg-draw': { from: { strokeDashoffset: '1' }, to: { strokeDashoffset: '0' } },
         // A step of the booking wizard (and the slots of a newly chosen day) slides in a little and fades in.
         'step-in': { from: { opacity: '0', transform: 'translateY(0.5rem)' } },
         // The check mark of the success screen draws its stroke (the path is 24 long) and the disc behind it pops in.
@@ -113,8 +118,11 @@ const config: Config = {
         'dialog-in': 'dialog-in var(--duration-base) var(--ease-out)',
         'sheet-in': 'sheet-in var(--duration-base) var(--ease-out)',
         'drawer-in': 'drawer-in var(--duration-base) var(--ease-out)',
+        'drawer-left-in': 'drawer-left-in var(--duration-base) var(--ease-out)',
         'menu-in': 'menu-in var(--duration-fast) var(--ease-out)',
         'toast-in': 'toast-in var(--duration-base) var(--ease-out)',
+        'fade-in': 'fade-in var(--duration-base) var(--ease-out)',
+        'ecg-draw': 'ecg-draw 1.6s var(--ease-in-out) 300ms both',
         'step-in': 'step-in var(--duration-base) var(--ease-out)',
         'check-draw': 'check-draw var(--duration-slow) var(--ease-out) 80ms both',
         'check-pop': 'check-pop var(--duration-base) var(--ease-out) both',

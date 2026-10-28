@@ -55,7 +55,7 @@ describe('AppointmentDetailView', () => {
 
     renderWithClient(<AppointmentDetailView appointmentId="1552" />);
 
-    expect(screen.getByTestId('table-skeleton')).toBeInTheDocument();
+    expect(screen.getByTestId('content-skeleton-detail')).toBeInTheDocument();
   });
 
   it.each([

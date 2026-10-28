@@ -55,7 +55,7 @@ export function HomeDirections({ entries, children }: { readonly entries: Readon
   if (entries.length === 0 && children === undefined) return null;
   return (
     <section id={HOME_ANCHORS.directions} aria-labelledby="home-directions" className="scroll-mt-4 border-y border-border bg-card">
-      <div className={`${SECTION_CLASS} flex flex-col gap-8 py-16`}>
+      <div className={`${SECTION_CLASS} reveal-on-scroll flex flex-col gap-8 py-16`}>
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div>
             <h2 id="home-directions" className={SECTION_TITLE_CLASS}>{t('directionsTitle')}</h2>

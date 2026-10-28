@@ -2,7 +2,7 @@
 
 import type { ReactNode } from 'react';
 import { QueryFailure } from '@/components/feedback/query-error-state';
-import { TableSkeleton } from '@/components/feedback/states';
+import { ContentSkeleton } from '@/components/feedback/content-skeleton';
 import { Card } from '@/components/ui/card';
 import { clinicDateKey } from '@/lib/clinic-time';
 import { useT } from '@/lib/i18n/use-t';
@@ -22,8 +22,8 @@ export function ProfileRecommendations({ data, patientId }: { readonly data: Pro
   const { hidden, hide, restore } = useHiddenRecommendations(patientId);
   const { history, upcoming, patient, prescriptions } = data;
   let body: ReactNode;
-  if (history.data === undefined) body = <QueryFailure query={history} embedded pending={<TableSkeleton />} />;
-  else if (upcoming.data === undefined) body = <QueryFailure query={upcoming} embedded pending={<TableSkeleton />} />;
+  if (history.data === undefined) body = <QueryFailure query={history} embedded pending={<ContentSkeleton shape="cards" rows={2} />} />;
+  else if (upcoming.data === undefined) body = <QueryFailure query={upcoming} embedded pending={<ContentSkeleton shape="cards" rows={2} />} />;
   else {
     const all = buildRecommendations({
       birthDate: patient.data?.birthDate,

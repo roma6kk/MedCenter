@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { CalendarPlus } from 'lucide-react';
-import { render, screen } from '@testing-library/react';
+import { act, render, screen } from '@testing-library/react';
 import { useUiStore } from '@/store/use-ui-store';
 import { EmptyState, ForbiddenState, NotFoundState, TableSkeleton } from './states';
 
@@ -56,5 +56,24 @@ describe('system states', () => {
 
     expect(screen.getByRole('status')).toHaveAttribute('aria-busy', 'true');
     expect(screen.getByText('Загрузка…')).toBeInTheDocument();
+  });
+});
+
+describe('slow loading note', () => {
+  beforeEach(() => {
+    jest.useFakeTimers();
+    useUiStore.setState({ locale: 'ru' });
+  });
+  afterEach(() => jest.useRealTimers());
+
+  it('should add «Загружаем…» inside the table skeleton when it stays for more than three seconds', () => {
+    render(<TableSkeleton />);
+    expect(screen.queryByText('Загружаем…')).not.toBeInTheDocument();
+
+    act(() => {
+      jest.advanceTimersByTime(3000);
+    });
+
+    expect(screen.getByRole('status')).toHaveTextContent('Загружаем…');
   });
 });

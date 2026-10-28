@@ -3,6 +3,7 @@
 import { useMemo, useState, type ReactNode } from 'react';
 import { useDoctorSlots } from '@/components/catalog/use-catalog';
 import type { DoctorSlots, Slot } from '@/components/catalog/catalog-types';
+import { LoadingNote } from '@/components/feedback/loading-note';
 import { QueryFailure } from '@/components/feedback/query-error-state';
 import { EmptyState } from '@/components/feedback/states';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -36,6 +37,7 @@ function SlotSkeleton(): ReactNode {
       {[0, 1, 2].map((row) => (
         <Skeleton key={row} className="h-11 rounded-control" />
       ))}
+      <LoadingNote />
     </div>
   );
 }

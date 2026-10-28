@@ -9,7 +9,7 @@ import { useT } from '@/lib/i18n/use-t';
 import { cn } from '@/lib/ui/cn';
 
 export type DialogSize = 'sm' | 'md' | 'lg';
-export type DialogVariant = 'dialog' | 'drawer';
+export type DialogVariant = 'dialog' | 'drawer' | 'drawer-left';
 
 interface DialogProps {
   readonly title: string;
@@ -27,16 +27,19 @@ const SIZE_CLASS: Readonly<Record<DialogSize, string>> = { sm: 'sm:max-w-md', md
 
 /**
  * `dialog`: a centred window from 640 px up, a bottom sheet below it (thumb reach, the keyboard pushes it up instead of
- * covering the title). `drawer`: a panel on the right edge at every width.
+ * covering the title). `drawer`: a panel on the right edge at every width; `drawer-left`: the same on the left edge, for a menu
+ * whose burger button sits on the left (the panel grows out of the button that opened it).
  */
 const OVERLAY_CLASS: Readonly<Record<DialogVariant, string>> = {
   dialog: 'items-end justify-center sm:items-center sm:p-4',
   drawer: 'items-stretch justify-end',
+  'drawer-left': 'items-stretch justify-start',
 };
 
 const PANEL_CLASS: Readonly<Record<DialogVariant, string>> = {
   dialog: 'max-h-[90dvh] w-full rounded-t-panel border-x border-t animate-sheet-in sm:max-h-[calc(100dvh-2rem)] sm:animate-dialog-in sm:rounded-panel sm:border',
   drawer: 'h-full w-full max-w-sm border-l animate-drawer-in',
+  'drawer-left': 'h-full w-full max-w-sm border-r animate-drawer-left-in',
 };
 
 /** The latest `onClose`, behind a callback that never changes: the focus trap must not restart when the parent re-renders. */

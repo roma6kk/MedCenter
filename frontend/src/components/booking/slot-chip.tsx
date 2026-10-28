@@ -23,13 +23,13 @@ export interface SlotChipProps {
   readonly onFocusSlot: (slotId: string) => void;
 }
 
-const BASE = 'inline-flex min-h-[44px] w-[4.75rem] flex-col items-center justify-center rounded-control border px-1.5 py-1 text-center transition-[background-color,border-color,color,box-shadow] duration-fast ease-out';
+const BASE = 'inline-flex min-h-[44px] w-[4.75rem] flex-col items-center justify-center rounded-control border px-1.5 py-1 text-center transition-[background-color,border-color,color,box-shadow,transform] duration-fast ease-out';
 
 function chipClass(selected: boolean, taken: boolean, selectable: boolean): string {
   if (taken) return cn(BASE, 'border-[1.5px] border-destructive text-muted-foreground line-through');
   if (!selectable) return cn(BASE, 'border-border text-muted-foreground line-through');
-  if (selected) return cn(BASE, 'border-primary bg-primary text-primary-foreground shadow-elev-1');
-  return cn(BASE, 'border-border bg-card hover:border-primary hover:bg-primary-soft');
+  if (selected) return cn(BASE, 'border-primary bg-primary text-primary-foreground shadow-elev-1 active:scale-[0.97]');
+  return cn(BASE, 'border-border bg-card hover:border-primary hover:bg-primary-soft active:scale-[0.97]');
 }
 
 /**

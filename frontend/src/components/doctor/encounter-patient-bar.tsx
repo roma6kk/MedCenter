@@ -19,7 +19,7 @@ function PatientName({ patientId, patient, isPending }: { readonly patientId: st
   // The id is shown only when the card cannot be read; while it loads a placeholder avoids flashing a number as the name.
   if (isPending) return <span className="text-muted-foreground">{tCommon('loading')}</span>;
   const name: string = patient?.fullName || t('patientFallback', { id: patientId });
-  return <Link href={`/patients/${encodeURIComponent(patientId)}`} className="underline-offset-2 hover:underline">{name}</Link>;
+  return <Link href={`/patients/${encodeURIComponent(patientId)}`} className="inline-flex min-h-[44px] items-center underline-offset-2 hover:underline">{name}</Link>;
 }
 
 /** How long the visit has been going, from its start: «Идёт 23 мин». The minute is enough, so it ticks every 30 s, not every second. */
@@ -59,7 +59,7 @@ export function EncounterPatientBar({ patientId, startedAt, onOpenSummary }: Enc
   const age: number | null = patient.data?.birthDate ? ageInYears(patient.data.birthDate) : null;
   const details: string = [age === null ? null : tPatient('age', { years: age }), patient.data?.gender ? tPatient(`gender.${patient.data.gender}`) : null].filter((part) => part !== null).join(' · ');
   return (
-    <Card as="section" radius="card" padding="none" aria-label={t('patientBarLabel')} className="no-print sticky top-2 z-20 mb-4 flex flex-wrap items-center gap-x-4 gap-y-1 px-4 py-2">
+    <Card as="section" radius="card" padding="none" aria-label={t('patientBarLabel')} className="no-print sticky top-[4.5rem] z-20 mb-4 lg:top-2 flex flex-wrap items-center gap-x-4 gap-y-1 px-4 py-2">
       <p className="flex min-w-0 flex-wrap items-baseline gap-x-3 text-base font-bold [overflow-wrap:anywhere]">
         <PatientName patientId={patientId} patient={patient.data} isPending={patient.isPending} />
         {details === '' ? null : <span className="text-sm font-normal text-muted-foreground">{details}</span>}

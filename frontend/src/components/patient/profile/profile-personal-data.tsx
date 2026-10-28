@@ -4,7 +4,7 @@ import type { ReactNode } from 'react';
 import Link from 'next/link';
 import { FileText, Mail, Pill } from 'lucide-react';
 import { QueryFailure } from '@/components/feedback/query-error-state';
-import { TableSkeleton } from '@/components/feedback/states';
+import { ContentSkeleton } from '@/components/feedback/content-skeleton';
 import { Avatar } from '@/components/ui/avatar';
 import { Card } from '@/components/ui/card';
 import { buttonVariants } from '@/components/ui/button-variants';
@@ -103,11 +103,11 @@ export function ProfilePersonalData({ completeness }: { readonly completeness: C
   let card: ReactNode;
   if (patient.data !== undefined) card = <CardRows patient={patient.data} account={account.data} />;
   else if (noCard) card = <p data-testid="no-patient" className="text-sm text-muted-foreground">{tProfile('noPatient')}</p>;
-  else card = <QueryFailure query={patient} embedded pending={<TableSkeleton />} />;
+  else card = <QueryFailure query={patient} embedded pending={<ContentSkeleton shape="detail" />} />;
   return (
     <Card as="section" radius="panel" padding="none" aria-labelledby="profile-data-title" id="profile-data" className="flex flex-col gap-4 p-[22px]">
       <h2 id="profile-data-title" className="text-lg font-bold">{t('title')}</h2>
-      {account.data === undefined ? <QueryFailure query={account} embedded pending={<TableSkeleton />} /> : <Identity account={account.data} patient={patient.data ?? null} />}
+      {account.data === undefined ? <QueryFailure query={account} embedded pending={<ContentSkeleton shape="detail" />} /> : <Identity account={account.data} patient={patient.data ?? null} />}
       {account.data !== undefined && !account.data.isActive ? <p className="rounded-control bg-destructive-soft px-3 py-2 text-sm font-semibold text-destructive">{tProfile('inactive')}</p> : null}
       {completeness === null ? null : <CompletenessLine completeness={completeness} />}
       {card}

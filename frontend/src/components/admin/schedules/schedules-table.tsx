@@ -94,8 +94,8 @@ function useScheduleColumns(pickers: SchedulePickers, handlers: ScheduleHandlers
       header: t('columns.windows'),
       render: (row) => <WindowsCell schedule={row} dayLabel={(day) => t(`days.${day}`)} duration={row.slotDurationMin === undefined ? undefined : t('slotOf', { minutes: row.slotDurationMin })} />,
     },
-    { key: 'status', header: t('columns.status'), render: (row) => row.isActive ? <StampBadge status="active">{t('active')}</StampBadge> : <StampBadge status="cancelled" tone="neutral" icon={Ban}>{t('inactive')}</StampBadge> },
-    { key: 'actions', header: t('columns.actions'), render: (row) => <ScheduleActions schedule={row} label={describeSchedule(row, pickers)} {...handlers} /> },
+    { key: 'status', header: t('columns.status'), mobile: 'badge', render: (row) => row.isActive ? <StampBadge status="active">{t('active')}</StampBadge> : <StampBadge status="cancelled" tone="neutral" icon={Ban}>{t('inactive')}</StampBadge> },
+    { key: 'actions', header: t('columns.actions'), mobile: 'actions', render: (row) => <ScheduleActions schedule={row} label={describeSchedule(row, pickers)} {...handlers} /> },
   ];
 }
 

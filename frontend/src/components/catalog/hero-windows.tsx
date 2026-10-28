@@ -21,7 +21,7 @@ const WINDOWS_SHOWN = 3;
 const DOCTORS_ASKED = 4;
 
 const WINDOW_CHIP_CLASS =
-  'inline-flex min-h-[44px] flex-none items-center rounded-control bg-primary-soft px-3 text-sm font-semibold tabular-nums text-primary-soft-foreground transition-[background-color] duration-fast ease-out hover:bg-primary-soft-hover';
+  'inline-flex min-h-[44px] flex-none items-center rounded-control bg-primary-soft px-3 text-sm font-semibold tabular-nums text-primary-soft-foreground transition-[background-color,transform] duration-fast ease-out hover:bg-primary-soft-hover active:scale-[0.97]';
 
 function WindowRow({ entry, today }: { readonly entry: SoonestWindow; readonly today: string }): ReactNode {
   const t = useT('booking');

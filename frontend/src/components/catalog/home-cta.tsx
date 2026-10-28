@@ -11,7 +11,7 @@ import { SECTION_CLASS } from './catalog-styles';
 export function HomeCta(): ReactNode {
   const t = useT('home');
   return (
-    <section aria-labelledby="home-cta" className={`${SECTION_CLASS} pt-16`}>
+    <section aria-labelledby="home-cta" className={`${SECTION_CLASS} reveal-on-scroll pt-16`}>
       <div className="relative overflow-hidden rounded-panel bg-warm-soft p-8 md:p-10">
         <span aria-hidden="true" className="absolute -right-10 -top-10 opacity-60"><BrandMark size={220} /></span>
         <div className="relative flex max-w-xl flex-col items-start gap-4">

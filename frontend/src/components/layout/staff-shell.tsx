@@ -21,6 +21,7 @@ import { DESKTOP_QUERY, useMediaQuery } from '@/hooks/use-media-query';
 import { useT } from '@/lib/i18n/use-t';
 import { useSessionStore } from '@/store/use-session-store';
 import { StaffBrand, StaffNav, type StaffLink } from './staff-nav';
+import { PageTransition } from './page-transition';
 import { StaffProfileMenu } from './staff-profile-menu';
 import { MAIN_CONTENT_ID, SkipLink } from './skip-link';
 
@@ -113,7 +114,7 @@ function StaffTopBar({ links, prefix }: PartsProps): ReactNode {
       </header>
       {isOpen ? (
         <Dialog
-          variant="drawer"
+          variant="drawer-left"
           title={t('brand')}
           description={t(`${prefix}.caption`)}
           onClose={() => setIsOpen(false)}
@@ -155,7 +156,7 @@ export function StaffShell({ children, links }: StaffShellProps): ReactNode {
         tabIndex={-1}
         className="min-w-0 p-4 focus:outline-none sm:p-6 lg:px-8 lg:py-8"
       >
-        {children}
+        <PageTransition>{children}</PageTransition>
       </main>
     </div>
   );

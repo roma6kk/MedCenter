@@ -2,6 +2,7 @@
 
 import type { ReactNode } from 'react';
 import { Skeleton } from '@/components/ui/skeleton';
+import { LoadingNote } from '@/components/feedback/loading-note';
 import { useT } from '@/lib/i18n/use-t';
 
 const CARD_COUNT = 6;
@@ -24,6 +25,7 @@ export function CatalogSkeleton(): ReactNode {
           </div>
         ))}
       </div>
+      <LoadingNote />
     </div>
   );
 }

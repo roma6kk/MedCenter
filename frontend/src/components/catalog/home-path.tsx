@@ -15,7 +15,7 @@ const STEPS: ReadonlyArray<1 | 2 | 3 | 4> = [1, 2, 3, 4];
 export function HomePath(): ReactNode {
   const t = useT('home');
   return (
-    <section aria-labelledby="home-path" className={`${SECTION_CLASS} flex flex-col gap-8 py-16`}>
+    <section aria-labelledby="home-path" className={`${SECTION_CLASS} reveal-on-scroll flex flex-col gap-8 py-16`}>
       <div>
         <h2 id="home-path" className={SECTION_TITLE_CLASS}>{t('pathTitle')}</h2>
         <p className={SECTION_LEAD_CLASS}>{t('pathLead')}</p>

@@ -26,7 +26,7 @@ describe('AppointmentList', () => {
 
     renderWithClient(<AppointmentList />);
 
-    expect(screen.getByTestId('table-skeleton')).toBeInTheDocument();
+    expect(screen.getByTestId('content-skeleton-list')).toBeInTheDocument();
   });
 
   it('should request the first page of upcoming appointments, lead with the nearest one and list the rest as cards', async () => {
@@ -103,7 +103,7 @@ describe('AppointmentList', () => {
     const retrying = await screen.findByRole('button', { name: 'Повторяем…' });
 
     expect(screen.getByTestId('problem-banner')).toHaveTextContent('Нет связи с сервером');
-    expect(screen.queryByTestId('table-skeleton')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('content-skeleton-list')).not.toBeInTheDocument();
     expect(retrying).toHaveFocus();
   });
 
@@ -173,7 +173,7 @@ describe('AppointmentList', () => {
 
     await userEvent.click(screen.getByRole('tab', { name: 'Все записи' }));
 
-    expect(await screen.findByTestId('table-skeleton')).toBeInTheDocument();
+    expect(await screen.findByTestId('content-skeleton-list')).toBeInTheDocument();
     expect(screen.queryByTestId('empty-state')).not.toBeInTheDocument();
     expect(screen.queryByText('Записей пока нет')).not.toBeInTheDocument();
   });
@@ -186,7 +186,7 @@ describe('AppointmentList', () => {
 
     await userEvent.click(screen.getByRole('tab', { name: 'Все записи' }));
 
-    expect(await screen.findByTestId('table-skeleton')).toBeInTheDocument();
+    expect(await screen.findByTestId('content-skeleton-list')).toBeInTheDocument();
     expect(screen.queryByTestId('next-appointment')).not.toBeInTheDocument();
   });
 
@@ -200,7 +200,7 @@ describe('AppointmentList', () => {
 
     await waitFor(() => expect(listMock).toHaveBeenCalledWith({ tab: 'upcoming', page: 2, pageSize: 10 }));
     expect(screen.getByTestId('next-appointment')).toBeInTheDocument();
-    expect(screen.queryByTestId('table-skeleton')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('content-skeleton-list')).not.toBeInTheDocument();
   });
 
   it('should keep the server order with the cancelled ones on the all tab', async () => {

@@ -4,7 +4,7 @@ import { useCallback, useId, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import { ChevronDown, CircleX, ShieldCheck, ShieldOff } from 'lucide-react';
 import { QueryFailure } from '@/components/feedback/query-error-state';
-import { TableSkeleton } from '@/components/feedback/states';
+import { ContentSkeleton } from '@/components/feedback/content-skeleton';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { formatDateKey } from '@/lib/clinic-time';
@@ -90,7 +90,7 @@ export function MyConsentSection(): ReactNode {
   return (
     <Card as="section" radius="panel" padding="none" aria-labelledby="consent-title" id="consent" className="flex flex-col gap-3 p-[22px]">
       <h2 id="consent-title" className="text-lg font-bold">{t('title')}</h2>
-      {consent.data === undefined ? <QueryFailure query={consent} embedded pending={<TableSkeleton />} /> : <Body consent={consent.data} />}
+      {consent.data === undefined ? <QueryFailure query={consent} embedded pending={<ContentSkeleton shape="detail" />} /> : <Body consent={consent.data} />}
     </Card>
   );
 }

@@ -25,7 +25,7 @@ function ContactRow({ icon: Icon, label, children }: { readonly icon: LucideIcon
 export function HomeContacts(): ReactNode {
   const t = useT('home');
   return (
-    <section id={HOME_ANCHORS.contacts} className={`${SECTION_CLASS} scroll-mt-4 grid gap-4 py-16 md:grid-cols-2`}>
+    <section id={HOME_ANCHORS.contacts} className={`${SECTION_CLASS} reveal-on-scroll scroll-mt-4 grid gap-4 py-16 md:grid-cols-2`}>
       <Card radius="panel" padding="lg" className="flex flex-col gap-4">
         <h2 className="text-xl font-bold">{t('infoTitle')}</h2>
         <ul className="flex flex-col">

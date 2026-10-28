@@ -5,6 +5,7 @@ import type { KeyboardEvent, MouseEvent, ReactNode, RefObject } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { SegmentedControl } from '@/components/ui/segmented-control';
+import { LoadingNote } from '@/components/feedback/loading-note';
 import { Skeleton } from '@/components/ui/skeleton';
 import type { Translate } from '@/lib/i18n/translate';
 import { useT } from '@/lib/i18n/use-t';
@@ -295,6 +296,7 @@ export function AppointmentsChart({ series, columns }: AppointmentsChartProps): 
         <div aria-busy="true">
           <p role="status" className="sr-only">{t('loading')}</p>
           <Skeleton shape="block" className="h-64" />
+          <LoadingNote />
         </div>
       ) : isEmpty ? (
         <p data-testid="chart-empty" className="py-10 text-center text-muted-foreground">{t('empty')}</p>

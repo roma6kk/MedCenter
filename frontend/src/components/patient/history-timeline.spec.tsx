@@ -29,7 +29,7 @@ describe('HistoryTimeline', () => {
 
     renderWithClient(<HistoryTimeline />);
 
-    expect(screen.getByTestId('table-skeleton')).toBeInTheDocument();
+    expect(screen.getByTestId('content-skeleton-timeline')).toBeInTheDocument();
   });
 
   it('should show the visit with its Minsk time, diagnosis chip, summary and recommendations', async () => {

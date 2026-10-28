@@ -4,6 +4,7 @@ import { useEffect, useRef } from 'react';
 import type { KeyboardEvent, ReactNode } from 'react';
 import Link from 'next/link';
 import { useFloatingPosition } from '@/components/ui/floating';
+import { LoadingNote } from '@/components/feedback/loading-note';
 import { QueryFailure } from '@/components/feedback/query-error-state';
 import { Skeleton } from '@/components/ui/skeleton';
 import { buttonVariants } from '@/components/ui/button-variants';
@@ -83,6 +84,7 @@ function PanelSkeleton(): ReactNode {
           <div className="flex flex-1 flex-col gap-1.5"><Skeleton className="w-full" /><Skeleton className="w-1/3" /></div>
         </div>
       ))}
+      <LoadingNote />
     </div>
   );
 }

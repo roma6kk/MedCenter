@@ -8,6 +8,7 @@ import { buttonVariants } from '@/components/ui/button-variants';
 import { useT } from '@/lib/i18n/use-t';
 import { SECTION_CLASS } from './catalog-styles';
 import type { Doctor } from './catalog-types';
+import { HeroEcg } from './hero-ecg';
 import { HeroWindows } from './hero-windows';
 
 /**
@@ -27,6 +28,7 @@ function HeroPanel({ doctors }: { readonly doctors: ReadonlyArray<Doctor> }): Re
           <p className="font-bold">{t('recordTitle')}</p>
           <p className="text-sm text-muted-foreground">{t('recordText')}</p>
         </div>
+        <HeroEcg />
         <HeroWindows doctors={doctors} />
       </div>
     </div>

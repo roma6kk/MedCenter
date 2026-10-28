@@ -2,7 +2,7 @@
 
 import type { ReactNode } from 'react';
 import { QueryFailure } from '@/components/feedback/query-error-state';
-import { TableSkeleton } from '@/components/feedback/states';
+import { ContentSkeleton } from '@/components/feedback/content-skeleton';
 import { useDocumentTitle } from '@/hooks/use-document-title';
 import { isApiError } from '@/lib/api/api-fetch';
 import { errorCodeToUx } from '@/lib/api/error-code-map';
@@ -29,7 +29,7 @@ function completenessOf(data: ProfileData): Completeness | null {
 
 function LastVisit({ data }: { readonly data: ProfileData }): ReactNode {
   if (data.history.data !== undefined) return <LastVisitCard entry={newestFinished(data.history.data)} />;
-  return <div className="rounded-panel border border-border bg-card p-[22px]"><QueryFailure query={data.history} embedded pending={<TableSkeleton />} /></div>;
+  return <div className="rounded-panel border border-border bg-card p-[22px]"><QueryFailure query={data.history} embedded pending={<ContentSkeleton shape="timeline" rows={2} />} /></div>;
 }
 
 /**

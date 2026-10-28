@@ -4,7 +4,7 @@ import type { ReactNode } from 'react';
 import Link from 'next/link';
 import { CalendarPlus } from 'lucide-react';
 import { QueryFailure } from '@/components/feedback/query-error-state';
-import { TableSkeleton } from '@/components/feedback/states';
+import { ContentSkeleton } from '@/components/feedback/content-skeleton';
 import { NextAppointment } from '@/components/appointments/next-appointment';
 import { Card } from '@/components/ui/card';
 import { buttonVariants } from '@/components/ui/button-variants';
@@ -44,7 +44,7 @@ export function HomeHero({ data }: { readonly data: ProfileData }): ReactNode {
       <h1 id="home-title" className={cn('text-3xl font-bold tracking-tight', WRAP_TEXT)}>{given === '' ? t('greetingAnon') : t('greeting', { name: given })}</h1>
       {data.account.data === undefined ? <QueryFailure query={data.account} embedded pending={null} /> : null}
       {data.upcoming.data === undefined ? (
-        <Card as="div" radius="panel" padding="none" className="p-6"><QueryFailure query={data.upcoming} embedded pending={<TableSkeleton />} /></Card>
+        <Card as="div" radius="panel" padding="none" className="p-6"><QueryFailure query={data.upcoming} embedded pending={<ContentSkeleton shape="detail" />} /></Card>
       ) : booked[0] === undefined ? (
         <NoVisit />
       ) : (

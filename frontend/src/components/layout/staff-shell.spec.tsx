@@ -234,6 +234,15 @@ describe('StaffShell on a phone', () => {
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 
+  it('should slide the drawer in from the left because the burger sits on the left', async () => {
+    signIn('ADMIN');
+    render(<StaffShell links={ADMIN_LINKS}><p>x</p></StaffShell>, { wrapper: Wrapper });
+
+    await userEvent.click(screen.getByRole('button', { name: 'Открыть меню' }));
+
+    expect(screen.getByRole('dialog', { name: 'Лайфлайн' })).toHaveClass('animate-drawer-left-in');
+  });
+
   it('should return the focus to the burger when the drawer is closed with Escape', async () => {
     signIn('ADMIN');
     render(<StaffShell links={ADMIN_LINKS}><p>x</p></StaffShell>, { wrapper: Wrapper });

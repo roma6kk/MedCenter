@@ -4,6 +4,7 @@ import { useEffect, type ReactNode, type RefObject } from 'react';
 import { formatDayHeading, formatWeekdayShort } from '@/lib/clinic-time';
 import { useT } from '@/lib/i18n/use-t';
 import { cn } from '@/lib/ui/cn';
+import { motionSafeScrollBehavior } from '@/lib/ui/motion';
 import { useUiStore } from '@/store/use-ui-store';
 import { useRovingFocus } from './use-roving-focus';
 
@@ -33,8 +34,7 @@ function useScrollChosenIntoView(selectedDay: string, containerRef: RefObject<HT
     const container: HTMLElement | null = containerRef.current;
     const chip: HTMLElement | null = container === null ? null : container.querySelector<HTMLElement>('[aria-checked="true"]');
     if (container === null || chip === null || typeof container.scrollTo !== 'function') return;
-    const reduced: boolean = typeof window.matchMedia === 'function' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    container.scrollTo({ left: Math.max(0, chip.offsetLeft - (container.clientWidth - chip.offsetWidth) / 2), behavior: reduced ? 'auto' : 'smooth' });
+    container.scrollTo({ left: Math.max(0, chip.offsetLeft - (container.clientWidth - chip.offsetWidth) / 2), behavior: motionSafeScrollBehavior() });
   }, [selectedDay, containerRef]);
 }
 
@@ -77,10 +77,10 @@ export function SlotDayStrip({ days, selectedDay, onSelect, messages = 'booking'
               if (!closed) onSelect(day);
             }}
             className={cn(
-              'flex min-h-[4.25rem] w-[4.5rem] flex-none flex-col items-center justify-center rounded-control border px-1 py-1.5 text-center transition-[background-color,border-color,color,box-shadow] duration-fast ease-out',
+              'flex min-h-[4.25rem] w-[4.5rem] flex-none flex-col items-center justify-center rounded-control border px-1 py-1.5 text-center transition-[background-color,border-color,color,box-shadow,transform] duration-fast ease-out',
               closed && 'cursor-not-allowed border-border-soft text-muted-foreground opacity-60',
-              !closed && chosen && 'border-primary bg-primary-soft text-primary-soft-foreground ring-2 ring-primary',
-              !closed && !chosen && 'border-border bg-card hover:border-primary hover:bg-primary-soft',
+              !closed && chosen && 'border-primary bg-primary-soft text-primary-soft-foreground ring-2 ring-primary active:scale-[0.97]',
+              !closed && !chosen && 'border-border bg-card hover:border-primary hover:bg-primary-soft active:scale-[0.97]',
             )}
           >
             <span aria-hidden="true" className="text-xs font-medium uppercase">{formatWeekdayShort(day, locale)}</span>

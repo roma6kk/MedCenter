@@ -3,10 +3,12 @@
 import { useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
 import { Pager } from '@/components/data-display/paginated-table';
-import { EmptyState, TableSkeleton } from '@/components/feedback/states';
+import { EmptyState } from '@/components/feedback/states';
+import { ContentSkeleton } from '@/components/feedback/content-skeleton';
 import { QueryFailure } from '@/components/feedback/query-error-state';
 import { useClinicFormat } from '@/hooks/use-clinic-format';
 import { useDocumentTitle } from '@/hooks/use-document-title';
+import { useStaggerOnce } from '@/hooks/use-stagger-once';
 import { useT } from '@/lib/i18n/use-t';
 import { cn } from '@/lib/ui/cn';
 import { FileText } from 'lucide-react';
@@ -29,7 +31,7 @@ const EMPTY_PRESCRIPTIONS: ReadonlyArray<Prescription> = [];
 function DiagnosisFilter({ codes, value, onChange }: { readonly codes: ReadonlyArray<string>; readonly value: string | null; readonly onChange: (code: string | null) => void }): ReactNode {
   const t = useT('patientHistory');
   const item = (selected: boolean): string =>
-    cn('min-h-[38px] rounded-sm px-3.5 text-sm', selected ? 'bg-card font-semibold text-foreground shadow-elev-1' : 'font-medium text-muted-foreground');
+    cn('min-h-11 rounded-sm px-3.5 text-sm transition-[background-color,color,box-shadow,transform] duration-fast ease-out active:scale-[0.97]', selected ? 'bg-card font-semibold text-foreground shadow-elev-1' : 'font-medium text-muted-foreground hover:text-foreground');
   return (
     <div role="group" aria-label={t('filterLabel')} className="no-print inline-flex flex-wrap gap-0.5 rounded-control bg-secondary p-[3px]">
       <button type="button" aria-pressed={value === null} onClick={() => onChange(null)} className={item(value === null)}>{t('filterAll')}</button>
@@ -57,6 +59,7 @@ interface LoadedProps {
 function Loaded({ items, meta, prescriptions, onPage }: LoadedProps): ReactNode {
   const t = useT('patientHistory');
   const [chosen, setChosen] = useState<string | null>(null);
+  const enter = useStaggerOnce();
   const summary = useMemo(() => summarize(items), [items]);
   const frequency = useMemo(() => diagnosisFrequency(items), [items]);
   const byEncounter = useMemo(() => prescriptionsByEncounter(prescriptions), [prescriptions]);
@@ -72,7 +75,7 @@ function Loaded({ items, meta, prescriptions, onPage }: LoadedProps): ReactNode 
           {groups.map((group) => (
             <section key={group.key} aria-labelledby={`hx-month-${group.key}`} className="flex flex-col gap-3">
               <MonthHeading monthKey={group.key} id={`hx-month-${group.key}`} />
-              <ol aria-labelledby={`hx-month-${group.key}`} className="flex flex-col gap-3">
+              <ol aria-labelledby={`hx-month-${group.key}`} className={cn('flex flex-col gap-3', enter)}>
                 {group.entries.map((entry) => <VisitRow key={entry.id} entry={entry} prescriptions={byEncounter.get(entry.id) ?? EMPTY_PRESCRIPTIONS} />)}
               </ol>
             </section>
@@ -107,7 +110,7 @@ export function HistoryTimeline({ embedded = false }: { readonly embedded?: bool
         {data !== undefined && data.items.length > 0 ? <PrintButton label={t('print')} /> : null}
       </div>
       <div aria-busy={query.isFetching} className="flex flex-col gap-6">
-        {data === undefined ? <QueryFailure query={query} embedded pending={<TableSkeleton />} /> : null}
+        {data === undefined ? <QueryFailure query={query} embedded pending={<ContentSkeleton shape="timeline" rows={3} />} /> : null}
         {data !== undefined && data.items.length === 0 ? <EmptyState icon={FileText} title={t('empty')} description={t('emptyHint')} action={<BookLink label={t('emptyCta')} />} /> : null}
         {data !== undefined && data.items.length > 0 ? <Loaded items={data.items} meta={data.meta} prescriptions={prescriptions.data?.items ?? EMPTY_PRESCRIPTIONS} onPage={setPage} /> : null}
       </div>

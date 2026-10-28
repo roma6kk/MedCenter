@@ -4,7 +4,7 @@ import { useState } from 'react';
 import type { ReactNode } from 'react';
 import { useSearchParams } from 'next/navigation';
 import type { UseQueryResult } from '@tanstack/react-query';
-import { TableSkeleton } from '@/components/feedback/states';
+import { ContentSkeleton } from '@/components/feedback/content-skeleton';
 import { QueryFailure } from '@/components/feedback/query-error-state';
 import { useDocumentTitle } from '@/hooks/use-document-title';
 import { useT } from '@/lib/i18n/use-t';
@@ -107,7 +107,7 @@ interface DayBodyProps {
 
 function DayBody({ journal, rows, status, setPage, dateKey, today, onJump }: DayBodyProps): ReactNode {
   const t = useT('doctor.journal');
-  if (journal.data === undefined) return <QueryFailure query={journal} embedded notFoundText={t('loadError')} pending={<TableSkeleton />} />;
+  if (journal.data === undefined) return <QueryFailure query={journal} embedded notFoundText={t('loadError')} pending={<ContentSkeleton shape="timeline" rows={3} />} />;
   return (
     <>
       {status !== 'all' && journal.data.meta.totalPages > 1 ? <p className="mb-3 text-sm text-warning">{t('filterPageHint', { page: journal.data.meta.page, pages: journal.data.meta.totalPages })}</p> : null}
@@ -130,7 +130,7 @@ function WeekBody({ columns, today, onOpenDay }: { readonly columns: ReadonlyArr
   return (
     <>
       {failed ? <div className="mb-3"><QueryFailure query={failed.query} embedded notFoundText={t('loadError')} pending={null} /></div> : null}
-      {loading ? <TableSkeleton /> : <JournalWeekView days={columns} today={today} onOpenDay={onOpenDay} />}
+      {loading ? <ContentSkeleton shape="timeline" rows={3} /> : <JournalWeekView days={columns} today={today} onOpenDay={onOpenDay} />}
     </>
   );
 }

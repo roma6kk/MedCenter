@@ -313,7 +313,8 @@ describe('HomeView', () => {
       renderWithClient(<HomeView />);
 
       expect(screen.getByRole('heading', { level: 1, name: 'Здравствуйте' })).toBeInTheDocument();
-      expect(screen.getAllByTestId('table-skeleton').length).toBeGreaterThanOrEqual(2);
+      expect(screen.getAllByTestId('content-skeleton-detail').length).toBeGreaterThanOrEqual(1);
+      expect(screen.getAllByTestId('content-skeleton-timeline').length).toBeGreaterThanOrEqual(1);
     });
 
     it('should say that the account is disabled when it is', async () => {

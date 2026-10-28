@@ -30,7 +30,7 @@ interface JournalControlsProps {
 }
 
 const STEP_BUTTON =
-  'inline-flex size-11 items-center justify-center rounded-control border border-border bg-card text-foreground transition-[background-color] duration-fast ease-out hover:bg-secondary';
+  'inline-flex size-11 items-center justify-center rounded-control border border-border bg-card text-foreground transition-[background-color,transform] duration-fast ease-out hover:bg-secondary active:scale-[0.97]';
 
 /** Previous / the date field / next: the day (day view) or the first day of the week (week view). */
 function PeriodPicker({ dateKey, view, onDateChange }: Pick<JournalControlsProps, 'dateKey' | 'view' | 'onDateChange'>): ReactNode {
@@ -66,7 +66,7 @@ function ViewToggle({ view, onViewChange }: Pick<JournalControlsProps, 'view' | 
           aria-pressed={view === option}
           onClick={() => onViewChange(option)}
           className={cn(
-            'min-h-11 rounded-sm px-4 text-sm transition-colors',
+            'min-h-11 rounded-sm px-4 text-sm transition-[background-color,color,box-shadow] duration-fast ease-out',
             view === option ? 'bg-card font-semibold text-foreground shadow-elev-1' : 'font-medium text-muted-foreground hover:text-foreground',
           )}
         >

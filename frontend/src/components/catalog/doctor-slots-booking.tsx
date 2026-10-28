@@ -5,6 +5,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { SlotPicker } from '@/components/booking/slot-picker';
 import { draftFromSlot } from '@/components/booking/booking-steps';
+import { buttonVariants } from '@/components/ui/button-variants';
 import { Skeleton } from '@/components/ui/skeleton';
 import { formatClinicDateTime } from '@/lib/clinic-time';
 import { useT } from '@/lib/i18n/use-t';
@@ -27,7 +28,7 @@ function BookButton({ selected, onBook }: BookButtonProps): ReactNode {
       type="button"
       onClick={onBook}
       disabled={selected === null}
-      className="min-h-[44px] w-full rounded-control bg-[var(--primary)] px-6 py-2 text-[var(--primary-foreground)] disabled:opacity-60 md:w-auto"
+      className={cn(buttonVariants({ variant: 'primary' }), 'w-full md:w-auto')}
     >
       {selected === null ? t('bookDisabled') : t('bookSelected', { time: formatClinicDateTime(selected.start, locale) })}
     </button>
@@ -35,7 +36,7 @@ function BookButton({ selected, onBook }: BookButtonProps): ReactNode {
 }
 
 const CHIP_CLASS =
-  'inline-flex min-h-[44px] items-center gap-2 rounded-full border px-4 text-sm font-medium transition-[background-color,border-color,color] duration-fast ease-out';
+  'inline-flex min-h-[44px] items-center gap-2 rounded-full border px-4 text-sm font-medium transition-[background-color,border-color,color,transform] duration-fast ease-out active:scale-[0.97]';
 const CHIP_IDLE_CLASS = 'border-border bg-card hover:border-primary hover:bg-primary-soft';
 const CHIP_CHOSEN_CLASS = 'border-primary bg-primary-soft text-primary-soft-foreground';
 

@@ -51,7 +51,7 @@ function DoctorsTeaser({ doctors }: { readonly doctors: ReadonlyArray<Doctor> })
   const t = useT('home');
   if (doctors.length === 0) return null;
   return (
-    <section aria-labelledby="home-doctors" className={`${SECTION_CLASS} flex flex-col gap-6 pt-16`}>
+    <section aria-labelledby="home-doctors" className={`${SECTION_CLASS} reveal-on-scroll flex flex-col gap-6 pt-16`}>
       <div className="flex flex-wrap items-end justify-between gap-3">
         <h2 id="home-doctors" className={SECTION_TITLE_CLASS}>{t('doctorsTitle')}</h2>
         <Link href="/doctors" className={buttonVariants({ variant: 'secondary' })}>{t('doctorsAll')}</Link>

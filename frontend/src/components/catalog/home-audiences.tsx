@@ -46,7 +46,7 @@ export function HomeAudiences(): ReactNode {
   const t = useT('home');
   return (
     <section id={HOME_ANCHORS.companies} aria-labelledby="home-audiences" className="scroll-mt-4 bg-inverse text-inverse-foreground">
-      <div className={`${SECTION_CLASS} flex flex-col gap-8 py-16`}>
+      <div className={`${SECTION_CLASS} reveal-on-scroll flex flex-col gap-8 py-16`}>
         <h2 id="home-audiences" className={SECTION_TITLE_CLASS}>{t('audTitle')}</h2>
         <ul className="grid gap-4 md:grid-cols-3">
           <Audience title={t('audPrivateTitle')} text={t('audPrivateText')} action={{ href: '/booking', label: t('book') }} />

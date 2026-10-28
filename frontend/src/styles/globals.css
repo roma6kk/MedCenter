@@ -237,20 +237,85 @@ p {
   animation: skeleton-shimmer 1.6s ease-in-out infinite;
 }
 
+/*
+ * Base feedback of every link and button (VE6): colours, borders and shadows ease over the fast duration instead of
+ * snapping, so even a control that brings no transition of its own (a plain text link, an icon button) answers a hover.
+ * A utility such as `transition-[transform,…]` on the element wins over this rule; `transform` is left out on purpose,
+ * it belongs to the controls that press (`active:scale`). The reduced-motion rule below switches it off.
+ */
+@layer base {
+  a,
+  button,
+  summary,
+  [role='button'],
+  [role='tab'],
+  [role='radio'] {
+    transition-property: color, background-color, border-color, text-decoration-color, box-shadow;
+    transition-duration: var(--duration-fast);
+    transition-timing-function: var(--ease-out);
+  }
+}
+
 @keyframes skeleton-shimmer {
   from { background-position: 150% 0; }
   to { background-position: -50% 0; }
 }
 
+/*
+ * Entrance of a list (VE1): the children of `.stagger-children` fade in and rise 6 px, 35 ms after the one before; the delay
+ * stops growing at the ninth child, so the whole list is in place in about half a second. `useStaggerOnce` puts the class on
+ * the list for the first load only. `backwards` (not `both`): once the animation is over the item's own `transform` (the
+ * hover lift of an interactive card) is in charge again.
+ */
+@keyframes stagger-in {
+  from { opacity: 0; transform: translateY(6px); }
+}
+
+.stagger-children > * {
+  animation: stagger-in var(--duration-base) var(--ease-out) backwards;
+}
+
+.stagger-children > :nth-child(2) { animation-delay: 35ms; }
+.stagger-children > :nth-child(3) { animation-delay: 70ms; }
+.stagger-children > :nth-child(4) { animation-delay: 105ms; }
+.stagger-children > :nth-child(5) { animation-delay: 140ms; }
+.stagger-children > :nth-child(6) { animation-delay: 175ms; }
+.stagger-children > :nth-child(7) { animation-delay: 210ms; }
+.stagger-children > :nth-child(8) { animation-delay: 245ms; }
+.stagger-children > :nth-child(n + 9) { animation-delay: 280ms; }
+
+/*
+ * Landing sections appear as they scroll into view (VE5), with CSS scroll-driven animation: no script, runs off the main
+ * thread. It is progressive enhancement: a browser without `animation-timeline` never matches the rule and shows the
+ * section as it is. A section that is already on screen at load has passed its `entry` range, so it is not hidden either.
+ */
+@keyframes reveal-in {
+  from { opacity: 0; transform: translateY(1.25rem); }
+}
+
+@supports (animation-timeline: view()) {
+  .reveal-on-scroll {
+    animation: reveal-in linear both;
+    animation-timeline: view();
+    animation-range: entry 0% entry 25%;
+  }
+}
+
+/* One switch for every CSS motion (entrances, transitions, scroll-driven reveals, the drawn lines): the end state is the
+   element's normal style, so nothing stays hidden. Motion driven from script asks `motionSafeScrollBehavior` instead. */
 @media (prefers-reduced-motion: reduce) {
-  * {
+  *,
+  *::before,
+  *::after {
     animation: none !important;
     transition: none !important;
+    scroll-behavior: auto !important;
   }
 }
 
 @media print {
   .no-print { display: none !important; }
+  .reveal-on-scroll, .stagger-children > * { animation: none !important; }
   body { background: #ffffff; color: #000000; }
   header, nav, aside { display: none !important; }
   main { padding: 0 !important; }

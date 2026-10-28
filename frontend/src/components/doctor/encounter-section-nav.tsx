@@ -8,6 +8,7 @@ import { useFormContext, useFormState, useWatch } from 'react-hook-form';
 import { Card } from '@/components/ui/card';
 import type { CompleteEncounterForm } from '@/lib/contracts';
 import { cn } from '@/lib/ui/cn';
+import { motionSafeScrollBehavior } from '@/lib/ui/motion';
 import { useT } from '@/lib/i18n/use-t';
 import { EncounterAsideSlotContext } from './encounter-aside-slot';
 import { REQUIRED_SECTIONS, SECTION_IDS, sectionDomId, sectionStates, type SectionId, type SectionState } from './encounter-sections';
@@ -25,8 +26,7 @@ function jumpTo(id: SectionId, event: MouseEvent<HTMLAnchorElement>): void {
   const target: HTMLElement | null = document.getElementById(sectionDomId(id));
   if (target === null) return;
   event.preventDefault();
-  const isReduced: boolean = typeof window.matchMedia === 'function' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  target.scrollIntoView?.({ behavior: isReduced ? 'auto' : 'smooth', block: 'start' });
+  target.scrollIntoView?.({ behavior: motionSafeScrollBehavior(), block: 'start' });
   target.querySelector<HTMLElement>('h2')?.focus({ preventScroll: true });
 }
 
@@ -85,7 +85,7 @@ export function SectionNavigator(): ReactNode {
   return (
     <>
       <nav aria-label={t('sectionsNav')} className={cn('no-print', slot !== null && 'lg:hidden')}>
-        <ol className="flex gap-2 overflow-x-auto pb-2">
+        <ol className="relative flex gap-2 overflow-x-auto pb-2">
           <NavItems states={states} itemClassName={`${LINK_BASE} whitespace-nowrap rounded-full border border-border-soft bg-card px-3 shadow-elev-1`} />
         </ol>
       </nav>

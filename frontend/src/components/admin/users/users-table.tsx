@@ -119,12 +119,12 @@ function useUserColumns<TUser extends UserRow>(actions: UserActions<TUser>, cons
   const t = useT('admin.users');
   const columns: TableColumn<TUser>[] = [
     { key: 'name', header: t('columns.name'), render: (row) => <NameCell row={row} /> },
-    { key: 'role', header: t('columns.role'), render: (row) => <RoleChips row={row} /> },
-    { key: 'status', header: t('columns.status'), render: (row) => <StatusStamp row={row} /> },
+    { key: 'role', header: t('columns.role'), mobile: 'badge', render: (row) => <RoleChips row={row} /> },
+    { key: 'status', header: t('columns.status'), mobile: 'badge', render: (row) => <StatusStamp row={row} /> },
     { key: 'links', header: t('columns.links'), render: (row) => <LinkChips row={row} practitionerRoles={practitionerRoles} /> },
   ];
   if (actions.onEdit || actions.onDeactivate || actions.onActivate || consentLinks) {
-    columns.push({ key: 'actions', header: t('columns.actions'), render: (row) => <RowActions row={row} consentLinks={consentLinks} {...actions} /> });
+    columns.push({ key: 'actions', header: t('columns.actions'), mobile: 'actions', render: (row) => <RowActions row={row} consentLinks={consentLinks} {...actions} /> });
   }
   return columns;
 }

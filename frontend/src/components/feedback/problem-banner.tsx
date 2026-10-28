@@ -71,7 +71,7 @@ function RequestIdButton({ requestId }: { readonly requestId: string }): ReactNo
         type="button"
         onClick={() => void handleCopy()}
         aria-label={t('copyRequestId', { requestId })}
-        className="mono min-h-[24px] text-xs underline"
+        className="mono inline-flex min-h-[44px] items-center text-xs underline"
         data-testid="copy-request-id"
       >
         {requestId}

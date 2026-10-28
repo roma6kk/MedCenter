@@ -7,7 +7,7 @@ import { pageLabel } from '@/lib/api/pagination';
 import { useT } from '@/lib/i18n/use-t';
 import { directoryHref, type DirectoryParams } from './doctor-directory';
 
-const LINK_CLASS = 'inline-flex min-h-[44px] min-w-[44px] items-center justify-center rounded-control border border-[var(--border)] bg-[var(--card)] px-3 text-sm hover:bg-[var(--secondary)]';
+const LINK_CLASS = 'inline-flex min-h-[44px] min-w-[44px] items-center justify-center rounded-control border border-[var(--border)] bg-[var(--card)] px-3 text-sm transition-[background-color,transform] duration-fast ease-out hover:bg-[var(--secondary)] active:scale-[0.97]';
 const OFF_CLASS = 'inline-flex min-h-[44px] min-w-[44px] items-center justify-center rounded-control border border-[var(--border)] px-3 text-sm opacity-50';
 
 /** Previous / next page of the catalog as plain links, so paging works without client JS. */

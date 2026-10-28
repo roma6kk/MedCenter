@@ -41,8 +41,8 @@ function useServiceColumns(actions: Pick<ServicesTableProps, 'onEdit' | 'onDelet
       ),
     },
     { key: 'duration', header: t('columns.duration'), render: (row) => t('minutes', { count: row.defaultDurationMin }) },
-    { key: 'status', header: t('columns.status'), render: (row) => row.isActive ? <StampBadge status="active">{t('active')}</StampBadge> : <StampBadge status="cancelled" tone="neutral" icon={Ban}>{t('inactive')}</StampBadge> },
-    { key: 'actions', header: t('columns.actions'), render: (row) => <ServiceActions service={row} {...actions} /> },
+    { key: 'status', header: t('columns.status'), mobile: 'badge', render: (row) => row.isActive ? <StampBadge status="active">{t('active')}</StampBadge> : <StampBadge status="cancelled" tone="neutral" icon={Ban}>{t('inactive')}</StampBadge> },
+    { key: 'actions', header: t('columns.actions'), mobile: 'actions', render: (row) => <ServiceActions service={row} {...actions} /> },
   ];
 }
 

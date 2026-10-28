@@ -3,6 +3,7 @@
 import type { ReactNode } from 'react';
 import { QueryFailure } from '@/components/feedback/query-error-state';
 import { CodeChip } from '@/components/feedback/code-chip';
+import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { SkeletonText } from '@/components/ui/skeleton';
 import { formatClinicDate, formatClinicDateTime } from '@/lib/clinic-time';
@@ -26,6 +27,18 @@ function Block({ title, children }: { readonly title: string; readonly children:
 /** One quiet line for a block that has nothing to show: an empty block must not take the room a full one would. */
 function Empty({ children }: { readonly children: ReactNode }): ReactNode {
   return <p className="text-sm text-muted-foreground">{children}</p>;
+}
+
+/** A block whose read failed says so in one quiet line and offers «Повторить» (E4): a failed block never ends in a dead end. */
+function Unavailable({ onRetry }: { readonly onRetry: () => void }): ReactNode {
+  const t = useT('doctor.summary');
+  const tCommon = useT('common');
+  return (
+    <div className="flex flex-wrap items-center gap-x-2">
+      <Empty>{t('unavailable')}</Empty>
+      <Button variant="ghost" onClick={onRetry} className="min-h-[44px] px-2 text-sm text-primary-soft-foreground">{tCommon('retry')}</Button>
+    </div>
+  );
 }
 
 function DiagnosisRows({ items }: { readonly items: ReadonlyArray<RecentDiagnosis> }): ReactNode {
@@ -132,7 +145,7 @@ function LastVitals({ patientId }: { readonly patientId: string }): ReactNode {
   return (
     <Block title={t('vitalsTitle')}>
       {isPending ? <SkeletonText lines={2} /> : null}
-      {!isPending && history.isError ? <Empty>{t('unavailable')}</Empty> : null}
+      {!isPending && history.isError ? <Unavailable onRetry={() => void history.refetch()} /> : null}
       {!isPending && !history.isError && (latest === undefined || encounter.isError || observations.length === 0) ? <Empty>{t('vitalsEmpty')}</Empty> : null}
       {latest !== undefined && !isPending && observations.length > 0 ? <VitalsList items={observations} date={latest.date} /> : null}
     </Block>
@@ -145,7 +158,7 @@ function UpcomingVisit({ patientId, excludeAppointmentId }: { readonly patientId
   return (
     <Block title={t('upcomingTitle')}>
       {upcoming.isPending ? <SkeletonText lines={1} /> : null}
-      {upcoming.isError ? <Empty>{t('unavailable')}</Empty> : null}
+      {upcoming.isError ? <Unavailable onRetry={() => void upcoming.refetch()} /> : null}
       {upcoming.data === null ? <Empty>{t('upcomingEmpty')}</Empty> : null}
       {upcoming.data ? (
         <p className="text-sm">

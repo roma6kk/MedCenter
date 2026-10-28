@@ -107,7 +107,7 @@ describe('PrescriptionList', () => {
 
     renderWithClient(<PrescriptionList />);
 
-    expect(screen.getByTestId('table-skeleton')).toBeInTheDocument();
+    expect(screen.getByTestId('content-skeleton-cards')).toBeInTheDocument();
   });
 
   it('should show a banner with the request id and retry when the service fails', async () => {

@@ -7,15 +7,18 @@ import { CalendarPlus } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { useClinicFormat } from '@/hooks/use-clinic-format';
 import { Pager } from '@/components/data-display/paginated-table';
-import { EmptyState, TableSkeleton } from '@/components/feedback/states';
+import { EmptyState } from '@/components/feedback/states';
+import { ContentSkeleton } from '@/components/feedback/content-skeleton';
 import { QueryFailure } from '@/components/feedback/query-error-state';
 import { BookLink } from '@/components/patient/book-link';
 import { SegmentedTabs, tabPanelProps, type TabOption } from '@/components/patient/segmented-tabs';
 import { useClampedPage } from '@/components/patient/use-clamped-page';
 import { useDocumentTitle } from '@/hooks/use-document-title';
+import { useStaggerOnce } from '@/hooks/use-stagger-once';
 import { useFocusFallback } from '@/components/patient/use-focus-fallback';
 import type { PaginatedResponse } from '@/lib/api/pagination';
 import { useT } from '@/lib/i18n/use-t';
+import { cn } from '@/lib/ui/cn';
 import { AppointmentCard } from './appointment-card';
 import { dayHeading, groupByDay } from './appointment-day';
 import type { AppointmentTab, AppointmentView } from './appointment-types';
@@ -45,6 +48,7 @@ function AppointmentItems({ tab, page, onCancel, onPage }: ItemsProps): ReactNod
   const next: AppointmentView | undefined = isUpcoming && page.meta.page === 1 ? page.items.find((appointment) => appointment.status === 'booked') : undefined;
   const items: ReadonlyArray<AppointmentView> = next === undefined ? page.items : page.items.filter((appointment) => appointment !== next);
   const groups = groupByDay(items);
+  const enter = useStaggerOnce();
   return (
     <div className="flex flex-col gap-6">
       {next === undefined ? null : <NextAppointment appointment={next} onCancel={onCancel} />}
@@ -53,7 +57,7 @@ function AppointmentItems({ tab, page, onCancel, onPage }: ItemsProps): ReactNod
           {groups.map((group) => (
             <section key={`${group.day}-${group.items[0]?.id ?? ''}`} aria-label={dayHeading(group.day, locale)} role="listitem" className="flex flex-col gap-2.5">
               <h2 className="text-base font-semibold text-muted-foreground first-letter:uppercase">{dayHeading(group.day, locale)}</h2>
-              <Card as="div" padding="none" className="divide-y divide-border overflow-hidden">
+              <Card as="div" padding="none" className={cn('divide-y divide-border overflow-hidden', enter)}>
                 {group.items.map((appointment) => <AppointmentCard key={appointment.id} appointment={appointment} onCancel={onCancel} />)}
               </Card>
             </section>
@@ -75,7 +79,7 @@ interface PanelProps {
 /** What the list shows for every state of the read: skeleton, error with retry, empty with a way forward, or the cards. */
 function AppointmentsPanel({ tab, query, onCancel, onPage }: PanelProps): ReactNode {
   const page: PaginatedResponse<AppointmentView> | undefined = query.data;
-  if (page === undefined) return <QueryFailure query={query} embedded pending={<TableSkeleton />} />;
+  if (page === undefined) return <QueryFailure query={query} embedded pending={<ContentSkeleton shape="list" rows={3} />} />;
   return page.items.length === 0 ? <EmptyAppointments tab={tab} /> : <AppointmentItems tab={tab} page={page} onCancel={onCancel} onPage={onPage} />;
 }
 

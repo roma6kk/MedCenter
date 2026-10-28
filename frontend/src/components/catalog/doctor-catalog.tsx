@@ -4,7 +4,9 @@ import type { ReactNode } from 'react';
 import Link from 'next/link';
 import { EmptyState } from '@/components/feedback/states';
 import { useDocumentTitle } from '@/hooks/use-document-title';
+import { useStaggerOnce } from '@/hooks/use-stagger-once';
 import { useT } from '@/lib/i18n/use-t';
+import { cn } from '@/lib/ui/cn';
 import { CatalogUnavailable } from './catalog-unavailable';
 import type { CatalogService, Doctor } from './catalog-types';
 import { directoryHref, type Directory, type DirectoryParams } from './doctor-directory';
@@ -21,8 +23,10 @@ interface DoctorCatalogProps {
 }
 
 function DoctorGrid({ doctors }: { readonly doctors: ReadonlyArray<Doctor> }): ReactNode {
+  // The cards enter once, when the catalog opens; a filter or a page just swaps them (the server re-renders this very grid).
+  const enter = useStaggerOnce();
   return (
-    <ul className="mt-4 grid gap-4 md:grid-cols-2" data-testid="doctor-list">
+    <ul className={cn('mt-4 grid gap-4 md:grid-cols-2', enter)} data-testid="doctor-list">
       {doctors.map((doctor) => (
         <li key={doctor.id}><DoctorCard doctor={doctor} tone="interactive" showNearest><DoctorCardActions doctor={doctor} /></DoctorCard></li>
       ))}

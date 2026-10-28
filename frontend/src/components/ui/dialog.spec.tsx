@@ -152,6 +152,15 @@ describe('Dialog', () => {
     expect(screen.getByRole('dialog')).toHaveClass('animate-drawer-in', 'max-w-sm');
   });
 
+  it('should be a panel on the left edge when it is a left drawer, for a burger that sits on the left', () => {
+    render(<Dialog title="T" variant="drawer-left" onClose={jest.fn()}><p>Тело</p></Dialog>);
+
+    const dialog = screen.getByRole('dialog');
+
+    expect(dialog).toHaveClass('animate-drawer-left-in', 'max-w-sm', 'border-r');
+    expect(dialog.parentElement).toHaveClass('justify-start');
+  });
+
   it('should return the focus to the opener when it closes', async () => {
     function Page(): ReactNode {
       const [isOpen, setIsOpen] = useState(false);

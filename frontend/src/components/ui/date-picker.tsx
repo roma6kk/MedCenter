@@ -347,7 +347,7 @@ export const DatePicker = forwardRef<HTMLInputElement, DatePickerProps>(function
         aria-expanded={isOpen}
         aria-controls={isOpen ? popoverId : undefined}
         onClick={() => setIsOpen((open) => !open)}
-        className="absolute right-1 top-1/2 inline-flex size-10 -translate-y-1/2 items-center justify-center rounded-control text-muted-foreground transition-[background-color,color] duration-fast ease-out hover:bg-secondary hover:text-foreground disabled:opacity-60"
+        className="absolute right-0 top-1/2 inline-flex size-11 -translate-y-1/2 items-center justify-center rounded-control text-muted-foreground transition-[background-color,color] duration-fast ease-out hover:bg-secondary hover:text-foreground disabled:opacity-60"
       >
         <CalendarDays aria-hidden="true" className="size-5" />
       </button>

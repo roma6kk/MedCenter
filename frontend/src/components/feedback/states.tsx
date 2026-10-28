@@ -3,6 +3,7 @@
 import type { ReactNode } from 'react';
 import type { LucideIcon } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
+import { LoadingNote } from './loading-note';
 import { useT } from '@/lib/i18n/use-t';
 
 interface StateProps {
@@ -57,7 +58,7 @@ export function EmptyState({ title, description, action, icon: Icon }: EmptyStat
   );
 }
 
-/** Rows of a list or a table while it loads: each row has the rhythm of real content (a short key, a long name, a badge). */
+/** Rows of a table while it loads: each row has the rhythm of real content (a short key, a long name, a badge); the admin tables use it. */
 export function TableSkeleton(): ReactNode {
   const t = useT('common');
   return (
@@ -70,6 +71,7 @@ export function TableSkeleton(): ReactNode {
           <Skeleton className="hidden h-6 w-24 rounded-full sm:block" />
         </div>
       ))}
+      <LoadingNote />
     </div>
   );
 }

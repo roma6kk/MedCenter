@@ -7,8 +7,9 @@ import { ChevronDown } from 'lucide-react';
 import { Pager } from '@/components/data-display/paginated-table';
 import { CodeChip } from '@/components/feedback/code-chip';
 import { SectionTitle } from '@/components/feedback/section-title';
-import { TableSkeleton } from '@/components/feedback/states';
+import { ContentSkeleton } from '@/components/feedback/content-skeleton';
 import { Card } from '@/components/ui/card';
+import { useStaggerOnce } from '@/hooks/use-stagger-once';
 import { useT } from '@/lib/i18n/use-t';
 import { formatClinicDateTime } from '@/lib/clinic-time';
 import { cn } from '@/lib/ui/cn';
@@ -99,16 +100,17 @@ export function PatientHistoryTimeline({ patientId }: { readonly patientId: stri
   const [toggled, setToggled] = useState<Readonly<Record<string, boolean>>>({});
   const history = usePatientHistory(patientId, page);
   const prescriptions = usePatientPrescriptions(patientId, 1);
+  const enter = useStaggerOnce(history.data !== undefined);
   const isOpen = (id: string, index: number): boolean => toggled[id] ?? (page === 1 && index === 0);
   return (
     <section aria-labelledby="history-title">
       <div id="history-title"><SectionTitle>{t('title')}</SectionTitle></div>
       <div className="mt-3" aria-busy={history.isFetching}>
-        {history.data === undefined ? <QueryFailure query={history} embedded notFoundText={t('unavailable')} pending={<TableSkeleton />} /> : null}
+        {history.data === undefined ? <QueryFailure query={history} embedded notFoundText={t('unavailable')} pending={<ContentSkeleton shape="timeline" rows={3} />} /> : null}
         {history.data && history.data.items.length === 0 ? <p className="text-sm text-muted-foreground">{t('empty')}</p> : null}
         {history.data && history.data.items.length > 0 ? (
           <>
-            <ol className="grid gap-3 border-l border-border pl-4">
+            <ol className={cn('grid gap-3 border-l border-border pl-4', enter)}>
               {history.data.items.map((item, index) => (
                 <VisitEntry
                   key={item.id}

@@ -10,7 +10,7 @@ import { ageInYears, formatDateKey } from '@/lib/clinic-time';
 import { ContactList } from './contact-list';
 import type { PatientCard } from './doctor-types';
 import { initialsOf } from './journal-model';
-import { TableSkeleton } from '@/components/feedback/states';
+import { ContentSkeleton } from '@/components/feedback/content-skeleton';
 import { QueryFailure } from '@/components/feedback/query-error-state';
 import { RelatedPersons } from './related-persons';
 import { usePatient } from './use-doctor-queries';
@@ -52,10 +52,10 @@ interface PatientHeaderProps {
 export function PatientHeader({ patientId, onManageConsent }: PatientHeaderProps): ReactNode {
   const t = useT('doctor.patient');
   const patient = usePatient(patientId);
-  if (patient.data === undefined) return <QueryFailure query={patient} notFoundText={t('notFound')} pending={<TableSkeleton />} />;
+  if (patient.data === undefined) return <QueryFailure query={patient} notFoundText={t('notFound')} pending={<ContentSkeleton shape="detail" />} />;
   const name: string = patient.data.fullName || t('unnamed');
   return (
-    <Card as="section" radius="panel" padding="lg" aria-labelledby="patient-title" className="flex flex-col gap-4">
+    <Card as="section" radius="panel" padding="lg" aria-labelledby="patient-title" className="flex animate-fade-in flex-col gap-4">
       <div className="flex items-center gap-4">
         <Avatar initials={initialsOf(name)} className="size-14 text-lg" />
         <div className="min-w-0">

@@ -58,7 +58,7 @@ export function NotificationRow({ item, markingId, onMarkRead }: NotificationRow
             aria-label={isMarking ? t('marking') : t('markRead')}
             aria-describedby={`notification-${item.id}-text`}
             onClick={() => onMarkRead(item.id)}
-            className="inline-flex size-11 items-center justify-center rounded-control text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50"
+            className="inline-flex size-11 items-center justify-center rounded-control text-muted-foreground transition-[background-color,color,transform] duration-fast ease-out hover:bg-secondary hover:text-foreground active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-50"
           >
             <Check aria-hidden="true" className="size-5" strokeWidth={2.2} />
           </button>

@@ -566,6 +566,7 @@
   "common": {
     "appName": "Lifeline",
     "loading": "Loading…",
+    "loadingSlow": "Still loading…",
     "retry": "Retry",
     "save": "Save",
     "cancel": "Cancel",

@@ -4,7 +4,8 @@ import { useState } from 'react';
 import type { ReactNode } from 'react';
 import { CalendarX2 } from 'lucide-react';
 import { QueryFailure } from '@/components/feedback/query-error-state';
-import { EmptyState, TableSkeleton } from '@/components/feedback/states';
+import { EmptyState } from '@/components/feedback/states';
+import { ContentSkeleton } from '@/components/feedback/content-skeleton';
 import { useDocumentTitle } from '@/hooks/use-document-title';
 import { WIDE_QUERY, useMediaQuery } from '@/hooks/use-media-query';
 import { useT } from '@/lib/i18n/use-t';
@@ -72,7 +73,7 @@ export function DoctorScheduleView(): ReactNode {
         <ScheduleWeekControls weekStart={weekStart} anchor={shownDay} today={today} onChange={moveTo} />
       </div>
       <div aria-busy={schedule.isFetching} className="flex flex-col gap-5">
-        {schedule.data === undefined ? <QueryFailure query={schedule} embedded notFoundText={t('loadError')} pending={<TableSkeleton />} /> : null}
+        {schedule.data === undefined ? <QueryFailure query={schedule} embedded notFoundText={t('loadError')} pending={<ContentSkeleton shape="timeline" rows={3} />} /> : null}
         {schedule.data ? <ScheduleBody data={schedule.data} visits={visits.data?.items ?? []} visitsPartial={(visits.data?.meta.totalPages ?? 1) > 1} days={days} today={today} /> : null}
       </div>
     </section>

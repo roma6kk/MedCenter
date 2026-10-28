@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { PaginatedTable, type PageMeta } from './paginated-table';
 
@@ -149,5 +149,56 @@ describe('PaginatedTable long values', () => {
 
     expect(screen.getByRole('columnheader', { name: 'Название' })).toHaveClass('sticky', 'top-0');
     expect(screen.getAllByRole('row')[1]).toHaveClass('hover:bg-primary-soft');
+  });
+});
+
+describe('PaginatedTable on a phone (compact cards)', () => {
+  interface UserRow {
+    readonly id: string;
+    readonly name: string;
+    readonly role: string;
+    readonly email: string;
+  }
+  const USERS: ReadonlyArray<UserRow> = [{ id: 'u1', name: 'Иванова Мария', role: 'Врач', email: 'ivanova@example.test' }];
+  const columns = [
+    { key: 'name', header: 'Пользователь', render: (row: UserRow) => row.name },
+    { key: 'role', header: 'Роль', mobile: 'badge' as const, render: (row: UserRow) => <span data-testid="role-chip">{row.role}</span> },
+    { key: 'email', header: 'Почта', render: (row: UserRow) => row.email },
+    { key: 'internal', header: 'Служебное', mobile: 'hidden' as const, render: () => 'служебное-значение' },
+    { key: 'actions', header: 'Действия', mobile: 'actions' as const, render: () => <button type="button">Действия строки</button> },
+  ];
+
+  function cards(): HTMLElement {
+    render(<PaginatedTable<UserRow> columns={columns} rows={USERS} meta={meta()} onPage={jest.fn()} rowKey={(r) => r.id} />);
+    return screen.getByTestId('table-cards');
+  }
+
+  it('should show the first column as the title and the badge column as a chip when the row is a card', () => {
+    const list = cards();
+
+    expect(within(list).getByText('Иванова Мария')).toHaveClass('font-semibold');
+    expect(within(list).getByTestId('role-chip')).toBeInTheDocument();
+  });
+
+  it('should not print the title, badge and actions columns as «Колонка: значение» lines', () => {
+    const list = cards();
+
+    expect(within(list).queryByText('Пользователь', { exact: false })).not.toBeInTheDocument();
+    expect(within(list).queryByText('Роль', { exact: false })).not.toBeInTheDocument();
+    expect(within(list).queryByText('Действия', { exact: false, selector: 'dt' })).not.toBeInTheDocument();
+  });
+
+  it('should keep the other columns as small labelled details and drop a hidden one', () => {
+    const list = cards();
+
+    expect(within(list).getByText('Почта')).toBeInTheDocument();
+    expect(within(list).getByText('ivanova@example.test')).toBeInTheDocument();
+    expect(within(list).queryByText('служебное-значение')).not.toBeInTheDocument();
+  });
+
+  it('should keep the row actions in the top corner of the card', () => {
+    const list = cards();
+
+    expect(within(list).getByRole('button', { name: 'Действия строки' })).toBeInTheDocument();
   });
 });

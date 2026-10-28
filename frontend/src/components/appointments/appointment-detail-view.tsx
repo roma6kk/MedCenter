@@ -5,7 +5,8 @@ import type { ReactNode } from 'react';
 import Link from 'next/link';
 import { ArrowLeft, CircleX } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { NotFoundState, TableSkeleton } from '@/components/feedback/states';
+import { NotFoundState } from '@/components/feedback/states';
+import { ContentSkeleton } from '@/components/feedback/content-skeleton';
 import { isMissingError, QueryFailure } from '@/components/feedback/query-error-state';
 import { useClinicFormat } from '@/hooks/use-clinic-format';
 import { useDocumentTitle } from '@/hooks/use-document-title';
@@ -29,7 +30,8 @@ interface LoadedProps {
 function LoadedAppointment({ appointment, onCancel }: LoadedProps): ReactNode {
   const t = useT('appointments');
   return (
-    <>
+    // The record fades in where the skeleton stood, instead of replacing it in one frame.
+    <div className="animate-fade-in">
       <AppointmentDetails appointment={appointment} />
       {isCancellable(appointment.status) ? (
         <div className="no-print mt-4">
@@ -40,7 +42,7 @@ function LoadedAppointment({ appointment, onCancel }: LoadedProps): ReactNode {
           </Button>
         </div>
       ) : null}
-    </>
+    </div>
   );
 }
 
@@ -58,7 +60,7 @@ interface BodyProps {
 function DetailBody({ query, onCancel }: BodyProps): ReactNode {
   const t = useT('appointments');
   if (query.data !== undefined) return <LoadedAppointment appointment={query.data} onCancel={onCancel} />;
-  return <QueryFailure query={query} notFoundText={t('notFoundTitle')} badRequestIsNotFound pending={<TableSkeleton />} />;
+  return <QueryFailure query={query} notFoundText={t('notFoundTitle')} badRequestIsNotFound pending={<ContentSkeleton shape="detail" />} />;
 }
 
 /** One appointment with its cancel action (FR-005, FR-006); a foreign or unknown id looks exactly like a missing one (BR-006). */

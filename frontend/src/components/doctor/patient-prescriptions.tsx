@@ -6,9 +6,11 @@ import Link from 'next/link';
 import { Pager } from '@/components/data-display/paginated-table';
 import { CodeChip } from '@/components/feedback/code-chip';
 import { SectionTitle } from '@/components/feedback/section-title';
-import { TableSkeleton } from '@/components/feedback/states';
+import { ContentSkeleton } from '@/components/feedback/content-skeleton';
+import { useStaggerOnce } from '@/hooks/use-stagger-once';
 import { useT } from '@/lib/i18n/use-t';
 import { formatClinicDate } from '@/lib/clinic-time';
+import { cn } from '@/lib/ui/cn';
 import type { Prescription } from './doctor-types';
 import { ATC_SYSTEM } from './encounter-problem-fields';
 import { QueryFailure } from '@/components/feedback/query-error-state';
@@ -66,16 +68,17 @@ export function PatientPrescriptions({ patientId }: { readonly patientId: string
   const t = useT('doctor.prescriptions');
   const [page, setPage] = useState(1);
   const prescriptions = usePatientPrescriptions(patientId, page);
+  const enter = useStaggerOnce(prescriptions.data !== undefined);
   // A patient who has never been prescribed anything gets no section: the summary beside it already says so in one line (A2).
   if (page === 1 && prescriptions.data?.items.length === 0) return null;
   return (
     <section aria-labelledby="prescriptions-title">
       <div id="prescriptions-title"><SectionTitle>{t('title')}</SectionTitle></div>
       <div className="mt-3" aria-busy={prescriptions.isFetching}>
-        {prescriptions.data === undefined ? <QueryFailure query={prescriptions} embedded notFoundText={t('unavailable')} pending={<TableSkeleton />} /> : null}
+        {prescriptions.data === undefined ? <QueryFailure query={prescriptions} embedded notFoundText={t('unavailable')} pending={<ContentSkeleton shape="cards" rows={2} />} /> : null}
         {prescriptions.data && prescriptions.data.items.length > 0 ? (
           <>
-            <ul className="grid gap-3 sm:grid-cols-2">{prescriptions.data.items.map((item) => <PrescriptionCard key={item.id} item={item} />)}</ul>
+            <ul className={cn('grid gap-3 sm:grid-cols-2', enter)}>{prescriptions.data.items.map((item) => <PrescriptionCard key={item.id} item={item} />)}</ul>
             {prescriptions.data.meta.totalPages > 1 ? <Pager meta={prescriptions.data.meta} onPage={setPage} /> : null}
           </>
         ) : null}

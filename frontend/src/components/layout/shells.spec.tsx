@@ -71,6 +71,32 @@ describe('PatientShell', () => {
     expect(await screen.findByRole('button', { name: /Уведомления, непрочитанных/ })).toHaveAttribute('aria-current', 'page');
   });
 
+  it('should open the sections, the language, the theme and the sign-out in a left drawer from the burger on a phone', async () => {
+    render(<PatientShell><p>x</p></PatientShell>, { wrapper: Wrapper });
+
+    const burger = screen.getByRole('button', { name: 'Открыть меню' });
+    expect(burger).toHaveAttribute('aria-expanded', 'false');
+    await userEvent.click(burger);
+    const drawer = within(screen.getByRole('dialog', { name: 'Лайфлайн' }));
+
+    expect(screen.getByRole('dialog', { name: 'Лайфлайн' })).toHaveClass('animate-drawer-left-in');
+    expect(drawer.getAllByRole('link').map((link) => link.getAttribute('href'))).toEqual(['/home', '/appointments', '/medcard']);
+    expect(drawer.getByRole('button', { name: 'Выйти' })).toBeInTheDocument();
+    expect(drawer.getByRole('button', { name: 'ru' })).toBeInTheDocument();
+  });
+
+  it('should close the drawer when a section is chosen', async () => {
+    render(<PatientShell><p>x</p></PatientShell>, { wrapper: Wrapper });
+    await userEvent.click(screen.getByRole('button', { name: 'Открыть меню' }));
+    const stopNavigation = (event: Event): void => event.preventDefault();
+    document.addEventListener('click', stopNavigation);
+
+    await userEvent.click(within(screen.getByRole('dialog')).getByRole('link', { name: 'Медкарта' }));
+    document.removeEventListener('click', stopNavigation);
+
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+
   it('should keep every navigation link at least 44 px tall when the shell is shown', () => {
     render(<PatientShell><p>x</p></PatientShell>, { wrapper: Wrapper });
 

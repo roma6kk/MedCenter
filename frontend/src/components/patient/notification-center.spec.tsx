@@ -147,7 +147,7 @@ describe('NotificationCenter', () => {
 
     renderWithClient(<NotificationCenter />);
 
-    expect(screen.getByTestId('table-skeleton')).toBeInTheDocument();
+    expect(screen.getByTestId('content-skeleton-tiles')).toBeInTheDocument();
   });
 
   it('should show a banner with the request id and retry when the service fails', async () => {

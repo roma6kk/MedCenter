@@ -2,7 +2,7 @@
 
 import type { ReactNode } from 'react';
 import { QueryFailure } from '@/components/feedback/query-error-state';
-import { TableSkeleton } from '@/components/feedback/states';
+import { ContentSkeleton } from '@/components/feedback/content-skeleton';
 import { Card } from '@/components/ui/card';
 import { useT } from '@/lib/i18n/use-t';
 import { ConsentRecordForm } from './consent-record-form';
@@ -23,7 +23,7 @@ interface StaffConsentProps {
  */
 export function StaffConsentBody({ patientId, role }: StaffConsentProps): ReactNode {
   const consent = usePatientConsent(patientId);
-  if (consent.data === undefined) return <QueryFailure query={consent} embedded pending={<TableSkeleton />} />;
+  if (consent.data === undefined) return <QueryFailure query={consent} embedded pending={<ContentSkeleton shape="detail" />} />;
   return (
     <>
       <ConsentStatusView consent={consent.data} scanOfPatient={patientId} />

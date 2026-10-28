@@ -10,6 +10,7 @@ import { Card } from '@/components/ui/card';
 import { buttonVariants } from '@/components/ui/button-variants';
 import { formatClinicTime } from '@/lib/clinic-time';
 import { useT } from '@/lib/i18n/use-t';
+import { useStaggerOnce } from '@/hooks/use-stagger-once';
 import { cn } from '@/lib/ui/cn';
 import type { DoctorJournalPage, JournalAppointment } from './doctor-types';
 import { buildTimeline, canOpenPatientCard, countByStatus, findNextVisit, initialsOf, visitMinutes, withNowLine, type GapEntry, type NowEntry, type StatusCounts, type TimelineEntry } from './journal-model';
@@ -272,6 +273,7 @@ function useTimeline(rows: ReadonlyArray<JournalAppointment>, isToday: boolean):
 export function JournalDayView({ data, rows, onPage, emptyFilteredText, empty, isToday }: JournalDayViewProps): ReactNode {
   const t = useT('doctor.journal');
   const timeline: ReadonlyArray<TimelineEntry> = useTimeline(rows, isToday);
+  const enter = useStaggerOnce();
   const next: JournalAppointment | undefined = findNextVisit(data.items);
   const last: JournalAppointment | undefined = rows.at(-1);
   const first: JournalAppointment | undefined = rows[0];
@@ -288,7 +290,7 @@ export function JournalDayView({ data, rows, onPage, emptyFilteredText, empty, i
         {data.items.length === 0 ? empty : null}
         {data.items.length > 0 && rows.length === 0 ? <EmptyState title={emptyFilteredText} /> : null}
         {timeline.length > 0 ? (
-          <ol className="flex flex-col">
+          <ol className={cn('flex flex-col', enter)}>
             {timeline.map((entry, index) =>
               entry.kind === 'now' ? <NowRow key="now" entry={entry} /> : <TimelineRow key={entry.kind === 'visit' ? entry.visit.id : `gap-${entry.start}`} entry={entry} isFirst={index === 0} />,
             )}

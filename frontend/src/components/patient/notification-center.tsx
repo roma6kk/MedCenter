@@ -5,12 +5,14 @@ import type { ReactNode, RefObject } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { BellRing, CheckCheck } from 'lucide-react';
 import { Pager } from '@/components/data-display/paginated-table';
-import { EmptyState, TableSkeleton } from '@/components/feedback/states';
+import { EmptyState } from '@/components/feedback/states';
+import { ContentSkeleton } from '@/components/feedback/content-skeleton';
 import { buttonVariants } from '@/components/ui/button-variants';
 import { isApiError } from '@/lib/api/api-fetch';
 import { invalidateFor } from '@/lib/api/invalidation';
 import type { PaginatedResponse } from '@/lib/api/pagination';
 import { useT } from '@/lib/i18n/use-t';
+import { cn } from '@/lib/ui/cn';
 import { showToast } from '@/lib/ui/toast';
 import { markAllNotificationsRead, type NotificationItem } from '@/lib/notifications/notification-api';
 import { useMarkNotificationRead, useNotifications, useUnreadCount } from '@/lib/notifications/use-notifications';
@@ -22,6 +24,7 @@ import { SegmentedTabs, tabPanelProps, type TabOption } from './segmented-tabs';
 import { useClampedPage } from './use-clamped-page';
 import { useClinicFormat } from '@/hooks/use-clinic-format';
 import { useDocumentTitle } from '@/hooks/use-document-title';
+import { useStaggerOnce } from '@/hooks/use-stagger-once';
 import { useRestoreFocus } from './use-restore-focus';
 import { NotificationRow } from './notifications/notification-row';
 import { groupByClinicDay, matchesFilter, NOTIFICATION_FILTERS, type NotificationFilter } from './notifications/notification-logic';
@@ -42,13 +45,14 @@ interface ListProps {
 function NotificationItems({ items, meta, markingId, listRef, onMarkRead, onPage }: ListProps): ReactNode {
   const t = useT('patient.notifications');
   const format = useClinicFormat();
+  const enter = useStaggerOnce();
   return (
     <>
       <div ref={listRef} tabIndex={-1} role="group" aria-label={t('listLabel')} className="flex flex-col gap-6 focus:outline-none">
         {groupByClinicDay(items).map((day) => (
           <section key={day.dayKey} className="flex flex-col gap-2.5">
             <h2 id={`notifications-day-${day.dayKey}`} className="text-base font-semibold text-muted-foreground">{formatDayHeading(day.dayKey, format.locale)}</h2>
-            <ul aria-labelledby={`notifications-day-${day.dayKey}`} className="overflow-hidden rounded-panel border border-border bg-card">
+            <ul aria-labelledby={`notifications-day-${day.dayKey}`} className={cn('overflow-hidden rounded-panel border border-border bg-card', enter)}>
               {day.items.map((item) => <NotificationRow key={item.id} item={item} markingId={markingId} onMarkRead={onMarkRead} />)}
             </ul>
           </section>
@@ -171,7 +175,7 @@ function PanelBody({ state }: { readonly state: CenterState }): ReactNode {
   return (
     <>
       {isApiError(failure) ? <div className="mb-3"><ProblemBanner problem={failure.problem} /></div> : null}
-      {query.data === undefined ? <QueryFailure query={query} embedded pending={<TableSkeleton />} /> : null}
+      {query.data === undefined ? <QueryFailure query={query} embedded pending={<ContentSkeleton shape="tiles" rows={3} />} /> : null}
       {query.data && visible.length > 0 ? (
         <NotificationItems items={visible} meta={query.data.meta} markingId={state.markingId} listRef={state.listRef} onMarkRead={state.markRead} onPage={state.setPage} />
       ) : null}

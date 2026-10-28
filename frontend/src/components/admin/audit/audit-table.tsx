@@ -72,7 +72,7 @@ function useAuditColumns(): ReadonlyArray<TableColumn<AuditEvent>> {
   return [
     { key: 'occurredAt', header: t('columns.occurredAt'), render: (row) => <time dateTime={row.occurredAt} className="whitespace-nowrap">{formatClinicDateTime(row.occurredAt, locale)}</time> },
     { key: 'userId', header: t('columns.userId'), render: (row) => <WhoCell userId={row.userId} name={names.get(row.userId)} />, truncate: 'max-w-[16rem]', titleOf: (row) => [names.get(row.userId), row.userId].filter(Boolean).join(' · ') },
-    { key: 'action', header: t('columns.action'), render: (row) => <ActionCell event={row} /> },
+    { key: 'action', header: t('columns.action'), mobile: 'title', render: (row) => <ActionCell event={row} /> },
     { key: 'resource', header: t('columns.resource'), render: (row) => <span className="mono text-xs">{resourceOf(row)}</span>, truncate: 'max-w-[18rem]', titleOf: resourceOf },
     { key: 'requestId', header: t('columns.requestId'), render: (row) => <CopyRequestId requestId={row.requestId} /> },
   ];

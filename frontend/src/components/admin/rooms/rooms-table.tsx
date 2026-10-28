@@ -35,12 +35,12 @@ function RoomActions({ room, onUsage, onEdit, onDelete }: RoomActionHandlers & {
 function useRoomColumns(actions: RoomActionHandlers): ReadonlyArray<TableColumn<AdminRoom>> {
   const t = useT('admin.rooms');
   return [
-    { key: 'identifier', header: t('columns.identifier'), render: (row) => <CodeChip code={row.identifier} /> },
-    { key: 'name', header: t('columns.name'), render: (row) => row.name },
+    { key: 'identifier', header: t('columns.identifier'), mobile: 'badge', render: (row) => <CodeChip code={row.identifier} /> },
+    { key: 'name', header: t('columns.name'), mobile: 'title', render: (row) => row.name },
     { key: 'floor', header: t('columns.floor'), render: (row) => row.floor ?? '—' },
     { key: 'description', header: t('columns.description'), render: (row) => row.description ?? '—' },
-    { key: 'status', header: t('columns.status'), render: (row) => row.isActive ? <StampBadge status="active">{t('active')}</StampBadge> : <StampBadge status="cancelled" tone="neutral" icon={Ban}>{t('inactive')}</StampBadge> },
-    { key: 'actions', header: t('columns.actions'), render: (row) => <RoomActions room={row} {...actions} /> },
+    { key: 'status', header: t('columns.status'), mobile: 'badge', render: (row) => row.isActive ? <StampBadge status="active">{t('active')}</StampBadge> : <StampBadge status="cancelled" tone="neutral" icon={Ban}>{t('inactive')}</StampBadge> },
+    { key: 'actions', header: t('columns.actions'), mobile: 'actions', render: (row) => <RoomActions room={row} {...actions} /> },
   ];
 }
 
