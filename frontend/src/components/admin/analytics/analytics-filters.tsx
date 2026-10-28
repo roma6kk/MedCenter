@@ -1,69 +1,72 @@
 'use client';
 
 import { useState } from 'react';
-import type { FormEvent, ReactNode } from 'react';
-import { useT } from '@/lib/i18n/use-t';
+import type { ReactNode } from 'react';
 import { DatePicker } from '@/components/ui/date-picker';
+import { SegmentedControl } from '@/components/ui/segmented-control';
 import { Select } from '@/components/ui/select';
-import { PRIMARY_BUTTON_CLASS } from '../shared/admin-styles';
-import { focusField } from '../shared/focus-field';
+import { useT } from '@/lib/i18n/use-t';
 import { controlProps, Field } from '../shared/form-field';
-import { validateReportRange, type ReportRange, type ReportRangeError } from '../shared/report-range';
+import { validateReportRange, type ReportRange } from '../shared/report-range';
+import { PERIOD_PRESETS, type PeriodPreset } from './analytics-period';
 import { TOP_OPTIONS } from './analytics-types';
 
 interface AnalyticsFiltersProps {
+  readonly preset: PeriodPreset;
   readonly range: ReportRange;
   readonly top: number;
-  readonly onApply: (range: ReportRange, top: number) => void;
-}
-
-interface FilterDraft {
-  readonly draft: ReportRange;
-  readonly setDraft: (range: ReportRange) => void;
-  readonly draftTop: number;
-  readonly setDraftTop: (top: number) => void;
-  readonly rangeError: ReportRangeError | null;
-  readonly handleSubmit: (event: FormEvent) => void;
-}
-
-function useFilterDraft(range: ReportRange, top: number, onApply: (range: ReportRange, top: number) => void): FilterDraft {
-  const [draft, setDraft] = useState<ReportRange>(range);
-  const [draftTop, setDraftTop] = useState<number>(top);
-  const [rangeError, setRangeError] = useState<ReportRangeError | null>(null);
-  const handleSubmit = (event: FormEvent): void => {
-    event.preventDefault();
-    const error = validateReportRange(draft);
-    setRangeError(error);
-    if (error === null) onApply(draft, draftTop);
-    else focusField('analytics-from');
-  };
-  return { draft, setDraft, draftTop, setDraftTop, rangeError, handleSubmit };
+  readonly onPreset: (preset: PeriodPreset) => void;
+  readonly onRange: (range: ReportRange) => void;
+  readonly onTop: (top: number) => void;
 }
 
 /**
- * Period (≤ 366 days) and the length of the «top services» list. The reports are requested on submit only, so a half-typed
- * date never reaches the API (it would answer 400).
+ * The two dates of a custom period. They are kept as typed and only a valid, ordered period of at most 366 days is passed
+ * on, so a half-typed date never reaches the API (it would answer 400) and no «Показать» button is needed.
  */
-export function AnalyticsFilters({ range, top, onApply }: AnalyticsFiltersProps): ReactNode {
+function CustomRange({ initial, onRange }: { readonly initial: ReportRange; readonly onRange: (range: ReportRange) => void }): ReactNode {
   const t = useT('admin.analytics');
-  const { draft, setDraft, draftTop, setDraftTop, rangeError, handleSubmit } = useFilterDraft(range, top, onApply);
-  const error: string | undefined = rangeError === null ? undefined : t(`errors.${rangeError}`);
+  const [draft, setDraft] = useState<ReportRange>(initial);
+  const reason = validateReportRange(draft);
+  const error: string | undefined = reason === null ? undefined : t(`errors.${reason}`);
+  const change = (next: ReportRange): void => {
+    setDraft(next);
+    if (validateReportRange(next) === null) onRange(next);
+  };
   return (
-    <form role="search" aria-label={t('filters.label')} onSubmit={handleSubmit} noValidate className="no-print mb-6 flex flex-wrap items-end gap-3 rounded-card border border-[var(--border)] bg-[var(--card)] p-4">
+    <>
       <Field id="analytics-from" label={t('filters.from')} error={error}>
-        <DatePicker {...controlProps('analytics-from', error)} value={draft.from} onChange={(from) => setDraft({ ...draft, from })} wrapperClassName="w-44" />
+        <DatePicker {...controlProps('analytics-from', error)} value={draft.from} onChange={(from) => change({ ...draft, from })} wrapperClassName="w-44" />
       </Field>
       <Field id="analytics-to" label={t('filters.to')}>
-        <DatePicker id="analytics-to" value={draft.to} aria-invalid={error ? true : undefined} aria-describedby={error ? 'analytics-from-error' : undefined} onChange={(to) => setDraft({ ...draft, to })} wrapperClassName="w-44" />
+        <DatePicker id="analytics-to" value={draft.to} aria-invalid={error ? true : undefined} aria-describedby={error ? 'analytics-from-error' : undefined} onChange={(to) => change({ ...draft, to })} wrapperClassName="w-44" />
       </Field>
-      <Field id="analytics-top" label={t('filters.top')}>
-        <Select id="analytics-top" value={draftTop} onChange={(event) => setDraftTop(Number(event.target.value))} wrapperClassName="w-24">
+    </>
+  );
+}
+
+/** Quick periods as one segmented control, a custom period behind «Свой период», and the length of the «top services» list. Every change applies at once. */
+export function AnalyticsFilters({ preset, range, top, onPreset, onRange, onTop }: AnalyticsFiltersProps): ReactNode {
+  const t = useT('admin.analytics');
+  return (
+    <div role="group" aria-label={t('filters.label')} className="no-print mb-6 flex flex-wrap items-end gap-x-4 gap-y-3">
+      <SegmentedControl<PeriodPreset>
+        kind="toggle"
+        label={t('filters.period')}
+        className="self-end"
+        value={preset}
+        onChange={onPreset}
+        options={PERIOD_PRESETS.map((value) => ({ value, label: t(`filters.presets.${value}`) }))}
+      />
+      {preset === 'custom' ? <CustomRange initial={range} onRange={onRange} /> : null}
+      <div className="grid gap-1.5 sm:ml-auto">
+        <label htmlFor="analytics-top" className="form-label">{t('filters.top')}</label>
+        <Select id="analytics-top" value={top} onChange={(event) => onTop(Number(event.target.value))} wrapperClassName="w-24">
           {TOP_OPTIONS.map((option) => (
             <option key={option} value={option}>{option}</option>
           ))}
         </Select>
-      </Field>
-      <button type="submit" className={PRIMARY_BUTTON_CLASS}>{t('filters.apply')}</button>
-    </form>
+      </div>
+    </div>
   );
 }

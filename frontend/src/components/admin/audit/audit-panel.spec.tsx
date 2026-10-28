@@ -127,7 +127,7 @@ describe('AuditPanel', () => {
     expect((await table.findAllByText('—')).length).toBeGreaterThan(0);
   });
 
-  it('should send the period, entity and user filters and go back to page 1 when they are applied', async () => {
+  it('should send the period, entity and user filters and go back to page 1 once the typing pauses, without an apply button', async () => {
     renderWithClient(<AuditPanel />);
     await screen.findByText('Найдено событий: 41');
 
@@ -135,11 +135,11 @@ describe('AuditPanel', () => {
     fireEvent.change(screen.getByLabelText('По'), { target: { value: '2026-10-16' } });
     await userEvent.type(screen.getByLabelText('Ресурс'), 'Appointment/123');
     await userEvent.type(screen.getByLabelText('Пользователь'), 'PractitionerRole/abc');
-    await userEvent.click(screen.getByRole('button', { name: 'Применить' }));
 
     await waitFor(() =>
       expect(auditPaths()).toContain('/api/v1/admin/audit?from=2026-10-01&to=2026-10-16&entity=Appointment%2F123&userId=PractitionerRole%2Fabc&page=1&pageSize=20'),
     );
+    expect(screen.queryByRole('button', { name: 'Применить' })).not.toBeInTheDocument();
   });
 
   it('should keep the filters and ask for the next page when the pager moves', async () => {
@@ -151,35 +151,43 @@ describe('AuditPanel', () => {
     await waitFor(() => expect(auditPaths().some((path) => path.includes('page=2&pageSize=20'))).toBe(true));
   });
 
-  it('should refuse a malformed resource and send nothing when the filter is applied', async () => {
+  it('should refuse a malformed resource once typing pauses, send nothing and keep the focus in the field', async () => {
     renderWithClient(<AuditPanel />);
     await screen.findByText('Найдено событий: 41');
     const calls = apiFetchMock.mock.calls.length;
 
     await userEvent.type(screen.getByLabelText('Ресурс'), 'appointment');
-    await userEvent.click(screen.getByRole('button', { name: 'Применить' }));
 
     expect(await screen.findByText('Укажите тип ресурса с заглавной буквы или Тип/id')).toBeInTheDocument();
     expect(screen.getByLabelText('Ресурс')).toHaveFocus();
     expect(apiFetchMock.mock.calls).toHaveLength(calls);
   });
 
-  it('should refuse a period over 366 days when the filter is applied', async () => {
+  it('should not call a resource that is still being typed a mistake before the typing pauses', async () => {
     renderWithClient(<AuditPanel />);
     await screen.findByText('Найдено событий: 41');
 
+    await userEvent.type(screen.getByLabelText('Ресурс'), 'A');
+
+    expect(screen.queryByText('Укажите тип ресурса с заглавной буквы или Тип/id')).not.toBeInTheDocument();
+  });
+
+  it('should refuse a period over 366 days and send nothing when the start date is changed', async () => {
+    renderWithClient(<AuditPanel />);
+    await screen.findByText('Найдено событий: 41');
+    const calls = apiFetchMock.mock.calls.length;
+
     fireEvent.change(screen.getByLabelText('С'), { target: { value: '2024-01-01' } });
-    await userEvent.click(screen.getByRole('button', { name: 'Применить' }));
 
     expect(await screen.findByText('Период не может превышать 366 дней')).toBeInTheDocument();
-    expect(screen.getByLabelText('С')).toHaveFocus();
+    expect(apiFetchMock.mock.calls).toHaveLength(calls);
   });
 
   it('should restore the default period and clear the text filters when «Сбросить» is pressed', async () => {
     renderWithClient(<AuditPanel />);
     await screen.findByText('Найдено событий: 41');
     await userEvent.type(screen.getByLabelText('Ресурс'), 'Patient');
-    await userEvent.click(screen.getByRole('button', { name: 'Применить' }));
+    await waitFor(() => expect(auditPaths().at(-1)).toContain('entity=Patient'));
 
     await userEvent.click(screen.getByRole('button', { name: 'Сбросить' }));
 

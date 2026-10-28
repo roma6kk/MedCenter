@@ -2,7 +2,6 @@
   "admin": {
     "common": {
       "empty": "Nothing found",
-      "find": "Search",
       "search": "Search form",
       "saving": "Saving…",
       "requiredNote": "Fields marked with an asterisk (*) are required.",
@@ -74,8 +73,7 @@
         "label": "User filters",
         "search": "Search",
         "role": "Role",
-        "anyRole": "Any role",
-        "apply": "Apply"
+        "anyRole": "All"
       },
       "roleNames": {
         "PATIENT": "Patient",
@@ -382,10 +380,24 @@
       },
       "filters": {
         "label": "Period and top size",
+        "period": "Period",
+        "presets": {
+          "today": "Today",
+          "week": "Week",
+          "month": "Month",
+          "year": "Year",
+          "custom": "Custom"
+        },
         "from": "From",
         "to": "To",
-        "top": "Top services",
-        "apply": "Show"
+        "top": "Top services"
+      },
+      "heading": {
+        "today": "Analytics for today",
+        "week": "Analytics for this week",
+        "month": "Analytics for {month}",
+        "year": "Analytics for {year}",
+        "custom": "Analytics for {from} – {to}"
       },
       "appointments": {
         "title": "Appointments",
@@ -394,7 +406,37 @@
         "fulfilled": "Attended",
         "cancelled": "Cancelled",
         "noshow": "No-shows",
-        "barLabel": "Booked {booked}, attended {fulfilled}, cancelled {cancelled}, no-shows {noshow}"
+        "legend": "Appointment statuses"
+      },
+      "kpi": {
+        "period": "in the chosen period",
+        "share": "{percent}% of all appointments",
+        "flat": "no change",
+        "direction": {
+          "up": "Increase:",
+          "down": "Decrease:"
+        },
+        "vs": {
+          "today": "vs yesterday",
+          "week": "vs last week",
+          "month": "vs last month",
+          "year": "vs last year",
+          "custom": "vs the previous period"
+        }
+      },
+      "chart": {
+        "title": "Appointments over time",
+        "label": "Appointments over time, {total} in total. Left and right arrows switch the columns.",
+        "hint": "Left and right arrows switch the columns.",
+        "view": "View",
+        "viewChart": "Chart",
+        "viewTable": "Table",
+        "tableCaption": "Appointments over time by status",
+        "period": "Period",
+        "empty": "No appointments in this period",
+        "loading": "Loading the trend…",
+        "error": "Could not load the appointments trend.",
+        "retry": "Retry"
       },
       "encounters": {
         "title": "Completed encounters by specialty",
@@ -413,14 +455,6 @@
         "unknownNote": "These services were removed from the catalogue, so the appointments kept only an identifier. The identifiers are below."
       },
       "print": "Print",
-      "headline": {
-        "cancelledMajority": "More than half of the appointments are cancelled before the visit",
-        "cancelledTop": "Cancelled appointments outnumber booked ones and no-shows",
-        "noshowTop": "No-shows outnumber cancellations and booked appointments",
-        "fulfilledTop": "Attended visits outnumber cancellations, no-shows and booked appointments",
-        "bookedTop": "Booked appointments outnumber cancellations and no-shows",
-        "balanced": "The appointment outcomes are evenly split"
-      },
       "insights": {
         "label": "Key findings",
         "cancelled": {
@@ -441,21 +475,6 @@
           "text": "{count} of {total} completed.",
           "single": "There are no other specialties among the completed encounters.",
           "link": "Check the doctors’ schedules"
-        }
-      },
-      "check": {
-        "title": "What to check",
-        "audit": {
-          "text": "See the reasons for cancellations in the",
-          "link": "audit log"
-        },
-        "schedules": {
-          "text": "Check free slots and doctor load in the",
-          "link": "schedules"
-        },
-        "services": {
-          "text": "Services missing from the catalogue ({count}) — see the",
-          "link": "service catalogue"
         }
       },
       "table": {
@@ -479,7 +498,6 @@
         "entity": "Resource",
         "entityHint": "Resource type or Type/id, for example Appointment or Appointment/123",
         "userId": "User",
-        "apply": "Apply",
         "reset": "Reset"
       },
       "errors": {

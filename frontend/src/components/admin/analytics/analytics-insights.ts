@@ -1,20 +1,6 @@
 import { sharePercent, splitGroups, statusCounts } from './analytics-math';
 import type { AppointmentsReport, MeasureReport } from './analytics-types';
 
-/** Which sentence states the main finding of the appointments report (the page `h1`). `none`: no appointments, no finding. */
-export type HeadlineKey = 'cancelledMajority' | 'cancelledTop' | 'noshowTop' | 'bookedTop' | 'fulfilledTop' | 'balanced' | 'none';
-
-export function headlineOf(report: AppointmentsReport): HeadlineKey {
-  const { booked, fulfilled, cancelled, noshow } = statusCounts(report);
-  const top = Math.max(booked, fulfilled, cancelled, noshow);
-  if (report.total <= 0 || top <= 0) return 'none';
-  const leaders = [booked, fulfilled, cancelled, noshow].filter((count) => count === top).length;
-  if (leaders > 1) return 'balanced';
-  if (cancelled === top) return cancelled * 2 > report.total ? 'cancelledMajority' : 'cancelledTop';
-  if (noshow === top) return 'noshowTop';
-  return fulfilled === top ? 'fulfilledTop' : 'bookedTop';
-}
-
 /** How the cancellations compare with the other two statuses. */
 export type CancellationComparison = 'overOthers' | 'overEach' | 'other';
 

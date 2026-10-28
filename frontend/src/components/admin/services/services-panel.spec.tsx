@@ -33,13 +33,26 @@ describe('ServicesPanel', () => {
     expect(apiFetchMock).toHaveBeenCalledWith('/api/v1/services?page=1&pageSize=10');
   });
 
-  it('should request the search text and the first page when the search is submitted', async () => {
+  it('should request the search text and the first page once typing pauses, in one request and without a search button', async () => {
+    renderWithClient(<ServicesPanel />);
+    await screen.findAllByText('Приём терапевта');
+    const before = apiFetchMock.mock.calls.length;
+
+    await userEvent.type(screen.getByLabelText('Поиск по названию'), 'экг');
+
+    expect(apiFetchMock).toHaveBeenCalledTimes(before);
+    await waitFor(() => expect(apiFetchMock).toHaveBeenCalledWith('/api/v1/services?page=1&pageSize=10&search=%D1%8D%D0%BA%D0%B3'));
+    expect(apiFetchMock).toHaveBeenCalledTimes(before + 1);
+    expect(screen.queryByRole('button', { name: 'Найти' })).not.toBeInTheDocument();
+  });
+
+  it('should request the search text at once when Enter is pressed', async () => {
     renderWithClient(<ServicesPanel />);
     await screen.findAllByText('Приём терапевта');
 
     await userEvent.type(screen.getByLabelText('Поиск по названию'), 'экг{Enter}');
 
-    await waitFor(() => expect(apiFetchMock).toHaveBeenCalledWith('/api/v1/services?page=1&pageSize=10&search=%D1%8D%D0%BA%D0%B3'));
+    expect(apiFetchMock).toHaveBeenCalledWith('/api/v1/services?page=1&pageSize=10&search=%D1%8D%D0%BA%D0%B3');
   });
 
   it('should explain SERVICE_IN_USE in the delete dialog when schedules still use the service', async () => {

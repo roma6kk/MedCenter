@@ -75,15 +75,42 @@ describe('AdminUsersPage', () => {
     expect((await screen.findAllByText('Пользователь 2')).length).toBeGreaterThan(0);
   });
 
-  it('should send the role filter and return to the first page when the filter is applied', async () => {
+  it('should send the role filter and return to the first page as soon as a role chip is pressed, without an apply button', async () => {
     renderPage();
     await screen.findAllByText('Пользователь 1');
 
-    await userEvent.selectOptions(screen.getByLabelText('Роль'), 'PATIENT');
-    await userEvent.click(screen.getByRole('button', { name: 'Применить' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Пациент' }));
 
     await waitFor(() => expect(requestedPaths()).toContain('/api/v1/admin/users?page=1&pageSize=10&role=PATIENT'));
     expect((await screen.findAllByText('Пациент 3')).length).toBeGreaterThan(0);
+    expect(screen.getByRole('button', { name: 'Пациент' })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.queryByRole('button', { name: 'Применить' })).not.toBeInTheDocument();
+  });
+
+  it('should drop the role filter when the chip «Все» is pressed', async () => {
+    renderPage();
+    await screen.findAllByText('Пользователь 1');
+    await userEvent.click(screen.getByRole('button', { name: 'Пациент' }));
+    await screen.findAllByText('Пациент 3');
+
+    await userEvent.click(screen.getByRole('button', { name: 'Все' }));
+
+    expect((await screen.findAllByText('Пользователь 1')).length).toBeGreaterThan(0);
+    expect(requestedPaths().at(-1)).toBe('/api/v1/admin/users?page=1&pageSize=10');
+  });
+
+  it('should search once typing pauses and keep the chosen role, without a request per letter', async () => {
+    renderPage();
+    await screen.findAllByText('Пользователь 1');
+    await userEvent.click(screen.getByRole('button', { name: 'Пациент' }));
+    await screen.findAllByText('Пациент 3');
+    const before = requestedPaths().length;
+
+    await userEvent.type(screen.getByLabelText('Поиск'), 'иван');
+
+    expect(requestedPaths()).toHaveLength(before);
+    await waitFor(() => expect(requestedPaths()).toContain(`/api/v1/admin/users?page=1&pageSize=10&role=PATIENT&search=${encodeURIComponent('иван')}`));
+    expect(requestedPaths()).toHaveLength(before + 1);
   });
 
   it('should render the empty state when the page has no users', async () => {
