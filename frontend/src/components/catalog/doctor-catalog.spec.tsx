@@ -62,6 +62,13 @@ describe('DoctorCatalog', () => {
     expect(screen.getByText('Измените фильтры поиска.')).toBeInTheDocument();
   });
 
+  it('should say the catalogue is empty and not ask to change the filters when no filter is set and there are no doctors at all', () => {
+    render(<DoctorCatalog params={{ page: 1 }} services={SERVICES} directory={directoryOf([])} />);
+
+    expect(screen.getByText('Каталог врачей пока пуст')).toBeInTheDocument();
+    expect(screen.queryByText('Измените фильтры поиска.')).not.toBeInTheDocument();
+  });
+
   it('should show the real cause banner with a retry link when the doctors could not be loaded', () => {
     render(<DoctorCatalog params={{ page: 1, search: 'Ив' }} services={SERVICES} directory={null} />);
 

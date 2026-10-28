@@ -2,14 +2,12 @@
 
 import { useState } from 'react';
 import { flushSync } from 'react-dom';
-import { useRouter } from 'next/navigation';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import type { Slot } from '@/components/catalog/catalog-types';
 import { isApiError } from '@/lib/api/api-fetch';
 import { invalidateFor } from '@/lib/api/invalidation';
 import type { ProblemDetails } from '@/lib/api/problem';
 import { networkProblem } from '@/lib/api/problem-parse';
-import { showToast } from '@/lib/ui/toast';
 import { useBookingDraftStore, type BookingDraft } from '@/store/use-booking-draft-store';
 import {
   bookAppointment,
@@ -35,10 +33,19 @@ interface Outcome {
 
 const NO_OUTCOME: Outcome = { notice: null, takenSlot: null, problem: null, reasonError: null };
 
+/**
+ * The booking the server created, with what the draft held when it was sent: the draft is cleared on success, and the
+ * success screen still names the doctor and the service from the catalogue entries the wizard has cached.
+ */
+export interface BookedVisit extends AppointmentCreated {
+  readonly doctorId: string | null;
+  readonly serviceId: string | null;
+}
+
 export interface BookingSubmit extends Outcome {
   readonly submit: () => void;
   readonly isPending: boolean;
-  readonly created: AppointmentCreated | null;
+  readonly created: BookedVisit | null;
   /** Forget the last refusal (the visitor changed a choice). */
   readonly reset: () => void;
 }
@@ -71,11 +78,12 @@ function releaseIfRefused(failure: BookingFailure): void {
 }
 
 /** Sends the request of the current draft under the key of its intent. */
-function sendDraft(): Promise<AppointmentCreated> {
+async function sendDraft(): Promise<BookedVisit> {
   const draft = useBookingDraftStore.getState();
   const request = buildBookingRequest(draft);
-  if (request === null) return Promise.reject(new Error('A booking needs a chosen slot'));
-  return bookAppointment(request, draft.ensureIdempotencyKey());
+  if (request === null) throw new Error('A booking needs a chosen slot');
+  const created: AppointmentCreated = await bookAppointment(request, draft.ensureIdempotencyKey());
+  return { ...created, doctorId: draft.doctorId, serviceId: draft.serviceId };
 }
 
 /** Reads a refused booking: what the wizard shows for it, and which kind of refusal it was. */
@@ -92,17 +100,14 @@ function readFailure(error: unknown): { readonly outcome: Outcome; readonly fail
  */
 export function useBookingSubmit(): BookingSubmit {
   const client = useQueryClient();
-  const router = useRouter();
   const [outcome, setOutcome] = useState<Outcome>(NO_OUTCOME);
   const mutation = useMutation({
     mutationFn: sendDraft,
     onMutate: () => setOutcome(NO_OUTCOME),
-    onSuccess: (created) => {
+    onSuccess: () => {
       useBookingDraftStore.getState().clearDraft();
       void invalidateFor(client, 'booking');
-      // E1: the page changes to the appointment's own screen, so the confirmation must outlive the navigation.
-      showToast('success', 'booking.createdToast');
-      router.push(`/appointments/${encodeURIComponent(created.id)}`);
+      // The wizard shows the success screen from `created`; the patient leaves it by choice (B1), so nothing navigates here.
     },
     onError: (error: unknown) => {
       const { outcome: refused, failure } = readFailure(error);

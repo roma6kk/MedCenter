@@ -1,5 +1,5 @@
 import type { Slot } from '@/components/catalog/catalog-types';
-import { isSelectable, slotsForDuration, withTakenSlot } from './slot-list';
+import { isSelectable, nearestFreeSlots, slotsForDuration, withTakenSlot } from './slot-list';
 
 function slot(id: string, minutes: number, status: Slot['status'] = 'free'): Slot {
   const start = Date.parse('2026-10-19T11:00:00.000Z');
@@ -47,5 +47,34 @@ describe('isSelectable', () => {
     expect(isSelectable(slot('a', 30, 'free'))).toBe(true);
     expect(isSelectable(slot('a', 30, 'busy'))).toBe(false);
     expect(isSelectable(slot('a', 30, 'entered-in-error'))).toBe(false);
+  });
+});
+
+describe('nearestFreeSlots', () => {
+  function at(id: string, hour: number, minutes: number, status: Slot['status'] = 'free'): Slot {
+    const start = Date.parse('2026-10-19T00:00:00.000Z') + hour * 3_600_000;
+    return { id, start: new Date(start).toISOString(), end: new Date(start + minutes * 60_000).toISOString(), status };
+  }
+
+  it('should return the earliest free slots first when the list is not sorted', () => {
+    const slots = [at('c', 9, 30), at('a', 6, 30), at('d', 10, 30), at('b', 7, 30)];
+
+    expect(nearestFreeSlots(slots, null, 3).map((item) => item.id)).toEqual(['a', 'b', 'c']);
+  });
+
+  it('should skip slots that are not free when some are busy', () => {
+    const slots = [at('a', 6, 30, 'busy'), at('b', 7, 30)];
+
+    expect(nearestFreeSlots(slots, null, 3).map((item) => item.id)).toEqual(['b']);
+  });
+
+  it('should keep only slots as long as the service when a duration is given', () => {
+    const slots = [at('a', 6, 20), at('b', 7, 30)];
+
+    expect(nearestFreeSlots(slots, 30, 3).map((item) => item.id)).toEqual(['b']);
+  });
+
+  it('should return nothing when the doctor has no free slot', () => {
+    expect(nearestFreeSlots([], null, 3)).toEqual([]);
   });
 });

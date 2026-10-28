@@ -585,8 +585,8 @@
     "gone": "The chosen time is already taken. Pick another.",
     "mismatch": "That time belongs to another service of this doctor. Pick another time.",
     "pickOther": "Choose another time",
-    "successTitle": "Appointment booked",
-    "successLead": "It is listed under “My appointments”; a notification arrives within a minute.",
+    "successTitle": "You are booked",
+    "successLead": "The appointment is listed under “My appointments”; a notification arrives within a minute.",
     "toAppointment": "Open the appointment",
     "toAppointments": "My appointments",
     "newBooking": "New appointment",
@@ -612,7 +612,35 @@
     "retryIn": "Try again in {seconds} s",
     "nextPeriodLimit": "This is the last available period: you can search up to a year ahead.",
     "reasonNoConsent": "Free text about your health can be added only after the consent to the electronic record is signed. Ask the front desk: the visit can be booked without a reason.",
-    "createdToast": "Appointment booked"
+    "part": {
+      "morning": "Morning",
+      "day": "Afternoon",
+      "evening": "Evening"
+    },
+    "dayStripLabel": "Day of the visit",
+    "dayChip": "{day}: available times — {count}",
+    "dayFree": "{count, plural, one {# slot} other {# slots}}",
+    "dayNone": "none",
+    "nearest": "Nearest: {when}",
+    "whenToday": "today, {time}",
+    "whenTomorrow": "tomorrow, {time}",
+    "whenDate": "{date}, {time}",
+    "nearestSlots": "The doctor's nearest times",
+    "bookNearest": "Book {when} with {doctor}",
+    "noNearest": "No available times in the next two weeks",
+    "doctorEmptyAll": "No doctors yet",
+    "doctorEmptyAllHint": "The doctor list has not been filled in yet. Check back later or call the front desk.",
+    "serviceGroupOther": "Other services",
+    "servicesEmptyHint": "No services have been added yet. You can continue without a service and pick a doctor right away.",
+    "refresh": "Refresh",
+    "editStep": "Change",
+    "editStepLabel": "Change: {what}",
+    "summaryPlace": "Address",
+    "cancelHint": "You can cancel the appointment under “My appointments”.",
+    "addToCalendar": "Add to calendar",
+    "toHome": "Back home",
+    "cancelLink": "Cancel the appointment",
+    "calendarTitle": "Appointment at the {clinic} clinic"
   },
   "layout": {
     "skipToContent": "Skip to content",
@@ -1220,7 +1248,9 @@
     "slotsLead": "Pick a time and press “Book”. You can sign in on the next step, your choice is kept.",
     "bookSelected": "Book {time}",
     "bookDisabled": "Pick a time",
-    "patientsOnly": "Booking is available to patients."
+    "patientsOnly": "Booking is available to patients.",
+    "emptyAll": "The doctor catalog is empty for now",
+    "emptyAllHint": "No doctors have been added yet. Check back later or call the front desk."
   },
   "patientProfile": {
     "ageLine": "Age: {age}",

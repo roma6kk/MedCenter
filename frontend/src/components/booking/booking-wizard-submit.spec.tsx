@@ -24,28 +24,34 @@ describe('BookingWizard booking', () => {
     serveApi();
   });
 
-  it('should book the slot with the service, the reason and an idempotency key, then open the appointment when the visitor confirms', async () => {
+  it('should book the slot with the service, the reason and an idempotency key, then show the success screen when the visitor confirms', async () => {
     renderWizard();
     await reachConfirmation();
 
     await userEvent.type(screen.getByLabelText(/Причина обращения/), ' Болит спина ');
     await userEvent.click(screen.getByRole('button', { name: 'Подтвердить запись' }));
 
-    await waitFor(() => expect(mockPush).toHaveBeenCalledWith('/appointments/appt-1'));
+    expect(await screen.findByTestId('booking-success')).toBeInTheDocument();
+    expect(screen.getByTestId('success-cancel-link')).toHaveAttribute('href', '/appointments/appt-1');
     expect(postBodies()).toEqual([{ slotId: 'slot-30', serviceId: 'svc-30', reason: 'Болит спина' }]);
     expect(postKeys()[0]).toMatch(/^[0-9a-f-]{36}$/i);
     expect(useBookingDraftStore.getState().slotId).toBeNull();
-    expect(useToastStore.getState().toasts.map((toast) => toast.message)).toContain('Запись создана');
   });
 
-  it('should show the success state when the booking is created and the appointment page is still opening', async () => {
+  it('should stay on the success screen and not navigate away when the booking is created', async () => {
     renderWizard();
     await reachConfirmation();
 
     await userEvent.click(screen.getByRole('button', { name: 'Подтвердить запись' }));
 
-    expect(await screen.findByTestId('booking-success')).toHaveTextContent('Запись создана');
-    expect(screen.getByRole('link', { name: 'Открыть запись' })).toHaveAttribute('href', '/appointments/appt-1');
+    expect(await screen.findByTestId('booking-success')).toHaveTextContent('Вы записаны на приём');
+    expect(screen.getByRole('link', { name: 'Мои записи' })).toHaveAttribute('href', '/appointments');
+    expect(screen.getByRole('link', { name: 'На главную' })).toHaveAttribute('href', '/');
+    expect(screen.getByRole('button', { name: 'Добавить в календарь' })).toBeInTheDocument();
+    expect(screen.getByTestId('success-details')).toHaveTextContent('Мария Иванова');
+    expect(screen.getByTestId('success-details')).toHaveTextContent('Приём терапевта (первичный)');
+    expect(screen.getByTestId('success-details')).toHaveTextContent('г. Минск, ул. Здоровья, 12');
+    expect(mockPush).not.toHaveBeenCalled();
   });
 
   it('should not name a patient in the request when the booking is sent', async () => {
@@ -93,7 +99,8 @@ describe('BookingWizard booking', () => {
     expect(await screen.findByTestId('problem-banner')).toHaveTextContent('req-7');
     await userEvent.click(screen.getByRole('button', { name: 'Подтвердить запись' }));
 
-    await waitFor(() => expect(mockPush).toHaveBeenCalledWith('/appointments/appt-2'));
+    expect(await screen.findByTestId('booking-success')).toBeInTheDocument();
+    expect(screen.getByTestId('success-cancel-link')).toHaveAttribute('href', '/appointments/appt-2');
     expect(postKeys()).toHaveLength(2);
     expect(postKeys()[1]).toBe(postKeys()[0]);
   });
@@ -143,7 +150,8 @@ describe('BookingWizard booking', () => {
     const open: HTMLElement = await screen.findByRole('button', { name: 'Подтвердить запись' }, { timeout: 3000 });
     expect(open).not.toHaveAttribute('aria-disabled');
     await userEvent.click(open);
-    await waitFor(() => expect(mockPush).toHaveBeenCalledWith('/appointments/appt-4'));
+    expect(await screen.findByTestId('booking-success')).toBeInTheDocument();
+    expect(screen.getByTestId('success-cancel-link')).toHaveAttribute('href', '/appointments/appt-4');
     expect(postKeys()).toHaveLength(2);
     expect(postKeys()[1]).toBe(postKeys()[0]);
   });
@@ -158,7 +166,8 @@ describe('BookingWizard booking', () => {
     expect(screen.getByRole('button', { name: 'Подтвердить запись' })).not.toHaveAttribute('aria-disabled');
     await userEvent.click(screen.getByRole('button', { name: 'Подтвердить запись' }));
 
-    await waitFor(() => expect(mockPush).toHaveBeenCalledWith('/appointments/appt-5'));
+    expect(await screen.findByTestId('booking-success')).toBeInTheDocument();
+    expect(screen.getByTestId('success-cancel-link')).toHaveAttribute('href', '/appointments/appt-5');
     expect(postKeys()).toHaveLength(2);
     expect(postKeys()[1]).toBe(postKeys()[0]);
   });

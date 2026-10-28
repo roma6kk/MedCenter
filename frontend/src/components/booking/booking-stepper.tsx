@@ -1,6 +1,7 @@
 'use client';
 
 import type { ReactNode } from 'react';
+import { Check } from 'lucide-react';
 import { cn } from '@/lib/ui/cn';
 import { useT } from '@/lib/i18n/use-t';
 import type { BookingStep } from '@/store/use-booking-draft-store';
@@ -13,6 +14,28 @@ interface BookingStepperProps {
 }
 
 const ITEM_CLASS = 'flex min-h-[44px] items-center gap-2 text-base';
+const CIRCLE_CLASS = 'tabular-nums inline-flex h-[26px] w-[26px] flex-none items-center justify-center rounded-full text-xs font-semibold transition-[background-color,box-shadow] duration-base ease-out';
+
+/** Passed: a filled disc with a check. Current: an outlined disc with the number and a soft halo. Ahead: a quiet grey disc. */
+function StepMarker({ step, isCurrent, isDone }: { readonly step: number; readonly isCurrent: boolean; readonly isDone: boolean }): ReactNode {
+  if (isDone) {
+    return (
+      <span aria-hidden="true" data-testid={`step-marker-${step}`} data-state="done" className={cn(CIRCLE_CLASS, 'bg-primary text-primary-foreground')}>
+        <Check size={14} strokeWidth={3} />
+      </span>
+    );
+  }
+  return (
+    <span
+      aria-hidden="true"
+      data-testid={`step-marker-${step}`}
+      data-state={isCurrent ? 'current' : 'next'}
+      className={cn(CIRCLE_CLASS, isCurrent ? 'border-2 border-primary bg-card text-primary-soft-foreground ring-4 ring-primary-soft' : 'bg-secondary text-muted-foreground')}
+    >
+      {step}
+    </span>
+  );
+}
 
 function StepItem({ item, current, onGo }: BookingStepperProps & { readonly item: StepDefinition }): ReactNode {
   const t = useT('booking');
@@ -21,21 +44,15 @@ function StepItem({ item, current, onGo }: BookingStepperProps & { readonly item
   const isDone: boolean = item.step < current;
   const content: ReactNode = (
     <>
-      <span
-        className={cn(
-          'tabular-nums inline-flex h-[26px] w-[26px] flex-none items-center justify-center rounded-full text-xs',
-          isCurrent || isDone ? 'bg-primary text-primary-foreground' : 'bg-secondary text-muted-foreground',
-        )}
-      >
-        {item.step}
-      </span>
-      {/* A text node between the flex items is not drawn, but it keeps "1 Услуга" (not "1Услуга") as the visible text that the accessible name must contain (WCAG 2.5.3). */}
+      <StepMarker step={item.step} isCurrent={isCurrent} isDone={isDone} />
+      {/* A text node between the flex items is not drawn, but it keeps the label apart from the number for assistive technology (WCAG 2.5.3: the visible words stay inside the accessible name). */}
       {' '}
-      <span className={isCurrent ? '' : 'hidden sm:inline'}>{label}</span>
+      {/* On a phone four labels do not fit one row: they leave the screen (screen readers keep them) and the current one is written under the line. */}
+      <span className="sr-only sm:not-sr-only">{label}</span>
     </>
   );
   if (isCurrent) {
-    return <span aria-current="step" className={cn(ITEM_CLASS, 'font-semibold text-primary-soft-foreground')}>{content}</span>;
+    return <span aria-current="step" className={cn(ITEM_CLASS, 'font-semibold text-foreground')}>{content}</span>;
   }
   if (isDone) {
     return (
@@ -47,19 +64,32 @@ function StepItem({ item, current, onGo }: BookingStepperProps & { readonly item
   return <span className={cn(ITEM_CLASS, 'font-medium text-muted-foreground')}>{content}</span>;
 }
 
-/** The four steps as bars with a numbered circle (the design canvas); passed steps and the current one are drawn in primary. */
+/**
+ * The four steps under one progress line. The line is filled up to the end of the current step and its width animates when
+ * the step changes (the global reduced-motion rule makes it jump). Passed steps carry a check and lead back; the current
+ * one is highlighted; the rest are muted.
+ */
 export function BookingStepper({ current, onGo }: BookingStepperProps): ReactNode {
   const t = useT('booking');
   return (
-    <nav aria-label={t('stepsLabel')}>
+    <nav aria-label={t('stepsLabel')} className="flex flex-col gap-1">
+      <div aria-hidden="true" data-testid="stepper-track" className="h-1 overflow-hidden rounded-full bg-border">
+        <div
+          data-testid="stepper-progress"
+          className="h-full rounded-full bg-primary transition-[width] duration-slow ease-out"
+          style={{ width: `${(current / BOOKING_STEPS.length) * 100}%` }}
+        />
+      </div>
       <ol className="grid grid-cols-4 gap-3">
         {BOOKING_STEPS.map((item) => (
-          <li key={item.step} className="flex min-w-0 flex-col gap-1">
-            <span aria-hidden="true" className={cn('h-1 rounded-full', item.step <= current ? 'bg-primary' : 'bg-border')} />
+          <li key={item.step} className="flex min-w-0 flex-col">
             <StepItem item={item} current={current} onGo={onGo} />
           </li>
         ))}
       </ol>
+      <p aria-hidden="true" data-testid="stepper-current-label" className="pt-1 text-base font-semibold sm:hidden">
+        {t(BOOKING_STEPS.find((item) => item.step === current)?.labelKey ?? 'stepService')}
+      </p>
     </nav>
   );
 }

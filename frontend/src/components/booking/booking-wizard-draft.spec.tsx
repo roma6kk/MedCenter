@@ -35,7 +35,8 @@ describe('BookingWizard draft', () => {
 
     await userEvent.click(await screen.findByRole('button', { name: 'Подтвердить запись' }));
 
-    await waitFor(() => expect(mockPush).toHaveBeenCalledWith('/appointments/appt-1'));
+    expect(await screen.findByTestId('booking-success')).toBeInTheDocument();
+    expect(screen.getByTestId('success-cancel-link')).toHaveAttribute('href', '/appointments/appt-1');
     expect(postBodies()).toEqual([{ slotId: 'slot-30' }]);
   });
 

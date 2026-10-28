@@ -55,14 +55,128 @@ describe('SlotPicker', () => {
     expect(apiFetchMock).toHaveBeenCalledWith(`/api/v1/doctors/doc-1/slots?from=${TODAY}&to=${to}`);
   });
 
-  it('should group the slots by day when the search answers', async () => {
+  it('should show the slots of the first day with free time and list every day of the period in the strip when the search answers', async () => {
     answer(SLOTS);
     renderPicker();
 
     const first = await screen.findByTestId(`slot-day-${TODAY}`);
 
     expect(within(first).getAllByRole('button')).toHaveLength(2);
-    expect(within(screen.getByTestId(`slot-day-${DAY_AFTER}`)).getAllByRole('button')).toHaveLength(1);
+    expect(screen.queryByTestId('slot-s-3')).not.toBeInTheDocument();
+    expect(within(screen.getByTestId('slot-day-strip')).getAllByRole('radio')).toHaveLength(SLOT_WINDOW_DAYS);
+  });
+
+  it('should show the slots of another day when its chip is chosen', async () => {
+    answer(SLOTS);
+    renderPicker();
+    await screen.findByTestId('slot-s-1');
+
+    await userEvent.click(screen.getByTestId(`slot-day-chip-${DAY_AFTER}`));
+
+    expect(await screen.findByTestId('slot-s-3')).toBeInTheDocument();
+    expect(screen.queryByTestId('slot-s-1')).not.toBeInTheDocument();
+    expect(screen.getByTestId(`slot-day-chip-${DAY_AFTER}`)).toHaveAttribute('aria-checked', 'true');
+  });
+
+  it('should say how many free slots a day has and close the days without any when the strip is drawn', async () => {
+    answer(SLOTS);
+    renderPicker();
+    await screen.findByTestId('slot-s-1');
+
+    expect(screen.getByTestId(`slot-day-chip-${TODAY}`)).toHaveAccessibleName(expect.stringMatching(/свободного времени — 2$/));
+    expect(screen.getByTestId(`slot-day-chip-${TODAY}`)).toHaveTextContent('2 окна');
+    const empty = screen.getByTestId(`slot-day-chip-${shiftDateKey(TODAY, 1)}`);
+    expect(empty).toHaveAttribute('aria-disabled', 'true');
+    expect(empty).toHaveTextContent('нет');
+  });
+
+  it('should not switch the day when a day without slots is clicked', async () => {
+    answer(SLOTS);
+    renderPicker();
+    await screen.findByTestId('slot-s-1');
+
+    await userEvent.click(screen.getByTestId(`slot-day-chip-${shiftDateKey(TODAY, 1)}`));
+
+    expect(screen.getByTestId('slot-s-1')).toBeInTheDocument();
+  });
+
+  it('should open the day of the chosen slot first when a slot is already selected', async () => {
+    answer(SLOTS);
+    renderPicker({ selectedSlotId: 's-3' });
+
+    expect(await screen.findByTestId('slot-s-3')).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByTestId(`slot-day-chip-${DAY_AFTER}`)).toHaveAttribute('aria-checked', 'true');
+  });
+
+  it('should group the slots of the day into morning, afternoon and evening when the day has times all day', async () => {
+    answer([slot('m', TODAY, 6, 30), slot('d', TODAY, 11, 30), slot('e', TODAY, 15, 30), slot('d2', TODAY, 12, 30)]);
+    renderPicker();
+    await screen.findByTestId('slot-m');
+
+    expect(within(screen.getByTestId('slot-part-morning')).getAllByRole('button')).toHaveLength(1);
+    expect(within(screen.getByTestId('slot-part-day')).getAllByRole('button')).toHaveLength(2);
+    expect(within(screen.getByTestId('slot-part-evening')).getAllByRole('button')).toHaveLength(1);
+    expect(screen.getByRole('heading', { name: 'Вечер' })).toBeInTheDocument();
+  });
+
+  it('should leave out a part of the day that has no slots', async () => {
+    answer([slot('m', TODAY, 6, 30)]);
+    renderPicker();
+    await screen.findByTestId('slot-m');
+
+    expect(screen.queryByTestId('slot-part-evening')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('slot-part-day')).not.toBeInTheDocument();
+  });
+
+  it('should show a check mark on the chosen slot', async () => {
+    answer(SLOTS);
+    renderPicker({ selectedSlotId: 's-2' });
+
+    const chip = await screen.findByTestId('slot-s-2');
+
+    expect(chip.querySelector('svg')).not.toBeNull();
+    expect(screen.getByTestId('slot-s-1').querySelector('svg')).toBeNull();
+  });
+
+  it('should move the choice of the day with the arrow keys when focus is on the strip', async () => {
+    answer(SLOTS);
+    renderPicker();
+    await screen.findByTestId('slot-s-1');
+    screen.getByTestId(`slot-day-chip-${TODAY}`).focus();
+
+    await userEvent.keyboard('{ArrowRight}');
+    // The day after today has no slots and is skipped, the next chip with free time is the day after tomorrow.
+    expect(screen.getByTestId(`slot-day-chip-${DAY_AFTER}`)).toHaveFocus();
+    expect(await screen.findByTestId('slot-s-3')).toBeInTheDocument();
+    await userEvent.keyboard('{ArrowLeft}');
+
+    expect(screen.getByTestId(`slot-day-chip-${TODAY}`)).toHaveFocus();
+    expect(screen.getByTestId('slot-s-1')).toBeInTheDocument();
+  });
+
+  it('should keep one tab stop in the strip and one in the slot grid', async () => {
+    answer(SLOTS);
+    renderPicker();
+    await screen.findByTestId('slot-s-1');
+
+    const stripStops = within(screen.getByTestId('slot-day-strip')).getAllByRole('radio').filter((chip) => chip.tabIndex === 0);
+    const gridStops = [screen.getByTestId('slot-s-1'), screen.getByTestId('slot-s-2')].filter((chip) => chip.tabIndex === 0);
+    expect(stripStops).toHaveLength(1);
+    expect(gridStops).toHaveLength(1);
+  });
+
+  it('should move focus between slot chips with the arrow keys and select with Enter', async () => {
+    answer(SLOTS);
+    const { onSelect } = renderPicker();
+    const first = await screen.findByTestId('slot-s-1');
+    first.focus();
+
+    await userEvent.keyboard('{ArrowRight}');
+    expect(screen.getByTestId('slot-s-2')).toHaveFocus();
+    expect(screen.getByTestId('slot-s-2')).toHaveAttribute('tabindex', '0');
+    await userEvent.keyboard('{Enter}');
+
+    expect(onSelect).toHaveBeenCalledWith(SLOTS[1]);
   });
 
   it('should hand the chosen slot to the caller when a free slot is clicked', async () => {

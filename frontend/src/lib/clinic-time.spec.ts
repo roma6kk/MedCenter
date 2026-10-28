@@ -4,6 +4,7 @@ import {
   clinicDateKey,
   clinicDayBounds,
   clinicDayOf,
+  clinicHourOf,
   daysBetween,
   formatClinicDate,
   formatClinicDateTime,
@@ -11,6 +12,7 @@ import {
   formatDateKey,
   formatDayHeading,
   formatDayShort,
+  formatWeekdayShort,
   groupSlotsByDay,
   isDateKey,
   localizeInstants,
@@ -218,6 +220,28 @@ describe('formatting', () => {
   describe('formatDayShort', () => {
     it('should print day and abbreviated month when a day is formatted for the period label', () => {
       expect(formatDayShort('2026-10-19', 'ru')).toBe('19 окт.');
+    });
+  });
+
+  describe('formatWeekdayShort', () => {
+    it('should print the abbreviated weekday when a day is formatted for a day strip', () => {
+      expect(formatWeekdayShort('2026-10-19', 'ru')).toBe('пн');
+      expect(formatWeekdayShort('2026-10-19', 'en')).toBe('Mon');
+    });
+
+    it('should return the text as it was when it is not a day', () => {
+      expect(formatWeekdayShort('soon', 'ru')).toBe('soon');
+    });
+  });
+
+  describe('clinicHourOf', () => {
+    it('should read the hour on the Minsk wall clock when the instant is given in UTC', () => {
+      expect(clinicHourOf('2026-10-19T07:00:00.000Z')).toBe(10);
+      expect(clinicHourOf('2026-10-19T21:30:00.000Z')).toBe(0);
+    });
+
+    it('should return 0 when the value is not a date', () => {
+      expect(clinicHourOf('soon')).toBe(0);
     });
   });
 

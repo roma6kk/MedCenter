@@ -30,9 +30,17 @@ function DoctorGrid({ doctors }: { readonly doctors: ReadonlyArray<Doctor> }): R
   );
 }
 
+function hasFilters(params: DirectoryParams): boolean {
+  return params.serviceId !== undefined || params.specialty !== undefined || params.search !== undefined || params.page > 1;
+}
+
 function DoctorResults({ directory, params }: { readonly directory: Directory; readonly params: DirectoryParams }): ReactNode {
   const t = useT('catalog');
   const { items, meta } = directory.page;
+  if (items.length === 0 && !hasFilters(params)) {
+    // No filter and still nobody: the catalogue itself is empty (just seeded, or not filled yet); "change the filters" would send the visitor nowhere.
+    return <EmptyState title={t('emptyAll')} description={t('emptyAllHint')} />;
+  }
   if (items.length === 0) {
     return <EmptyState title={t('empty')} description={t('emptyHint')} action={<Link href={directoryHref({ page: 1 })} className="underline">{t('reset')}</Link>} />;
   }

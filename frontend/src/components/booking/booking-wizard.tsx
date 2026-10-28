@@ -5,7 +5,7 @@ import { useBookingDraftStore, type BookingDraft, type BookingStep } from '@/sto
 import type { Slot } from '@/components/catalog/catalog-types';
 import { useT } from '@/lib/i18n/use-t';
 import { BookingStepper } from './booking-stepper';
-import { selectDoctor, selectService, selectSlot } from './booking-steps';
+import { selectDoctor, selectDoctorSlot, selectService, selectSlot } from './booking-steps';
 import { BookingSuccess } from './booking-success';
 import { BookingSummary } from './booking-summary';
 import { ConfirmStep } from './confirm-step';
@@ -20,16 +20,24 @@ interface StepViewProps {
   readonly draft: BookingDraft;
   readonly booking: BookingSubmit;
   readonly update: (patch: Partial<BookingDraft>) => void;
+  readonly goTo: (step: BookingStep) => void;
 }
 
-function StepView({ draft, booking, update }: StepViewProps): ReactNode {
+function StepView({ draft, booking, update, goTo }: StepViewProps): ReactNode {
   const choose = (patch: Partial<BookingDraft>): void => {
     booking.reset();
     update(patch);
   };
   if (draft.step === 1) return <ServiceStep selectedServiceId={draft.serviceId} onSelect={(id) => choose(selectService(draft, id))} />;
   if (draft.step === 2 || draft.doctorId === null) {
-    return <DoctorStep serviceId={draft.serviceId} selectedDoctorId={draft.doctorId} onSelect={(id) => choose(selectDoctor(draft, id))} />;
+    return (
+      <DoctorStep
+        serviceId={draft.serviceId}
+        selectedDoctorId={draft.doctorId}
+        onSelect={(id) => choose(selectDoctor(draft, id))}
+        onSelectSlot={(id, slot) => choose(selectDoctorSlot(id, slot))}
+      />
+    );
   }
   if (draft.step === 3 || draft.slotId === null) {
     return (
@@ -44,7 +52,7 @@ function StepView({ draft, booking, update }: StepViewProps): ReactNode {
       />
     );
   }
-  return <ConfirmStep draft={draft} booking={booking} onReasonChange={(reason) => update({ reason })} />;
+  return <ConfirmStep draft={draft} booking={booking} onReasonChange={(reason) => update({ reason })} onEdit={goTo} />;
 }
 
 /**
@@ -57,7 +65,7 @@ export function BookingWizard({ presetDoctorId }: { readonly presetDoctorId?: st
   const isRestored: boolean = useDraftRepair(presetDoctorId);
   const booking = useBookingSubmit();
   const container = useStepFocus(draft.step, booking.notice !== null);
-  if (booking.created !== null) return <BookingSuccess appointmentId={booking.created.id} />;
+  if (booking.created !== null) return <BookingSuccess visit={booking.created} />;
   const showsConfirm: boolean = draft.step === 4 && draft.doctorId !== null && draft.slotId !== null;
   const goTo = (step: BookingStep): void => {
     booking.reset();
@@ -67,15 +75,20 @@ export function BookingWizard({ presetDoctorId }: { readonly presetDoctorId?: st
     <section ref={container} aria-label={t('title')} className="flex flex-col gap-7">
       <BookingStepper current={draft.step} onGo={goTo} />
       {isRestored && draft.step === 4 ? <p role="status" className="text-sm text-muted-foreground">{t('draftRestored')}</p> : null}
-      {/* The confirmation step carries its own full summary; the other steps get the draft panel beside them. */}
+      {/* The summary panel «Ваша запись» stays beside every step; on the confirmation step it also holds the confirm button, so that step brings its own. */}
       <div className="flex flex-wrap items-start gap-6">
-        <div className="min-w-0 flex-[999_1_560px]">
-          <StepView draft={draft} booking={booking} update={draft.updateDraft} />
-        </div>
-        {showsConfirm ? null : (
-          <aside className="min-w-0 flex-[1_1_300px]">
-            <BookingSummary draft={draft} />
-          </aside>
+        {showsConfirm ? (
+          <StepView draft={draft} booking={booking} update={draft.updateDraft} goTo={goTo} />
+        ) : (
+          <>
+            {/* Keyed by step: a new step slides and fades in (CSS only; the global reduced-motion rule drops it). */}
+            <div key={draft.step} className="min-w-0 flex-[999_1_560px] animate-step-in">
+              <StepView draft={draft} booking={booking} update={draft.updateDraft} goTo={goTo} />
+            </div>
+            <aside className="min-w-0 flex-[1_1_300px]">
+              <BookingSummary draft={draft} />
+            </aside>
+          </>
         )}
       </div>
     </section>

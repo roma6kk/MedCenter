@@ -1,5 +1,5 @@
 import type { BookingDraft } from '@/store/use-booking-draft-store';
-import { BOOKING_STEPS, draftForDoctor, draftFromSlot, repairDraft, selectDoctor, selectService, selectSlot } from './booking-steps';
+import { BOOKING_STEPS, draftForDoctor, draftFromSlot, repairDraft, selectDoctor, selectDoctorSlot, selectService, selectSlot } from './booking-steps';
 
 const EMPTY: BookingDraft = {
   serviceId: null,
@@ -97,5 +97,11 @@ describe('repairDraft', () => {
   it('should leave the draft alone when it is on one of the first steps', () => {
     expect(repairDraft(draft({ step: 1 }), NOW)).toBeNull();
     expect(repairDraft(draft({ step: 2 }), NOW)).toBeNull();
+  });
+});
+
+describe('selectDoctorSlot', () => {
+  it('should choose the doctor and the slot and go to the confirmation when a nearest-time chip is picked', () => {
+    expect(selectDoctorSlot('doc-2', SLOT)).toEqual({ doctorId: 'doc-2', slotId: SLOT.id, slotStart: SLOT.start, slotEnd: SLOT.end, step: 4 });
   });
 });

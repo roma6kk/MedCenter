@@ -37,6 +37,11 @@ export function selectSlot(slot: Pick<Slot, 'id' | 'start' | 'end'>): Partial<Bo
   return { slotId: slot.id, slotStart: slot.start, slotEnd: slot.end, step: 4 };
 }
 
+/** Step 2 → 4: a doctor's nearest-time chip chooses the doctor and the time at once, so the wizard goes straight to confirmation. */
+export function selectDoctorSlot(doctorId: string, slot: Pick<Slot, 'id' | 'start' | 'end'>): Partial<BookingDraft> {
+  return { doctorId, ...selectSlot(slot) };
+}
+
 /** The public doctor page hands a doctor and a slot to the wizard: no service chosen, straight to confirmation. */
 export function draftFromSlot(doctorId: string, slot: Pick<Slot, 'id' | 'start' | 'end'>): Partial<BookingDraft> {
   return { serviceId: null, doctorId, reason: '', ...selectSlot(slot) };

@@ -1,15 +1,21 @@
 'use client';
 
 import type { ReactNode } from 'react';
-import { Check, CircleHelp } from 'lucide-react';
+import { Check, CircleHelp, Clock } from 'lucide-react';
 import { QueryLoading } from '@/components/catalog/query-loading';
 import { QueryFailure } from '@/components/feedback/query-error-state';
 import { useServices } from '@/components/catalog/use-catalog';
 import type { CatalogService } from '@/components/catalog/catalog-types';
+import { DIRECTIONS } from '@/components/catalog/home-content';
 import { EmptyState } from '@/components/feedback/states';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { cardVariants } from '@/components/ui/card-variants';
 import { cn } from '@/lib/ui/cn';
 import { useT } from '@/lib/i18n/use-t';
+import { OTHER_GROUP_KEY, type ServiceGroup } from './service-groups';
+import { visibleDescription } from './service-text';
+import { useServiceGroups } from './use-service-groups';
 
 const CARD_CLASS = 'flex min-h-[44px] w-full gap-3.5 text-left';
 
@@ -32,6 +38,7 @@ function Marker({ selected }: { readonly selected: boolean }): ReactNode {
 
 function ServiceChoice({ service, selected, onSelect }: { readonly service: CatalogService; readonly selected: boolean; readonly onSelect: () => void }): ReactNode {
   const t = useT('booking');
+  const description: string | undefined = visibleDescription(service.name, service.description);
   return (
     <button
       type="button"
@@ -43,10 +50,10 @@ function ServiceChoice({ service, selected, onSelect }: { readonly service: Cata
       <Marker selected={selected} />
       <span className="flex min-w-0 flex-1 flex-col gap-1">
         <span className="break-words text-base font-semibold">{service.name}</span>
-        {service.description === undefined ? null : <span className="text-sm text-muted-foreground">{service.description}</span>}
-        <span className={cn('tabular-nums mt-1.5 h-fit self-start rounded-full px-2.5 py-0.5 text-xs font-medium', selected ? 'bg-card text-primary-soft-foreground' : 'bg-secondary text-muted-foreground')}>
+        {description === undefined ? null : <span className="text-sm text-muted-foreground">{description}</span>}
+        <Badge tone={selected ? 'primary' : 'neutral'} icon={Clock} className="tabular-nums mt-1.5 h-fit self-start">
           {t('serviceMinutes', { minutes: service.defaultDurationMin })}
-        </span>
+        </Badge>
       </span>
     </button>
   );
@@ -65,18 +72,72 @@ function AnyServiceChoice({ onSelect }: { readonly onSelect: () => void }): Reac
   );
 }
 
-function ServiceList({ services, selectedServiceId, onSelect }: ServiceStepProps & { readonly services: ReadonlyArray<CatalogService> }): ReactNode {
+/** The heading of a group: the clinic's own name of the direction when the specialty is one of them, else the specialty as the doctors carry it. */
+function useGroupLabel(): (group: ServiceGroup) => string {
   const t = useT('booking');
-  if (services.length === 0) return <EmptyState title={t('servicesEmpty')} action={<AnyServiceChoice onSelect={() => onSelect(null)} />} />;
+  const home = useT('home');
+  return (group) => {
+    if (group.key === OTHER_GROUP_KEY || group.specialty === null) return t('serviceGroupOther');
+    const direction = DIRECTIONS.find((item) => item.specialtyCode !== undefined && item.specialtyCode === group.specialty?.code);
+    return direction === undefined ? (group.specialty.label ?? t('serviceGroupOther')) : home(`directions.${direction.id}.name`);
+  };
+}
+
+function ServiceGrid({ services, selectedServiceId, onSelect }: ServiceStepProps & { readonly services: ReadonlyArray<CatalogService> }): ReactNode {
+  return (
+    <ul className="grid grid-cols-[repeat(auto-fill,minmax(300px,1fr))] gap-3">
+      {services.map((service) => (
+        <li key={service.id} className="flex">
+          <ServiceChoice service={service} selected={service.id === selectedServiceId} onSelect={() => onSelect(service.id)} />
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+function GroupedServices({ services, selectedServiceId, onSelect }: ServiceStepProps & { readonly services: ReadonlyArray<CatalogService> }): ReactNode {
+  const { groups, isPending } = useServiceGroups(services);
+  const labelOf = useGroupLabel();
+  if (isPending) return <QueryLoading />;
+  // One group is no grouping: a lone heading above every service says nothing.
+  if (groups.length < 2) return <ServiceGrid services={services} selectedServiceId={selectedServiceId} onSelect={onSelect} />;
+  return (
+    <div className="flex flex-col gap-6">
+      {groups.map((group) => (
+        <section key={group.key} aria-label={labelOf(group)} data-testid={`service-group-${group.key}`} className="flex flex-col gap-3">
+          <h3 className="text-base font-semibold text-muted-foreground">{labelOf(group)}</h3>
+          <ServiceGrid services={group.services} selectedServiceId={selectedServiceId} onSelect={onSelect} />
+        </section>
+      ))}
+    </div>
+  );
+}
+
+interface ServiceListProps extends ServiceStepProps {
+  readonly services: ReadonlyArray<CatalogService>;
+  readonly onRefresh: () => void;
+}
+
+function ServiceList({ services, selectedServiceId, onSelect, onRefresh }: ServiceListProps): ReactNode {
+  const t = useT('booking');
+  // Nothing at all (a catalogue just seeded, or not filled yet) is not a "no match": offer to look again and to go on without a service.
+  if (services.length === 0) {
+    return (
+      <EmptyState
+        title={t('servicesEmpty')}
+        description={t('servicesEmptyHint')}
+        action={
+          <div className="flex flex-col items-stretch gap-3">
+            <Button variant="secondary" onClick={onRefresh} data-testid="services-refresh" className="self-center">{t('refresh')}</Button>
+            <AnyServiceChoice onSelect={() => onSelect(null)} />
+          </div>
+        }
+      />
+    );
+  }
   return (
     <div className="flex flex-col gap-3">
-      <ul className="grid grid-cols-[repeat(auto-fill,minmax(300px,1fr))] gap-3">
-        {services.map((service) => (
-          <li key={service.id} className="flex">
-            <ServiceChoice service={service} selected={service.id === selectedServiceId} onSelect={() => onSelect(service.id)} />
-          </li>
-        ))}
-      </ul>
+      <GroupedServices services={services} selectedServiceId={selectedServiceId} onSelect={onSelect} />
       <AnyServiceChoice onSelect={() => onSelect(null)} />
     </div>
   );
@@ -95,7 +156,7 @@ export function ServiceStep({ selectedServiceId, onSelect }: ServiceStepProps): 
       {query.data === undefined ? (
         <QueryFailure query={query} embedded pending={<QueryLoading />} />
       ) : (
-        <ServiceList services={query.data.items} selectedServiceId={selectedServiceId} onSelect={onSelect} />
+        <ServiceList services={query.data.items} selectedServiceId={selectedServiceId} onSelect={onSelect} onRefresh={() => void query.refetch()} />
       )}
     </div>
   );

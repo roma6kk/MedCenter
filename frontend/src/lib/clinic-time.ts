@@ -22,12 +22,13 @@ const EMBEDDED_INSTANT = /\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2}(?:\.\d{1,9})?)?
 /** BCP 47 tag of the dates on screen: the clinic's own format for the Russian UI, British (day first, 24 h) for English. */
 export const INTL_LOCALE: Readonly<Record<Locale, string>> = { ru: 'ru-BY', en: 'en-GB' };
 
-type FormatKind = 'dateTime' | 'time' | 'date' | 'dayMedium' | 'dayLong' | 'dayHeading' | 'dayShort' | 'weekdayShort';
+type FormatKind = 'dateTime' | 'time' | 'hour' | 'date' | 'dayMedium' | 'dayLong' | 'dayHeading' | 'dayShort' | 'weekdayShort';
 
 /** Instants are read in the clinic zone; a calendar day (a key) has no zone, so it is read as UTC noon and never moves. */
 const FORMAT_OPTIONS: Readonly<Record<FormatKind, Intl.DateTimeFormatOptions>> = {
   dateTime: { timeZone: CLINIC_TIME_ZONE, dateStyle: 'medium', timeStyle: 'short', hourCycle: 'h23' },
   time: { timeZone: CLINIC_TIME_ZONE, hour: '2-digit', minute: '2-digit', hourCycle: 'h23' },
+  hour: { timeZone: CLINIC_TIME_ZONE, hour: '2-digit', hourCycle: 'h23' },
   date: { timeZone: CLINIC_TIME_ZONE, dateStyle: 'medium' },
   dayMedium: { timeZone: 'UTC', dateStyle: 'medium' },
   dayLong: { timeZone: 'UTC', dateStyle: 'long' },
@@ -155,6 +156,13 @@ export function formatClinicTime(iso: string, locale: Locale = currentLocale()):
   return date === null ? iso : formatterFor('time', locale).format(date);
 }
 
+/** The hour (0–23) of an instant on the clinic's wall clock; `0` for a value that is not a date. */
+export function clinicHourOf(iso: string): number {
+  const date = validDate(iso);
+  // Digits only: the formatter's own locale decides the glyphs, and `en-GB` writes ASCII ones.
+  return date === null ? 0 : Number.parseInt(formatterFor('hour', 'en').format(date), 10) || 0;
+}
+
 export type DayStyle = 'numeric' | 'medium' | 'long';
 
 /**
@@ -184,6 +192,11 @@ export function formatDayHeading(dateKey: string, locale: Locale = currentLocale
 /** `19 окт.` for a day: the ends of a period label. */
 export function formatDayShort(dateKey: string, locale: Locale = currentLocale()): string {
   return isDateKey(dateKey) ? formatterFor('dayShort', locale).format(keyToNoon(dateKey)) : dateKey;
+}
+
+/** `пн` for a day: the label above the number in a day strip. */
+export function formatWeekdayShort(dateKey: string, locale: Locale = currentLocale()): string {
+  return isDateKey(dateKey) ? formatterFor('weekdayShort', locale).format(keyToNoon(dateKey)) : dateKey;
 }
 
 /** Replaces every instant inside a server sentence with the clinic-zone date and time, leaving the rest of the text alone. */

@@ -24,3 +24,13 @@ export function withTakenSlot(slots: ReadonlyArray<Slot>, taken: Slot | null): R
 export function isSelectable(slot: Slot): boolean {
   return slot.status === 'free';
 }
+
+/** The `limit` earliest free slots of the list (as long as the service when one is chosen): what a doctor card offers as "nearest". */
+export function nearestFreeSlots(slots: ReadonlyArray<Slot>, durationMin: number | null, limit: number): ReadonlyArray<Slot> {
+  return slotsForDuration(slots, durationMin)
+    .filter(isSelectable)
+    .map((slot) => ({ slot, startMs: Date.parse(slot.start) }))
+    .sort((a, b) => a.startMs - b.startMs)
+    .slice(0, limit)
+    .map(({ slot }) => slot);
+}

@@ -3,7 +3,7 @@
  * so the picker works in clinic days (`lib/clinic-time` does the calendar and the formatting).
  */
 import type { Slot } from '@/components/catalog/catalog-types';
-import { isDateKey, shiftDateKey } from '@/lib/clinic-time';
+import { clinicHourOf, isDateKey, shiftDateKey } from '@/lib/clinic-time';
 
 const MINUTE_MS = 60 * 1000;
 
@@ -25,6 +25,13 @@ export function slotWindow(from: string, days: number = SLOT_WINDOW_DAYS): SlotW
   return { from, to: shiftDateKey(from, days - 1) };
 }
 
+/** Every clinic day of the window, both ends included: what the day strip lists, free time or not. */
+export function windowDays(window: SlotWindow): ReadonlyArray<string> {
+  const days: string[] = [];
+  for (let day: string = window.from; day <= window.to && days.length < 366; day = shiftDateKey(day, 1)) days.push(day);
+  return days;
+}
+
 /** A first day for the picker: the requested one, but never before today and never garbage. */
 export function clampToToday(day: string | undefined, today: string): string {
   return day !== undefined && isDateKey(day) && day > today ? day : today;
@@ -40,4 +47,19 @@ export function clampToHorizon(day: string | undefined, today: string): string {
 export function slotDurationMin(slot: Pick<Slot, 'start' | 'end'>): number {
   const length: number = Date.parse(slot.end) - Date.parse(slot.start);
   return Number.isFinite(length) && length > 0 ? Math.round(length / MINUTE_MS) : 0;
+}
+
+/** Parts of the clinic's day the slot grid groups by (message keys `booking.part.<part>`). */
+export type DayPart = 'morning' | 'day' | 'evening';
+
+export const DAY_PARTS: ReadonlyArray<DayPart> = ['morning', 'day', 'evening'];
+
+const NOON_HOUR = 12;
+const EVENING_HOUR = 17;
+
+/** Morning is before 12:00, the day runs to 17:00, the evening starts at 17:00 (clinic wall clock). */
+export function dayPartOf(startIso: string): DayPart {
+  const hour: number = clinicHourOf(startIso);
+  if (hour < NOON_HOUR) return 'morning';
+  return hour < EVENING_HOUR ? 'day' : 'evening';
 }

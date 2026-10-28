@@ -13,7 +13,7 @@ const BOOKING = { submit: jest.fn(), isPending: false, problem: null, reasonErro
 const DRAFT = { serviceId: null, doctorId: 'doc-1', slotStart: '2026-11-02T08:00:00.000Z', slotEnd: '2026-11-02T08:30:00.000Z' };
 
 function renderStep(reason = '', onReasonChange: (reason: string) => void = jest.fn()): void {
-  renderWithClient(<ConfirmStep draft={{ ...DRAFT, reason }} onReasonChange={onReasonChange} booking={BOOKING} />);
+  renderWithClient(<ConfirmStep draft={{ ...DRAFT, reason }} onReasonChange={onReasonChange} onEdit={jest.fn()} booking={BOOKING} />);
 }
 
 describe('ConfirmStep without a consent (6.1, ADR-019)', () => {

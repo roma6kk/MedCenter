@@ -95,6 +95,11 @@ const config: Config = {
         'drawer-in': { from: { opacity: '0', transform: 'translateX(2rem)' } },
         'menu-in': { from: { opacity: '0', transform: 'translateY(-4px) scale(0.98)' } },
         'toast-in': { from: { opacity: '0', transform: 'translateY(1rem)' } },
+        // A step of the booking wizard (and the slots of a newly chosen day) slides in a little and fades in.
+        'step-in': { from: { opacity: '0', transform: 'translateY(0.5rem)' } },
+        // The check mark of the success screen draws its stroke (the path is 24 long) and the disc behind it pops in.
+        'check-draw': { from: { strokeDashoffset: '24' }, to: { strokeDashoffset: '0' } },
+        'check-pop': { from: { opacity: '0', transform: 'scale(0.6)' } },
       },
       animation: {
         'scrim-in': 'scrim-in var(--duration-base) var(--ease-out)',
@@ -103,6 +108,9 @@ const config: Config = {
         'drawer-in': 'drawer-in var(--duration-base) var(--ease-out)',
         'menu-in': 'menu-in var(--duration-fast) var(--ease-out)',
         'toast-in': 'toast-in var(--duration-base) var(--ease-out)',
+        'step-in': 'step-in var(--duration-base) var(--ease-out)',
+        'check-draw': 'check-draw var(--duration-slow) var(--ease-out) 80ms both',
+        'check-pop': 'check-pop var(--duration-base) var(--ease-out) both',
       },
       fontFamily: { sans: ['var(--font-sans)'], mono: ['var(--font-mono)'] },
     },

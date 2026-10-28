@@ -1,6 +1,6 @@
 import type { Slot } from '@/components/catalog/catalog-types';
 import { shiftDateKey } from '@/lib/clinic-time';
-import { MAX_LOOKAHEAD_DAYS, SLOT_WINDOW_DAYS, clampToHorizon, clampToToday, slotDurationMin, slotWindow } from './slot-time';
+import { MAX_LOOKAHEAD_DAYS, SLOT_WINDOW_DAYS, clampToHorizon, clampToToday, dayPartOf, slotDurationMin, slotWindow, windowDays } from './slot-time';
 
 function slot(id: string, start: string, end: string, status: Slot['status'] = 'free'): Slot {
   return { id, scheduleId: 'sch-1', start, end, status };
@@ -57,5 +57,31 @@ describe('clampToHorizon', () => {
 
   it('should stay inside the 366 days the API accepts when the horizon is used as a start', () => {
     expect(MAX_LOOKAHEAD_DAYS).toBeLessThanOrEqual(366);
+  });
+});
+
+describe('dayPartOf', () => {
+  it.each([
+    ['2026-10-19T05:59:00.000Z', 'morning'],
+    ['2026-10-19T08:59:00.000Z', 'morning'],
+    ['2026-10-19T09:00:00.000Z', 'day'],
+    ['2026-10-19T13:59:00.000Z', 'day'],
+    ['2026-10-19T14:00:00.000Z', 'evening'],
+  ])('should call %s the %s when the clinic wall clock (UTC+3) is read', (start, part) => {
+    expect(dayPartOf(start)).toBe(part);
+  });
+});
+
+describe('windowDays', () => {
+  it('should list every day of the window when both ends are inclusive', () => {
+    expect(windowDays({ from: '2026-10-30', to: '2026-11-02' })).toEqual(['2026-10-30', '2026-10-31', '2026-11-01', '2026-11-02']);
+  });
+
+  it('should list fourteen days when the default window is given', () => {
+    expect(windowDays(slotWindow('2026-10-19'))).toHaveLength(SLOT_WINDOW_DAYS);
+  });
+
+  it('should list nothing when the window ends before it starts', () => {
+    expect(windowDays({ from: '2026-11-02', to: '2026-10-30' })).toEqual([]);
   });
 });

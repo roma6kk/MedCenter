@@ -1,26 +1,103 @@
 'use client';
 
-import type { ReactNode } from 'react';
+import { useEffect, useRef, type ReactNode } from 'react';
 import Link from 'next/link';
-import { Card } from '@/components/ui/card';
+import { CalendarPlus, MapPin } from 'lucide-react';
+import { useAppointment } from '@/components/appointments/use-appointments';
+import { useDoctor, useService } from '@/components/catalog/use-catalog';
+import { Button } from '@/components/ui/button';
 import { buttonVariants } from '@/components/ui/button-variants';
+import { Card } from '@/components/ui/card';
+import { clinicDayOf, formatClinicTime, formatDayHeading } from '@/lib/clinic-time';
+import { buildIcs, downloadIcs } from '@/lib/ics';
 import { useT } from '@/lib/i18n/use-t';
+import { useUiStore } from '@/store/use-ui-store';
+import type { BookedVisit } from './use-booking-submit';
 
-/** Shown for the moment between the 201 and the arrival on the appointment page (and if that navigation stalls). */
-export function BookingSuccess({ appointmentId }: { readonly appointmentId: string }): ReactNode {
-  const t = useT('booking');
+const ICS_FILE_BASE = 'lifeline-visit';
+
+/** The check mark: a disc that pops in and a stroke that draws itself (≤ 400 ms; with reduced motion it is simply there). */
+function AnimatedCheck(): ReactNode {
   return (
-    <Card radius="panel" padding="lg" role="status" data-testid="booking-success">
-      <h2 className="text-xl font-bold">{t('successTitle')}</h2>
-      <p className="mt-2 text-base text-muted-foreground">{t('successLead')}</p>
-      <div className="mt-4 flex flex-wrap gap-3">
-        <Link href={`/appointments/${encodeURIComponent(appointmentId)}`} className={buttonVariants({ variant: 'primary' })}>
-          {t('toAppointment')}
-        </Link>
-        <Link href="/appointments" className={buttonVariants({ variant: 'secondary' })}>
-          {t('toAppointments')}
-        </Link>
+    <span aria-hidden="true" data-testid="success-check" className="inline-flex h-16 w-16 animate-check-pop items-center justify-center rounded-full bg-success-soft text-success">
+      <svg viewBox="0 0 24 24" width="36" height="36" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M5 12.5l4.5 4.5L19 7.5" pathLength={24} strokeDasharray={24} className="animate-check-draw" />
+      </svg>
+    </span>
+  );
+}
+
+function Fact({ label, children }: { readonly label: string; readonly children: ReactNode }): ReactNode {
+  return (
+    <div className="flex flex-col gap-0.5 border-t border-border py-3 first:border-t-0 sm:flex-row sm:gap-4">
+      <dt className="w-28 flex-none pt-0.5 text-xs text-muted-foreground">{label}</dt>
+      <dd className="text-base">{children}</dd>
+    </div>
+  );
+}
+
+/**
+ * Shown after «Подтвердить запись» until the patient chooses where to go. The names come from the catalogue entries the
+ * wizard already cached, then from the appointment itself (a visit booked from a doctor's page names no service).
+ */
+export function BookingSuccess({ visit }: { readonly visit: BookedVisit }): ReactNode {
+  const t = useT('booking');
+  const home = useT('home');
+  const common = useT('common');
+  const locale = useUiStore((state) => state.locale);
+  const heading = useRef<HTMLHeadingElement>(null);
+  const doctor = useDoctor(visit.doctorId);
+  const service = useService(visit.serviceId);
+  const appointment = useAppointment(visit.id);
+  const doctorName: string | undefined = doctor.data?.name ?? appointment.data?.doctorName;
+  const serviceName: string | undefined = service.data?.name ?? appointment.data?.serviceName;
+  const address: string = home('contactAddressValue');
+  const day: string = clinicDayOf(visit.start);
+  // The wizard's heading was focused by the step change; this screen replaces it, so focus goes to its own heading (WCAG 2.4.3).
+  useEffect(() => heading.current?.focus(), []);
+  const addToCalendar = (): void => {
+    const details: ReadonlyArray<string> = [
+      ...(doctorName === undefined ? [] : [`${t('summaryDoctor')}: ${doctorName}`]),
+      ...(serviceName === undefined ? [] : [`${t('summaryService')}: ${serviceName}`]),
+    ];
+    downloadIcs(
+      `${ICS_FILE_BASE}-${day}.ics`,
+      buildIcs({
+        uid: `${visit.id}@lifeline`,
+        start: visit.start,
+        end: visit.end,
+        summary: t('calendarTitle', { clinic: common('appName') }),
+        location: address,
+        ...(details.length === 0 ? {} : { description: details.join('. ') }),
+      }),
+    );
+  };
+  return (
+    <Card radius="panel" padding="lg" data-testid="booking-success" className="mx-auto flex w-full max-w-2xl flex-col items-center gap-5 text-center">
+      <AnimatedCheck />
+      <div>
+        <h2 ref={heading} tabIndex={-1} className="text-2xl font-bold focus:outline-none">{t('successTitle')}</h2>
+        <p role="status" className="mt-2 text-base text-muted-foreground">{t('successLead')}</p>
       </div>
+      <dl data-testid="success-details" className="w-full rounded-card border border-border-soft px-5 text-left">
+        <Fact label={t('summaryTime')}>
+          <span className="font-semibold">{formatDayHeading(day, locale)}</span>
+          <span className="tabular-nums"> · {formatClinicTime(visit.start, locale)}–{formatClinicTime(visit.end, locale)}</span>
+        </Fact>
+        <Fact label={t('summaryDoctor')}>{doctorName ?? '…'}</Fact>
+        <Fact label={t('summaryService')}>{serviceName ?? t('serviceBySchedule')}</Fact>
+        <Fact label={t('summaryPlace')}>
+          <span className="inline-flex items-start gap-1.5"><MapPin aria-hidden="true" size={16} className="mt-1 flex-none text-primary" />{address}</span>
+        </Fact>
+      </dl>
+      <div className="flex w-full flex-col justify-center gap-3 sm:flex-row">
+        <Button variant="secondary" onClick={addToCalendar} data-testid="add-to-calendar"><CalendarPlus aria-hidden="true" size={18} />{t('addToCalendar')}</Button>
+        <Link href="/appointments" className={buttonVariants({ variant: 'primary' })}>{t('toAppointments')}</Link>
+        <Link href="/" className={buttonVariants({ variant: 'ghost' })}>{t('toHome')}</Link>
+      </div>
+      <Link href={`/appointments/${encodeURIComponent(visit.id)}`} data-testid="success-cancel-link" className="inline-flex min-h-[44px] items-center text-sm text-muted-foreground underline underline-offset-2 hover:text-foreground">
+        {t('cancelLink')}
+      </Link>
     </Card>
   );
 }

@@ -1,15 +1,19 @@
 'use client';
 
-import { useMemo, type ReactNode } from 'react';
+import { useMemo, useState, type ReactNode } from 'react';
 import { useDoctorSlots } from '@/components/catalog/use-catalog';
 import type { DoctorSlots, Slot } from '@/components/catalog/catalog-types';
 import { QueryFailure } from '@/components/feedback/query-error-state';
 import { EmptyState } from '@/components/feedback/states';
 import { Skeleton } from '@/components/ui/skeleton';
+import { clinicDayOf, formatDayHeading, groupSlotsByDay } from '@/lib/clinic-time';
 import { useT } from '@/lib/i18n/use-t';
-import { SlotDayList } from './slot-day-list';
-import { slotsForDuration, withTakenSlot } from './slot-list';
+import { useUiStore } from '@/store/use-ui-store';
+import { SlotDayStrip, type StripDay } from './slot-day-strip';
+import { SlotGrid } from './slot-grid';
+import { isSelectable, slotsForDuration, withTakenSlot } from './slot-list';
 import { SlotPeriodControl } from './slot-period-control';
+import { windowDays, type SlotWindow } from './slot-time';
 import { useSlotWindow } from './use-slot-window';
 
 export interface SlotPickerProps {
@@ -47,21 +51,51 @@ function SlotsEmpty({ hasOtherServices }: { readonly hasOtherServices: boolean }
 
 interface SlotResultsProps extends Pick<SlotPickerProps, 'selectedSlotId' | 'onSelect' | 'durationMin' | 'takenSlot'> {
   readonly data: DoctorSlots;
+  /** The period that was asked for: the day strip lists its days (the answer's own echo of it is not relied on). */
+  readonly period: SlotWindow;
 }
 
-function SlotResults({ data, selectedSlotId, onSelect, durationMin = null, takenSlot = null }: SlotResultsProps): ReactNode {
+function dayOfSlot(slots: ReadonlyArray<Slot>, slotId: string | null): string | null {
+  const found: Slot | undefined = slotId === null ? undefined : slots.find((slot) => slot.id === slotId);
+  return found === undefined ? null : clinicDayOf(found.start);
+}
+
+/** The day opened first: the one with the chosen slot, else the one with the refused slot, else the first with free time. */
+function defaultDay(days: ReadonlyArray<StripDay>, slots: ReadonlyArray<Slot>, selectedSlotId: string | null, takenSlotId: string | null): string {
+  const withSlots: ReadonlyArray<StripDay> = days.filter((day) => day.hasSlots);
+  const wanted: ReadonlyArray<string | null> = [dayOfSlot(slots, selectedSlotId), dayOfSlot(slots, takenSlotId)];
+  const preferred: string | undefined = wanted.find((day) => day !== null && withSlots.some((item) => item.day === day)) ?? undefined;
+  return preferred ?? withSlots.find((day) => day.free > 0)?.day ?? withSlots[0]?.day ?? '';
+}
+
+function SlotResults({ data, period, selectedSlotId, onSelect, durationMin = null, takenSlot = null }: SlotResultsProps): ReactNode {
   const t = useT('booking');
-  // Memoised so the list below keeps the same `slots` (and its day grouping) across the renders a selection causes.
+  const locale = useUiStore((state) => state.locale);
+  const [chosenDay, setChosenDay] = useState<string | null>(null);
+  // Memoised so the grid below keeps the same `slots` (and its grouping) across the renders a selection causes.
   const visible: ReadonlyArray<Slot> = useMemo(() => withTakenSlot(slotsForDuration(data.items, durationMin), takenSlot), [data.items, durationMin, takenSlot]);
+  const byDay: ReadonlyMap<string, ReadonlyArray<Slot>> = useMemo(() => new Map(groupSlotsByDay(visible).map(({ day, slots }) => [day, slots])), [visible]);
+  const { from, to } = period;
+  const days: ReadonlyArray<StripDay> = useMemo(
+    () => windowDays({ from, to }).map((day) => ({ day, free: (byDay.get(day) ?? []).filter(isSelectable).length, hasSlots: byDay.has(day) })),
+    [from, to, byDay],
+  );
   if (visible.length === 0) return <SlotsEmpty hasOtherServices={data.items.length > 0} />;
-  const freeCount: number = visible.filter((slot) => slot.status === 'free').length;
+  const fallback: string = defaultDay(days, visible, selectedSlotId, takenSlot?.id ?? null);
+  const day: string = chosenDay !== null && byDay.has(chosenDay) ? chosenDay : fallback;
+  const daySlots: ReadonlyArray<Slot> = byDay.get(day) ?? [];
+  const freeCount: number = visible.filter(isSelectable).length;
   return (
-    <>
+    <div className="space-y-4">
       <p role="status" className="sr-only">{t('slotsFound', { count: freeCount })}</p>
-      {durationMin !== null ? <p className="mb-3 text-sm text-[var(--muted-foreground)]">{t('slotsFiltered', { minutes: durationMin })}</p> : null}
-      <SlotDayList slots={visible} selectedSlotId={selectedSlotId} takenSlotId={takenSlot?.id ?? null} showDuration={durationMin === null} onSelect={onSelect} />
-      {data.truncated === true ? <p className="mt-3 text-sm text-[var(--warning)]">{t('slotsTruncated')}</p> : null}
-    </>
+      {durationMin !== null ? <p className="text-sm text-muted-foreground">{t('slotsFiltered', { minutes: durationMin })}</p> : null}
+      <SlotDayStrip days={days} selectedDay={day} onSelect={setChosenDay} />
+      <section aria-label={t('slotsFor', { day: formatDayHeading(day, locale) })} data-testid={`slot-day-${day}`} className="flex flex-col gap-3 animate-step-in" key={day}>
+        <h3 className="text-base font-semibold">{formatDayHeading(day, locale)}</h3>
+        <SlotGrid slots={daySlots} selectedSlotId={selectedSlotId} takenSlotId={takenSlot?.id ?? null} showDuration={durationMin === null} onSelect={onSelect} />
+      </section>
+      {data.truncated === true ? <p className="text-sm text-warning">{t('slotsTruncated')}</p> : null}
+    </div>
   );
 }
 
@@ -78,7 +112,7 @@ export function SlotPicker({ doctorId, selectedSlotId, onSelect, durationMin = n
       {query.data === undefined ? (
         <QueryFailure query={query} embedded pending={<SlotSkeleton />} />
       ) : (
-        <SlotResults data={query.data} selectedSlotId={selectedSlotId} onSelect={onSelect} durationMin={durationMin} takenSlot={takenSlot} />
+        <SlotResults key={windowState.window.from} data={query.data} period={windowState.window} selectedSlotId={selectedSlotId} onSelect={onSelect} durationMin={durationMin} takenSlot={takenSlot} />
       )}
     </div>
   );

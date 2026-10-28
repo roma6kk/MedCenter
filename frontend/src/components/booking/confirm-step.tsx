@@ -3,53 +3,22 @@
 import type { ReactNode, RefObject } from 'react';
 import { useEffect, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
-import { useDoctor, useService } from '@/components/catalog/use-catalog';
 import { useMyConsent } from '@/components/consent/use-consent';
 import { ProblemBanner } from '@/components/feedback/problem-banner';
 import { FormField, INPUT_CLASS } from '@/components/patient/form-field';
 import { useRetryCooldown } from '@/lib/api/use-retry-cooldown';
-import { formatClinicDateTime } from '@/lib/clinic-time';
 import { useT } from '@/lib/i18n/use-t';
-import { useUiStore } from '@/store/use-ui-store';
-import type { BookingDraft } from '@/store/use-booking-draft-store';
+import type { BookingDraft, BookingStep } from '@/store/use-booking-draft-store';
 import { reasonProblem } from './book-appointment';
-import { slotDurationMin } from './slot-time';
+import { BookingSummary } from './booking-summary';
 import type { BookingSubmit } from './use-booking-submit';
 
 interface ConfirmStepProps {
   readonly draft: Pick<BookingDraft, 'serviceId' | 'doctorId' | 'slotStart' | 'slotEnd' | 'reason'>;
   readonly onReasonChange: (reason: string) => void;
+  /** «Изменить» of a summary row: back to the step that made the choice. */
+  readonly onEdit: (step: BookingStep) => void;
   readonly booking: Pick<BookingSubmit, 'submit' | 'isPending' | 'problem' | 'reasonError'>;
-}
-
-function SummaryRow({ label, children }: { readonly label: string; readonly children: ReactNode }): ReactNode {
-  return (
-    <div className="flex flex-col gap-0.5 border-t border-border py-3 first:border-t-0 sm:flex-row sm:gap-4">
-      <dt className="w-36 flex-none pt-0.5 text-xs text-muted-foreground">{label}</dt>
-      <dd>{children}</dd>
-    </div>
-  );
-}
-
-function Summary({ draft }: Pick<ConfirmStepProps, 'draft'>): ReactNode {
-  const t = useT('booking');
-  const locale = useUiStore((state) => state.locale);
-  const doctor = useDoctor(draft.doctorId);
-  const service = useService(draft.serviceId);
-  const start: string | null = draft.slotStart;
-  const minutes: number = start === null || draft.slotEnd === null ? 0 : slotDurationMin({ start, end: draft.slotEnd });
-  return (
-    <dl data-testid="booking-summary">
-      <SummaryRow label={t('summaryService')}>{draft.serviceId === null ? t('serviceBySchedule') : (service.data?.name ?? '…')}</SummaryRow>
-      <SummaryRow label={t('summaryDoctor')}>
-        {doctor.data?.name ?? '…'}
-        {doctor.data?.specialty === undefined ? null : <span className="text-[var(--muted-foreground)]"> · {doctor.data.specialty}</span>}
-      </SummaryRow>
-      <SummaryRow label={t('summaryTime')}><span className="tabular-nums">{start === null ? '' : formatClinicDateTime(start, locale)}</span></SummaryRow>
-      {minutes > 0 ? <SummaryRow label={t('summaryDuration')}>{t('slotMinutes', { minutes })}</SummaryRow> : null}
-    </dl>
-  );
 }
 
 function useReasonField(reason: string, serverError: string | null): { readonly error: string | undefined; readonly touch: () => void } {
@@ -96,14 +65,16 @@ function ConfirmButton({ isPending, cooldown, onConfirm }: ConfirmButtonProps): 
   const t = useT('booking');
   const closed: boolean = isPending || cooldown > 0;
   return (
-    <div className="no-print sticky bottom-0 -mx-4 mt-4 border-t border-[var(--border)] bg-[var(--background)] p-4 md:static md:mx-0 md:border-0 md:p-0">
+    // A bar fixed to the bottom of a phone screen; from `md` it is an ordinary block inside the summary panel. Nothing above it
+    // is transformed (the step animation lives on the other column), so `fixed` is relative to the viewport.
+    <div className="no-print fixed inset-x-0 bottom-0 z-10 border-t border-border bg-card p-4 shadow-elev-3 md:static md:border-0 md:bg-transparent md:p-0 md:shadow-none">
       <Button
         size="lg"
         onClick={() => (closed ? undefined : onConfirm())}
         aria-disabled={closed ? true : undefined}
         aria-busy={isPending}
         data-testid="booking-confirm"
-        className="w-full md:w-auto"
+        className="w-full"
       >
         {isPending ? t('submitting') : cooldown > 0 ? t('retryIn', { seconds: cooldown }) : t('confirm')}
       </Button>
@@ -112,11 +83,12 @@ function ConfirmButton({ isPending, cooldown, onConfirm }: ConfirmButtonProps): 
 }
 
 /**
- * Step 4: the booking as it will be made, an optional reason (3…500) and the button that sends it. On a wide screen the
- * place of the error line under the reason is kept free: the line appears when the field loses focus on the mouse press,
- * and a button that moved away in between would miss the click that follows.
+ * Step 4: an optional reason (3…500) beside the summary panel «Ваша запись» (rows with «Изменить», the clinic's address, the
+ * cancellation hint) that holds the button which sends the booking. It returns the two columns of the wizard's row. On a
+ * wide screen the place of the error line under the reason is kept free: the line appears when the field loses focus on
+ * the mouse press, and a button that moved away in between would miss the click that follows.
  */
-export function ConfirmStep({ draft, onReasonChange, booking }: ConfirmStepProps): ReactNode {
+export function ConfirmStep({ draft, onReasonChange, onEdit, booking }: ConfirmStepProps): ReactNode {
   const t = useT('booking');
   const reasonRef = useRef<HTMLTextAreaElement>(null);
   const field = useReasonField(draft.reason, booking.reasonError);
@@ -134,14 +106,23 @@ export function ConfirmStep({ draft, onReasonChange, booking }: ConfirmStepProps
     else booking.submit();
   };
   return (
-    <div>
-      <h2 className="text-xl font-bold">{t('confirmTitle')}</h2>
-      <Card radius="card" padding="none" className="mt-3 px-5"><Summary draft={draft} /></Card>
-      <div className={field.error === undefined ? 'mt-4 md:pb-6' : 'mt-4'}>
-        <ReasonField value={draft.reason} error={field.error} inputRef={reasonRef} onChange={onReasonChange} onBlur={field.touch} disabled={noConsent} />
+    <>
+      <div className="min-w-0 flex-[999_1_480px]">
+        <h2 className="text-xl font-bold">{t('confirmTitle')}</h2>
+        <div className={field.error === undefined ? 'mt-4 md:pb-6' : 'mt-4'}>
+          <ReasonField value={draft.reason} error={field.error} inputRef={reasonRef} onChange={onReasonChange} onBlur={field.touch} disabled={noConsent} />
+        </div>
+        {booking.problem === null ? null : <div className="mt-4"><ProblemBanner problem={booking.problem} /></div>}
       </div>
-      {booking.problem === null ? null : <div className="mt-4"><ProblemBanner problem={booking.problem} /></div>}
-      <ConfirmButton isPending={booking.isPending} cooldown={cooldown} onConfirm={handleConfirm} />
-    </div>
+      {/* The bar of the confirm button is fixed to the screen bottom on a phone: leave room under the panel so it covers nothing. */}
+      <aside className="min-w-0 flex-[1_1_320px] pb-24 md:pb-0">
+        <BookingSummary
+          draft={{ ...draft, step: 4 }}
+          onEdit={onEdit}
+          showPlace
+          action={<ConfirmButton isPending={booking.isPending} cooldown={cooldown} onConfirm={handleConfirm} />}
+        />
+      </aside>
+    </>
   );
 }
