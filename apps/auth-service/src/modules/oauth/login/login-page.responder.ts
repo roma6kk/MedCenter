@@ -26,6 +26,15 @@ export function registerUrlFor(redirectUri: string): string | undefined {
   }
 }
 
+/** The client's home page on the `redirect_uri` origin: where «← На сайт» leads. */
+export function siteUrlFor(redirectUri: string): string | undefined {
+  try {
+    return new URL('/', redirectUri).toString();
+  } catch {
+    return undefined;
+  }
+}
+
 function sendHtml(response: Response, status: HttpStatus, html: string, retryAfterSeconds?: number): void {
   response
     .status(status)
@@ -37,7 +46,7 @@ function sendHtml(response: Response, status: HttpStatus, html: string, retryAft
       'Content-Security-Policy': LOGIN_PAGE_CSP,
       'X-Content-Type-Options': 'nosniff',
       'X-Frame-Options': 'DENY',
-      // The page URL carries the authorization request; it must not leak through the register link.
+      // The page URL carries the authorization request; it must not leak through the register or site link.
       'Referrer-Policy': 'no-referrer',
     })
     .send(html);
@@ -55,6 +64,7 @@ export class LoginPageResponder {
   sendForm(request: CookieRequest, response: Response, view: LoginFormView): void {
     const csrf = this.sessions.issueCsrf();
     const registerUrl = registerUrlFor(view.redirectUri);
+    const siteUrl = siteUrlFor(view.redirectUri);
     response.cookie(LOGIN_CSRF_COOKIE, csrf.cookie, csrfCookieOptions(request));
     const html = renderLoginPage({
       authorizeQuery: view.authorizeQuery,
@@ -62,6 +72,7 @@ export class LoginPageResponder {
       ...(view.error !== undefined ? { error: view.error } : {}),
       ...(view.email !== undefined ? { email: view.email } : {}),
       ...(registerUrl !== undefined ? { registerUrl } : {}),
+      ...(siteUrl !== undefined ? { siteUrl } : {}),
     });
     sendHtml(response, view.status ?? HttpStatus.OK, html, view.retryAfterSeconds);
   }

@@ -3,7 +3,7 @@ import { Activity, Brain, HeartPulse, Scissors, Stethoscope, type LucideIcon } f
 /**
  * Static content of the landing page. DEMONSTRATION DATA: the licence, the legal details, the contacts and the company
  * names exist to show the interface and are not claims about real agreements; replace them with the clinic's own
- * facts before the site is published (the page says so under the lists, see `home.demoNote`).
+ * facts before the site is published (the page says so once, in the footer, see `home.demoNote`).
  */
 
 export const CLINIC_LICENSE = { number: '02040/0123456', date: '14.03.2022' } as const;
@@ -30,21 +30,25 @@ export const INSURANCE_PARTNERS: ReadonlyArray<string> = ['Белгосстра�
 
 export type DirectionId = 'therapy' | 'cardiology' | 'neurology' | 'surgery' | 'diagnostics';
 
+/** Accent of a direction's tile (VB3): every direction wears its own tone of the token set, so the grid is not one repeated teal. */
+export type DirectionTone = 'primary' | 'destructive' | 'info' | 'warm' | 'success';
+
 export interface Direction {
   readonly id: DirectionId;
   readonly icon: LucideIcon;
+  readonly tone: DirectionTone;
   /** SNOMED CT code of the specialty (as the doctors carry it); absent for a service group such as diagnostics. */
   readonly specialtyCode?: string;
 }
 
 /** Directions of the clinic (the codes are those of the demo seed, tools/demo-seed/demo-catalog.ts); the texts live under `home.directions.<id>` in the message catalogues. */
 export const DIRECTIONS: ReadonlyArray<Direction> = [
-  { id: 'therapy', icon: Stethoscope, specialtyCode: '419192003' },
-  { id: 'cardiology', icon: HeartPulse, specialtyCode: '394579002' },
-  { id: 'neurology', icon: Brain, specialtyCode: '394591006' },
-  { id: 'surgery', icon: Scissors, specialtyCode: '394609007' },
-  { id: 'diagnostics', icon: Activity },
+  { id: 'therapy', icon: Stethoscope, tone: 'primary', specialtyCode: '419192003' },
+  { id: 'cardiology', icon: HeartPulse, tone: 'destructive', specialtyCode: '394579002' },
+  { id: 'neurology', icon: Brain, tone: 'info', specialtyCode: '394591006' },
+  { id: 'surgery', icon: Scissors, tone: 'warm', specialtyCode: '394609007' },
+  { id: 'diagnostics', icon: Activity, tone: 'success' },
 ];
 
 /** Anchors of the landing sections the header links to. */
-export const HOME_ANCHORS = { directions: 'directions', companies: 'companies', contacts: 'contacts' } as const;
+export const HOME_ANCHORS = { directions: 'directions', services: 'services', companies: 'companies', contacts: 'contacts' } as const;

@@ -8,7 +8,7 @@
  * ONCE in `beforeAll` and its serial tests share that session; mutating cases (token rotation, sign-out) own a separate account.
  */
 import { expect, test, type Browser, type BrowserContext, type Page } from '@playwright/test';
-import { signInThroughLoginForm } from './fixtures/auth';
+import { returnToOfAuthorizeUrl, signInThroughLoginForm } from './fixtures/auth';
 import { hasDemoManifest, loadDemoAccount, ROLE_LANDING, type DemoRole } from './fixtures/demo-accounts';
 
 test.skip(!hasDemoManifest(), 'demo seed manifest not found');
@@ -28,10 +28,26 @@ async function openSession(browser: Browser, role: DemoRole, index: number, base
 }
 
 test.describe('anonymous visitor', () => {
-  test('should be sent to /login with returnTo when a protected route is opened', async ({ page }) => {
+  test('should be sent to /login with returnTo, and from there straight to the auth-service form, when a protected route is opened', async ({ page, request }) => {
+    const redirect = await request.get('/appointments', { maxRedirects: 0 });
+    expect(redirect.headers()['location']).toMatch(/\/login\?returnTo=%2Fappointments$/);
+
     await page.goto('/appointments');
 
-    await expect(page).toHaveURL(/\/login\?returnTo=%2Fappointments$/);
+    await expect(page.locator('input[name="email"]')).toBeVisible();
+    expect(returnToOfAuthorizeUrl(page.url())).toBe('/appointments');
+  });
+
+  test('should show the branded auth-service form with a way back to the site and a password toggle', async ({ page, baseURL }) => {
+    await page.goto('/login');
+
+    await expect(page.getByRole('link', { name: /На сайт/ })).toHaveAttribute('href', `${new URL(baseURL ?? DEFAULT_ORIGIN).origin}/`);
+    const password = page.locator('input[name="password"]');
+    await expect(password).toHaveAttribute('type', 'password');
+    await page.getByRole('button', { name: 'Показать пароль' }).click();
+    await expect(password).toHaveAttribute('type', 'text');
+    await page.getByRole('button', { name: 'Скрыть пароль' }).click();
+    await expect(password).toHaveAttribute('type', 'password');
   });
 });
 
@@ -112,11 +128,12 @@ test.describe('patient session with returnTo, rotation and sign-out', () => {
 
   test('should end the session and protect the routes again when the user signs out', async () => {
     await session.page.getByRole('button', { name: 'Выйти' }).click();
-    await expect(session.page).toHaveURL(/\/login$/);
+    await expect(session.page).toHaveURL(/\/$/);
 
     expect((await session.context.cookies()).map((cookie) => cookie.name)).not.toContain('mc_rt');
     await session.page.goto('/booking');
-    await expect(session.page).toHaveURL(/\/login\?returnTo=%2Fbooking$/);
+    await expect(session.page.locator('input[name="email"]')).toBeVisible();
+    expect(returnToOfAuthorizeUrl(session.page.url())).toBe('/booking');
   });
 });
 

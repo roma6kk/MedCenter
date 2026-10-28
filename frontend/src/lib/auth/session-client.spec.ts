@@ -250,12 +250,12 @@ describe('endSession and logout', () => {
     expect(getAccessToken()).toBeNull();
   });
 
-  it('should return to the login screen after a user-initiated logout', async () => {
+  it('should return to the home page after a user-initiated logout', async () => {
     jest.spyOn(global, 'fetch').mockResolvedValueOnce(jsonResponse({ loggedOut: true }, 200));
 
     await logout();
 
-    expect(assignSpy).toHaveBeenCalledWith('/login');
+    expect(assignSpy).toHaveBeenCalledWith('/');
   });
 
   it('should forget the booking draft when the user signs out', async () => {

@@ -139,7 +139,8 @@ describe('apiFetch session end', () => {
     await apiFetch('/api/v1/appointments').catch(() => undefined);
 
     expect(consumeFlash()).toBe('session-ended');
-    expect(assignSpy).toHaveBeenCalledWith('/login?returnTo=%2Fappointments%3Ftab%3Dpast');
+    // `reason` keeps `/login` on screen, so the toast is read there instead of being carried off by the redirect to the sign-in form.
+    expect(assignSpy).toHaveBeenCalledWith('/login?returnTo=%2Fappointments%3Ftab%3Dpast&reason=session-ended');
   });
 
   it('should redirect to login when a refreshed token is rejected again', async () => {

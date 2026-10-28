@@ -10,6 +10,7 @@
  * 403 page AND on the API answer where a route has one. The sessions are the saved states of `auth.setup.ts`.
  */
 import { expect, test, type BrowserContext, type Page, type Request } from '@playwright/test';
+import { returnToOfAuthorizeUrl } from './fixtures/auth';
 import { accessTokenOf } from './fixtures/booking-api';
 import { hasDemoManifest, type DemoRole } from './fixtures/demo-accounts';
 import { openStoredSession } from './fixtures/session-state';
@@ -126,11 +127,14 @@ test.describe('anonymous visitor', () => {
   const PROTECTED: ReadonlyArray<string> = ['/home', '/booking', '/appointments', '/medcard', '/history?page=2', '/profile', '/notifications', '/doctor/appointments', '/doctor/schedule', '/admin/analytics', '/admin/audit?entity=Location'];
 
   for (const route of PROTECTED) {
-    test(`should be sent to the login with returnTo=${route} when the protected route is opened`, async ({ page }) => {
-      await page.goto(route);
+    test(`should be sent to the login with returnTo=${route} when the protected route is opened`, async ({ page, request }) => {
+      const redirect = await request.get(route, { maxRedirects: 0 });
+      expect(redirect.headers()['location']).toMatch(new RegExp(`/login\\?returnTo=${encodeURIComponent(route).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`));
 
-      await expect(page).toHaveURL(new RegExp(`/login\\?returnTo=${encodeURIComponent(route).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`));
-      await expect(page.getByRole('link', { name: 'Войти' })).toBeVisible();
+      // `/login` hands the visitor on to the auth-service form with the same returnTo inside `state`.
+      await page.goto(route);
+      await expect(page.locator('input[name="email"]')).toBeVisible();
+      expect(returnToOfAuthorizeUrl(page.url())).toBe(route);
     });
   }
 

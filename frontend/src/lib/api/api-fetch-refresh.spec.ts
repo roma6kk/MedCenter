@@ -93,7 +93,7 @@ describe('apiFetch silent refresh / revoke', () => {
     const urls = fetchSpy.mock.calls.map((c) => String(c[0]));
     expect(urls).toContain('/api/auth/logout');
     expect(refreshCalls).toHaveLength(0);
-    expect(assignSpy).toHaveBeenCalledWith('/login?returnTo=%2Fappointments');
+    expect(assignSpy).toHaveBeenCalledWith('/login?returnTo=%2Fappointments&reason=session-ended');
   });
 
   it('should preserve the ApiError problem payload when refresh fails', async () => {

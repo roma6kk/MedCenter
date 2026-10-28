@@ -28,7 +28,7 @@ export function PatientShell({ children }: { readonly children: ReactNode }): Re
   const t = useT('layout.patient');
   const tLayout = useT('layout');
   return (
-    <div className="min-h-screen">
+    <div className="warm-ambient min-h-screen">
       <SkipLink />
       <header className="border-b border-border bg-card">
         <div className="mx-auto flex max-w-[1200px] flex-wrap items-center gap-x-7 gap-y-3 px-6 py-3">

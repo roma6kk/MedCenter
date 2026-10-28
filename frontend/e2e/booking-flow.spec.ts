@@ -5,7 +5,7 @@
  * The doctor and the slot are found at run time from the public catalog; the booking is cancelled afterwards.
  */
 import { expect, test } from '@playwright/test';
-import { continueFromLoginScreen } from './fixtures/auth';
+import { fillAuthServiceForm, returnToOfAuthorizeUrl } from './fixtures/auth';
 import { cancelAppointmentAs, findFreeSlots, type FreeSlot } from './fixtures/booking-api';
 import { hasDemoManifest, loadDemoAccount } from './fixtures/demo-accounts';
 
@@ -25,19 +25,20 @@ test('should book an appointment through the login with the draft restored when 
   await test.step('guest opens the doctor from the catalog and picks a free slot', async () => {
     await page.goto('/doctors');
     const card = page.getByTestId('doctor-card').filter({ hasText: target.doctorName });
-    await card.getByRole('link', { name: 'Профиль' }).click();
+    await card.getByRole('link', { name: /^Профиль/ }).click();
     await expect(page).toHaveURL(/\/doctors\/[^/]+$/);
     await page.getByTestId(`slot-${target.slotId}`).click();
     await expect(page.getByTestId(`slot-${target.slotId}`)).toHaveAttribute('aria-pressed', 'true');
   });
 
-  await test.step('«Записаться» sends the guest to the login with returnTo=/booking', async () => {
+  await test.step('«Записаться» sends the guest straight to the auth-service form with returnTo=/booking', async () => {
     await page.getByRole('button', { name: /^Записаться на / }).click();
-    await expect(page).toHaveURL(/\/login\?returnTo=%2Fbooking$/);
+    await expect(page.locator('input[name="email"]')).toBeVisible();
+    expect(returnToOfAuthorizeUrl(page.url())).toBe('/booking');
   });
 
   await test.step('after the sign-in the draft is restored on the confirmation step', async () => {
-    await continueFromLoginScreen(page, loadDemoAccount('PATIENT', 2), webOrigin);
+    await fillAuthServiceForm(page, loadDemoAccount('PATIENT', 2), webOrigin);
     await expect(page).toHaveURL(/\/booking(\?.*)?$/);
     await expect(page.getByText('Черновик записи восстановлен')).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Проверьте данные записи' })).toBeVisible();

@@ -9,12 +9,16 @@ import { SECTION_CLASS, SECTION_TITLE_CLASS } from './catalog-styles';
 import { CatalogUnavailable } from './catalog-unavailable';
 import type { CatalogService, Doctor } from './catalog-types';
 import { DoctorCard } from './doctor-card';
-import { DoctorProfileLink } from './doctor-profile-link';
+import { DoctorCardActions } from './doctor-profile-link';
 import { HomeAudiences } from './home-audiences';
 import { HomeContacts } from './home-contacts';
+import { HomeCta } from './home-cta';
 import { HomeDirections } from './home-directions';
+import { directionEntries } from './home-directions-model';
 import { HomeHero } from './home-hero';
 import { HomePath } from './home-path';
+import { HOME_ANCHORS } from './home-content';
+import { MobileBookBar } from './mobile-book-bar';
 import { HomeTrust } from './home-trust';
 import { ServiceGrid } from './service-grid';
 
@@ -30,8 +34,10 @@ interface HomeViewProps {
 /** Services of the clinic with their length, shown under the departments; each leads to the doctors who give it. */
 function ServicesBlock({ services }: { readonly services: ReadonlyArray<CatalogService> }): ReactNode {
   const t = useT('home');
+  // No services, no block: an «Услуги — каталог пуст» heading over nothing says less than silence (C4).
+  if (services.length === 0) return null;
   return (
-    <div className="flex flex-col gap-4 border-t border-border pt-8">
+    <div id={HOME_ANCHORS.services} className="flex scroll-mt-4 flex-col gap-4 border-t border-border pt-8">
       <div>
         <h3 className="text-2xl font-bold">{t('servicesTitle')}</h3>
         <p className="mt-1 text-base text-muted-foreground">{t('servicesLead')}</p>
@@ -52,7 +58,7 @@ function DoctorsTeaser({ doctors }: { readonly doctors: ReadonlyArray<Doctor> })
       </div>
       <ul className="grid gap-4 md:grid-cols-2">
         {doctors.slice(0, HOME_DOCTORS).map((doctor) => (
-          <li key={doctor.id}><DoctorCard doctor={doctor} headingLevel={3} tone="interactive"><DoctorProfileLink doctor={doctor} /></DoctorCard></li>
+          <li key={doctor.id}><DoctorCard doctor={doctor} headingLevel={3} tone="interactive" showNearest><DoctorCardActions doctor={doctor} /></DoctorCard></li>
         ))}
       </ul>
     </section>
@@ -67,17 +73,20 @@ function DoctorsTeaser({ doctors }: { readonly doctors: ReadonlyArray<Doctor> })
 export function HomeView({ services, doctors, isFailed }: HomeViewProps): ReactNode {
   const t = useT('home');
   useDocumentTitle(t('title'), false);
+  const entries = directionEntries(isFailed ? undefined : doctors, services.length > 0);
+  // The live part of the departments section: the retry banner when the catalog is down, the services when there are any, else nothing.
+  const live: ReactNode = isFailed ? <CatalogUnavailable namespace="home" retryHref="/" /> : services.length > 0 ? <ServicesBlock services={services} /> : undefined;
   return (
     <>
-      <HomeHero />
+      <HomeHero doctors={isFailed ? [] : doctors} />
       <HomeTrust />
-      <HomeDirections {...(isFailed ? {} : { availableSpecialties: new Set(doctors.flatMap((doctor) => doctor.specialtyCode === undefined ? [] : [doctor.specialtyCode])) })}>
-        {isFailed ? <CatalogUnavailable namespace="home" retryHref="/" /> : <ServicesBlock services={services} />}
-      </HomeDirections>
+      <HomeDirections entries={entries}>{live}</HomeDirections>
       <HomePath />
       <HomeAudiences />
       {isFailed ? null : <DoctorsTeaser doctors={doctors} />}
+      <HomeCta />
       <HomeContacts />
+      <MobileBookBar />
     </>
   );
 }

@@ -1,4 +1,6 @@
-import { LOGIN_PAGE_CSP, escapeHtml, renderLoginPage, renderLoginErrorPage } from './login-page';
+import { createHash } from 'node:crypto';
+
+import { LOGIN_FONT_BASE_PATH, LOGIN_FONT_FILES, LOGIN_PAGE_CSP, escapeHtml, renderLoginPage, renderLoginErrorPage } from './login-page';
 
 const BASE = {
   authorizeQuery: 'client_id=medcenter-web&state=a%26b',
@@ -50,6 +52,45 @@ describe('renderLoginPage', () => {
   });
 });
 
+describe('renderLoginPage design', () => {
+  it('should carry the brand mark and the clinic name when rendered', () => {
+    const html = renderLoginPage(BASE);
+
+    expect(html).toContain('class="mark"');
+    expect(html).toContain('Лайфлайн');
+  });
+
+  it('should link back to the site when the site url is known and say nothing of it otherwise', () => {
+    expect(renderLoginPage({ ...BASE, siteUrl: 'https://app.medcenter.by/' })).toContain('<a class="back" href="https://app.medcenter.by/">');
+    expect(renderLoginPage(BASE)).not.toContain('class="back"');
+  });
+
+  it('should offer a named password visibility toggle that stays hidden until the script reveals it', () => {
+    const html = renderLoginPage(BASE);
+
+    expect(html).toMatch(/<button type="button" id="pw-toggle" class="toggle" hidden aria-pressed="false" aria-controls="password" aria-label="Показать пароль"/);
+    expect(html).toContain('data-hide="Скрыть пароль"');
+  });
+
+  it('should keep the password field masked and its autocomplete hint when the toggle exists', () => {
+    const html = renderLoginPage(BASE);
+
+    expect(html).toContain('id="password" name="password" type="password" autocomplete="current-password"');
+  });
+
+  it('should use the Onest face from its own origin when the page is rendered', () => {
+    const html = renderLoginPage(BASE);
+
+    expect(html).toContain(`url(${LOGIN_FONT_BASE_PATH}/${LOGIN_FONT_FILES.cyrillic})`);
+    expect(html).toContain('"Onest Variable"');
+    expect(html).not.toMatch(/https?:\/\/[^"' ]*font/i);
+  });
+
+  it('should add no forgotten-password link while there is no reset flow', () => {
+    expect(renderLoginPage(BASE)).not.toMatch(/забыли|forgot/i);
+  });
+});
+
 describe('renderLoginErrorPage', () => {
   it('should render the message without a form when the request cannot be continued', () => {
     const html = renderLoginErrorPage('Запрос входа некорректен');
@@ -60,7 +101,22 @@ describe('renderLoginErrorPage', () => {
 });
 
 describe('LOGIN_PAGE_CSP', () => {
-  it('should forbid scripts, framing and foreign styles when the page is served', () => {
+  it('should pin the inline style and the inline script by the hash of what the page really carries when served', () => {
+    const html = renderLoginPage(BASE);
+    const style = /<style>([\s\S]*?)<\/style>/.exec(html)?.[1] ?? '';
+    const script = /<script>([\s\S]*?)<\/script>/.exec(html)?.[1] ?? '';
+    const hash = (text: string): string => createHash('sha256').update(text).digest('base64');
+
+    expect(LOGIN_PAGE_CSP).toContain(`style-src 'sha256-${hash(style)}'`);
+    expect(LOGIN_PAGE_CSP).toContain(`script-src 'sha256-${hash(script)}'`);
+  });
+
+  it('should allow fonts from its own origin only and nothing foreign when served', () => {
+    expect(LOGIN_PAGE_CSP).toContain("font-src 'self'");
+    expect(LOGIN_PAGE_CSP).not.toMatch(/unsafe-inline|unsafe-eval|https?:/);
+  });
+
+  it('should forbid framing, foreign styles and un-hashed scripts when the page is served', () => {
     expect(LOGIN_PAGE_CSP).toContain("default-src 'none'");
     expect(LOGIN_PAGE_CSP).toContain("frame-ancestors 'none'");
     expect(LOGIN_PAGE_CSP).toMatch(/style-src 'sha256-[A-Za-z0-9+/=]+'/);

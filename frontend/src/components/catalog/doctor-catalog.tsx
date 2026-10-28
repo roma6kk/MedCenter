@@ -11,7 +11,7 @@ import { directoryHref, type Directory, type DirectoryParams } from './doctor-di
 import { DoctorCard } from './doctor-card';
 import { DoctorFilterBar } from './doctor-filter-bar';
 import { DoctorPager } from './doctor-pager';
-import { DoctorProfileLink } from './doctor-profile-link';
+import { DoctorCardActions } from './doctor-profile-link';
 
 interface DoctorCatalogProps {
   readonly params: DirectoryParams;
@@ -22,9 +22,9 @@ interface DoctorCatalogProps {
 
 function DoctorGrid({ doctors }: { readonly doctors: ReadonlyArray<Doctor> }): ReactNode {
   return (
-    <ul className="mt-4 grid gap-3 md:grid-cols-2" data-testid="doctor-list">
+    <ul className="mt-4 grid gap-4 md:grid-cols-2" data-testid="doctor-list">
       {doctors.map((doctor) => (
-        <li key={doctor.id}><DoctorCard doctor={doctor} tone="interactive"><DoctorProfileLink doctor={doctor} /></DoctorCard></li>
+        <li key={doctor.id}><DoctorCard doctor={doctor} tone="interactive" showNearest><DoctorCardActions doctor={doctor} /></DoctorCard></li>
       ))}
     </ul>
   );
@@ -46,7 +46,7 @@ function DoctorResults({ directory, params }: { readonly directory: Directory; r
   }
   return (
     <>
-      <p role="status" className="mt-4 text-sm text-[var(--muted-foreground)]">{t('found', { count: meta.totalItems })}</p>
+      <p role="status" className="mt-4 text-sm text-muted-foreground">{t('found', { count: meta.totalItems })}</p>
       <DoctorGrid doctors={items} />
       <DoctorPager meta={meta} params={params} />
     </>
@@ -59,8 +59,8 @@ export function DoctorCatalog({ params, services, directory }: DoctorCatalogProp
   useDocumentTitle(t('doctorsTitle'));
   return (
     <div>
-      <h1 className="serif text-3xl font-bold leading-tight">{t('doctorsTitle')}</h1>
-      <p className="mt-2 text-[var(--muted-foreground)]">{t('doctorsLead')}</p>
+      <h1 className="text-3xl font-bold leading-tight">{t('doctorsTitle')}</h1>
+      <p className="mt-2 text-muted-foreground">{t('doctorsLead')}</p>
       <div className="mt-6"><DoctorFilterBar params={params} services={services} specialties={directory?.specialties ?? []} /></div>
       {directory === null ? (
         <div className="mt-6"><CatalogUnavailable namespace="catalog" retryHref={directoryHref(params)} /></div>

@@ -42,9 +42,9 @@ export function selectDoctorSlot(doctorId: string, slot: Pick<Slot, 'id' | 'star
   return { doctorId, ...selectSlot(slot) };
 }
 
-/** The public doctor page hands a doctor and a slot to the wizard: no service chosen, straight to confirmation. */
-export function draftFromSlot(doctorId: string, slot: Pick<Slot, 'id' | 'start' | 'end'>): Partial<BookingDraft> {
-  return { serviceId: null, doctorId, reason: '', ...selectSlot(slot) };
+/** The public doctor page hands a doctor and a slot to the wizard, straight to confirmation; the service is the one the visitor chose there, if the doctor's page offered any. */
+export function draftFromSlot(doctorId: string, slot: Pick<Slot, 'id' | 'start' | 'end'>, serviceId: string | null = null): Partial<BookingDraft> {
+  return { serviceId, doctorId, reason: '', ...selectSlot(slot) };
 }
 
 /** A deep link `/booking?doctorId=…` (the doctor's "book" button without a slot): the doctor is known, the time is not. */

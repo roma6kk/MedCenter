@@ -5,12 +5,14 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { SlotPicker } from '@/components/booking/slot-picker';
 import { draftFromSlot } from '@/components/booking/booking-steps';
+import { Skeleton } from '@/components/ui/skeleton';
 import { formatClinicDateTime } from '@/lib/clinic-time';
 import { useT } from '@/lib/i18n/use-t';
+import { cn } from '@/lib/ui/cn';
 import { useBookingDraftStore } from '@/store/use-booking-draft-store';
 import { useSessionStore } from '@/store/use-session-store';
 import { useUiStore } from '@/store/use-ui-store';
-import type { Slot } from './catalog-types';
+import type { CatalogService, Slot } from './catalog-types';
 
 interface BookButtonProps {
   readonly selected: Slot | null;
@@ -32,23 +34,75 @@ function BookButton({ selected, onBook }: BookButtonProps): ReactNode {
   );
 }
 
+const CHIP_CLASS =
+  'inline-flex min-h-[44px] items-center gap-2 rounded-full border px-4 text-sm font-medium transition-[background-color,border-color,color] duration-fast ease-out';
+const CHIP_IDLE_CLASS = 'border-border bg-card hover:border-primary hover:bg-primary-soft';
+const CHIP_CHOSEN_CLASS = 'border-primary bg-primary-soft text-primary-soft-foreground';
+
+interface ServiceChipsProps {
+  readonly services: ReadonlyArray<CatalogService>;
+  readonly chosenId: string;
+  readonly onChoose: (service: CatalogService) => void;
+}
+
+/** The doctor's services as toggle chips (C6): the time below is the time of the chosen one only. */
+function ServiceChips({ services, chosenId, onChoose }: ServiceChipsProps): ReactNode {
+  const t = useT('catalog');
+  return (
+    <div role="group" aria-labelledby="doctor-service-label" className="space-y-2">
+      <p id="doctor-service-label" className="form-label">{t('serviceLabel')}</p>
+      <ul className="flex flex-wrap gap-2">
+        {services.map((service) => {
+          const chosen: boolean = service.id === chosenId;
+          return (
+            <li key={service.id}>
+              <button type="button" aria-pressed={chosen} data-testid={`service-chip-${service.id}`} onClick={() => onChoose(service)} className={cn(CHIP_CLASS, chosen ? CHIP_CHOSEN_CLASS : CHIP_IDLE_CLASS)}>
+                {service.name}
+                <span className="tabular-nums text-xs text-muted-foreground">{t('minutes', { minutes: service.defaultDurationMin })}</span>
+              </button>
+            </li>
+          );
+        })}
+      </ul>
+    </div>
+  );
+}
+
+interface DoctorSlotsBookingProps {
+  readonly doctorId: string;
+  /** The services the doctor gives; with some, the visitor picks one first and sees only its time. Empty or absent: every free slot, no service. */
+  readonly services?: ReadonlyArray<CatalogService>;
+  /** The doctor's services are still being read: chips are drawn as placeholders and no time is offered yet. */
+  readonly servicesPending?: boolean;
+}
+
 /**
- * Free slots of the doctor and the "book" button (FR-003, scenario A). A guest can pick a slot: the choice goes to the
- * draft in `sessionStorage`, the wizard's route sends the guest to the login and brings them back to the confirmation.
+ * Service chips, free slots of the doctor and the "book" button (FR-003, scenario A). A guest can pick a slot: the choice
+ * (with the service) goes to the draft in `sessionStorage`, the wizard's route sends the guest to the login and brings them
+ * back to the confirmation.
  */
-export function DoctorSlotsBooking({ doctorId }: { readonly doctorId: string }): ReactNode {
+export function DoctorSlotsBooking({ doctorId, services = [], servicesPending = false }: DoctorSlotsBookingProps): ReactNode {
   const t = useT('catalog');
   const router = useRouter();
   const role = useSessionStore((state) => state.role);
   const [selected, setSelected] = useState<Slot | null>(null);
+  const [serviceId, setServiceId] = useState<string | null>(null);
+  // Until the visitor picks, the first service is the chosen one: the slot grid never shows times of every service mixed.
+  const service: CatalogService | null = services.find((item) => item.id === serviceId) ?? services[0] ?? null;
   const handleBook = (): void => {
     if (selected === null) return;
-    useBookingDraftStore.getState().updateDraft(draftFromSlot(doctorId, selected));
+    useBookingDraftStore.getState().updateDraft(draftFromSlot(doctorId, selected, service?.id ?? null));
     router.push('/booking');
+  };
+  const handleChoose = (next: CatalogService): void => {
+    setServiceId(next.id);
+    setSelected(null);
   };
   return (
     <div className="space-y-4">
-      <SlotPicker doctorId={doctorId} selectedSlotId={selected?.id ?? null} onSelect={setSelected} />
+      {servicesPending ? <Skeleton aria-hidden="true" data-testid="service-chips-loading" className="h-11 w-2/3 rounded-full" /> : null}
+      {service === null ? null : <ServiceChips services={services} chosenId={service.id} onChoose={handleChoose} />}
+      {servicesPending ? null : <SlotPicker doctorId={doctorId} selectedSlotId={selected?.id ?? null} onSelect={setSelected} durationMin={service?.defaultDurationMin ?? null} />}
       <div className="no-print sticky bottom-0 -mx-4 border-t border-[var(--border)] bg-[var(--background)] p-4 md:static md:mx-0 md:border-0 md:p-0">
         {role === 'DOCTOR' || role === 'ADMIN' ? <p className="text-sm text-[var(--muted-foreground)]">{t('patientsOnly')}</p> : <BookButton selected={selected} onBook={handleBook} />}
       </div>

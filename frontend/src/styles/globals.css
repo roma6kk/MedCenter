@@ -168,6 +168,16 @@ body {
   background-attachment: fixed;
 }
 
+/* Ground of the patient-facing pages (landing, catalog, patient cabinet; VA4): the page colour with a warm peach glow in the
+   top right and a teal one in the bottom left, so the public side feels warmer than the staff cabinets (`.staff-ambient`,
+   a cool single tint). Two soft shapes at most; the colours are tokens, so the dark theme recolours them. */
+.warm-ambient {
+  background-color: var(--background);
+  background-image:
+    radial-gradient(44rem 30rem at 100% 0%, var(--warm-soft), transparent 68%),
+    radial-gradient(40rem 28rem at 0% 100%, var(--primary-soft), transparent 70%);
+}
+
 h1, h2, h3, .serif {
   font-family: var(--font-sans);
   letter-spacing: -0.015em;

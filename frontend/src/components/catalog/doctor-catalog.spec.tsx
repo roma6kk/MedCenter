@@ -1,6 +1,17 @@
-import { render, screen, within } from '@testing-library/react';
+import { screen, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+
+const replaceMock = jest.fn();
+jest.mock('next/navigation', () => ({ useRouter: () => ({ replace: replaceMock, push: jest.fn() }) }));
+jest.mock('@/lib/api/api-fetch', () => {
+  const actual = jest.requireActual('@/lib/api/api-fetch');
+  return { ...actual, apiFetch: jest.fn() };
+});
+
+import { useSessionStore } from '@/store/use-session-store';
 import type { PaginatedResponse } from '@/lib/api/pagination';
 import type { CatalogService, Doctor } from './catalog-types';
+import { LATER_SLOT, SLOT, renderWithCatalog, serveCatalog } from './catalog-test-utils';
 import { DoctorCatalog } from './doctor-catalog';
 import { buildDirectory } from './doctor-directory';
 
@@ -25,9 +36,15 @@ function directoryOf(doctors: ReadonlyArray<Doctor>): ReturnType<typeof buildDir
 }
 
 describe('DoctorCatalog', () => {
+  beforeEach(() => {
+    replaceMock.mockReset();
+    serveCatalog();
+    useSessionStore.getState().clearSession();
+  });
+
   it('should list the doctors with a profile link each when the directory has doctors', () => {
     const directory = directoryOf([doctor('a', 'Терапевт'), doctor('b', 'Кардиолог')]);
-    render(<DoctorCatalog params={{ page: 1 }} services={SERVICES} directory={directory} />);
+    renderWithCatalog(<DoctorCatalog params={{ page: 1 }} services={SERVICES} directory={directory} />);
 
     expect(screen.getByRole('heading', { level: 1, name: 'Врачи' })).toBeInTheDocument();
     expect(screen.getAllByTestId('doctor-card')).toHaveLength(2);
@@ -37,7 +54,7 @@ describe('DoctorCatalog', () => {
 
   it('should render the filters as a GET form that keeps the chosen values when filters are chosen', () => {
     const directory = directoryOf([doctor('a', 'Терапевт')]);
-    render(<DoctorCatalog params={{ page: 1, serviceId: 'svc-1', specialty: '419192003', search: 'Ив' }} services={SERVICES} directory={directory} />);
+    renderWithCatalog(<DoctorCatalog params={{ page: 1, serviceId: 'svc-1', specialty: '419192003', search: 'Ив' }} services={SERVICES} directory={directory} />);
 
     const form = screen.getByRole('search', { name: 'Фильтр врачей' });
     expect(form).toHaveAttribute('method', 'get');
@@ -47,30 +64,96 @@ describe('DoctorCatalog', () => {
     expect(within(form).getByLabelText('Имя или фамилия')).toHaveValue('Ив');
   });
 
-  it('should offer a way to reset the filters when no doctor matches', () => {
+  it('should offer a way to reset the filters only when a filter is set', () => {
     const directory = directoryOf([doctor('a')]);
-    render(<DoctorCatalog params={{ page: 1 }} services={SERVICES} directory={directory} />);
+    const { unmount } = renderWithCatalog(<DoctorCatalog params={{ page: 1 }} services={SERVICES} directory={directory} />);
+
+    expect(screen.queryByRole('link', { name: 'Сбросить' })).not.toBeInTheDocument();
+    unmount();
+    renderWithCatalog(<DoctorCatalog params={{ page: 1, search: 'Ив' }} services={SERVICES} directory={directory} />);
 
     expect(screen.getByRole('link', { name: 'Сбросить' })).toHaveAttribute('href', '/doctors');
   });
 
+  it('should have no search button, as the filters apply at once', () => {
+    renderWithCatalog(<DoctorCatalog params={{ page: 1 }} services={SERVICES} directory={directoryOf([doctor('a')])} />);
+
+    expect(within(screen.getByRole('search', { name: 'Фильтр врачей' })).queryByRole('button')).not.toBeInTheDocument();
+  });
+
+  it('should apply a chosen specialty at once, from the first page, without a history entry', async () => {
+    renderWithCatalog(<DoctorCatalog params={{ page: 2, search: 'Ив' }} services={SERVICES} directory={directoryOf([doctor('a', 'Терапевт'), doctor('b', 'Кардиолог')])} />);
+
+    await userEvent.selectOptions(screen.getByLabelText('Специальность'), '394579002');
+
+    expect(replaceMock).toHaveBeenCalledWith('/doctors?specialty=394579002&search=%D0%98%D0%B2', { scroll: false });
+  });
+
+  it('should apply a chosen service at once and drop it when "any service" is chosen', async () => {
+    renderWithCatalog(<DoctorCatalog params={{ page: 1, serviceId: 'svc-1' }} services={SERVICES} directory={directoryOf([doctor('a')])} />);
+
+    await userEvent.selectOptions(screen.getByLabelText('Услуга'), '');
+
+    expect(replaceMock).toHaveBeenCalledWith('/doctors', { scroll: false });
+  });
+
+  it('should apply the typed name 300 ms after the last keystroke, not on each one', async () => {
+    jest.useFakeTimers();
+    const user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime });
+    renderWithCatalog(<DoctorCatalog params={{ page: 1 }} services={SERVICES} directory={directoryOf([doctor('a')])} />);
+
+    await user.type(screen.getByLabelText('Имя или фамилия'), 'Пет');
+    expect(replaceMock).not.toHaveBeenCalled();
+    jest.advanceTimersByTime(299);
+    expect(replaceMock).not.toHaveBeenCalled();
+    jest.advanceTimersByTime(1);
+
+    expect(replaceMock).toHaveBeenCalledTimes(1);
+    expect(replaceMock).toHaveBeenCalledWith('/doctors?search=%D0%9F%D0%B5%D1%82', { scroll: false });
+    jest.useRealTimers();
+  });
+
+  it('should show the nearest free time and a booking link on each card when the doctor has free slots', async () => {
+    serveCatalog({ slots: { a: [LATER_SLOT, SLOT] } });
+    renderWithCatalog(<DoctorCatalog params={{ page: 1 }} services={SERVICES} directory={directoryOf([doctor('a', 'Терапевт')])} />);
+
+    expect(await screen.findByText(/Ближайшее: завтра, 11:00/)).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Записаться: Имя a' })).toHaveAttribute('href', '/booking?doctorId=a');
+    expect(screen.getByRole('link', { name: 'Профиль: Имя a' })).toHaveAttribute('href', '/doctors/a');
+  });
+
+  it('should say there is no free time when the doctor has none in the next two weeks', async () => {
+    renderWithCatalog(<DoctorCatalog params={{ page: 1 }} services={SERVICES} directory={directoryOf([doctor('a', 'Терапевт')])} />);
+
+    expect(await screen.findByText('В ближайшие две недели свободного времени нет')).toBeInTheDocument();
+  });
+
+  it('should not offer to book when a doctor looks at the catalog', async () => {
+    useSessionStore.getState().setSession({ accessToken: 't', expiresAt: null, role: 'DOCTOR', scope: null, patientRef: null, fhirUser: null });
+    renderWithCatalog(<DoctorCatalog params={{ page: 1 }} services={SERVICES} directory={directoryOf([doctor('a')])} />);
+
+    await screen.findByText('В ближайшие две недели свободного времени нет');
+    expect(screen.queryByRole('link', { name: /^Записаться/ })).not.toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Профиль: Имя a' })).toBeInTheDocument();
+  });
+
   it('should say no doctor was found and offer to reset when the filters match nobody', () => {
     const directory = directoryOf([]);
-    render(<DoctorCatalog params={{ page: 1, search: 'Яяя' }} services={SERVICES} directory={directory} />);
+    renderWithCatalog(<DoctorCatalog params={{ page: 1, search: 'Яяя' }} services={SERVICES} directory={directory} />);
 
     expect(screen.getByText('Врачи не найдены')).toBeInTheDocument();
     expect(screen.getByText('Измените фильтры поиска.')).toBeInTheDocument();
   });
 
   it('should say the catalogue is empty and not ask to change the filters when no filter is set and there are no doctors at all', () => {
-    render(<DoctorCatalog params={{ page: 1 }} services={SERVICES} directory={directoryOf([])} />);
+    renderWithCatalog(<DoctorCatalog params={{ page: 1 }} services={SERVICES} directory={directoryOf([])} />);
 
     expect(screen.getByText('Каталог врачей пока пуст')).toBeInTheDocument();
     expect(screen.queryByText('Измените фильтры поиска.')).not.toBeInTheDocument();
   });
 
   it('should show the real cause banner with a retry link when the doctors could not be loaded', () => {
-    render(<DoctorCatalog params={{ page: 1, search: 'Ив' }} services={SERVICES} directory={null} />);
+    renderWithCatalog(<DoctorCatalog params={{ page: 1, search: 'Ив' }} services={SERVICES} directory={null} />);
 
     expect(screen.getByTestId('problem-banner')).toHaveTextContent('Не удалось загрузить список врачей');
     expect(screen.getByRole('link', { name: 'Повторить' })).toHaveAttribute('href', '/doctors?search=%D0%98%D0%B2');
@@ -79,7 +162,7 @@ describe('DoctorCatalog', () => {
   it('should page through the doctors with links that keep the filters when there is more than one page', () => {
     const many = Array.from({ length: 12 }, (_, index) => doctor(`d${index}`, 'Терапевт'));
     const params = { page: 1, specialty: '419192003' };
-    render(<DoctorCatalog params={params} services={SERVICES} directory={directoryOf(many)} />);
+    renderWithCatalog(<DoctorCatalog params={params} services={SERVICES} directory={directoryOf(many)} />);
 
     const pager = screen.getByRole('navigation', { name: 'Страницы каталога врачей' });
     expect(within(pager).getByRole('link', { name: 'Следующая страница' })).toHaveAttribute('href', '/doctors?specialty=419192003&page=2');
@@ -87,13 +170,13 @@ describe('DoctorCatalog', () => {
   });
 
   it('should not show a pager when there is a single page', () => {
-    render(<DoctorCatalog params={{ page: 1 }} services={SERVICES} directory={directoryOf([doctor('a')])} />);
+    renderWithCatalog(<DoctorCatalog params={{ page: 1 }} services={SERVICES} directory={directoryOf([doctor('a')])} />);
 
     expect(screen.queryByRole('navigation', { name: 'Страницы каталога врачей' })).not.toBeInTheDocument();
   });
 
   it('should drop the service filter when the catalog of services is unavailable', () => {
-    render(<DoctorCatalog params={{ page: 1 }} services={[]} directory={directoryOf([doctor('a')])} />);
+    renderWithCatalog(<DoctorCatalog params={{ page: 1 }} services={[]} directory={directoryOf([doctor('a')])} />);
 
     expect(screen.queryByLabelText('Услуга')).not.toBeInTheDocument();
   });

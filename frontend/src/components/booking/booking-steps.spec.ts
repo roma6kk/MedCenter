@@ -61,6 +61,10 @@ describe('draftFromSlot', () => {
   it('should prepare the confirmation step when a slot was picked on the doctor page', () => {
     expect(draftFromSlot('d1', SLOT)).toEqual({ serviceId: null, doctorId: 'd1', reason: '', slotId: 'slot-1', slotStart: SLOT.start, slotEnd: SLOT.end, step: 4 });
   });
+
+  it('should carry the service the visitor chose on the doctor page when there is one', () => {
+    expect(draftFromSlot('d1', SLOT, 'svc-1')).toMatchObject({ serviceId: 'svc-1', doctorId: 'd1', step: 4 });
+  });
 });
 
 describe('draftForDoctor', () => {

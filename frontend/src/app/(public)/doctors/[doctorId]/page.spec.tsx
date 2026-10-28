@@ -1,5 +1,4 @@
-import { render, screen } from '@testing-library/react';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { screen, within } from '@testing-library/react';
 
 const NOT_FOUND = new Error('NEXT_NOT_FOUND');
 jest.mock('next/navigation', () => ({
@@ -11,21 +10,24 @@ jest.mock('next/navigation', () => ({
 jest.mock('@/components/catalog/catalog-server', () => ({ loadDoctor: jest.fn() }));
 jest.mock('@/lib/api/api-fetch', () => {
   const actual = jest.requireActual('@/lib/api/api-fetch');
-  return { ...actual, apiFetch: jest.fn().mockResolvedValue({ doctorId: 'a', from: '', to: '', items: [] }) };
+  return { ...actual, apiFetch: jest.fn() };
 });
 
 import { loadDoctor } from '@/components/catalog/catalog-server';
+import { renderWithCatalog, serveCatalog } from '@/components/catalog/catalog-test-utils';
 import DoctorProfilePage from './page';
 
 const loadDoctorMock = loadDoctor as jest.MockedFunction<typeof loadDoctor>;
 
 async function renderPage(doctorId: string): Promise<void> {
-  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  render(<QueryClientProvider client={client}>{await DoctorProfilePage({ params: Promise.resolve({ doctorId }) })}</QueryClientProvider>);
+  renderWithCatalog(await DoctorProfilePage({ params: Promise.resolve({ doctorId }) }));
 }
 
 describe('DoctorProfilePage', () => {
-  beforeEach(() => loadDoctorMock.mockReset());
+  beforeEach(() => {
+    loadDoctorMock.mockReset();
+    serveCatalog();
+  });
 
   it('should show the doctor and the place to pick a time when the API knows the doctor', async () => {
     loadDoctorMock.mockResolvedValue({ ok: true, data: { id: 'a', firstName: 'Мария', lastName: 'Иванова', name: 'Мария Иванова', specialty: 'Терапевт' } });
@@ -34,6 +36,34 @@ describe('DoctorProfilePage', () => {
 
     expect(screen.getByRole('heading', { level: 1, name: 'Мария Иванова' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { level: 2, name: 'Свободное время' })).toBeInTheDocument();
+  });
+
+  it('should describe the doctor with the specialty and the services he gives, and own up that no biography is published', async () => {
+    const services = [
+      { id: 'svc-1', name: 'Приём терапевта', defaultDurationMin: 30, isActive: true },
+      { id: 'svc-2', name: 'Приём кардиолога', defaultDurationMin: 40, isActive: true },
+    ];
+    serveCatalog({ services, doctorsByService: { 'svc-1': [{ id: 'a' }] } });
+    loadDoctorMock.mockResolvedValue({ ok: true, data: { id: 'a', firstName: 'Мария', lastName: 'Иванова', name: 'Мария Иванова', specialty: 'Терапевт' } });
+
+    await renderPage('a');
+
+    const about = screen.getByRole('region', { name: 'О враче' });
+    const list = await within(about).findByTestId('doctor-services');
+    expect(within(list).getAllByRole('listitem')).toHaveLength(1);
+    expect(list).toHaveTextContent('Приём терапевта');
+    expect(list).toHaveTextContent('30 мин');
+    expect(list).not.toHaveTextContent('Приём кардиолога');
+    expect(about).toHaveTextContent('Терапевт');
+    expect(about).toHaveTextContent('Стаж, образование и описание врача клиника пока не публикует.');
+  });
+
+  it('should say the services are not listed when the doctor gives none', async () => {
+    loadDoctorMock.mockResolvedValue({ ok: true, data: { id: 'a', firstName: 'Мария', lastName: 'Иванова', name: 'Мария Иванова' } });
+
+    await renderPage('a');
+
+    expect(await screen.findByText('Услуги врача пока не указаны.')).toBeInTheDocument();
   });
 
   it.each([404, 400])('should answer not found (a real 404) when the API answers %s', async (status) => {

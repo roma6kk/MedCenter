@@ -1187,7 +1187,10 @@
     "cabinet": "My account",
     "directions": "Departments",
     "companies": "Companies",
-    "contacts": "Contacts"
+    "contacts": "Contacts",
+    "menuOpen": "Open the menu",
+    "menuTitle": "Menu",
+    "book": "Book"
   },
   "home": {
     "title": "Lifeline — medical center",
@@ -1195,7 +1198,6 @@
     "heroTitle": "Consultation, diagnostics and follow-up in one center",
     "lead": "Therapy, cardiology, neurology and surgery, with functional diagnostics on site. Visit results, diagnoses and prescriptions are kept in your electronic health record.",
     "book": "Book an appointment",
-    "chooseDirection": "Choose a department",
     "findDoctor": "Find a doctor",
     "recordTitle": "Electronic health record",
     "recordText": "Visit history, diagnoses and prescriptions in your personal account",
@@ -1274,7 +1276,15 @@
     "footerLegal": "© Lifeline · {name}, tax ID {unp}",
     "footerLicense": "License No. {number} of {date}",
     "loadError": "Could not load the catalog",
-    "loadErrorHint": "Check your connection and try again."
+    "loadErrorHint": "Check your connection and try again.",
+    "windowsTitle": "Nearest free windows",
+    "windowsEmpty": "No free time in the next two weeks. Please call the front desk.",
+    "windowsAll": "All doctors and schedules",
+    "windowsLoading": "Loading free time",
+    "directionGeneric": "Consultations with the doctors of this department.",
+    "directionServices": "All services",
+    "ctaTitle": "Book a visit in a couple of minutes",
+    "ctaText": "Choose a doctor and a free time. You can sign in or register on the next step, your choice is kept."
   },
   "catalog": {
     "doctorsTitle": "Doctors",
@@ -1285,7 +1295,6 @@
     "filterSearch": "First or last name",
     "anyService": "Any service",
     "anySpecialty": "Any specialty",
-    "apply": "Search",
     "reset": "Reset",
     "found": "Doctors found: {count}",
     "loadError": "Could not load the doctor list",
@@ -1300,12 +1309,21 @@
     "notFoundHint": "The profile may be unavailable or removed.",
     "backToList": "Back to the doctor list",
     "slotsTitle": "Available times",
-    "slotsLead": "Pick a time and press “Book”. You can sign in on the next step, your choice is kept.",
+    "slotsLead": "Pick a service and a time, then press “Book”. You can sign in on the next step, your choice is kept.",
     "bookSelected": "Book {time}",
     "bookDisabled": "Pick a time",
     "patientsOnly": "Booking is available to patients.",
     "emptyAll": "The doctor catalog is empty for now",
-    "emptyAllHint": "No doctors have been added yet. Check back later or call the front desk."
+    "emptyAllHint": "No doctors have been added yet. Check back later or call the front desk.",
+    "book": "Book",
+    "bookWith": "Book: {name}",
+    "aboutTitle": "About the doctor",
+    "aboutSpecialty": "Specialty",
+    "aboutServices": "Services",
+    "aboutNoServices": "The doctor's services are not listed yet.",
+    "aboutNote": "The clinic does not publish the doctor's experience, education or description yet.",
+    "serviceLabel": "Service",
+    "updating": "Updating the list…"
   },
   "patientProfile": {
     "completeness": {

@@ -1,6 +1,6 @@
 /**
- * auth — Playwright helpers that sign in through the REAL browser flow: `/login` → `/api/auth/authorize` → the auth-service
- * login form → `/api/auth/callback`. Nothing is faked, so a regression of the redirect_uri, the PKCE cookie or the token broker
+ * auth — Playwright helpers that sign in through the REAL browser flow: `/login` (which redirects at once) → `/api/auth/authorize`
+ * → the auth-service login form → `/api/auth/callback`. Nothing is faked, so a regression of the redirect_uri, the PKCE cookie or the token broker
  * fails here first.
  */
 import { test as base, expect, type Browser, type Page } from '@playwright/test';
@@ -16,9 +16,18 @@ export interface SignInOptions {
   readonly returnTo?: string;
 }
 
-/** From the `/login` entry screen: «Войти» → the auth-service form (fields by name) → back on the web app. */
-export async function continueFromLoginScreen(page: Page, account: DemoAccount, webOrigin: string): Promise<void> {
-  await page.getByRole('link', { name: 'Войти' }).click();
+/**
+ * The page the visitor wanted, as the authorize redirect carries it: `state` is `<random>.<encodeURIComponent(returnTo)>`
+ * (`buildState`); `null` when the sign-in was started without one.
+ */
+export function returnToOfAuthorizeUrl(url: string): string | null {
+  const state = new URL(url).searchParams.get('state') ?? '';
+  const separator = state.indexOf('.');
+  return separator === -1 ? null : decodeURIComponent(state.slice(separator + 1));
+}
+
+/** On the auth-service form (`/login` and the header «Войти» redirect straight to it): fills the fields by name and waits until the browser is back on the web app. */
+export async function fillAuthServiceForm(page: Page, account: DemoAccount, webOrigin: string): Promise<void> {
   await page.locator('input[name="email"]').fill(account.email);
   await page.locator('input[name="password"]').fill(account.password());
   await Promise.all([
@@ -33,7 +42,7 @@ export async function signInThroughLoginForm(page: Page, account: DemoAccount, o
   const webOrigin = new URL(options.webOrigin ?? DEFAULT_WEB_ORIGIN).origin;
   const entry = options.returnTo === undefined ? '/login' : `/login?returnTo=${encodeURIComponent(options.returnTo)}`;
   await page.goto(`${webOrigin}${entry}`);
-  await continueFromLoginScreen(page, account, webOrigin);
+  await fillAuthServiceForm(page, account, webOrigin);
 }
 
 export async function openSignedInPage(browser: Browser, role: DemoRole, baseURL: string | undefined): Promise<Page> {

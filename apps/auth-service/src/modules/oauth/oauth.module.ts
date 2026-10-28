@@ -15,6 +15,7 @@ import {
 } from './guards/client.guard';
 import { SIGNING_KEYS, JwtService, type SigningKeys } from './jwt.service';
 import { JwksService } from './jwks.service';
+import { LoginAssetsController } from './login/login-assets.controller';
 import { LOGIN_ATTEMPT_STORE, createLoginAttemptStore } from './login/login-attempt-store';
 import { LOGIN_KEYS, loadLoginKeys } from './login/login-keys';
 import { LoginPageResponder } from './login/login-page.responder';
@@ -97,7 +98,7 @@ export function loadRegisteredClients(source: NodeJS.ProcessEnv = process.env): 
  */
 @Module({
   imports: [UsersModule],
-  controllers: [OAuthController, AuthorizeController, LoginController],
+  controllers: [OAuthController, AuthorizeController, LoginController, LoginAssetsController],
   providers: [
     PkceService,
     JwtService,

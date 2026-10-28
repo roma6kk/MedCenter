@@ -9,6 +9,7 @@
  * `loadSession`, a React StrictMode double effect and a 401-triggered refresh share a result instead of racing.
  */
 import { clearAllDrafts } from '@/lib/encounter-draft';
+import { SESSION_ENDED_REASON } from './authorize-href';
 import { setAccessToken, clearAccessToken, getAccessToken } from './access-token';
 import { parseUserRole } from './user-role';
 import { setFlash } from '@/lib/ui/flash-message';
@@ -109,14 +110,14 @@ export async function endSession(): Promise<void> {
   }
 }
 
-/** User-initiated sign-out: ends the session and returns to the login screen with a clean in-memory state. */
+/** User-initiated sign-out: ends the session and returns to the home page with a clean in-memory state (`/login` now leads straight into the sign-in form, which is no place to land after signing out). */
 export async function logout(): Promise<void> {
   await endSession();
   // The booking draft carries the visit reason (health data) in this tab's sessionStorage: it must not outlive a sign-out.
   useBookingDraftStore.getState().clearDraft();
   // Likewise the unfinished encounter forms kept for the doctor in this browser (clinical text, A8).
   clearAllDrafts();
-  window.location.assign('/login');
+  window.location.assign('/');
 }
 
 /** The session died on the server (revoked token): leave a toast for the login page and go there with `returnTo`. */
@@ -124,7 +125,7 @@ export async function endRevokedSession(): Promise<void> {
   await endSession();
   setFlash('session-ended');
   const returnTo: string = window.location.pathname + window.location.search;
-  window.location.assign(`/login?returnTo=${encodeURIComponent(returnTo)}`);
+  window.location.assign(`/login?returnTo=${encodeURIComponent(returnTo)}&reason=${SESSION_ENDED_REASON}`);
 }
 
 /** The session can not be renewed: go to login and come back to the current page afterwards. */

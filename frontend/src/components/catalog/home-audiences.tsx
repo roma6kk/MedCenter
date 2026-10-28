@@ -27,13 +27,14 @@ function Audience({ title, text, action }: AudienceProps): ReactNode {
   );
 }
 
-function Chips({ label, names }: { readonly label: string; readonly names: ReadonlyArray<string> }): ReactNode {
+/** Names as plain wordmarks (C8): no border or ground, so nothing looks like a filter or a button that does not click. */
+function Wordmarks({ label, names }: { readonly label: string; readonly names: ReadonlyArray<string> }): ReactNode {
   return (
     <div className="flex flex-col gap-3">
       <h3 className="text-base font-semibold text-inverse-muted">{label}</h3>
-      <ul className="flex flex-wrap gap-2">
+      <ul className="flex flex-wrap items-baseline gap-x-8 gap-y-2">
         {names.map((name) => (
-          <li key={name} className="rounded-full border border-inverse-border px-4 py-2 text-base font-medium">{name}</li>
+          <li key={name} className="text-xl font-semibold tracking-tight text-inverse-foreground">{name}</li>
         ))}
       </ul>
     </div>
@@ -55,10 +56,9 @@ export function HomeAudiences(): ReactNode {
         <div className="flex flex-col gap-6 border-t border-inverse-border pt-8">
           <h3 className="text-xl font-bold">{t('partnersTitle')}</h3>
           <div className="grid gap-6 md:grid-cols-2">
-            <Chips label={t('partnersCorp')} names={CORPORATE_CLIENTS} />
-            <Chips label={t('partnersIns')} names={INSURANCE_PARTNERS} />
+            <Wordmarks label={t('partnersCorp')} names={CORPORATE_CLIENTS} />
+            <Wordmarks label={t('partnersIns')} names={INSURANCE_PARTNERS} />
           </div>
-          <p className="text-sm text-inverse-muted">{t('demoNote')}</p>
         </div>
       </div>
     </section>

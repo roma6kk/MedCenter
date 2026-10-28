@@ -1,4 +1,5 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 
 jest.mock('next/navigation', () => ({ usePathname: () => '/doctors' }));
 
@@ -11,8 +12,52 @@ describe('PublicShell', () => {
   it('should offer sign-in and registration when nobody is signed in', () => {
     render(<PublicShell><p>content</p></PublicShell>);
 
-    expect(screen.getByRole('link', { name: 'Войти' })).toHaveAttribute('href', '/login');
+    // «Войти» leads straight into the authorization flow: no page with a single button in between (C2).
+    expect(screen.getByRole('link', { name: 'Войти' })).toHaveAttribute('href', '/api/auth/authorize');
     expect(screen.getByRole('link', { name: 'Регистрация' })).toHaveAttribute('href', '/register');
+  });
+
+  it('should keep the booking button and the phone in the header row for a guest and a patient, and drop the button for staff', () => {
+    const { unmount } = render(<PublicShell><p>content</p></PublicShell>);
+
+    const header = within(screen.getByRole('banner'));
+    expect(header.getByRole('link', { name: 'Записаться' })).toHaveAttribute('href', '/booking');
+    expect(header.getByRole('link', { name: '+375 17 000-00-00' })).toBeInTheDocument();
+    unmount();
+    useSessionStore.getState().setSession({ accessToken: 't', expiresAt: null, role: 'ADMIN', scope: null, patientRef: null, fhirUser: null });
+    render(<PublicShell><p>content</p></PublicShell>);
+
+    expect(screen.queryByRole('link', { name: 'Записаться' })).not.toBeInTheDocument();
+  });
+
+  it('should open a drawer with the sections, the sign-in, the phone and the switches when the burger is pressed, and close it again', async () => {
+    render(<PublicShell><p>content</p></PublicShell>);
+    const burger = screen.getByRole('button', { name: 'Открыть меню' });
+    expect(burger).toHaveAttribute('aria-expanded', 'false');
+
+    await userEvent.click(burger);
+
+    const drawer = screen.getByRole('dialog', { name: 'Меню' });
+    expect(within(drawer).getByRole('link', { name: 'Направления' })).toHaveAttribute('href', '/#directions');
+    expect(within(drawer).getByRole('link', { name: 'Войти' })).toHaveAttribute('href', '/api/auth/authorize');
+    expect(within(drawer).getByRole('link', { name: 'Регистрация' })).toHaveAttribute('href', '/register');
+    expect(within(drawer).getByRole('link', { name: '+375 17 000-00-00' })).toHaveAttribute('href', 'tel:+375170000000');
+    expect(within(drawer).getByRole('group', { name: 'Язык' })).toBeInTheDocument();
+
+    await userEvent.click(within(drawer).getByRole('link', { name: 'Врачи' }));
+
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+
+  it('should close the drawer on Escape and give the focus back to the burger', async () => {
+    render(<PublicShell><p>content</p></PublicShell>);
+    const burger = screen.getByRole('button', { name: 'Открыть меню' });
+
+    await userEvent.click(burger);
+    await userEvent.keyboard('{Escape}');
+
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(burger).toHaveFocus();
   });
 
   it('should offer the language and the theme switch in the header when the shell is rendered', () => {

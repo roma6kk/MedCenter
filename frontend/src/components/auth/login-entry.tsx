@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { CircleAlert } from 'lucide-react';
 import { buttonVariants } from '@/components/ui/button-variants';
 import { useDocumentTitle } from '@/hooks/use-document-title';
+import { authorizeHref } from '@/lib/auth/authorize-href';
 import { useT } from '@/lib/i18n/use-t';
 import type { LoginErrorKind } from './login-error';
 
@@ -16,8 +17,9 @@ interface LoginEntryProps {
 }
 
 /**
- * Branded entry of the SMART/OAuth2 flow (frontend-design-spec §2, UI-1): the credentials form belongs to
- * auth-service, so this screen only starts the flow at `/api/auth/authorize` and points new patients to `/register`.
+ * Screen of `/login` after a failed sign-in (frontend-design-spec §2, UI-1): the callback sent the visitor back with an OAuth
+ * error, so it says so and offers to try again at `/api/auth/authorize` (the credentials form belongs to auth-service).
+ * A plain visit never gets here, the page redirects (C2).
  */
 export function LoginEntry({ returnTo, error = null }: LoginEntryProps): ReactNode {
   const t = useT('auth.login');
@@ -34,7 +36,7 @@ export function LoginEntry({ returnTo, error = null }: LoginEntryProps): ReactNo
         </p>
       )}
       <a
-        href={returnTo === '' ? '/api/auth/authorize' : `/api/auth/authorize?returnTo=${encodeURIComponent(returnTo)}`}
+        href={authorizeHref(returnTo)}
         className={`${buttonVariants({ size: 'lg' })} mt-6 w-full`}
       >
         {t('submit')}
