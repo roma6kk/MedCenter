@@ -1,9 +1,6 @@
-import type { Metadata } from 'next';
-import { pageMetadata } from '@/lib/i18n/page-metadata';
-import { HistoryTimeline } from '@/components/patient/history-timeline';
+import { redirect } from 'next/navigation';
 
-export const metadata: Metadata = pageMetadata('patient.history.title');
-
-export default function HistoryPage(): React.JSX.Element {
-  return <HistoryTimeline />;
+/** The visit history is the first tab of the medical record now (B6): the old address keeps working. */
+export default function HistoryPage(): never {
+  redirect('/medcard');
 }

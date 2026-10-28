@@ -32,29 +32,40 @@ describe('PatientShell', () => {
     expect(screen.getByRole('main')).toHaveAttribute('id', 'main-content');
   });
 
-  it('should list the patient sections including the profile', () => {
+  it('should list three sections: the home, the appointments and the medical record', () => {
     render(<PatientShell><p>x</p></PatientShell>, { wrapper: Wrapper });
 
     const nav = screen.getByRole('navigation', { name: 'Пациент' });
-    ['Запись', 'Мои записи', 'История', 'Назначения', 'Профиль'].forEach((label) => {
-      expect(nav).toHaveTextContent(label);
-    });
+    expect(within(nav).getAllByRole('link').map((link) => [link.textContent, link.getAttribute('href')])).toEqual([
+      ['Главная', '/home'],
+      ['Мои записи', '/appointments'],
+      ['Медкарта', '/medcard'],
+    ]);
   });
 
-  it('should offer exactly one link to the notifications when the patient shell is shown', async () => {
+  it('should offer «Записаться» as the primary button next to the bell, outside the navigation', () => {
     render(<PatientShell><p>x</p></PatientShell>, { wrapper: Wrapper });
 
-    await screen.findByRole('link', { name: /Уведомления, непрочитанных/ });
-
-    expect(screen.getAllByRole('link').filter((link) => link.getAttribute('href') === '/notifications')).toHaveLength(1);
+    const book = screen.getByRole('link', { name: 'Записаться' });
+    expect(book).toHaveAttribute('href', '/booking');
+    expect(book.className).toContain('bg-primary');
+    expect(within(screen.getByRole('navigation', { name: 'Пациент' })).queryByRole('link', { name: 'Записаться' })).not.toBeInTheDocument();
   });
 
-  it('should mark the notifications entry as the current page when the patient is on /notifications', async () => {
+  it('should not link to the notifications page from the header itself: the bell opens a dropdown', async () => {
+    render(<PatientShell><p>x</p></PatientShell>, { wrapper: Wrapper });
+
+    await screen.findByRole('button', { name: /Уведомления, непрочитанных/ });
+
+    expect(screen.queryAllByRole('link').filter((link) => link.getAttribute('href') === '/notifications')).toHaveLength(0);
+  });
+
+  it('should mark the notifications bell as the current page when the patient is on /notifications', async () => {
     mockPathname.mockReturnValue('/notifications');
 
     render(<PatientShell><p>x</p></PatientShell>, { wrapper: Wrapper });
 
-    expect(await screen.findByRole('link', { name: /Уведомления, непрочитанных/ })).toHaveAttribute('aria-current', 'page');
+    expect(await screen.findByRole('button', { name: /Уведомления, непрочитанных/ })).toHaveAttribute('aria-current', 'page');
   });
 
   it('should keep every navigation link at least 44 px tall when the shell is shown', () => {
@@ -67,13 +78,13 @@ describe('PatientShell', () => {
     render(<PatientShell><p>x</p></PatientShell>, { wrapper: Wrapper });
 
     expect(screen.getByRole('link', { name: 'Мои записи' })).toHaveAttribute('aria-current', 'page');
-    expect(screen.getByRole('link', { name: 'Запись' })).not.toHaveAttribute('aria-current');
+    expect(screen.getByRole('link', { name: 'Главная' })).not.toHaveAttribute('aria-current');
   });
 
   it('should carry the notification bell, the language switch and the logout button', async () => {
     render(<PatientShell><p>x</p></PatientShell>, { wrapper: Wrapper });
 
-    expect(await screen.findByRole('link', { name: /Уведомления, непрочитанных/ })).toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: /Уведомления, непрочитанных/ })).toBeInTheDocument();
     expect(screen.getByRole('group', { name: 'Язык' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Выйти' })).toBeInTheDocument();
   });
@@ -98,7 +109,7 @@ describe('PatientShell', () => {
 
     render(<PatientShell><p>x</p></PatientShell>, { wrapper: Wrapper });
 
-    expect(screen.getByRole('link', { name: 'Запись' })).not.toHaveAttribute('aria-current');
+    expect(screen.getByRole('link', { name: 'Главная' })).not.toHaveAttribute('aria-current');
   });
 });
 

@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { ReactNode, RefObject } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { BellRing, CheckCheck } from 'lucide-react';
 import { Pager } from '@/components/data-display/paginated-table';
 import { EmptyState, TableSkeleton } from '@/components/feedback/states';
 import { buttonVariants } from '@/components/ui/button-variants';
@@ -16,6 +17,7 @@ import { useMarkNotificationRead, useNotifications, useUnreadCount } from '@/lib
 import { ProblemBanner } from '@/components/feedback/problem-banner';
 import { QueryFailure } from '@/components/feedback/query-error-state';
 import { formatDayHeading } from '@/lib/clinic-time';
+import { BookLink } from './book-link';
 import { SegmentedTabs, tabPanelProps, type TabOption } from './segmented-tabs';
 import { useClampedPage } from './use-clamped-page';
 import { useClinicFormat } from '@/hooks/use-clinic-format';
@@ -64,8 +66,11 @@ function NotificationItems({ items, meta, markingId, listRef, onMarkRead, onPage
 function EmptyNotice({ filter, isEmpty }: { readonly filter: NotificationFilter; readonly isEmpty: boolean }): ReactNode {
   const t = useT('patient.notifications');
   const tn = useT('patientNotifications');
-  const title: string = filter === 'unread' ? t('emptyUnread') : filter === 'all' ? t('empty') : tn('emptyType');
-  return <div role="status">{isEmpty ? <EmptyState title={title} /> : null}</div>;
+  let empty: ReactNode = null;
+  if (isEmpty && filter === 'all') empty = <EmptyState icon={BellRing} title={t('empty')} description={t('emptyHint')} action={<BookLink label={t('emptyCta')} />} />;
+  else if (isEmpty && filter === 'unread') empty = <EmptyState icon={CheckCheck} title={t('emptyUnread')} description={t('emptyUnreadHint')} />;
+  else if (isEmpty) empty = <EmptyState icon={BellRing} title={tn('emptyType')} />;
+  return <div role="status">{empty}</div>;
 }
 
 interface MarkReadState {

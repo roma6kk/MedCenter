@@ -6,6 +6,7 @@ import { apiFetch } from '@/lib/api/api-fetch';
 import { createAppQueryClient } from '@/lib/api/query-client';
 import type { ProblemDetails } from '@/lib/api/problem';
 import type { Slot } from '@/components/catalog/catalog-types';
+import { BookingScreen } from './booking-screen';
 import { BookingWizard } from './booking-wizard';
 import { clinicDateKey, shiftDateKey } from '@/lib/clinic-time';
 
@@ -65,6 +66,15 @@ export function renderWizard(presetDoctorId?: string): void {
     return <QueryClientProvider client={client}>{children}</QueryClientProvider>;
   }
   render(<BookingWizard {...(presetDoctorId === undefined ? {} : { presetDoctorId })} />, { wrapper: Wrapper });
+}
+
+/** The whole `/booking` page body (title, lead and the wizard), for what only the page decides. */
+export function renderBookingScreen(): void {
+  const client = createAppQueryClient();
+  function Wrapper({ children }: { readonly children: ReactNode }): ReactNode {
+    return <QueryClientProvider client={client}>{children}</QueryClientProvider>;
+  }
+  render(<BookingScreen />, { wrapper: Wrapper });
 }
 
 export async function chooseSlotStep(): Promise<void> {

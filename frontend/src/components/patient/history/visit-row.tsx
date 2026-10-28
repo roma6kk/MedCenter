@@ -8,6 +8,7 @@ import { clinicDayOf } from '@/lib/clinic-time';
 import { useClinicFormat } from '@/hooks/use-clinic-format';
 import { useT } from '@/lib/i18n/use-t';
 import { cn } from '@/lib/ui/cn';
+import { normalizeDoctorName } from '@/lib/doctor-name';
 import type { DiagnosisView, HistoryEntry, Prescription } from '../patient-types';
 import { WRAP_TEXT } from '../wrap-text';
 import { CodeTag } from './code-tag';
@@ -92,7 +93,7 @@ function Details({ entry, prescriptions }: VisitRowProps): ReactNode {
       <div className="no-print flex flex-wrap gap-2 pt-1">
         <Link href="/booking" className={buttonVariants({ variant: 'primary' })}>{t('rebook')}</Link>
         <Link href={`/appointments/${encodeURIComponent(entry.appointmentId)}`} className={buttonVariants({ variant: 'secondary' })}>{t('openAppointment')}</Link>
-        {prescriptions.length > 0 ? <Link href="/prescriptions" className={buttonVariants({ variant: 'secondary' })}>{t('prescriptionsLink')}</Link> : null}
+        {prescriptions.length > 0 ? <Link href="/medcard?tab=prescriptions" className={buttonVariants({ variant: 'secondary' })}>{t('prescriptionsLink')}</Link> : null}
       </div>
     </div>
   );
@@ -122,7 +123,7 @@ export function VisitRow({ entry, prescriptions }: VisitRowProps): ReactNode {
           <span className="flex min-w-0 flex-[999_1_260px] flex-col gap-1">
             {service ? <span className={cn('text-base font-bold', WRAP_TEXT)}>{service}</span> : null}
             <time dateTime={entry.date} className="text-sm text-muted-foreground">{format.dateTime(entry.date)}</time>
-            {entry.doctorName ? <span className={cn('text-sm text-muted-foreground', WRAP_TEXT)}>{t('doctorBy', { name: entry.doctorName })}</span> : null}
+            {entry.doctorName ? <span className={cn('text-sm text-muted-foreground', WRAP_TEXT)}>{t('doctorBy', { name: normalizeDoctorName(entry.doctorName) })}</span> : null}
             <span className="flex flex-wrap items-center gap-2 pt-0.5">
               {diagnosis === undefined ? (
                 <span className="text-sm text-muted-foreground">{t('noDiagnosis')}</span>

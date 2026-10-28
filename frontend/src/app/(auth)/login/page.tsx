@@ -12,5 +12,5 @@ interface LoginPageProps {
 
 export default async function LoginPage({ searchParams }: LoginPageProps): Promise<React.JSX.Element> {
   const { returnTo, error } = (await searchParams) ?? {};
-  return <LoginEntry returnTo={sanitizeReturnTo(returnTo)} error={parseLoginError(error)} />;
+  return <LoginEntry returnTo={sanitizeReturnTo(returnTo, '')} error={parseLoginError(error)} />;
 }

@@ -8,6 +8,7 @@ import {
   daysBetween,
   formatClinicDate,
   formatClinicDateTime,
+  formatClinicDayTime,
   formatClinicTime,
   formatDateKey,
   formatDayHeading,
@@ -140,6 +141,17 @@ describe('formatting', () => {
       useUiStore.setState({ locale: 'en' });
 
       expect(formatClinicDateTime('2026-10-19T22:30:00.000Z')).toMatch(/20 Oct 2026/);
+    });
+  });
+
+  describe('formatClinicDayTime', () => {
+    it('should write the day and the clinic clock time without the year', () => {
+      expect(formatClinicDayTime('2026-10-27T07:00:00Z', 'ru')).toBe('27 октября, 10:00');
+      expect(formatClinicDayTime('2026-10-27T07:00:00Z', 'en')).toBe('27 October, 10:00');
+    });
+
+    it('should return a value that is not a date unchanged', () => {
+      expect(formatClinicDayTime('soon', 'ru')).toBe('soon');
     });
   });
 

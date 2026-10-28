@@ -22,11 +22,12 @@ const EMBEDDED_INSTANT = /\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2}(?:\.\d{1,9})?)?
 /** BCP 47 tag of the dates on screen: the clinic's own format for the Russian UI, British (day first, 24 h) for English. */
 export const INTL_LOCALE: Readonly<Record<Locale, string>> = { ru: 'ru-BY', en: 'en-GB' };
 
-type FormatKind = 'dateTime' | 'time' | 'hour' | 'date' | 'dayMedium' | 'dayLong' | 'dayHeading' | 'dayShort' | 'weekdayShort';
+type FormatKind = 'dateTime' | 'instantDay' | 'time' | 'hour' | 'date' | 'dayMedium' | 'dayLong' | 'dayHeading' | 'dayShort' | 'weekdayShort';
 
 /** Instants are read in the clinic zone; a calendar day (a key) has no zone, so it is read as UTC noon and never moves. */
 const FORMAT_OPTIONS: Readonly<Record<FormatKind, Intl.DateTimeFormatOptions>> = {
   dateTime: { timeZone: CLINIC_TIME_ZONE, dateStyle: 'medium', timeStyle: 'short', hourCycle: 'h23' },
+  instantDay: { timeZone: CLINIC_TIME_ZONE, day: 'numeric', month: 'long' },
   time: { timeZone: CLINIC_TIME_ZONE, hour: '2-digit', minute: '2-digit', hourCycle: 'h23' },
   hour: { timeZone: CLINIC_TIME_ZONE, hour: '2-digit', hourCycle: 'h23' },
   date: { timeZone: CLINIC_TIME_ZONE, dateStyle: 'medium' },
@@ -148,6 +149,13 @@ export function ageInYears(birthDate: string, today: string = clinicDateKey()): 
 export function formatClinicDateTime(iso: string, locale: Locale = currentLocale()): string {
   const date = validDate(iso);
   return date === null ? iso : formatterFor('dateTime', locale).format(date);
+}
+
+/** `27 октября, 10:00` — an instant without the year, for a title that says when something is. */
+export function formatClinicDayTime(iso: string, locale: Locale = currentLocale()): string {
+  const date = validDate(iso);
+  // Built from two parts: the locale's own joiner would be «в»/«at» («27 октября в 10:00»), the title wants a comma.
+  return date === null ? iso : `${formatterFor('instantDay', locale).format(date)}, ${formatterFor('time', locale).format(date)}`;
 }
 
 /** `10:00` — the clock time of an instant in the clinic zone. */

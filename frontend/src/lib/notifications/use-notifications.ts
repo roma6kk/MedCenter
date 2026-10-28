@@ -14,6 +14,7 @@ import { useSessionStore } from '@/store/use-session-store';
 import {
   fetchNotifications,
   fetchUnreadCount,
+  markAllNotificationsRead,
   markNotificationRead,
   type NotificationItem,
   type NotificationListParams,
@@ -57,5 +58,15 @@ export function useMarkNotificationRead(): UseMutationResult<void, Error, string
   return useMutation({
     mutationFn: (id: string) => markNotificationRead(id),
     onSuccess: () => invalidateFor(client, 'read-notification'),
+  });
+}
+
+/** Marks every unread notification read in one request (API 8.4); the list and the counter are re-read whatever the answer was. */
+export function useMarkAllNotificationsRead(): UseMutationResult<number, Error, void> {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: () => markAllNotificationsRead(),
+    // Some notifications may have been marked even when the answer failed: always show the real state.
+    onSettled: () => invalidateFor(client, 'read-notification'),
   });
 }

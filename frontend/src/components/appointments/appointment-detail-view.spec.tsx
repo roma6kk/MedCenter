@@ -25,10 +25,11 @@ describe('AppointmentDetailView', () => {
 
     expect(await screen.findByText('Болит спина')).toBeInTheDocument();
     expect(detailMock).toHaveBeenCalledWith('1552');
-    expect(screen.getByRole('heading', { level: 1, name: 'Запись на приём' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 1, name: 'Приём 19 октября, 10:00' })).toBeInTheDocument();
+    expect(document.title).toBe('Приём 19 октября, 10:00 — Лайфлайн');
     expect(screen.getByText('Иванова Мария Сергеевна')).toBeInTheDocument();
     expect(screen.getByText('Приём терапевта (первичный)')).toBeInTheDocument();
-    expect(screen.getByText(/10:00/)).toBeInTheDocument();
+    expect(screen.getByText(/19 окт\. 2026 г\., 10:00/)).toBeInTheDocument();
     expect(screen.getByText(/10:30/)).toBeInTheDocument();
     expect(screen.getByTestId('stamp-booked')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /К списку записей/ })).toHaveAttribute('href', '/appointments');

@@ -100,6 +100,12 @@ const config: Config = {
         // The check mark of the success screen draws its stroke (the path is 24 long) and the disc behind it pops in.
         'check-draw': { from: { strokeDashoffset: '24' }, to: { strokeDashoffset: '0' } },
         'check-pop': { from: { opacity: '0', transform: 'scale(0.6)' } },
+        // The unread counter of the bell swells once and sends a ring of its own colour outwards when a new one arrives.
+        'badge-pulse': {
+          '0%': { transform: 'scale(1)', boxShadow: '0 0 0 0 var(--destructive)' },
+          '55%': { transform: 'scale(1.22)', boxShadow: '0 0 0 7px transparent' },
+          '100%': { transform: 'scale(1)', boxShadow: '0 0 0 0 transparent' },
+        },
       },
       animation: {
         'scrim-in': 'scrim-in var(--duration-base) var(--ease-out)',
@@ -111,6 +117,7 @@ const config: Config = {
         'step-in': 'step-in var(--duration-base) var(--ease-out)',
         'check-draw': 'check-draw var(--duration-slow) var(--ease-out) 80ms both',
         'check-pop': 'check-pop var(--duration-base) var(--ease-out) both',
+        'badge-pulse': 'badge-pulse 1.2s var(--ease-out) 2',
       },
       fontFamily: { sans: ['var(--font-sans)'], mono: ['var(--font-mono)'] },
     },

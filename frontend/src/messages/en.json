@@ -658,15 +658,20 @@
     "notifications": {
       "label": "Notifications, unread: {count}",
       "announce": "Unread notifications: {count}",
-      "overflow": "99+"
+      "overflow": "99+",
+      "panelLabel": "Latest notifications",
+      "panelTitle": "Notifications",
+      "panelEmpty": "No notifications yet",
+      "markAll": "Mark all as read",
+      "markingAll": "Marking…",
+      "viewAll": "All notifications"
     },
     "patient": {
       "navLabel": "Patient",
-      "booking": "Booking",
       "appointments": "My appointments",
-      "history": "History",
-      "prescriptions": "Prescriptions",
-      "profile": "Profile"
+      "home": "Home",
+      "medcard": "Medical record",
+      "book": "Book a visit"
     },
     "doctor": {
       "navLabel": "Doctor",
@@ -1253,11 +1258,6 @@
     "emptyAllHint": "No doctors have been added yet. Check back later or call the front desk."
   },
   "patientProfile": {
-    "ageLine": "Age: {age}",
-    "sinceLine": "Clinic patient since {date}",
-    "chipNoPhone": "No phone number",
-    "chipActive": "Account active",
-    "chipInactive": "Account disabled",
     "completeness": {
       "ringLabel": "Profile is {score} percent complete",
       "title": "Profile {score}% complete",
@@ -1273,19 +1273,16 @@
     },
     "actions": {
       "label": "Quick actions",
-      "book": "Book a visit",
-      "bookHint": "Choose a doctor and a time",
       "appointments": "My appointments",
       "appointmentsHint": "Upcoming: {count}",
       "prescriptions": "Prescriptions",
       "prescriptionsHint": "Active: {count}",
-      "history": "Visit history",
-      "historyHint": "Extract and print"
+      "history": "Medical record",
+      "historyHint": "Visits, diagnoses, extract"
     },
     "reco": {
       "title": "Recommended for you",
       "subtitle": "Based on your visit history, prescriptions and profile",
-      "counter": "{shown} of {total}",
       "empty": "No new recommendations. We will show them after your next visit.",
       "hide": "Hide",
       "hideLabel": "Hide recommendation: {title}",
@@ -1316,17 +1313,8 @@
       "phone": {
         "title": "Add a phone number",
         "text": "With a number the clinic can reach you if your doctor changes the schedule.",
-        "cta": "How to add"
+        "cta": "Add number"
       }
-    },
-    "next": {
-      "title": "Next visit",
-      "empty": "No upcoming appointments.",
-      "book": "Book a visit",
-      "details": "Details",
-      "more": "More appointments: {count}",
-      "serviceUnknown": "Service not specified",
-      "doctorUnknown": "Doctor not specified"
     },
     "last": {
       "title": "Last visit",
@@ -1345,8 +1333,6 @@
     },
     "data": {
       "title": "Personal data",
-      "account": "Account",
-      "patient": "Patient card",
       "phoneMissing": "Not specified",
       "registryNote": "You can change your phone number yourself. The front desk changes the rest of the data.",
       "phoneLabel": "Phone",
@@ -1421,8 +1407,8 @@
     "filterLabel": "Diagnosis",
     "filterAll": "All diagnoses",
     "emptyFiltered": "No visits with the chosen diagnosis on this page",
-    "empty": "History is empty",
-    "emptyHint": "Completed visits will appear here.",
+    "empty": "Your visit history is empty",
+    "emptyHint": "After your first visit, diagnoses and your doctor's recommendations will appear here.",
     "diagnoses": "Diagnoses",
     "noDiagnosis": "No diagnosis recorded",
     "summary": "Conclusion",
@@ -1443,16 +1429,17 @@
       "working": "working",
       "provisional": "provisional",
       "confirmed": "confirmed"
-    }
+    },
+    "emptyCta": "Book a visit"
   },
   "appointments": {
     "title": "My appointments",
     "tabsLabel": "Appointment list",
     "tabUpcoming": "Upcoming",
     "tabAll": "All appointments",
-    "empty": "No appointments",
+    "empty": "No appointments yet",
     "emptyUpcoming": "No upcoming appointments",
-    "emptyHint": "Book an appointment with a doctor.",
+    "emptyHint": "Choose a doctor and a time that suits you — it takes about two minutes.",
     "bookCta": "Book",
     "listLabel": "Appointments",
     "detailTitle": "Appointment",
@@ -1484,10 +1471,11 @@
     "cancelKeep": "Keep the appointment",
     "cancelled": "Appointment cancelled",
     "notCancellable": "This appointment can no longer be cancelled: it is cancelled or already took place.",
-    "newBooking": "New appointment",
     "nextTitle": "Next appointment",
     "cancelShort": "Cancel",
-    "minutes": "{minutes} min"
+    "minutes": "{minutes} min",
+    "detailHeading": "Appointment on {when}",
+    "moreVisits": "More appointments: {count}"
   },
   "patientPrescriptions": {
     "subtitle": "Medications and referrals your doctor recorded at your visits",
@@ -1528,8 +1516,8 @@
   "patient": {
     "history": {
       "title": "Visit history",
-      "empty": "No visits yet",
-      "emptyHint": "Completed visits will appear here.",
+      "empty": "Your visit history is empty",
+      "emptyHint": "After your first visit, diagnoses and your doctor's recommendations will appear here.",
       "listLabel": "Completed visits",
       "diagnoses": "Diagnoses",
       "noDiagnosis": "No diagnosis recorded",
@@ -1545,8 +1533,8 @@
     },
     "prescriptions": {
       "title": "Prescriptions",
-      "empty": "No prescriptions",
-      "emptyHint": "The doctor's prescriptions appear after a visit.",
+      "empty": "No prescriptions yet",
+      "emptyHint": "Medicines and referrals your doctor orders will appear here after a visit.",
       "listLabel": "Doctor's prescriptions",
       "medication": "Medication",
       "service": "Test or service",
@@ -1564,15 +1552,16 @@
         "stopped": "Stopped",
         "entered-in-error": "Entered in error",
         "unknown": "Status unknown"
-      }
+      },
+      "emptyCta": "Book a visit"
     },
     "notifications": {
       "title": "Notifications",
       "tabsLabel": "Notification filter",
       "tabAll": "All",
       "tabUnread": "Unread",
-      "empty": "No notifications",
-      "emptyUnread": "No unread notifications",
+      "empty": "No notifications yet",
+      "emptyUnread": "You are all caught up",
       "listLabel": "Notification list",
       "markRead": "Mark as read",
       "marking": "Marking…",
@@ -1581,7 +1570,10 @@
       "categoryAppointment": "Appointment",
       "categoryEncounter": "Visit",
       "categoryRegistration": "Registration",
-      "categoryOther": "Message"
+      "categoryOther": "Message",
+      "emptyHint": "Reminders about your appointments and messages from the clinic will appear here.",
+      "emptyCta": "Book a visit",
+      "emptyUnreadHint": "Read notifications are on the “All” tab."
     },
     "profile": {
       "title": "Profile",
@@ -1604,6 +1596,9 @@
       "registered": "Registered",
       "readOnly": "You can change your phone number yourself; the front desk changes the rest.",
       "noPatient": "The patient card has not been created yet."
+    },
+    "home": {
+      "title": "Home"
     }
   },
   "patientNotifications": {
@@ -1769,6 +1764,23 @@
       "megabytes": "{n} MB",
       "kilobytes": "{n} KB",
       "bytes": "{n} B"
+    }
+  },
+  "medcard": {
+    "title": "Medical record",
+    "subtitle": "Visits, diagnoses and prescriptions in one place",
+    "tabsLabel": "Medical record sections",
+    "tabHistory": "Visit history",
+    "tabPrescriptions": "Prescriptions"
+  },
+  "patientHome": {
+    "title": "Home",
+    "greeting": "Hello, {name}",
+    "greetingAnon": "Hello",
+    "hero": {
+      "emptyTitle": "No upcoming visits",
+      "emptyText": "Choose a doctor and a time that suits you — it takes about two minutes.",
+      "book": "Book a visit"
     }
   }
 }

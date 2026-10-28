@@ -4,6 +4,7 @@ import type { ReactNode } from 'react';
 import { useDoctor, useService } from '@/components/catalog/use-catalog';
 import { Card } from '@/components/ui/card';
 import { formatClinicDateTime } from '@/lib/clinic-time';
+import { doctorLabel } from '@/lib/doctor-name';
 import { useT } from '@/lib/i18n/use-t';
 import { useUiStore } from '@/store/use-ui-store';
 import type { BookingDraft, BookingStep } from '@/store/use-booking-draft-store';
@@ -81,7 +82,7 @@ export function BookingSummary({ draft, onEdit, showPlace = false, action }: Boo
             <span className={muted}>{t('summaryNone')}</span>
           ) : (
             <>
-              <span className="text-base font-semibold">{doctor.data?.name ?? '…'}</span>
+              <span className="text-base font-semibold">{doctor.data === undefined ? '…' : doctorLabel(doctor.data)}</span>
               {doctor.data?.specialty === undefined ? null : <span className="block text-sm text-muted-foreground">{doctor.data.specialty}</span>}
             </>
           )}

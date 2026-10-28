@@ -2,7 +2,9 @@
 
 import { useState } from 'react';
 import type { ReactNode } from 'react';
+import { Pill } from 'lucide-react';
 import { Card } from '@/components/ui/card';
+import { BookLink } from './book-link';
 import { Pager } from '@/components/data-display/paginated-table';
 import { EmptyState, TableSkeleton } from '@/components/feedback/states';
 import { useT } from '@/lib/i18n/use-t';
@@ -74,14 +76,14 @@ function ListBody({ items, filter }: { readonly items: ReadonlyArray<Prescriptio
 }
 
 /** The patient's prescriptions (FR-007, API 7.7): drugs with their ATC code and dosage, and ordered services. */
-export function PrescriptionList(): ReactNode {
+export function PrescriptionList({ embedded = false }: { readonly embedded?: boolean }): ReactNode {
   const t = useT('patientPrescriptions');
   const tp = useT('patient.prescriptions');
   const [page, setPage] = useState(1);
   const [filter, setFilter] = useState<StatusFilter>('all');
   const query = useMyPrescriptions({ page, pageSize: PRESCRIPTIONS_PAGE_SIZE });
   useClampedPage(query.data?.meta, page, setPage);
-  useDocumentTitle(tp('title'));
+  useDocumentTitle(embedded ? null : tp('title'));
   const data = query.data;
   const options: ReadonlyArray<TabOption<StatusFilter>> = [
     { value: 'active', label: t('tabs.active') },
@@ -92,13 +94,13 @@ export function PrescriptionList(): ReactNode {
     <section className="flex flex-col gap-6">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">{tp('title')}</h1>
-          <p className="mt-1.5 text-base text-muted-foreground">{t('subtitle')}</p>
+          {embedded ? null : <h1 className="text-3xl font-bold tracking-tight">{tp('title')}</h1>}
+          <p className={embedded ? 'text-base text-muted-foreground' : 'mt-1.5 text-base text-muted-foreground'}>{t('subtitle')}</p>
         </div>
         {data !== undefined && data.items.length > 0 ? <PrintButton label={t('print')} /> : null}
       </div>
       {data === undefined ? <QueryFailure query={query} embedded pending={<TableSkeleton />} /> : null}
-      {data !== undefined && data.items.length === 0 ? <EmptyState title={tp('empty')} description={tp('emptyHint')} /> : null}
+      {data !== undefined && data.items.length === 0 ? <EmptyState icon={Pill} title={tp('empty')} description={tp('emptyHint')} action={<BookLink label={tp('emptyCta')} />} /> : null}
       {data !== undefined && data.items.length > 0 ? (
         <>
           <SegmentedTabs idPrefix="rx" label={t('tabsLabel')} options={options} value={filter} onChange={setFilter} />

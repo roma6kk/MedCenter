@@ -12,7 +12,7 @@ import { ApiError } from '@/lib/api/api-fetch';
 import { networkProblem } from '@/lib/api/problem-parse';
 import { useBookingDraftStore } from '@/store/use-booking-draft-store';
 import { useToastStore } from '@/store/use-toast-store';
-import { postBodies, postKeys, problem, reachConfirmation, renderWizard, serveApi, serveOutcomes } from './booking-test-utils';
+import { postBodies, postKeys, problem, reachConfirmation, renderBookingScreen, renderWizard, serveApi, serveOutcomes } from './booking-test-utils';
 
 
 describe('BookingWizard booking', () => {
@@ -46,12 +46,26 @@ describe('BookingWizard booking', () => {
 
     expect(await screen.findByTestId('booking-success')).toHaveTextContent('Вы записаны на приём');
     expect(screen.getByRole('link', { name: 'Мои записи' })).toHaveAttribute('href', '/appointments');
-    expect(screen.getByRole('link', { name: 'На главную' })).toHaveAttribute('href', '/');
+    expect(screen.getByRole('link', { name: 'На главную' })).toHaveAttribute('href', '/home');
     expect(screen.getByRole('button', { name: 'Добавить в календарь' })).toBeInTheDocument();
-    expect(screen.getByTestId('success-details')).toHaveTextContent('Мария Иванова');
+    expect(screen.getByTestId('success-details')).toHaveTextContent('Иванова Мария');
     expect(screen.getByTestId('success-details')).toHaveTextContent('Приём терапевта (первичный)');
     expect(screen.getByTestId('success-details')).toHaveTextContent('г. Минск, ул. Здоровья, 12');
     expect(mockPush).not.toHaveBeenCalled();
+  });
+
+  it('should drop the page title and lead above the steps once the success screen is shown', async () => {
+    renderBookingScreen();
+    expect(screen.getByRole('heading', { level: 1, name: 'Запись на приём' })).toBeInTheDocument();
+    expect(screen.getByText(/Четыре шага/)).toBeInTheDocument();
+    await reachConfirmation();
+    expect(screen.getByRole('heading', { level: 1, name: 'Запись на приём' })).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Подтвердить запись' }));
+
+    expect(await screen.findByTestId('booking-success')).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { level: 1, name: 'Запись на приём' })).not.toBeInTheDocument();
+    expect(screen.queryByText(/Четыре шага/)).not.toBeInTheDocument();
   });
 
   it('should not name a patient in the request when the booking is sent', async () => {

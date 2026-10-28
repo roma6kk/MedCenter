@@ -8,14 +8,14 @@
 export type UserRole = 'PATIENT' | 'DOCTOR' | 'ADMIN';
 
 export const ROLE_LANDING: Readonly<Record<UserRole, string>> = {
-  PATIENT: '/booking',
+  PATIENT: '/home',
   DOCTOR: '/doctor/appointments',
   ADMIN: '/admin/analytics',
 };
 
 /** Route prefixes that only one role may open. Everything else (/, /doctors, …) is shared. */
 const ROLE_PREFIXES: Readonly<Record<UserRole, ReadonlyArray<string>>> = {
-  PATIENT: ['/booking', '/appointments', '/history', '/prescriptions', '/profile', '/notifications'],
+  PATIENT: ['/home', '/booking', '/appointments', '/medcard', '/history', '/prescriptions', '/profile', '/notifications'],
   DOCTOR: ['/doctor', '/encounters', '/patients'],
   ADMIN: ['/admin'],
 };

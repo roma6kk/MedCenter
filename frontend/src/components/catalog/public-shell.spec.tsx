@@ -26,7 +26,7 @@ describe('PublicShell', () => {
     useSessionStore.getState().setSession({ accessToken: 't', expiresAt: null, role: 'PATIENT', scope: null, patientRef: null, fhirUser: null });
     render(<PublicShell><p>content</p></PublicShell>);
 
-    expect(screen.getByRole('link', { name: 'Личный кабинет' })).toHaveAttribute('href', '/booking');
+    expect(screen.getByRole('link', { name: 'Личный кабинет' })).toHaveAttribute('href', '/home');
     expect(screen.queryByRole('link', { name: 'Войти' })).not.toBeInTheDocument();
   });
 

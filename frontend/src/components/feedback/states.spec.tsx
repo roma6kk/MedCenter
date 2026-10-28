@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { CalendarPlus } from 'lucide-react';
 import { render, screen } from '@testing-library/react';
 import { useUiStore } from '@/store/use-ui-store';
 import { EmptyState, ForbiddenState, NotFoundState, TableSkeleton } from './states';
@@ -21,6 +22,18 @@ describe('system states', () => {
 
     expect(screen.getByTestId('not-found-state')).toHaveTextContent('Не найдено');
     expect(screen.getByText('Проверьте ссылку')).toBeInTheDocument();
+  });
+
+  it('should draw an icon above an empty state only when one is given', () => {
+    const { unmount } = render(<EmptyState title="Пусто" />);
+    expect(screen.queryByTestId('empty-state-icon')).not.toBeInTheDocument();
+    unmount();
+
+    render(<EmptyState icon={CalendarPlus} title="Записей нет" description="Запишитесь на приём" action={<button type="button">Записаться</button>} />);
+
+    expect(screen.getByTestId('empty-state-icon')).toHaveAttribute('aria-hidden', 'true');
+    expect(screen.getByRole('heading', { level: 2, name: 'Записей нет' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Записаться' })).toBeInTheDocument();
   });
 
   it('should localize the headings to English', () => {

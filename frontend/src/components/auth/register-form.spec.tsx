@@ -97,7 +97,7 @@ describe('RegisterForm', () => {
     expect(path).toBe('/api/v1/auth/register');
     expect(options?.method).toBe('POST');
     expect(JSON.parse(String(options?.body))).toEqual({ email: 'ivan@example.by', firstName: 'Иван', lastName: 'Иванов', password: 'Str0ng!Pass', birthDate: '1990-05-12', accountConsent: { accepted: true, textVersion: '2026-10' } });
-    expect(screen.getByRole('link', { name: 'Войти' })).toHaveAttribute('href', '/api/auth/authorize?returnTo=%2Fbooking');
+    expect(screen.getByRole('link', { name: 'Войти' })).toHaveAttribute('href', '/api/auth/authorize');
   });
 
   it('should put server field errors next to their fields when the API answers VALIDATION_ERROR', async () => {

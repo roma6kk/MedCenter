@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -25,10 +25,14 @@ type PhoneValues = z.infer<typeof phoneSchema>;
 interface PhoneFormProps {
   readonly patient: PatientProfile & { readonly version: string };
   readonly onClose: () => void;
+  /** Id of the input: the form can sit twice on the page (the recommendation and the personal data), ids must stay unique. */
+  readonly fieldId?: string;
+  /** Put the cursor into the field when the form opens (it was opened by a click on a button). */
+  readonly autoFocus?: boolean;
 }
 
 /** Edit form of the phone (3.12): the number is normalised before it is sent, the card `version` rides along as `If-Match`. */
-function PhoneForm({ patient, onClose }: PhoneFormProps): ReactNode {
+export function PhoneForm({ patient, onClose, fieldId = 'profile-phone', autoFocus = false }: PhoneFormProps): ReactNode {
   const t = useT('patientProfile.data');
   const [problem, setProblem] = useState<ProblemDetails | null>(null);
   const [conflict, setConflict] = useState(false);
@@ -37,6 +41,9 @@ function PhoneForm({ patient, onClose }: PhoneFormProps): ReactNode {
     resolver: zodResolver(phoneSchema),
     defaultValues: { phone: phoneOf(patient) ?? '' },
   });
+  useEffect(() => {
+    if (autoFocus) setFocus('phone');
+  }, [autoFocus, setFocus]);
   const fail = (error: unknown): void => {
     if (!isApiError(error)) return;
     if (error.errorCode === 'CONFLICT') {
@@ -55,7 +62,7 @@ function PhoneForm({ patient, onClose }: PhoneFormProps): ReactNode {
   });
   return (
     <form data-testid="phone-form" onSubmit={submit} noValidate className="grid gap-2">
-      <FormField id="profile-phone" label={t('phoneLabel')} hint={t('phoneHint')} error={errors.phone?.message}>
+      <FormField id={fieldId} label={t('phoneLabel')} hint={t('phoneHint')} error={errors.phone?.message}>
         {(control) => <input {...control} type="tel" autoComplete="tel" inputMode="tel" {...register('phone')} className={`${INPUT_CLASS} max-w-xs`} />}
       </FormField>
       {conflict ? <p role="alert" className="text-sm text-[var(--destructive)]">{t('phoneConflict')}</p> : null}
@@ -78,7 +85,7 @@ export function PhoneValue({ patient }: { readonly patient: PatientProfile }): R
   return (
     <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
       {phone === undefined ? <span className="font-semibold text-warning">{t('phoneMissing')}</span> : <span>{phone}</span>}
-      {version === undefined ? null : <Button variant="secondary" onClick={() => setEditing(true)}>{phone === undefined ? t('phoneAdd') : t('phoneEdit')}</Button>}
+      {version === undefined ? null : <Button variant="secondary" className="whitespace-nowrap" onClick={() => setEditing(true)}>{phone === undefined ? t('phoneAdd') : t('phoneEdit')}</Button>}
     </div>
   );
 }

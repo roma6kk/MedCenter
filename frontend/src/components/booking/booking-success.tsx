@@ -10,9 +10,11 @@ import { buttonVariants } from '@/components/ui/button-variants';
 import { Card } from '@/components/ui/card';
 import { clinicDayOf, formatClinicTime, formatDayHeading } from '@/lib/clinic-time';
 import { buildIcs, downloadIcs } from '@/lib/ics';
+import { doctorLabel, normalizeDoctorName } from '@/lib/doctor-name';
 import { useT } from '@/lib/i18n/use-t';
 import { useUiStore } from '@/store/use-ui-store';
 import type { BookedVisit } from './use-booking-submit';
+
 
 const ICS_FILE_BASE = 'lifeline-visit';
 
@@ -49,7 +51,9 @@ export function BookingSuccess({ visit }: { readonly visit: BookedVisit }): Reac
   const doctor = useDoctor(visit.doctorId);
   const service = useService(visit.serviceId);
   const appointment = useAppointment(visit.id);
-  const doctorName: string | undefined = doctor.data?.name ?? appointment.data?.doctorName;
+  // The appointment's own spelling («Фамилия Имя Отчество», as «Мои записи» shows it) wins; the catalogue has no patronymic.
+  const fromAppointment: string = normalizeDoctorName(appointment.data?.doctorName);
+  const doctorName: string | undefined = fromAppointment !== '' ? fromAppointment : doctor.data === undefined ? undefined : doctorLabel(doctor.data);
   const serviceName: string | undefined = service.data?.name ?? appointment.data?.serviceName;
   const address: string = home('contactAddressValue');
   const day: string = clinicDayOf(visit.start);
@@ -93,7 +97,7 @@ export function BookingSuccess({ visit }: { readonly visit: BookedVisit }): Reac
       <div className="flex w-full flex-col justify-center gap-3 sm:flex-row">
         <Button variant="secondary" onClick={addToCalendar} data-testid="add-to-calendar"><CalendarPlus aria-hidden="true" size={18} />{t('addToCalendar')}</Button>
         <Link href="/appointments" className={buttonVariants({ variant: 'primary' })}>{t('toAppointments')}</Link>
-        <Link href="/" className={buttonVariants({ variant: 'ghost' })}>{t('toHome')}</Link>
+        <Link href="/home" className={buttonVariants({ variant: 'ghost' })}>{t('toHome')}</Link>
       </div>
       <Link href={`/appointments/${encodeURIComponent(visit.id)}`} data-testid="success-cancel-link" className="inline-flex min-h-[44px] items-center text-sm text-muted-foreground underline underline-offset-2 hover:text-foreground">
         {t('cancelLink')}

@@ -77,7 +77,10 @@ describe('AppointmentList', () => {
 
     await userEvent.click(screen.getByRole('tab', { name: 'Все записи' }));
 
-    expect(await screen.findByText('Записей нет')).toBeInTheDocument();
+    expect(await screen.findByText('Записей пока нет')).toBeInTheDocument();
+    // B11: an icon, one sentence and one primary action.
+    expect(screen.getByTestId('empty-state-icon')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Записаться' })).toHaveAttribute('href', '/booking');
   });
 
   it('should show a banner with the request id and retry the read when the service fails', async () => {
@@ -172,7 +175,7 @@ describe('AppointmentList', () => {
 
     expect(await screen.findByTestId('table-skeleton')).toBeInTheDocument();
     expect(screen.queryByTestId('empty-state')).not.toBeInTheDocument();
-    expect(screen.queryByText('Записей нет')).not.toBeInTheDocument();
+    expect(screen.queryByText('Записей пока нет')).not.toBeInTheDocument();
   });
 
   it('should not show the cards of the previous tab under the new one while it is loading', async () => {

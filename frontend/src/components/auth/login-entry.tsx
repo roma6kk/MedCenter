@@ -9,7 +9,7 @@ import { useT } from '@/lib/i18n/use-t';
 import type { LoginErrorKind } from './login-error';
 
 interface LoginEntryProps {
-  /** Same-origin path to return to after the sign-in (already sanitised by the page). */
+  /** Same-origin path to return to after the sign-in (already sanitised by the page); empty when none was asked, then the role's home page opens. */
   readonly returnTo: string;
   /** The callback sent the visitor back with an OAuth error (`?error=…`), reduced to a kind. */
   readonly error?: LoginErrorKind | null;
@@ -34,7 +34,7 @@ export function LoginEntry({ returnTo, error = null }: LoginEntryProps): ReactNo
         </p>
       )}
       <a
-        href={`/api/auth/authorize?returnTo=${encodeURIComponent(returnTo)}`}
+        href={returnTo === '' ? '/api/auth/authorize' : `/api/auth/authorize?returnTo=${encodeURIComponent(returnTo)}`}
         className={`${buttonVariants({ size: 'lg' })} mt-6 w-full`}
       >
         {t('submit')}

@@ -45,7 +45,7 @@ export function notificationAction(source: NotificationSource): NotificationActi
     const id: string = (source.appointmentId ?? '').trim();
     return id === '' ? null : { labelKey: 'openAppointment', href: `/appointments/${encodeURIComponent(id)}` };
   }
-  if (source.category === 'encounter') return { labelKey: 'openHistory', href: '/history' };
+  if (source.category === 'encounter') return { labelKey: 'openHistory', href: '/medcard' };
   return null;
 }
 

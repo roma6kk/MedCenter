@@ -114,7 +114,7 @@ describe('GET /api/auth/callback', () => {
   it.each([
     ['DOCTOR', '/booking', 'http://localhost:3000/doctor/appointments'],
     ['ADMIN', '/booking', 'http://localhost:3000/admin/analytics'],
-    ['PATIENT', '/admin/users', 'http://localhost:3000/booking'],
+    ['PATIENT', '/admin/users', 'http://localhost:3000/home'],
     ['DOCTOR', '/doctor/schedule', 'http://localhost:3000/doctor/schedule'],
   ])('should send a %s who asked for %s to %s', async (role, requested, expected) => {
     fetchSpy.mockResolvedValueOnce(jsonResponse(tokenEndpointBody({ access_token: fakeAccessToken({ role }) })));
@@ -137,7 +137,7 @@ describe('GET /api/auth/callback', () => {
 
     const response = await callback(validQuery('https://evil.example.com/phish'));
 
-    expect(response.headers.get('location')).toBe('http://localhost:3000/booking');
+    expect(response.headers.get('location')).toBe('http://localhost:3000/home');
   });
 
   it.each([

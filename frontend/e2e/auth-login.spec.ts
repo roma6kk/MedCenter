@@ -70,7 +70,7 @@ test.describe('patient session', () => {
   });
 
   test('should show the unread counter in the bell', async () => {
-    await expect(session.page.getByRole('link', { name: /Уведомления, непрочитанных: \d+/ })).toBeVisible();
+    await expect(session.page.getByRole('button', { name: /Уведомления, непрочитанных: \d+/ })).toBeVisible();
   });
 
   test('should show the 403 page when an admin route is opened', async () => {
@@ -139,7 +139,7 @@ for (const role of ['DOCTOR', 'ADMIN'] as const) {
 
     test('should show no notification bell because staff have no notification endpoints', async () => {
       await expect(session.page.getByRole('button', { name: 'Выйти' })).toBeVisible();
-      await expect(session.page.getByRole('link', { name: /Уведомления/ })).toHaveCount(0);
+      await expect(session.page.getByRole('button', { name: /Уведомления/ })).toHaveCount(0);
     });
 
     test('should show the 403 page when a patient route is opened', async () => {

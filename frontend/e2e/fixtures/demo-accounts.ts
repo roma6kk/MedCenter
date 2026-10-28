@@ -24,7 +24,7 @@ interface DemoManifest {
 export const DEFAULT_MANIFEST_PATH = resolve(__dirname, '../../../tools/demo-seed/output/demo-manifest.json');
 
 export const ROLE_LANDING: Readonly<Record<DemoRole, string>> = {
-  PATIENT: '/booking',
+  PATIENT: '/home',
   DOCTOR: '/doctor/appointments',
   ADMIN: '/admin/analytics',
 };

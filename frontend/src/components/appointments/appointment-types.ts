@@ -5,6 +5,7 @@
  * wrong, when a related resource is missing, so the UI always has a fallback text for them.
  */
 import type { AppointmentStatus } from '@/components/feedback/stamp-badge';
+import { normalizeDoctorName } from '@/lib/doctor-name';
 
 export type { AppointmentStatus };
 
@@ -36,4 +37,10 @@ export type AppointmentTab = 'upcoming' | 'all';
 /** Only a booked appointment can be cancelled (BR-002); the server still has the last word (409 `APPOINTMENT_NOT_CANCELLABLE`). */
 export function isCancellable(status: AppointmentStatus): boolean {
   return status === 'booked';
+}
+
+/** The doctor of an appointment as the whole cabinet writes it («Фамилия Имя Отчество»), or the caller's fallback text when the service did not name one. */
+export function doctorOf(appointment: Pick<AppointmentView, 'doctorName'>, fallback: string): string {
+  const name: string = normalizeDoctorName(appointment.doctorName);
+  return name === '' ? fallback : name;
 }

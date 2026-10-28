@@ -64,7 +64,7 @@ describe('BookingWizard steps', () => {
     await userEvent.click(await screen.findByTestId('slot-slot-30'));
 
     const summary = await screen.findByTestId('booking-summary');
-    await waitFor(() => expect(summary).toHaveTextContent('Мария Иванова'));
+    await waitFor(() => expect(summary).toHaveTextContent('Иванова Мария'));
     expect(summary).toHaveTextContent('Приём терапевта (первичный)');
     expect(summary).toHaveTextContent('30 мин');
   });

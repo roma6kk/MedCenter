@@ -5,6 +5,7 @@ import { QueryLoading } from '@/components/catalog/query-loading';
 import { useDoctor, useService } from '@/components/catalog/use-catalog';
 import type { Slot } from '@/components/catalog/catalog-types';
 import { clinicDayOf } from '@/lib/clinic-time';
+import { doctorLabel } from '@/lib/doctor-name';
 import { useT } from '@/lib/i18n/use-t';
 import type { BookingNotice } from './use-booking-submit';
 import { SlotPicker } from './slot-picker';
@@ -59,7 +60,7 @@ export function SlotStep({ doctorId, serviceId, selectedSlotId, selectedSlotStar
   return (
     <div>
       <h2 className="text-xl font-bold">{t('slotTitle')}</h2>
-      {doctor.data === undefined ? null : <p className="mt-1 text-base text-muted-foreground">{t('slotDoctor', { doctor: doctor.data.name })}</p>}
+      {doctor.data === undefined ? null : <p className="mt-1 text-base text-muted-foreground">{t('slotDoctor', { doctor: doctorLabel(doctor.data) })}</p>}
       {notice === null ? null : <RefusedNotice notice={notice} />}
       <div className="mt-4">
         {waitingForService ? (

@@ -2,6 +2,8 @@
 
 import type { ReactNode } from 'react';
 import Link from 'next/link';
+import { CalendarPlus } from 'lucide-react';
+import { buttonVariants } from '@/components/ui/button-variants';
 import { BrandMark } from '@/components/brand/brand-mark';
 import { useT } from '@/lib/i18n/use-t';
 import { LocaleSwitcher } from './locale-switcher';
@@ -11,12 +13,11 @@ import { NotificationBell } from './notification-bell';
 import { MAIN_CONTENT_ID, SkipLink } from './skip-link';
 import { ThemeSwitcher } from './theme-switcher';
 
+/** Three sections (B6): the home, the appointments, the medical record. The notifications are the bell; «Записаться» is the button on the right. */
 const PATIENT_LINKS: ReadonlyArray<{ readonly href: string; readonly key: string }> = [
-  { href: '/booking', key: 'booking' },
+  { href: '/home', key: 'home' },
   { href: '/appointments', key: 'appointments' },
-  { href: '/history', key: 'history' },
-  { href: '/prescriptions', key: 'prescriptions' },
-  { href: '/profile', key: 'profile' },
+  { href: '/medcard', key: 'medcard' },
 ];
 
 const LINK_CLASS = 'rounded-control px-3 text-base font-medium text-foreground hover:bg-secondary';
@@ -42,7 +43,12 @@ export function PatientShell({ children }: { readonly children: ReactNode }): Re
               </NavLink>
             ))}
           </nav>
-          <div className="ml-auto flex items-center gap-2.5">
+          <div className="ml-auto flex flex-wrap items-center justify-end gap-2.5">
+            {/* The one primary action of the cabinet, always within reach; it is not a section, so it sits outside the navigation. */}
+            <NavLink href="/booking" className={buttonVariants({ variant: 'primary' })} activeClassName="bg-primary-strong">
+              <CalendarPlus aria-hidden="true" size={18} strokeWidth={2.2} />
+              {t('book')}
+            </NavLink>
             <NotificationBell />
             <LocaleSwitcher />
             <ThemeSwitcher compact />

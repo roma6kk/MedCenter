@@ -8,6 +8,12 @@ describe('LoginEntry', () => {
     expect(screen.getByRole('link', { name: 'Войти' })).toHaveAttribute('href', '/api/auth/authorize?returnTo=%2Fappointments%3Fpage%3D2');
   });
 
+  it('should start the flow without a returnTo when none was asked, so the role home page opens', () => {
+    render(<LoginEntry returnTo="" />);
+
+    expect(screen.getByRole('link', { name: 'Войти' })).toHaveAttribute('href', '/api/auth/authorize');
+  });
+
   it('should link to the registration page when the visitor has no account', () => {
     render(<LoginEntry returnTo="/booking" />);
 

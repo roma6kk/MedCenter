@@ -16,7 +16,7 @@ import { openStoredSession } from './fixtures/session-state';
 
 test.skip(!hasDemoManifest(), 'demo seed manifest not found');
 
-const PATIENT_ROUTES: ReadonlyArray<string> = ['/booking', '/appointments', '/history', '/prescriptions', '/profile', '/notifications'];
+const PATIENT_ROUTES: ReadonlyArray<string> = ['/home', '/booking', '/appointments', '/medcard', '/history', '/prescriptions', '/profile', '/notifications'];
 const FORBIDDEN_TEXT = 'Этот раздел недоступен для вашей роли.';
 
 interface Session {
@@ -123,7 +123,7 @@ test.describe('role guards', () => {
 });
 
 test.describe('anonymous visitor', () => {
-  const PROTECTED: ReadonlyArray<string> = ['/booking', '/appointments', '/history?page=2', '/profile', '/notifications', '/doctor/appointments', '/doctor/schedule', '/admin/analytics', '/admin/audit?entity=Location'];
+  const PROTECTED: ReadonlyArray<string> = ['/home', '/booking', '/appointments', '/medcard', '/history?page=2', '/profile', '/notifications', '/doctor/appointments', '/doctor/schedule', '/admin/analytics', '/admin/audit?entity=Location'];
 
   for (const route of PROTECTED) {
     test(`should be sent to the login with returnTo=${route} when the protected route is opened`, async ({ page }) => {

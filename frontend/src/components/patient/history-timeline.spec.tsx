@@ -96,7 +96,10 @@ describe('HistoryTimeline', () => {
 
     renderWithClient(<HistoryTimeline />);
 
-    expect(await screen.findByText('История пуста')).toBeInTheDocument();
+    expect(await screen.findByText('История приёмов пуста')).toBeInTheDocument();
+    expect(screen.getByText(/После первого приёма здесь появятся диагнозы/)).toBeInTheDocument();
+    expect(screen.getByTestId('empty-state-icon')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Записаться' })).toHaveAttribute('href', '/booking');
     expect(screen.queryByRole('button', { name: 'Выписка из медкарты' })).not.toBeInTheDocument();
   });
 
@@ -192,6 +195,6 @@ describe('HistoryTimeline', () => {
 
     expect(await screen.findByTestId('problem-banner')).toHaveTextContent('req-21');
     expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
-    expect(screen.queryByText('История пуста')).not.toBeInTheDocument();
+    expect(screen.queryByText('История приёмов пуста')).not.toBeInTheDocument();
   });
 });

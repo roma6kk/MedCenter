@@ -1,6 +1,7 @@
 'use client';
 
 import type { ReactNode } from 'react';
+import type { LucideIcon } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useT } from '@/lib/i18n/use-t';
 
@@ -8,6 +9,11 @@ interface StateProps {
   readonly title: string;
   readonly description?: string;
   readonly action?: ReactNode;
+}
+
+interface EmptyStateProps extends StateProps {
+  /** A line icon drawn on two soft discs: an empty list of the cabinet says what is missing before it says anything else. */
+  readonly icon?: LucideIcon;
 }
 
 export function ForbiddenState({ title, description, action }: StateProps): ReactNode {
@@ -34,9 +40,16 @@ export function NotFoundState({ title, description, action }: StateProps): React
   );
 }
 
-export function EmptyState({ title, description, action }: StateProps): ReactNode {
+export function EmptyState({ title, description, action, icon: Icon }: EmptyStateProps): ReactNode {
   return (
-    <div data-testid="empty-state" className="mx-auto max-w-md p-8 text-center">
+    <div data-testid="empty-state" className="mx-auto flex max-w-md flex-col items-center p-8 text-center">
+      {Icon === undefined ? null : (
+        <span aria-hidden="true" data-testid="empty-state-icon" className="mb-5 inline-flex size-24 items-center justify-center rounded-full bg-secondary">
+          <span className="inline-flex size-16 items-center justify-center rounded-full bg-primary-soft text-primary-soft-foreground">
+            <Icon className="size-8" strokeWidth={1.75} />
+          </span>
+        </span>
+      )}
       <h2 className="text-xl font-semibold">{title}</h2>
       {description ? <p className="mt-2 text-[var(--muted-foreground)]">{description}</p> : null}
       {action ? <div className="mt-4">{action}</div> : null}

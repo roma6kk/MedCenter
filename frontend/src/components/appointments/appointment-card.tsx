@@ -9,7 +9,7 @@ import { useClinicFormat } from '@/hooks/use-clinic-format';
 import { WRAP_TEXT } from '@/components/patient/wrap-text';
 import { useT } from '@/lib/i18n/use-t';
 import { cn } from '@/lib/ui/cn';
-import { isCancellable, type AppointmentView } from './appointment-types';
+import { doctorOf, isCancellable, type AppointmentView } from './appointment-types';
 import { StatusBadge } from './status-badge';
 
 interface AppointmentCardProps {
@@ -23,7 +23,7 @@ export function AppointmentActions({ appointment, onCancel, hero = false }: Appo
   const t = useT('appointments');
   const format = useClinicFormat();
   const when: string = format.dateTime(appointment.start);
-  const doctor: string = appointment.doctorName ?? t('doctorUnknown');
+  const doctor: string = doctorOf(appointment, t('doctorUnknown'));
   const size = hero ? 'lg' : 'md';
   return (
     <div className={cn('no-print flex flex-none gap-2', hero ? 'flex-col' : 'justify-end')}>
@@ -58,7 +58,7 @@ export function AppointmentCard({ appointment, onCancel }: AppointmentCardProps)
       <time dateTime={appointment.start} className="tabular-nums w-16 flex-none text-lg font-medium">{format.time(appointment.start)}</time>
       <div className="flex min-w-0 flex-[999_1_240px] flex-col gap-0.5">
         <p className={cn('text-base font-semibold', WRAP_TEXT)}>{appointment.serviceName ?? t('serviceUnknown')}</p>
-        <p className={cn('text-sm text-muted-foreground', WRAP_TEXT)}>{appointment.doctorName ?? t('doctorUnknown')}</p>
+        <p className={cn('text-sm text-muted-foreground', WRAP_TEXT)}>{doctorOf(appointment, t('doctorUnknown'))}</p>
         {appointment.status === 'cancelled' && appointment.cancelReason ? (
           <p className={cn('text-sm text-muted-foreground', WRAP_TEXT)}>{t('fieldCancelReason')}: {appointment.cancelReason}</p>
         ) : null}

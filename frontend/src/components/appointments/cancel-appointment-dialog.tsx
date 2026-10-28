@@ -9,7 +9,7 @@ import { FormField, INPUT_CLASS } from '@/components/patient/form-field';
 import { ProblemBanner } from '@/components/feedback/problem-banner';
 import { useClinicFormat } from '@/hooks/use-clinic-format';
 import { useT } from '@/lib/i18n/use-t';
-import type { AppointmentView } from './appointment-types';
+import { doctorOf, type AppointmentView } from './appointment-types';
 import { useCancelForm, type CancelFormState } from './use-cancel-form';
 
 interface CancelAppointmentDialogProps {
@@ -91,7 +91,7 @@ export function CancelAppointmentDialog({ appointment, onClose, onCancelled }: C
   return (
     <Dialog
       title={t('cancelTitle')}
-      description={`${format.dateTime(appointment.start)} · ${appointment.doctorName ?? t('doctorUnknown')}. ${t('cancelLead')}`}
+      description={`${format.dateTime(appointment.start)} · ${doctorOf(appointment, t('doctorUnknown'))}. ${t('cancelLead')}`}
       size="sm"
       onClose={close}
       footer={footer}

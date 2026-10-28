@@ -57,7 +57,7 @@ test.describe('patient notifications', () => {
 
   test('should raise the unread counter of the bell by polling when a notification arrives while the page stays open', async () => {
     await page.goto('/booking');
-    const bell = page.getByRole('link', { name: BELL });
+    const bell = page.getByRole('button', { name: BELL });
     await expect(bell).toBeVisible();
     const before = Number(BELL.exec((await bell.getAttribute('aria-label')) ?? '')?.[1]);
 

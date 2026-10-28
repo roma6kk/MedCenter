@@ -2,19 +2,24 @@
 
 import type { ReactNode } from 'react';
 import { CalendarClock, Clock, UserRound } from 'lucide-react';
+import Link from 'next/link';
 import { WRAP_TEXT } from '@/components/patient/wrap-text';
+import { buttonVariants } from '@/components/ui/button-variants';
 import { Card } from '@/components/ui/card';
 import { useClinicFormat } from '@/hooks/use-clinic-format';
 import { useT } from '@/lib/i18n/use-t';
 import { cn } from '@/lib/ui/cn';
 import { AppointmentActions } from './appointment-card';
 import { dateTile, durationMin } from './appointment-day';
-import type { AppointmentView } from './appointment-types';
+import { doctorOf, type AppointmentView } from './appointment-types';
 import { StatusBadge } from './status-badge';
 
 interface NextAppointmentProps {
   readonly appointment: AppointmentView;
-  readonly onCancel: (appointment: AppointmentView) => void;
+  /** The list offers the cancellation; the home does not (it only points to the visit), so the action is absent there. */
+  readonly onCancel?: (appointment: AppointmentView) => void;
+  /** How many further booked visits exist: a link to the whole list is added under the actions. */
+  readonly more?: number;
 }
 
 function Fact({ icon, children }: { readonly icon: ReactNode; readonly children: ReactNode }): ReactNode {
@@ -30,7 +35,7 @@ function Fact({ icon, children }: { readonly icon: ReactNode; readonly children:
  * Hero card of the nearest upcoming visit (design canvas: date tile, "Ближайший приём", status, time · service, who, how long).
  * Everything comes from the appointment already on the page; the room is not in the API and is left out.
  */
-export function NextAppointment({ appointment, onCancel }: NextAppointmentProps): ReactNode {
+export function NextAppointment({ appointment, onCancel, more = 0 }: NextAppointmentProps): ReactNode {
   const t = useT('appointments');
   const format = useClinicFormat();
   const tile = dateTile(appointment.start, format.locale);
@@ -52,13 +57,14 @@ export function NextAppointment({ appointment, onCancel }: NextAppointmentProps)
           · {appointment.serviceName ?? t('serviceUnknown')}
         </p>
         <div className="flex flex-wrap gap-x-6 gap-y-2 text-base text-muted-foreground">
-          <Fact icon={<UserRound size={18} />}>{appointment.doctorName ?? t('doctorUnknown')}</Fact>
+          <Fact icon={<UserRound size={18} />}>{doctorOf(appointment, t('doctorUnknown'))}</Fact>
           {minutes > 0 ? <Fact icon={<Clock size={18} />}>{t('minutes', { minutes })}</Fact> : null}
           <Fact icon={<CalendarClock size={18} />}>{format.date(appointment.start)}</Fact>
         </div>
       </div>
       <div className="min-w-[200px] flex-[1_1_200px]">
-        <AppointmentActions appointment={appointment} onCancel={onCancel} hero />
+        <AppointmentActions appointment={appointment} {...(onCancel === undefined ? {} : { onCancel })} hero />
+        {more > 0 ? <Link href="/appointments" className={cn(buttonVariants({ variant: 'ghost' }), 'no-print mt-2 w-full')}>{t('moreVisits', { count: more })}</Link> : null}
       </div>
     </Card>
   );

@@ -7,6 +7,7 @@ import { ArrowLeft, CircleX } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { NotFoundState, TableSkeleton } from '@/components/feedback/states';
 import { isMissingError, QueryFailure } from '@/components/feedback/query-error-state';
+import { useClinicFormat } from '@/hooks/use-clinic-format';
 import { useDocumentTitle } from '@/hooks/use-document-title';
 import { useFocusFallback } from '@/components/patient/use-focus-fallback';
 import { useT } from '@/lib/i18n/use-t';
@@ -69,12 +70,15 @@ export function AppointmentDetailView({ appointmentId }: { readonly appointmentI
   const closeDialog = useCallback(() => setIsDialogOpen(false), []);
   // The cancel button is gone once the status changed: keep the keyboard user at the top of the record.
   useFocusFallback(isDialogOpen, heading);
-  useDocumentTitle(t('detailTitle'));
+  const format = useClinicFormat();
+  // «Приём 27 октября, 10:00»: the page says which visit it is, not what kind of page it is (B12); the generic title waits for the read.
+  const title: string = query.data === undefined ? t('detailTitle') : t('detailHeading', { when: format.dayTime(query.data.start) });
+  useDocumentTitle(title);
   if (query.data === undefined && isMissingError(query.error, true)) return <MissingAppointment />;
   return (
     <section aria-busy={query.isFetching} className="flex flex-col gap-4">
       <BackLink />
-      <h1 ref={heading} tabIndex={-1} className="text-3xl font-bold tracking-tight focus:outline-none">{t('detailTitle')}</h1>
+      <h1 ref={heading} tabIndex={-1} className="text-3xl font-bold tracking-tight focus:outline-none">{title}</h1>
       <div><DetailBody query={query} onCancel={() => setIsDialogOpen(true)} /></div>
       {isDialogOpen && query.data ? <CancelAppointmentDialog appointment={query.data} onClose={closeDialog} onCancelled={closeDialog} /> : null}
     </section>

@@ -16,7 +16,7 @@ import { clinicDateKey } from '@/lib/clinic-time';
 import { AUTH_INPUT_CLASS, AuthField } from './auth-field';
 import { useRegisterForm, type RegisterFormState } from './use-register-form';
 
-const LOGIN_HREF = '/api/auth/authorize?returnTo=%2Fbooking';
+const LOGIN_HREF = '/api/auth/authorize';
 
 function RegisterSuccess(): ReactNode {
   const t = useT('auth.register');

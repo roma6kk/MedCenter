@@ -27,7 +27,7 @@ describe('BookingWizard doctor step (B8)', () => {
 
     const chip = await screen.findByTestId('nearest-slot-30');
 
-    expect(chip).toHaveAccessibleName(expect.stringMatching(/^Записаться: .*11:00, Мария Иванова$/));
+    expect(chip).toHaveAccessibleName(expect.stringMatching(/^Записаться: .*11:00, Иванова Мария$/));
     expect(screen.getByText(/Ближайшее: .*11:00/)).toBeInTheDocument();
     expect(screen.queryByTestId('nearest-slot-20')).not.toBeInTheDocument();
   });
@@ -47,7 +47,7 @@ describe('BookingWizard doctor step (B8)', () => {
 
     expect(await screen.findByRole('button', { name: 'Подтвердить запись' })).toBeInTheDocument();
     // The doctor is named at once from the list the step already holds (no "…" while his own entry loads).
-    expect(screen.getByTestId('booking-draft-summary')).toHaveTextContent('Мария Иванова');
+    expect(screen.getByTestId('booking-draft-summary')).toHaveTextContent('Иванова Мария');
     const draft = useBookingDraftStore.getState();
     expect([draft.doctorId, draft.slotId, draft.step]).toEqual(['doc-1', 'slot-30', 4]);
   });
@@ -127,7 +127,7 @@ describe('BookingWizard success screen (B1)', () => {
     const details = await screen.findByTestId('success-details');
 
     expect(details).toHaveTextContent('09:00–09:30');
-    expect(details).toHaveTextContent('Мария Иванова');
+    expect(details).toHaveTextContent('Иванова Мария');
     expect(details).toHaveTextContent('Приём терапевта (первичный)');
     expect(details).toHaveTextContent('г. Минск, ул. Здоровья, 12');
     expect(postBodies()).toHaveLength(1);

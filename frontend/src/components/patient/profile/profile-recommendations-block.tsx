@@ -35,7 +35,16 @@ export function ProfileRecommendations({ data, patientId }: { readonly data: Pro
       today: clinicDateKey(),
     });
     const shown = all.filter((item) => !hidden.includes(item.id));
-    body = <RecommendationCards items={shown} total={all.length} hiddenCount={all.length - shown.length} onHide={hide} onRestore={restore} />;
+    const card = patient.data;
+    body = (
+      <RecommendationCards
+        items={shown}
+        hiddenCount={all.length - shown.length}
+        onHide={hide}
+        onRestore={restore}
+        {...(card?.version === undefined ? {} : { phoneCard: { ...card, version: card.version } })}
+      />
+    );
   }
   return (
     <Card as="section" radius="panel" padding="none" aria-labelledby="profile-reco-title" data-testid="profile-recommendations" className="flex flex-col gap-4 p-6">

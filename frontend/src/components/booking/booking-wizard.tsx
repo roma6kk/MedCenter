@@ -55,11 +55,17 @@ function StepView({ draft, booking, update, goTo }: StepViewProps): ReactNode {
   return <ConfirmStep draft={draft} booking={booking} onReasonChange={(reason) => update({ reason })} onEdit={goTo} />;
 }
 
+interface BookingWizardProps {
+  readonly presetDoctorId?: string;
+  /** The page title and lead: drawn above the steps, and dropped once the visit is booked (the success screen has its own heading). */
+  readonly header?: ReactNode;
+}
+
 /**
  * Booking wizard (FR-003/004): service → doctor → slot → confirmation. The draft lives in `sessionStorage`, so a guest
  * who picked a slot on a doctor page comes back from the login on the confirmation step with everything in place.
  */
-export function BookingWizard({ presetDoctorId }: { readonly presetDoctorId?: string }): ReactNode {
+export function BookingWizard({ presetDoctorId, header }: BookingWizardProps): ReactNode {
   const t = useT('booking');
   const draft = useBookingDraftStore();
   const isRestored: boolean = useDraftRepair(presetDoctorId);
@@ -72,25 +78,28 @@ export function BookingWizard({ presetDoctorId }: { readonly presetDoctorId?: st
     draft.updateDraft({ step });
   };
   return (
-    <section ref={container} aria-label={t('title')} className="flex flex-col gap-7">
-      <BookingStepper current={draft.step} onGo={goTo} />
-      {isRestored && draft.step === 4 ? <p role="status" className="text-sm text-muted-foreground">{t('draftRestored')}</p> : null}
-      {/* The summary panel «Ваша запись» stays beside every step; on the confirmation step it also holds the confirm button, so that step brings its own. */}
-      <div className="flex flex-wrap items-start gap-6">
-        {showsConfirm ? (
-          <StepView draft={draft} booking={booking} update={draft.updateDraft} goTo={goTo} />
-        ) : (
-          <>
-            {/* Keyed by step: a new step slides and fades in (CSS only; the global reduced-motion rule drops it). */}
-            <div key={draft.step} className="min-w-0 flex-[999_1_560px] animate-step-in">
-              <StepView draft={draft} booking={booking} update={draft.updateDraft} goTo={goTo} />
-            </div>
-            <aside className="min-w-0 flex-[1_1_300px]">
-              <BookingSummary draft={draft} />
-            </aside>
-          </>
-        )}
-      </div>
-    </section>
+    <>
+      {header}
+      <section ref={container} aria-label={t('title')} className="flex flex-col gap-7">
+        <BookingStepper current={draft.step} onGo={goTo} />
+        {isRestored && draft.step === 4 ? <p role="status" className="text-sm text-muted-foreground">{t('draftRestored')}</p> : null}
+        {/* The summary panel «Ваша запись» stays beside every step; on the confirmation step it also holds the confirm button, so that step brings its own. */}
+        <div className="flex flex-wrap items-start gap-6">
+          {showsConfirm ? (
+            <StepView draft={draft} booking={booking} update={draft.updateDraft} goTo={goTo} />
+          ) : (
+            <>
+              {/* Keyed by step: a new step slides and fades in (CSS only; the global reduced-motion rule drops it). */}
+              <div key={draft.step} className="min-w-0 flex-[999_1_560px] animate-step-in">
+                <StepView draft={draft} booking={booking} update={draft.updateDraft} goTo={goTo} />
+              </div>
+              <aside className="min-w-0 flex-[1_1_300px]">
+                <BookingSummary draft={draft} />
+              </aside>
+            </>
+          )}
+        </div>
+      </section>
+    </>
   );
 }

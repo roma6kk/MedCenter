@@ -7,8 +7,10 @@
  */
 
 export const PROTECTED_PREFIXES: ReadonlyArray<string> = [
+  '/home',
   '/booking',
   '/appointments',
+  '/medcard',
   '/history',
   '/prescriptions',
   '/profile',

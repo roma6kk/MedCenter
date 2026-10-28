@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { clinicDayOf, formatClinicTime } from '@/lib/clinic-time';
+import { doctorLabel } from '@/lib/doctor-name';
 import { useT } from '@/lib/i18n/use-t';
 import { useUiStore } from '@/store/use-ui-store';
 import { describeWhen } from './slot-when';
@@ -52,7 +53,7 @@ function NearestTimes({ doctor, durationMin, onSelectSlot }: Pick<DoctorOptionPr
                 <button
                   type="button"
                   data-testid={`nearest-${slot.id}`}
-                  aria-label={t('bookNearest', { when, doctor: doctor.name })}
+                  aria-label={t('bookNearest', { when, doctor: doctorLabel(doctor) })}
                   onClick={() => onSelectSlot(doctor.id, slot)}
                   className={CHIP_CLASS}
                 >
@@ -79,7 +80,7 @@ export function DoctorOption({ doctor, selected, durationMin, onSelect, onSelect
       <Avatar src={doctor.photoUrl} initials={doctorInitials(doctor)} className="h-20 w-20 text-2xl" />
       <div className="flex min-w-0 flex-1 flex-col gap-3">
         <div>
-          <h3 className="text-lg font-bold">{doctor.name}</h3>
+          <h3 className="text-lg font-bold">{doctorLabel(doctor)}</h3>
           <p className="text-sm text-muted-foreground">{doctor.specialty ?? catalog('noSpecialty')}</p>
         </div>
         <NearestTimes doctor={doctor} durationMin={durationMin} onSelectSlot={onSelectSlot} />
@@ -87,7 +88,7 @@ export function DoctorOption({ doctor, selected, durationMin, onSelect, onSelect
           <Button
             variant="soft"
             aria-pressed={selected}
-            aria-label={`${t('chooseDoctor')}: ${doctor.name}`}
+            aria-label={`${t('chooseDoctor')}: ${doctorLabel(doctor)}`}
             onClick={() => onSelect(doctor.id)}
             data-testid={`doctor-${doctor.id}`}
           >

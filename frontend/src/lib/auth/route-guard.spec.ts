@@ -3,6 +3,9 @@ import { isProtectedPath, shouldRedirectToLogin, PROTECTED_PREFIXES } from './ro
 describe('route-guard', () => {
   describe('isProtectedPath', () => {
     it.each([
+      ['/home'],
+      ['/medcard'],
+      ['/medcard/anything'],
       ['/booking'],
       ['/booking/confirm'],
       ['/appointments'],
@@ -45,7 +48,7 @@ describe('route-guard', () => {
     });
 
     it('should expose 10 protected prefixes', () => {
-      expect(PROTECTED_PREFIXES).toHaveLength(10);
+      expect(PROTECTED_PREFIXES).toHaveLength(12);
     });
   });
 

@@ -3,14 +3,13 @@
 import { useCallback, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import type { UseQueryResult } from '@tanstack/react-query';
-import Link from 'next/link';
-import { Plus } from 'lucide-react';
-import { buttonVariants } from '@/components/ui/button-variants';
+import { CalendarPlus } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { useClinicFormat } from '@/hooks/use-clinic-format';
 import { Pager } from '@/components/data-display/paginated-table';
 import { EmptyState, TableSkeleton } from '@/components/feedback/states';
 import { QueryFailure } from '@/components/feedback/query-error-state';
+import { BookLink } from '@/components/patient/book-link';
 import { SegmentedTabs, tabPanelProps, type TabOption } from '@/components/patient/segmented-tabs';
 import { useClampedPage } from '@/components/patient/use-clamped-page';
 import { useDocumentTitle } from '@/hooks/use-document-title';
@@ -29,8 +28,7 @@ const TABS_ID = 'appointments';
 
 function EmptyAppointments({ tab }: { readonly tab: AppointmentTab }): ReactNode {
   const t = useT('appointments');
-  const cta = <Link href="/booking" className={buttonVariants({ variant: 'primary' })}>{t('bookCta')}</Link>;
-  return <EmptyState title={tab === 'upcoming' ? t('emptyUpcoming') : t('empty')} description={t('emptyHint')} action={cta} />;
+  return <EmptyState icon={CalendarPlus} title={tab === 'upcoming' ? t('emptyUpcoming') : t('empty')} description={t('emptyHint')} action={<BookLink label={t('bookCta')} />} />;
 }
 
 interface ItemsProps {
@@ -114,10 +112,7 @@ export function AppointmentList(): ReactNode {
   useDocumentTitle(t('title'));
   return (
     <section className="flex flex-col gap-7">
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <h1 className="text-3xl font-bold tracking-tight">{t('title')}</h1>
-        <Link href="/booking" className={`no-print ${buttonVariants({ variant: 'primary', size: 'lg' })}`}><Plus aria-hidden="true" size={18} strokeWidth={2.2} />{t('newBooking')}</Link>
-      </div>
+      <h1 className="text-3xl font-bold tracking-tight">{t('title')}</h1>
       <div><SegmentedTabs idPrefix={TABS_ID} label={t('tabsLabel')} options={options} value={tab} onChange={setTab} /></div>
       <div ref={panel} tabIndex={-1} aria-busy={query.isFetching} {...tabPanelProps(TABS_ID, tab)} className="focus:outline-none">
         <AppointmentsPanel tab={tab} query={query} onCancel={setTarget} onPage={setPage} />

@@ -4,12 +4,12 @@ import type { ReactNode } from 'react';
 import Link from 'next/link';
 import { Card } from '@/components/ui/card';
 import { buttonVariants } from '@/components/ui/button-variants';
-import type { AppointmentView } from '@/components/appointments/appointment-types';
+import { doctorOf, type AppointmentView } from '@/components/appointments/appointment-types';
 import { useClinicFormat } from '@/hooks/use-clinic-format';
 import { useT } from '@/lib/i18n/use-t';
 import { cn } from '@/lib/ui/cn';
 import { WRAP_TEXT } from '../wrap-text';
-import { initialsOf } from './profile-header';
+import { initialsOf } from './profile-name';
 
 export interface DoctorEntry {
   readonly name: string;
@@ -22,7 +22,7 @@ export function doctorsOf(appointments: ReadonlyArray<AppointmentView>): Readonl
   const seen = new Set<string>();
   const result: DoctorEntry[] = [];
   for (const appointment of appointments) {
-    const name: string = (appointment.doctorName ?? '').trim();
+    const name: string = doctorOf(appointment, '');
     if (name === '' || seen.has(name)) continue;
     seen.add(name);
     result.push({ name, appointment });

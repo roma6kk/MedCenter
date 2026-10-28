@@ -9,6 +9,8 @@ import { useClinicFormat } from '@/hooks/use-clinic-format';
 import { useDocumentTitle } from '@/hooks/use-document-title';
 import { useT } from '@/lib/i18n/use-t';
 import { cn } from '@/lib/ui/cn';
+import { FileText } from 'lucide-react';
+import { BookLink } from './book-link';
 import { DiagnosisPanel, RepeatVisitCard } from './history/diagnosis-panel';
 import { diagnosisFrequency, filterByDiagnosis, groupByMonth, prescriptionsByEncounter, summarize } from './history/history-model';
 import { SummaryTiles } from './history/summary-tiles';
@@ -87,26 +89,26 @@ function Loaded({ items, meta, prescriptions, onPage }: LoadedProps): ReactNode 
 }
 
 /** The patient's finished visits (FR-006, API 7.6): newest first, by month, each row opens to the doctor's words and the prescriptions of that visit. */
-export function HistoryTimeline(): ReactNode {
+export function HistoryTimeline({ embedded = false }: { readonly embedded?: boolean }): ReactNode {
   const t = useT('patientHistory');
   const [page, setPage] = useState(1);
   const query = useMyHistory({ page, pageSize: HISTORY_PAGE_SIZE });
   const prescriptions = useMyPrescriptions({ page: 1, pageSize: PRESCRIPTIONS_LOOKUP_SIZE });
   useClampedPage(query.data?.meta, page, setPage);
-  useDocumentTitle(t('title'));
+  useDocumentTitle(embedded ? null : t('title'));
   const data = query.data;
   return (
     <section className="flex flex-col gap-6">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">{t('title')}</h1>
-          <p className="mt-1.5 text-base text-muted-foreground">{t('subtitle')}</p>
+          {embedded ? null : <h1 className="text-3xl font-bold tracking-tight">{t('title')}</h1>}
+          <p className={embedded ? 'text-base text-muted-foreground' : 'mt-1.5 text-base text-muted-foreground'}>{t('subtitle')}</p>
         </div>
         {data !== undefined && data.items.length > 0 ? <PrintButton label={t('print')} /> : null}
       </div>
       <div aria-busy={query.isFetching} className="flex flex-col gap-6">
         {data === undefined ? <QueryFailure query={query} embedded pending={<TableSkeleton />} /> : null}
-        {data !== undefined && data.items.length === 0 ? <EmptyState title={t('empty')} description={t('emptyHint')} /> : null}
+        {data !== undefined && data.items.length === 0 ? <EmptyState icon={FileText} title={t('empty')} description={t('emptyHint')} action={<BookLink label={t('emptyCta')} />} /> : null}
         {data !== undefined && data.items.length > 0 ? <Loaded items={data.items} meta={data.meta} prescriptions={prescriptions.data?.items ?? EMPTY_PRESCRIPTIONS} onPage={setPage} /> : null}
       </div>
     </section>

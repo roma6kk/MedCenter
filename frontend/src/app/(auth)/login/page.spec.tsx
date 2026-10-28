@@ -13,6 +13,12 @@ describe('LoginPage', () => {
     expect(screen.queryByTestId('login-error')).not.toBeInTheDocument();
   });
 
+  it('should leave the destination to the role when the visitor opens the login directly', async () => {
+    await renderPage({});
+
+    expect(screen.getByRole('link', { name: 'Войти' })).toHaveAttribute('href', '/api/auth/authorize');
+  });
+
   it('should show a readable message when the callback sends access_denied back', async () => {
     await renderPage({ error: 'access_denied' });
 
@@ -34,6 +40,6 @@ describe('LoginPage', () => {
   it('should ignore the returnTo when it leaves the site', async () => {
     await renderPage({ returnTo: 'https://evil.example/steal' });
 
-    expect(screen.getByRole('link', { name: 'Войти' })).not.toHaveAttribute('href', expect.stringContaining('evil'));
+    expect(screen.getByRole('link', { name: 'Войти' })).toHaveAttribute('href', '/api/auth/authorize');
   });
 });
