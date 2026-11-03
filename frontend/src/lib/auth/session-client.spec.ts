@@ -1,4 +1,4 @@
-import { endRevokedSession, endSession, ensureSession, loadSession, logout, refreshSession } from './session-client';
+import { currentReturnTo, endRevokedSession, endSession, ensureSession, loadSession, logout, redirectToLogin, refreshSession } from './session-client';
 import { getAccessToken, clearAccessToken, setAccessToken } from './access-token';
 import { readDraft, writeDraft } from '@/lib/encounter-draft';
 import { useBookingDraftStore } from '@/store/use-booking-draft-store';
@@ -346,6 +346,18 @@ describe('endSession and logout', () => {
     await logout();
 
     expect(readDraft('1442')).toBeNull();
+  });
+
+  it('should bring the visitor back to the page with its query, so a chosen day or period survives signing in again', async () => {
+    Object.defineProperty(window, 'location', { value: { pathname: '/doctor/appointments', search: '?date=2026-10-05', assign: assignSpy }, writable: true });
+    jest.spyOn(global, 'fetch').mockResolvedValue(jsonResponse({ loggedOut: true }, 200));
+
+    expect(currentReturnTo()).toBe('/doctor/appointments?date=2026-10-05');
+    redirectToLogin();
+    expect(assignSpy).toHaveBeenLastCalledWith('/login?returnTo=%2Fdoctor%2Fappointments%3Fdate%3D2026-10-05');
+    await endRevokedSession();
+
+    expect(assignSpy).toHaveBeenLastCalledWith('/login?returnTo=%2Fdoctor%2Fappointments%3Fdate%3D2026-10-05&reason=session-ended');
   });
 
   it('should keep the booking draft when the session was revoked, so the visitor returns to it after signing in', async () => {

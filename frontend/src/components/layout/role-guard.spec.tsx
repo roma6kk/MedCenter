@@ -6,17 +6,17 @@ import { RoleGuard } from './role-guard';
 
 const replace = jest.fn();
 
-jest.mock('@/lib/auth/session-client', () => ({ loadSession: jest.fn() }));
+jest.mock('@/lib/auth/session-client', () => ({ ...jest.requireActual('@/lib/auth/session-client'), loadSession: jest.fn() }));
 
 jest.mock('next/navigation', () => ({
   useRouter: () => ({ replace }),
-  usePathname: () => '/admin/users',
 }));
 
 const EMPTY_SESSION = { accessToken: null, expiresAt: null, role: null, scope: null, patientRef: null, fhirUser: null, hydrated: false, unavailable: false };
 
 describe('RoleGuard', () => {
   beforeEach(() => {
+    window.history.pushState({}, '', '/admin/users');
     replace.mockClear();
     (loadSession as jest.Mock).mockReset().mockResolvedValue(undefined);
     useSessionStore.setState(EMPTY_SESSION);
@@ -43,6 +43,14 @@ describe('RoleGuard', () => {
     render(<RoleGuard required="ADMIN"><p>панель админа</p></RoleGuard>);
 
     expect(replace).toHaveBeenCalledWith('/login?returnTo=%2Fadmin%2Fusers');
+  });
+
+  it('should keep the query of the page in returnTo, so a chosen period survives signing in again', () => {
+    window.history.pushState({}, '', '/admin/analytics?from=2026-10-01&to=2026-10-31');
+    useSessionStore.setState({ ...EMPTY_SESSION, hydrated: true, role: null });
+    render(<RoleGuard required="ADMIN"><p>панель админа</p></RoleGuard>);
+
+    expect(replace).toHaveBeenCalledWith('/login?returnTo=%2Fadmin%2Fanalytics%3Ffrom%3D2026-10-01%26to%3D2026-10-31');
   });
 
   it('should render nothing and redirect nothing while the session is loading', () => {

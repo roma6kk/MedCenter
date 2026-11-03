@@ -138,16 +138,19 @@ export async function logout(): Promise<void> {
   window.location.assign('/');
 }
 
+/** The page the visitor is on, path and query, as the `returnTo` that brings them back after signing in: the query carries a doctor's chosen day or an analytics period. Browser only. */
+export function currentReturnTo(): string {
+  return window.location.pathname + window.location.search;
+}
+
 /** The session died on the server (revoked token): leave a toast for the login page and go there with `returnTo`. */
 export async function endRevokedSession(): Promise<void> {
   await endSession();
   setFlash('session-ended');
-  const returnTo: string = window.location.pathname + window.location.search;
-  window.location.assign(`/login?returnTo=${encodeURIComponent(returnTo)}&reason=${SESSION_ENDED_REASON}`);
+  window.location.assign(`/login?returnTo=${encodeURIComponent(currentReturnTo())}&reason=${SESSION_ENDED_REASON}`);
 }
 
 /** The session can not be renewed: go to login and come back to the current page afterwards. */
 export function redirectToLogin(): void {
-  const returnTo: string = window.location.pathname + window.location.search;
-  window.location.assign(`/login?returnTo=${encodeURIComponent(returnTo)}`);
+  window.location.assign(`/login?returnTo=${encodeURIComponent(currentReturnTo())}`);
 }
