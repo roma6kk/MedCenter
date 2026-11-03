@@ -1,8 +1,8 @@
 import { Inject, Injectable } from '@nestjs/common';
+import { clinicDateOf, clinicDayEndMs, clinicDaysBetween, clinicDayStartMs } from '@medcenter/common';
 import { FHIR_CLIENT, type FhirClient } from '@medcenter/fhir';
 import type { SlotResponseDto } from '@medcenter/fhir-mappers';
 
-import { clinicDateOf, clinicDayEndMs, clinicDaysBetween, clinicDayStartMs } from '../../common/clinic-calendar';
 import { orReferences, searchAllPages } from '../../common/fhir-search';
 import { CACHE_KEYS, CACHE_TTLS, RedisCacheService } from '../cache/redis-cache.service';
 import type { DoctorSlotsResponseDto } from './dto/doctor-slots-response.dto';

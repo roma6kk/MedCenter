@@ -1,4 +1,5 @@
-import { clinicDayCode, clinicDaysBetween, clinicInstantMs } from '../../common/clinic-calendar';
+import { clinicDayCode, clinicDaysBetween, clinicInstantMs } from '@medcenter/common';
+
 import type { WeeklyWindowDto } from './dto/create-schedule.dto';
 
 /** One slot an expanded weekly window yields, as UTC ISO instants. */

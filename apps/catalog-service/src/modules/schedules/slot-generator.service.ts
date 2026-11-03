@@ -1,10 +1,10 @@
 import { createHash } from 'node:crypto';
 
 import { BadGatewayException, BadRequestException, ConflictException, Inject, Injectable, Logger } from '@nestjs/common';
+import { clinicDayEndMs, clinicDaysBetween, clinicDayStartMs } from '@medcenter/common';
 import { FHIR_CLIENT, type FhirClient, type FhirResource } from '@medcenter/fhir';
 import { MEDCENTER_EXT } from '@medcenter/terminology';
 
-import { clinicDaysBetween, clinicDayEndMs, clinicDayStartMs } from '../../common/clinic-calendar';
 import { searchPages } from '../../common/fhir-search';
 import { CACHE_KEYS, RedisCacheService } from '../cache/redis-cache.service';
 import { GenerateSlotsDto } from './dto/generate-slots.dto';

@@ -2,8 +2,10 @@
  * The clinic works in Minsk time. Belarus has been on UTC+3 all year since
  * 2011 (no daylight saving), so a fixed offset is exact for every schedule the
  * clinic can plan, and it keeps window generation (`09:00` -> an instant)
- * independent of the ICU build. `slots/clinic-time.ts` renders labels with
- * `Intl` in the same zone; `clinic-calendar.spec.ts` pins the two together.
+ * independent of the ICU build. Services render labels with `Intl` in the same
+ * zone (catalog `slots/clinic-time.ts`); `clinic-calendar.spec.ts` pins the two
+ * together. A date-only API bound (`2026-11-02`) is a clinic day, never a UTC
+ * one: HAPI would read a bare date in its own server zone.
  */
 export const CLINIC_TIME_ZONE = 'Europe/Minsk';
 

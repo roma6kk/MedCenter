@@ -1,11 +1,10 @@
 import { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
-import { createValidationPipe } from '@medcenter/common';
+import { addClinicDays, clinicDateOf, clinicInstantMs, createValidationPipe } from '@medcenter/common';
 import { FHIR_CLIENT, FhirClientError, type FhirClient, type FhirSearchResult } from '@medcenter/fhir';
 import request from 'supertest';
 
 import { AppModule } from '../src/app/app.module';
-import { addClinicDays, clinicDateOf, clinicInstantMs } from '../src/common/clinic-calendar';
 import { InMemoryCacheStore } from '../src/modules/cache/__tests__/in-memory-cache-store';
 import { CACHE_STORE } from '../src/modules/cache/redis-cache.service';
 import { applyE2eEnv } from './e2e-env';

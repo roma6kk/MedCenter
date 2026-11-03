@@ -1,6 +1,5 @@
+import { CLINIC_TIME_ZONE } from '@medcenter/common';
 import type { SlotResponseDto } from '@medcenter/fhir-mappers';
-
-import { CLINIC_TIME_ZONE } from '../../common/clinic-calendar';
 
 /** Slots are stored as UTC/offset instants; labels show them in clinic time (`CLINIC_TIME_ZONE`). */
 

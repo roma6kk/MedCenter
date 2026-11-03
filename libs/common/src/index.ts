@@ -15,6 +15,7 @@ export * from './lib/guards/redis-rate-limit.store';
 export * from './lib/pipes/validation.pipe';
 export * from './lib/idempotency/idempotency.service';
 export * from './lib/patient-compartment';
+export * from './lib/clinic-calendar';
 export * from './lib/http';
 export * from './lib/audit-actor';
 export * from './lib/swagger/problem-details.schema';

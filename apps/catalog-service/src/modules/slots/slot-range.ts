@@ -1,6 +1,5 @@
 import { BadRequestException } from '@nestjs/common';
-
-import { addClinicDays, clinicDateOf, clinicDayEndMs, clinicDayStartMs } from '../../common/clinic-calendar';
+import { addClinicDays, clinicDateOf, clinicDayEndMs, clinicDayStartMs } from '@medcenter/common';
 
 /** Inclusive window of instants (epoch milliseconds). */
 export interface InstantRange {
