@@ -2,6 +2,7 @@
 
 import type { ReactNode } from 'react';
 import Link from 'next/link';
+import { useCanBook } from '@/hooks/use-can-book';
 import { useT } from '@/lib/i18n/use-t';
 import { SECTION_CLASS, SECTION_TITLE_CLASS } from './catalog-styles';
 import { CORPORATE_CLIENTS, HOME_ANCHORS, INSURANCE_PARTNERS } from './home-content';
@@ -41,15 +42,16 @@ function Wordmarks({ label, names }: { readonly label: string; readonly names: R
   );
 }
 
-/** Who the clinic serves — private patients, companies, insured patients — with the companies and insurers it works with. */
+/** Who the clinic serves — private patients, companies, insured patients — with the companies and insurers it works with. Staff do not book, so the private-patients block carries no booking link for them. */
 export function HomeAudiences(): ReactNode {
   const t = useT('home');
+  const canBook = useCanBook();
   return (
     <section id={HOME_ANCHORS.companies} aria-labelledby="home-audiences" className="scroll-mt-4 bg-inverse text-inverse-foreground">
       <div className={`${SECTION_CLASS} reveal-on-scroll flex flex-col gap-8 py-16`}>
         <h2 id="home-audiences" className={SECTION_TITLE_CLASS}>{t('audTitle')}</h2>
         <ul className="grid gap-4 md:grid-cols-3">
-          <Audience title={t('audPrivateTitle')} text={t('audPrivateText')} action={{ href: '/booking', label: t('book') }} />
+          <Audience title={t('audPrivateTitle')} text={t('audPrivateText')} action={canBook ? { href: '/booking', label: t('book') } : undefined} />
           <Audience title={t('audCorpTitle')} text={t('audCorpText')} />
           <Audience title={t('audInsTitle')} text={t('audInsText')} />
         </ul>

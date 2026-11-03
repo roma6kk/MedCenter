@@ -1,11 +1,10 @@
 'use client';
 
 import type { ReactNode } from 'react';
-import Link from 'next/link';
 import { BrandMark } from '@/components/brand/brand-mark';
-import { buttonVariants } from '@/components/ui/button-variants';
 import { useT } from '@/lib/i18n/use-t';
 import { SECTION_CLASS } from './catalog-styles';
+import { HomeActions } from './home-actions';
 
 /** The closing band of the landing (VA4): a warm panel that asks for the one action the page is about. */
 export function HomeCta(): ReactNode {
@@ -17,10 +16,7 @@ export function HomeCta(): ReactNode {
         <div className="relative flex max-w-xl flex-col items-start gap-4">
           <h2 id="home-cta" className="text-3xl font-bold tracking-tight">{t('ctaTitle')}</h2>
           <p className="text-lg leading-relaxed text-warm-foreground">{t('ctaText')}</p>
-          <div className="flex flex-wrap gap-3">
-            <Link href="/booking" className={buttonVariants({ size: 'lg' })}>{t('book')}</Link>
-            <Link href="/doctors" className={buttonVariants({ variant: 'secondary', size: 'lg' })}>{t('findDoctor')}</Link>
-          </div>
+          <HomeActions />
         </div>
       </div>
     </section>

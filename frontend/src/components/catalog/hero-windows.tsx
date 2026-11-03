@@ -8,6 +8,7 @@ import { draftFromSlot } from '@/components/booking/booking-steps';
 import { describeWhen } from '@/components/booking/slot-when';
 import { Avatar } from '@/components/ui/avatar';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useCanBook } from '@/hooks/use-can-book';
 import { doctorLabel } from '@/lib/doctor-name';
 import { useT } from '@/lib/i18n/use-t';
 import { useBookingDraftStore } from '@/store/use-booking-draft-store';
@@ -22,11 +23,14 @@ const DOCTORS_ASKED = 4;
 
 const WINDOW_CHIP_CLASS =
   'inline-flex min-h-[44px] flex-none items-center rounded-control bg-primary-soft px-3 text-sm font-semibold tabular-nums text-primary-soft-foreground transition-[background-color,transform] duration-fast ease-out hover:bg-primary-soft-hover active:scale-[0.97]';
+/** What a doctor or an administrator sees instead of the chip: the time is information for them, not a way into the booking. */
+const WINDOW_TEXT_CLASS = 'flex-none text-sm font-semibold tabular-nums text-muted-foreground';
 
 function WindowRow({ entry, today }: { readonly entry: SoonestWindow; readonly today: string }): ReactNode {
   const t = useT('booking');
   const router = useRouter();
   const locale = useUiStore((state) => state.locale);
+  const canBook = useCanBook();
   const { doctor, slot } = entry;
   const when: string = describeWhen(slot.start, today, locale, t);
   // Same hand-over as the doctor's page: the draft carries the doctor and the slot, the wizard opens on the confirmation.
@@ -41,9 +45,13 @@ function WindowRow({ entry, today }: { readonly entry: SoonestWindow; readonly t
         <p className="font-semibold leading-tight">{doctorLabel(doctor)}</p>
         <p className="truncate text-sm text-muted-foreground">{doctor.specialty ?? ''}</p>
       </div>
-      <button type="button" data-testid={`hero-window-${doctor.id}`} aria-label={t('bookNearest', { when, doctor: doctorLabel(doctor) })} onClick={book} className={WINDOW_CHIP_CLASS}>
-        {when}
-      </button>
+      {canBook ? (
+        <button type="button" data-testid={`hero-window-${doctor.id}`} aria-label={t('bookNearest', { when, doctor: doctorLabel(doctor) })} onClick={book} className={WINDOW_CHIP_CLASS}>
+          {when}
+        </button>
+      ) : (
+        <span data-testid={`hero-window-${doctor.id}`} className={WINDOW_TEXT_CLASS}>{when}</span>
+      )}
     </li>
   );
 }

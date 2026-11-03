@@ -91,6 +91,44 @@ describe('HomeView', () => {
     expect(screen.queryByTestId('mobile-book-bar')).not.toBeInTheDocument();
   });
 
+  it.each([['DOCTOR'], ['ADMIN']] as const)('should offer %s no way into the booking anywhere on the landing: the booking would only answer them with a 403', async (role) => {
+    serveCatalog({ slots: { a: [LATER_SLOT], b: [SLOT] } });
+    useSessionStore.getState().setSession({ accessToken: 't', expiresAt: null, role, scope: null, patientRef: null, fhirUser: null });
+    const { container } = renderWithCatalog(<HomeView services={SERVICES} doctors={DOCTORS} isFailed={false} />);
+
+    const windows = await screen.findByRole('region', { name: 'Ближайшие свободные окна' });
+    await within(windows).findByTestId('hero-window-b');
+
+    expect(container.querySelectorAll('a[href^="/booking"]')).toHaveLength(0);
+    expect(screen.queryByRole('link', { name: /Записаться/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Записаться/ })).not.toBeInTheDocument();
+    expect(screen.queryByTestId('mobile-book-bar')).not.toBeInTheDocument();
+  });
+
+  it('should leave staff «Найти врача» as the one action of the hero and of the closing band, in the primary look', () => {
+    useSessionStore.getState().setSession({ accessToken: 't', expiresAt: null, role: 'DOCTOR', scope: null, patientRef: null, fhirUser: null });
+    renderWithCatalog(<HomeView services={SERVICES} doctors={DOCTORS} isFailed={false} />);
+
+    const hero = within(screen.getByRole('region', { name: /Консультация, диагностика/ }));
+    expect(hero.getByRole('link', { name: 'Найти врача' })).toHaveClass('bg-primary');
+    const band = within(screen.getByRole('region', { name: 'Запишитесь на приём за пару минут' }));
+    expect(band.getByRole('link', { name: 'Найти врача' })).toHaveAttribute('href', '/doctors');
+    expect(band.queryByRole('link', { name: 'Записаться на приём' })).not.toBeInTheDocument();
+  });
+
+  it('should show staff the nearest times of the doctors as plain text, not as buttons that write a booking draft', async () => {
+    serveCatalog({ slots: { a: [LATER_SLOT], b: [SLOT] } });
+    useSessionStore.getState().setSession({ accessToken: 't', expiresAt: null, role: 'ADMIN', scope: null, patientRef: null, fhirUser: null });
+    renderWithCatalog(<HomeView services={SERVICES} doctors={DOCTORS} isFailed={false} />);
+
+    const windows = await screen.findByRole('region', { name: 'Ближайшие свободные окна' });
+    const time = await within(windows).findByTestId('hero-window-b');
+
+    expect(time).toHaveTextContent('завтра, 11:00');
+    expect(time.tagName).toBe('SPAN');
+    expect(within(windows).queryByRole('button')).not.toBeInTheDocument();
+  });
+
   it('should list every department of the clinic, diagnostics included, when every specialty has a doctor and there are services', () => {
     renderWithCatalog(<HomeView services={SERVICES} doctors={ALL_SPECIALTY_DOCTORS} isFailed={false} />);
 

@@ -1,15 +1,14 @@
 'use client';
 
 import type { ReactNode } from 'react';
-import Link from 'next/link';
 import { FileText } from 'lucide-react';
 import { BrandMark } from '@/components/brand/brand-mark';
-import { buttonVariants } from '@/components/ui/button-variants';
 import { useT } from '@/lib/i18n/use-t';
 import { SECTION_CLASS } from './catalog-styles';
 import type { Doctor } from './catalog-types';
 import { HeroEcg } from './hero-ecg';
 import { HeroWindows } from './hero-windows';
+import { HomeActions } from './home-actions';
 
 /**
  * The right half of the hero (VB2): the clinic's rosette on a soft ground with a warm disc behind it, and the live
@@ -45,10 +44,7 @@ export function HomeHero({ doctors }: { readonly doctors: ReadonlyArray<Doctor> 
           <p className="text-sm font-semibold uppercase tracking-wider text-primary-soft-foreground">{t('eyebrow')}</p>
           <h1 id="home-title" className="max-w-[22ch] text-4xl font-bold leading-[1.08] tracking-tight">{t('heroTitle')}</h1>
           <p className="max-w-xl text-lg leading-relaxed text-muted-foreground">{t('lead')}</p>
-          <div className="flex flex-wrap gap-3">
-            <Link href="/booking" className={buttonVariants({ size: 'lg' })}>{t('book')}</Link>
-            <Link href="/doctors" className={buttonVariants({ variant: 'secondary', size: 'lg' })}>{t('findDoctor')}</Link>
-          </div>
+          <HomeActions />
         </div>
         <HeroPanel doctors={doctors} />
       </div>

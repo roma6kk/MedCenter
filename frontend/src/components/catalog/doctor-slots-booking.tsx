@@ -7,11 +7,11 @@ import { SlotPicker } from '@/components/booking/slot-picker';
 import { draftFromSlot } from '@/components/booking/booking-steps';
 import { buttonVariants } from '@/components/ui/button-variants';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useCanBook } from '@/hooks/use-can-book';
 import { formatClinicDateTime } from '@/lib/clinic-time';
 import { useT } from '@/lib/i18n/use-t';
 import { cn } from '@/lib/ui/cn';
 import { useBookingDraftStore } from '@/store/use-booking-draft-store';
-import { useSessionStore } from '@/store/use-session-store';
 import { useUiStore } from '@/store/use-ui-store';
 import type { CatalogService, Slot } from './catalog-types';
 
@@ -85,7 +85,7 @@ interface DoctorSlotsBookingProps {
 export function DoctorSlotsBooking({ doctorId, services = [], servicesPending = false }: DoctorSlotsBookingProps): ReactNode {
   const t = useT('catalog');
   const router = useRouter();
-  const role = useSessionStore((state) => state.role);
+  const canBook = useCanBook();
   const [selected, setSelected] = useState<Slot | null>(null);
   const [serviceId, setServiceId] = useState<string | null>(null);
   // Until the visitor picks, the first service is the chosen one: the slot grid never shows times of every service mixed.
@@ -105,7 +105,7 @@ export function DoctorSlotsBooking({ doctorId, services = [], servicesPending = 
       {service === null ? null : <ServiceChips services={services} chosenId={service.id} onChoose={handleChoose} />}
       {servicesPending ? null : <SlotPicker doctorId={doctorId} selectedSlotId={selected?.id ?? null} onSelect={setSelected} durationMin={service?.defaultDurationMin ?? null} />}
       <div className="no-print sticky bottom-0 -mx-4 border-t border-[var(--border)] bg-[var(--background)] p-4 md:static md:mx-0 md:border-0 md:p-0">
-        {role === 'DOCTOR' || role === 'ADMIN' ? <p className="text-sm text-[var(--muted-foreground)]">{t('patientsOnly')}</p> : <BookButton selected={selected} onBook={handleBook} />}
+        {canBook ? <BookButton selected={selected} onBook={handleBook} /> : <p className="text-sm text-[var(--muted-foreground)]">{t('patientsOnly')}</p>}
       </div>
     </div>
   );

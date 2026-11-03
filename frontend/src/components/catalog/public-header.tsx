@@ -10,6 +10,7 @@ import { NavLink } from '@/components/layout/nav-link';
 import { ThemeSwitcher } from '@/components/layout/theme-switcher';
 import { buttonVariants } from '@/components/ui/button-variants';
 import { Dialog } from '@/components/ui/dialog';
+import { useCanBook } from '@/hooks/use-can-book';
 import { AUTHORIZE_PATH } from '@/lib/auth/authorize-href';
 import { ROLE_LANDING } from '@/lib/auth/user-role';
 import { useT } from '@/lib/i18n/use-t';
@@ -29,8 +30,8 @@ function SignInLink({ className }: { readonly className: string }): ReactNode {
 /** The booking button of the header; doctors and administrators do not book, so they never see it. */
 function BookLink({ className, onNavigate }: { readonly className: string; readonly onNavigate?: () => void }): ReactNode {
   const t = useT('public');
-  const role = useSessionStore((state) => state.role);
-  if (role === 'DOCTOR' || role === 'ADMIN') return null;
+  const canBook = useCanBook();
+  if (!canBook) return null;
   return <Link href="/booking" onClick={onNavigate} className={className}>{t('book')}</Link>;
 }
 
