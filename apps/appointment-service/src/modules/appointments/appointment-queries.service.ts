@@ -1,5 +1,5 @@
 import { BadRequestException, Inject, Injectable, NotFoundException } from '@nestjs/common';
-import type { JwtClaims } from '@medcenter/common';
+import { clinicDayEndMs, clinicDayStartMs, type JwtClaims } from '@medcenter/common';
 import { buildPaginatedResponse, type PaginatedResponseDto } from '@medcenter/contracts';
 import { FHIR_CLIENT, type FhirClient, type FhirSearchResult } from '@medcenter/fhir';
 
@@ -22,8 +22,9 @@ export interface PatientListQuery extends PageQuery {
 }
 
 /**
- * API §6.5 — inclusive `Appointment.start` range (RFC 3339 date or date-time); `status` keeps any of the listed
- * statuses and `patient` (a bare Patient id) one patient, both inside the doctor's own compartment.
+ * API §6.5 — inclusive `Appointment.start` range (RFC 3339 date-time, or a date for the whole clinic day); `status`
+ * keeps any of the listed statuses and `patient` (a bare Patient id) one patient, both inside the doctor's own
+ * compartment.
  */
 export interface DoctorListQuery extends PageQuery {
   readonly from?: string;
@@ -45,11 +46,43 @@ function searchParams(query: PageQuery): Record<string, unknown> {
   };
 }
 
+const DATE_ONLY = /^\d{4}-\d{2}-\d{2}$/;
+
+/** One inclusive bound of a range: `search` is the FHIR `date` value, `epochMs` the instant it stands for. */
+interface RangeBound {
+  readonly search: string;
+  readonly epochMs: number;
+}
+
+/**
+ * A date-only bound is a clinic calendar day (Europe/Minsk), resolved to the instant `clinicDayInstant` picks: HAPI
+ * reads a bare `date` in its own zone (UTC), three hours off the clinic's day, as the catalog avoids for slots. A
+ * date-time bound is an instant already and goes on as given.
+ */
+function resolveBound(bound: string, clinicDayInstant: (date: string) => number): RangeBound {
+  if (!DATE_ONLY.test(bound)) {
+    return { search: bound, epochMs: Date.parse(bound) };
+  }
+  const epochMs = clinicDayInstant(bound);
+  return { search: new Date(epochMs).toISOString(), epochMs };
+}
+
+/** A date-only `from` starts at the first instant of its clinic day. */
+function lowerBound(from: string): RangeBound {
+  return resolveBound(from, clinicDayStartMs);
+}
+
+/** A date-only `to` ends at the last instant of its clinic day. */
+function upperBound(to: string): RangeBound {
+  return resolveBound(to, clinicDayEndMs);
+}
+
 /** `date` prefixes FHIR ANDs together; an empty range adds no parameter. */
 function dateRange(from: string | undefined, to: string | undefined): Record<string, unknown> {
-  const bounds = [from === undefined ? undefined : `ge${from}`, to === undefined ? undefined : `le${to}`].filter(
-    (bound): bound is string => bound !== undefined,
-  );
+  const bounds = [
+    from === undefined ? undefined : `ge${lowerBound(from).search}`,
+    to === undefined ? undefined : `le${upperBound(to).search}`,
+  ].filter((bound): bound is string => bound !== undefined);
   return bounds.length === 0 ? {} : { date: bounds };
 }
 
@@ -58,16 +91,8 @@ function statusFilter(statuses: readonly string[] | undefined): Record<string, u
   return statuses === undefined || statuses.length === 0 ? {} : { status: statuses.join(',') };
 }
 
-const DAY_MS = 24 * 60 * 60 * 1000;
-const DATE_ONLY = /^\d{4}-\d{2}-\d{2}$/;
-
-/** Last instant an inclusive upper bound covers: a date-only `to` spans its whole day, as in FHIR `le`. */
-function upperInstantOf(to: string): number {
-  return Date.parse(to) + (DATE_ONLY.test(to) ? DAY_MS - 1 : 0);
-}
-
 function assertOrderedRange(from: string | undefined, to: string | undefined): void {
-  if (from !== undefined && to !== undefined && Date.parse(from) > upperInstantOf(to)) {
+  if (from !== undefined && to !== undefined && lowerBound(from).epochMs > upperBound(to).epochMs) {
     throw new BadRequestException({ errorCode: 'VALIDATION_ERROR', message: 'from must not be after to' });
   }
 }

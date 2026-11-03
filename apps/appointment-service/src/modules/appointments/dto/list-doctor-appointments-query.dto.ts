@@ -21,13 +21,15 @@ const RFC3339_MESSAGE =
 /**
  * API §6.5 `GET /doctor/appointments?from=&to=&status=&patient=&page=&pageSize=&sortOrder=`.
  * Both bounds are inclusive and filter `Appointment.start`; a date-only value
- * covers the whole day (FHIR `date` search precision). `status` and `patient`
+ * is a whole clinic day (Europe/Minsk, `from` its first instant, `to` its last),
+ * as HAPI would read a bare date in its own UTC zone. `status` and `patient`
  * narrow the doctor's own list further; they never widen the compartment, which
  * comes from the token (ADR-013).
  */
 export class ListDoctorAppointmentsQueryDto extends PageQueryDto {
   @ApiPropertyOptional({
-    description: 'Inclusive lower bound of start: RFC 3339 date or date-time',
+    description:
+      'Inclusive lower bound of start: RFC 3339 date-time, or a date for the start of that clinic day (Europe/Minsk)',
     example: '2026-11-02',
   })
   @IsOptional()
@@ -36,7 +38,8 @@ export class ListDoctorAppointmentsQueryDto extends PageQueryDto {
   from?: string;
 
   @ApiPropertyOptional({
-    description: 'Inclusive upper bound of start: RFC 3339 date or date-time',
+    description:
+      'Inclusive upper bound of start: RFC 3339 date-time, or a date for the end of that clinic day (Europe/Minsk)',
     example: '2026-11-09',
   })
   @IsOptional()

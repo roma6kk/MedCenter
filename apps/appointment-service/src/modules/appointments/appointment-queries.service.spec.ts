@@ -253,10 +253,10 @@ describe('AppointmentQueriesService', () => {
       // Act
       const page = await service.listForDoctor(doctor, query);
 
-      // Assert
+      // Assert — 2026-11-02 is a Minsk day: it starts at 21:00Z of the day before and ends one millisecond before 21:00Z.
       expect(fhir.search).toHaveBeenCalledWith('Appointment', expect.objectContaining({
         actor: 'PractitionerRole/role-1',
-        date: ['ge2026-11-02', 'le2026-11-02'],
+        date: ['ge2026-11-01T21:00:00.000Z', 'le2026-11-02T20:59:59.999Z'],
         _sort: 'date',
         _count: 50,
         _offset: 0,
@@ -328,7 +328,33 @@ describe('AppointmentQueriesService', () => {
       expect(fhir.search).not.toHaveBeenCalled();
     });
 
-    it('should accept a date-time from within the day of a date-only to, which covers the whole day', async () => {
+    it('should read a date-only range as clinic days when the bounds differ, so the visit at 01:00 Minsk time belongs to its own day', async () => {
+      // Arrange
+      const query = { page: 1, pageSize: 20, sortOrder: 'asc' as const, from: '2026-11-03', to: '2026-11-04' };
+
+      // Act
+      await service.listForDoctor(doctor, query);
+
+      // Assert — a bare date would be read as a UTC day, so 2026-11-03T01:00+03:00 (22:00Z) would fall out of 11-03.
+      expect(fhir.search).toHaveBeenCalledWith('Appointment', expect.objectContaining({
+        date: ['ge2026-11-02T21:00:00.000Z', 'le2026-11-04T20:59:59.999Z'],
+      }));
+    });
+
+    it('should send a date-time bound as given when the bound has a time', async () => {
+      // Arrange
+      const query = { page: 1, pageSize: 20, sortOrder: 'asc' as const, from: '2026-11-02T10:00:00+03:00', to: '2026-11-02T18:00:00Z' };
+
+      // Act
+      await service.listForDoctor(doctor, query);
+
+      // Assert
+      expect(fhir.search).toHaveBeenCalledWith('Appointment', expect.objectContaining({
+        date: ['ge2026-11-02T10:00:00+03:00', 'le2026-11-02T18:00:00Z'],
+      }));
+    });
+
+    it('should accept a date-time from within the clinic day of a date-only to, which covers that whole day', async () => {
       // Arrange
       const query = { page: 1, pageSize: 20, sortOrder: 'asc' as const, from: '2026-11-02T10:00:00Z', to: '2026-11-02' };
 
@@ -336,7 +362,21 @@ describe('AppointmentQueriesService', () => {
       await service.listForDoctor(doctor, query);
 
       // Assert
-      expect(fhir.search).toHaveBeenCalledWith('Appointment', expect.objectContaining({ date: ['ge2026-11-02T10:00:00Z', 'le2026-11-02'] }));
+      expect(fhir.search).toHaveBeenCalledWith('Appointment', expect.objectContaining({
+        date: ['ge2026-11-02T10:00:00Z', 'le2026-11-02T20:59:59.999Z'],
+      }));
+    });
+
+    it('should reject with VALIDATION_ERROR when a date-time from is already on the next clinic day of a date-only to', async () => {
+      // Arrange — 21:00Z is midnight in Minsk: 2026-11-03 there, though still 2026-11-02 in UTC.
+      const query = { page: 1, pageSize: 20, sortOrder: 'asc' as const, from: '2026-11-02T21:00:00Z', to: '2026-11-02' };
+
+      // Act
+      const code = await errorCodeOf(service.listForDoctor(doctor, query));
+
+      // Assert
+      expect(code).toBe('VALIDATION_ERROR');
+      expect(fhir.search).not.toHaveBeenCalled();
     });
 
     it('should derive totalItems from the page when HAPI reports no total', async () => {
