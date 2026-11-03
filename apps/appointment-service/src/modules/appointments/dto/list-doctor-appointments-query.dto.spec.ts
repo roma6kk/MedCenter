@@ -56,6 +56,43 @@ describe('ListDoctorAppointmentsQueryDto', () => {
     expect(invalid).toEqual(['from', 'to']);
   });
 
+  it('should accept the status as one value, a comma list or a repeated parameter and the patient as a FHIR id', async () => {
+    // Arrange
+    const queries: Array<Record<string, string>> = [
+      { status: 'booked', patient: '9f2c' },
+      { status: 'booked,noshow' },
+      { status: ' booked , noshow ', patient: '7c9e6679-7425-40de-944b-e07fc1f90ae7' },
+    ];
+
+    // Act
+    const results = await Promise.all(queries.map((query) => invalidPropertiesOf(query)));
+
+    // Assert
+    expect(results).toEqual([[], [], []]);
+  });
+
+  it('should transform the status into a list without duplicates and blanks around the values', () => {
+    // Arrange
+    const query = { status: 'booked, noshow,booked' };
+
+    // Act
+    const dto = plainToInstance(ListDoctorAppointmentsQueryDto, query);
+
+    // Assert
+    expect(dto.status).toEqual(['booked', 'noshow']);
+  });
+
+  it('should reject an unknown status and a patient that is not a FHIR id', async () => {
+    // Arrange
+    const query = { status: 'booked,arrived', patient: 'Patient/9f2c' };
+
+    // Act
+    const invalid = await invalidPropertiesOf(query);
+
+    // Assert
+    expect(invalid).toEqual(['patient', 'status']);
+  });
+
   it('should reject the page size when it exceeds 100', async () => {
     // Arrange
     const query = { pageSize: '101' };

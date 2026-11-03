@@ -43,7 +43,7 @@ export class DoctorAppointmentsController {
     type: AppointmentPageDoc,
   })
   @ApiProblems([...GUARD_PROBLEM_STATUSES, 400], {
-    400: 'VALIDATION_ERROR: malformed date or paging parameter, or from is after to',
+    400: 'VALIDATION_ERROR: malformed date, unknown status, malformed patient id or paging parameter, or from is after to',
     403: 'COMPARTMENT_VIOLATION: the token has no PractitionerRole identity; FORBIDDEN_ROLE / FORBIDDEN_SCOPE',
   })
   async list(
@@ -54,6 +54,8 @@ export class DoctorAppointmentsController {
       ...toPageQuery(query),
       from: query.from,
       to: query.to,
+      status: query.status,
+      patient: query.patient,
     });
   }
 

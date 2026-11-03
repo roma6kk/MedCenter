@@ -264,6 +264,35 @@ describe('AppointmentQueriesService', () => {
       expect(page.meta).toEqual({ page: 1, pageSize: 50, totalItems: 41, totalPages: 1 });
     });
 
+    it('should AND the patient and an OR of statuses with the compartment of the token when both filters are given', async () => {
+      // Arrange
+      const query = { page: 1, pageSize: 1, sortOrder: 'asc' as const, status: ['booked', 'noshow'], patient: '9f2c' };
+
+      // Act
+      await service.listForDoctor(doctor, query);
+
+      // Assert
+      expect(fhir.search).toHaveBeenCalledWith('Appointment', expect.objectContaining({
+        actor: 'PractitionerRole/role-1',
+        patient: 'Patient/9f2c',
+        status: 'booked,noshow',
+        _count: 1,
+      }));
+    });
+
+    it('should send neither patient nor status when the filters are absent or empty', async () => {
+      // Arrange
+      const query = { page: 1, pageSize: 20, sortOrder: 'asc' as const, status: [] };
+
+      // Act
+      await service.listForDoctor(doctor, query);
+
+      // Assert
+      const params = fhir.search.mock.calls[0]?.[1];
+      expect(params?.['patient']).toBeUndefined();
+      expect(params?.['status']).toBeUndefined();
+    });
+
     it('should not restrict the date when neither from nor to is given', async () => {
       // Arrange
       const query = { page: 1, pageSize: 20, sortOrder: 'asc' as const };

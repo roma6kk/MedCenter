@@ -21,10 +21,15 @@ export interface PatientListQuery extends PageQuery {
   readonly status?: readonly string[];
 }
 
-/** API §6.5 — inclusive `Appointment.start` range (RFC 3339 date or date-time). */
+/**
+ * API §6.5 — inclusive `Appointment.start` range (RFC 3339 date or date-time); `status` keeps any of the listed
+ * statuses and `patient` (a bare Patient id) one patient, both inside the doctor's own compartment.
+ */
 export interface DoctorListQuery extends PageQuery {
   readonly from?: string;
   readonly to?: string;
+  readonly status?: readonly string[];
+  readonly patient?: string;
 }
 
 export type AppointmentPage = PaginatedResponseDto<AppointmentViewDto>;
@@ -106,6 +111,9 @@ export class AppointmentQueriesService {
     assertOrderedRange(query.from, query.to);
     const result = await this.fhir.search('Appointment', {
       actor: roleRef,
+      // A different search parameter than `actor`: FHIR ANDs them, so the compartment from the token still holds.
+      ...(query.patient === undefined ? {} : { patient: `Patient/${query.patient}` }),
+      ...statusFilter(query.status),
       ...dateRange(query.from, query.to),
       ...searchParams(query),
     });

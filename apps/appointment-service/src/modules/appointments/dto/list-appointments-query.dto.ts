@@ -14,7 +14,7 @@ export type AppointmentStatus = (typeof APPOINTMENT_STATUSES)[number];
  * list (`booked,` or `?status=&status=booked`) is kept and refused by the validator (400), like
  * anything that is not a string (or array of strings).
  */
-function toStatusList({ value }: { readonly value: unknown }): unknown {
+export function toStatusList({ value }: { readonly value: unknown }): unknown {
   const parts = (Array.isArray(value) ? value : [value]) as unknown[];
   if (!parts.every((part) => typeof part === 'string')) {
     return value;

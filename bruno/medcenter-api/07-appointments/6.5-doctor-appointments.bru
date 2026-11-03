@@ -16,6 +16,8 @@ get {
 params:query {
   ~from: 
   ~to: 
+  ~status: booked
+  ~patient: 
   page: 1
   pageSize: 20
 }
@@ -35,5 +37,5 @@ assert {
 }
 
 docs {
-  Spec 6.5. DOCTOR, scope `user/*.read`; appointments where the doctor is a participant. `from`/`to` are RFC 3339 dates or date-times with a zone. Stores `doctorAppointmentId` and, when not known yet, `patientId`.
+  Spec 6.5. DOCTOR, scope `user/*.read`; appointments where the doctor is a participant. `from`/`to` are RFC 3339 dates or date-times with a zone; `status` is one status or a comma list/repeat of `booked|cancelled|noshow|fulfilled` and `patient` a Patient id, both narrowing the list inside the doctor's own compartment (unknown status or malformed id -> 400 `VALIDATION_ERROR`). Stores `doctorAppointmentId` and, when not known yet, `patientId`.
 }

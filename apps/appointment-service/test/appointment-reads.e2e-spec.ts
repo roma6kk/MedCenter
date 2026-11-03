@@ -148,6 +148,31 @@ describe('Appointment reads (e2e)', () => {
     expect(response.body.items[0]).toMatchObject({ id: 'apt-1', patientName: 'Иванова Анна' });
   });
 
+  it('should narrow the doctor listing by status and patient while the PractitionerRole still comes from the token', async () => {
+    await request(harness.app.getHttpServer())
+      .get('/api/v1/doctor/appointments?status=booked&patient=pat-1&pageSize=1')
+      .set('Authorization', bearer(DOCTOR))
+      .expect(200);
+
+    expect(harness.fhir.search).toHaveBeenCalledWith(
+      'Appointment',
+      expect.objectContaining({ actor: 'PractitionerRole/role-1', patient: 'Patient/pat-1', status: 'booked', _count: 1 }),
+    );
+  });
+
+  it.each(['status=arrived', 'patient=Patient/pat-1', 'patient=a&patient=b'])(
+    'should answer 400 VALIDATION_ERROR without searching when the doctor listing gets %s',
+    async (parameters) => {
+      const response = await request(harness.app.getHttpServer())
+        .get(`/api/v1/doctor/appointments?${parameters}`)
+        .set('Authorization', bearer(DOCTOR))
+        .expect(400);
+
+      expect(response.body).toMatchObject({ errorCode: 'VALIDATION_ERROR' });
+      expect(harness.fhir.search).not.toHaveBeenCalled();
+    },
+  );
+
   it('should fail closed with 403 COMPARTMENT_VIOLATION when the doctor token has no fhirUser', async () => {
     const withoutIdentity: TestTokenClaims = { sub: DOCTOR.sub, role: DOCTOR.role, scope: DOCTOR.scope };
 

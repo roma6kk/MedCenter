@@ -703,7 +703,7 @@ export class CreateScheduleDto {
 | 6.2 | `GET /api/v1/appointments?upcoming=true&status=booked,noshow&page=` | свои записи (компартмент); `status` — фильтр по статусу (см. ниже) | `patient/*.read` |
 | 6.3 | `GET /api/v1/appointments/{id}` | детали записи | владелец / DOCTOR / ADMIN |
 | 6.4 | `POST /api/v1/appointments/{id}/cancel` | отмена: `status=cancelled` + `statusReason` | владелец-пациент / ADMIN |
-| 6.5 | `GET /api/v1/doctor/appointments?from=&to=&page=` | записи врача как участника | `user/*.read` (DOCTOR) |
+| 6.5 | `GET /api/v1/doctor/appointments?from=&to=&status=&patient=&page=` | записи врача как участника; `status` и `patient` — необязательные фильтры (см. ниже) | `user/*.read` (DOCTOR) |
 | 6.6 | `POST /api/v1/doctor/appointments/{id}/noshow` | пометить неявку (`status=noshow`); только `booked` без приёма и не раньше начала записи, иначе 409 `ENCOUNTER_STATE_INVALID` | `user/*.write` (DOCTOR) |
 
 **6.2 фильтр `status`:** необязательный параметр `status` — один статус или список через запятую
@@ -712,6 +712,12 @@ export class CreateScheduleDto {
 `VALIDATION_ERROR` (`details[{field:'status'}]`). Соединяется по И с `upcoming` и компартментом; семантика
 `upcoming=true` (`start >= now`) не меняется — без `status` он по-прежнему отдаёт и отменённые записи, поэтому для
 «предстоящих активных» нужно `upcoming=true&status=booked`. Поиск идёт токеном `Appointment?status=booked,noshow`.
+
+**6.5 фильтры `status` и `patient`:** необязательные; `status` — как в 6.2 (один статус или список через запятую, ИЛИ между
+значениями, неизвестное значение → **400** `VALIDATION_ERROR`), `patient` — id пациента (FHIR `id`, иначе **400**). Оба сужают
+список врача и соединяются по И с компартментом из токена (`actor=PractitionerRole/{id}`) и с `from`/`to`, поэтому чужие записи
+не попадают в ответ; поиск идёт параметрами `Appointment?actor=…&patient=Patient/{id}&status=…`. Нужны карточке пациента:
+ближайшая запись пациента у этого врача — `patient=…&status=booked&pageSize=1` в порядке возрастания `start`.
 
 **6.1 `CreateAppointmentDto`** — плюс заголовок `Idempotency-Key` (§0):
 
