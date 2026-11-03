@@ -44,7 +44,12 @@ export function parseCallback(params: URLSearchParams, pkceCookie: string | unde
   return { code, verifier: pkce.verifier, returnTo: returnToFrom(encodedReturnTo) };
 }
 
-export async function exchangeAuthorizationCode(input: CallbackInput, env: EnvSource = process.env): Promise<TokenSet | null> {
+/** `invalid`: auth-service refused the code (the visitor signs in again). `unavailable`: it could not answer (try again in a minute). */
+export type CodeExchangeResult =
+  | { readonly ok: true; readonly tokens: TokenSet }
+  | { readonly ok: false; readonly reason: 'invalid' | 'unavailable' };
+
+export async function exchangeAuthorizationCode(input: CallbackInput, env: EnvSource = process.env): Promise<CodeExchangeResult> {
   try {
     const response: Response = await fetch(`${resolveAuthBackendUrl(env)}/oauth/token`, {
       method: 'POST',
@@ -59,10 +64,14 @@ export async function exchangeAuthorizationCode(input: CallbackInput, env: EnvSo
       cache: 'no-store',
       signal: AbortSignal.timeout(TOKEN_TIMEOUT_MS),
     });
-    if (!response.ok) return null;
-    return parseTokenSet(await response.json());
+    // The endpoint refuses a code with 400 (invalid_grant, invalid_request) or 401 (invalid_client); a rate limit (429), 5xx or a body
+    // that is not a token pair says the service could not decide, as in the refresh rotation.
+    if (response.status === 400 || response.status === 401) return { ok: false, reason: 'invalid' };
+    if (!response.ok) return { ok: false, reason: 'unavailable' };
+    const tokens: TokenSet | null = parseTokenSet(await response.json());
+    return tokens === null ? { ok: false, reason: 'unavailable' } : { ok: true, tokens };
   } catch (error: unknown) {
     console.error('[auth-broker] authorization-code exchange failed: auth-service unreachable', error);
-    return null;
+    return { ok: false, reason: 'unavailable' };
   }
 }

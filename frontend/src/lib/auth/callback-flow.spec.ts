@@ -75,9 +75,9 @@ describe('exchangeAuthorizationCode', () => {
   it('should send the verifier and the PUBLIC redirect_uri, not the request origin', async () => {
     const fetchSpy = jest.spyOn(globalThis, 'fetch').mockResolvedValueOnce(jsonResponse(tokenEndpointBody()));
 
-    const tokens = await exchangeAuthorizationCode(INPUT, ENV);
+    const result = await exchangeAuthorizationCode(INPUT, ENV);
 
-    expect(tokens).toEqual({ accessToken: expect.any(String), refreshToken: 'refresh-next', expiresIn: 900 });
+    expect(result).toEqual({ ok: true, tokens: { accessToken: expect.any(String), refreshToken: 'refresh-next', expiresIn: 900 } });
     const [url, init] = fetchSpy.mock.calls[0] as [string, RequestInit];
     const body = new URLSearchParams(String(init.body));
     expect(url).toBe('http://auth.test:3000/oauth/token');
@@ -87,22 +87,28 @@ describe('exchangeAuthorizationCode', () => {
     expect(body.get('client_id')).toBe('medcenter-web');
   });
 
-  it('should resolve null when auth-service rejects the code', async () => {
-    jest.spyOn(globalThis, 'fetch').mockResolvedValueOnce(jsonResponse({ error: 'invalid_grant' }, 400));
+  it.each([400, 401])('should resolve invalid when auth-service refuses the code with %i', async (status) => {
+    jest.spyOn(globalThis, 'fetch').mockResolvedValueOnce(jsonResponse({ error: 'invalid_grant' }, status));
 
-    await expect(exchangeAuthorizationCode(INPUT, ENV)).resolves.toBeNull();
+    await expect(exchangeAuthorizationCode(INPUT, ENV)).resolves.toEqual({ ok: false, reason: 'invalid' });
   });
 
-  it('should resolve null when auth-service is unreachable', async () => {
+  it.each([429, 500, 503])('should resolve unavailable when auth-service answers %i instead of deciding on the code', async (status) => {
+    jest.spyOn(globalThis, 'fetch').mockResolvedValueOnce(jsonResponse({ error: 'server_error' }, status));
+
+    await expect(exchangeAuthorizationCode(INPUT, ENV)).resolves.toEqual({ ok: false, reason: 'unavailable' });
+  });
+
+  it('should resolve unavailable when auth-service is unreachable', async () => {
     jest.spyOn(console, 'error').mockImplementation(() => undefined);
     jest.spyOn(globalThis, 'fetch').mockRejectedValueOnce(new TypeError('fetch failed'));
 
-    await expect(exchangeAuthorizationCode(INPUT, ENV)).resolves.toBeNull();
+    await expect(exchangeAuthorizationCode(INPUT, ENV)).resolves.toEqual({ ok: false, reason: 'unavailable' });
   });
 
-  it('should resolve null when the token body is malformed', async () => {
+  it('should resolve unavailable when the token body is malformed', async () => {
     jest.spyOn(globalThis, 'fetch').mockResolvedValueOnce(jsonResponse({ access_token: 'a.b.c' }));
 
-    await expect(exchangeAuthorizationCode(INPUT, ENV)).resolves.toBeNull();
+    await expect(exchangeAuthorizationCode(INPUT, ENV)).resolves.toEqual({ ok: false, reason: 'unavailable' });
   });
 });
