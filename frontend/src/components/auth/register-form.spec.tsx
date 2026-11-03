@@ -8,6 +8,16 @@ jest.mock('@/lib/api/api-fetch', () => {
   return { ...actual, apiFetch: jest.fn() };
 });
 
+// next/link prefetches its target; the marker lets a test tell its anchors from a plain `<a>`.
+jest.mock('next/link', () => {
+  const { createElement } = jest.requireActual<typeof import('react')>('react');
+  return {
+    __esModule: true,
+    default: ({ href, children, ...rest }: { readonly href: string; readonly children: ReactNode }) =>
+      createElement('a', { href, 'data-next-link': 'true', ...rest }, children),
+  };
+});
+
 import { RegisterForm } from './register-form';
 import { apiFetch, ApiError } from '@/lib/api/api-fetch';
 import type { ProblemDetails } from '@/lib/api/problem';
@@ -97,7 +107,9 @@ describe('RegisterForm', () => {
     expect(path).toBe('/api/v1/auth/register');
     expect(options?.method).toBe('POST');
     expect(JSON.parse(String(options?.body))).toEqual({ email: 'ivan@example.by', firstName: 'Иван', lastName: 'Иванов', password: 'Str0ng!Pass', birthDate: '1990-05-12', accountConsent: { accepted: true, textVersion: '2026-10' } });
-    expect(screen.getByRole('link', { name: 'Войти' })).toHaveAttribute('href', '/api/auth/authorize');
+    const loginLink = screen.getByRole('link', { name: 'Войти' });
+    expect(loginLink).toHaveAttribute('href', '/api/auth/authorize');
+    expect(loginLink).not.toHaveAttribute('data-next-link');
   });
 
   it('should put server field errors next to their fields when the API answers VALIDATION_ERROR', async () => {
@@ -174,7 +186,9 @@ describe('RegisterForm', () => {
     await submit();
 
     expect(await screen.findByText(/Этот email уже зарегистрирован/)).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Войти с этим email' })).toHaveAttribute('href', expect.stringContaining('/api/auth/authorize'));
+    const loginLink = screen.getByRole('link', { name: 'Войти с этим email' });
+    expect(loginLink).toHaveAttribute('href', expect.stringContaining('/api/auth/authorize'));
+    expect(loginLink).not.toHaveAttribute('data-next-link');
     expect(screen.queryByTestId('problem-banner')).not.toBeInTheDocument();
   });
 

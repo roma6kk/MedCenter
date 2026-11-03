@@ -11,12 +11,16 @@ import { Select } from '@/components/ui/select';
 import { ProblemBanner } from '@/components/feedback/problem-banner';
 import type { Translate } from '@/lib/i18n/translate';
 import { useDocumentTitle } from '@/hooks/use-document-title';
+import { AUTHORIZE_PATH } from '@/lib/auth/authorize-href';
 import { useT } from '@/lib/i18n/use-t';
 import { clinicDateKey } from '@/lib/clinic-time';
 import { AUTH_INPUT_CLASS, AuthField } from './auth-field';
 import { useRegisterForm, type RegisterFormState } from './use-register-form';
 
-const LOGIN_HREF = '/api/auth/authorize';
+/** Sign-in is a plain `<a>`: the target is a route handler that answers a redirect to another origin, which `next/link` must not prefetch. */
+function SignInLink({ className, children }: { readonly className: string; readonly children: ReactNode }): ReactNode {
+  return <a href={AUTHORIZE_PATH} className={className}>{children}</a>;
+}
 
 function RegisterSuccess(): ReactNode {
   const t = useT('auth.register');
@@ -24,7 +28,7 @@ function RegisterSuccess(): ReactNode {
     <div data-testid="register-success" role="status">
       <h1 className="text-2xl font-bold leading-tight">{t('successTitle')}</h1>
       <p className="mt-2 text-sm text-muted-foreground">{t('successLead')}</p>
-      <a href={LOGIN_HREF} className={`${buttonVariants({ size: 'lg' })} mt-6 w-full`}>{t('successCta')}</a>
+      <SignInLink className={`${buttonVariants({ size: 'lg' })} mt-6 w-full`}>{t('successCta')}</SignInLink>
     </div>
   );
 }
@@ -37,7 +41,7 @@ function IdentityFields({ state }: { readonly state: RegisterFormState }): React
       <AuthField id="email" label={t('email')} error={errors.email?.message}>
         {(control) => <input {...control} type="email" autoComplete="email" aria-required="true" {...register('email')} className={AUTH_INPUT_CLASS} />}
       </AuthField>
-      {state.isEmailTaken ? <Link href={LOGIN_HREF} className="mt-1.5 inline-flex min-h-[44px] items-center text-sm font-semibold text-primary underline">{t('emailTakenLogin')}</Link> : null}
+      {state.isEmailTaken ? <SignInLink className="mt-1.5 inline-flex min-h-[44px] items-center text-sm font-semibold text-primary underline">{t('emailTakenLogin')}</SignInLink> : null}
       <AuthField id="firstName" label={t('firstName')} error={errors.firstName?.message}>
         {(control) => <input {...control} autoComplete="given-name" aria-required="true" {...register('firstName')} className={AUTH_INPUT_CLASS} />}
       </AuthField>
