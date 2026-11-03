@@ -74,7 +74,7 @@ export class AppointmentsController {
   @ApiProblems([...GUARD_PROBLEM_STATUSES, 400, 404, 409], {
     400: 'VALIDATION_ERROR: invalid body, or serviceId does not match the schedule of the slot',
     404: 'NOT_FOUND: the slot does not exist',
-    409: 'SLOT_CONFLICT: slot already busy or already started; CONSENT_REQUIRED: reason given without an active EHR consent (CONSENT_ENFORCEMENT=block)',
+    409: 'SLOT_CONFLICT: slot already busy, already started, or its schedule or doctor role is no longer active; CONSENT_REQUIRED: reason given without an active EHR consent (CONSENT_ENFORCEMENT=block)',
   })
   async create(
     @Req() request: AuditedRequest,

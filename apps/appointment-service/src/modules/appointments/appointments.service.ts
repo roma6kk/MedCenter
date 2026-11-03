@@ -37,6 +37,16 @@ function assertBooked(appointment: FhirResource, errorCode: ErrorCode, action: s
 }
 
 /**
+ * `409 SLOT_CONFLICT` when the Schedule or PractitionerRole behind a slot was deactivated: the catalog no longer
+ * offers it. Only an explicit `active=false` counts, as in the catalog search, so an absent flag still means active.
+ */
+function assertOffered(resource: FhirResource): void {
+  if (resource['active'] === false) {
+    throw new ConflictException({ errorCode: 'SLOT_CONFLICT', message: 'SLOT_CONFLICT: the slot is no longer offered' });
+  }
+}
+
+/**
  * `409 ENCOUNTER_STATE_INVALID` while the appointment's time has not come: a no-show is not known earlier, and it
  * cannot be taken back (BR-008 then refuses the visit and the slot stays `busy`). An appointment without a
  * parsable start has no time to wait for.
@@ -233,7 +243,7 @@ export class AppointmentsService {
     return { slotId, slot: await this.fhir.read('Slot', slotId) };
   }
 
-  /** Reads the Slot and its Schedule; the slot must be `free`, still ahead, and match a requested service. */
+  /** Reads the Slot, its Schedule and role; the slot must be `free`, still ahead, still offered, and match a requested service. */
   private async loadBookableSlot(dto: CreateAppointmentDto): Promise<BookableSlot> {
     const slot = await this.fhir.read('Slot', dto.slotId);
     if (slot['status'] !== 'free') {
@@ -245,6 +255,7 @@ export class AppointmentsService {
       throw missingReference(`Slot ${dto.slotId} has no schedule`);
     }
     const schedule = await this.fhir.read('Schedule', scheduleId);
+    assertOffered(schedule);
     const practitionerRoleId = scheduleActorId(schedule, 'PractitionerRole');
     const serviceId = scheduleActorId(schedule, 'HealthcareService');
     if (practitionerRoleId === '' || serviceId === '') {
@@ -254,6 +265,7 @@ export class AppointmentsService {
       throw new BadRequestException({ errorCode: 'VALIDATION_ERROR', message: 'serviceId does not match the schedule of this slot' });
     }
     const role = await this.fhir.read('PractitionerRole', practitionerRoleId);
+    assertOffered(role);
     return { slotId: dto.slotId, slot, practitionerRoleId, practitionerId: rolePractitionerId(role), serviceId };
   }
 }

@@ -208,6 +208,29 @@ describe('AppointmentsService', () => {
       },
     );
 
+    it.each([
+      ['Schedule', { ...schedule, active: false }, practitionerRole],
+      ['PractitionerRole', schedule, { ...practitionerRole, active: false }],
+    ])('should throw SLOT_CONFLICT without writing when the %s is inactive', async (_name, scheduleRead, roleRead) => {
+      fhir.read.mockImplementation(async (type) => (type === 'Slot' ? freeSlot : type === 'PractitionerRole' ? roleRead : scheduleRead));
+
+      const payload = await errorPayloadOf(service.book(patientClaims, { slotId: 'slot-1' }));
+
+      expect(payload).toMatchObject({ errorCode: 'SLOT_CONFLICT', message: 'SLOT_CONFLICT: the slot is no longer offered' });
+      expect(fhir.batch).not.toHaveBeenCalled();
+    });
+
+    it.each([undefined, true])('should book when the Schedule and the PractitionerRole carry active=%s', async (active) => {
+      fhir.read.mockImplementation(async (type) =>
+        type === 'Slot' ? freeSlot : type === 'PractitionerRole' ? { ...practitionerRole, active } : { ...schedule, active },
+      );
+      fhir.batch.mockResolvedValue({ resourceType: 'Bundle', type: 'transaction-response', entry: [] });
+
+      const result = await service.book(patientClaims, { slotId: 'slot-1' });
+
+      expect(result).toMatchObject({ status: 'booked', practitionerRoleId: 'role-1' });
+    });
+
     it('should map the lost race to SLOT_CONFLICT when HAPI rejects the If-Match (412 as 409)', async () => {
       fhir.read.mockImplementation(async (type) => (type === 'Slot' ? freeSlot : schedule));
       fhir.batch.mockRejectedValue(new FhirClientError('POST', 'http://hapi/fhir', 412, '{}'));
