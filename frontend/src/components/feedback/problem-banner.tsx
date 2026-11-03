@@ -40,10 +40,13 @@ function useProblemView(props: ProblemBannerProps): ProblemView {
   const fallbackHeadline: string = offline ? t('errors.NETWORK') : errorCode === undefined ? problem?.title ?? '' : t(errorMessageKey(errorCode));
   // Field messages are shown next to the inputs; repeating the joined server text here would only add noise.
   const hasFieldErrors: boolean = (problem?.details?.length ?? 0) > 0;
+  // An unhandled server failure is its headline and the request id, nothing more: the server withholds the cause on purpose
+  // (OWASP A05/A09), and its fixed sentence is Russian whatever the interface language.
+  const isInternal: boolean = errorCode === 'INTERNAL';
   return {
     headline: props.title ?? fallbackHeadline,
     errorCode,
-    detail: props.detail ?? (hasFieldErrors || offline ? undefined : problem?.detail),
+    detail: props.detail ?? (hasFieldErrors || offline || isInternal ? undefined : problem?.detail),
     requestId: props.requestId ?? problem?.requestId,
     retryAfter: problem?.retryAfter,
   };

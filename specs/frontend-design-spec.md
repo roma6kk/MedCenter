@@ -444,7 +444,8 @@ glassmorphism, emoji-иконок, pill-кнопок «везде». Запом�
 
 #### D. Состояния, motion, responsive (дополнение к §5.4/§7/§8)
 
-- `ProblemBanner`: title + detail + `CodeChip errorCode` + `requestId` mono с копированием;
+- `ProblemBanner`: title + detail + `CodeChip errorCode` + `requestId` mono с копированием; для `INTERNAL` без detail
+  (сервер не раскрывает причину, а его фраза всегда русская): заголовок `errors.INTERNAL`, чип и `requestId`;
   401 → silent refresh, повторный 401 → `/login?returnTo=…`; 429 → «повторите через N с»;
   5xx → страница 500 с `requestId`. `ForbiddenState` (403), `NotFoundState` (404),
   `EmptyState` с CTA, skeleton-набор для таблиц/карточек/таймлайна.

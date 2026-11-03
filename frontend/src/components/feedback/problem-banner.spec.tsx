@@ -126,4 +126,38 @@ describe('ProblemBanner', () => {
       expect(screen.getByTestId('code-chip')).toHaveTextContent('INTERNAL');
     });
   });
+
+  describe('when the server failed with an unhandled error', () => {
+    // The fixed sentence of the server's catch-all filter: Russian whatever the interface language.
+    const UNHANDLED: ProblemDetails = { title: 'Internal Server Error', status: 500, errorCode: 'INTERNAL', detail: 'Внутренняя ошибка сервера', requestId: 'req-500' };
+
+    it('should show the headline and not repeat the server sentence under it', () => {
+      render(<ProblemBanner problem={UNHANDLED} />);
+
+      expect(screen.getByRole('alert')).toHaveTextContent('Внутренняя ошибка');
+      expect(screen.queryByText('Внутренняя ошибка сервера')).not.toBeInTheDocument();
+    });
+
+    it('should put no Russian line under the English headline', () => {
+      useUiStore.setState({ locale: 'en' });
+
+      render(<ProblemBanner problem={UNHANDLED} />);
+
+      expect(screen.getByRole('alert')).toHaveTextContent('Internal error');
+      expect(screen.queryByText('Внутренняя ошибка сервера')).not.toBeInTheDocument();
+    });
+
+    it('should keep the code chip and the request id for support', () => {
+      render(<ProblemBanner problem={UNHANDLED} />);
+
+      expect(screen.getByTestId('code-chip')).toHaveTextContent('INTERNAL');
+      expect(screen.getByTestId('copy-request-id')).toHaveTextContent('req-500');
+    });
+
+    it('should still show a detail the page passes explicitly', () => {
+      render(<ProblemBanner problem={UNHANDLED} detail="Повторите позже" />);
+
+      expect(screen.getByText('Повторите позже')).toBeInTheDocument();
+    });
+  });
 });
