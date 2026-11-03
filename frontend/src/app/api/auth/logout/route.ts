@@ -11,12 +11,13 @@ function bearerOf(request: NextRequest): string | null {
   return match?.[1] ?? null;
 }
 
-/** API 2.1.4 needs the owner's Bearer: the client's own, else the one the broker cached, else one minted from the refresh cookie. */
+/**
+ * API 2.1.4 needs the owner's Bearer: the client's own, else the one the broker cached, else one minted from the refresh cookie.
+ * A Bearer from a tab that sat idle is long expired (15 min) and auth-service answers it 401, so a refused revoke falls
+ * back to the minted pair as well — otherwise the refresh token would stay valid for 14 days after the user "logged out".
+ */
 async function revokeSession(refreshToken: string, bearer: string | null): Promise<void> {
-  if (bearer !== null) {
-    await revokeRefreshToken(refreshToken, bearer);
-    return;
-  }
+  if (bearer !== null && (await revokeRefreshToken(refreshToken, bearer))) return;
   const rotated = await rotateRefreshToken(refreshToken);
   if (rotated.ok) await revokeRefreshToken(rotated.tokens.refreshToken, rotated.tokens.accessToken);
 }

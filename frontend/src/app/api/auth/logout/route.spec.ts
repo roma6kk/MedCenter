@@ -88,8 +88,36 @@ describe('POST /api/auth/logout', () => {
     expect(paths.sort()).toEqual(['/', '/api/auth']);
   });
 
+  it('should rotate and revoke the NEW pair when the Bearer the client sent has expired and the first revoke is refused', async () => {
+    const minted = fakeAccessToken();
+    fetchSpy
+      .mockResolvedValueOnce(new Response(null, { status: 401 }))
+      .mockResolvedValueOnce(jsonResponse(tokenEndpointBody({ access_token: minted, refresh_token: 'refresh-2' })))
+      .mockResolvedValueOnce(jsonResponse({ revoked: true }));
+
+    const response = await logout('mc_rt=refresh-1', 'expired-access');
+
+    const [stale, rotate, revoke] = calls(fetchSpy);
+    expect(fetchSpy).toHaveBeenCalledTimes(3);
+    expect(stale?.url).toBe('http://auth.test:3000/oauth/token/revoke');
+    expect((stale?.init.headers as Record<string, string>)['Authorization']).toBe('Bearer expired-access');
+    expect(rotate?.url).toBe('http://auth.test:3000/oauth/token');
+    expect(revoke?.url).toBe('http://auth.test:3000/oauth/token/revoke');
+    expect((revoke?.init.headers as Record<string, string>)['Authorization']).toBe(`Bearer ${minted}`);
+    expect(JSON.parse(String(revoke?.init.body))).toMatchObject({ refreshToken: 'refresh-2' });
+    expect(response.status).toBe(200);
+  });
+
+  it('should not rotate again when the first revoke succeeded', async () => {
+    fetchSpy.mockResolvedValueOnce(jsonResponse({ revoked: false }));
+
+    await logout('mc_rt=refresh-1', 'access-1');
+
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+  });
+
   it('should still log the user out of this browser when auth-service is unreachable', async () => {
-    fetchSpy.mockRejectedValueOnce(new TypeError('fetch failed'));
+    fetchSpy.mockRejectedValue(new TypeError('fetch failed'));
 
     const response = await logout('mc_rt=refresh-1', 'access-1');
 
