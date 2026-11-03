@@ -1,19 +1,24 @@
 import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { loadSession } from '@/lib/auth/session-client';
 import { useSessionStore } from '@/store/use-session-store';
 import { RoleGuard } from './role-guard';
 
 const replace = jest.fn();
+
+jest.mock('@/lib/auth/session-client', () => ({ loadSession: jest.fn() }));
 
 jest.mock('next/navigation', () => ({
   useRouter: () => ({ replace }),
   usePathname: () => '/admin/users',
 }));
 
-const EMPTY_SESSION = { accessToken: null, expiresAt: null, role: null, scope: null, patientRef: null, fhirUser: null, hydrated: false };
+const EMPTY_SESSION = { accessToken: null, expiresAt: null, role: null, scope: null, patientRef: null, fhirUser: null, hydrated: false, unavailable: false };
 
 describe('RoleGuard', () => {
   beforeEach(() => {
     replace.mockClear();
+    (loadSession as jest.Mock).mockReset().mockResolvedValue(undefined);
     useSessionStore.setState(EMPTY_SESSION);
   });
 
@@ -45,5 +50,48 @@ describe('RoleGuard', () => {
 
     expect(screen.queryByText('панель админа')).not.toBeInTheDocument();
     expect(replace).not.toHaveBeenCalled();
+  });
+
+  it('should offer a retry, not the sign-in page, when auth-service did not answer and nothing is known about the visitor', () => {
+    useSessionStore.setState({ ...EMPTY_SESSION, hydrated: true, unavailable: true });
+    render(<RoleGuard required="ADMIN"><p>панель админа</p></RoleGuard>);
+
+    expect(screen.queryByText('панель админа')).not.toBeInTheDocument();
+    expect(replace).not.toHaveBeenCalled();
+    expect(screen.getByRole('alert')).toHaveTextContent('Сервис входа временно недоступен');
+    expect(screen.getByRole('button', { name: 'Повторить' })).toBeInTheDocument();
+  });
+
+  it('should load the session again on retry and let the page through once it is back', async () => {
+    useSessionStore.setState({ ...EMPTY_SESSION, hydrated: true, unavailable: true });
+    (loadSession as jest.Mock).mockImplementation(() => {
+      useSessionStore.getState().setSession({ accessToken: 'a.b.c', expiresAt: null, role: 'ADMIN', scope: null, patientRef: null, fhirUser: null });
+      return Promise.resolve();
+    });
+    render(<RoleGuard required="ADMIN"><p>панель админа</p></RoleGuard>);
+
+    await userEvent.click(screen.getByRole('button', { name: 'Повторить' }));
+
+    expect(loadSession).toHaveBeenCalledTimes(1);
+    expect(screen.getByText('панель админа')).toBeInTheDocument();
+    expect(replace).not.toHaveBeenCalled();
+  });
+
+  it('should keep showing the retry when the session is still unavailable after the attempt', async () => {
+    useSessionStore.setState({ ...EMPTY_SESSION, hydrated: true, unavailable: true });
+    render(<RoleGuard required="ADMIN"><p>панель админа</p></RoleGuard>);
+
+    await userEvent.click(screen.getByRole('button', { name: 'Повторить' }));
+
+    expect(loadSession).toHaveBeenCalledTimes(1);
+    expect(screen.getByRole('button', { name: 'Повторить' })).toBeInTheDocument();
+    expect(replace).not.toHaveBeenCalled();
+  });
+
+  it('should still let a known role through while the last exchange got no answer', () => {
+    useSessionStore.setState({ ...EMPTY_SESSION, hydrated: true, role: 'ADMIN', unavailable: true });
+    render(<RoleGuard required="ADMIN"><p>панель админа</p></RoleGuard>);
+
+    expect(screen.getByText('панель админа')).toBeInTheDocument();
   });
 });

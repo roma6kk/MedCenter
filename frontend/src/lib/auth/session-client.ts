@@ -25,15 +25,23 @@ interface SessionResponse {
   readonly fhirUser?: string | null;
 }
 
-let exchangeInFlight: Promise<boolean> | null = null;
+/**
+ * How an exchange with the broker ended. `ok`: there is a session (or nothing changed). `ended`: the server says there is
+ * none any more (401, an anonymous answer) and this tab signs out. `unavailable`: the broker could not ask auth-service
+ * (503, a rate limit, a dropped connection) — the refresh cookie was not judged, so the tab keeps what it has and the
+ * caller may try again; a restart of auth-service must not read as "you were signed out".
+ */
+export type ExchangeOutcome = 'ok' | 'ended' | 'unavailable';
+
+let exchangeInFlight: Promise<ExchangeOutcome> | null = null;
 
 function signOutLocally(): void {
   clearAccessToken();
   useSessionStore.getState().clearSession();
 }
 
-function applySession(data: SessionResponse): void {
-  if (data.accessToken === undefined) return;
+function applySession(data: SessionResponse): ExchangeOutcome {
+  if (data.accessToken === undefined) return 'ok';
   const token: string | null = typeof data.accessToken === 'string' ? data.accessToken : null;
   setAccessToken(token);
   useSessionStore.getState().setSession({
@@ -44,27 +52,37 @@ function applySession(data: SessionResponse): void {
     patientRef: data.patientRef ?? null,
     fhirUser: data.fhirUser ?? null,
   });
+  return token === null ? 'ended' : 'ok';
 }
 
-async function runExchange(url: string, init: RequestInit): Promise<boolean> {
+/** 429 and the 5xx family (the broker's own 503 above all) say "ask again later", not "this token is no good". */
+function isTemporaryFailure(status: number): boolean {
+  return status === 429 || status >= 500;
+}
+
+function markUnavailable(): ExchangeOutcome {
+  useSessionStore.getState().markUnavailable();
+  return 'unavailable';
+}
+
+async function runExchange(url: string, init: RequestInit): Promise<ExchangeOutcome> {
   try {
     const response: Response = await fetch(url, { ...init, credentials: 'same-origin' });
+    if (isTemporaryFailure(response.status)) return markUnavailable();
     if (!response.ok) {
       signOutLocally();
-      return false;
+      return 'ended';
     }
-    applySession((await response.json()) as SessionResponse);
-    return true;
+    return applySession((await response.json()) as SessionResponse);
   } catch (error: unknown) {
     console.error(`[session] ${url} failed`, error);
-    signOutLocally();
-    return false;
+    return markUnavailable();
   }
 }
 
-function exchange(url: string, init: RequestInit): Promise<boolean> {
+function exchange(url: string, init: RequestInit): Promise<ExchangeOutcome> {
   if (exchangeInFlight !== null) return exchangeInFlight;
-  const attempt: Promise<boolean> = runExchange(url, init).finally(() => {
+  const attempt: Promise<ExchangeOutcome> = runExchange(url, init).finally(() => {
     exchangeInFlight = null;
   });
   exchangeInFlight = attempt;
@@ -89,8 +107,8 @@ export async function ensureSession(now: number = Date.now()): Promise<void> {
   await loadSession();
 }
 
-/** Silent refresh (`POST /api/auth/refresh`). Resolves `false` when the session cannot be renewed. */
-export function refreshSession(): Promise<boolean> {
+/** Silent refresh (`POST /api/auth/refresh`): `ok` when renewed, `ended` when the session is gone, `unavailable` when auth-service did not answer. */
+export function refreshSession(): Promise<ExchangeOutcome> {
   return exchange('/api/auth/refresh', { method: 'POST' });
 }
 

@@ -11,9 +11,15 @@ export interface SessionState {
   readonly patientRef: string | null;
   readonly fhirUser: string | null;
   readonly hydrated: boolean;
-  setSession: (session: Omit<SessionState, 'hydrated' | 'setSession' | 'clearSession' | 'markHydrated'>) => void;
+  /**
+   * The session could not be loaded because auth-service did not answer (503, a dropped connection) and nothing is known
+   * about the visitor. Their refresh cookie may well be valid, so a guard offers a retry instead of the sign-in page.
+   */
+  readonly unavailable: boolean;
+  setSession: (session: Omit<SessionState, 'hydrated' | 'unavailable' | 'setSession' | 'clearSession' | 'markHydrated' | 'markUnavailable'>) => void;
   clearSession: () => void;
   markHydrated: () => void;
+  markUnavailable: () => void;
 }
 
 const EMPTY = {
@@ -28,7 +34,10 @@ const EMPTY = {
 export const useSessionStore = create<SessionState>()((set) => ({
   ...EMPTY,
   hydrated: false,
-  setSession: (session) => set({ ...session, hydrated: true }),
-  clearSession: () => set({ ...EMPTY, hydrated: true }),
+  unavailable: false,
+  setSession: (session) => set({ ...session, hydrated: true, unavailable: false }),
+  clearSession: () => set({ ...EMPTY, hydrated: true, unavailable: false }),
   markHydrated: () => set({ hydrated: true }),
+  // A session already in memory outlives the outage: only a visitor nothing is known about is "unavailable".
+  markUnavailable: () => set((state) => (state.role === null ? { hydrated: true, unavailable: true } : state)),
 }));

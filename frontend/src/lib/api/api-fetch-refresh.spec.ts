@@ -1,5 +1,7 @@
+import { clearAccessToken, getAccessToken, setAccessToken } from '@/lib/auth/access-token';
 import { apiFetch, ApiError } from './api-fetch';
 import type { ProblemDetails } from './problem';
+import { shouldRetryRead } from './query-client';
 
 function unauthorized(errorCode: ProblemDetails['errorCode']): ProblemDetails {
   return { title: 'Unauthorized', status: 401, errorCode };
@@ -107,5 +109,37 @@ describe('apiFetch silent refresh / revoke', () => {
     expect(error).toBeInstanceOf(ApiError);
     expect((error as ApiError).problem.errorCode).toBe('UNAUTHENTICATED');
     expect((error as ApiError).status).toBe(401);
+  });
+
+  it('should fail like a retryable 503 and keep the session when the token service does not answer the refresh', async () => {
+    setAccessToken('a.b.c');
+    let businessCalls = 0;
+    fetchSpy.mockImplementation((input: RequestInfo | URL) => {
+      if (String(input) === '/api/auth/refresh') return Promise.resolve(jsonResponse({ error: 'auth_unavailable' }, 503));
+      businessCalls += 1;
+      return Promise.resolve(jsonResponse(unauthorized('UNAUTHENTICATED'), 401));
+    });
+
+    const error = await apiFetch('/api/v1/appointments').catch((e: unknown) => e);
+
+    expect(error).toBeInstanceOf(ApiError);
+    expect((error as ApiError).status).toBe(503);
+    expect(shouldRetryRead(0, error)).toBe(true);
+    expect(businessCalls).toBe(1);
+    expect(assignSpy).not.toHaveBeenCalled();
+    expect(getAccessToken()).toBe('a.b.c');
+    clearAccessToken();
+  });
+
+  it('should fail like a retryable 503, not redirect, when the refresh request itself is lost', async () => {
+    jest.spyOn(console, 'error').mockImplementation(() => undefined);
+    fetchSpy.mockImplementation((input: RequestInfo | URL) => {
+      if (String(input) === '/api/auth/refresh') return Promise.reject(new TypeError('network down'));
+      return Promise.resolve(jsonResponse(unauthorized('UNAUTHENTICATED'), 401));
+    });
+
+    await expect(apiFetch('/api/v1/appointments')).rejects.toMatchObject({ status: 503 });
+
+    expect(assignSpy).not.toHaveBeenCalled();
   });
 });

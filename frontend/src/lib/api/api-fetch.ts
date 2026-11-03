@@ -1,4 +1,4 @@
-import { networkProblem, parseProblem } from './problem-parse';
+import { networkProblem, parseProblem, serviceUnavailableProblem } from './problem-parse';
 import type { ProblemDetails } from './problem';
 import { useUiStore } from '@/store/use-ui-store';
 import { getAccessToken } from '@/lib/auth/access-token';
@@ -62,14 +62,22 @@ async function send(path: string, init: RequestInit): Promise<Response> {
   }
 }
 
-/** 401 handling: a revoked session ends at once; otherwise one silent refresh and one retry. */
+/**
+ * 401 handling: a revoked session ends at once; otherwise one silent refresh and one retry. When the token service itself
+ * did not answer (a restart, a rate limit) the session is not judged: the request fails like any 503 — the page offers its
+ * retry — and the visitor stays signed in instead of being sent to a sign-in page that leads to the same dead service.
+ */
 async function recoverFromUnauthorized<T>(path: string, init: ApiFetchOptions, problem: ProblemDetails, canRefresh: boolean): Promise<T> {
   if (problem.errorCode === 'TOKEN_REVOKED') {
     await endRevokedSession();
     throw new ApiError(problem);
   }
   if (init.retry === false) throw new ApiError(problem);
-  if (canRefresh && (await refreshSession())) return execute<T>(path, init, false);
+  if (canRefresh) {
+    const outcome = await refreshSession();
+    if (outcome === 'ok') return execute<T>(path, init, false);
+    if (outcome === 'unavailable') throw new ApiError(serviceUnavailableProblem());
+  }
   redirectToLogin();
   throw new ApiError(problem);
 }

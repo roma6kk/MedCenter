@@ -104,3 +104,8 @@ export function parseProblem(response: Pick<Response, 'status' | 'headers'>, bod
 export function networkProblem(): ProblemDetails {
   return { title: STATUS_TITLES[0] ?? 'Нет связи с сервером', status: 0, errorCode: 'INTERNAL' };
 }
+
+/** The problem for a read whose silent token refresh got no answer from the token service: a 503 the page can retry (`shouldRetryRead`). */
+export function serviceUnavailableProblem(): ProblemDetails {
+  return { title: 'Сервис временно недоступен', status: 503, errorCode: 'INTERNAL' };
+}
