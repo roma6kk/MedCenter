@@ -61,9 +61,9 @@ export class MemoryIdempotencyStore implements IdempotencyStore {
 
 /**
  * The `Idempotency-Key` replay store of `POST /admin/schedules/{id}/generate`: the
- * catalog's own Redis cache store (same `get`/`set` contract), so a replay is
- * answered by whichever replica receives it. The cache store has no `setIfAbsent`/`delete` yet, so there
- * a retry sent while the first request still runs is not refused (the memory store does refuse it).
+ * catalog's own Redis cache store (it implements `IdempotencyStore`, in-flight mark
+ * included), so a replay, or a retry sent while the first request still runs, is
+ * answered by whichever replica receives it.
  */
 export const idempotencyStoreProvider: Provider = {
   provide: IDEMPOTENCY_STORE,

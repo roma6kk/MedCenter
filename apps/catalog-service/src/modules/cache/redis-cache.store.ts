@@ -1,4 +1,5 @@
 import { Logger } from '@nestjs/common';
+import type { IdempotencyStore } from '@medcenter/common';
 import Redis from 'ioredis';
 
 import { FAIL_FAST_REDIS_OPTIONS } from '../../config/redis-options';
@@ -13,8 +14,11 @@ import type { CacheStore } from './redis-cache.service';
  *
  * `delByPrefix` uses a non-blocking SCAN loop (never `KEYS` — it stalls a
  * shared Redis under load) and keeps only matched keys in memory per cursor.
+ *
+ * It is also the `Idempotency-Key` store of `POST /admin/schedules/{id}/generate`
+ * (`idempotencyStoreProvider`), hence `setIfAbsent` and `delete`.
  */
-export class RedisCacheStore implements CacheStore {
+export class RedisCacheStore implements CacheStore, IdempotencyStore {
   private readonly logger = new Logger(RedisCacheStore.name);
 
   constructor(private readonly client: Redis) {}
@@ -25,6 +29,15 @@ export class RedisCacheStore implements CacheStore {
 
   async set(key: string, value: string, ttlSeconds: number): Promise<void> {
     await this.client.set(key, value, 'EX', ttlSeconds);
+  }
+
+  /** The in-flight mark of a request (`SET key value EX ttl NX`): only the first caller gets `true`, atomically. */
+  async setIfAbsent(key: string, value: string, ttlSeconds: number): Promise<boolean> {
+    return (await this.client.set(key, value, 'EX', ttlSeconds, 'NX')) === 'OK';
+  }
+
+  async delete(key: string): Promise<void> {
+    await this.client.del(key);
   }
 
   async del(keys: string[]): Promise<void> {

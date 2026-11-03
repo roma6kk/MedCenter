@@ -37,5 +37,5 @@ assert {
 }
 
 docs {
-  Spec 5.2.5. ADMIN. Body `{ from, to }` (<= 90 days, inside the horizon); 201 `{ generated, skipped }`, existing slots are not duplicated. Supports `Idempotency-Key` (UUID, 24 h): a repeat returns the cached answer. 409 `CONFLICT` for a deactivated schedule.
+  Spec 5.2.5. ADMIN. Body `{ from, to }` (<= 90 days, inside the horizon); 201 `{ generated, skipped }`, existing slots are not duplicated. Supports `Idempotency-Key` (UUID, 24 h): a repeat returns the cached answer, a repeat sent while the first request still runs -> 409 `CONFLICT`. 409 `CONFLICT` also for a deactivated schedule.
 }

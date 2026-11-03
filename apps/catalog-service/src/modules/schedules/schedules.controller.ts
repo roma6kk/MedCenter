@@ -124,7 +124,7 @@ export class SchedulesController {
   @ApiHeader({
     name: 'Idempotency-Key',
     required: false,
-    description: 'Replays the cached answer for 24 h (API §0)',
+    description: 'Replays the cached answer for 24 h; a retry while the first request still runs gets 409 CONFLICT (API §0)',
   })
   @ApiResponse({
     status: 201,
@@ -132,7 +132,7 @@ export class SchedulesController {
     type: GenerateSlotsResultDoc,
   })
   @ApiProblems([...GUARD_PROBLEM_STATUSES, 400, 404, 409], {
-    409: 'CONFLICT: the schedule is deactivated (active=false)',
+    409: 'CONFLICT: the schedule is deactivated (active=false), or the Idempotency-Key is still being processed or was used with another body',
   })
   async generate(
     @Req() request: RequestWithClaims,

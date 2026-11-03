@@ -42,3 +42,42 @@ describe('createRedisCacheStore', () => {
     expect(store).toBeNull();
   });
 });
+
+describe('RedisCacheStore in-flight mark', () => {
+  const clientWith = (set: jest.Mock, del: jest.Mock = jest.fn()): RedisCacheStore =>
+    new RedisCacheStore({ set, del } as unknown as Redis);
+
+  it('should hand the key out when Redis created it, with the ttl and NX', async () => {
+    // Arrange
+    const set = jest.fn().mockResolvedValue('OK');
+
+    // Act
+    const claimed = await clientWith(set).setIfAbsent('lock', '1', 30);
+
+    // Assert
+    expect(claimed).toBe(true);
+    expect(set).toHaveBeenCalledWith('lock', '1', 'EX', 30, 'NX');
+  });
+
+  it('should refuse the key when it already exists, which Redis answers with null', async () => {
+    // Arrange
+    const set = jest.fn().mockResolvedValue(null);
+
+    // Act
+    const claimed = await clientWith(set).setIfAbsent('lock', '1', 30);
+
+    // Assert
+    expect(claimed).toBe(false);
+  });
+
+  it('should remove exactly the one key when the mark is released', async () => {
+    // Arrange
+    const del = jest.fn().mockResolvedValue(1);
+
+    // Act
+    await clientWith(jest.fn(), del).delete('lock');
+
+    // Assert
+    expect(del).toHaveBeenCalledWith('lock');
+  });
+});
