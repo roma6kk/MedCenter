@@ -19,8 +19,8 @@ const TILE_TONE: Record<Tone, string> = {
   destructive: 'bg-destructive-soft text-destructive',
 };
 
-/** The frame of a screen outside every route group (404, 403, a crashed page): one skip link and the `<main>` it targets. */
-function MessageFrame({ children }: { readonly children: ReactNode }): ReactNode {
+/** The frame of a message screen (404, 403, a crashed page, a session that could not be loaded): one skip link and the `<main>` it targets. */
+export function MessageFrame({ children }: { readonly children: ReactNode }): ReactNode {
   return (
     <>
       <SkipLink />

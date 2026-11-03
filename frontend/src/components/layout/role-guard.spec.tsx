@@ -70,6 +70,14 @@ describe('RoleGuard', () => {
     expect(screen.getByRole('button', { name: 'Повторить' })).toBeInTheDocument();
   });
 
+  it('should frame the retry like any message screen: the skip link and the main landmark it targets', () => {
+    useSessionStore.setState({ ...EMPTY_SESSION, hydrated: true, unavailable: true });
+    render(<RoleGuard required="DOCTOR"><p>журнал</p></RoleGuard>);
+
+    expect(screen.getByRole('link', { name: 'Перейти к содержимому' })).toHaveAttribute('href', '#main-content');
+    expect(screen.getByRole('main')).toHaveAttribute('id', 'main-content');
+  });
+
   it('should load the session again on retry and let the page through once it is back', async () => {
     useSessionStore.setState({ ...EMPTY_SESSION, hydrated: true, unavailable: true });
     (loadSession as jest.Mock).mockImplementation(() => {

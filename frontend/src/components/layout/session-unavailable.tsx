@@ -4,6 +4,7 @@ import { useState } from 'react';
 import type { ReactNode } from 'react';
 import { RefreshCw } from 'lucide-react';
 import { ProblemBanner } from '@/components/feedback/problem-banner';
+import { MessageFrame } from '@/components/feedback/route-pages';
 import { Button } from '@/components/ui/button';
 import { loadSession } from '@/lib/auth/session-client';
 import { useT } from '@/lib/i18n/use-t';
@@ -12,7 +13,7 @@ import { useT } from '@/lib/i18n/use-t';
  * What a route group shows when the session could not be loaded because auth-service did not answer (a restart, a rate
  * limit, a dropped link). The refresh cookie is probably still good, so the visitor is offered a retry instead of the
  * sign-in page, which would lead to the same unreachable service. A successful retry fills the session store and the guard
- * lets the page through.
+ * lets the page through. It stands in for the whole group shell, so it brings the skip link and the `<main>` of a message screen.
  */
 export function SessionUnavailable(): ReactNode {
   const t = useT('auth.login');
@@ -27,7 +28,7 @@ export function SessionUnavailable(): ReactNode {
   };
 
   return (
-    <main className="mx-auto flex min-h-screen max-w-xl items-center justify-center px-4 py-10">
+    <MessageFrame>
       <div data-testid="session-unavailable" className="w-full rounded-panel border border-border bg-card p-8 sm:p-10">
         <ProblemBanner title={t('unavailable')} />
         <div className="mt-6 flex justify-center">
@@ -39,6 +40,6 @@ export function SessionUnavailable(): ReactNode {
         </div>
         <span role="status" className="sr-only">{isRetrying ? tCommon('retrying') : ''}</span>
       </div>
-    </main>
+    </MessageFrame>
   );
 }
