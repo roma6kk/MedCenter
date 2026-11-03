@@ -47,7 +47,7 @@ describe('route-guard', () => {
       expect(isProtectedPath(path)).toBe(false);
     });
 
-    it('should expose 10 protected prefixes', () => {
+    it('should expose 12 protected prefixes', () => {
       expect(PROTECTED_PREFIXES).toHaveLength(12);
     });
   });
