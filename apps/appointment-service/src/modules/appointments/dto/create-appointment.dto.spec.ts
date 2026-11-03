@@ -78,4 +78,37 @@ describe('CreateAppointmentDto', () => {
     // Assert
     expect(invalid).toEqual(['reason']);
   });
+
+  it('should reject the reason when it is only whitespace, so that no blank text is stored', async () => {
+    // Arrange
+    const body = { slotId: GENERATED_SLOT_ID, reason: '     ' };
+
+    // Act
+    const invalid = await invalidPropertiesOf(body);
+
+    // Assert
+    expect(invalid).toEqual(['reason']);
+  });
+
+  it('should count the characters of the reason without the padding when it is shorter than 3', async () => {
+    // Arrange
+    const body = { slotId: GENERATED_SLOT_ID, reason: '  ab  ' };
+
+    // Act
+    const invalid = await invalidPropertiesOf(body);
+
+    // Assert
+    expect(invalid).toEqual(['reason']);
+  });
+
+  it('should keep the reason without its padding when the text around it is blank', () => {
+    // Arrange
+    const body = { slotId: GENERATED_SLOT_ID, reason: '  Болит спина\n' };
+
+    // Act
+    const dto = plainToInstance(CreateAppointmentDto, body);
+
+    // Assert
+    expect(dto.reason).toBe('Болит спина');
+  });
 });

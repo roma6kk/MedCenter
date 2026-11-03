@@ -1,5 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { IsOptional, IsString, Matches, MaxLength, MinLength } from 'class-validator';
+import { Trim } from '@medcenter/common';
 
 import { FHIR_ID_PATTERN } from '../fhir-reference';
 
@@ -31,7 +32,7 @@ export class CreateAppointmentDto {
   @Matches(FHIR_ID_PATTERN, { message: FHIR_ID_MESSAGE })
   serviceId?: string;
 
-  /** Stored as `Appointment.reasonCode[0].text`. */
+  /** Stored as `Appointment.reasonCode[0].text`; trimmed first, so blank text is not a reason. */
   @ApiPropertyOptional({
     minLength: 3,
     maxLength: 500,
@@ -39,6 +40,7 @@ export class CreateAppointmentDto {
     description: 'Free text about health: needs an active EHR consent (CONSENT_REQUIRED)',
   })
   @IsOptional()
+  @Trim()
   @IsString()
   @MinLength(3)
   @MaxLength(500)

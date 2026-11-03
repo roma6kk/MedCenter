@@ -152,6 +152,22 @@ describe('Appointment write access (e2e)', () => {
     expect(response.body).toMatchObject({ status: 'cancelled', cancelReason: 'не смогу прийти' });
   });
 
+  it('should store the cancellation reason without its padding and refuse a reason of whitespace only', async () => {
+    const server = harness.app.getHttpServer();
+
+    const padded = await request(server)
+      .post('/api/v1/appointments/apt-1/cancel')
+      .set('Authorization', bearer(PATIENT))
+      .send({ reason: '  не смогу прийти  ' })
+      .expect(200);
+    harness.fhir.read.mockClear();
+    const blank = await request(server).post('/api/v1/appointments/apt-1/cancel').set('Authorization', bearer(PATIENT)).send({ reason: '     ' }).expect(400);
+
+    expect(padded.body).toMatchObject({ cancelReason: 'не смогу прийти' });
+    expect(blank.body).toMatchObject({ errorCode: 'VALIDATION_ERROR' });
+    expect(harness.fhir.read).not.toHaveBeenCalled();
+  });
+
   it('should answer 403 FORBIDDEN_SCOPE without reading when an admin without user/*.write cancels', async () => {
     const response = await request(harness.app.getHttpServer())
       .post('/api/v1/appointments/apt-1/cancel')

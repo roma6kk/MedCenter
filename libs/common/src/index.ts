@@ -4,6 +4,7 @@ export * from './lib/decorators/public.decorator';
 export * from './lib/decorators/requires-scopes.decorator';
 export * from './lib/decorators/requires-roles.decorator';
 export * from './lib/decorators/rate-limit.decorator';
+export * from './lib/decorators/trim.decorator';
 export * from './lib/filters/problem-details.filter';
 export * from './lib/guards/jwt-auth.guard';
 export * from './lib/guards/token-revocation';
