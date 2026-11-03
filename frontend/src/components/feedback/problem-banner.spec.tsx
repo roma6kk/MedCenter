@@ -159,5 +159,13 @@ describe('ProblemBanner', () => {
 
       expect(screen.getByText('Повторите позже')).toBeInTheDocument();
     });
+
+    it('should keep the detail of a 502 under the same code: there the server says what to do', () => {
+      const partial: ProblemDetails = { title: 'Bad Gateway', status: 502, errorCode: 'INTERNAL', detail: '3 slots were not written (17 were); run the same range again to write the rest' };
+
+      render(<ProblemBanner problem={partial} />);
+
+      expect(screen.getByText(/run the same range again/)).toBeInTheDocument();
+    });
   });
 });
