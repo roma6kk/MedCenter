@@ -54,19 +54,29 @@ export function DoctorFilterBar({ params, services, specialties }: DoctorFilterB
   const [term, setTerm] = useState<string>(params.search ?? '');
   const latest = useRef<DirectoryParams>(params);
   latest.current = params;
+  // The name this field last put into the URL, or found there. The page for it arrives after a server round trip, long after
+  // the visitor may have typed on: that answer is the field's own navigation catching up, not a change from outside.
+  const pushed = useRef<string | undefined>(params.search);
   const apply = (next: DirectoryParams): void => {
+    pushed.current = next.search;
     startTransition(() => router.replace(directoryHref(next), { scroll: false }));
   };
-  // Debounced name filter. A term that already is the URL's search (the effect also runs after the URL caught up) changes nothing.
+  // Debounced name filter. A term that already is what the field pushed (the effect also runs after the URL caught up) changes nothing.
   useEffect(() => {
     const wanted: string = term.trim();
-    if (wanted === (latest.current.search ?? '')) return undefined;
-    const timer = setTimeout(() => startTransition(() => router.replace(directoryHref(withFilter(latest.current, 'search', wanted)), { scroll: false })), SEARCH_DEBOUNCE_MS);
+    if (wanted === (pushed.current ?? '')) return undefined;
+    const timer = setTimeout(() => {
+      const next: DirectoryParams = withFilter(latest.current, 'search', wanted);
+      pushed.current = next.search;
+      startTransition(() => router.replace(directoryHref(next), { scroll: false }));
+    }, SEARCH_DEBOUNCE_MS);
     return () => clearTimeout(timer);
   }, [term, router]);
   // The URL changed from outside (the reset link, back/forward): the field follows it.
   useEffect(() => {
-    setTerm((current) => (current.trim() === (params.search ?? '') ? current : (params.search ?? '')));
+    if (params.search === pushed.current) return;
+    pushed.current = params.search;
+    setTerm(params.search ?? '');
   }, [params.search]);
   const hasFilter: boolean = params.serviceId !== undefined || params.specialty !== undefined || params.search !== undefined || term !== '';
   return (

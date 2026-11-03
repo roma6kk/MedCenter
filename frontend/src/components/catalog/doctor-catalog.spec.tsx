@@ -1,4 +1,4 @@
-import { screen, within } from '@testing-library/react';
+import { act, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
 const replaceMock = jest.fn();
@@ -110,6 +110,57 @@ describe('DoctorCatalog', () => {
 
     expect(replaceMock).toHaveBeenCalledTimes(1);
     expect(replaceMock).toHaveBeenCalledWith('/doctors?search=%D0%9F%D0%B5%D1%82', { scroll: false });
+    jest.useRealTimers();
+  });
+
+  it('should keep a character typed while the page for the previous term is still loading', async () => {
+    jest.useFakeTimers();
+    const user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime });
+    const directory = directoryOf([doctor('a')]);
+    const view = renderWithCatalog(<DoctorCatalog params={{ page: 1 }} services={SERVICES} directory={directory} />);
+    const field = screen.getByLabelText('Имя или фамилия');
+
+    await user.type(field, 'иван');
+    act(() => { jest.advanceTimersByTime(300); });
+    expect(replaceMock).toHaveBeenCalledTimes(1);
+    await user.type(field, 'о');
+    // The server answers the first request: the address now carries «иван» while the field already says «ивано».
+    view.rerender(<DoctorCatalog params={{ page: 1, search: 'иван' }} services={SERVICES} directory={directory} />);
+    act(() => { jest.advanceTimersByTime(300); });
+
+    expect(field).toHaveValue('ивано');
+    expect(replaceMock).toHaveBeenCalledTimes(2);
+    expect(replaceMock).toHaveBeenLastCalledWith(`/doctors?search=${encodeURIComponent('ивано')}`, { scroll: false });
+    jest.useRealTimers();
+  });
+
+  it('should follow a change of the address from outside, such as the reset link, and not push it back', () => {
+    const directory = directoryOf([doctor('a')]);
+    const view = renderWithCatalog(<DoctorCatalog params={{ page: 1, search: 'Ив' }} services={SERVICES} directory={directory} />);
+    const field = screen.getByLabelText('Имя или фамилия');
+    expect(field).toHaveValue('Ив');
+
+    view.rerender(<DoctorCatalog params={{ page: 1 }} services={SERVICES} directory={directory} />);
+
+    expect(field).toHaveValue('');
+    expect(replaceMock).not.toHaveBeenCalled();
+  });
+
+  it('should follow the address again after the field pushed its own term and the visitor then went back', async () => {
+    jest.useFakeTimers();
+    const user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime });
+    const directory = directoryOf([doctor('a')]);
+    const view = renderWithCatalog(<DoctorCatalog params={{ page: 1 }} services={SERVICES} directory={directory} />);
+    const field = screen.getByLabelText('Имя или фамилия');
+
+    await user.type(field, 'иван');
+    act(() => { jest.advanceTimersByTime(300); });
+    view.rerender(<DoctorCatalog params={{ page: 1, search: 'иван' }} services={SERVICES} directory={directory} />);
+    expect(field).toHaveValue('иван');
+    // Back: the address returns to a page without the term.
+    view.rerender(<DoctorCatalog params={{ page: 1 }} services={SERVICES} directory={directory} />);
+
+    expect(field).toHaveValue('');
     jest.useRealTimers();
   });
 
