@@ -336,7 +336,41 @@ describe('AppointmentsService', () => {
     const encounterOf = (status: string): FhirResource => ({ resourceType: 'Encounter', id: 'enc-1', status });
 
     beforeEach(() => {
+      // Ten minutes into the visit (09:00 in Minsk): a no-show is recorded once the appointment has started.
+      jest.setSystemTime(new Date('2026-11-02T09:10:00+03:00'));
       fhir.search.mockResolvedValue({ entry: [] });
+    });
+
+    it.each(['2026-11-02T08:00:00+03:00', '2026-11-02T08:59:59+03:00'])(
+      'should reject with 409 ENCOUNTER_STATE_INVALID and write nothing when the appointment has not started and the clock reads %s',
+      async (now) => {
+        jest.setSystemTime(new Date(now));
+        fhir.read.mockResolvedValue(bookedAppointment);
+
+        const payload = await errorPayloadOf(service.markNoShow(doctorClaims, 'apt-1'));
+
+        expect(payload).toMatchObject({ errorCode: 'ENCOUNTER_STATE_INVALID' });
+        expect(JSON.stringify(payload)).toContain('has not started yet');
+        expect(fhir.batch).not.toHaveBeenCalled();
+      },
+    );
+
+    it('should mark noshow when the clock reads exactly the start of the appointment', async () => {
+      jest.setSystemTime(new Date('2026-11-02T09:00:00+03:00'));
+      fhir.read.mockResolvedValue(bookedAppointment);
+      fhir.batch.mockResolvedValue({ resourceType: 'Bundle', type: 'transaction-response', entry: [] });
+
+      const result = await service.markNoShow(doctorClaims, 'apt-1');
+
+      expect(result.status).toBe('noshow');
+    });
+
+    it('should not reveal the start of the appointment when another practitioner asks before it starts', async () => {
+      jest.setSystemTime(new Date('2026-11-02T08:00:00+03:00'));
+      fhir.read.mockResolvedValue(bookedAppointment);
+      const other: JwtClaims = { ...doctorClaims, fhirUser: 'PractitionerRole/role-9' };
+
+      expect(await errorPayloadOf(service.markNoShow(other, 'apt-1'))).toMatchObject({ errorCode: 'COMPARTMENT_VIOLATION' });
     });
 
     it('should mark noshow and keep the slot busy when the participant doctor calls it', async () => {

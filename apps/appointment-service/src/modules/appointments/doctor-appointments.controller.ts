@@ -70,7 +70,7 @@ export class DoctorAppointmentsController {
   })
   @ApiProblems([...GUARD_PROBLEM_STATUSES, 400, 404, 409], {
     403: 'COMPARTMENT_VIOLATION: the doctor is not a participant; FORBIDDEN_ROLE / FORBIDDEN_SCOPE',
-    409: 'ENCOUNTER_STATE_INVALID: not booked, or an encounter already exists',
+    409: 'ENCOUNTER_STATE_INVALID: not booked, an encounter already exists, or the appointment has not started yet',
   })
   async noShow(
     @Req() request: AuditedRequest,

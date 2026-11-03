@@ -48,7 +48,7 @@ npm run seed:demo                   # demo organisation, doctors, services, room
 | Lint, types | `npm run lint`, `npm run typecheck` |
 | Tools (seeds, smoke) | `npm run test:tools && npm run lint:tools` |
 | Frontend | `cd frontend && npx tsc --noEmit && npx jest && npx next lint` |
-| Live smoke through Traefik | `npm run smoke:stack` (stack must be up; includes the open-vs-no-show race and the audit journal) |
+| Live smoke through Traefik | `npm run smoke:stack` (stack must be up; includes the open-vs-no-show check and the audit journal) |
 | Playwright E2E (scenarios A-F, security) | `cd frontend && E2E_BROWSER_CHANNEL=chrome npx playwright test` |
 | API by hand | Bruno collection, see [bruno/medcenter-api/README.md](bruno/medcenter-api/README.md) |
 

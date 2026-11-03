@@ -37,6 +37,20 @@ function assertBooked(appointment: FhirResource, errorCode: ErrorCode, action: s
 }
 
 /**
+ * `409 ENCOUNTER_STATE_INVALID` while the appointment's time has not come: a no-show is not known earlier, and it
+ * cannot be taken back (BR-008 then refuses the visit and the slot stays `busy`). An appointment without a
+ * parsable start has no time to wait for.
+ */
+function assertStarted(appointment: FhirResource): void {
+  if (Date.parse(stringOf(appointment, 'start')) > Date.now()) {
+    throw new ConflictException({
+      errorCode: 'ENCOUNTER_STATE_INVALID',
+      message: 'ENCOUNTER_STATE_INVALID: the appointment has not started yet, a no-show can be recorded once its time has come',
+    });
+  }
+}
+
+/**
  * `409 SLOT_CONFLICT` once the slot has started. The catalog offers only slots that start later, but a slot
  * nobody booked stays `free` for good and its id is computable, so the booking tests the time as well (FR-004).
  */
@@ -169,6 +183,7 @@ export class AppointmentsService {
    * appointment that is still `booked` and has no encounter yet can be a
    * no-show, otherwise `409 ENCOUNTER_STATE_INVALID` — a patient who was seen
    * (an in-progress or finished encounter, a `fulfilled` appointment) did show up.
+   * The same code refuses an appointment whose start has not come yet.
    */
   async markNoShow(claims: JwtClaims, appointmentId: string, requestId?: string): Promise<AppointmentResponseDto> {
     // Fail closed before HAPI: a token without `fhirUser = PractitionerRole/{id}` never triggers a read.
@@ -178,6 +193,7 @@ export class AppointmentsService {
     assertDoctorParticipates(callerRef, appointment);
     assertBooked(appointment, 'ENCOUNTER_STATE_INVALID', 'marked as no-show');
     await this.assertNoEncounter(appointmentId, 'ENCOUNTER_STATE_INVALID', 'marked as no-show (BR-008)');
+    assertStarted(appointment);
 
     const updated: FhirResource = { ...appointment, status: 'noshow' };
     const patientRef = patientRefOf(appointment);

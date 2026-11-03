@@ -111,14 +111,15 @@ function rebookSteps(suite: Suite, race: Race): SmokeStep[] {
 }
 
 /**
- * BR-008: opening an encounter and marking a no-show race on a fresh appointment. The opening changes the Appointment
- * (`If-Match`), so the two can never both succeed and the final state is consistent: a `noshow` appointment has no
- * encounter, an opened encounter keeps the appointment `booked`.
+ * BR-008 and API §6.6: an encounter can be opened for a fresh appointment, but a no-show cannot be marked before the
+ * appointment starts, so the two requests sent together always end the same way: the opening wins, the no-show is
+ * refused and the appointment stays `booked`. The interleaving of the two writes (`If-Match` on the Appointment) is
+ * covered by the unit specs: over the API alone no appointment can be booked once its slot has started.
  */
 function openVersusNoShowStep(suite: Suite, race: Race): SmokeStep {
   const { api, sessions } = suite;
   return {
-    name: 'open an encounter and mark a no-show at the same time on a fresh appointment -> never both succeed, the final state is consistent',
+    name: 'open an encounter and mark a no-show at the same time on a fresh appointment -> the opening wins, the no-show is refused (409 ENCOUNTER_STATE_INVALID), the appointment stays booked',
     run: async () => {
       const booked = await book(suite, sessions.patient, race.slotId);
       expectStatus(booked, 201);
@@ -127,17 +128,11 @@ function openVersusNoShowStep(suite: Suite, race: Race): SmokeStep {
         api.post('/api/v1/encounters', { session: sessions.doctor, body: { appointmentId } }),
         api.post(`/api/v1/doctor/appointments/${appointmentId}/noshow`, { session: sessions.doctor }),
       ]);
-      const openSucceeded = opened.status === 201 || opened.status === 200;
-      expectTrue(!(openSucceeded && noshow.status === 200), `both the opening (${opened.status}) and the no-show (${noshow.status}) succeeded`);
-      expectTrue(openSucceeded || noshow.status === 200, `neither succeeded: opening ${opened.status}, no-show ${noshow.status}`);
-      if (openSucceeded) {
-        expectProblem(noshow, 409, 'ENCOUNTER_STATE_INVALID');
-      } else {
-        expectProblem(opened, 409, 'ENCOUNTER_STATE_INVALID');
-      }
+      expectTrue(opened.status === 201 || opened.status === 200, `the opening answered ${opened.status}, expected 201`);
+      expectProblem(noshow, 409, 'ENCOUNTER_STATE_INVALID');
       const listed = expectPage(await api.get('/api/v1/appointments', { session: sessions.patient, query: { sortOrder: 'desc', pageSize: 100 } }), APPOINTMENT_VIEW_SHAPE);
-      const stored = expectDefined(listed.find((item) => item['id'] === appointmentId), 'the raced appointment in the patient list');
-      expectEqual(stored['status'], openSucceeded ? 'booked' : 'noshow', 'final appointment status');
+      const stored = expectDefined(listed.find((item) => item['id'] === appointmentId), 'the appointment in the patient list');
+      expectEqual(stored['status'], 'booked', 'final appointment status');
     },
   };
 }
@@ -148,7 +143,10 @@ export async function raceChecks(suite: Suite, slots: readonly JsonObject[]): Pr
   await suite.runner.chain(GROUP, [raceStep(suite, race), ...cancelSteps(suite, race), ...rebookSteps(suite, race), openVersusNoShowStep(suite, race)]);
 }
 
-/** FR-006: the doctor marks a booked appointment as a no-show; the slot stays busy; a second mark is refused. */
+/**
+ * FR-006 and API §6.6: a no-show is recorded once the appointment has started, so over the API alone (a started slot
+ * cannot be booked) only the refusal can be checked here: it changes nothing and the owner can still cancel.
+ */
 export async function noShowChecks(suite: Suite, slots: readonly JsonObject[]): Promise<void> {
   const { runner, api, sessions } = suite;
   const slotId = String((slots[2] as JsonObject)['id']);
@@ -163,18 +161,18 @@ export async function noShowChecks(suite: Suite, slots: readonly JsonObject[]): 
       },
     },
     {
-      name: 'POST /doctor/appointments/{id}/noshow by the doctor -> 200 noshow',
-      run: async () => {
-        const response = await api.post(`/api/v1/doctor/appointments/${appointment}/noshow`, { session: sessions.doctor });
-        expectStatus(response, 200);
-        expectEqual(expectShape(response.body, APPOINTMENT_SHAPE, 'appointment')['status'], 'noshow', 'status');
-      },
+      name: 'POST /doctor/appointments/{id}/noshow before the visit starts -> 409 ENCOUNTER_STATE_INVALID',
+      run: async () => expectProblem(await api.post(`/api/v1/doctor/appointments/${appointment}/noshow`, { session: sessions.doctor }), 409, 'ENCOUNTER_STATE_INVALID'),
     },
     {
-      name: 'a no-show cannot be marked twice (409 ENCOUNTER_STATE_INVALID) or cancelled (409 APPOINTMENT_NOT_CANCELLABLE)',
+      name: 'the refused no-show changed nothing: the appointment is still booked and its owner can cancel it (200 cancelled)',
       run: async () => {
-        expectProblem(await api.post(`/api/v1/doctor/appointments/${appointment}/noshow`, { session: sessions.doctor }), 409, 'ENCOUNTER_STATE_INVALID');
-        expectProblem(await cancel(suite, sessions.thirdPatient, appointment), 409, 'APPOINTMENT_NOT_CANCELLABLE');
+        const detail = await api.get(`/api/v1/appointments/${appointment}`, { session: sessions.thirdPatient });
+        expectStatus(detail, 200);
+        expectEqual(bodyObject(detail)['status'], 'booked', 'status after the refused no-show');
+        const cancelled = await cancel(suite, sessions.thirdPatient, appointment);
+        expectStatus(cancelled, 200);
+        expectEqual(expectShape(cancelled.body, APPOINTMENT_SHAPE, 'cancelled appointment')['status'], 'cancelled', 'status');
       },
     },
   ]);

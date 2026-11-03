@@ -131,7 +131,7 @@ export class PaginatedResponseDto<TItem> {
 | `CONSENT_REQUIRED` | 409 | у пациента нет действующего согласия на электронную медкарту (7.1, 7.3; ADR-019); при `CONSENT_ENFORCEMENT=warn` не возвращается |
 | `CONSENT_ALREADY_ACTIVE` | 409 | 3.8: у пациента уже есть действующее согласие; сначала отзыв (3.9) |
 | `APPOINTMENT_NOT_CANCELLABLE` | 409 | BR-002: статус не позволяет отмену |
-| `ENCOUNTER_STATE_INVALID` | 409 | BR-003/BR-008: приём уже оформлен / запись не `booked` (cancelled/noshow/fulfilled); неявка (6.6) для записи, у которой уже есть приём |
+| `ENCOUNTER_STATE_INVALID` | 409 | BR-003/BR-008: приём уже оформлен / запись не `booked` (cancelled/noshow/fulfilled); неявка (6.6) для записи, у которой уже есть приём или время которой ещё не наступило |
 | `SCHEDULE_OVERLAP` | 409 | пересечение `Schedule.planningHorizon` одного `PractitionerRole` |
 | `SERVICE_IN_USE` | 409 | 5.1.5: на услугу ссылается активное `Schedule` |
 | `SCHEDULE_IN_USE` | 409 | 5.2.4: расписание нельзя удалить — есть слоты или busy-слот (таблица 5.2.4) |
@@ -704,7 +704,7 @@ export class CreateScheduleDto {
 | 6.3 | `GET /api/v1/appointments/{id}` | детали записи | владелец / DOCTOR / ADMIN |
 | 6.4 | `POST /api/v1/appointments/{id}/cancel` | отмена: `status=cancelled` + `statusReason` | владелец-пациент / ADMIN |
 | 6.5 | `GET /api/v1/doctor/appointments?from=&to=&page=` | записи врача как участника | `user/*.read` (DOCTOR) |
-| 6.6 | `POST /api/v1/doctor/appointments/{id}/noshow` | пометить неявку (`status=noshow`); только `booked` без приёма, иначе 409 `ENCOUNTER_STATE_INVALID` | `user/*.write` (DOCTOR) |
+| 6.6 | `POST /api/v1/doctor/appointments/{id}/noshow` | пометить неявку (`status=noshow`); только `booked` без приёма и не раньше начала записи, иначе 409 `ENCOUNTER_STATE_INVALID` | `user/*.write` (DOCTOR) |
 
 **6.2 фильтр `status`:** необязательный параметр `status` — один статус или список через запятую
 (`booked|cancelled|noshow|fulfilled`; допустим и повтор параметра `?status=a&status=b`), ИЛИ между значениями;
@@ -772,7 +772,9 @@ export class AppointmentResponseDto {
 **6.6 неявка (BR-008):** `Appointment.status=noshow` ставится только для записи со `status=booked`, у которой **нет**
 `Encounter` (`Encounter?appointment=Appointment/{id}`: ни `in-progress`, ни `finished`). Запись не `booked`
 (cancelled/noshow/fulfilled) или с приёмом → **409** `ENCOUNTER_STATE_INVALID` (раньше для не-`booked` отвечал `CONFLICT`,
-а для записи с завершённым приёмом — 200). Проверка владельца (403 `COMPARTMENT_VIOLATION`) идёт раньше проверки
+а для записи с завершённым приёмом — 200). Неявку нельзя поставить до `Appointment.start`: пока время записи не наступило →
+тот же **409** (проверка идёт после статуса и приёма; статус `noshow` не возвращается, слот остаётся `busy`, а приём по такой
+записи уже не открыть). Проверка владельца (403 `COMPARTMENT_VIOLATION`) идёт раньше проверки
 состояния. Приём, открытый в тот же момент между проверкой и коммитом, тоже исключён: открытие (7.1) меняет Appointment
 (`meta.tag` `encounter-opened`) под `If-Match`, и проигравший гонку получает 409 `ENCOUNTER_STATE_INVALID`.
 Отмена (6.4) записи с приёмом → 409 `APPOINTMENT_NOT_CANCELLABLE` (так же при проигрыше гонки).
