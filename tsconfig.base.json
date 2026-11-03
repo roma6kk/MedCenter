@@ -31,5 +31,5 @@
     "forceConsistentCasingInFileNames": true,
     "skipLibCheck": true
   },
-  "exclude": ["node_modules", "tmp", "dist", "frontend", ".worktrees"]
+  "exclude": ["node_modules", "tmp", "dist", "frontend", ".worktrees", "docs"]
 }
