@@ -85,6 +85,14 @@ describe('RegisterForm', () => {
     expect(screen.getByLabelText('Телефон')).not.toHaveAttribute('aria-required');
   });
 
+  it('should lead «Уже есть аккаунт? Войти» straight to the sign-in redirect with a plain anchor', () => {
+    renderForm();
+
+    const loginLink = screen.getByRole('link', { name: 'Войти' });
+    expect(loginLink).toHaveAttribute('href', '/api/auth/authorize');
+    expect(loginLink).not.toHaveAttribute('data-next-link');
+  });
+
   it('should show a required message for every empty field and not call the API when the form is submitted empty', async () => {
     renderForm();
 

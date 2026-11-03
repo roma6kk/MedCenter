@@ -1,7 +1,6 @@
 'use client';
 
 import type { ReactNode } from 'react';
-import Link from 'next/link';
 import { Controller } from 'react-hook-form';
 import { Button } from '@/components/ui/button';
 import { buttonVariants } from '@/components/ui/button-variants';
@@ -122,7 +121,7 @@ export function RegisterForm(): ReactNode {
         {submitLabel(state, t)}
       </Button>
       <p className="mt-4 text-center text-sm text-muted-foreground">
-        {t('haveAccount')} <Link href="/login" className="inline-flex min-h-[44px] items-center font-semibold text-primary underline">{t('signIn')}</Link>
+        {t('haveAccount')} <SignInLink className="inline-flex min-h-[44px] items-center font-semibold text-primary underline">{t('signIn')}</SignInLink>
       </p>
     </form>
   );
