@@ -64,7 +64,7 @@ export class AppointmentsController {
   @ApiHeader({
     name: 'Idempotency-Key',
     required: false,
-    description: 'Replays the cached answer for 24 h (API §0)',
+    description: 'Replays the cached answer for 24 h; a retry while the first request still runs gets 409 CONFLICT (API §0)',
   })
   @ApiResponse({
     status: 201,
@@ -74,7 +74,7 @@ export class AppointmentsController {
   @ApiProblems([...GUARD_PROBLEM_STATUSES, 400, 404, 409], {
     400: 'VALIDATION_ERROR: invalid body, or serviceId does not match the schedule of the slot',
     404: 'NOT_FOUND: the slot does not exist',
-    409: 'SLOT_CONFLICT: slot already busy, already started, or its schedule or doctor role is no longer active; CONSENT_REQUIRED: reason given without an active EHR consent (CONSENT_ENFORCEMENT=block)',
+    409: 'CONFLICT: the Idempotency-Key is still being processed or was used with another body; SLOT_CONFLICT: slot already busy, already started, or its schedule or doctor role is no longer active; CONSENT_REQUIRED: reason given without an active EHR consent (CONSENT_ENFORCEMENT=block)',
   })
   async create(
     @Req() request: AuditedRequest,

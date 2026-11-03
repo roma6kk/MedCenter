@@ -30,6 +30,20 @@ export class MemoryIdempotencyStore implements IdempotencyStore {
     this.entries.set(key, { value, expiresAt: Date.now() + ttlSeconds * 1000 });
   }
 
+  /** Check and write in one synchronous step, so two concurrent callers can never both get `true`. */
+  async setIfAbsent(key: string, value: string, ttlSeconds: number): Promise<boolean> {
+    const entry = this.entries.get(key);
+    if (entry !== undefined && entry.expiresAt > Date.now()) {
+      return false;
+    }
+    await this.set(key, value, ttlSeconds);
+    return true;
+  }
+
+  async delete(key: string): Promise<void> {
+    this.entries.delete(key);
+  }
+
   /** Drops the expired entries; when none expired, the oldest one (Map keeps insertion order). */
   private evict(): void {
     const now = Date.now();
@@ -48,7 +62,8 @@ export class MemoryIdempotencyStore implements IdempotencyStore {
 /**
  * The `Idempotency-Key` replay store of `POST /admin/schedules/{id}/generate`: the
  * catalog's own Redis cache store (same `get`/`set` contract), so a replay is
- * answered by whichever replica receives it.
+ * answered by whichever replica receives it. The cache store has no `setIfAbsent`/`delete` yet, so there
+ * a retry sent while the first request still runs is not refused (the memory store does refuse it).
  */
 export const idempotencyStoreProvider: Provider = {
   provide: IDEMPOTENCY_STORE,

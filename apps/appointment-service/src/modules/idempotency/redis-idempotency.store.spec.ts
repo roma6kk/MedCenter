@@ -11,6 +11,7 @@ function fakeClient(status: string): jest.Mocked<RedisLikeClient> & { status: st
     status,
     get: jest.fn().mockResolvedValue('cached'),
     set: jest.fn().mockResolvedValue('OK'),
+    del: jest.fn().mockResolvedValue(1),
     quit: jest.fn().mockResolvedValue('OK'),
     disconnect: jest.fn(),
     on: jest.fn(),
@@ -30,6 +31,33 @@ describe('RedisIdempotencyStore', () => {
     // Assert
     expect(value).toBe('cached');
     expect(client.set).toHaveBeenCalledWith('idempotency:u-1:k-1', '{"x":1}', 'EX', 86_400);
+  });
+
+  it('should claim the in-flight mark with SET NX EX and report whether the key was free', async () => {
+    // Arrange
+    const client = fakeClient('ready');
+    client.set.mockResolvedValueOnce('OK').mockResolvedValueOnce(null);
+    const store = new RedisIdempotencyStore(client);
+
+    // Act
+    const first = await store.setIfAbsent('idempotency:u-1:k-1:lock', '1', 30);
+    const second = await store.setIfAbsent('idempotency:u-1:k-1:lock', '1', 30);
+
+    // Assert
+    expect([first, second]).toEqual([true, false]);
+    expect(client.set).toHaveBeenCalledWith('idempotency:u-1:k-1:lock', '1', 'EX', 30, 'NX');
+  });
+
+  it('should delete the in-flight mark when the request ends', async () => {
+    // Arrange
+    const client = fakeClient('ready');
+    const store = new RedisIdempotencyStore(client);
+
+    // Act
+    await store.delete('idempotency:u-1:k-1:lock');
+
+    // Assert
+    expect(client.del).toHaveBeenCalledWith('idempotency:u-1:k-1:lock');
   });
 
   it('should quit gracefully when the connection is ready at shutdown', async () => {

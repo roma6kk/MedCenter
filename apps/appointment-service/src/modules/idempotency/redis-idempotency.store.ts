@@ -7,6 +7,9 @@ export interface RedisLikeClient {
   readonly status: string;
   get(key: string): Promise<string | null>;
   set(key: string, value: string, secondsToken: 'EX', seconds: number): Promise<unknown>;
+  /** `SET key value EX seconds NX`: `'OK'` when the key was free, `null` when it was taken. */
+  set(key: string, value: string, secondsToken: 'EX', seconds: number, mode: 'NX'): Promise<unknown>;
+  del(key: string): Promise<unknown>;
   quit(): Promise<unknown>;
   disconnect(): void;
 }
@@ -25,6 +28,15 @@ export class RedisIdempotencyStore implements IdempotencyStore, OnModuleDestroy 
 
   async set(key: string, value: string, ttlSeconds: number): Promise<void> {
     await this.client.set(key, value, 'EX', ttlSeconds);
+  }
+
+  /** The in-flight mark of a request: only the first caller gets `true` (atomic in Redis). */
+  async setIfAbsent(key: string, value: string, ttlSeconds: number): Promise<boolean> {
+    return (await this.client.set(key, value, 'EX', ttlSeconds, 'NX')) === 'OK';
+  }
+
+  async delete(key: string): Promise<void> {
+    await this.client.del(key);
   }
 
   async onModuleDestroy(): Promise<void> {
