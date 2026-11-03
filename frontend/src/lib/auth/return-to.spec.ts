@@ -43,6 +43,11 @@ describe('sanitizeReturnTo', () => {
     expect(sanitizeReturnTo(undefined)).toBe('/booking');
   });
 
+  it.each([[['/booking', '/home']], [42], [{}], [true]])('should fall back instead of throwing for a value that is not a string (%j)', (input) => {
+    expect(sanitizeReturnTo(input)).toBe('/booking');
+    expect(sanitizeReturnTo(input, '')).toBe('');
+  });
+
   it('should honour a custom fallback', () => {
     expect(sanitizeReturnTo('https://evil.example.com', '/login')).toBe('/login');
   });

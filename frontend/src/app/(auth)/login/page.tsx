@@ -9,7 +9,7 @@ import { pageMetadata } from '@/lib/i18n/page-metadata';
 export const metadata: Metadata = pageMetadata('auth.login.title');
 
 interface LoginPageProps {
-  readonly searchParams?: Promise<{ returnTo?: string; error?: string | string[]; reason?: string | string[] }>;
+  readonly searchParams?: Promise<{ returnTo?: string | string[]; error?: string | string[]; reason?: string | string[] }>;
 }
 
 /**
@@ -21,7 +21,8 @@ interface LoginPageProps {
  */
 export default async function LoginPage({ searchParams }: LoginPageProps): Promise<React.JSX.Element> {
   const { returnTo, error, reason } = (await searchParams) ?? {};
-  const safeReturnTo: string = sanitizeReturnTo(returnTo, '');
+  // A parameter repeated in the address arrives as an array; the first value wins, as it does for /api/auth/authorize.
+  const safeReturnTo: string = sanitizeReturnTo(typeof returnTo === 'string' ? returnTo : returnTo?.[0], '');
   const kind = parseLoginError(error);
   if (kind === null && !isSessionEnded(reason)) redirect(authorizeHref(safeReturnTo));
   return <LoginEntry returnTo={safeReturnTo} error={kind} />;

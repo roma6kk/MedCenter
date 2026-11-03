@@ -8,7 +8,7 @@ jest.mock('next/navigation', () => ({ redirect: (to: string) => redirectMock(to)
 
 import LoginPage from './page';
 
-async function open(search: Record<string, string>): Promise<void> {
+async function open(search: Record<string, string | string[]>): Promise<void> {
   render(await LoginPage({ searchParams: Promise.resolve(search) }));
 }
 
@@ -25,6 +25,12 @@ describe('LoginPage', () => {
     await expect(open({})).rejects.toBe(REDIRECT);
 
     expect(redirectMock).toHaveBeenCalledWith('/api/auth/authorize');
+  });
+
+  it('should use the first returnTo, not crash, when the address repeats the parameter', async () => {
+    await expect(open({ returnTo: ['/booking', '/home'] })).rejects.toBe(REDIRECT);
+
+    expect(redirectMock).toHaveBeenCalledWith('/api/auth/authorize?returnTo=%2Fbooking');
   });
 
   it('should drop the returnTo when it leaves the site', async () => {

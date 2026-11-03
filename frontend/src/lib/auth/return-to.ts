@@ -25,8 +25,9 @@ function isUnsafePath(decoded: string): boolean {
   return decoded.includes('\n') || decoded.includes('\r') || decoded.includes('\0');
 }
 
-export function sanitizeReturnTo(raw: string | null | undefined, fallback: string = FALLBACK): string {
-  if (raw === null || raw === undefined) return fallback;
+/** `raw` comes straight from a URL (a repeated `?returnTo=` reaches a page as an array), so anything that is not a string is the fallback, never a crash. */
+export function sanitizeReturnTo(raw: unknown, fallback: string = FALLBACK): string {
+  if (typeof raw !== 'string') return fallback;
   const trimmed: string = raw.trim();
   if (trimmed.length === 0) return fallback;
 
