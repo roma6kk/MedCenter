@@ -45,5 +45,5 @@ tests {
 }
 
 docs {
-  Spec 6.1. PATIENT, scope `patient/*.write`. `slotId` is a free slot from 5.2.8; `serviceId` optional (default: the service of the slot's schedule; send it only when it matches that schedule); `reason` optional (3..500). Without an active EMR consent a `reason` is refused with 409 `CONSENT_REQUIRED`. `Idempotency-Key: <uuid>` makes a retry return the cached answer. 409 `SLOT_CONFLICT` when the slot is taken.
+  Spec 6.1. PATIENT, scope `patient/*.write`. `slotId` is a free slot from 5.2.8; `serviceId` optional (default: the service of the slot's schedule; send it only when it matches that schedule); `reason` optional (3..500). Without an active EMR consent a `reason` is refused with 409 `CONSENT_REQUIRED`. `Idempotency-Key: <uuid>` makes a retry return the cached answer. 409 `SLOT_CONFLICT` when the slot is taken or has already started.
 }

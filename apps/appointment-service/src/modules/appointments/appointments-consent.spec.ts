@@ -39,6 +39,15 @@ const CONSENT: FhirResource = {
 describe('AppointmentsService.book without a patient consent (API §6.1, ADR-019)', () => {
   let fhir: jest.Mocked<FhirClient>;
 
+  // An hour before FREE_SLOT starts: a started slot is refused, so the clock is pinned.
+  beforeEach(() => {
+    jest.useFakeTimers({ now: new Date('2026-11-02T08:00:00+03:00') });
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
   function serviceIn(mode: ConsentEnforcement, consents: FhirResource[] = []): AppointmentsService {
     fhir = {
       read: jest.fn().mockImplementation(async (type: string) => (type === 'Slot' ? FREE_SLOT : SCHEDULE)),

@@ -11,12 +11,14 @@ const COMMITTED = { resourceType: 'Bundle', type: 'transaction-response', entry:
 
 /** Slot id shape catalog-service generates: 64 hex chars of SHA-256, not a UUID. */
 const GENERATED_SLOT_ID = 'a3f1c9e07b2d4c5e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2b3c4d5e6f7a8b9c0d1e';
+/** Tomorrow: booking refuses a slot that has started, so a fixed date would age. */
+const SLOT_START_MS = Date.now() + 24 * 60 * 60 * 1000;
 const FREE_SLOT = {
   resourceType: 'Slot',
   id: GENERATED_SLOT_ID,
   status: 'free',
-  start: '2026-11-02T09:00:00+03:00',
-  end: '2026-11-02T09:30:00+03:00',
+  start: new Date(SLOT_START_MS).toISOString(),
+  end: new Date(SLOT_START_MS + 30 * 60 * 1000).toISOString(),
   schedule: { reference: 'Schedule/sched-1' },
   meta: { versionId: '1' },
 };

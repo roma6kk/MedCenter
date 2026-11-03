@@ -100,7 +100,9 @@ describe('Booking concurrency (e2e, HAPI-backed)', () => {
   }, 120_000);
 
   it('should let exactly one booking succeed (201) and reject the other (409 SLOT_CONFLICT) when two race for one slot', async () => {
-    const { patientId, slotId } = await seedFreeSlot(fhirBase, '2026-11-02T09:00:00+03:00', '2026-11-02T09:30:00+03:00');
+    // Tomorrow: a slot that has started is refused (SLOT_CONFLICT), so a fixed date would make both bookings lose.
+    const startMs = Date.now() + 24 * 60 * 60 * 1000;
+    const { patientId, slotId } = await seedFreeSlot(fhirBase, new Date(startMs).toISOString(), new Date(startMs + 30 * 60 * 1000).toISOString());
     const token = bearer(patientOf(patientId));
     const book = () => request(app.getHttpServer()).post('/api/v1/appointments').set('Authorization', token).send({ slotId });
 

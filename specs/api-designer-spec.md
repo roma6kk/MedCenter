@@ -127,7 +127,7 @@ export class PaginatedResponseDto<TItem> {
 | `NOT_FOUND` | 404 | ресурс не найден |
 | `METHOD_NOT_ALLOWED` | 405 | не используется: неизвестный метод или маршрут даёт 404 `NOT_FOUND` |
 | `CONFLICT` | 409 | конфликт версии или дубликат при записи в FHIR-хранилище (HAPI 409/412); дубликат e-mail (`EMAIL_TAKEN` в `detail`, 2.2.1/2.2.6) и дубликат `identifier` кабинета (4.4/4.5) — причина в `detail` |
-| `SLOT_CONFLICT` | 409 | BR-001: слот уже занят (гонка, ADR-012) |
+| `SLOT_CONFLICT` | 409 | BR-001: слот уже занят (гонка, ADR-012) или уже начался (6.1) |
 | `CONSENT_REQUIRED` | 409 | у пациента нет действующего согласия на электронную медкарту (7.1, 7.3; ADR-019); при `CONSENT_ENFORCEMENT=warn` не возвращается |
 | `CONSENT_ALREADY_ACTIVE` | 409 | 3.8: у пациента уже есть действующее согласие; сначала отзыв (3.9) |
 | `APPOINTMENT_NOT_CANCELLABLE` | 409 | BR-002: статус не позволяет отмену |
@@ -739,7 +739,7 @@ export class CreateAppointmentDto {
 }
 ```
 
-**Транзакция 6.1** (ADR-012, оптимистичная блокировка `If-Match` на версию `Slot`): re-read `Slot` → `status=free`? `serviceId` не совпал с услугой расписания слота → **400**.
+**Транзакция 6.1** (ADR-012, оптимистичная блокировка `If-Match` на версию `Slot`): re-read `Slot` → `status=free` и `start` позже текущего момента (как в публичной выдаче слотов; начавшийся слот → **409** `SLOT_CONFLICT`)? `serviceId` не совпал с услугой расписания слота → **400**.
 → создать `Appointment` (participants: Patient + PractitionerRole; `slot` reference) →
 `Slot.status=busy` → publish `appointment.booked.v1` → `AuditEvent(create)` → **201**
 `AppointmentResponseDto`. Гонка → **409** `SLOT_CONFLICT`.

@@ -71,11 +71,15 @@ async function errorPayloadOf(promise: Promise<unknown>): Promise<unknown> {
   throw new Error('expected the promise to reject');
 }
 
+/** An hour before `freeSlot` starts (09:00 in Minsk): the clock is pinned, so the specs do not age with the calendar. */
+const BEFORE_SLOT_START = new Date('2026-11-02T08:00:00+03:00');
+
 describe('AppointmentsService', () => {
   let service: AppointmentsService;
   let fhir: jest.Mocked<FhirClient>;
 
   beforeEach(() => {
+    jest.useFakeTimers({ now: BEFORE_SLOT_START });
     fhir = {
       search: jest.fn(),
       read: jest.fn(),
@@ -86,6 +90,10 @@ describe('AppointmentsService', () => {
       batch: jest.fn(),
     } as unknown as jest.Mocked<FhirClient>;
     service = new AppointmentsService(fhir, 'warn');
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
   });
 
   describe('book', () => {
@@ -166,6 +174,39 @@ describe('AppointmentsService', () => {
       });
       expect(fhir.batch).not.toHaveBeenCalled();
     });
+
+    it.each(['2026-11-02T09:00:00+03:00', '2026-11-02T09:05:00+03:00', '2026-11-03T12:00:00+03:00'])(
+      'should throw SLOT_CONFLICT without writing when the slot has already started and the clock reads %s',
+      async (now) => {
+        jest.setSystemTime(new Date(now));
+        fhir.read.mockImplementation(async (type) => (type === 'Slot' ? freeSlot : schedule));
+
+        const payload = await errorPayloadOf(service.book(patientClaims, { slotId: 'slot-1' }));
+
+        expect(payload).toMatchObject({ errorCode: 'SLOT_CONFLICT', message: 'SLOT_CONFLICT: slot has already started' });
+        expect(fhir.batch).not.toHaveBeenCalled();
+      },
+    );
+
+    it('should still book the slot when it starts in one second', async () => {
+      jest.setSystemTime(new Date('2026-11-02T08:59:59+03:00'));
+      fhir.read.mockImplementation(async (type) => (type === 'Slot' ? freeSlot : schedule));
+      fhir.batch.mockResolvedValue({ resourceType: 'Bundle', type: 'transaction-response', entry: [] });
+
+      const result = await service.book(patientClaims, { slotId: 'slot-1' });
+
+      expect(result).toMatchObject({ status: 'booked', start: '2026-11-02T09:00:00+03:00' });
+    });
+
+    it.each([undefined, 'soon'])(
+      'should fail with INTERNAL, writing nothing, when the free slot has no parsable start (%s)',
+      async (start) => {
+        fhir.read.mockImplementation(async (type) => (type === 'Slot' ? { ...freeSlot, start } : schedule));
+
+        expect(await errorPayloadOf(service.book(patientClaims, { slotId: 'slot-1' }))).toMatchObject({ errorCode: 'INTERNAL' });
+        expect(fhir.batch).not.toHaveBeenCalled();
+      },
+    );
 
     it('should map the lost race to SLOT_CONFLICT when HAPI rejects the If-Match (412 as 409)', async () => {
       fhir.read.mockImplementation(async (type) => (type === 'Slot' ? freeSlot : schedule));

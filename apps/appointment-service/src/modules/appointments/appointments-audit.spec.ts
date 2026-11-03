@@ -52,12 +52,18 @@ describe('AppointmentsService audit trail (ADR-014, FR-021)', () => {
   let service: AppointmentsService;
 
   beforeEach(() => {
+    // An hour before FREE_SLOT starts: a started slot is refused, so the clock is pinned.
+    jest.useFakeTimers({ now: new Date('2026-11-02T08:00:00+03:00') });
     fhir = {
       read: jest.fn(),
       search: jest.fn().mockResolvedValue({ entry: [] }),
       batch: jest.fn().mockResolvedValue(COMMITTED),
     } as unknown as jest.Mocked<FhirClient>;
     service = new AppointmentsService(fhir, 'warn');
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
   });
 
   it('should audit the booking with the patient and the request id when a patient books', async () => {

@@ -37,6 +37,20 @@ function assertBooked(appointment: FhirResource, errorCode: ErrorCode, action: s
 }
 
 /**
+ * `409 SLOT_CONFLICT` once the slot has started. The catalog offers only slots that start later, but a slot
+ * nobody booked stays `free` for good and its id is computable, so the booking tests the time as well (FR-004).
+ */
+function assertNotStarted(slot: FhirResource, slotId: string): void {
+  const startMs = Date.parse(stringOf(slot, 'start'));
+  if (Number.isNaN(startMs)) {
+    throw new InternalServerErrorException({ errorCode: 'INTERNAL', message: `INTERNAL: Slot ${slotId} has no valid start` });
+  }
+  if (startMs <= Date.now()) {
+    throw new ConflictException({ errorCode: 'SLOT_CONFLICT', message: 'SLOT_CONFLICT: slot has already started' });
+  }
+}
+
+/**
  * Booking lifecycle (FR-004/005/006, BR-001/002, ADR-012).
  *
  * Concurrency: the Slot write carries an `ifMatch` on the version that was read,
@@ -203,12 +217,13 @@ export class AppointmentsService {
     return { slotId, slot: await this.fhir.read('Slot', slotId) };
   }
 
-  /** Reads the Slot and its Schedule; the slot must be `free` and match a requested service. */
+  /** Reads the Slot and its Schedule; the slot must be `free`, still ahead, and match a requested service. */
   private async loadBookableSlot(dto: CreateAppointmentDto): Promise<BookableSlot> {
     const slot = await this.fhir.read('Slot', dto.slotId);
     if (slot['status'] !== 'free') {
       throw new ConflictException({ errorCode: 'SLOT_CONFLICT', message: 'SLOT_CONFLICT: slot is not free' });
     }
+    assertNotStarted(slot, dto.slotId);
     const scheduleId = referenceId((slot['schedule'] as { reference?: unknown } | undefined)?.reference);
     if (scheduleId === '') {
       throw missingReference(`Slot ${dto.slotId} has no schedule`);

@@ -12,9 +12,9 @@ const FHIR_ID_MESSAGE = '$property must be a FHIR resource id ([A-Za-z0-9-.]{1,6
  * reject every real slot with `400 VALIDATION_ERROR`.
  */
 export class CreateAppointmentDto {
-  /** Slot id; `Slot.status` must be `free` (checked atomically at write time, ADR-012). */
+  /** Slot id; `Slot.status` must be `free` (checked atomically at write time, ADR-012) and its start still ahead. */
   @ApiProperty({
-    description: 'Slot id; the slot must be free',
+    description: 'Slot id; the slot must be free and must not have started yet',
     pattern: FHIR_ID_PATTERN.source,
     example: '3f2a9c0d',
   })
