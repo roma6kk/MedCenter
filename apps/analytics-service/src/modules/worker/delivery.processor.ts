@@ -1,4 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { attemptOf as attemptOfDelivery } from '@medcenter/messaging';
 
 import { parseAnalyticsEvent } from './analytics-event';
 import { IngestionService } from './ingestion.service';
@@ -18,8 +19,7 @@ export const MAX_DELIVERY_ATTEMPTS = 5;
 
 /** Attempt number of a delivery, from the header the worker stamped (1 when absent or invalid). */
 export function attemptOf(headers: Readonly<Record<string, unknown>> | undefined): number {
-  const value = headers?.[ATTEMPT_HEADER];
-  return typeof value === 'number' && Number.isInteger(value) && value > 0 ? value : 1;
+  return attemptOfDelivery(headers, ATTEMPT_HEADER);
 }
 
 /**

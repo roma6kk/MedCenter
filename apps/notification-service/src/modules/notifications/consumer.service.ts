@@ -1,7 +1,7 @@
 import { Inject, Injectable, Logger, type OnModuleDestroy, type OnModuleInit } from '@nestjs/common';
 import { connect, type Channel, type ChannelModel, type ConsumeMessage } from 'amqplib';
 import { FHIR_CLIENT, FhirClientError, type FhirClient, type FhirResource } from '@medcenter/fhir';
-import { bindQueueWithDlq, retryQueueOf, type DomainEvent } from '@medcenter/messaging';
+import { attemptOf, bindQueueWithDlq, deferDelivery, type DomainEvent } from '@medcenter/messaging';
 
 import { communicationFromEvent } from './communication.mapper';
 import { DeduplicationService, EventInProgressError } from './deduplication.service';
@@ -9,6 +9,15 @@ import { NOTIFICATION_BINDINGS } from './notification.bindings';
 
 const RECONNECT_DELAY_MS = 5_000;
 const PREFETCH = 10;
+
+/** Header the consumer stamps on a message it re-publishes after a failed write. */
+export const ATTEMPT_HEADER = 'x-notification-attempt';
+
+/**
+ * First delivery plus eleven delayed retries (~55 s: long enough for HAPI or Redis to restart), then the DLQ.
+ * analytics-service has the same policy with a smaller budget.
+ */
+export const MAX_NOTIFICATION_ATTEMPTS = 12;
 
 function isDomainEvent(value: unknown): value is DomainEvent {
   if (typeof value !== 'object' || value === null) {
@@ -25,8 +34,10 @@ function sleep(ms: number): Promise<void> {
 /**
  * RabbitMQ consumer (FR-008). Each queue is bound to its routing key with a
  * dead-letter queue. A message is acked after its `Communication` is written.
- * A malformed message or a failed write is rejected without requeue, which
- * sends it to `<queue>.dlq` for inspection instead of an endless redelivery loop.
+ * A failed write is retried through `<queue>.retry` (delayed, at most
+ * {@link MAX_NOTIFICATION_ATTEMPTS} deliveries); a malformed message, or one whose
+ * last attempt failed, is rejected without requeue, which sends it to `<queue>.dlq`
+ * for inspection instead of an endless redelivery loop.
  *
  * The consumer runs a reconnect loop: whenever the connection ends (error or
  * close) it waits `RECONNECT_DELAY_MS` and connects again. An unreachable broker
@@ -68,7 +79,7 @@ export class ConsumerService implements OnModuleInit, OnModuleDestroy {
    * silently; a duplicate arriving while the first copy is still being written
    * throws `EventInProgressError` so it is deferred to the retry queue (acking it would drop the
    * event if that first write then fails). Unknown event types are ignored; a
-   * failed write releases the dedup claim and rethrows so the message is dead-lettered.
+   * failed write releases the dedup claim and rethrows so the message is retried.
    */
   async handle(event: DomainEvent): Promise<void> {
     const communication = communicationFromEvent(event);
@@ -197,20 +208,22 @@ export class ConsumerService implements OnModuleInit, OnModuleDestroy {
       await this.handle(event);
     } catch (error) {
       if (error instanceof EventInProgressError) {
-        // The first copy is still writing. Re-publish this copy to the delay queue and ack the
-        // original: a plain requeue would bounce straight back and spin until the first copy settles.
-        this.settle(() => {
-          channel.sendToQueue(retryQueueOf(queue), message.content, {
-            persistent: true,
-            contentType: 'application/json',
-            messageId: message.properties.messageId,
-            headers: message.properties.headers,
-          });
-          channel.ack(message);
-        }, 'defer event still in progress');
+        // The first copy is still writing. Defer this copy and ack the original: a plain requeue would bounce
+        // straight back and spin until the first copy settles. It keeps its attempt number: nothing failed yet.
+        this.settle(() => deferDelivery(channel, queue, message, message.properties.headers), 'defer event still in progress');
         return;
       }
-      this.logger.error({ err: error, type: event.type, eventId: event.eventId }, 'notification write failed; dead-lettering');
+      const attempt = attemptOf(message.properties.headers, ATTEMPT_HEADER);
+      const context = { err: error, type: event.type, eventId: event.eventId, attempt };
+      if (attempt < MAX_NOTIFICATION_ATTEMPTS) {
+        this.logger.warn(context, 'notification write failed; retrying after a delay');
+        this.settle(
+          () => deferDelivery(channel, queue, message, { ...message.properties.headers, [ATTEMPT_HEADER]: attempt + 1 }),
+          'retry failed message',
+        );
+        return;
+      }
+      this.logger.error(context, 'notification write failed on the last attempt; dead-lettering');
       this.settle(() => channel.nack(message, false, false), 'dead-letter failed message');
       return;
     }

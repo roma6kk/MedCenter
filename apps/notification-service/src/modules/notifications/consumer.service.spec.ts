@@ -4,7 +4,7 @@ import { FhirClientError, type FhirClient } from '@medcenter/fhir';
 import type { AppointmentBookedEvent, PatientRegisteredEvent } from '@medcenter/contracts';
 
 import { communicationIdFor } from './communication.mapper';
-import { ConsumerService } from './consumer.service';
+import { ATTEMPT_HEADER, ConsumerService, MAX_NOTIFICATION_ATTEMPTS } from './consumer.service';
 import { DeduplicationService, type ClaimState, type DedupStore } from './deduplication.service';
 
 jest.mock('amqplib', () => ({ connect: jest.fn() }));
@@ -438,19 +438,56 @@ describe('ConsumerService', () => {
       expect(fhir.update).not.toHaveBeenCalled();
     });
 
-    it('dead-letters a message whose write fails, and the redelivery of the same event is written', async () => {
+    it('retries a message whose write fails through the delay queue with the next attempt, and the redelivery of the same event is written', async () => {
       fhir.update.mockRejectedValueOnce(new Error('HAPI down'));
       const first = delivery(bookedEvent);
-      const redelivery = delivery(bookedEvent);
 
       deliverTo(first);
       await drain();
+
+      expect(connection.channel.sendToQueue).toHaveBeenCalledWith(
+        'notification.appointment-booked.retry',
+        first.content,
+        expect.objectContaining({ persistent: true, headers: { [ATTEMPT_HEADER]: 2 } }),
+      );
+      expect(connection.channel.ack).toHaveBeenCalledWith(first);
+      expect(connection.channel.nack).not.toHaveBeenCalled();
+
+      // The retry queue dead-letters the copy back to the main queue after its delay; the claim was released.
+      const [, content, options] = connection.channel.sendToQueue.mock.calls[0] as [string, Buffer, { headers: Record<string, unknown> }];
+      const redelivery = { content, properties: { headers: options.headers } };
       deliverTo(redelivery);
       await drain();
 
-      expect(connection.channel.nack).toHaveBeenCalledWith(first, false, false);
       expect(connection.channel.ack).toHaveBeenCalledWith(redelivery);
       expect(fhir.update).toHaveBeenCalledTimes(2);
+    });
+
+    it('counts every failed delivery: the attempt before the last is retried with the last attempt number', async () => {
+      fhir.update.mockRejectedValue(new Error('HAPI down'));
+      const message = { content: Buffer.from(JSON.stringify(bookedEvent)), properties: { headers: { [ATTEMPT_HEADER]: MAX_NOTIFICATION_ATTEMPTS - 1, 'x-other': 'kept' } } };
+
+      deliverTo(message);
+      await drain();
+
+      expect(connection.channel.sendToQueue).toHaveBeenCalledWith(
+        'notification.appointment-booked.retry',
+        message.content,
+        expect.objectContaining({ headers: { [ATTEMPT_HEADER]: MAX_NOTIFICATION_ATTEMPTS, 'x-other': 'kept' } }),
+      );
+      expect(connection.channel.nack).not.toHaveBeenCalled();
+    });
+
+    it('dead-letters a message whose write fails on the last attempt', async () => {
+      fhir.update.mockRejectedValue(new Error('HAPI down'));
+      const message = { content: Buffer.from(JSON.stringify(bookedEvent)), properties: { headers: { [ATTEMPT_HEADER]: MAX_NOTIFICATION_ATTEMPTS } } };
+
+      deliverTo(message);
+      await drain();
+
+      expect(connection.channel.nack).toHaveBeenCalledWith(message, false, false);
+      expect(connection.channel.sendToQueue).not.toHaveBeenCalled();
+      expect(connection.channel.ack).not.toHaveBeenCalled();
     });
 
     it('defers a duplicate that arrives while the first copy is still writing to the retry queue, and never acks it early', async () => {
@@ -497,7 +534,9 @@ describe('ConsumerService', () => {
 
       failFirstWrite(new Error('HAPI down'));
       await drain();
-      expect(connection.channel.nack).toHaveBeenCalledWith(first, false, false);
+      expect(connection.channel.ack).toHaveBeenCalledWith(first);
+      expect(connection.channel.nack).not.toHaveBeenCalled();
+      expect(connection.channel.sendToQueue).toHaveBeenCalledTimes(2);
 
       // The retry queue dead-letters the deferred copy back to the main queue; the claim was released, so it is written now.
       const [, deferredContent] = connection.channel.sendToQueue.mock.calls[0] as [string, Buffer];
@@ -509,15 +548,43 @@ describe('ConsumerService', () => {
       expect(fhir.update).toHaveBeenCalledTimes(2);
     });
 
-    it('dead-letters the message without writing when the dedup store is unavailable', async () => {
+    it('retries the message without writing when the dedup store is unavailable', async () => {
       jest.spyOn(DeduplicationService.prototype, 'claim').mockRejectedValueOnce(new Error('Redis down'));
       const message = delivery(bookedEvent);
 
       deliverTo(message);
       await drain();
 
-      expect(connection.channel.nack).toHaveBeenCalledWith(message, false, false);
+      expect(connection.channel.sendToQueue).toHaveBeenCalledWith(
+        'notification.appointment-booked.retry',
+        message.content,
+        expect.objectContaining({ headers: { [ATTEMPT_HEADER]: 2 } }),
+      );
+      expect(connection.channel.ack).toHaveBeenCalledWith(message);
+      expect(connection.channel.nack).not.toHaveBeenCalled();
       expect(fhir.update).not.toHaveBeenCalled();
+    });
+
+    it('keeps the attempt number of a copy deferred because the first copy is still writing', async () => {
+      let finishFirstWrite!: () => void;
+      fhir.update.mockImplementationOnce(
+        () => new Promise((resolve) => (finishFirstWrite = () => resolve({ resourceType: 'Communication' }))),
+      );
+      const duplicate = { content: Buffer.from(JSON.stringify(bookedEvent)), properties: { headers: { [ATTEMPT_HEADER]: 3 } } };
+
+      deliverTo(delivery(bookedEvent));
+      await drain();
+      deliverTo(duplicate);
+      await drain();
+
+      expect(connection.channel.sendToQueue).toHaveBeenCalledWith(
+        'notification.appointment-booked.retry',
+        duplicate.content,
+        expect.objectContaining({ headers: { [ATTEMPT_HEADER]: 3 } }),
+      );
+
+      finishFirstWrite();
+      await drain();
     });
 
     it('settles a message whose ack throws (channel closed mid-write) without an unhandled rejection', async () => {

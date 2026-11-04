@@ -1,6 +1,6 @@
 import { Inject, Injectable, Logger, type OnModuleDestroy, type OnModuleInit } from '@nestjs/common';
 import { connect, type Channel, type ChannelModel, type ConsumeMessage } from 'amqplib';
-import { bindQueueWithDlq, retryQueueOf } from '@medcenter/messaging';
+import { bindQueueWithDlq, deferDelivery } from '@medcenter/messaging';
 
 import { WORKER_CONFIG, type WorkerConfig } from '../../config/analytics-env';
 import { ANALYTICS_BINDINGS } from './analytics.bindings';
@@ -134,13 +134,7 @@ export class AnalyticsWorker implements OnModuleInit, OnModuleDestroy {
       return;
     }
     // A plain requeue would bounce straight back; the retry queue delays it, then dead-letters it home.
-    channel.sendToQueue(retryQueueOf(queue), message.content, {
-      persistent: true,
-      contentType: 'application/json',
-      messageId: message.properties.messageId,
-      headers: { ...message.properties.headers, [ATTEMPT_HEADER]: attempt + 1 },
-    });
-    channel.ack(message);
+    deferDelivery(channel, queue, message, { ...message.properties.headers, [ATTEMPT_HEADER]: attempt + 1 });
   }
 
   /** `ack`/`nack` throw on a closed channel; the broker then redelivers the unsettled message. */
