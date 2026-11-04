@@ -1,0 +1,185 @@
+<mxfile host="app.diagrams.net" type="device">
+  <diagram name="Запись на приём (последовательность)" id="Запись на приём (последовательность)">
+    <mxGraphModel dx="2169" dy="1500" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1500" pageHeight="900" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+    <mxCell id="cap" vertex="1" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;fontSize=16;fontFamily=Times New Roman;fontStyle=1;" value="Диаграмма последовательности: Запись на приём" parent="1">
+        <mxGeometry x="40" y="20" width="1000" height="30" as="geometry" />
+    </mxCell>
+    <mxCell id="h_pat" vertex="1" style="rounded=1;fillColor=#dae8fc;align=center;whiteSpace=wrap;html=1;fontFamily=Times New Roman;" value="Пациент" parent="1">
+        <mxGeometry x="25" y="60" width="150" height="46" as="geometry" />
+    </mxCell>
+    <mxCell id="h_web" vertex="1" style="rounded=1;fillColor=#dae8fc;align=center;whiteSpace=wrap;html=1;fontFamily=Times New Roman;" value="Web-клиент
+(Next.js)" parent="1">
+        <mxGeometry x="195" y="60" width="150" height="46" as="geometry" />
+    </mxCell>
+    <mxCell id="h_gw" vertex="1" style="rounded=1;fillColor=#dae8fc;align=center;whiteSpace=wrap;html=1;fontFamily=Times New Roman;" value="API Gateway
+(Traefik)" parent="1">
+        <mxGeometry x="365" y="60" width="150" height="46" as="geometry" />
+    </mxCell>
+    <mxCell id="h_appt" vertex="1" style="rounded=1;fillColor=#dae8fc;align=center;whiteSpace=wrap;html=1;fontFamily=Times New Roman;" value="appointment-
+service" parent="1">
+        <mxGeometry x="535" y="60" width="150" height="46" as="geometry" />
+    </mxCell>
+    <mxCell id="h_fhir" vertex="1" style="rounded=1;fillColor=#dae8fc;align=center;whiteSpace=wrap;html=1;fontFamily=Times New Roman;" value="HAPI FHIR
+(R4)" parent="1">
+        <mxGeometry x="705" y="60" width="150" height="46" as="geometry" />
+    </mxCell>
+    <mxCell id="h_pg" vertex="1" style="rounded=1;fillColor=#dae8fc;align=center;whiteSpace=wrap;html=1;fontFamily=Times New Roman;" value="PostgreSQL" parent="1">
+        <mxGeometry x="875" y="60" width="150" height="46" as="geometry" />
+    </mxCell>
+    <mxCell id="h_mq" vertex="1" style="rounded=1;fillColor=#dae8fc;align=center;whiteSpace=wrap;html=1;fontFamily=Times New Roman;" value="RabbitMQ" parent="1">
+        <mxGeometry x="1045" y="60" width="150" height="46" as="geometry" />
+    </mxCell>
+    <mxCell id="h_notif" vertex="1" style="rounded=1;fillColor=#dae8fc;align=center;whiteSpace=wrap;html=1;fontFamily=Times New Roman;" value="notification-
+service" parent="1">
+        <mxGeometry x="1215" y="60" width="150" height="46" as="geometry" />
+    </mxCell>
+    <mxCell id="ll_pat" vertex="1" style="rounded=0;fillColor=#000000;align=center;whiteSpace=wrap;html=1;fontFamily=Times New Roman;" value="" parent="1">
+        <mxGeometry x="98" y="110" width="3" height="690" as="geometry" />
+    </mxCell>
+    <mxCell id="ll_web" vertex="1" style="rounded=0;fillColor=#000000;align=center;whiteSpace=wrap;html=1;fontFamily=Times New Roman;" value="" parent="1">
+        <mxGeometry x="268" y="110" width="3" height="690" as="geometry" />
+    </mxCell>
+    <mxCell id="ll_gw" vertex="1" style="rounded=0;fillColor=#000000;align=center;whiteSpace=wrap;html=1;fontFamily=Times New Roman;" value="" parent="1">
+        <mxGeometry x="438" y="110" width="3" height="690" as="geometry" />
+    </mxCell>
+    <mxCell id="ll_appt" vertex="1" style="rounded=0;fillColor=#000000;align=center;whiteSpace=wrap;html=1;fontFamily=Times New Roman;" value="" parent="1">
+        <mxGeometry x="608" y="110" width="3" height="690" as="geometry" />
+    </mxCell>
+    <mxCell id="ll_fhir" vertex="1" style="rounded=0;fillColor=#000000;align=center;whiteSpace=wrap;html=1;fontFamily=Times New Roman;" value="" parent="1">
+        <mxGeometry x="778" y="110" width="3" height="690" as="geometry" />
+    </mxCell>
+    <mxCell id="ll_pg" vertex="1" style="rounded=0;fillColor=#000000;align=center;whiteSpace=wrap;html=1;fontFamily=Times New Roman;" value="" parent="1">
+        <mxGeometry x="948" y="110" width="3" height="690" as="geometry" />
+    </mxCell>
+    <mxCell id="ll_mq" vertex="1" style="rounded=0;fillColor=#000000;align=center;whiteSpace=wrap;html=1;fontFamily=Times New Roman;" value="" parent="1">
+        <mxGeometry x="1118" y="110" width="3" height="690" as="geometry" />
+    </mxCell>
+    <mxCell id="ll_notif" vertex="1" style="rounded=0;fillColor=#000000;align=center;whiteSpace=wrap;html=1;fontFamily=Times New Roman;" value="" parent="1">
+        <mxGeometry x="1288" y="110" width="3" height="690" as="geometry" />
+    </mxCell>
+    <mxCell id="a1l" vertex="1" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;fontSize=1;fontFamily=Times New Roman;" value="" parent="1">
+        <mxGeometry x="99" y="179" width="2" height="2" as="geometry" />
+    </mxCell>
+    <mxCell id="a1r" vertex="1" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;fontSize=1;fontFamily=Times New Roman;" value="" parent="1">
+        <mxGeometry x="269" y="179" width="2" height="2" as="geometry" />
+    </mxCell>
+    <mxCell id="m1" source="a1l" target="a1r" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;strokeColor=#000000;fontFamily=Times New Roman;fontSize=12;" value="1: выбрать врача, услугу и свободный слот" parent="1">
+        <mxGeometry relative="1" as="geometry">
+        </mxGeometry>
+    </mxCell>
+    <mxCell id="a2l" vertex="1" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;fontSize=1;fontFamily=Times New Roman;" value="" parent="1">
+        <mxGeometry x="269" y="239" width="2" height="2" as="geometry" />
+    </mxCell>
+    <mxCell id="a2r" vertex="1" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;fontSize=1;fontFamily=Times New Roman;" value="" parent="1">
+        <mxGeometry x="439" y="239" width="2" height="2" as="geometry" />
+    </mxCell>
+    <mxCell id="m2" source="a2l" target="a2r" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;strokeColor=#000000;fontFamily=Times New Roman;fontSize=12;" value="2: проверить авторизацию (SMART OAuth2 + PKCE)" parent="1">
+        <mxGeometry relative="1" as="geometry">
+        </mxGeometry>
+    </mxCell>
+    <mxCell id="a3l" vertex="1" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;fontSize=1;fontFamily=Times New Roman;" value="" parent="1">
+        <mxGeometry x="439" y="299" width="2" height="2" as="geometry" />
+    </mxCell>
+    <mxCell id="a3r" vertex="1" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;fontSize=1;fontFamily=Times New Roman;" value="" parent="1">
+        <mxGeometry x="609" y="299" width="2" height="2" as="geometry" />
+    </mxCell>
+    <mxCell id="m3" source="a3l" target="a3r" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;strokeColor=#000000;fontFamily=Times New Roman;fontSize=12;" value="3: проверить слот и начать бронирование" parent="1">
+        <mxGeometry relative="1" as="geometry">
+        </mxGeometry>
+    </mxCell>
+    <mxCell id="a4l" vertex="1" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;fontSize=1;fontFamily=Times New Roman;" value="" parent="1">
+        <mxGeometry x="609" y="359" width="2" height="2" as="geometry" />
+    </mxCell>
+    <mxCell id="a4r" vertex="1" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;fontSize=1;fontFamily=Times New Roman;" value="" parent="1">
+        <mxGeometry x="949" y="359" width="2" height="2" as="geometry" />
+    </mxCell>
+    <mxCell id="m4" source="a4l" target="a4r" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;strokeColor=#000000;fontFamily=Times New Roman;fontSize=12;" value="4: атомарно захватить слот (идемпотентно)" parent="1">
+        <mxGeometry relative="1" as="geometry">
+        </mxGeometry>
+    </mxCell>
+    <mxCell id="a5l" vertex="1" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;fontSize=1;fontFamily=Times New Roman;" value="" parent="1">
+        <mxGeometry x="609" y="419" width="2" height="2" as="geometry" />
+    </mxCell>
+    <mxCell id="a5r" vertex="1" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;fontSize=1;fontFamily=Times New Roman;" value="" parent="1">
+        <mxGeometry x="779" y="419" width="2" height="2" as="geometry" />
+    </mxCell>
+    <mxCell id="m5" source="a5l" target="a5r" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;strokeColor=#000000;fontFamily=Times New Roman;fontSize=12;" value="5: создать Appointment (status=proposed)" parent="1">
+        <mxGeometry relative="1" as="geometry">
+        </mxGeometry>
+    </mxCell>
+    <mxCell id="a6l" vertex="1" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;fontSize=1;fontFamily=Times New Roman;" value="" parent="1">
+        <mxGeometry x="779" y="479" width="2" height="2" as="geometry" />
+    </mxCell>
+    <mxCell id="a6r" vertex="1" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;fontSize=1;fontFamily=Times New Roman;" value="" parent="1">
+        <mxGeometry x="949" y="479" width="2" height="2" as="geometry" />
+    </mxCell>
+    <mxCell id="m6" source="a6l" target="a6r" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;strokeColor=#000000;fontFamily=Times New Roman;fontSize=12;" value="6: сохранить Appointment" parent="1">
+        <mxGeometry relative="1" as="geometry">
+        </mxGeometry>
+    </mxCell>
+    <mxCell id="a7l" vertex="1" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;fontSize=1;fontFamily=Times New Roman;" value="" parent="1">
+        <mxGeometry x="609" y="539" width="2" height="2" as="geometry" />
+    </mxCell>
+    <mxCell id="a7r" vertex="1" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;fontSize=1;fontFamily=Times New Roman;" value="" parent="1">
+        <mxGeometry x="439" y="539" width="2" height="2" as="geometry" />
+    </mxCell>
+    <mxCell id="m7" source="a7l" target="a7r" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;dashed=1;strokeColor=#000000;fontFamily=Times New Roman;fontSize=12;" value="7: подтверждение брони (booked)" parent="1">
+        <mxGeometry relative="1" as="geometry">
+        </mxGeometry>
+    </mxCell>
+    <mxCell id="a8l" vertex="1" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;fontSize=1;fontFamily=Times New Roman;" value="" parent="1">
+        <mxGeometry x="439" y="599" width="2" height="2" as="geometry" />
+    </mxCell>
+    <mxCell id="a8r" vertex="1" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;fontSize=1;fontFamily=Times New Roman;" value="" parent="1">
+        <mxGeometry x="269" y="599" width="2" height="2" as="geometry" />
+    </mxCell>
+    <mxCell id="m8" source="a8l" target="a8r" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;dashed=1;strokeColor=#000000;fontFamily=Times New Roman;fontSize=12;" value="8: показать подтверждение пациенту" parent="1">
+        <mxGeometry relative="1" as="geometry">
+        </mxGeometry>
+    </mxCell>
+    <mxCell id="a9l" vertex="1" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;fontSize=1;fontFamily=Times New Roman;" value="" parent="1">
+        <mxGeometry x="609" y="659" width="2" height="2" as="geometry" />
+    </mxCell>
+    <mxCell id="a9r" vertex="1" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;fontSize=1;fontFamily=Times New Roman;" value="" parent="1">
+        <mxGeometry x="1119" y="659" width="2" height="2" as="geometry" />
+    </mxCell>
+    <mxCell id="m9" source="a9l" target="a9r" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;strokeColor=#000000;fontFamily=Times New Roman;fontSize=12;" value="9: опубликовать событие appointment.created" parent="1">
+        <mxGeometry relative="1" as="geometry">
+        </mxGeometry>
+    </mxCell>
+    <mxCell id="a10l" vertex="1" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;fontSize=1;fontFamily=Times New Roman;" value="" parent="1">
+        <mxGeometry x="1119" y="719" width="2" height="2" as="geometry" />
+    </mxCell>
+    <mxCell id="a10r" vertex="1" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;fontSize=1;fontFamily=Times New Roman;" value="" parent="1">
+        <mxGeometry x="1289" y="719" width="2" height="2" as="geometry" />
+    </mxCell>
+    <mxCell id="m10" source="a10l" target="a10r" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;strokeColor=#000000;fontFamily=Times New Roman;fontSize=12;" value="10: доставить событие подписчику" parent="1">
+        <mxGeometry relative="1" as="geometry">
+        </mxGeometry>
+    </mxCell>
+    <mxCell id="a11l" vertex="1" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;fontSize=1;fontFamily=Times New Roman;" value="" parent="1">
+        <mxGeometry x="1289" y="779" width="2" height="2" as="geometry" />
+    </mxCell>
+    <mxCell id="a11r" vertex="1" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;fontSize=1;fontFamily=Times New Roman;" value="" parent="1">
+        <mxGeometry x="269" y="779" width="2" height="2" as="geometry" />
+    </mxCell>
+    <mxCell id="m11" source="a11l" target="a11r" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;dashed=1;strokeColor=#000000;fontFamily=Times New Roman;fontSize=12;" value="11: уведомление о записи (Communication)" parent="1">
+        <mxGeometry relative="1" as="geometry">
+        </mxGeometry>
+    </mxCell>
+    <mxCell id="act_appt" vertex="1" style="rounded=0;fillColor=#ffffff;align=center;whiteSpace=wrap;html=1;fontFamily=Times New Roman;" value="" parent="1">
+        <mxGeometry x="601" y="300" width="18" height="250" as="geometry" />
+    </mxCell>
+    <mxCell id="act_fhir" vertex="1" style="rounded=0;fillColor=#ffffff;align=center;whiteSpace=wrap;html=1;fontFamily=Times New Roman;" value="" parent="1">
+        <mxGeometry x="771" y="420" width="18" height="70" as="geometry" />
+    </mxCell>
+    <mxCell id="act_notif" vertex="1" style="rounded=0;fillColor=#ffffff;align=center;whiteSpace=wrap;html=1;fontFamily=Times New Roman;" value="" parent="1">
+        <mxGeometry x="1281" y="720" width="18" height="70" as="geometry" />
+    </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

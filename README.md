@@ -6,10 +6,62 @@ services** (auth, practitioner, catalog, patient, appointment, notification, enc
 an **outbox relay** (`apps/outbox-relay`, ADR-021: booking, cancellation, encounter-completion and registration events
 are written to HAPI together with the change that caused them and published to RabbitMQ from there) and a **Next.js** client. Design: [specs/MANIFEST.md](specs/MANIFEST.md),
 architecture and ADRs: [specs/architect-architecture.md](specs/architect-architecture.md) (diagrams in
-[docs/diagrams/](docs/diagrams/)), API contract: [specs/api-designer-spec.md](specs/api-designer-spec.md),
+[Diagrams](#diagrams) below), API contract: [specs/api-designer-spec.md](specs/api-designer-spec.md),
 change history: [CHANGELOG.md](CHANGELOG.md).
 
 > **For agent policy rules, see [AGENTS.md](AGENTS.md)**
+
+## Diagrams
+
+PNG images with their draw.io sources (same name, `.drawio`) in [docs/diagrams/labs/](docs/diagrams/labs/).
+
+<details>
+<summary><b>IDEF0: context (A-0) and decomposition (A0)</b></summary>
+
+![IDEF0 A-0 context](docs/diagrams/labs/idef0-a-0-context.png)
+![IDEF0 A0 decomposition](docs/diagrams/labs/idef0-a0-decompose.png)
+
+</details>
+
+<details>
+<summary><b>IDEF3: process flows</b></summary>
+
+![IDEF3 A1-A2](docs/diagrams/labs/idef3-1-a1-a2.png)
+![IDEF3 A3-A4](docs/diagrams/labs/idef3-2-a3-a4.png)
+![IDEF3 A5 notifications](docs/diagrams/labs/idef3-3-a5-notifications.png)
+
+</details>
+
+<details>
+<summary><b>Use cases</b></summary>
+
+![Use case diagram](docs/diagrams/labs/usecase-medcenter.png)
+
+</details>
+
+<details>
+<summary><b>Classes and packages</b></summary>
+
+![Class diagram](docs/diagrams/labs/classes.png)
+![Package diagram](docs/diagrams/labs/packages.png)
+
+</details>
+
+<details>
+<summary><b>Components and deployment</b></summary>
+
+![Component diagram](docs/diagrams/labs/components.png)
+![Deployment diagram](docs/diagrams/labs/deployment.png)
+
+</details>
+
+<details>
+<summary><b>Behaviour: booking sequence and appointment states</b></summary>
+
+![Booking sequence diagram](docs/diagrams/labs/sequence-booking.png)
+![Appointment state diagram](docs/diagrams/labs/states-appointment.png)
+
+</details>
 
 ## Running the project
 
