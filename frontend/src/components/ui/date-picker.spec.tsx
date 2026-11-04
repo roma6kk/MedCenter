@@ -3,16 +3,18 @@ import userEvent from '@testing-library/user-event';
 import { useState } from 'react';
 import type { ReactNode } from 'react';
 import { clinicDateKey } from '@/lib/clinic-time';
+import { useUiStore } from '@/store/use-ui-store';
 import { DatePicker } from './date-picker';
 
 interface HarnessProps {
   readonly initial?: string;
   readonly min?: string;
   readonly max?: string;
+  readonly describedBy?: string;
   readonly onChange?: (value: string) => void;
 }
 
-function Harness({ initial = '', min, max, onChange }: HarnessProps): ReactNode {
+function Harness({ initial = '', min, max, describedBy, onChange }: HarnessProps): ReactNode {
   const [value, setValue] = useState<string>(initial);
   return (
     <>
@@ -22,6 +24,7 @@ function Harness({ initial = '', min, max, onChange }: HarnessProps): ReactNode 
         value={value}
         min={min}
         max={max}
+        aria-describedby={describedBy}
         onChange={(next) => {
           setValue(next);
           onChange?.(next);
@@ -32,6 +35,8 @@ function Harness({ initial = '', min, max, onChange }: HarnessProps): ReactNode 
     </>
   );
 }
+
+beforeEach(() => useUiStore.setState({ locale: 'ru' }));
 
 const field = (): HTMLInputElement => screen.getByLabelText('Дата') as HTMLInputElement;
 const openButton = (): HTMLElement => screen.getByRole('button', { name: 'Выбрать дату в календаре' });
@@ -103,6 +108,108 @@ describe('DatePicker text field', () => {
     const { container } = render(<Harness />);
 
     expect(container.querySelector('.max-w-\\[12rem\\]')).not.toBeNull();
+  });
+});
+
+describe('DatePicker unreadable text (WCAG 3.3.1, 1.4.1)', () => {
+  const MESSAGE = 'Не похоже на дату. Формат: дд.мм.гггг';
+
+  it('should not explain the text while it is still being typed, since every half-typed date is not a day yet', async () => {
+    render(<Harness />);
+
+    await userEvent.type(field(), '31.0');
+
+    expect(field()).toHaveAttribute('aria-invalid', 'true');
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
+
+  it('should say what is wrong and which form is read when the visitor leaves the field with a text that is not a day', async () => {
+    render(<Harness />);
+
+    await userEvent.type(field(), '31.02.2026');
+    await userEvent.tab();
+
+    expect(screen.getByRole('alert')).toHaveTextContent(MESSAGE);
+    expect(field()).toHaveAccessibleDescription(MESSAGE);
+  });
+
+  it('should say it when Enter is pressed with a text that is not a day, before the field is left', async () => {
+    render(<Harness />);
+
+    await userEvent.type(field(), '31.02.2026{Enter}');
+
+    expect(screen.getByRole('alert')).toHaveTextContent(MESSAGE);
+    expect(field()).toHaveFocus();
+  });
+
+  it('should keep the description the caller gave next to the explanation', async () => {
+    render(<Harness describedBy="hint" />);
+    expect(field()).toHaveAttribute('aria-describedby', 'hint');
+
+    await userEvent.type(field(), '31.02.2026');
+    await userEvent.tab();
+
+    expect(field().getAttribute('aria-describedby')).toMatch(/^hint \S+-unreadable$/);
+  });
+
+  it('should keep the explanation while the text is corrected and drop it once the text is a day', async () => {
+    render(<Harness />);
+    await userEvent.type(field(), '31.02.2026');
+    await userEvent.tab();
+
+    fireEvent.change(field(), { target: { value: '31.02.202' } });
+    expect(screen.getByRole('alert')).toBeInTheDocument();
+
+    fireEvent.change(field(), { target: { value: '27.10.2026' } });
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    expect(field()).not.toHaveAttribute('aria-invalid');
+    expect(field()).not.toHaveAttribute('aria-describedby');
+  });
+
+  it('should drop the explanation when the text is cleared', async () => {
+    render(<Harness />);
+    await userEvent.type(field(), '31.02.2026');
+    await userEvent.tab();
+
+    await userEvent.clear(field());
+
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
+
+  it('should be silent again for the next half-typed text once a day was picked in the calendar', async () => {
+    render(<Harness />);
+    await userEvent.type(field(), '31.02.2026');
+    await userEvent.tab();
+    expect(screen.getByRole('alert')).toBeInTheDocument();
+
+    await userEvent.click(openButton());
+    await userEvent.click(screen.getByRole('button', { name: 'Сегодня' }));
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    await userEvent.type(field(), '{Backspace}');
+
+    expect(field()).toHaveAttribute('aria-invalid', 'true');
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
+
+  it('should keep the calendar button in the box of the field, so the line under the field does not pull it down', async () => {
+    render(<Harness />);
+
+    await userEvent.type(field(), '31.02.2026');
+    await userEvent.tab();
+
+    const box = openButton().parentElement as HTMLElement;
+    expect(box).toContainElement(field());
+    expect(box).not.toContainElement(screen.getByRole('alert'));
+  });
+
+  it('should explain it in English when the language is English', async () => {
+    useUiStore.setState({ locale: 'en' });
+    render(<Harness />);
+
+    await userEvent.type(field(), '31.02.2026');
+    await userEvent.tab();
+
+    expect(screen.getByRole('alert')).toHaveTextContent('Not a valid date. Format: dd.mm.yyyy');
   });
 });
 

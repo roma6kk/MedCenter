@@ -3,7 +3,7 @@
 import { forwardRef, useCallback, useEffect, useId, useRef, useState } from 'react';
 import type { ChangeEvent, FocusEvent, InputHTMLAttributes, KeyboardEvent, ReactNode } from 'react';
 import { createPortal } from 'react-dom';
-import { CalendarDays, ChevronLeft, ChevronRight } from 'lucide-react';
+import { CalendarDays, ChevronLeft, ChevronRight, CircleAlert } from 'lucide-react';
 import {
   addMonths,
   clampKey,
@@ -261,6 +261,9 @@ function CalendarPopover({ anchor, value, min, max, onSelect, onClose }: Calenda
  *
  * Controlled (`value` + `onChange(iso)`); with react-hook-form wrap it in `Controller`. The text being typed is kept
  * while the visitor is in the field, even when the form already holds an older day, and is shown as `дд.мм.гггг` after blur.
+ * A text that is not a day turns the border red as it is typed; once the visitor is done with it (leaves the field, presses
+ * Enter) a line under the field says what is wrong and which form is read (WCAG 3.3.1, 1.4.1), and it stays until the text is
+ * a day or empty again. It is not shown earlier: every half-typed date is «not a day» and the form below would jump.
  */
 export const DatePicker = forwardRef<HTMLInputElement, DatePickerProps>(function DatePicker(
   { value, onChange, onBlur, min, max, wrapperClassName, className, disabled, ...rest },
@@ -280,14 +283,19 @@ export const DatePicker = forwardRef<HTMLInputElement, DatePickerProps>(function
   const popoverId: string = useId();
   const [draft, setDraft] = useState<string>(() => formatTypedDate(value));
   const [isOpen, setIsOpen] = useState<boolean>(false);
+  // The visitor is done with a text that is not a day (left the field, pressed Enter): only then is it explained, not while it is typed.
+  const [isJudged, setIsJudged] = useState<boolean>(false);
   // The last value this field reported: a different `value` prop is a change from outside (reset, period moved by buttons) and replaces the text.
   const reported = useRef<string>(value);
   useEffect(() => {
     if (value === reported.current) return;
     reported.current = value;
     setDraft(formatTypedDate(value));
+    setIsJudged(false);
   }, [value]);
 
+  const isUnreadable: boolean = draft.trim() !== '' && parseTypedDate(draft) === null;
+  const hasProblem: boolean = isUnreadable && isJudged;
   const report = (next: string): void => {
     if (next === reported.current) return;
     reported.current = next;
@@ -295,17 +303,22 @@ export const DatePicker = forwardRef<HTMLInputElement, DatePickerProps>(function
   };
   const handleChange = (event: ChangeEvent<HTMLInputElement>): void => {
     const text: string = event.target.value;
+    const day: string | null = parseTypedDate(text);
     setDraft(text);
-    report(parseTypedDate(text) ?? '');
+    // The explanation stays while the text is corrected (no flicker per keystroke) and goes once it is a day, or nothing, again.
+    if (day !== null || text.trim() === '') setIsJudged(false);
+    report(day ?? '');
   };
   const handleBlur = (event: FocusEvent<HTMLInputElement>): void => {
-    // A readable day is shown in the standard form; text that is not a day stays (and the field is marked) so the visitor sees what was refused.
+    // A readable day is shown in the standard form; text that is not a day stays (and the field is marked and explained) so the visitor sees what was refused.
     const day: string | null = parseTypedDate(draft);
     if (draft.trim() === '' || day !== null) setDraft(formatTypedDate(day ?? ''));
+    setIsJudged(isUnreadable);
     onBlur?.(event);
   };
   const select = (key: string): void => {
     setDraft(formatTypedDate(key));
+    setIsJudged(false);
     report(key);
     setIsOpen(false);
     input.current?.focus();
@@ -314,44 +327,56 @@ export const DatePicker = forwardRef<HTMLInputElement, DatePickerProps>(function
     setIsOpen(false);
     if (restoreFocus) input.current?.focus();
   }, []);
-  const isUnreadable: boolean = draft.trim() !== '' && parseTypedDate(draft) === null;
+  const problemId: string = `${popoverId}-unreadable`;
+  const describedBy: string = [rest['aria-describedby'], hasProblem ? problemId : undefined].filter(Boolean).join(' ');
   return (
-    <div ref={box} className={cn('relative w-full', FIELD_NARROW_CLASS, wrapperClassName)}>
-      <input
-        {...rest}
-        ref={setInput}
-        type="text"
-        inputMode="decimal"
-        autoComplete={rest.autoComplete ?? 'off'}
-        maxLength={10}
-        placeholder={t('placeholder')}
-        disabled={disabled}
-        value={draft}
-        onChange={handleChange}
-        onBlur={handleBlur}
-        onKeyDown={(event) => {
-          rest.onKeyDown?.(event);
-          if (event.altKey && event.key === 'ArrowDown' && disabled !== true) {
-            event.preventDefault();
-            setIsOpen(true);
-          }
-        }}
-        aria-invalid={rest['aria-invalid'] === true || isUnreadable ? true : undefined}
-        className={cn(FIELD_CLASS, 'pr-12 tabular-nums', className)}
-      />
-      <button
-        type="button"
-        disabled={disabled}
-        aria-label={t('open')}
-        aria-haspopup="dialog"
-        aria-expanded={isOpen}
-        aria-controls={isOpen ? popoverId : undefined}
-        onClick={() => setIsOpen((open) => !open)}
-        className="absolute right-0 top-1/2 inline-flex size-11 -translate-y-1/2 items-center justify-center rounded-control text-muted-foreground transition-[background-color,color] duration-fast ease-out hover:bg-secondary hover:text-foreground disabled:opacity-60"
-      >
-        <CalendarDays aria-hidden="true" className="size-5" />
-      </button>
-      {isOpen ? <CalendarPopover anchor={box.current} value={isDateKey(value) ? value : ''} min={min} max={max} onSelect={select} onClose={close} /> : null}
+    <div className={cn('w-full', FIELD_NARROW_CLASS, wrapperClassName)}>
+      {/* The input and the button share their own positioned box, so the line under the field does not pull the button down. */}
+      <div ref={box} className="relative">
+        <input
+          {...rest}
+          ref={setInput}
+          type="text"
+          inputMode="decimal"
+          autoComplete={rest.autoComplete ?? 'off'}
+          maxLength={10}
+          placeholder={t('placeholder')}
+          disabled={disabled}
+          value={draft}
+          onChange={handleChange}
+          onBlur={handleBlur}
+          onKeyDown={(event) => {
+            rest.onKeyDown?.(event);
+            if (event.key === 'Enter') setIsJudged(isUnreadable);
+            if (event.altKey && event.key === 'ArrowDown' && disabled !== true) {
+              event.preventDefault();
+              setIsOpen(true);
+            }
+          }}
+          aria-invalid={rest['aria-invalid'] === true || isUnreadable ? true : undefined}
+          aria-describedby={describedBy === '' ? undefined : describedBy}
+          className={cn(FIELD_CLASS, 'pr-12 tabular-nums', className)}
+        />
+        <button
+          type="button"
+          disabled={disabled}
+          aria-label={t('open')}
+          aria-haspopup="dialog"
+          aria-expanded={isOpen}
+          aria-controls={isOpen ? popoverId : undefined}
+          onClick={() => setIsOpen((open) => !open)}
+          className="absolute right-0 top-1/2 inline-flex size-11 -translate-y-1/2 items-center justify-center rounded-control text-muted-foreground transition-[background-color,color] duration-fast ease-out hover:bg-secondary hover:text-foreground disabled:opacity-60"
+        >
+          <CalendarDays aria-hidden="true" className="size-5" />
+        </button>
+        {isOpen ? <CalendarPopover anchor={box.current} value={isDateKey(value) ? value : ''} min={min} max={max} onSelect={select} onClose={close} /> : null}
+      </div>
+      {hasProblem ? (
+        <p id={problemId} role="alert" className="mt-1.5 flex items-start gap-1.5 text-sm text-destructive">
+          <CircleAlert aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0" />
+          <span>{t('unreadable')}</span>
+        </p>
+      ) : null}
     </div>
   );
 });

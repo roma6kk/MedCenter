@@ -1839,7 +1839,8 @@
       "month": "Month",
       "year": "Year",
       "today": "Today",
-      "hint": "Arrow keys move the day, PageUp and PageDown move the month, Enter selects, Esc closes."
+      "hint": "Arrow keys move the day, PageUp and PageDown move the month, Enter selects, Esc closes.",
+      "unreadable": "Not a valid date. Format: dd.mm.yyyy"
     },
     "fileDrop": {
       "prompt": "Drag a file here or",
