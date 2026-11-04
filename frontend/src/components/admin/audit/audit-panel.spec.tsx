@@ -54,6 +54,21 @@ describe('AuditPanel', () => {
     expect(apiFetchMock.mock.calls.map(([path]) => path)).toContain('/api/v1/admin/users?page=1&pageSize=100');
   });
 
+  it('should ask for the doctors and the administrators on their own, so an account past the first 100 still has a name', async () => {
+    const doctor = { id: '19d9172b-681f-4e46-a451-43215ce442d4', name: 'Петров Пётр', email: 'p@y.test', firstName: 'Пётр', lastName: 'Петров', roles: ['DOCTOR'], role: 'DOCTOR', patientRef: null, practitionerRoleRef: null, isActive: true };
+    apiFetchMock.mockImplementation((path: string) => {
+      if (path === '/api/v1/admin/users?page=1&pageSize=100&role=DOCTOR') return Promise.resolve({ items: [doctor], meta: { page: 1, pageSize: 100, totalItems: 1, totalPages: 1 } });
+      if (path.startsWith('/api/v1/admin/users')) return Promise.resolve({ items: [], meta: { page: 1, pageSize: 100, totalItems: 250, totalPages: 3 } });
+      return Promise.resolve(paged(3));
+    });
+    renderWithClient(<AuditPanel />);
+
+    const table = within(await screen.findByRole('table', { name: 'Журнал аудита' }));
+
+    expect(await table.findByText('Петров Пётр')).toBeInTheDocument();
+    expect(apiFetchMock.mock.calls.map(([path]) => path)).toEqual(expect.arrayContaining(['/api/v1/admin/users?page=1&pageSize=100&role=ADMIN']));
+  });
+
   it('should show when, who, what and on which resource for each event when the journal loads', async () => {
     renderWithClient(<AuditPanel />);
 
@@ -161,6 +176,30 @@ describe('AuditPanel', () => {
     expect(await screen.findByText('Укажите тип ресурса с заглавной буквы или Тип/id')).toBeInTheDocument();
     expect(screen.getByLabelText('Ресурс')).toHaveFocus();
     expect(apiFetchMock.mock.calls).toHaveLength(calls);
+  });
+
+  it('should drop the error of a field that is typed back to the applied value', async () => {
+    renderWithClient(<AuditPanel />);
+    await screen.findByText('Найдено событий: 41');
+
+    await userEvent.type(screen.getByLabelText('Ресурс'), 'appointment');
+    expect(await screen.findByText('Укажите тип ресурса с заглавной буквы или Тип/id')).toBeInTheDocument();
+    await userEvent.clear(screen.getByLabelText('Ресурс'));
+
+    await waitFor(() => expect(screen.queryByText('Укажите тип ресурса с заглавной буквы или Тип/id')).not.toBeInTheDocument());
+    expect(screen.getByLabelText('Ресурс')).not.toHaveAttribute('aria-invalid');
+  });
+
+  it('should print the error under the whole row, not inside its field, so the fields stay on one line', async () => {
+    renderWithClient(<AuditPanel />);
+    await screen.findByText('Найдено событий: 41');
+
+    await userEvent.type(screen.getByLabelText('Ресурс'), 'appointment');
+
+    const message = await screen.findByText('Укажите тип ресурса с заглавной буквы или Тип/id');
+    expect(message).toHaveAttribute('id', 'audit-entity-error');
+    expect(message).toHaveAttribute('role', 'alert');
+    expect(message.parentElement).toHaveAttribute('role', 'search');
   });
 
   it('should not call a resource that is still being typed a mistake before the typing pauses', async () => {

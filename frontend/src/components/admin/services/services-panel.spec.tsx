@@ -28,11 +28,11 @@ describe('ServicesPanel', () => {
     apiFetchMock.mockResolvedValue(pageOf(services));
   });
 
-  it('should list the services from the public catalogue GET /api/v1/services when the panel mounts', async () => {
+  it('should list the services from the administrator catalogue GET /api/v1/admin/services when the panel mounts', async () => {
     renderWithClient(<ServicesPanel />);
 
     expect((await screen.findAllByText('Приём терапевта')).length).toBeGreaterThan(0);
-    expect(apiFetchMock).toHaveBeenCalledWith('/api/v1/services?page=1&pageSize=10', RUSSIAN);
+    expect(apiFetchMock).toHaveBeenCalledWith('/api/v1/admin/services?page=1&pageSize=10', RUSSIAN);
   });
 
   it('should request the search text and the first page once typing pauses, in one request and without a search button', async () => {
@@ -43,7 +43,7 @@ describe('ServicesPanel', () => {
     await userEvent.type(screen.getByLabelText('Поиск по названию'), 'экг');
 
     expect(apiFetchMock).toHaveBeenCalledTimes(before);
-    await waitFor(() => expect(apiFetchMock).toHaveBeenCalledWith('/api/v1/services?page=1&pageSize=10&search=%D1%8D%D0%BA%D0%B3', RUSSIAN));
+    await waitFor(() => expect(apiFetchMock).toHaveBeenCalledWith('/api/v1/admin/services?page=1&pageSize=10&search=%D1%8D%D0%BA%D0%B3', RUSSIAN));
     expect(apiFetchMock).toHaveBeenCalledTimes(before + 1);
     expect(screen.queryByRole('button', { name: 'Найти' })).not.toBeInTheDocument();
   });
@@ -54,7 +54,7 @@ describe('ServicesPanel', () => {
 
     await userEvent.type(screen.getByLabelText('Поиск по названию'), 'экг{Enter}');
 
-    expect(apiFetchMock).toHaveBeenCalledWith('/api/v1/services?page=1&pageSize=10&search=%D1%8D%D0%BA%D0%B3', RUSSIAN);
+    expect(apiFetchMock).toHaveBeenCalledWith('/api/v1/admin/services?page=1&pageSize=10&search=%D1%8D%D0%BA%D0%B3', RUSSIAN);
   });
 
   it('should explain SERVICE_IN_USE in the delete dialog when schedules still use the service', async () => {
@@ -110,7 +110,7 @@ describe('ServicesPanel', () => {
         isDeleted = true;
         return Promise.resolve(undefined);
       }
-      if (path === '/api/v1/services?page=2&pageSize=10') return Promise.resolve({ items: isDeleted ? [] : [{ ...services[0], id: 's2', name: 'Приём хирурга' }], meta: meta(2, isDeleted ? 1 : 2) });
+      if (path === '/api/v1/admin/services?page=2&pageSize=10') return Promise.resolve({ items: isDeleted ? [] : [{ ...services[0], id: 's2', name: 'Приём хирурга' }], meta: meta(2, isDeleted ? 1 : 2) });
       return Promise.resolve({ items: services, meta: meta(1, isDeleted ? 1 : 2) });
     });
     renderWithClient(<ServicesPanel />);
@@ -119,7 +119,7 @@ describe('ServicesPanel', () => {
 
     await userEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Удалить' }));
 
-    await waitFor(() => expect(apiFetchMock).toHaveBeenLastCalledWith('/api/v1/services?page=1&pageSize=10', RUSSIAN));
+    await waitFor(() => expect(apiFetchMock).toHaveBeenLastCalledWith('/api/v1/admin/services?page=1&pageSize=10', RUSSIAN));
     expect((await screen.findAllByText('Приём терапевта')).length).toBeGreaterThan(0);
     expect(screen.queryByTestId('empty-state')).not.toBeInTheDocument();
   });

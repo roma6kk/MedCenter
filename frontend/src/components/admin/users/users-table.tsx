@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect } from 'react';
 import { Ban, FileCheck2, IdCard, Pencil, Stethoscope, UserCheck } from 'lucide-react';
 import { PaginatedTable, type PageMeta, type TableColumn } from '@/components/data-display/paginated-table';
 import { CodeChip } from '@/components/feedback/code-chip';
@@ -8,6 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { DropdownMenu, type MenuItem } from '@/components/ui/dropdown-menu';
 import type { Translate } from '@/lib/i18n/translate';
 import { useT } from '@/lib/i18n/use-t';
+import { rememberPatientNames } from '@/lib/admin-patient-names';
 import { USER_ROLES } from './user-types';
 
 export interface UserRow {
@@ -133,5 +135,13 @@ function useUserColumns<TUser extends UserRow>(actions: UserActions<TUser>, cons
 export function UsersTable<TUser extends UserRow>({ rows, meta, onPage, consentLinks = false, practitionerRoles, onEdit, onDeactivate, onActivate }: UsersTableProps<TUser>): React.JSX.Element {
   const t = useT('admin.users');
   const columns = useUserColumns({ onEdit, onDeactivate, onActivate }, consentLinks, practitionerRoles);
+  // The consent page of a patient names the person from here (it reads nothing about the patient itself, ADR-018).
+  useEffect(() => {
+    if (!consentLinks) return;
+    rememberPatientNames(rows.flatMap((row) => {
+      const patientId = patientIdOf(row);
+      return patientId === null || row.name === '' ? [] : [{ patientId, name: row.name }];
+    }));
+  }, [rows, consentLinks]);
   return <PaginatedTable<TUser> caption={t('title')} rowKey={(row) => row.id} meta={meta} onPage={onPage} rows={rows} columns={columns} />;
 }

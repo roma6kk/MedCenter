@@ -30,7 +30,7 @@ function answer(schedules: ReadonlyArray<AdminSchedule>): (path: string) => Prom
   return (path) => {
     if (path.startsWith('/api/v1/admin/users')) return Promise.resolve(pageOf([{ id: 'u1', name: 'Иванова Мария', email: 'i@x.test', firstName: 'М', lastName: 'И', roles: ['DOCTOR'], patientRef: null, practitionerRoleRef: 'PractitionerRole/role-1', isActive: true, role: 'DOCTOR' }]));
     if (path.startsWith('/api/v1/rooms')) return Promise.resolve(pageOf([{ id: 'room-1', identifier: '101', name: 'Кабинет 101', isActive: true }]));
-    if (path.startsWith('/api/v1/services')) return Promise.resolve(pageOf([{ id: 'svc-1', name: 'Приём терапевта', typeSystem: 's', typeCode: 'c', defaultDurationMin: 25, isActive: true }]));
+    if (path.startsWith('/api/v1/admin/services')) return Promise.resolve(pageOf([{ id: 'svc-1', name: 'Приём терапевта', typeSystem: 's', typeCode: 'c', defaultDurationMin: 25, isActive: true }]));
     if (path.startsWith('/api/v1/admin/schedules')) return Promise.resolve(pageOf(schedules));
     return Promise.resolve(undefined);
   };
@@ -81,7 +81,7 @@ describe('SchedulesPanel', () => {
     expect(screen.queryByRole('button', { name: /Сгенерировать слоты/ })).not.toBeInTheDocument();
     await userEvent.click((await screen.findAllByRole('button', { name: /^Действия:/ }))[0] as HTMLElement);
     expect(screen.queryByRole('menuitem', { name: 'Изменить' })).not.toBeInTheDocument();
-    expect(screen.getByRole('menuitem', { name: 'Удалить' })).toBeInTheDocument();
+    expect(screen.queryByRole('menuitem', { name: 'Удалить' })).not.toBeInTheDocument();
   });
 
   it('should open the generation dialog of the chosen schedule with its real id when the action is pressed', async () => {

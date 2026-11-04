@@ -53,6 +53,15 @@ describe('toServicePayload', () => {
   });
 });
 
+describe('isActive of a service', () => {
+  it('should send isActive on an edit and on a create of a deactivated service only', () => {
+    expect(toServicePayload(serviceValuesOf(service), false)).not.toHaveProperty('isActive');
+    expect(toServicePayload({ ...serviceValuesOf(service), isActive: false }, false)).toMatchObject({ isActive: false });
+    expect(toServicePayload(serviceValuesOf(service), true)).toMatchObject({ isActive: true });
+    expect(toServicePayload({ ...serviceValuesOf(service), isActive: false }, true)).toMatchObject({ isActive: false });
+  });
+});
+
 describe('English texts of a service', () => {
   it('should leave empty English texts out of a create and trim them', () => {
     expect(toServicePayload(serviceValuesOf(service), false)).not.toHaveProperty('nameEn');

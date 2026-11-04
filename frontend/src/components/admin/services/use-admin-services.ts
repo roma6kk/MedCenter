@@ -17,15 +17,15 @@ export interface ServicesFilter {
 }
 
 /**
- * The public catalogue (`GET /api/v1/services`, API 5.1.1): it is also the admin's list, there is no `/admin/services` read.
+ * The administrator's catalogue (`GET /api/v1/admin/services`, API 5.1.6): deactivated services are in it, the public list hides them.
  * Always asked in Russian: the form edits the stored name and description, which an English answer would replace with the
  * translation (the English texts come as `nameEn` / `descriptionEn`).
  */
 export function useAdminServices(filter: ServicesFilter): UseQueryResult<PaginatedResponse<AdminService>, Error> {
   const params = { page: filter.page, pageSize: filter.pageSize ?? SERVICES_PAGE_SIZE, search: filter.search.trim() };
   return useQuery({
-    queryKey: queryKeys.services(params),
-    queryFn: async () => toPaginated(await apiFetch<PaginatedResponse<AdminService> | ReadonlyArray<AdminService>>(withQuery('/api/v1/services', params), { headers: { 'Accept-Language': 'ru' } })),
+    queryKey: queryKeys.adminServices(params),
+    queryFn: async () => toPaginated(await apiFetch<PaginatedResponse<AdminService> | ReadonlyArray<AdminService>>(withQuery('/api/v1/admin/services', params), { headers: { 'Accept-Language': 'ru' } })),
     placeholderData: keepPreviousData,
   });
 }

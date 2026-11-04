@@ -37,12 +37,12 @@ describe('SchedulesTable', () => {
     expect(onDelete).toHaveBeenCalledWith(schedule);
   });
 
-  it('should offer neither edit nor generate for an inactive schedule', async () => {
+  it('should offer only the slots for an inactive schedule, a second delete changes nothing', async () => {
     renderTable({ ...schedule, isActive: false });
 
     expect(screen.queryByRole('button', { name: /Сгенерировать слоты/ })).not.toBeInTheDocument();
     await userEvent.click(screen.getAllByRole('button', { name: /^Действия:/ })[0]!);
-    expect(screen.getAllByRole('menuitem').map((item) => item.textContent)).toEqual(['Слоты', 'Удалить']);
+    expect(screen.getAllByRole('menuitem').map((item) => item.textContent)).toEqual(['Слоты']);
   });
 
   it('should keep «Сгенерировать слоты» on one line (D3)', () => {

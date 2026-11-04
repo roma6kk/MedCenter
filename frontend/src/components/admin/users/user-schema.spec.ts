@@ -1,3 +1,4 @@
+import { clinicDateKey } from '@/lib/clinic-time';
 import { createUserSchema, editUserSchema, editValuesOf, EMPTY_CREATE_VALUES, toCreatePayload, toUpdatePayload, type CreateUserFormValues } from './user-schema';
 import type { AdminUser } from './user-types';
 
@@ -35,6 +36,11 @@ describe('createUserSchema', () => {
 
   it('should require the birth date when the account is a PATIENT', () => {
     expect(issuePaths({ ...valid, birthDate: '' }, createUserSchema)).toContain('birthDate');
+  });
+
+  it('should refuse a birth date after today and accept today', () => {
+    expect(issuePaths({ ...valid, birthDate: '2090-01-01' }, createUserSchema)).toContain('birthDate');
+    expect(createUserSchema.safeParse({ ...valid, birthDate: clinicDateKey() }).success).toBe(true);
   });
 
   it('should not require the birth date when the account has no PATIENT role', () => {

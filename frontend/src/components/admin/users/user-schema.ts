@@ -3,6 +3,7 @@
  * (`CreateUserDto` / `UpdateUserDto`, api-designer-spec §2.2). Messages are message KEYS resolved by `useFormMessage`.
  */
 import { z } from 'zod';
+import { clinicDateKey } from '@/lib/clinic-time';
 import { EMAIL_MAX, NAME_MAX, PASSWORD_MAX, PASSWORD_MIN, PASSWORD_PATTERN, isCalendarDate } from '@/lib/contracts';
 import { FHIR_ID_PATTERN } from '../shared/fhir-id';
 import { referenceId, type AdminUser, type CreateUserPayload, type UpdateUserPayload, type UserRole } from './user-types';
@@ -41,6 +42,11 @@ export function effectiveLink(values: Pick<RoleValues, 'roles' | 'practitionerRo
 function checkRoleRules(values: RoleValues, ctx: z.RefinementCtx, needsBirthDate: boolean): void {
   if (needsBirthDate && values.roles.includes('PATIENT') && (values.birthDate ?? '') === '') {
     ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['birthDate'], message: 'admin.users.validation.birthDateRequired' });
+  }
+  // A typed date is not held to the calendar's `max`, so a birth date after today is refused here (the clock is read now, not at import).
+  const birthDate: string = values.birthDate ?? '';
+  if (isCalendarDate(birthDate) && birthDate > clinicDateKey()) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['birthDate'], message: 'admin.users.validation.birthDateFuture' });
   }
   const link: string = effectiveLink(values);
   if (link !== '' && !FHIR_ID_PATTERN.test(link)) {

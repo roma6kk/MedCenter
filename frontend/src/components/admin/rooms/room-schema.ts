@@ -26,12 +26,12 @@ export function roomValuesOf(room: AdminRoom): RoomFormValues {
   return { identifier: room.identifier, name: room.name, floor: room.floor === undefined ? '' : String(room.floor), description: room.description ?? '' };
 }
 
-/** The body of `POST`/`PATCH /admin/rooms`. An edit always sends the description (an empty one clears it). */
+/** The body of `POST`/`PATCH /admin/rooms`. An edit always sends the description (an empty one clears it) and `floor: null` for a blank floor (api-designer-spec §4.5). */
 export function toRoomPayload(values: RoomFormValues, isEdit: boolean): RoomPayload {
   return {
     identifier: values.identifier.trim(),
     name: values.name.trim(),
-    ...(values.floor === '' ? {} : { floor: Number(values.floor) }),
+    ...(values.floor !== '' ? { floor: Number(values.floor) } : isEdit ? { floor: null } : {}),
     ...(values.description === '' && !isEdit ? {} : { description: values.description }),
   };
 }

@@ -49,7 +49,8 @@ function useFilterDraft(filter: AuditFilter, onApply: (filter: AuditFilter) => v
     setErrors({});
     onApply(initial);
   };
-  return { draft, setDraft, errors, handleReset };
+  // A draft that is back at the applied filter is not a mistake any more, whatever the last check said (the check runs only for a changed draft).
+  return { draft, setDraft, errors: sameFilter(draft, filter) ? {} : errors, handleReset };
 }
 
 /** Period, resource and user filters of the journal. They apply themselves (dates and text once the typing pauses); «Сбросить» returns to the last 30 days. */
@@ -61,13 +62,13 @@ export function AuditFiltersForm({ filter, onApply }: AuditFiltersFormProps): Re
   const userError: string | undefined = errors.userId === true ? t('errors.userId') : undefined;
   return (
     <form role="search" aria-label={t('filters.label')} onSubmit={(event) => event.preventDefault()} noValidate className="no-print mb-5 flex flex-wrap items-end gap-3 rounded-card border border-[var(--border)] bg-[var(--card)] p-4">
-      <Field id="audit-from" label={t('filters.from')} error={rangeError}>
+      <Field id="audit-from" label={t('filters.from')}>
         <DatePicker {...controlProps('audit-from', rangeError)} value={draft.from} onChange={(from) => setDraft({ ...draft, from })} wrapperClassName="w-44" />
       </Field>
       <Field id="audit-to" label={t('filters.to')}>
         <DatePicker id="audit-to" value={draft.to} aria-invalid={rangeError ? true : undefined} aria-describedby={rangeError ? 'audit-from-error' : undefined} onChange={(to) => setDraft({ ...draft, to })} wrapperClassName="w-44" />
       </Field>
-      <Field id="audit-entity" label={t('filters.entity')} error={entityError}>
+      <Field id="audit-entity" label={t('filters.entity')}>
         <input {...controlProps('audit-entity', entityError, t('filters.entityHint'))} list="audit-entity-options" value={draft.entity} maxLength={130} autoComplete="off" onChange={(event) => setDraft({ ...draft, entity: event.target.value })} className={cn(CONTROL_CLASS, 'mono w-52')} />
         <datalist id="audit-entity-options">
           {ENTITY_SUGGESTIONS.map((type) => (
@@ -75,11 +76,15 @@ export function AuditFiltersForm({ filter, onApply }: AuditFiltersFormProps): Re
           ))}
         </datalist>
       </Field>
-      <Field id="audit-user" label={t('filters.userId')} error={userError}>
+      <Field id="audit-user" label={t('filters.userId')}>
         <input {...controlProps('audit-user', userError)} value={draft.userId} maxLength={128} autoComplete="off" onChange={(event) => setDraft({ ...draft, userId: event.target.value })} className={cn(CONTROL_CLASS, 'mono w-52')} />
       </Field>
       <button type="button" onClick={handleReset} className={SECONDARY_BUTTON_CLASS}>{t('filters.reset')}</button>
       {/* The hint of «Ресурс» sits under the whole row, not under its field: a taller field would lift its input above the others. */}
+      {/* The messages sit under the whole row too: an error inside a Field would lift that field above the others (items-end). */}
+      {rangeError ? <p id="audit-from-error" role="alert" className="basis-full text-xs text-[var(--destructive)]">{rangeError}</p> : null}
+      {entityError ? <p id="audit-entity-error" role="alert" className="basis-full text-xs text-[var(--destructive)]">{entityError}</p> : null}
+      {userError ? <p id="audit-user-error" role="alert" className="basis-full text-xs text-[var(--destructive)]">{userError}</p> : null}
       <p id="audit-entity-hint" className="basis-full text-xs text-muted-foreground">{t('filters.entityHint')}</p>
     </form>
   );

@@ -39,6 +39,10 @@ describe('toRoomPayload', () => {
     expect(toRoomPayload({ ...roomValuesOf(room), description: '' }, true)).toMatchObject({ description: '' });
   });
 
+  it('should send floor null when a room is edited with a blank floor, so that it removes the old one', () => {
+    expect(toRoomPayload({ ...roomValuesOf(room), floor: '' }, true)).toMatchObject({ floor: null });
+  });
+
   it('should send the floor as a number when it is filled', () => {
     expect(toRoomPayload(roomValuesOf(room), false)).toMatchObject({ floor: 2 });
   });

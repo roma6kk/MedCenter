@@ -22,10 +22,24 @@ function resourceOf(event: AuditEvent): string {
   return event.resourceId === '' ? event.resourceType : `${event.resourceType}/${event.resourceId}`;
 }
 
-/** Account id → «Фамилия Имя», from the first 100 accounts; an id it does not know (a service, an older account) stays raw. */
+/**
+ * Account id → «Фамилия Имя». The actors of writes and consent events are staff, so doctors and administrators are asked for
+ * on their own (a clinic with hundreds of patients would push a new doctor past the first 100 accounts); the all-roles page
+ * after them names the patients. An id none of them knows (a service, an older account) stays raw.
+ */
 function useAccountNames(): ReadonlyMap<string, string> {
-  const users = useAdminUsers({ page: 1, role: '', search: '', pageSize: 100 });
-  return useMemo(() => new Map((users.data?.items ?? []).filter((user) => typeof user.name === 'string').map((user) => [user.id, user.name])), [users.data]);
+  const doctors = useAdminUsers({ page: 1, role: 'DOCTOR', search: '', pageSize: 100 });
+  const admins = useAdminUsers({ page: 1, role: 'ADMIN', search: '', pageSize: 100 });
+  const everyone = useAdminUsers({ page: 1, role: '', search: '', pageSize: 100 });
+  return useMemo(() => {
+    const names = new Map<string, string>();
+    for (const source of [doctors.data, admins.data, everyone.data]) {
+      for (const user of source?.items ?? []) {
+        if (typeof user.name === 'string' && !names.has(user.id)) names.set(user.id, user.name);
+      }
+    }
+    return names;
+  }, [doctors.data, admins.data, everyone.data]);
 }
 
 function WhoCell({ userId, name }: { readonly userId: string; readonly name: string | undefined }): React.JSX.Element {

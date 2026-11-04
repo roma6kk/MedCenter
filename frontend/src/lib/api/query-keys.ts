@@ -28,6 +28,8 @@ function locale(): Locale {
 export const queryKeys = {
   // catalogue (public, cached 5 min; one entry per language)
   services: (params?: Params) => ['services', normalise(params), locale()] as const,
+  /** The administrator's list (`GET /admin/services`, deactivated services included): its own entry beside the public one. */
+  adminServices: (params?: Params) => ['services', { ...normalise(params), admin: true }, locale()] as const,
   doctors: (params?: Params) => ['doctors', normalise(params), locale()] as const,
   doctor: (doctorId: string) => ['doctors', doctorId, locale()] as const,
   rooms: (params?: Params) => ['rooms', normalise(params)] as const,

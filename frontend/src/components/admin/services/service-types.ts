@@ -23,4 +23,6 @@ export interface ServicePayload {
   /** English name and description (the HL7 translation extension on the server); a blank one on an edit removes it. */
   readonly nameEn?: string;
   readonly descriptionEn?: string;
+  /** `false` deactivates the service: it leaves the public catalogue and the booking wizard (api-designer-spec §5.1.3). */
+  readonly isActive?: boolean;
 }

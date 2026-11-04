@@ -16,9 +16,9 @@
       "IMPORT_RUNNING": "A terminology import is already running. Wait for it to finish.",
       "SNAPSHOT_NOT_BUNDLED": "This snapshot version is not bundled with the service",
       "TERMINOLOGY_NOT_FOUND": "This code is not in the reference catalogue",
-      "ROOM_IN_USE": "A room cannot be deleted while schedules refer to it. Open Occupancy to see which.",
+      "ROOM_IN_USE": "A room cannot be deleted while schedules (inactive ones too), doctor roles or services refer to it. Open Occupancy to see which.",
       "ROOM_IDENTIFIER_TAKEN": "A room with this identifier already exists",
-      "SERVICE_IN_USE": "A service cannot be deleted while schedules or appointments refer to it.",
+      "SERVICE_IN_USE": "A service cannot be deleted while schedules (inactive ones too) or appointments refer to it.",
       "SCHEDULE_IN_USE": "The schedule has slots. Slots with bookings always protect it; free slots can be deleted with the schedule by ticking the option Also delete the free slots.",
       "SCHEDULE_OVERLAP": "The doctor already has a schedule whose period overlaps the chosen one. Change the horizon or edit the existing schedule."
     },
@@ -90,7 +90,8 @@
       },
       "validation": {
         "rolesRequired": "Choose at least one role",
-        "birthDateRequired": "A patient needs a birth date"
+        "birthDateRequired": "A patient needs a birth date",
+        "birthDateFuture": "Date of birth cannot be in the future"
       },
       "roleOptionsLoading": "Loading doctors…",
       "roleNotLinked": "Not linked",
@@ -147,13 +148,15 @@
         "close": "Close",
         "free": "The room is free: no schedules or slots",
         "freeTitle": "The room is free",
-        "freeHint": "No schedule refers to it, so the room can be deleted.",
-        "inUse": "The room is in use: it cannot be deleted while schedules refer to it",
+        "freeHint": "No schedule, doctor role or service refers to it, so the room can be deleted.",
+        "inUse": "The room is in use: it cannot be deleted while schedules, doctor roles or services refer to it",
         "inactive": "(inactive)",
         "truncated": "Not all upcoming bookings are listed.",
         "types": {
           "Schedule": "Schedule",
-          "Slot": "Slot"
+          "Slot": "Slot",
+          "PractitionerRole": "Doctor role",
+          "HealthcareService": "Service"
         }
       }
     },
@@ -188,11 +191,13 @@
         "defaultDurationMin": "Duration, min",
         "description": "Description",
         "nameEn": "English name",
-        "descriptionEn": "English description"
+        "descriptionEn": "English description",
+        "isActive": "Open for booking"
       },
       "hints": {
         "typeCode": "Service code from the reference catalogue, for example 10001",
-        "english": "Optional: shown when the site is in English"
+        "english": "Optional: shown when the site is in English",
+        "isActive": "Turn off when the clinic no longer provides the service: it leaves the catalogue and booking, the history stays"
       },
       "validation": {
         "duration": "Duration: a whole number from 5 to 240 minutes"
@@ -295,7 +300,8 @@
       "toast": {
         "created": "Schedule created",
         "updated": "Schedule updated",
-        "deleted": "Schedule deleted"
+        "deleted": "Schedule deleted",
+        "deactivated": "Schedule deactivated: slots with booking history are kept"
       },
       "doctorInactive": "{name} (account disabled)",
       "pickersTruncated": "The pickers list at most 100 doctors, rooms and services: some entries may be missing.",
@@ -1816,7 +1822,8 @@
       "back": "Back to users",
       "open": "EMR consent",
       "openFor": "Consent to the electronic record: {name}",
-      "notFound": "Patient not found"
+      "notFound": "Patient not found",
+      "nameUnknown": "The patient's name is not known on this page. Open the consent from the user list to see whose it is."
     },
     "line": {
       "active": "EHR consent · in force since {date}",

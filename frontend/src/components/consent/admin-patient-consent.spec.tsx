@@ -4,6 +4,7 @@ import * as doctorApi from '@/components/doctor/doctor-api';
 import { useSessionStore } from '@/store/use-session-store';
 import { AdminPatientConsent } from './admin-patient-consent';
 import * as api from './consent-api';
+import { rememberPatientNames } from '@/lib/admin-patient-names';
 import { NONE, WITH_ACTIVE } from './consent-fixtures';
 
 jest.mock('./consent-api');
@@ -13,6 +14,7 @@ describe('AdminPatientConsent', () => {
   beforeEach(() => {
     jest.resetAllMocks();
     resetCabinetState();
+    window.sessionStorage.clear();
     useSessionStore.setState({ role: 'ADMIN' });
     jest.mocked(api.fetchPatientConsent).mockResolvedValue(WITH_ACTIVE);
     jest.mocked(doctorApi.fetchRelatedPersons).mockResolvedValue(pageOf([]));
@@ -28,6 +30,17 @@ describe('AdminPatientConsent', () => {
     expect(await within(panel).findByText('Согласие не оформлено')).toBeInTheDocument();
     expect(within(panel).getByLabelText(/ФИО медработника/)).toBeInTheDocument();
     expect(screen.getByText(/медицинских данных пациента этот раздел не показывает/)).toBeInTheDocument();
+  });
+
+  it('should name the patient the administrator opened from the user list, and say so when the name is unknown', async () => {
+    rememberPatientNames([{ patientId: 'p-77', name: 'Иванова Мария' }]);
+    const { unmount } = renderWithClient(<AdminPatientConsent patientId="p-77" />);
+
+    expect(await screen.findByText('Согласие на электронную медкарту: Иванова Мария')).toBeInTheDocument();
+    unmount();
+    renderWithClient(<AdminPatientConsent patientId="p-99" />);
+
+    expect(await screen.findByText(/Имя пациента неизвестно на этой странице/)).toBeInTheDocument();
   });
 
   it('should leave the recording form out while a consent is in force, whoever looks', async () => {

@@ -12,13 +12,14 @@ export interface AdminRoom {
 export interface RoomPayload {
   readonly identifier: string;
   readonly name: string;
-  readonly floor?: number;
+  /** `null` on an edit removes the floor. */
+  readonly floor?: number | null;
   readonly description?: string;
 }
 
 /** One `Schedule`/`Slot` that holds the room (`GET /admin/rooms/{id}/usage`, api-designer-spec §4.7). */
 export interface RoomUsageReference {
-  readonly resourceType: 'Schedule' | 'Slot';
+  readonly resourceType: 'Schedule' | 'Slot' | 'PractitionerRole' | 'HealthcareService';
   readonly id: string;
   readonly display: string;
   readonly isActive?: boolean;

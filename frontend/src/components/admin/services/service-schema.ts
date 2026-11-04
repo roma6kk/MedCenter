@@ -25,6 +25,7 @@ export const serviceSchema = z.object({
   description: z.string().max(2000, 'validation.tooLong'),
   nameEn: z.string().max(200, 'validation.tooLong'),
   descriptionEn: z.string().max(2000, 'validation.tooLong'),
+  isActive: z.boolean(),
 });
 
 export type ServiceFormValues = z.infer<typeof serviceSchema>;
@@ -37,6 +38,7 @@ export const EMPTY_SERVICE_VALUES: ServiceFormValues = {
   description: '',
   nameEn: '',
   descriptionEn: '',
+  isActive: true,
 };
 
 export function serviceValuesOf(service: AdminService): ServiceFormValues {
@@ -48,12 +50,13 @@ export function serviceValuesOf(service: AdminService): ServiceFormValues {
     description: service.description ?? '',
     nameEn: service.nameEn ?? '',
     descriptionEn: service.descriptionEn ?? '',
+    isActive: service.isActive,
   };
 }
 
 /**
  * The body of `POST`/`PATCH /admin/services`. An edit always sends the description and the English texts (an empty one
- * clears it); a create leaves empty optional fields out.
+ * clears it) and `isActive`; a create leaves empty optional fields out and says `isActive` only to create a deactivated service.
  */
 export function toServicePayload(values: ServiceFormValues, isEdit: boolean): ServicePayload {
   return {
@@ -64,5 +67,6 @@ export function toServicePayload(values: ServiceFormValues, isEdit: boolean): Se
     ...(values.description === '' && !isEdit ? {} : { description: values.description }),
     ...(values.nameEn.trim() === '' && !isEdit ? {} : { nameEn: values.nameEn.trim() }),
     ...(values.descriptionEn.trim() === '' && !isEdit ? {} : { descriptionEn: values.descriptionEn.trim() }),
+    ...(values.isActive && !isEdit ? {} : { isActive: values.isActive }),
   };
 }

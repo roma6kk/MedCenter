@@ -57,11 +57,16 @@ export interface DeleteScheduleVars {
   readonly cascade: boolean;
 }
 
-export function useDeleteSchedule(): UseMutationResult<void, Error, DeleteScheduleVars> {
-  return useAdminMutation<DeleteScheduleVars, void>({
-    mutationFn: ({ id, cascade }) => apiFetch<void>(`/api/v1/admin/schedules/${id}`, { method: 'DELETE', body: JSON.stringify({ cascade }) }),
+/** The answer of `DELETE /admin/schedules/{id}`: 204 (empty), or `{ deactivated: true }` when slots with booking history kept the schedule. */
+export interface DeleteScheduleResult {
+  readonly deactivated?: boolean;
+}
+
+export function useDeleteSchedule(): UseMutationResult<DeleteScheduleResult | undefined, Error, DeleteScheduleVars> {
+  return useAdminMutation<DeleteScheduleVars, DeleteScheduleResult | undefined>({
+    mutationFn: ({ id, cascade }) => apiFetch<DeleteScheduleResult | undefined>(`/api/v1/admin/schedules/${id}`, { method: 'DELETE', body: JSON.stringify({ cascade }) }),
     invalidates: 'admin-schedules',
-    successMessageKey: 'admin.schedules.toast.deleted',
+    successMessageKey: (result) => (result?.deactivated === true ? 'admin.schedules.toast.deactivated' : 'admin.schedules.toast.deleted'),
   });
 }
 

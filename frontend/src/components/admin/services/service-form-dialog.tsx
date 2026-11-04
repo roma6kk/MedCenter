@@ -5,6 +5,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm, type UseFormRegisterReturn } from 'react-hook-form';
 import { useT } from '@/lib/i18n/use-t';
 import { FormProblem } from '../shared/admin-problem';
+import { Checkbox } from '@/components/ui/checkbox';
 import { FIELD_NARROW_CLASS } from '@/components/ui/field-styles';
 import { CONTROL_CLASS } from '../shared/admin-styles';
 import type { ServerFieldRule } from '../shared/apply-server-error';
@@ -19,7 +20,7 @@ import type { AdminService } from './service-types';
 import { useCreateService, useUpdateService } from './use-admin-services';
 
 type ServiceField = keyof ServiceFormValues;
-const FIELDS: ReadonlyArray<string> = ['name', 'typeSystem', 'typeCode', 'defaultDurationMin', 'description', 'nameEn', 'descriptionEn'];
+const FIELDS: ReadonlyArray<string> = ['name', 'typeSystem', 'typeCode', 'defaultDurationMin', 'description', 'nameEn', 'descriptionEn', 'isActive'];
 
 interface FieldsProps {
   readonly register: (name: ServiceField) => UseFormRegisterReturn;
@@ -62,6 +63,12 @@ function ServiceFields({ register, errors }: FieldsProps): ReactNode {
       <Field id="service-description-en" label={t('fields.descriptionEn')} error={errors.descriptionEn}>
         <textarea {...controlProps('service-description-en', errors.descriptionEn)} rows={2} lang="en" className={CONTROL_CLASS} {...register('descriptionEn')} />
       </Field>
+      <Checkbox {...register('isActive')} wrapperClassName="items-start">
+        <span>
+          {t('fields.isActive')}
+          <span className="block text-sm text-muted-foreground">{t('hints.isActive')}</span>
+        </span>
+      </Checkbox>
     </div>
   );
 }

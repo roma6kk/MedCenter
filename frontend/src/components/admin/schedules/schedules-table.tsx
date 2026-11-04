@@ -41,7 +41,8 @@ function ScheduleActions({ schedule, label, onSlots, onGenerate, onEdit, onDelet
   const items: MenuItem[] = [];
   if (schedule.isActive) items.push({ key: 'edit', label: t('actions.edit'), icon: Pencil, onSelect: () => onEdit(schedule) });
   items.push({ key: 'slots', label: t('actions.slots'), icon: LayoutGrid, onSelect: () => onSlots(schedule) });
-  items.push({ key: 'delete', label: t('actions.delete'), icon: Trash2, destructive: true, onSelect: () => onDelete(schedule) });
+  // An inactive schedule is what a delete leaves when slots with booking history remain: a second delete changes nothing.
+  if (schedule.isActive) items.push({ key: 'delete', label: t('actions.delete'), icon: Trash2, destructive: true, onSelect: () => onDelete(schedule) });
   return (
     <span className="flex items-center gap-1 whitespace-nowrap">
       {schedule.isActive ? (

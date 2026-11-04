@@ -9,7 +9,7 @@ interface AdminMutationOptions<TVars, TResult> {
   /** Which cached queries the mutation makes stale (frontend-design-spec §5.1). */
   readonly invalidates: MutationKind;
   /** Message key of the success toast (aria-live); no toast when omitted. */
-  readonly successMessageKey?: string;
+  readonly successMessageKey?: string | ((result: TResult) => string);
   /** How long the finished mutation (with its variables) stays in the cache; `0` for one that carries a secret (a new password). */
   readonly gcTime?: number;
 }
@@ -25,9 +25,9 @@ export function useAdminMutation<TVars, TResult>({
   return useMutation<TResult, Error, TVars>({
     mutationFn,
     ...(gcTime === undefined ? {} : { gcTime }),
-    onSuccess: async () => {
+    onSuccess: async (result) => {
       await invalidateFor(queryClient, invalidates);
-      if (successMessageKey !== undefined) showToast('success', successMessageKey);
+      if (successMessageKey !== undefined) showToast('success', typeof successMessageKey === 'function' ? successMessageKey(result) : successMessageKey);
     },
   });
 }

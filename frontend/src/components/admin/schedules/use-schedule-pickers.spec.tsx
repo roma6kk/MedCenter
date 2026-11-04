@@ -82,7 +82,7 @@ describe('useSchedulePickers', () => {
 
     expect(apiFetchMock).toHaveBeenCalledWith('/api/v1/admin/users?page=1&pageSize=100&role=DOCTOR');
     expect(apiFetchMock).toHaveBeenCalledWith('/api/v1/rooms?page=1&pageSize=100');
-    expect(apiFetchMock).toHaveBeenCalledWith('/api/v1/services?page=1&pageSize=100', { headers: { 'Accept-Language': 'ru' } });
+    expect(apiFetchMock).toHaveBeenCalledWith('/api/v1/admin/services?page=1&pageSize=100', { headers: { 'Accept-Language': 'ru' } });
   });
 
   it('should label a room with its number and keep the default duration of a service when the lists arrive', async () => {
