@@ -25,3 +25,4 @@ export * from './lib/swagger/problem-details.schema';
 export * from './lib/swagger/api-problem.decorator';
 export * from './lib/swagger/setup-swagger';
 export * from './lib/swagger/openapi-audit';
+export * from './lib/observability';

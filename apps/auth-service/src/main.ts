@@ -2,6 +2,7 @@ import { Logger } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import {
   applyHttpEdge,
+  applyObservability,
   createValidationPipe,
   enableRateLimit,
   parseTrustProxy,
@@ -16,6 +17,8 @@ async function bootstrap(): Promise<void> {
   // Parsed before the app is created so a bad TRUST_PROXY fails the boot immediately.
   const trustProxy = parseTrustProxy(process.env['TRUST_PROXY']);
   const app = await NestFactory.create(AppModule);
+  // NFR-007: JSON logs with the request id, RED metrics at /metrics and dependency readiness at /ready (internal only, not routed by Traefik).
+  applyObservability(app, { service: 'auth-service', dependencies: ['postgres', 'redis'] });
   // Trust proxy (every client would otherwise share the proxy's rate-limit bucket) and no X-Powered-By.
   applyHttpEdge(app, trustProxy);
   // Shared across replicas so the per-minute budget holds cluster-wide; Redis errors fail open in `RateLimitGuard`.

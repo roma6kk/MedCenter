@@ -1,6 +1,6 @@
 import { Logger } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
-import { applyHttpEdge, createValidationPipe, enableRateLimit, setupSwagger } from '@medcenter/common';
+import { applyHttpEdge, applyObservability, createValidationPipe, enableRateLimit, setupSwagger } from '@medcenter/common';
 import { parseSwaggerEnv } from '@medcenter/config';
 
 import { AppModule } from './app/app.module';
@@ -11,6 +11,8 @@ async function bootstrap(): Promise<void> {
   // NFR-006: the per-user budget is shared by every replica through Redis; Redis errors fail open in the guard.
   enableRateLimit(process.env, logger);
   const app = await NestFactory.create(AppModule);
+  // NFR-007: JSON logs with the request id, RED metrics at /metrics and dependency readiness at /ready (internal only, not routed by Traefik).
+  applyObservability(app, { service: 'encounter-service', dependencies: ['hapi'] });
   // Trust the Traefik hop (TRUST_PROXY) so the rate limiter keys on the real client; drop X-Powered-By.
   applyHttpEdge(app);
   // Global on purpose: without it every class-validator decorator in the

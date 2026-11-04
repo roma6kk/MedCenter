@@ -41,8 +41,9 @@ function createFakeApp(): FakeApp {
   const useGlobalPipes = record('useGlobalPipes');
   const listen = jest.fn(async () => calls.push('listen'));
   const app = {
-    getHttpAdapter: () => ({ getInstance: () => ({ set, disable, use: jest.fn() }) }),
+    getHttpAdapter: () => ({ getInstance: () => ({ set, disable, use: jest.fn(), get: jest.fn() }) }),
     useGlobalPipes,
+    useLogger: jest.fn(),
     enableShutdownHooks: record('enableShutdownHooks'),
     listen,
   };

@@ -182,8 +182,13 @@ SMART-scopes и RBAC общим guard-слоем (`libs/common`); Traefik мар
   и инвалидацией по событиям; rate-limit счётчики; denylist отозванных `jti`.
 - **Индексирование:** индексированные параметры поиска HAPI для `Slot.start/status`,
   `Appointment.date/patient`, `Encounter.date/patient` → NFR-005 (< 500 ms).
-- **Наблюдаемость:** `@nestjs/terminus` (`/health`, `/ready`) на каждом сервисе; `nestjs-pino`
-  (структурные логи + `request-id` сквозной); `prom-client` (RED-метрики).
+- **Наблюдаемость (реализация без новых зависимостей, `libs/common` `applyObservability`):** `GET /health` — liveness;
+  `GET /ready` — готовность (HAPI `/metadata`, TCP Redis/RabbitMQ/PostgreSQL по объявленным зависимостям сервиса,
+  таймаут 2 с на проверку; 503 `{status:'unavailable', failed:[имена]}` без деталей); `GET /metrics` — Prometheus
+  text (RED: `http_requests_total`, `http_request_duration_seconds` по методу, шаблону маршрута и классу статуса,
+  плюс process-метрики); структурные JSON-логи `JsonLogger` (`time`, `level`, `service`, `context`, `msg`,
+  `requestId` через AsyncLocalStorage; `LOG_LEVEL`; секреты маскируются). `/ready` и `/metrics` — только во
+  внутренней сети, в Traefik (`dynamic.yml`) не маршрутизируются. `@nestjs/terminus`, `nestjs-pino`, `prom-client` не нужны.
 
 #### 8. Architecture Decision Records (ADR)
 
@@ -379,7 +384,7 @@ patient-service. Без действующего согласия 7.1/7.3 отв
 | NFR-004 | Версионированный снапшот НСИ + импортер, биндинг по canonical `https://fhir.by/...` (ADR-002/016) |
 | NFR-005 | Индексированные параметры поиска HAPI + кэш слотов Redis (§7) |
 | NFR-006 | TLS на Traefik, SMART-scopes, RBAC + компартмент, `AuditEvent`, OWASP-контроли; guard-слой в каждом сервисе (§6, ADR-009/013) |
-| NFR-007 | `@nestjs/terminus`, `nestjs-pino` + `request-id`, `prom-client` (§7) |
+| NFR-007 | `/health`, `/ready`, `/metrics` (RED), JSON-логи + `request-id` — `libs/common` `applyObservability` (§7) |
 | NFR-008 | `next-intl` локаль `ru-BY`; TanStack/Zustand (ADR-006/007) |
 | NFR-009 | Stateless BFF + общее состояние Redis (ADR-011) |
 | NFR-010 | draw.io-диаграммы + `CapabilityStatement` из этого дизайна |
