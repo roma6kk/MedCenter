@@ -35,6 +35,22 @@ function duplicateRoomStep(suite: Suite, ids: Ids, tag: string): SmokeStep {
   };
 }
 
+/** API §4.5: an empty description and a null floor remove the elements; the room form sends the empty text on every edit, and HAPI refuses an empty string in FHIR JSON. */
+function clearedRoomStep(suite: Suite, ids: Ids): SmokeStep {
+  const { api, sessions } = suite;
+  const session = sessions.admin;
+  return {
+    name: 'PATCH /admin/rooms/{id} with an empty description and a null floor -> 200, both removed',
+    run: async () => {
+      const cleared = await api.patch(`${API_PREFIX}/rooms/${ids.room}`, { session, body: { description: '', floor: null } });
+      expectStatus(cleared, 200);
+      const room = expectShape(cleared.body, ROOM_SHAPE, 'room');
+      expectTrue(!('description' in room), 'the room still has a description after an empty one');
+      expectTrue(!('floor' in room), 'the room still has a floor after null');
+    },
+  };
+}
+
 function roomSteps(suite: Suite, ids: Ids, tag: string): SmokeStep[] {
   const { api, sessions } = suite;
   const session = sessions.admin;
@@ -61,6 +77,7 @@ function roomSteps(suite: Suite, ids: Ids, tag: string): SmokeStep[] {
         expectEqual(expectShape(usage.body, ROOM_USAGE_SHAPE, 'usage')['inUse'], false, 'inUse of a new room');
       },
     },
+    clearedRoomStep(suite, ids),
   ];
 }
 

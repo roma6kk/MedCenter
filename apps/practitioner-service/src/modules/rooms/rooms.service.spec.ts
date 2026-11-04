@@ -138,6 +138,56 @@ describe('RoomsService', () => {
       expect(merged['description']).toBe('Freshly painted');
       expect(merged['name']).toBe('Cabinet 204');
     });
+
+    // The room form sends `description: ''` on every edit; FHIR JSON has no empty string, HAPI answers 400.
+    it('writes no description when the PATCH empties the text of a room that has one', async () => {
+      fhirClient.read.mockResolvedValue(existing);
+
+      await roomsService.update(roomId, { description: '' }, ACTOR);
+
+      const merged = (committedEntries(fhirClient)[0]?.resource ?? {}) as FhirResource;
+      expect(merged).not.toHaveProperty('description');
+      expect(merged['name']).toBe('Cabinet 204');
+    });
+
+    it('writes no description when a rename of a room without one carries an empty text', async () => {
+      fhirClient.read.mockResolvedValue({ resourceType: 'Location', id: roomId, name: 'Cabinet 204', identifier: [{ value: '204' }] });
+
+      await roomsService.update(roomId, { name: 'Renamed 204', description: '' }, ACTOR);
+
+      const merged = (committedEntries(fhirClient)[0]?.resource ?? {}) as FhirResource;
+      expect(merged['name']).toBe('Renamed 204');
+      expect(merged).not.toHaveProperty('description');
+    });
+
+    it.each([['null', null], ['a blank text', '  \t ']])('removes the description when the PATCH carries %s', async (_label, description) => {
+      fhirClient.read.mockResolvedValue(existing);
+
+      await roomsService.update(roomId, { name: 'Renamed 204', description }, ACTOR);
+
+      const merged = (committedEntries(fhirClient)[0]?.resource ?? {}) as FhirResource;
+      expect(merged).not.toHaveProperty('description');
+    });
+  });
+
+  describe('create', () => {
+    beforeEach(() => {
+      fhirClient.search.mockResolvedValue({ entry: [] });
+    });
+
+    it.each([['an empty text', ''], ['a blank text', '   '], ['null', null]])('leaves the description out of the Location when it is %s', async (_label, description) => {
+      await roomsService.create({ identifier: '204', name: 'Cabinet 204', description }, ACTOR);
+
+      const created = (committedEntries(fhirClient)[0]?.resource ?? {}) as FhirResource;
+      expect(created).not.toHaveProperty('description');
+    });
+
+    it('leaves the extension out of the Location when the floor is null', async () => {
+      await roomsService.create({ identifier: '204', name: 'Cabinet 204', floor: null }, ACTOR);
+
+      const created = (committedEntries(fhirClient)[0]?.resource ?? {}) as FhirResource;
+      expect(created).not.toHaveProperty('extension');
+    });
   });
 
   describe('floor round-trip', () => {
@@ -197,6 +247,56 @@ describe('RoomsService', () => {
 
       const merged = (committedEntries(fhirClient)[0]?.resource ?? {}) as FhirResource;
       expect(merged['extension']).toEqual([{ url: FLOOR, valueInteger: 2 }]);
+    });
+
+    // The form omitted the cleared floor, so a floor once set could not be taken away.
+    it('removes only the floor entry when the PATCH carries a null floor', async () => {
+      fhirClient.read.mockResolvedValue({
+        resourceType: 'Location',
+        id: roomId,
+        name: 'Cabinet 204',
+        extension: [
+          { url: FLOOR, valueInteger: 2 },
+          { url: 'https://example.org/StructureDefinition/other', valueString: 'keep-me' },
+        ],
+      });
+
+      await roomsService.update(roomId, { floor: null }, ACTOR);
+
+      const merged = (committedEntries(fhirClient)[0]?.resource ?? {}) as FhirResource;
+      expect(merged['extension']).toEqual([{ url: 'https://example.org/StructureDefinition/other', valueString: 'keep-me' }]);
+    });
+
+    it('drops the extension array when the floor was its only entry, as FHIR JSON has no empty array', async () => {
+      fhirClient.read.mockResolvedValue({
+        resourceType: 'Location',
+        id: roomId,
+        name: 'Cabinet 204',
+        extension: [{ url: FLOOR, valueInteger: 2 }],
+      });
+
+      await roomsService.update(roomId, { name: 'Renamed', floor: null }, ACTOR);
+
+      const merged = (committedEntries(fhirClient)[0]?.resource ?? {}) as FhirResource;
+      expect(merged).not.toHaveProperty('extension');
+      expect(merged['name']).toBe('Renamed');
+    });
+
+    it('adds no extension when a null floor meets a room that has none', async () => {
+      fhirClient.read.mockResolvedValue({ resourceType: 'Location', id: roomId, name: 'Cabinet 204' });
+
+      await roomsService.update(roomId, { name: 'Renamed', floor: null }, ACTOR);
+
+      const merged = (committedEntries(fhirClient)[0]?.resource ?? {}) as FhirResource;
+      expect(merged).not.toHaveProperty('extension');
+    });
+
+    it('answers the room without a floor after a null floor', async () => {
+      fhirClient.read.mockResolvedValue({ resourceType: 'Location', id: roomId, name: 'Cabinet 204', extension: [{ url: FLOOR, valueInteger: 2 }] });
+
+      const room = await roomsService.update(roomId, { floor: null }, ACTOR);
+
+      expect(room.floor).toBeUndefined();
     });
   });
 });

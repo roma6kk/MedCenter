@@ -135,3 +135,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   notification answers `403 COMPARTMENT_VIOLATION` (404 only for an unknown id), `Communication` is written without
   `sender`, `category` is documented as `appointment` | `encounter` | `registration`; the `patient.registered.v1` fixture
   carries a bare `patientId`.
+- `PATCH /api/v1/admin/rooms/{id}` no longer answers 500 when the body has an empty `description` (the room form sends one on
+  every edit, and HAPI refuses an empty string in FHIR JSON): an empty or blank description removes the description,
+  and `floor: null` removes the floor, which could not be taken away before (an emptied extension array is dropped as well).
+  `POST /admin/rooms` leaves a `null` or blank optional element out of the `Location`. API §4.5 and Bruno describe it.

@@ -32,6 +32,11 @@ const AUDIT_SOURCE = 'practitioner-service';
 /** FHIR R4 `Location` has no native floor element — it lives in an extension. */
 const FLOOR_EXT = MEDCENTER_EXT.ROOM_FLOOR;
 
+/** `true` for an absent text, `null` and a text of whitespace only: nothing to store in `Location.description`. */
+function isBlank(value: string | null | undefined): boolean {
+  return value === undefined || value === null || value.trim() === '';
+}
+
 /**
  * Admin CRUD over `Location` resources whose `physicalType` is `room`
  * (API §4.3–4.7, FR-017).
@@ -84,29 +89,46 @@ export class RoomsService {
     if (dto.identifier !== undefined) {
       await this.assertIdentifierFree(dto.identifier, id);
     }
-    // Merge skips undefined: absent DTO fields must not blank existing values.
-    // `floor` is excluded from the plain merge: it lives inside an extension,
-    // and the whole `extension` array of the patch would overwrite unrelated
-    // stored extensions — it is merged per-entry below instead.
-    const merged: Record<string, unknown> = { ...existing };
-    for (const [key, value] of Object.entries(this.toLocation(dto))) {
-      if (value !== undefined && key !== 'extension') {
-        merged[key] = value;
-      }
-    }
-    // `floor` lives in an extension: merge it separately so an absent field
-    // keeps the stored extension while a supplied one replaces just its entry.
-    if (dto.floor !== undefined) {
-      const extensions = (Array.isArray(merged['extension'])
-        ? (merged['extension'] as Array<Record<string, unknown>>).filter(
-            (ext) => ext['url'] !== FLOOR_EXT,
-          )
-        : []
-      ).concat([{ url: FLOOR_EXT, valueInteger: dto.floor }]);
-      merged['extension'] = extensions;
-    }
+    const merged = this.applyPatch(existing, dto);
     const updated = await updateAudited(this.fhirClient, { ...merged, id } as FhirResource, this.auditOf(actor));
     return this.toResponseDto(updated);
+  }
+
+  /**
+   * The stored room with the fields of the patch applied. A field the patch omits keeps its stored value;
+   * an optional element the patch empties (a blank `description`, a `null` description or floor) is removed,
+   * because FHIR JSON allows neither an empty string nor an empty array and HAPI refuses both.
+   *
+   * `floor` lives inside an extension, so it is merged entry by entry (the whole `extension` array of the
+   * patch would overwrite unrelated stored extensions): a supplied floor replaces just its entry.
+   */
+  private applyPatch(existing: FhirResource, dto: UpdateRoomDto): Record<string, unknown> {
+    const merged: Record<string, unknown> = { ...existing };
+    if (dto.identifier !== undefined) {
+      merged['identifier'] = [{ value: dto.identifier }];
+    }
+    if (dto.name !== undefined) {
+      merged['name'] = dto.name;
+    }
+    if (dto.description !== undefined) {
+      if (isBlank(dto.description)) {
+        delete merged['description'];
+      } else {
+        merged['description'] = dto.description;
+      }
+    }
+    if (dto.floor !== undefined && (dto.floor ?? undefined) !== this.readFloor(existing)) {
+      const others = (Array.isArray(merged['extension']) ? (merged['extension'] as Array<Record<string, unknown>>) : []).filter(
+        (ext) => ext['url'] !== FLOOR_EXT,
+      );
+      const extensions = dto.floor === null ? others : [...others, { url: FLOOR_EXT, valueInteger: dto.floor }];
+      if (extensions.length === 0) {
+        delete merged['extension'];
+      } else {
+        merged['extension'] = extensions;
+      }
+    }
+    return merged;
   }
 
   /**
@@ -157,15 +179,14 @@ export class RoomsService {
     });
   }
 
-  private toLocation(dto: Partial<CreateRoomDto>): FhirResource {
+  /** The `Location` of a new room; an optional element without a value (absent, `null`, blank) is left out. */
+  private toLocation(dto: CreateRoomDto): FhirResource {
     return {
       resourceType: 'Location',
-      identifier: dto.identifier === undefined ? undefined : [{ value: dto.identifier }],
+      identifier: [{ value: dto.identifier }],
       name: dto.name,
-      description: dto.description,
-      ...(dto.floor === undefined
-        ? {}
-        : { extension: [{ url: FLOOR_EXT, valueInteger: dto.floor }] }),
+      ...(isBlank(dto.description) ? {} : { description: dto.description }),
+      ...(typeof dto.floor === 'number' ? { extension: [{ url: FLOOR_EXT, valueInteger: dto.floor }] } : {}),
       physicalType: {
         coding: [
           { system: LOCATION_PHYSICAL_TYPE_SYSTEM, code: ROOM_PHYSICAL_TYPE_CODE, display: 'room' },

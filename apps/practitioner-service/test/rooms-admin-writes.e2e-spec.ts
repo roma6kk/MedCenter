@@ -80,6 +80,23 @@ describe('Rooms admin writes (e2e)', () => {
       expect(created?.['description']).toBeUndefined();
     });
 
+    it.each([['an empty description', ''], ['a blank description', '   '], ['a null description', null]])(
+      'should leave the description out of the Location when the body carries %s',
+      async (_label, description) => {
+        // Act
+        await request(app.getHttpServer())
+          .post(ROOMS)
+          .set('Authorization', TOKENS.admin)
+          .send({ identifier: '101', name: 'Кабинет 101', description, floor: null })
+          .expect(201);
+
+        // Assert — FHIR JSON has no empty string, and a null element is not valid either.
+        const created = committedEntries(fhir)[0]?.resource;
+        expect(created).not.toHaveProperty('description');
+        expect(created).not.toHaveProperty('extension');
+      },
+    );
+
     it('should drop properties no DTO declares when the body smuggles id, status and meta', async () => {
       // Act
       await request(app.getHttpServer())
@@ -191,6 +208,35 @@ describe('Rooms admin writes (e2e)', () => {
       const merged = committedEntries(fhir)[0]?.resource;
       expect(merged?.['extension']).toEqual([OTHER_EXTENSION, { url: MEDCENTER_EXT.ROOM_FLOOR, valueInteger: 5 }]);
     });
+
+    it('should remove only the floor entry when the floor is patched to null', async () => {
+      // Act
+      const response = await request(app.getHttpServer()).patch(ROOM_URL).set('Authorization', TOKENS.admin).send({ floor: null }).expect(200);
+
+      // Assert
+      const merged = committedEntries(fhir)[0]?.resource;
+      expect(merged?.['extension']).toEqual([OTHER_EXTENSION]);
+      expect(response.body).not.toHaveProperty('floor');
+    });
+
+    // The room form sends `description: ''` on every edit, so a rename of a room without a description did this.
+    it.each([['an empty description', ''], ['a blank description', '   '], ['a null description', null]])(
+      'should write the Location without a description when the patch carries %s',
+      async (_label, description) => {
+        // Act
+        const response = await request(app.getHttpServer())
+          .patch(ROOM_URL)
+          .set('Authorization', TOKENS.admin)
+          .send({ identifier: '204-Х', name: 'Кабинет 204А', description })
+          .expect(200);
+
+        // Assert
+        const merged = committedEntries(fhir)[0]?.resource;
+        expect(merged).toMatchObject({ name: 'Кабинет 204А' });
+        expect(merged).not.toHaveProperty('description');
+        expect(response.body).not.toHaveProperty('description');
+      },
+    );
 
     it('should keep the stored resource identity when the body smuggles id and physicalType', async () => {
       // Act

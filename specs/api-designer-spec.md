@@ -479,6 +479,11 @@ export interface DoctorResponseDto {
 HAPI не имеет unique-ограничения, проверка выполняется сервисом перед записью; гонка двух одновременных `POST` с
 одинаковым идентификатором не отслеживается (админские записи, низкая частота).
 
+**4.5 — отсутствующие и пустые значения:** поле, которого нет в теле, не меняется. Необязательные элементы кабинета
+убираются явно: `description` пустой или из одних пробелов (и `null`) удаляет описание, `floor: null` удаляет этаж; в HAPI
+пустая строка не отправляется (FHIR JSON её не допускает).
+В 4.4 необязательный элемент со значением `null` или из пробелов равносилен отсутствующему.
+
 ```typescript
 // apps/practitioner-service/src/modules/rooms/dto/create-room.dto.ts
 import { IsInt, IsNotEmpty, IsOptional, IsString, Max, MaxLength, Min } from 'class-validator';
