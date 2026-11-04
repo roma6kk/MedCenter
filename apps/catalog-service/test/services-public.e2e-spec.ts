@@ -47,7 +47,7 @@ describe('Services public reads (e2e)', () => {
 
       // Assert
       expect(response.body.meta).toEqual({ page: 3, pageSize: 2, totalItems: 6, totalPages: 3 });
-      expect(harness.fhir.search).toHaveBeenCalledWith('HealthcareService', { _count: 2, _offset: 4, _total: 'accurate' });
+      expect(harness.fhir.search).toHaveBeenCalledWith('HealthcareService', { 'active:not': 'false', _count: 2, _offset: 4, _total: 'accurate' });
     });
 
     it('should map every HealthcareService to the service view when HAPI returns a page', async () => {

@@ -210,6 +210,7 @@ describe('ServicesService', () => {
       expect(store.entries.size).toBe(0);
       expect(fhirClient.search).toHaveBeenCalledWith('HealthcareService', {
         name: 'терапевт',
+        'active:not': 'false',
         _count: 20,
         _offset: 0,
         _total: 'accurate',
@@ -227,7 +228,7 @@ describe('ServicesService', () => {
 
       // Assert
       expect([...store.entries.keys()]).toEqual([CACHE_KEYS.SERVICES_PAGE(1, 20)]);
-      expect(fhirClient.search).toHaveBeenCalledWith('HealthcareService', { _count: 20, _offset: 0, _total: 'accurate' });
+      expect(fhirClient.search).toHaveBeenCalledWith('HealthcareService', { 'active:not': 'false', _count: 20, _offset: 0, _total: 'accurate' });
     });
 
     it('should clear every cached page when a service is created', async () => {

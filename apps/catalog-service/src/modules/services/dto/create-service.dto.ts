@@ -2,6 +2,7 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
   ArrayMinSize,
   IsArray,
+  IsBoolean,
   IsInt,
   IsNotEmpty,
   IsOptional,
@@ -66,6 +67,12 @@ export class CreateServiceDto {
   @IsString()
   @MaxLength(2000)
   descriptionEn?: string;
+
+  /** `false` takes the service off the public catalogue without deleting it; absent means active on create, unchanged on update. */
+  @ApiPropertyOptional({ description: 'false hides the service from the public catalogue' })
+  @IsOptional()
+  @IsBoolean()
+  isActive?: boolean;
 
   @ApiPropertyOptional({
     type: String,

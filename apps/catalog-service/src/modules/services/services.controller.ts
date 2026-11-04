@@ -56,12 +56,27 @@ export class ServicesController {
   @Get('services/:id')
   @ApiOperation({ summary: '5.1.2 Get a service' })
   @ApiResponse({ status: 200, description: 'The service', type: ServiceResponseDoc })
-  @ApiProblems([400, 404, 429, 500])
+  @ApiProblems([400, 404, 429, 500], { 404: 'NOT_FOUND: no such service, or it is deactivated' })
   async findById(
     @Param() params: FhirIdParamDto,
     @Headers('accept-language') acceptLanguage?: string,
   ): Promise<ServiceResponseDto> {
     return this.servicesService.findById(params.id, resolveContentLanguage(acceptLanguage));
+  }
+
+  @Get('admin/services')
+  @RequiresRoles(Role.ADMIN)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: '5.1.6 List the services for the administrator, deactivated ones included' })
+  @ApiResponse({ status: 200, description: 'A page of services', type: ServicePageDoc })
+  @ApiProblems([...GUARD_PROBLEM_STATUSES, 400])
+  async listAll(@Query() query: ListServicesQueryDto, @Headers('accept-language') acceptLanguage?: string): Promise<ServicePage> {
+    return this.servicesService.listAll(
+      query.page ?? DEFAULT_PAGE,
+      query.pageSize ?? DEFAULT_PAGE_SIZE,
+      query.search,
+      resolveContentLanguage(acceptLanguage),
+    );
   }
 
   @Post('admin/services')

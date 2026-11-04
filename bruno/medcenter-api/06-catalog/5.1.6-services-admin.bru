@@ -1,0 +1,31 @@
+meta {
+  name: 5.1.6 List services (admin)
+  type: http
+  seq: 6
+  tags: [
+    crud-services
+    role-admin
+  ]
+}
+
+get {
+  url: {{baseUrl}}/api/v1/admin/services?page=1&pageSize=20
+  body: none
+  auth: inherit
+}
+
+params:query {
+  ~search: 
+  page: 1
+  pageSize: 20
+}
+
+assert {
+  res.status: eq 200
+  res.body.items: isArray
+  res.body.meta.totalItems: isNumber
+}
+
+docs {
+  Spec 5.1.6. ADMIN. Same page as 5.1.1 but with deactivated services (`isActive: false`); not cached.
+}

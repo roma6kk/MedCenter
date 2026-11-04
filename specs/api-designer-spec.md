@@ -572,6 +572,7 @@ export class UpdateRoomDto extends PartialType(CreateRoomDto) {}
 | 5.1.3 | `POST /api/v1/admin/services` | создать услугу | `ADMIN` |
 | 5.1.4 | `PATCH /api/v1/admin/services/{id}` | обновить услугу | `ADMIN` |
 | 5.1.5 | `DELETE /api/v1/admin/services/{id}` | удалить (нет активных `Schedule` → иначе 409 `SERVICE_IN_USE`) | `ADMIN` |
+| 5.1.6 | `GET /api/v1/admin/services?page=&pageSize=&search=` | каталог услуг для администратора, **с** отключёнными; без кэша | `ADMIN` |
 
 **5.1.3 `CreateServiceDto`** (маппинг → `HealthcareService`; `type` биндится на НСИ ЦИСЗ через
 canonical `https://fhir.by/...`, ADR-002):
@@ -617,8 +618,18 @@ export class CreateServiceDto {
   @IsArray()
   @IsString({ each: true })
   specialtyCodes?: string[]; // ссылки на PractitionerRole.specialty
+
+  @ApiPropertyOptional({ description: 'false убирает услугу из публичного каталога' })
+  @IsOptional()
+  @IsBoolean()
+  isActive?: boolean; // по умолчанию true; PATCH 5.1.4 принимает его же
 }
 ```
+
+**Отключение услуги (5.1.3, 5.1.4, 5.1.6):** `isActive: false` пишет `HealthcareService.active=false`. Услугу, которой уже
+пользовались, нельзя удалить (5.1.5 → `SERVICE_IN_USE`), поэтому её отключают. Публичные 5.1.1 и 5.1.2 не показывают отключённую
+услугу (`active:not=false`; 5.1.2 отвечает **404** `NOT_FOUND`, как для неизвестного id); `totalItems` публичной выдачи не считает
+отключённые. 5.1.6 отдаёт те же страницы без этого фильтра. Пустое `description` в 5.1.4 очищает описание (и английский текст к нему).
 
 **ServiceResponseDto:** `{ id; name; typeSystem; typeCode; typeDisplay; defaultDurationMin;
 description?; isActive }`. Инвалидация Redis-кэша `catalog:services` при 5.1.3–5.1.5.

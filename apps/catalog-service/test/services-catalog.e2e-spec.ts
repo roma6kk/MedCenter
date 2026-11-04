@@ -54,7 +54,7 @@ describe('Services catalog (e2e)', () => {
     expect(Array.isArray(response.body)).toBe(false);
     expect(response.body.items).toEqual([expect.objectContaining({ id: 'svc-1', name: 'Therapy' })]);
     expect(response.body.meta).toEqual({ page: 2, pageSize: 20, totalItems: 41, totalPages: 3 });
-    expect(fhir.search).toHaveBeenCalledWith('HealthcareService', { _count: 20, _offset: 20, _total: 'accurate' });
+    expect(fhir.search).toHaveBeenCalledWith('HealthcareService', { 'active:not': 'false', _count: 20, _offset: 20, _total: 'accurate' });
   });
 
   it('should answer a repeated listing from the cache when the page and size match', async () => {
@@ -74,6 +74,7 @@ describe('Services catalog (e2e)', () => {
     // Assert
     expect(fhir.search).toHaveBeenCalledWith('HealthcareService', {
       name: 'therapy',
+      'active:not': 'false',
       _count: 20,
       _offset: 0,
       _total: 'accurate',

@@ -81,6 +81,7 @@ describe('Services admin writes (e2e)', () => {
         resourceType: 'HealthcareService',
         id: expect.any(String),
         name: 'Приём терапевта',
+        active: true,
         comment: 'Первичный приём',
         extension: [{ url: MEDCENTER_EXT.SERVICE_DEFAULT_DURATION, valueInteger: 30 }],
         type: [{ coding: [{ system: FHIR_BY.SERVICE_CODE_SYSTEM, code: 'A01.001' }] }],

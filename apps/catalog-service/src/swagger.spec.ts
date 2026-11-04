@@ -59,7 +59,7 @@ describe('catalog-service OpenAPI document (API §10)', () => {
       '/api/v1/doctors/{id}/slots',
     ];
     expect(Object.keys(document.paths).sort()).toEqual([...expected].sort());
-    expect(operationsOf(document)).toHaveLength(13);
+    expect(operationsOf(document)).toHaveLength(14);
   });
 
   it('should tag every operation with the service name', () => {

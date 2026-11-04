@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   ConflictException,
+  HttpStatus,
   Inject,
   Injectable,
   UnprocessableEntityException,
@@ -55,7 +56,7 @@ export class ServicesService {
    */
   async list(page = 1, pageSize = 20, search?: string, lang: ContentLanguage = DEFAULT_CONTENT_LANGUAGE): Promise<ServicePage> {
     const term = search?.trim() ?? '';
-    const load = (): Promise<ServicePage> => this.loadPage(page, pageSize, term, lang);
+    const load = (): Promise<ServicePage> => this.loadPage(page, pageSize, term, lang, false);
     if (term !== '') {
       return load();
     }
@@ -63,12 +64,22 @@ export class ServicesService {
   }
 
   /**
-   * `_total=accurate` asks HAPI for the count; without one the total is known
-   * only up to this page, which is the honest lower bound.
+   * Administrator's listing (API §5.1.6): the same page as the public one, deactivated services included. Not cached:
+   * the administrator must see a switch at once, and the public pages are cleared by the same writes anyway.
    */
-  private async loadPage(page: number, pageSize: number, term: string, lang: ContentLanguage): Promise<ServicePage> {
+  async listAll(page = 1, pageSize = 20, search?: string, lang: ContentLanguage = DEFAULT_CONTENT_LANGUAGE): Promise<ServicePage> {
+    return this.loadPage(page, pageSize, search?.trim() ?? '', lang, true);
+  }
+
+  /**
+   * `_total=accurate` asks HAPI for the count; without one the total is known
+   * only up to this page, which is the honest lower bound. The public page hides a deactivated service
+   * (`:not` also matches a service without `active`, the element is optional in FHIR), so the total counts what is shown.
+   */
+  private async loadPage(page: number, pageSize: number, term: string, lang: ContentLanguage, includeInactive: boolean): Promise<ServicePage> {
     const result = await this.fhirClient.search('HealthcareService', {
       ...(term === '' ? {} : { name: term }),
+      ...(includeInactive ? {} : { 'active:not': 'false' }),
       _count: pageSize,
       _offset: (page - 1) * pageSize,
       _total: 'accurate',
@@ -83,8 +94,12 @@ export class ServicesService {
     });
   }
 
+  /** `404` also for a deactivated service, as HAPI's own 404 for an unknown id: the public cannot tell a hidden service from a missing one. */
   async findById(id: string, lang: ContentLanguage = DEFAULT_CONTENT_LANGUAGE): Promise<ServiceResponseDto> {
     const resource = await this.fhirClient.read('HealthcareService', id);
+    if (resource['active'] === false) {
+      throw new FhirClientError('GET', `HealthcareService/${id}`, HttpStatus.NOT_FOUND);
+    }
     return this.toResponseDto(resource, lang);
   }
 
@@ -95,7 +110,7 @@ export class ServicesService {
 
   async create(dto: CreateServiceDto, actor: WriteActor): Promise<ServiceResponseDto> {
     await this.assertTerminology(dto.typeSystem, dto.typeCode);
-    const created = await createAudited(this.fhirClient, this.toHealthcareService(dto), this.auditOf(actor));
+    const created = await createAudited(this.fhirClient, this.toHealthcareService({ ...dto, isActive: dto.isActive ?? true }), this.auditOf(actor));
     await this.invalidate();
     return this.toResponseDto(created);
   }
@@ -240,6 +255,7 @@ export class ServicesService {
     const resource: Record<string, unknown> = {
       resourceType: 'HealthcareService',
       name: dto.name,
+      active: dto.isActive,
       comment: dto.description?.trim() === '' ? undefined : dto.description,
       ...this.translationElements(dto),
       ...(dto.defaultDurationMin === undefined
