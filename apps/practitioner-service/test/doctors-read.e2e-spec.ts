@@ -149,6 +149,7 @@ describe('Doctors read side (e2e)', () => {
       fhir.search.mockResolvedValue({
         total: 2,
         entry: [
+          { resource: { resourceType: 'Schedule', actor: [{ reference: 'PractitionerRole/role-1' }, { reference: 'PractitionerRole/role-2' }] } },
           { resource: role('role-1', 'doc-1') },
           { resource: role('role-2', 'doc-1') },
           { resource: practitioner('doc-1', 'Иванова', 'Мария') },
@@ -160,7 +161,8 @@ describe('Doctors read side (e2e)', () => {
 
       // Assert
       expect(response.body.items).toHaveLength(1);
-      expect(fhir.search).toHaveBeenCalledWith('PractitionerRole', expect.objectContaining({ service: 'HealthcareService/svc-1' }));
+      expect(fhir.search).toHaveBeenNthCalledWith(1, 'Schedule', expect.objectContaining({ actor: 'HealthcareService/svc-1' }));
+      expect(fhir.search).toHaveBeenNthCalledWith(2, 'PractitionerRole', expect.objectContaining({ _id: 'role-1,role-2' }));
     });
 
     it('should answer an empty page when no role matches', async () => {
@@ -184,10 +186,10 @@ describe('Doctors read side (e2e)', () => {
       await request(app.getHttpServer()).get(`${DOCTORS}?specialty=419192003&serviceId=svc-1&search=Иван`).expect(200);
 
       // Assert
-      const [, params] = fhir.search.mock.calls[0] ?? [];
-      expect(Object.keys(params ?? {})).not.toContain('qualification-code');
-      expect(Object.keys(params ?? {})).toEqual(expect.arrayContaining(['service', 'specialty']));
-      expect(Object.keys(params ?? {})).not.toContain('practitioner.name');
+      const sent = fhir.search.mock.calls.flatMap(([, params]) => Object.keys(params ?? {}));
+      expect(sent).not.toContain('qualification-code');
+      expect(sent).toEqual(expect.arrayContaining(['actor']));
+      expect(sent).not.toContain('practitioner.name');
     });
   });
 

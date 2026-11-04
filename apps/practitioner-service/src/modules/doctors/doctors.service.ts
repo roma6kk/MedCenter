@@ -1,13 +1,14 @@
 import { HttpStatus, Inject, Injectable } from '@nestjs/common';
 import type { PaginatedResponseDto } from '@medcenter/contracts';
 import { DEFAULT_CONTENT_LANGUAGE, type ContentLanguage } from '@medcenter/fhir-mappers';
-import { FHIR_CLIENT, FhirClientError, type FhirClient, type FhirResource } from '@medcenter/fhir';
+import { FHIR_CLIENT, FhirClientError, type FhirBundleEntry, type FhirClient, type FhirResource } from '@medcenter/fhir';
 
 import { toPage } from '../../common/page-envelope';
 import { toDoctorDto } from './doctor.mapper';
 import { matchesName } from './doctor-name-match';
 import {
   distinctPractitionerIds,
+  hasServiceFilter,
   ID_LOOKUP_CHUNK,
   needsRoleSearch,
   pageWindow,
@@ -19,6 +20,8 @@ import {
   practitionerScanQuery,
   practitionersByIdQuery,
   roleIdsByPractitioner,
+  roleIdsOfSchedules,
+  serviceScheduleQuery,
   searchTerm,
   type DoctorFilters,
 } from './doctor-search';
@@ -59,10 +62,23 @@ export class DoctorsService {
     return toPage(await this.withRoles(doctors.slice(offset, offset + pageSize), lang), page, pageSize, doctors.length);
   }
 
-  /** The doctors behind the roles that match the service and specialty filters, in role order. */
+  /**
+   * The doctors behind the roles that match the service and specialty filters, in role order. The roles of a service are
+   * the roles with an active schedule of it; none of them means no doctor, whatever the specialty.
+   */
   private async practitionersOfRoles(filters: DoctorFilters): Promise<FhirResource[]> {
-    const roles = await this.fhirClient.search('PractitionerRole', practitionerRoleQuery(filters));
-    return this.practitionersById(distinctPractitionerIds(roles.entry ?? []));
+    const entries: FhirBundleEntry[] = [];
+    if (hasServiceFilter(filters)) {
+      const schedules = await this.fhirClient.search('Schedule', serviceScheduleQuery(filters.serviceId ?? ''));
+      const roleIds = roleIdsOfSchedules(schedules.entry ?? []);
+      for (let start = 0; start < roleIds.length; start += ID_LOOKUP_CHUNK) {
+        const roles = await this.fhirClient.search('PractitionerRole', practitionerRoleQuery(filters, roleIds.slice(start, start + ID_LOOKUP_CHUNK)));
+        entries.push(...(roles.entry ?? []));
+      }
+    } else {
+      entries.push(...((await this.fhirClient.search('PractitionerRole', practitionerRoleQuery(filters))).entry ?? []));
+    }
+    return this.practitionersById(distinctPractitionerIds(entries));
   }
 
   /**

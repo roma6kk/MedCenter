@@ -38,14 +38,14 @@ describe('HAPI query strings', () => {
       '/PractitionerRole?specialty=http%3A%2F%2Fsnomed.info%2Fsct%7C394579002&active%3Anot=false&_elements=practitioner&_count=1000',
     ],
     [
-      'a service',
+      'a service (its active schedules are asked first)',
       { serviceId: 'svc-1' },
-      '/PractitionerRole?service=HealthcareService%2Fsvc-1&active%3Anot=false&_elements=practitioner&_count=1000',
+      '/Schedule?actor=HealthcareService%2Fsvc-1&active%3Anot=false&_elements=actor&_count=1000',
     ],
     [
       'a service, a specialty and a name (the name is matched by the service, not sent)',
       { serviceId: 'svc-1', specialty: '419192003', search: 'Иванов' },
-      '/PractitionerRole?service=HealthcareService%2Fsvc-1&specialty=419192003&active%3Anot=false&_elements=practitioner&_count=1000',
+      '/Schedule?actor=HealthcareService%2Fsvc-1&active%3Anot=false&_elements=actor&_count=1000',
     ],
     ['no filter', {}, '/Practitioner?active%3Anot=false&_count=20&_offset=0&_total=accurate'],
     ['a name only (the first step of the scan the service matches it over)', { search: 'Iva' }, '/Practitioner?active%3Anot=false&_count=100&_offset=0'],

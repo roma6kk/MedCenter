@@ -23,10 +23,26 @@ function bundle(...resources: readonly FhirResource[]): { entry: { resource: Fhi
   return { entry: resources.map((resource) => ({ resource })) };
 }
 
-/** The id-only role scan of a filtered list (`_elements=practitioner`), then the Practitioners of the page. */
+/** A `Schedule` of the service held by the given roles (the actors a service filter reads). */
+function scheduleOf(...roles: readonly FhirResource[]): FhirResource {
+  return { resourceType: 'Schedule', id: 'sch', actor: roles.map((r) => ({ reference: `PractitionerRole/${r.id}` })) };
+}
+
+/**
+ * The id-only role scan of a filtered list (`_elements=practitioner`), then the Practitioners of the page; a service
+ * filter reads the schedules first, which here all belong to the given roles.
+ */
 function mockRoleFilter(fhirClient: jest.Mocked<FhirClient>, roles: readonly FhirResource[], practitioners: readonly FhirResource[]): void {
   fhirClient.search.mockImplementation((resourceType) =>
-    Promise.resolve(resourceType === 'PractitionerRole' ? bundle(...roles) : resourceType === 'Practitioner' ? bundle(...practitioners) : { entry: [] }),
+    Promise.resolve(
+      resourceType === 'Schedule'
+        ? bundle(scheduleOf(...roles))
+        : resourceType === 'PractitionerRole'
+          ? bundle(...roles)
+          : resourceType === 'Practitioner'
+            ? bundle(...practitioners)
+            : { entry: [] },
+    ),
   );
 }
 
@@ -177,7 +193,7 @@ describe('DoctorsService', () => {
   });
 
   describe('list with a serviceId filter', () => {
-    it('should search PractitionerRole by the HealthcareService reference when a serviceId is supplied', async () => {
+    it('should find the roles of a service through its active schedules when a serviceId is supplied', async () => {
       // Arrange
       mockRoleFilter(
         fhirClient,
@@ -188,15 +204,21 @@ describe('DoctorsService', () => {
       // Act
       const result = await doctorsService.list({ serviceId: 'svc-1' });
 
-      // Assert — the role scan, the page's Practitioners (asked by id), then their roles; the order is the role order.
-      expect(fhirClient.search).toHaveBeenCalledTimes(3);
-      expect(fhirClient.search).toHaveBeenNthCalledWith(1, 'PractitionerRole', {
-        service: 'HealthcareService/svc-1',
+      // Assert — the schedules of the service, the role scan, the page's Practitioners (asked by id), then their roles.
+      expect(fhirClient.search).toHaveBeenCalledTimes(4);
+      expect(fhirClient.search).toHaveBeenNthCalledWith(1, 'Schedule', {
+        actor: 'HealthcareService/svc-1',
+        'active:not': 'false',
+        _elements: 'actor',
+        _count: 1000,
+      });
+      expect(fhirClient.search).toHaveBeenNthCalledWith(2, 'PractitionerRole', {
+        _id: 'r1,r2',
         'active:not': 'false',
         _elements: 'practitioner',
         _count: 1000,
       });
-      expect(fhirClient.search).toHaveBeenNthCalledWith(2, 'Practitioner', { _id: '101,102', 'active:not': 'false', _count: 2 });
+      expect(fhirClient.search).toHaveBeenNthCalledWith(3, 'Practitioner', { _id: '101,102', 'active:not': 'false', _count: 2 });
       expect(result.items.map((doc) => doc.id)).toEqual(['101', '102']);
     });
 
@@ -209,7 +231,7 @@ describe('DoctorsService', () => {
 
       // Assert — the filters go to the scan, the name is matched here, paging is applied to the matching doctors.
       expect(fhirClient.search).toHaveBeenCalledWith('PractitionerRole', {
-        service: 'HealthcareService/svc-1',
+        _id: 'r1,r2',
         specialty: '419192003',
         'active:not': 'false',
         _elements: 'practitioner',
@@ -217,6 +239,56 @@ describe('DoctorsService', () => {
       });
       expect(result.items.map((doc) => doc.id)).toEqual(['101']);
       expect(result.meta.totalItems).toBe(1);
+    });
+  });
+
+  describe('doctors of a service without the PractitionerRole.healthcareService link', () => {
+    it('should list the doctor of a service that only has a schedule, the link is not read', async () => {
+      // Arrange — a service an administrator created: a schedule for the role, no healthcareService on the role.
+      mockRoleFilter(fhirClient, [role('r1', 'Practitioner/101')], [practitioner('101', 'Ivanov')]);
+
+      // Act
+      const result = await doctorsService.list({ serviceId: 'new-svc' });
+
+      // Assert
+      expect(result.items.map((doc) => doc.id)).toEqual(['101']);
+      expect(fhirClient.search).not.toHaveBeenCalledWith('PractitionerRole', expect.objectContaining({ service: expect.anything() }));
+    });
+
+    it('should list no doctor and ask no role when the service has no active schedule', async () => {
+      // Arrange — HAPI hides the deactivated schedules (active:not=false), so the scan comes back empty.
+      fhirClient.search.mockResolvedValue({ entry: [] });
+
+      // Act
+      const result = await doctorsService.list({ serviceId: 'svc-1', specialty: '419192003' });
+
+      // Assert
+      expect(result.items).toEqual([]);
+      expect(fhirClient.search).toHaveBeenCalledTimes(1);
+    });
+
+    it('should ignore schedule actors that are not doctor roles and keep each role once', async () => {
+      // Arrange
+      fhirClient.search.mockImplementation((resourceType) =>
+        Promise.resolve(
+          resourceType === 'Schedule'
+            ? {
+                entry: [
+                  { resource: { resourceType: 'Schedule', actor: [{ reference: 'HealthcareService/svc-1' }, { reference: 'PractitionerRole/r1' }, { reference: 'Location/loc' }] } },
+                  { resource: { resourceType: 'Schedule', actor: [{ reference: 'http://hapi:8080/fhir/PractitionerRole/r1' }] } },
+                ],
+              }
+            : resourceType === 'PractitionerRole'
+              ? bundle(role('r1', 'Practitioner/101'))
+              : bundle(practitioner('101', 'Ivanov')),
+        ),
+      );
+
+      // Act
+      await doctorsService.list({ serviceId: 'svc-1' });
+
+      // Assert
+      expect(fhirClient.search).toHaveBeenNthCalledWith(2, 'PractitionerRole', expect.objectContaining({ _id: 'r1' }));
     });
   });
 

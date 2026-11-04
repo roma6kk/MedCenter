@@ -68,22 +68,50 @@ export function searchTerm(filters: DoctorFilters): string | undefined {
 export const ROLE_SCAN_LIMIT = 1000;
 
 /**
- * `PractitionerRole` scan for the service and specialty filters, ids only (`_elements=practitioner`).
- * `specialty` is a token (`code` or `system|code`) over `PractitionerRole.specialty`, `service` a reference
- * over `PractitionerRole.healthcareService`; the name is not part of the scan. A deactivated role matches nothing: its doctor is not offered for the service or
- * specialty it carried. Not paged by HAPI: a doctor may hold several matching roles, so the page
- * and the total have to count distinct doctors ({@link distinctPractitionerIds}).
+ * `Schedule` scan behind the service filter, actors only: the doctors of a service are the doctors whose roles hold an
+ * active schedule of it. `PractitionerRole.healthcareService` is not used for this: nothing but the demo seed writes it,
+ * so a service an administrator created would list no doctor. A deactivated schedule matches nothing.
  */
-export function practitionerRoleQuery(filters: DoctorFilters): Readonly<Record<string, unknown>> {
-  const serviceId = nonBlank(filters.serviceId);
+export function serviceScheduleQuery(serviceId: string): Readonly<Record<string, unknown>> {
+  return { actor: `HealthcareService/${serviceId}`, ...NOT_DEACTIVATED, _elements: 'actor', _count: ROLE_SCAN_LIMIT };
+}
+
+const ROLE_REFERENCE = /(?:^|\/)PractitionerRole\/([^/]+)$/;
+
+/** The ids of the doctor roles among the actors of a `Schedule` scan Bundle, each once, in schedule order. */
+export function roleIdsOfSchedules(entries: ReadonlyArray<FhirBundleEntry>): string[] {
+  const ids = entries.flatMap(({ resource }) => {
+    const actors = resource.resourceType === 'Schedule' ? (resource as { actor?: ReadonlyArray<{ reference?: unknown }> }).actor : undefined;
+    return (actors ?? []).flatMap((actor) => {
+      const id = typeof actor.reference === 'string' ? ROLE_REFERENCE.exec(actor.reference)?.[1] : undefined;
+      return id === undefined ? [] : [id];
+    });
+  });
+  return [...new Set(ids)];
+}
+
+/**
+ * `PractitionerRole` scan for the specialty filter and for the roles that hold a schedule of the service
+ * (`roleIds`, at most {@link ID_LOOKUP_CHUNK} of them; a comma ORs the ids), ids only (`_elements=practitioner`).
+ * `specialty` is a token (`code` or `system|code`) over `PractitionerRole.specialty`; the name is not part of the scan.
+ * A deactivated role matches nothing: its doctor is not offered for the service or specialty it carried. Not paged
+ * by HAPI: a doctor may hold several matching roles, so the page and the total have to count distinct doctors
+ * ({@link distinctPractitionerIds}).
+ */
+export function practitionerRoleQuery(filters: DoctorFilters, roleIds?: readonly string[]): Readonly<Record<string, unknown>> {
   const specialty = nonBlank(filters.specialty);
   return {
-    ...(serviceId === undefined ? {} : { service: `HealthcareService/${serviceId}` }),
+    ...(roleIds === undefined ? {} : { _id: roleIds.join(',') }),
     ...(specialty === undefined ? {} : { specialty }),
     ...NOT_DEACTIVATED,
     _elements: 'practitioner',
     _count: ROLE_SCAN_LIMIT,
   };
+}
+
+/** `true` when the doctor list is narrowed by a service, which is asked of the schedules first. */
+export function hasServiceFilter(filters: DoctorFilters): boolean {
+  return nonBlank(filters.serviceId) !== undefined;
 }
 
 /**
