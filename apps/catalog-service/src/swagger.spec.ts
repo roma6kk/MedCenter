@@ -109,7 +109,7 @@ describe('catalog-service OpenAPI document (API §10)', () => {
       ).filter((status) => /^2/.test(status));
     expect(successOf('POST /api/v1/admin/services')).toEqual(['201']);
     expect(successOf('DELETE /api/v1/admin/services/{id}')).toEqual(['204']);
-    expect(successOf('DELETE /api/v1/admin/schedules/{id}')).toEqual(['204']);
+    expect(successOf('DELETE /api/v1/admin/schedules/{id}')).toEqual(['200']);
     expect(successOf('POST /api/v1/admin/schedules/{id}/generate')).toEqual(['201']);
   });
 });

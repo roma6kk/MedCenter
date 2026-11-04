@@ -1,9 +1,8 @@
 import type { INestApplication, Logger } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
-import { applyHttpEdge, createValidationPipe, parseTrustProxy, type TrustProxySetting } from '@medcenter/common';
+import { applyHttpEdge, createValidationPipe, enableRateLimit, parseTrustProxy, type TrustProxySetting } from '@medcenter/common';
 
 import { AppModule } from './app/app.module';
-import { enableRateLimit } from './config/rate-limit';
 
 /**
  * The HTTP pipeline every request goes through: the shared edge (`applyHttpEdge`:

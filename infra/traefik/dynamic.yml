@@ -37,12 +37,30 @@ http:
         customResponseHeaders:
           X-Powered-By: ''
 
+    # The one public route to HAPI has no BFF rate limiter in front of it: about 60 requests a
+    # minute per client address (the address Traefik sees; browsers and tools reach it directly).
+    # `npm run stack:wait` polls every 2.5 s (24 a minute), well under it; a 429 only makes it poll on.
+    fhir-metadata-limit:
+      rateLimit:
+        average: 60
+        period: 1m
+        burst: 20
+
+    # An empty request header is removed: a client's `Cache-Control: no-cache` must not make
+    # HAPI rebuild its large CapabilityStatement on every call; the public route always gets
+    # HAPI's own cached answer.
+    fhir-metadata-cache:
+      headers:
+        customRequestHeaders:
+          Cache-Control: ''
+          Pragma: ''
+
   routers:
     fhir-metadata:
       rule: Path(`/fhir/metadata`) && Method(`GET`)
       entryPoints: [websecure, web]
       service: hapi
-      middlewares: [security-headers]
+      middlewares: [security-headers, fhir-metadata-limit, fhir-metadata-cache]
 
     auth-edge:
       rule: PathPrefix(`/oauth`) || PathPrefix(`/.well-known`)

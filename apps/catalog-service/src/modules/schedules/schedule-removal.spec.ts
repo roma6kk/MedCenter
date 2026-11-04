@@ -89,7 +89,7 @@ describe('removeScheduleWithSlots', () => {
   it('should delete only the schedule when it has no slots', async () => {
     const fhir = scheduleWith([]);
 
-    await removeScheduleWithSlots(fhir, SCHEDULE_ID, false, AUDIT);
+    await expect(removeScheduleWithSlots(fhir, SCHEDULE_ID, false, AUDIT)).resolves.toBe(false);
 
     expect(slotBatches(fhir)).toHaveLength(0);
     expect(transactionsOf(fhir)).toEqual(['DELETE Schedule/sched-1 + POST AuditEvent ([{"system":"http://hl7.org/fhir/restful-interaction","code":"delete"}])']);
@@ -171,7 +171,7 @@ describe('removeScheduleWithSlots with slots that cancelled appointments referen
   it('should retire the referenced slot and deactivate the schedule when HAPI answers 409 for its delete', async () => {
     const fhir = scheduleWith([slot('a', 'free'), slot('b', 'free')], ['b']);
 
-    await expect(removeScheduleWithSlots(fhir, SCHEDULE_ID, true, AUDIT)).resolves.toBeUndefined();
+    await expect(removeScheduleWithSlots(fhir, SCHEDULE_ID, true, AUDIT)).resolves.toBe(true);
 
     const [retire] = sentEntries(fhir, 1);
     expect(retire?.request).toMatchObject({ method: 'PUT', url: 'Slot/b' });
@@ -219,7 +219,7 @@ describe('removeScheduleWithSlots with slots that cancelled appointments referen
     const fhir = scheduleWith([slot('b', 'entered-in-error')]);
     fhir.read.mockResolvedValue({ resourceType: 'Schedule', id: SCHEDULE_ID, active: false });
 
-    await expect(removeScheduleWithSlots(fhir, SCHEDULE_ID, true, AUDIT)).resolves.toBeUndefined();
+    await expect(removeScheduleWithSlots(fhir, SCHEDULE_ID, true, AUDIT)).resolves.toBe(true);
 
     expect(fhir.batch).not.toHaveBeenCalled();
   });

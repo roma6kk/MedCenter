@@ -92,9 +92,14 @@ x-bff-env: &bff-env
   CONSENT_ENFORCEMENT: ${CONSENT_ENFORCEMENT:-block}
   # API §10: Swagger UI at /api/docs/<service> (+ `-json`) through Traefik; off unless SWAGGER_ENABLED=true.
   SWAGGER_ENABLED: ${SWAGGER_ENABLED:-false}
-  # One proxy hop (Traefik) sits in front of every BFF. Services whose bootstrap
-  # honours it key the rate limiter on the real client instead of Traefik's IP.
-  TRUST_PROXY: '1'
+  # Two trusted hops sit in front of every BFF for a browser call: Traefik and the web
+  # container (Next's /api/v1 rewrite appends the browser's address to X-Forwarded-For,
+  # and Traefik trusts it from the pinned web address only). Services whose bootstrap
+  # honours it key the rate limiter on the real client instead of the web container's IP.
+  # A direct call to Traefik (seeds, smoke, Bruno) has a shorter chain and still resolves
+  # to the caller. A client of a directly published port (auth-service :3001, dev only)
+  # could spoof its address with its own X-Forwarded-For.
+  TRUST_PROXY: '2'
   # Optional HAPI client credentials (sent as Basic auth; HAPI does not enforce it).
   FHIR_CLIENT_ID:
   FHIR_CLIENT_SECRET:
@@ -118,8 +123,8 @@ x-db-env: &db-env
   DB_NAME: medcenter
 
 # Liveness probe: GET http://127.0.0.1:$PORT$HEALTH_PATH; any answer below 500
-# counts as "up". Services without a dedicated route answer 404 on /health
-# (still "up"); once @nestjs/terminus adds /health, a 503 marks them unhealthy.
+# counts as "up". Every service serves /health (auth-service probes its JWKS route
+# through HEALTH_PATH); a 503 marks a service unhealthy.
 x-bff-healthcheck: &bff-healthcheck
   test:
     - CMD
@@ -271,6 +276,12 @@ services:
       # Dev-only plain-HTTP edge: the browser, `next dev` and host tools reach
       # the API at http://localhost:8081 without fighting the self-signed cert.
       - '--entrypoints.web.address=:8081'
+      # X-Forwarded-For is kept only from the web container (pinned address on the edge
+      # network): Next's /api/v1 rewrite appends the browser's address there. Every other
+      # peer, host tools included (they arrive from the network gateway), gets the header
+      # overwritten, so a direct caller cannot spoof its address. TRUST_PROXY counts the hops.
+      - '--entrypoints.web.forwardedHeaders.trustedIPs=172.31.250.10/32'
+      - '--entrypoints.websecure.forwardedHeaders.trustedIPs=172.31.250.10/32'
       # Liveness endpoint on the internal `traefik` entrypoint (not published).
       - '--ping=true'
     volumes:
@@ -464,7 +475,10 @@ services:
     tmpfs: ['/tmp', '/app/.next/cache:uid=1000,gid=1000']
     mem_limit: 512m
     pids_limit: 256
-    networks: [edge]
+    networks:
+      edge:
+        # The address Traefik trusts for X-Forwarded-For (forwardedHeaders.trustedIPs above).
+        ipv4_address: 172.31.250.10
     ports:
       # Browser entry point. The OAuth redirect_uri is <origin>/api/auth/callback,
       # i.e. http://localhost:3000/api/auth/callback — register exactly that.
@@ -488,7 +502,10 @@ services:
       start_period: 20s
 
 networks:
-  edge: {}
+  edge:
+    ipam:
+      config:
+        - subnet: 172.31.250.0/24
   backend: {}
   data: {}
 

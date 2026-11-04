@@ -1,10 +1,7 @@
 import { Logger, type ExecutionContext } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
-import { RateLimitGuard, setRateLimitStore } from '@medcenter/common';
+import { enableRateLimit, FAIL_FAST_REDIS_OPTIONS, RateLimitGuard, setRateLimitStore } from '@medcenter/common';
 import Redis from 'ioredis';
-
-import { enableRateLimit } from './rate-limit';
-import { FAIL_FAST_REDIS_OPTIONS } from './redis-options';
 
 interface FakeRedis {
   readonly on: jest.Mock;

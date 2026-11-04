@@ -36,7 +36,7 @@ describe('SchedulesService.remove', () => {
   it('should delete the schedule and drop its cached slot pages when it has no slots', async () => {
     const invalidate = jest.spyOn(cache, 'invalidate');
 
-    await schedulesService.remove(SCHEDULE_ID, false, ACTOR);
+    await expect(schedulesService.remove(SCHEDULE_ID, false, ACTOR)).resolves.toBe(false);
 
     expect(entriesOf(fhirClient)).toEqual([
       { method: 'DELETE', url: `Schedule/${SCHEDULE_ID}` },
@@ -69,7 +69,7 @@ describe('SchedulesService.remove', () => {
     fhirClient.read.mockResolvedValue({ resourceType: 'Schedule', id: SCHEDULE_ID, active: true });
     const invalidate = jest.spyOn(cache, 'invalidate');
 
-    await schedulesService.remove(SCHEDULE_ID, true, ACTOR);
+    await expect(schedulesService.remove(SCHEDULE_ID, true, ACTOR)).resolves.toBe(true);
 
     expect(entriesOf(fhirClient)).toEqual([
       { method: 'PUT', url: `Schedule/${SCHEDULE_ID}` },

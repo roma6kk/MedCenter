@@ -215,10 +215,12 @@ function deleteScheduleSteps(suite: Suite, ids: Ids): SmokeStep[] {
   const session = sessions.admin;
   return [
     {
-      name: 'DELETE /admin/schedules/{id} {cascade:true} -> 204 and its free slots are gone',
+      name: 'DELETE /admin/schedules/{id} {cascade:true} -> 200 {deactivated:false} and its free slots are gone',
       run: async () => {
         const scheduleId = ids.schedule;
-        expectStatus(await api.delete(`${API_PREFIX}/schedules/${scheduleId}`, { session, body: { cascade: true } }), 204);
+        const removed = await api.delete(`${API_PREFIX}/schedules/${scheduleId}`, { session, body: { cascade: true } });
+        expectStatus(removed, 200);
+        expectEqual(bodyObject(removed)['deactivated'], false, 'deactivated');
         ids.removed.schedule = scheduleId;
         ids.schedule = '';
         const slots = await api.get(`${API_PREFIX}/schedules/${scheduleId}/slots`, { session, query: { from: HORIZON.horizonFrom, to: HORIZON.horizonTo } });
@@ -226,9 +228,11 @@ function deleteScheduleSteps(suite: Suite, ids: Ids): SmokeStep[] {
       },
     },
     {
-      name: 'DELETE /admin/schedules/{id} of the second schedule -> 204',
+      name: 'DELETE /admin/schedules/{id} of the second schedule -> 200 {deactivated:false}',
       run: async () => {
-        expectStatus(await api.delete(`${API_PREFIX}/schedules/${ids.futureSchedule}`, { session, body: { cascade: true } }), 204);
+        const removed = await api.delete(`${API_PREFIX}/schedules/${ids.futureSchedule}`, { session, body: { cascade: true } });
+        expectStatus(removed, 200);
+        expectEqual(bodyObject(removed)['deactivated'], false, 'deactivated');
         ids.futureSchedule = '';
       },
     },
@@ -265,7 +269,7 @@ async function removeLeftovers(suite: Suite, ids: Ids): Promise<void> {
   ];
   for (const [path, id, body] of leftovers.filter(([, id]) => id !== '')) {
     const response = await suite.api.delete(path, { session: suite.sessions.admin, ...(body === undefined ? {} : { body }) });
-    if (response.status !== 204) {
+    if (response.status !== (path.includes('/schedules/') ? 200 : 204)) {
       console.warn(`cleanup: DELETE ${path} answered HTTP ${response.status} (${id}); remove the test data by hand`);
     }
   }

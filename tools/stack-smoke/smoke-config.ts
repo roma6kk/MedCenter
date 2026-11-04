@@ -8,6 +8,7 @@ import type { SmokeConfig } from './smoke-types';
 
 export const DEFAULT_MANIFEST_PATH = join(__dirname, '..', 'demo-seed', 'output', 'demo-manifest.json');
 const DEFAULT_POLL_TIMEOUT_MS = 120_000;
+/** 24 probes a minute: under the edge's rate limit of the public `/fhir/metadata` route (infra/traefik/dynamic.yml, 60 a minute). */
 const DEFAULT_POLL_INTERVAL_MS = 2_500;
 
 function positiveNumber(raw: string | undefined, fallback: number, name: string): number {

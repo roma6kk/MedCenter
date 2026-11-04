@@ -1,8 +1,7 @@
 import { Logger } from '@nestjs/common';
-import type { IdempotencyStore } from '@medcenter/common';
+import { FAIL_FAST_REDIS_OPTIONS, type IdempotencyStore } from '@medcenter/common';
 import Redis from 'ioredis';
 
-import { FAIL_FAST_REDIS_OPTIONS } from '../../config/redis-options';
 import type { CacheStore } from './redis-cache.service';
 
 /**

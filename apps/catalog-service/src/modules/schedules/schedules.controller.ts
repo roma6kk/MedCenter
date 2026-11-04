@@ -35,6 +35,7 @@ import {
 import { CreateScheduleDto } from './dto/create-schedule.dto';
 import { GenerateSlotsResultDoc } from './dto/generate-slots-result.doc';
 import { DeleteScheduleDto } from './dto/delete-schedule.dto';
+import { DeleteScheduleResultDoc } from './dto/delete-schedule-result.doc';
 import { GenerateSlotsDto } from './dto/generate-slots.dto';
 import { ListSchedulesQueryDto } from './dto/list-schedules-query.dto';
 import { ScheduleSlotsQueryDto } from './dto/schedule-slots-query.dto';
@@ -101,20 +102,21 @@ export class SchedulesController {
   @RequiresRoles(Role.ADMIN)
   @ApiOperation({ summary: '5.2.4 Delete (or deactivate) a schedule' })
   @ApiResponse({
-    status: 204,
+    status: 200,
+    type: DeleteScheduleResultDoc,
     description:
-      'The schedule is deleted, or deactivated when appointments still reference its slots',
+      '`deactivated: false` when the schedule was deleted, `true` when it was deactivated because appointments still reference its slots',
   })
   @ApiProblems([...GUARD_PROBLEM_STATUSES, 400, 404, 409], {
     409: 'SCHEDULE_IN_USE: slots protect the schedule (any slot without cascade, busy slots always)',
   })
-  @HttpCode(HttpStatus.NO_CONTENT)
+  @HttpCode(HttpStatus.OK)
   async remove(
     @Req() request: AuditedRequest,
     @Param() params: FhirIdParamDto,
     @Body() dto: DeleteScheduleDto,
-  ): Promise<void> {
-    await this.schedulesService.remove(params.id, dto.cascade === true, auditActorOf(request));
+  ): Promise<DeleteScheduleResultDoc> {
+    return { deactivated: await this.schedulesService.remove(params.id, dto.cascade === true, auditActorOf(request)) };
   }
 
   @Post(':id/generate')

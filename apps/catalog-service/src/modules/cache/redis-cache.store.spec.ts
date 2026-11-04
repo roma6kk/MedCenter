@@ -1,6 +1,6 @@
+import { FAIL_FAST_REDIS_OPTIONS } from '@medcenter/common';
 import Redis from 'ioredis';
 
-import { FAIL_FAST_REDIS_OPTIONS } from '../../config/redis-options';
 import { createRedisCacheStore, RedisCacheStore } from './redis-cache.store';
 
 jest.mock('ioredis', () => ({

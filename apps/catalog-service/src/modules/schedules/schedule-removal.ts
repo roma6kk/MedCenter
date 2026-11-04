@@ -116,15 +116,15 @@ async function deactivateSchedule(fhirClient: FhirClient, scheduleId: string, au
 }
 
 /**
- * API §5.2.4. Busy slots are booked appointments (BR-001) and always protect the
+ * API §5.2.4; resolves `true` when the schedule was deactivated, `false` when it was deleted. Busy slots are booked appointments (BR-001) and always protect the
  * schedule; free slots only with `cascade`: they are removed first, because HAPI
  * refuses to delete a Schedule that a Slot still references. A schedule that still
  * has slots afterwards (retired ones, kept for the appointment history) is
- * deactivated instead of deleted: the answer is the same 204 and a repeat is safe.
+ * deactivated instead of deleted: the answer says which (`true` = deactivated) and a repeat is safe.
  * The schedule's own change (`delete`, or `update` for the deactivation) is audited with it (ADR-014);
  * the slots are a by-product of the schedule and are not journalled one by one.
  */
-export async function removeScheduleWithSlots(fhirClient: FhirClient, scheduleId: string, cascade: boolean, audit: AuditContext): Promise<void> {
+export async function removeScheduleWithSlots(fhirClient: FhirClient, scheduleId: string, cascade: boolean, audit: AuditContext): Promise<boolean> {
   // An unknown schedule is a 404 here, before anything is removed; the delete's AuditEvent needs a stored resource.
   await fhirClient.read('Schedule', scheduleId);
   if (await hasSlots(fhirClient, scheduleId, 'busy')) {
@@ -136,7 +136,8 @@ export async function removeScheduleWithSlots(fhirClient: FhirClient, scheduleId
   await removeFreeSlots(fhirClient, scheduleId);
   if (await hasSlots(fhirClient, scheduleId)) {
     await deactivateSchedule(fhirClient, scheduleId, audit);
-    return;
+    return true;
   }
   await deleteAudited(fhirClient, 'Schedule', scheduleId, audit);
+  return false;
 }

@@ -97,9 +97,11 @@ function cancelStep(suite: Suite, removal: Removal): SmokeStep {
 
 function removeStep(suite: Suite, removal: Removal): SmokeStep {
   return {
-    name: 'DELETE /admin/schedules/{id} {cascade:true} -> 204 although HAPI keeps the slot the cancelled Appointment references',
+    name: 'DELETE /admin/schedules/{id} {cascade:true} -> 200 {deactivated:true} although HAPI keeps the slot the cancelled Appointment references',
     run: async () => {
-      expectStatus(await cascadeDelete(suite, removal), 204);
+      const removed = await cascadeDelete(suite, removal);
+      expectStatus(removed, 200);
+      expectEqual(bodyObject(removed)['deactivated'], true, 'deactivated');
       const range = { from: HORIZON.horizonFrom, to: HORIZON.horizonTo };
       const slotsPath = `${ADMIN}/schedules/${removal.schedule}/slots`;
       const free = await suite.api.get(slotsPath, { session: suite.sessions.admin, query: { ...range, status: 'free' } });
@@ -138,9 +140,11 @@ function afterRemovalStep(suite: Suite, removal: Removal): SmokeStep {
 
 function repeatStep(suite: Suite, removal: Removal): SmokeStep {
   return {
-    name: 'a second DELETE of the removed schedule is safe -> 204',
+    name: 'a second DELETE of the removed schedule is safe -> 200 {deactivated:true}',
     run: async () => {
-      expectStatus(await cascadeDelete(suite, removal), 204);
+      const removed = await cascadeDelete(suite, removal);
+      expectStatus(removed, 200);
+      expectEqual(bodyObject(removed)['deactivated'], true, 'deactivated');
       removal.finished = true;
     },
   };
@@ -154,7 +158,7 @@ async function removeLeftovers(suite: Suite, removal: Removal): Promise<void> {
   }
   if (removal.schedule !== '') {
     const response = await cascadeDelete(suite, removal);
-    if (response.status !== 204) {
+    if (response.status !== 200) {
       console.warn(`cleanup: DELETE schedule ${removal.schedule} answered HTTP ${response.status}; remove the test schedule by hand`);
     }
   }

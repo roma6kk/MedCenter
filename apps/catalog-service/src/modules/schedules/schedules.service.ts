@@ -217,9 +217,10 @@ export class SchedulesService {
   }
 
   /** API §5.2.4: busy slots protect the schedule, free ones go with `cascade` (see `removeScheduleWithSlots`). */
-  async remove(id: string, cascade: boolean, actor: WriteActor): Promise<void> {
-    await removeScheduleWithSlots(this.fhirClient, id, cascade, this.auditOf(actor));
+  async remove(id: string, cascade: boolean, actor: WriteActor): Promise<boolean> {
+    const deactivated = await removeScheduleWithSlots(this.fhirClient, id, cascade, this.auditOf(actor));
     await this.cache.invalidate([CACHE_KEYS.SCHEDULE_SLOTS(id), CACHE_KEYS.ALL_DOCTOR_SLOTS]);
+    return deactivated;
   }
 
   /** Slots of a schedule, cached for 15 s (NFR-005). Without a `status` the answer is free and busy
