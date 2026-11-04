@@ -858,9 +858,11 @@ export class AppointmentResponseDto {
 | 7.2 | `GET /api/v1/encounters/{id}` | детали приёма | участник-врач (ADMIN: 403, ADR-018) |
 | 7.3 | `POST /api/v1/encounters/{id}/complete` | завершить приём: диагноз/план/назначения | `user/*.write` (DOCTOR) |
 | 7.4 | `GET /api/v1/patients/{id}/history?page=` | история обращений | владелец / DOCTOR (ADMIN → 403) |
-| 7.5 | `GET /api/v1/patients/{id}/prescriptions?page=` | назначения (ServiceRequest/MedicationRequest) | владелец / DOCTOR (ADMIN → 403) |
+| 7.5 | `GET /api/v1/patients/{id}/prescriptions?page=&encounterId=` | назначения (ServiceRequest/MedicationRequest) | владелец / DOCTOR (ADMIN → 403) |
 | 7.6 | `GET /api/v1/me/history` | своя история (компартмент) | `patient/*.read` |
-| 7.7 | `GET /api/v1/me/prescriptions` | свои назначения (компартмент) | `patient/*.read` |
+| 7.7 | `GET /api/v1/me/prescriptions?encounterId=` | свои назначения (компартмент) | `patient/*.read` |
+
+Необязательный параметр `encounterId` (7.5/7.7, FHIR id) оставляет только назначения этого приёма (`MedicationRequest.encounter`, `ServiceRequest.encounter`); ограничение по пациенту сохраняется, чужой приём даёт пустую страницу, не-id — 400 `VALIDATION_ERROR`.
 
 Элементы истории (7.4/7.6) несут `practitionerRoleId` и `doctorName` (ФИО врача: `Practitioner.name`, фамилия первой; поле опускается, если врача не удалось определить) — имя берётся из того же Bundle (`_include` Encounter→PractitionerRole→Practitioner).
 

@@ -8,6 +8,7 @@ import { patientRefFromClaims } from '../../common/access/claims-identity';
 import { FhirIdPipe } from '../../common/access/fhir-id.pipe';
 import { assertReadScope } from '../../common/access/scope-policy';
 import { PageQueryDto, toPageQuery } from '../../common/paging/page-query.dto';
+import { PrescriptionsQueryDto } from './dto/prescriptions-query.dto';
 import { HistoryPageDoc } from './dto/history-item.doc';
 import type { HistoryItemDto } from './dto/history-item.dto';
 import { MedicationPrescriptionDoc, PrescriptionPageDoc, ServicePrescriptionDoc } from './dto/prescription-item.doc';
@@ -76,12 +77,12 @@ export class HistoryController {
   async patientPrescriptions(
     @Req() request: AuditedRequest,
     @Param('id', FhirIdPipe) id: string,
-    @Query() query: PageQueryDto,
+    @Query() query: PrescriptionsQueryDto,
   ): Promise<PaginatedResponseDto<PrescriptionItemDto>> {
     const claims = claimsOf(request);
     assertReadScope(claims);
     return this.readAudit.audited(claims, id, { interaction: 'search-type', source: AUDIT_SOURCE, requestId: request.requestId }, async () =>
-      this.prescriptions.prescriptionsOf(await this.access.resolveReadablePatient(claims, id), toPageQuery(query)),
+      this.prescriptions.prescriptionsOf(await this.access.resolveReadablePatient(claims, id), toPageQuery(query), query.encounterId),
     );
   }
 
@@ -105,8 +106,8 @@ export class HistoryController {
   @RequiresScopes(SMART_SCOPES.PATIENT_READ)
   async myPrescriptions(
     @Req() request: RequestWithClaims,
-    @Query() query: PageQueryDto,
+    @Query() query: PrescriptionsQueryDto,
   ): Promise<PaginatedResponseDto<PrescriptionItemDto>> {
-    return this.prescriptions.prescriptionsOf(patientRefFromClaims(claimsOf(request)), toPageQuery(query));
+    return this.prescriptions.prescriptionsOf(patientRefFromClaims(claimsOf(request)), toPageQuery(query), query.encounterId);
   }
 }

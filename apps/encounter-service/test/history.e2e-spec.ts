@@ -91,6 +91,12 @@ describe('History and prescriptions (API §7.4–7.7)', () => {
     expect(response.body.items).toEqual([expect.objectContaining({ id: encounterId, practitionerRoleId: 'role-1' })]);
   });
 
+  it('should answer 400 when the encounterId filter is not a FHIR id', async () => {
+    const response = await get(PATIENT, '/api/v1/me/prescriptions?encounterId=a%20b').expect(400);
+
+    expect(response.body).toMatchObject({ errorCode: 'VALIDATION_ERROR' });
+  });
+
   it('should answer 403 COMPARTMENT_VIOLATION when a doctor never treated the patient', async () => {
     const response = await get(OTHER_DOCTOR, '/api/v1/patients/pat-1/prescriptions').expect(403);
 
