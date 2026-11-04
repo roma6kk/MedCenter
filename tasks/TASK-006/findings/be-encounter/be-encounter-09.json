@@ -1,0 +1,21 @@
+{
+  "id": "be-encounter-09",
+  "unit": "be-encounter",
+  "kind": "gap",
+  "severity": "medium",
+  "title": "Ошибочно открытый приём нельзя отменить: единственный выход — завершить его выдуманным диагнозом (запись нельзя ни отменить, ни пометить неявкой)",
+  "description": "После 7.1 у записи появляется Encounter в статусе in-progress. Дальше у него один переход — 7.3 «завершить», который требует заключение, ≥1 диагноз МКБ-10 и рекомендации. Отменить или закрыть как ошибочный приём нельзя: в сервисе нет такой операции. Одновременно appointment-service блокирует всё остальное для записи с любым Encounter: пациент не может отменить запись (409 APPOINTMENT_NOT_CANCELLABLE), врач не может отметить неявку (409 ENCOUNTER_STATE_INVALID, BR-008), причём проверка смотрит на Encounter любого статуса. Сценарий из практики: врач нажал «Начать приём» заранее (в панели «Следующий пациент» это единственная крупная кнопка) или не на ту запись, а пациент не пришёл. Запись зависла: приём in-progress, запись booked, неявку не поставить, и чтобы закрыть её, врачу приходится завершить приём с вымышленным диагнозом — в медкарту пациента попадает недостоверная запись, запись становится fulfilled (учитывается в аналитике как состоявшаяся) и пациенту уходит уведомление «Приём завершён. Результаты доступны в медицинской карте». Функции в ТЗ нет, но она нужна целостности клинических данных (FHIR для этого предусматривает Encounter.status cancelled и entered-in-error).",
+  "evidence": "apps/encounter-service/src/modules/encounters/encounters.controller.ts (only POST /, GET /:id, POST /:id/complete); apps/encounter-service/src/modules/encounters/encounters.service.ts:195-212 (complete requires in-progress and ≥1 diagnosis via CompleteEncounterDto.diagnoses @ArrayMinSize(1)); apps/appointment-service/src/modules/appointments/appointments.service.ts:146-148 and :164-166, :186-195 (`assertNoEncounter`: any Encounter of the appointment, whatever its status, blocks cancel and no-show). Scenario: doctor opens the encounter for 09:00, patient does not come -> PATCH no-show answers 409, patient cancel answers 409, POST complete without a diagnosis answers 400.",
+  "files": [
+    "apps/encounter-service/src/modules/encounters/encounters.controller.ts",
+    "apps/encounter-service/src/modules/encounters/encounters.service.ts",
+    "apps/encounter-service/src/modules/encounters/encounter-opening.service.ts",
+    "apps/appointment-service/src/modules/appointments/appointments.service.ts",
+    "frontend/src/components/doctor/open-encounter-button.tsx"
+  ],
+  "proposedFix": "Smallest coherent version: `POST /api/v1/encounters/{id}/cancel` (DOCTOR, participant, scope user/*.write, optional `reason`), only for an in-progress encounter: one transaction `PUT Encounter` (If-Match, status `cancelled`, statusHistory entry) + AuditEvent update; the Appointment stays `booked`, so the doctor can mark a no-show or open it again. Required side changes: encounterOfAppointment / the conditional create (`ifNoneExist: appointment=...`) in the opening flow must ignore cancelled encounters (search with `status:not=cancelled` or filter in process, and make the conditional create query status-aware), `assertNoEncounter` in appointment-service must count only in-progress/finished encounters, history/PatientAccessService already treat cancelled as no care. Frontend: «Отменить приём» (with confirmation) on the encounter screen while in progress; drop the browser-only `started-encounters` memory entry. Alternative: leave as is and document that an opened encounter must be completed.",
+  "needsDecision": true,
+  "decisionQuestion": "Нужна ли врачу возможность отменить ошибочно открытый приём (статус in-progress)? Сейчас выхода нет: запись нельзя ни отменить, ни пометить неявкой, а завершить можно только с диагнозом. Вариант A (рекомендую): операция «Отменить приём» — Encounter становится cancelled, запись остаётся booked (можно поставить неявку или начать заново); меняются логика открытия и проверка в appointment-service. Вариант B: не добавлять, считать функцию вне объёма курсовой и описать ограничение в ПЗ.",
+  "tzRef": "BR-003, BR-008, FR-010, FR-011 (жизненный цикл Encounter); вне ТЗ как отдельная функция",
+  "confidence": "confirmed"
+}

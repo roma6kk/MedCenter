@@ -1,0 +1,17 @@
+{
+  "id": "be-notification-outbox-06",
+  "unit": "be-notification-outbox",
+  "kind": "bug",
+  "severity": "low",
+  "title": "GET /notifications: параметр unread принимает любое значение и молча превращается в «все уведомления» (в других сервисах это 400 VALIDATION_ERROR)",
+  "description": "Swagger описывает unread как enum ['true','false'], но контроллер проверяет только равенство строке 'true'. Значения unread=1, unread=TRUE, unread=yes или опечатка unread=ture не отклоняются, а дают полный список вместо непрочитанных. Клиент, который так отфильтровал непрочитанные, получает прочитанные уведомления и не видит ошибки. Остальные списки сервисов проверяют такие флаги строго: в appointment-service и catalog-service поле объявлено через @IsIn(['true','false']), другое значение даёт 400 VALIDATION_ERROR. page и pageSize в этом же контроллере проверяются строго (parsePositiveInt), так что поведение внутри одного эндпоинта тоже неровное.",
+  "evidence": "apps/notification-service/src/modules/notifications/notifications.controller.ts list(): `unreadOnly: unread === 'true'` with `@ApiQuery({ name: 'unread', schema: { type: 'string', enum: ['true', 'false'] } })`; compare apps/appointment-service/src/modules/appointments/dto/list-appointments-query.dto.ts:41 and apps/catalog-service/src/modules/schedules/dto/list-schedules-query.dto.ts:57 (`@IsIn(['true', 'false'])`). Scenario: GET /api/v1/notifications?unread=1 -> 200 with read and unread items; GET ...?unread=ture -> same.",
+  "files": [
+    "apps/notification-service/src/modules/notifications/notifications.controller.ts"
+  ],
+  "proposedFix": "Add a small parser next to parsePositiveInt: undefined or empty -> false; 'true' -> true; 'false' -> false; anything else -> BadRequestException({ errorCode: 'VALIDATION_ERROR', message: 'unread must be true or false' }). Add the 400 case to the e2e/unit tests of the controller (the route already documents 400 via ApiProblems).",
+  "needsDecision": false,
+  "decisionQuestion": "",
+  "tzRef": "FR-008; api-designer-spec §8.1",
+  "confidence": "confirmed"
+}

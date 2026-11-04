@@ -1,0 +1,18 @@
+{
+  "id": "be-auth-oauth-10",
+  "unit": "be-auth-oauth",
+  "kind": "a11y",
+  "severity": "low",
+  "title": "Страница входа: поле e-mail помечается недопустимым при любой ошибке, а кнопка показа пароля одновременно меняет aria-label и aria-pressed",
+  "description": "(1) emailField() добавляет aria-invalid=\"true\" и aria-describedby=\"login-error\" всякий раз, когда передан error — в том числе для сообщений, которые не относятся к полю: «Слишком много попыток входа», «Вход временно недоступен», «Форма входа устарела». Скринридер объявляет «недопустимое значение» у корректного e-mail, а CSS input[aria-invalid=true] красит рамку поля в цвет ошибки (WCAG 3.3.1/4.1.2: ошибка должна быть связана с тем полем, к которому относится). (2) Кнопка показа пароля задаёт и aria-pressed (false → true), и меняет aria-label между «Показать пароль» и «Скрыть пароль». По шаблону ARIA Toggle Button подпись у такой кнопки не меняется (либо стабильная подпись + aria-pressed, либо меняющаяся подпись без aria-pressed): сейчас в состоянии «показан» озвучивается «Скрыть пароль, переключатель, нажата», что читается противоречиво.",
+  "evidence": "apps/auth-service/src/modules/oauth/login/login-page.ts:177 `const invalid = params.error === undefined ? '' : ' aria-invalid=\"true\" aria-describedby=\"login-error\"'` (error приходит из login.controller.ts для INVALID_CREDENTIALS, STALE_FORM, THROTTLED, UNAVAILABLE одинаково); login-page.ts:51 (рамка по [aria-invalid=true]); :73 скрипт `b.setAttribute(\"aria-pressed\",...);b.setAttribute(\"aria-label\",...)`; :190 исходная разметка кнопки с aria-pressed=\"false\" и aria-label=\"Показать пароль\". Сценарий: 11 неудачных попыток → страница 429 «Слишком много попыток», e-mail подсвечен красным и озвучен как невалидный.",
+  "files": [
+    "apps/auth-service/src/modules/oauth/login/login-page.ts",
+    "apps/auth-service/src/modules/oauth/login/login-page.spec.ts"
+  ],
+  "proposedFix": "Pass an explicit `fieldError: boolean` (true only for INVALID_CREDENTIALS) from LoginController to LoginPageParams and set aria-invalid on the e-mail (and password) only then; keep aria-describedby=login-error on both fields in that case. For the toggle keep a stable accessible name (`aria-label` = «Показать пароль», or visually-hidden text) and let aria-pressed carry the state, i.e. drop the aria-label rewrite in LOGIN_PAGE_SCRIPT and the data-hide attribute. The script text changes, so its CSP sha256 (LOGIN_PAGE_CSP) is recomputed automatically from the constant; update login-page.spec.ts:71 and add a case for the throttled page (no aria-invalid). Do it together with be-auth-oauth-03 (same file).",
+  "needsDecision": false,
+  "decisionQuestion": "",
+  "tzRef": "frontend-design-spec §7 (WCAG 2.1 AA); WCAG 3.3.1, 4.1.2",
+  "confidence": "confirmed"
+}

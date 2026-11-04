@@ -1,0 +1,19 @@
+{
+  "id": "be-auth-users-02",
+  "unit": "be-auth-users",
+  "kind": "question",
+  "severity": "medium",
+  "title": "Деактивация учётной записи врача не убирает его из каталога записи: пациенты продолжают записываться к врачу, который не может войти и принять",
+  "description": "DELETE /admin/users/{id} (и PATCH isActive=false) меняет только auth.user.is_active: закрывает вход и refresh, но не трогает PractitionerRole/Practitioner, расписания и слоты врача. Каталог врачей (practitioner-service) скрывает врача только при PractitionerRole.active=false, а у администратора нет ни одного способа это выставить (у practitioner-service нет пишущих эндпоинтов для врачей, см. tz-matrix-10). Итог: администратор «увольняет» врача в разделе «Пользователи», но врач остаётся в публичном каталоге, его свободные слоты доступны для записи, новые записи падают в расписание, которое никто не откроет; уже существующие записи тоже остаются без исполнителя. Подтверждение в интерфейсе («Пользователь не сможет войти, данные сохранятся») об этом не предупреждает. Обратное действие (активация) тоже ничего не возвращает, поэтому каскад должен быть симметричным.",
+  "evidence": "apps/auth-service/src/modules/users/users.service.ts:109-118 `deactivate`: applyChanges(id, { isActive: false }) + recordUpdate, no PractitionerRole/Schedule/Slot call; apps/practitioner-service/src/modules/doctors/doctor-search.ts:95-102 lists only roles whose `active !== false`; no route in apps/*/src writes PractitionerRole.active (route map: practitioner-service has only GET doctors + rooms CRUD). Scenario: admin deactivates doctor.ivanova -> she still appears in GET /api/v1/doctors and GET /slots?doctorId=..; a patient books 10:00 tomorrow -> the appointment exists, but the only account that could see it (doctor) cannot sign in.",
+  "files": [
+    "apps/auth-service/src/modules/users/users.service.ts",
+    "apps/auth-service/src/modules/users/patient-provisioner.ts",
+    "apps/practitioner-service/src/modules/doctors/doctor-search.ts"
+  ],
+  "proposedFix": "Option (a): on deactivation of an account that holds a PractitionerRole link, set PractitionerRole.active=false through the existing FHIR client with If-Match (updateIfUnchanged, as syncPatient does) and revert the account change if HAPI refuses; on reactivation set it back to true; add the touched PractitionerRole to the AuditEvent resourceRefs (already done via linkedRefs). Optionally refuse (409 DOCTOR_HAS_FUTURE_APPOINTMENTS) or warn in the confirm dialog when booked future appointments exist. Option (b): leave as is and add one sentence to the confirm dialog and the admin guide that the doctor stays in the catalogue until the profile is removed in HAPI.",
+  "needsDecision": true,
+  "decisionQuestion": "Должна ли деактивация учётной записи врача автоматически скрывать его из каталога записи (PractitionerRole.active=false), а активация возвращать? Варианты: (а) РЕКОМЕНДУЮ: да, симметричный каскад в auth-service (одна запись в HAPI с If-Match, откат при отказе, в журнале аудита), существующие записи не трогаем; (б) да, но с запретом деактивации, пока у врача есть будущие записи (409) — безопаснее, но нужен вызов в appointment-service; (в) нет — каталог и учётные записи независимы, подтверждение в интерфейсе дополнить фразой «врач останется в каталоге». Для демо достаточно (в), для реальной клиники нужен (а) или (б).",
+  "tzRef": "ТЗ Администратор: управление пользователями; FR-015; BR-007",
+  "confidence": "confirmed"
+}

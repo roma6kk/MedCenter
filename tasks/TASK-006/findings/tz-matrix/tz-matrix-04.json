@@ -1,0 +1,22 @@
+{
+  "id": "tz-matrix-04",
+  "unit": "tz-matrix",
+  "kind": "i18n",
+  "severity": "medium",
+  "title": "NFR-008: тексты уведомлений создаются на сервере по-русски и показываются как есть — в английском интерфейсе центр уведомлений и колокольчик остаются русскими",
+  "description": "notification-service при обработке события сохраняет готовую русскую строку в Communication.payload.contentString («Вы записаны на приём. Начало: … (время Минска)», «Запись на приём отменена.», «Приём завершён…», «Регистрация… завершена.»). Фронтенд выводит item.text без перевода (notification-row.tsx: format.prose(item.text)), а API 8.1 не отдаёт признака события — у категории `appointment` бывают два разных события (booked и cancelled), поэтому клиент не может сам подобрать перевод. Подписи вокруг (категория, «Открыть запись») переведены, а сама суть уведомления остаётся русской. Названия услуг, специальностей и врачей уже локализуются через Accept-Language, уведомления — нет.",
+  "evidence": "apps/notification-service/src/modules/notifications/communication.mapper.ts:79-102 describe() returns Russian literals; no 'locale'/'Accept-Language' anywhere in apps/notification-service/src; frontend/src/components/patient/notifications/notification-row.tsx:46 renders `format.prose(item.text)`; notification item shape {id, category, text, sent, read, appointmentId?, encounterId?} (api-designer-spec §8) has no event discriminator. Scenario: English UI -> book a visit -> notification text 'Вы записаны на приём…' in the bell panel.",
+  "files": [
+    "apps/notification-service/src/modules/notifications/communication.mapper.ts",
+    "apps/notification-service/src/modules/notifications/notifications.service.ts",
+    "apps/notification-service/src/modules/notifications/dto",
+    "frontend/src/components/patient/notifications/notification-row.tsx",
+    "frontend/src/components/patient/notifications/notification-logic.ts",
+    "frontend/src/messages/en.json"
+  ],
+  "proposedFix": "Smallest additive change: keep contentString as the Russian fallback, but also store the event kind (e.g. Communication.topic.coding code = 'appointment.booked' | 'appointment.cancelled' | 'appointment.cancelled.by-admin' | 'appointment.noshow' | 'encounter.completed' | 'patient.registered') and expose it as an additive `kind` field in the 8.1 item. The frontend then renders `t('notifications.kinds.<kind>')` with the start time formatted by the existing clinic-time helpers (the booked text needs the start instant: expose `start`/`appointmentStart` or put it into the payload as a second contentString/extension), falling back to item.text for unknown or old items. Add the strings to ru.json and en.json (parity test already exists). Alternative without touching the DTO shape: render en text in notification-service per Accept-Language, but then stored items cannot be switched later, so the kind-based client rendering is preferred.",
+  "needsDecision": false,
+  "decisionQuestion": "",
+  "tzRef": "NFR-008, FR-008",
+  "confidence": "confirmed"
+}

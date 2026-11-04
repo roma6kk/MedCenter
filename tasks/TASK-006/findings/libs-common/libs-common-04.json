@@ -1,0 +1,21 @@
+{
+  "id": "libs-common-04",
+  "unit": "libs-common",
+  "kind": "robustness",
+  "severity": "low",
+  "title": "Пустое значение необязательной переменной окружения (SWAGGER_ENABLED=, FHIR_CLIENT_ID=, RATE_LIMIT_PER_MINUTE=) роняет старт сервиса или даёт пустой Basic-заголовок: пустая переменная трактуется по-разному в разных местах",
+  "description": "Общая схема libs/config разбирает значения «как есть»: пустая строка не считается «не задано». z.stringbool() для SWAGGER_ENABLED='' бросает ошибку (допустимы только true/false/1/0/yes/no/on/off/y/n/enabled/disabled), RATE_LIMIT_PER_MINUTE='' превращается в 0 и не проходит positive(), TERMINOLOGY_UPSTREAM_URL='' не проходит z.url(), JWT_PRIVATE_KEY='' не проходит min(1). Поэтому строка вида SWAGGER_ENABLED= в локальном .env при запуске сервиса вне compose (nx serve) останавливает старт ZodError-ом в parseSwaggerEnv/parseGuardEnv. В самом проекте эта проблема уже известна: analytics-env.ts вводит blankAsUnset («An empty variable means unset»), а createFhirClientProvider трактует пустой FHIR_TIMEOUT_MS как «не задано». Но FHIR_CLIENT_ID/FHIR_CLIENT_SECRET (в docker-compose передаются сквозным ключом без значения) трактуются иначе в двух местах: patient-service (z.string().min(1).optional()) падает на пустом значении, а все остальные сервисы через createFhirClientProvider получают clientId='' и clientSecret='' и отправляют в HAPI заголовок Authorization: Basic Og== с пустыми учётными данными.",
+  "evidence": "libs/config/src/lib/env.schema.ts:32 (SWAGGER_ENABLED: z.stringbool().default(false)), :21 (RATE_LIMIT_PER_MINUTE: z.coerce.number()...positive()), :22 (TERMINOLOGY_UPSTREAM_URL: z.url().optional()). Проверено в node: z.object({SWAGGER_ENABLED: z.stringbool().default(false)}).safeParse({SWAGGER_ENABLED: ''}) -> ошибка «Invalid option: expected one of true|1|yes|on|...», а RATE_LIMIT_PER_MINUTE='' -> «Too small: expected number to be >0». apps/patient-service/src/config/patient-service-env.ts:21-22 (FHIR_CLIENT_ID: z.string().min(1).optional()), libs/fhir/src/lib/fhir-client.provider.ts:366 (clientId: env['FHIR_CLIENT_ID'] без проверки на пустую строку) и :168-170 (Basic-заголовок при clientId !== undefined && clientSecret !== undefined). Эталон «пустое = не задано»: apps/analytics-service/src/config/analytics-env.ts:10-15 и parseTimeout в fhir-client.provider.ts.",
+  "files": [
+    "libs/config/src/lib/env.schema.ts",
+    "libs/fhir/src/lib/fhir-client.provider.ts",
+    "apps/patient-service/src/config/patient-service-env.ts",
+    "apps/analytics-service/src/config/analytics-env.ts",
+    "libs/config/src/lib/env.schema.spec.ts"
+  ],
+  "proposedFix": "Вынести blankAsUnset (z.preprocess: '' -> undefined) в libs/config и применить к необязательным ключам общей схемы (SWAGGER_ENABLED, RATE_LIMIT_PER_MINUTE, PORT, CONSENT_ENFORCEMENT, TERMINOLOGY_UPSTREAM_URL, JWT_PRIVATE_KEY/JWT_PUBLIC_KEY, FHIR_CLIENT_ID/FHIR_CLIENT_SECRET). Заменить локальную копию blankAsUnset в analytics-env.ts импортом. В createFhirClientProvider считать пустые FHIR_CLIENT_ID/FHIR_CLIENT_SECRET незаданными (не слать Basic Og==). Добавить в env.schema.spec.ts случаи с пустыми значениями. Обязательные ключи (FHIR_BASE_URL, JWT_*, REDIS_URL) оставить строгими: пустое значение должно по-прежнему ронять старт.",
+  "needsDecision": false,
+  "decisionQuestion": "",
+  "tzRef": "NFR-006 (секреты только из окружения), архитектура §6",
+  "confidence": "likely"
+}

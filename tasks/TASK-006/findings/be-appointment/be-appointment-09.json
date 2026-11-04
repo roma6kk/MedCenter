@@ -1,0 +1,20 @@
+{
+  "id": "be-appointment-09",
+  "unit": "be-appointment",
+  "kind": "security",
+  "severity": "medium",
+  "title": "GET /appointments/{id} отдаёт администратору свободный текст «причина обращения» и причину отмены - сведения о здоровье, которые решение ADR-018 D-2 закрывает от администратора",
+  "description": "По ADR-018 (решение D-2, нормы N1, N3, N4) администратор видит идентификацию и контакты пациента, но не медицинские данные. В юридическом ответе по согласию (TASK-003, L6) «причина обращения» прямо названа сведениями о здоровье, и именно поэтому запись с reason без согласия получает 409 CONSENT_REQUIRED. При этом 6.3 для роли ADMIN возвращает полный AppointmentViewDto вместе с reason и cancelReason (общий маппер не различает вызывающего), а запись любого пациента администратору доступна по id без компартмента. Отдельно: при отмене причина обязательна (3-500 символов), хранится как свободный текст, показывается врачу и администратору, но согласия не требует, хотя reason при записи его требует, а ADR-021 сознательно исключил причину отмены из события как данные о здоровье. Это правовой выбор, поэтому нужно решение владельца; данные уходят администратору только по id записи, списка записей у администратора пока нет (tz-matrix-09), поэтому срочности нет.",
+  "evidence": "apps/appointment-service/src/modules/appointments/appointment-queries.service.ts:92-102 findById(): for the admin viewer assertViewerCanSee passes without any restriction, toAppointmentView() returns reason and cancelReason (libs/fhir-mappers/src/lib/appointment.mapper.ts:44-45 read them, :59-60 return them). apps/appointment-service/src/modules/appointments/appointments.service.ts:113-135 cancel() stores dto.reason with no consent check and returns it in the response; events/appointment-events.ts:17 comment calls that free text health data. specs/architect-architecture.md ADR-018, tasks/TASK-003/architect-pdn-access-decision.md D-2, tasks/TASK-003/architect-consent-legal-answers.md line 67 ('причина обращения - сведения о здоровье (L6)'). Scenario: ADMIN GET /api/v1/appointments/{id} of a patient who booked with reason 'Боли в груди' -> 200 with reason.",
+  "files": [
+    "apps/appointment-service/src/modules/appointments/appointment-queries.service.ts",
+    "apps/appointment-service/src/modules/appointments/appointment-view.mapper.ts",
+    "apps/appointment-service/src/modules/appointments/appointments.service.ts",
+    "specs/api-designer-spec.md"
+  ],
+  "proposedFix": "Option A (recommended): for the ADMIN viewer omit reason (keep cancelReason, it is mostly organisational) in findById() and in the answer of cancel() when the caller is ADMIN; implement as a role-aware step in toAppointmentView()/findById() (viewer.kind === 'admin' -> strip), with a unit spec, and state in API §6.3 and in the PDN matrix of §0 that the free text of a visit is a medical datum not shown to the administrator. Option B: omit cancelReason for ADMIN as well. Option C: keep as is (the administrator needs context to cancel). For the second question: if cancellation without consent must stay possible (it must), either keep the reason as is and note the legal risk to the lawyer, or accept the reason text only with an active consent and store the fixed text 'отмена пациентом' otherwise.",
+  "needsDecision": true,
+  "decisionQuestion": "Скрывать ли от администратора свободный текст записи в 6.3 и в ответе отмены? A) Скрыть reason, причину отмены оставить (рекомендую: для отмены администратору нужны кто, когда и к кому; причина обращения - сведения о здоровье по D-2 и L6, причина отмены чаще организационная); B) скрыть оба текста; C) оставить как есть. Второй вопрос: должна ли отмена записи пациентом без согласия на ЭМК принимать свободный текст причины (сейчас да; reason при записи без согласия не принимается)? Варианты: оставить, или без согласия сохранять фиксированный текст вместо введённого.",
+  "tzRef": "ADR-018 D-2, ADR-019, BR-006; API §6.3",
+  "confidence": "likely"
+}

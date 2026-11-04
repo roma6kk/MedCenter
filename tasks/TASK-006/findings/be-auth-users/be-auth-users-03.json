@@ -1,0 +1,21 @@
+{
+  "id": "be-auth-users-03",
+  "unit": "be-auth-users",
+  "kind": "robustness",
+  "severity": "low",
+  "title": "Валидация на границе API неполная: имя из одних пробелов и дата рождения в будущем принимаются, а управляющий символ NUL в тексте даёт 500 из PostgreSQL вместо 400",
+  "description": "DTO RegisterPatientDto / CreateUserDto / UpdateUserDto проверяют имя как `@IsString() @IsNotEmpty() @MaxLength(100)` без обрезки пробелов и без запрета управляющих символов. (1) Имя «   » проходит: создаются учётная запись и FHIR Patient с пустым ФИО (в таблице пользователей, списках врача и аудите будет пустая строка). (2) Дата рождения проверяется только как реальная календарная дата (`IsDateString({strict:true})` + шаблон), поэтому `2999-01-01` и `0001-01-01` принимаются и пишутся в Patient.birthDate. (3) JSON допускает `\\u0000`, строка с NUL проходит все декораторы и падает уже в PostgreSQL (`invalid byte sequence for encoding UTF8: 0x00`, ошибка драйвера не переводится в 4xx) — клиент получает 500 INTERNAL и в логе остаётся ошибка; так же ведёт себя `GET /admin/users?search=%00`. Фронтенд страхуется от (1) и (2) (trim в zod-схемах, `max={clinicDateKey()}` у DatePicker, `ageInYears` даёт null для будущей даты), но `POST /api/v1/auth/register` публичный и принимает запросы напрямую; ограничение — только 10 запросов в минуту на IP.",
+  "evidence": "apps/auth-service/src/modules/users/dto/register-patient.dto.ts:61-71 (firstName/lastName: IsString, IsNotEmpty, MaxLength — no Transform/trim, no control-char check), :79-82 (birthDate: IsDateString strict + DATE_ONLY_PATTERN, no bounds), :43-47 AccountConsentDto.textVersion (IsString/IsNotEmpty/MaxLength 64, goes to the varchar(64) column); same name/date rules in create-user.dto.ts:43-53,68-72 and update-user.dto.ts:44-55,57-61; list-users-query.dto.ts `search` (IsString, MaxLength 100). libs/common createValidationPipe has transform:true but no trimming. Scenarios: (a) POST /api/v1/auth/register with firstName '  ', lastName '  ', birthDate '2999-01-01' -> 201 with Patient{name:[{family:'  ',given:['  ']}], birthDate:'2999-01-01'}; (b) firstName 'Иван\\u0000' -> TypeOrmUserStore.create throws QueryFailedError (22021) -> 500, nothing written. Frontend guards: frontend/src/components/auth/register-schema.ts:13 (trim), register-form.tsx:58 (max=today).",
+  "files": [
+    "apps/auth-service/src/modules/users/dto/register-patient.dto.ts",
+    "apps/auth-service/src/modules/users/dto/create-user.dto.ts",
+    "apps/auth-service/src/modules/users/dto/update-user.dto.ts",
+    "apps/auth-service/src/modules/users/dto/list-users-query.dto.ts",
+    "apps/auth-service/src/modules/users/dto/validation-patterns.ts"
+  ],
+  "proposedFix": "In validation-patterns.ts add (a) a `trimmed` Transform helper (`({ value }) => typeof value === 'string' ? value.trim() : value`), (b) a `NO_CONTROL_CHARS` pattern (`/^[^\\u0000-\\u001F\\u007F]*$/`) used with `@Matches` on firstName, lastName, accountConsent.textVersion and `search`, and (c) an `@IsNotFutureDate` constraint comparing the date-only string with today's date in Europe/Minsk (plain YYYY-MM-DD string comparison) and rejecting dates before 1900-01-01. Apply `@Transform(trimmed)` before `@IsNotEmpty()` on the names of the three DTOs and the date constraint on birthDate of the three DTOs. Add cases to dto/user-dtos.spec.ts ('   ' -> firstName, 'Иван\\u0000' -> firstName, '2999-01-01' -> birthDate) and one register e2e case asserting nothing is written.",
+  "needsDecision": false,
+  "decisionQuestion": "",
+  "tzRef": "NFR-006 (валидация на границах), FR-001, FR-015",
+  "confidence": "likely"
+}

@@ -1,0 +1,19 @@
+{
+  "id": "fe-doctor-08",
+  "unit": "fe-doctor",
+  "kind": "robustness",
+  "severity": "low",
+  "title": "Локальный черновик приёма остаётся в localStorage, если приём оказался завершён не из этой формы (409-повтор, другая вкладка, потерянный ответ)",
+  "description": "Черновик (клинический текст) стирается только в onSuccess собственной мутации завершения (useCompleteEncounter -> draft.forget). Если запрос завершения дошёл до сервера, а ответ потерялся, или приём завершили в другой вкладке/на другом устройстве, повторная отправка даёт 409 ENCOUNTER_STATE_INVALID, форма заменяется карточкой «только для чтения», но черновик остаётся в хранилище браузера до истечения срока (3 дня) или до явного выхода из системы, причём при размонтировании формы useEncounterDraft ещё и сбрасывает ожидающую запись заново (isForgotten не выставлен). На общем рабочем месте это текст чужого приёма, который никогда уже не будет восстановлен. Принятое в TASK-005 правило «черновик удаляется, когда приём завершён» выполняется не во всех путях завершения. Выход при истёкшей сессии (redirectToLogin, endRevokedSession) черновики не трогает намеренно, и это правильно.",
+  "evidence": "frontend/src/components/doctor/use-doctor-mutations.ts:72-78 forget runs only in the hook's own onSuccess; frontend/src/components/doctor/encounter-view.tsx:46-59 EncounterBody renders the read-only record for status 'finished' without clearDraft; use-encounter-draft.ts:97-103 the unmount cleanup calls flush() which persists a waiting write when isForgotten is false. Scenario: press «Завершить приём», response lost (status 0), press again -> 409 -> read-only view; localStorage still holds medcenter.encounterDraft.<id> with the summary and recommendations.",
+  "files": [
+    "frontend/src/components/doctor/encounter-view.tsx",
+    "frontend/src/components/doctor/use-encounter-draft.ts",
+    "frontend/src/lib/encounter-draft.ts"
+  ],
+  "proposedFix": "In EncounterBody (or EncounterView) call clearDraft(encounter.id) from lib/encounter-draft in a useEffect when encounter.status === 'finished' (cheap and idempotent), and make the form's unmount flush skip writing when the encounter query already reports finished. Add a spec in encounter-view.spec.tsx: a stored draft is removed once the finished record is shown.",
+  "needsDecision": false,
+  "decisionQuestion": "",
+  "tzRef": "TASK-005 A8 (локальный черновик), NFR безопасности (персональные данные не должны оставаться в браузере)",
+  "confidence": "likely"
+}

@@ -1,0 +1,22 @@
+{
+  "id": "fe-admin-03",
+  "unit": "fe-admin",
+  "kind": "ux",
+  "severity": "medium",
+  "title": "Страница согласия у администратора не называет пациента: при внесении или отзыве бумажного согласия не видно, чья это карточка",
+  "description": "/admin/patients/[patientId]/consent открывается из строки пользователя, но на самой странице нет ни имени, ни любого другого признака пациента: заголовок «Согласие на электронную медкарту», статус, история, форма внесения и кнопка отзыва. Имя намеренно не попадает в заголовок вкладки (приватность), и нигде больше его тоже нет. После перезагрузки, из истории браузера или при двух открытых вкладках администратор не может проверить, что вносит бумажное согласие или отзыв именно тому пациенту, чей бланк у него в руках, а ошибка тут юридически значима и необратима с экрана. В каталоге сообщений есть ключи consent.admin.openFor («Согласие на электронную медкарту: {name}») и consent.admin.notFound («Пациент не найден»), но в коде они не используются: замысел показывать имя и различать «нет такого пациента» остался нереализованным. Для врача такой проблемы нет: его блок согласия стоит внутри карточки с ФИО пациента.",
+  "evidence": "frontend/src/components/consent/admin-patient-consent.tsx:15-21 (AdminPageHeader title={t('title')} без описания, StaffConsentPanel без имени); frontend/src/components/consent/staff-consent-panel.tsx:41-52; grep -rn \"openFor\\|notFound\" по components/consent и components/admin -> ключи consent.admin.openFor и consent.admin.notFound нигде не вызываются; frontend/src/messages/ru.json consent.admin = {title, back, open, openFor, notFound}. Для ADMIN нет запроса «имя по patientId»: GET /patients/{id} (3.2) закрыт ADR-018, а GET /admin/users ищет только по роли и подстроке. Сценарий: администратор открыл согласие Ивановой, не закрыл вкладку, открыл вторую для Петрова; обе страницы выглядят одинаково, форма принимает номер бланка и скан без какой-либо привязки к человеку на экране.",
+  "files": [
+    "frontend/src/components/consent/admin-patient-consent.tsx",
+    "frontend/src/components/consent/staff-consent-panel.tsx",
+    "frontend/src/components/admin/users/users-table.tsx",
+    "apps/patient-service/src/modules/consents/consents.controller.ts",
+    "frontend/src/messages/ru.json",
+    "frontend/src/messages/en.json"
+  ],
+  "proposedFix": "Show the patient as «Фамилия Имя» (plus the account e-mail) under the page title. Option A: patient-service returns `patient: { display }` (name only, no birth date or contacts) in the answer of GET /patients/{id}/consent for ADMIN, the page prints it and uses consent.admin.notFound when the patient does not exist. Option B (no API change): when the user row is clicked, keep `{ [patientId]: name }` in sessionStorage (never in the URL) and read it on the page; fall back to a neutral line when it is missing. Use the existing openFor key as the section's aria-label either way.",
+  "needsDecision": true,
+  "decisionQuestion": "Как показывать администратору, чьё согласие он оформляет? Варианты: (A) добавить в ответ 3.7 только отображаемое имя пациента (ФИО, без даты рождения и контактов) и вывести его на странице; (B) без изменения API запомнить имя в sessionStorage при переходе из списка пользователей, при прямом заходе имени не будет; (C) оставить как есть. Рекомендация: A, потому что имя уже видно администратору в списке пользователей, а ошибка при внесении бумажного согласия юридически значима; B работает не при каждом заходе.",
+  "tzRef": "ADR-018, ADR-019; frontend-design-spec §1 (AdminPatientConsent)",
+  "confidence": "confirmed"
+}

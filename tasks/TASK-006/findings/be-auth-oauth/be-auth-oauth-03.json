@@ -1,0 +1,23 @@
+{
+  "id": "be-auth-oauth-03",
+  "unit": "be-auth-oauth",
+  "kind": "i18n",
+  "severity": "medium",
+  "title": "Серверная страница входа и её сообщения об ошибках только на русском: выбранный на сайте английский язык теряется",
+  "description": "Клиент полностью двуязычный (ru/en, переключатель в шапке, cookie mc-locale), но вход идёт на серверно-рендеренную страницу auth-service, где всё зашито по-русски: <html lang=\"ru\">, заголовок «Вход в личный кабинет», подпись «Электронная почта/Пароль», кнопка «Войти», «Показать/Скрыть пароль», «← На сайт», «Нет аккаунта? Зарегистрироваться», <title>, название бренда «Лайфлайн» (в en-каталоге клиента бренд — «Lifeline»), а также все пять сообщений в login-messages.ts (неверный пароль, устаревшая форма, слишком много попыток, сервис недоступен, некорректный запрос). Никакого определения языка нет: ни параметра ui_locales / locale в authorize-запросе, ни Accept-Language. Англоязычный пользователь, выбравший en на сайте, после нажатия «Sign in» попадает на русскую страницу; скринридер и браузерный переводчик получают неверный lang. Cookie mc-locale прочитать нельзя: сайт (localhost:3000) и auth-service (medcenter.localhost:8081) — разные хосты, поэтому язык нужно передавать в самом authorize-запросе.",
+  "evidence": "apps/auth-service/src/modules/oauth/login/login-page.ts:153 `'<html lang=\"ru\">'`, :148 `На сайт`, :159 `— Лайфлайн`, :180 `Электронная почта`, :199 `Нет аккаунта?`, :204 `Вход в личный кабинет`; apps/auth-service/src/modules/oauth/login/login-messages.ts:1-11 (все константы по-русски); apps/auth-service/src/modules/oauth/login/authorize-query.ts:5-16 (белый список AUTHORIZE_PARAMS без ui_locales); grep `ui_locales|Accept-Language` по apps/auth-service/src — 0 совпадений; frontend/src/app/api/auth/authorize/route.ts:20-27 строит authorize-URL без языка. Сценарий: на сайте выбрать EN → «Sign in» → страница входа на русском, <html lang=\"ru\">.",
+  "files": [
+    "apps/auth-service/src/modules/oauth/login/login-page.ts",
+    "apps/auth-service/src/modules/oauth/login/login-messages.ts",
+    "apps/auth-service/src/modules/oauth/login/login-page.responder.ts",
+    "apps/auth-service/src/modules/oauth/login/login.controller.ts",
+    "apps/auth-service/src/modules/oauth/login/login-rate-limit.filter.ts",
+    "apps/auth-service/src/modules/oauth/login/authorize-query.ts",
+    "frontend/src/app/api/auth/authorize/route.ts"
+  ],
+  "proposedFix": "1) Add `ui_locales` (OIDC Core 3.1.2.1, also fine for plain OAuth) to AUTHORIZE_PARAMS in authorize-query.ts so it survives the form round trip inside the hidden authorize_query field. 2) New login-i18n.ts in the login folder: `type LoginLocale = 'ru' | 'en'`, a dictionary with every string of login-page.ts and login-messages.ts (the messages become keys, controller passes the key and the responder resolves the text), and `resolveLoginLocale(authorizeQuery, acceptLanguageHeader)` = first supported tag of ui_locales, else Accept-Language, else 'ru'. 3) Thread the locale through renderLoginPage / renderLoginErrorPage / layout (use it for <html lang>, <title>, labels, the data-show/data-hide attributes, the back link and brand), LoginPageResponder.sendForm/sendError, LoginController.refusalOf and LoginRateLimitFilter. 4) In the frontend authorize route read the mc-locale cookie (cookies() / request.cookies, LOCALE_COOKIE) and set `ui_locales` on the authorize URL. 5) Extend login-page.spec.ts / login.controller.spec.ts with an en case (lang=\"en\", English error text) and the sanitizer spec with ui_locales (bounded value, unknown tag falls back to ru). The CSP hashes stay valid because the CSS/script constants do not change.",
+  "needsDecision": false,
+  "decisionQuestion": "",
+  "tzRef": "NFR-008 (ru-BY по умолчанию, задел на en); frontend-design-spec §7 (i18n ru/en)",
+  "confidence": "confirmed"
+}

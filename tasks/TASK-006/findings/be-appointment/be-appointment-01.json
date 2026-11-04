@@ -1,0 +1,21 @@
+{
+  "id": "be-appointment-01",
+  "unit": "be-appointment",
+  "kind": "bug",
+  "severity": "medium",
+  "title": "Запись на слот, время которого уже наступило или прошло: POST /appointments проверяет только status=free, а свободные слоты прошлого никогда не гасятся",
+  "description": "Каталог не предлагает пациенту слоты, которые уже начались (doctor-slots.service.ts: startMs > nowMs), и в комментарии объясняет, что устаревший free-слот безопасен, потому что бронирование перепроверяет его через If-Match. Перепроверка ловит только занятый слот (смена версии), но не время: loadBookableSlot() сравнивает лишь slot.status с free, а слоты прошлого остаются free навсегда (очистки или перевода в другой статус нет нигде). Поэтому запись принимается, если пациент подтверждает её после начала слота (мастер открыт в 09:50, подтверждение в 10:05, к тому же страница слотов каталога кэшируется на 15 с). Кроме того, id слота вычисляется: sha256 от «scheduleId|start», а оба значения публичны в ответе GET /doctors/{id}/slots, поэтому прямым вызовом API можно записаться на любое прошлое время расписания. Итог: в журнале врача появляется обычная запись «записан» на уже прошедшее время, пациент получает уведомление о записи в прошлое, аналитика её считает, врач вынужден закрывать её неявкой или приёмом задним числом.",
+  "evidence": "apps/appointment-service/src/modules/appointments/appointments.service.ts:207-227 loadBookableSlot(): the only state test is slot['status'] !== 'free' (line 209); slot.start is never compared with the clock, and buildBookedAppointment() (appointment-resource.ts) copies start/end as they are. apps/catalog-service/src/modules/slots/doctor-slots.service.ts:45 drops started slots only from the public offer. apps/catalog-service/src/modules/schedules/slot-generator.service.ts:208 slot id = sha256(`${scheduleId}|${start}`).slice(0, 64). Nothing in apps/catalog-service moves an old free slot to another status (grep for expire/purge/cleanup finds none). Scenario: slot S is 10:00 today and still free at 10:05 -> POST /api/v1/appointments {slotId: S} -> 201 Appointment(status=booked, start in the past), slot busy; same for yesterday's slot with a computed id.",
+  "files": [
+    "apps/appointment-service/src/modules/appointments/appointments.service.ts",
+    "apps/appointment-service/src/modules/appointments/appointments.controller.ts",
+    "apps/appointment-service/src/modules/appointments/appointments.service.spec.ts",
+    "apps/appointment-service/test/booking-concurrency.e2e-spec.ts",
+    "specs/api-designer-spec.md"
+  ],
+  "proposedFix": "In loadBookableSlot(), right after the free check, refuse a slot whose start is not later than now: Date.parse(slot.start) is NaN -> internal data error (like missingReference); <= Date.now() -> ConflictException { errorCode: 'SLOT_CONFLICT', message: 'SLOT_CONFLICT: slot has already started' }. This is the same rule as the catalog offer (startMs > nowMs); SLOT_CONFLICT keeps the existing frontend behaviour (classifyBookingFailure -> conflict: the slot is shown as taken, the wizard goes back to the slot step, slots are invalidated) and adds no new error code. Update API §6.1 transaction text ('Slot.status=free and start in the future') and the @ApiProblems 409 text of the controller. Tests: appointments.service.spec.ts uses a fixed slot on 2026-11-02T09:00+03:00, so pin the clock with jest.useFakeTimers().setSystemTime(...) in beforeEach and add 'started slot -> SLOT_CONFLICT, nothing written' and 'slot without a parsable start -> INTERNAL'; test/booking-concurrency.e2e-spec.ts seeds the same fixed date, derive the start from the current time (for example tomorrow 09:00 +03:00). Stack smoke books live future slots and is not affected.",
+  "needsDecision": false,
+  "decisionQuestion": "",
+  "tzRef": "FR-004, BR-001; API §6.1",
+  "confidence": "confirmed"
+}

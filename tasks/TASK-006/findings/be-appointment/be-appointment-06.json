@@ -1,0 +1,20 @@
+{
+  "id": "be-appointment-06",
+  "unit": "be-appointment",
+  "kind": "bug",
+  "severity": "low",
+  "title": "GET /doctor/appointments: границы from/to в виде даты без времени HAPI читает в своей зоне (UTC), а не по дню клиники (Europe/Minsk)",
+  "description": "Для from=2026-11-02&to=2026-11-02 сервис передаёт в HAPI date=ge2026-11-02 и date=le2026-11-02 как есть (поведение закреплено unit-тестом и e2e). Дата без времени трактуется HAPI в часовом поясе его JVM; ни в docker-compose, ни в infra для HAPI TZ не задан, то есть это сутки UTC, а по Минску они идут с 03:00 до 03:00 следующих суток. Каталог (slot-range.ts) и фронтенд (clinic-time.ts: «a date-only filter would be read in the server's zone») сознательно переводят дату в границы дня клиники и голую дату не шлют никогда. Контракт 6.5 и пример в Swagger разрешают именно дату, поэтому любой клиент, кроме нашего фронтенда (Bruno, скрипты, будущий клиент), получает «день» со сдвигом на 3 часа: запись на 03.11 в 01:00 по Минску (22:00 UTC 02.11) в выборку за 03.11 не попадает, а запись на 04.11 в 01:30 (22:30 UTC 03.11) попадает. В рабочие часы клиники это заметно редко, поэтому важность низкая, но это тот же класс ошибки, который в каталоге уже исправлен.",
+  "evidence": "apps/appointment-service/src/modules/appointments/appointment-queries.service.ts:44-50 dateRange() forwards `ge${from}` / `le${to}` verbatim; :57-66 upperInstantOf() and assertOrderedRange() assume UTC midnight; appointment-queries.service.spec.ts:251-259 and test/appointment-reads.e2e-spec.ts:140 pin the bare-date pass-through. No TZ setting for the hapi service in docker-compose.yml or infra. apps/catalog-service/src/modules/slots/slot-range.ts:46-52 startInstant()/endInstant() resolve a date-only bound to clinicDayStartMs/clinicDayEndMs (apps/catalog-service/src/common/clinic-calendar.ts:26,31); frontend/src/lib/clinic-time.ts:128-131 clinicDayBounds() comment states the problem. Scenario: GET /doctor/appointments?from=2026-11-03&to=2026-11-03 misses the visit starting 2026-11-03T01:00+03:00 (= 2026-11-02T22:00Z) and returns the one starting 2026-11-04T01:30+03:00 (= 2026-11-03T22:30Z).",
+  "files": [
+    "apps/appointment-service/src/modules/appointments/appointment-queries.service.ts",
+    "apps/appointment-service/src/modules/appointments/appointment-queries.service.spec.ts",
+    "apps/appointment-service/test/appointment-reads.e2e-spec.ts",
+    "apps/appointment-service/src/modules/appointments/dto/list-doctor-appointments-query.dto.ts"
+  ],
+  "proposedFix": "Resolve a date-only bound to clinic-day instants before the FHIR search, as catalog does: reuse (or lift into libs/common) clinicDayStartMs/clinicDayEndMs from apps/catalog-service/src/common/clinic-calendar.ts, send date=ge<ISO instant of the day start> and date=le<ISO instant of the day end>, and make assertOrderedRange() compare the same instants. Date-time inputs stay untouched. Update the two tests that pin the bare date and the Swagger description ('a date covers the whole clinic day, Europe/Minsk').",
+  "needsDecision": false,
+  "decisionQuestion": "",
+  "tzRef": "API §6.5; NFR (часовой пояс клиники Europe/Minsk)",
+  "confidence": "likely"
+}

@@ -1,0 +1,18 @@
+{
+  "id": "task005-triage-b-10",
+  "unit": "task005-triage-b",
+  "kind": "question",
+  "severity": "low",
+  "title": "RESOLVED: меню профиля как композиция DropdownMenu — отдельный компонент не нужен",
+  "description": "Вопрос из T5 «меню профиля сделано расширением DropdownMenu, а не отдельным компонентом — устраивает?». Да: StaffProfileMenu только собирает список пунктов (язык и тема как отмечаемые пункты с заголовками групп, «Выйти») и передаёт его общему DropdownMenu, поэтому клавиатура, фокус и роли ARIA живут в одном месте и покрыты dropdown-menu.spec. Своя реализация дала бы второй набор тех же багов.",
+  "evidence": "frontend/src/components/layout/staff-profile-menu.tsx:20-41 useProfileItems builds MenuItem[] (checked, heading, onSelect); :64-72 renders <DropdownMenu label items trigger align width>; frontend/src/components/ui/dropdown-menu.spec.tsx.",
+  "files": [
+    "frontend/src/components/layout/staff-profile-menu.tsx",
+    "frontend/src/components/ui/dropdown-menu.tsx"
+  ],
+  "proposedFix": "No change.",
+  "needsDecision": false,
+  "decisionQuestion": "",
+  "tzRef": "",
+  "confidence": "confirmed"
+}

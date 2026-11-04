@@ -1,0 +1,21 @@
+{
+  "id": "be-encounter-04",
+  "unit": "be-encounter",
+  "kind": "robustness",
+  "severity": "low",
+  "title": "7.3 принимает ServiceRequest и Observation с кодом из любой «чужой» посеянной системы (МКБ-10, АТХ, услуги) и повторяющиеся диагнозы",
+  "description": "ServiceRequestDto.codeSystem и ObservationDto.codeSystem — произвольные строки (`@IsString`, до 255 символов). TerminologyValidatorService.assertCodesExist отвергает только системы, которых нет в seed, но считает «известным» любой код из любой посеянной системы. Поэтому через API проходит направление (`ServiceRequest`) с кодом МКБ-10 `J06.9` или АТХ `J01FA10` (система ICD-10/АТХ посеяна, код в ней есть) и измерение (`Observation`) с кодом услуги `10001`. Такие ресурсы попадают в историю и список назначений пациента как «услуга J06.9». Спецификация ожидает для ServiceRequest НСИ ЦИСЗ (`nsi-services`, ADR-002), для Observation — `nsi-observations`; catalog-service уже отвергает любую систему услуги, кроме `FHIR_BY.SERVICE_CODE_SYSTEM` (services.service.ts:200), encounter-service — нет. Рядом: в `diagnoses[]` и `medicationRequests[]` можно прислать один и тот же код дважды — создаются две одинаковые Condition (в истории два одинаковых чипа с совпадающим React key = code) и два одинаковых назначения. Интерфейс врача выбирает коды из выпадающих списков нужных ValueSet, так что дефект достижим прямым вызовом API, но граница сервиса обязана проверять сама (AGENTS.md: MUST validate at system boundaries).",
+  "evidence": "apps/encounter-service/src/modules/encounters/dto/service-request.dto.ts:7-11 and dto/observation.dto.ts:7-11 (`@IsString() @IsNotEmpty() @MaxLength(255) codeSystem`); apps/encounter-service/src/modules/encounters/mappers/encounter-completion.mapper.ts:56-72 (`terminologyRefsOf` passes request.codeSystem through); apps/encounter-service/src/modules/terminology/terminology-validator.service.ts:61-67 `isOutsideSeed` only checks that the system is seeded, :128-140 `assertCodesExist`; apps/catalog-service/src/modules/services/services.service.ts:199-202 rejects a foreign system. Scenario: POST /encounters/{id}/complete with serviceRequests:[{codeSystem:'https://fhir.by/CodeSystem/InternClassificDiseases10', code:'J06.9'}] -> 200, a ServiceRequest coded with an ICD-10 diagnosis is stored and shown as a referral; the same body with diagnoses:[J06.9, J06.9] -> two identical Conditions.",
+  "files": [
+    "apps/encounter-service/src/modules/encounters/dto/service-request.dto.ts",
+    "apps/encounter-service/src/modules/encounters/dto/observation.dto.ts",
+    "apps/encounter-service/src/modules/encounters/mappers/encounter-completion.mapper.ts",
+    "apps/encounter-service/src/modules/terminology/terminology-validator.service.ts",
+    "apps/encounter-service/src/modules/encounters/dto/complete-encounter.dto.ts"
+  ],
+  "proposedFix": "Pin the system per field. DTO level: `@IsIn([FHIR_BY.SERVICE_CODE_SYSTEM])` on ServiceRequestDto.codeSystem and `@IsIn([FHIR_BY.OBSERVATION_CODE_SYSTEM])` on ObservationDto.codeSystem (400 VALIDATION_ERROR with the field path, update the swagger `enum`), or, to keep the 422 contract for \"unsupported system\", an `allowedSystems` check in terminologyRefsOf that reports it as TERMINOLOGY_NOT_FOUND with `details[].field` like the other misses. Duplicates: reject repeated `diagnoses[].code` (and repeated `medicationRequests[].atcCode`) with 400 VALIDATION_ERROR (custom validator `@UniqueBy('code')` or a check at the top of EncountersService.complete) or silently de-duplicate while keeping the first as primary. Add unit cases next to terminology-validator.service.spec.ts and an e2e case for the 4xx.",
+  "needsDecision": false,
+  "decisionQuestion": "",
+  "tzRef": "BR-004, BR-005, BR-009, ADR-002, api-designer-spec 7.3",
+  "confidence": "confirmed"
+}

@@ -1,0 +1,17 @@
+{
+  "id": "be-analytics-04",
+  "unit": "be-analytics",
+  "kind": "docs",
+  "severity": "low",
+  "title": "Bruno-запрос 9.1 всё ещё описывает ответ без группы fulfilled и не проверяет её",
+  "description": "После того как отчёт 9.1 получил отдельную группу fulfilled («Посещено») и плоское поле fulfilled (решение владельца, уже реализовано), коллекция Bruno осталась прежней: в docs-блоке запроса 9.1 перечислены только `booked, cancelled, noshow`, а assert-блок не проверяет ни группу, ни поле. Разработчик, открывающий коллекцию как справочник API, не узнает, что `booked` больше не включает посещённые записи, а регрессия (потеря fulfilled в ответе) этим запросом не будет поймана. Остальные места уже обновлены (api-designer-spec §9, DTO, Swagger-док measure-report.doc.ts).",
+  "evidence": "bruno/medcenter-api/10-analytics/9.1-appointments.bru:29 docs: 'MeasureReport-like `{ measure, scoring, period, total, groups[], booked, cancelled, noshow }`'; assert block (lines 21-26) has measure/total/groups only. Current contract: apps/analytics-service/src/modules/reports/dto/appointments-summary.dto.ts:8 and measure-report.doc.ts:56-57 (fulfilled: number), specs/api-designer-spec.md §9 ('Добавление аддитивное (новая группа и поле fulfilled), но booked больше не включает посещённые записи').",
+  "files": [
+    "bruno/medcenter-api/10-analytics/9.1-appointments.bru"
+  ],
+  "proposedFix": "In 9.1-appointments.bru: extend docs to `{ measure, scoring, period, total, groups[], booked, fulfilled, cancelled, noshow }` plus one sentence ('booked = still ahead; fulfilled = attended, BR-008; the four counts partition the appointments of the period'), and add asserts `res.body.fulfilled: isNumber` and a test that the four flat counters sum to `total`. After be-analytics-01 is implemented, also mention in the docs of 9.1-9.4 that a date-only from/to is a calendar day of the clinic (Europe/Minsk).",
+  "needsDecision": false,
+  "decisionQuestion": "",
+  "tzRef": "FR-019; api-designer-spec §9.1, §11 (Bruno-коллекция)",
+  "confidence": "confirmed"
+}

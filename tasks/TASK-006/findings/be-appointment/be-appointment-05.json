@@ -1,0 +1,18 @@
+{
+  "id": "be-appointment-05",
+  "unit": "be-appointment",
+  "kind": "robustness",
+  "severity": "low",
+  "title": "Запись не проверяет active у расписания и роли врача: каталог такие слоты прячет, а POST /appointments принимает",
+  "description": "Публичный поиск слотов отбирает только расписания с Schedule.active не равным false и роли с PractitionerRole.active не равным false, то есть сервис считает деактивированного исполнителя недоступным. loadBookableSlot() читает и Schedule, и PractitionerRole, но смотрит в них лишь actor и practitioner: флаги active не проверяются. Пока ничто в приложении не выставляет active=false врачу или услуге (см. be-practitioner-02, be-auth-users-02, be-catalog-05), дефект скрыт; он проявится, когда будет принято любое из решений о каскаде деактивации врача или кто-то выставит флаг в HAPI вручную: страница слотов в кэше каталога живёт 15 с, у пациента может быть открыт мастер записи, а slotId известен, и запись уходит к врачу или расписанию, которых каталог уже не показывает. Проверка бесплатна: оба ресурса уже прочитаны.",
+  "evidence": "apps/appointment-service/src/modules/appointments/appointments.service.ts:207-227 loadBookableSlot(): reads Schedule (line 216) and PractitionerRole (line 225) and uses only `actor` / `practitioner`; no `active` test anywhere in apps/appointment-service. apps/catalog-service/src/modules/slots/slot-search.ts:19 searches Schedule with 'active:not': 'false'; doctor-slots.service.ts:83 does the same for PractitionerRole. Scenario: PractitionerRole/7 gets active=false (the way be-auth-users-02 proposes to hide a dismissed doctor) -> a patient with the old slot list, or anyone knowing the slotId, POSTs /appointments -> 201.",
+  "files": [
+    "apps/appointment-service/src/modules/appointments/appointments.service.ts",
+    "apps/appointment-service/src/modules/appointments/appointments.service.spec.ts"
+  ],
+  "proposedFix": "In loadBookableSlot(), after the Schedule and the PractitionerRole are read, throw 409 SLOT_CONFLICT ('SLOT_CONFLICT: the slot is no longer offered') when schedule['active'] === false or role['active'] === false (explicit false only, exactly as the catalog does, so an absent flag still means active). Do not add extra FHIR reads for Practitioner or HealthcareService now; extend the same check when be-auth-users-02 or be-catalog-05 introduce an active flag for them. Unit specs: inactive schedule and inactive role -> SLOT_CONFLICT with nothing written; absent flag -> books.",
+  "needsDecision": false,
+  "decisionQuestion": "",
+  "tzRef": "FR-004; ADR-012",
+  "confidence": "likely"
+}

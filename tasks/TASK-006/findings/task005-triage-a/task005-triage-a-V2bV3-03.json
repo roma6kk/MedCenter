@@ -1,0 +1,17 @@
+{
+  "id": "task005-triage-a-V2bV3-03",
+  "unit": "task005-triage-a",
+  "kind": "question",
+  "severity": "low",
+  "title": "Время в окнах расписания осталось нативным input type=time — делать свой TimePicker?",
+  "description": "Единственное место с нативным временем — редактор рабочих окон расписания (админ). Поле стилизовано общим CONTROL_CLASS, значение всегда `HH:mm` 24-часовое, на телефонах открывается нативное колесо. Нюанс: отображение зависит от локали браузера/ОС, а не от языка интерфейса — при en-US браузере поле покажет «09:00 AM», тогда как весь остальной интерфейс использует 24-часовой формат (`hourCycle: 'h23'`). Значение в модели при этом не искажается.",
+  "evidence": "frontend/src/components/admin/schedules/schedule-windows-editor.tsx:47-48 two <input type=\"time\" ... className={CONTROL_CLASS}>; frontend/src/lib/clinic-time.ts:29 uses hourCycle: 'h23' for all rendered clock times.",
+  "files": [
+    "frontend/src/components/admin/schedules/schedule-windows-editor.tsx"
+  ],
+  "proposedFix": "Option 1: no change. Option 2: a text TimeField (inputMode numeric, mask HH:mm, parse like parseTypedDate) with an optional 15-minute list; share the aria-invalid/aria-describedby treatment of DatePicker.",
+  "needsDecision": true,
+  "decisionQuestion": "Делать ли свой выбор времени вместо нативного type=time? Варианты: (1) оставить нативный (меньше кода, нативное колесо на мобильных, значение всегда 24-часовое); (2) собственный TimeField с вводом HH:mm и списком шагов по 15 минут (единообразный 24-часовой вид в любом браузере). Рекомендация: (1) — поле встречается только в админском редакторе окон, а риск и объём работы у собственного пикера (доступность, маска, тесты) несоразмерны.",
+  "tzRef": "Администратор: управление расписанием",
+  "confidence": "confirmed"
+}

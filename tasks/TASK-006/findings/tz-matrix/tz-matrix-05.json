@@ -1,0 +1,18 @@
+{
+  "id": "tz-matrix-05",
+  "unit": "tz-matrix",
+  "kind": "gap",
+  "severity": "low",
+  "title": "FR-008: уведомление об отмене записи администратором дословно совпадает с уведомлением об отмене самим пациентом",
+  "description": "Событие appointment.cancelled.v1 несёт actorType ('PATIENT' | 'ADMIN'), но communication.mapper.describe() его не использует: в обоих случаях текст «Запись на приём отменена.». Когда запись отменяет клиника (BR-002), пациент не узнаёт, что отмена не его, и не получает ни времени, ни врача из текста (только ссылку «Открыть запись»). Когда отменяет сам пациент, сообщение уместно, но бесполезно. Минимум для FR-008: при actorType=ADMIN сообщить «Запись на приём отменена клиникой».",
+  "evidence": "apps/notification-service/src/modules/notifications/communication.mapper.ts:85-91 `case 'appointment.cancelled.v1': text: 'Запись на приём отменена.'` — actorType read nowhere (stringField(event,'actorType') absent); libs/contracts/src/lib/events/appointment-cancelled.event.ts:3,13 defines actorType; appointments.service.ts:123,130 sets it from claims.role.",
+  "files": [
+    "apps/notification-service/src/modules/notifications/communication.mapper.ts",
+    "apps/notification-service/src/modules/notifications/communication.mapper.spec.ts"
+  ],
+  "proposedFix": "In describe(): `stringField(event,'actorType') === 'ADMIN'` -> text 'Клиника отменила вашу запись на приём. Выберите другое время в разделе «Записаться».' (no reason, ADR-021), otherwise the current text. Cover both branches in communication.mapper.spec.ts. If tz-matrix-04 is implemented (kind-based rendering), expose the admin case as its own kind.",
+  "needsDecision": false,
+  "decisionQuestion": "",
+  "tzRef": "FR-008, BR-002",
+  "confidence": "confirmed"
+}

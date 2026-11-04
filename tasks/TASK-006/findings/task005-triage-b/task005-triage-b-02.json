@@ -1,0 +1,19 @@
+{
+  "id": "task005-triage-b-02",
+  "unit": "task005-triage-b",
+  "kind": "question",
+  "severity": "low",
+  "title": "Куда вести новичка после регистрации: на главную кабинета или в мастер записи, если выбор уже сохранён",
+  "description": "Вопрос из T6. Сейчас после успешной регистрации кнопка «Войти» ведёт на /api/auth/authorize без returnTo, поэтому после входа открывается /home (ROLE_LANDING.PATIENT). При этом гость, который выбрал слот на публичной странице врача, уже имеет черновик записи в sessionStorage (useBookingDraftStore; текст на странице обещает «выбор сохранится»). Путь гость -> /booking -> вход -> «Зарегистрироваться» (ссылка на форме auth-service ведёт на /register без returnTo) -> «Войти» приводит его не к записи, а на главную, и ему нужно заново искать «Записаться». Это выбор между двумя разумными поведениями, поэтому нужен владелец.",
+  "evidence": "frontend/src/components/auth/register-form.tsx:19,27 LOGIN_HREF = '/api/auth/authorize' (no returnTo); frontend/src/app/(auth)/register/page.tsx takes no searchParams; frontend/src/lib/auth/user-role.ts:11 PATIENT landing '/home'; frontend/src/app/api/auth/callback/route.ts:22 uses input.returnTo ?? ROLE_LANDING[role]; apps/auth-service/src/modules/oauth/login/login-page.responder.ts:19-22 builds the /register link from redirect_uri origin only. frontend/src/components/catalog/doctor-slots-booking.tsx:95-96 writes the draft to the store and router.push('/booking'). Scenario: guest picks a slot -> signs up -> clicks «Войти» -> lands on /home, draft still in sessionStorage but nothing leads to it.",
+  "files": [
+    "frontend/src/components/auth/register-form.tsx",
+    "frontend/src/lib/auth/authorize-href.ts",
+    "frontend/src/store/use-booking-draft-store.ts"
+  ],
+  "proposedFix": "Variant B (recommended): in RegisterForm success state read the booking draft from useBookingDraftStore; when it is non-empty build the link with authorizeHref('/booking'), otherwise keep the bare authorize link (-> /home). No server change, a few lines plus one spec.",
+  "needsDecision": true,
+  "decisionQuestion": "Куда вести пациента после регистрации и входа? Варианты: (A) всегда на главную кабинета /home (как сейчас); (B) на /booking, если в этой вкладке уже есть сохранённый выбор врача/слота, иначе на /home; (C) всегда в мастер записи. Рекомендация: B — гость, который пришёл записаться, не теряет шаг, а обычная регистрация остаётся без изменений.",
+  "tzRef": "FR-001, FR-004",
+  "confidence": "confirmed"
+}

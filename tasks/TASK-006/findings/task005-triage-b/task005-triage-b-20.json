@@ -1,0 +1,19 @@
+{
+  "id": "task005-triage-b-20",
+  "unit": "task005-triage-b",
+  "kind": "test",
+  "severity": "low",
+  "title": "e2e-сценарии входа обновлены, но ни разу не запускались на живом стеке",
+  "description": "Пункт из T7: auth-login.spec.ts и auth.setup.ts переписаны под прямой вход и фирменную форму, но выполнены не были (на каждый запуск лимит auth-service 10 попыток POST /oauth/login в минуту с одного адреса). Спеки уже разнесены по времени (setup входит по одному разу на роль, каждый describe входит один раз), поэтому дело не в сценарии, а в том, что результат никому не известен. Запуск возможен только при поднятом стеке, на фазе проверки.",
+  "evidence": "frontend/e2e/auth.setup.ts:4-5 and frontend/e2e/auth-login.spec.ts:4-11 comments on the 10 logins per minute limit; auth-login.spec.ts:31-48 anonymous scenarios and the branded form check that were not run after the rewrite.",
+  "files": [
+    "frontend/e2e/auth-login.spec.ts",
+    "frontend/e2e/auth.setup.ts",
+    "frontend/e2e/fixtures/auth.ts"
+  ],
+  "proposedFix": "In the verification phase with the stack up and seeded (`npm run stack:wait`, seed:demo --users --with-admin): run `npx playwright test e2e/auth.setup.ts e2e/auth-login.spec.ts` once, waiting a minute between the setup and the login spec if the 429 shows up; fix selectors if the branded form changed. No code change until then.",
+  "needsDecision": false,
+  "decisionQuestion": "",
+  "tzRef": "FR-001, NFR-011",
+  "confidence": "confirmed"
+}

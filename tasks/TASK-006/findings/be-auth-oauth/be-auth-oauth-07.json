@@ -1,0 +1,20 @@
+{
+  "id": "be-auth-oauth-07",
+  "unit": "be-auth-oauth",
+  "kind": "robustness",
+  "severity": "low",
+  "title": "Ключи подписи JWT не проверяются при старте: битый PEM или несовпадающая пара ломают вход/все BFF уже в работе, а не при запуске",
+  "description": "loadSigningKeys() (oauth.module.ts) проверяет только наличие JWT_PRIVATE_KEY, JWT_PUBLIC_KEY и JWT_ISSUER; комментарий обещает «fails at startup, not on the first token request», но это верно лишь для отсутствующих переменных. PEM разбирается лениво: createPrivateKey — в JwtService.signAccessToken (первый POST /oauth/token), createPublicKey — в JwksService.getPublicJwks (первый GET /.well-known/jwks.json). Последствия: (1) PEM с литеральными «\\n» вместо переводов строк (типичная ошибка при передаче ключа через env/compose) — сервис стартует и health зелёный, а каждый обмен кода на токен отвечает 500; (2) пара из разных ключей — auth-service честно подписывает токены, JWKS отдаёт чужой ключ, и каждый BFF отвечает 401 UNAUTHENTICATED (причина пишется только на debug-уровне в JwtAuthGuard.verify), то есть тотальный отказ без внятной диагностики. Отдельно: ensureSigningEnv() в app.module.ts принимает JWT_PRIVATE_KEY_B64/JWT_PUBLIC_KEY_B64 только если PEM начинается с «BEGIN RSA PRIVATE KEY»/«BEGIN RSA PUBLIC KEY» (PKCS#1); обычные PKCS#8 / SPKI («BEGIN PRIVATE KEY»/«BEGIN PUBLIC KEY» — вывод openssl genpkey / rsa -pubout) молча игнорируются, и сервис падает с несвязанным сообщением «requires JWT_PRIVATE_KEY, JWT_PUBLIC_KEY…». Эти две переменные нигде не задокументированы (README, compose).",
+  "evidence": "apps/auth-service/src/modules/oauth/oauth.module.ts:46-56 (только `!privateKeyPem || !publicKeyPem || !issuer`); jwt.service.ts:81 `createPrivateKey(this.keys.privateKeyPem)` внутри signAccessToken; jwks.service.ts:19 `createPublicKey(this.keys.publicKeyPem)` внутри getPublicJwks; app.module.ts:34,37 `startsWith('-----BEGIN RSA PRIVATE KEY-----')` / `'-----BEGIN RSA PUBLIC KEY-----'`; grep JWT_PRIVATE_KEY_B64 по репозиторию — единственное упоминание в app.module.ts. Сценарий: JWT_PRIVATE_KEY с «\\n» → контейнер healthy → вход пользователя проходит форму, на обмене кода `error:1E08010C:DECODER routines::unsupported` → 500 INTERNAL.",
+  "files": [
+    "apps/auth-service/src/modules/oauth/oauth.module.ts",
+    "apps/auth-service/src/app/app.module.ts",
+    "apps/auth-service/src/modules/oauth/jwt.service.ts",
+    "apps/auth-service/src/modules/oauth/jwks.service.ts"
+  ],
+  "proposedFix": "In loadSigningKeys() (eager factory, so it runs at boot): normalise literal `\\\\n` to real newlines, parse both keys with createPrivateKey/createPublicKey inside try/catch and rethrow a clear Error('JWT_PRIVATE_KEY is not a valid PEM private key'), then prove the pair matches (sign a fixed probe with the private key and verify it with the public key, or compare createPublicKey(privateKey).export({type:'spki',format:'der'}) with the supplied public key) and throw 'JWT_PUBLIC_KEY does not match JWT_PRIVATE_KEY'. In ensureSigningEnv() drop the header sniffing (accept any PEM that decodes to text containing 'BEGIN') or accept PKCS#1 and PKCS#8/SPKI headers, and mention JWT_*_KEY_B64 in apps/auth-service/README.md (env table). Add cases to oauth.module.spec.ts (the existing SIGNING_ENV uses stub PEMs, it must switch to real generated keys: __tests__/test-keys.ts already has them).",
+  "needsDecision": false,
+  "decisionQuestion": "",
+  "tzRef": "NFR-006; NFR-007 (наблюдаемость)",
+  "confidence": "confirmed"
+}

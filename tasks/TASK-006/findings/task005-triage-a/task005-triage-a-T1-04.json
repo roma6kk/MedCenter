@@ -1,0 +1,19 @@
+{
+  "id": "task005-triage-a-T1-04",
+  "unit": "task005-triage-a",
+  "kind": "bug",
+  "severity": "medium",
+  "title": "В раскрытой карточке визита назначения берутся только из первой страницы назначений пациента (10 шт.): у старых визитов и на 2-й странице истории назначения пропадают молча",
+  "description": "Лента визитов листается по страницам (`usePatientHistory(patientId, page)`), а назначения для всех карточек берутся одним запросом `usePatientPrescriptions(patientId, 1)` — первая страница по 10 самых новых назначений пациента, после чего фильтруются по `encounterId`. Если у пациента больше 10 назначений, у визитов, чьи назначения не вошли в десятку, блок назначений пустой; на 2-й и следующих страницах истории пустой у каждого визита. Для врача это выглядит как «ничего не назначали».",
+  "evidence": "frontend/src/components/doctor/patient-history-timeline.tsx:102 `const prescriptions = usePatientPrescriptions(patientId, 1);` and :118 `orders={(prescriptions.data?.items ?? []).filter((order) => order.encounterId === item.id)}`; frontend/src/components/doctor/use-doctor-queries.ts:158-165 (page, CARD_PAGE_SIZE); doctor-api.ts:29 CARD_PAGE_SIZE = 10; libs/contracts/src/lib/pagination.dto.ts:15 MAX_PAGE_SIZE = 100. Scenario: patient with 14 prescriptions, the oldest visit's 2 orders are on page 2 of the prescriptions -> the visit card shows no orders.",
+  "files": [
+    "frontend/src/components/doctor/patient-history-timeline.tsx",
+    "frontend/src/components/doctor/use-doctor-queries.ts",
+    "frontend/src/components/doctor/doctor-api.ts"
+  ],
+  "proposedFix": "Frontend only, no contract change: give the timeline its own query that asks pageSize = MAX_PAGE_SIZE (100) (add an optional pageSize argument to usePatientPrescriptions or a new useVisitPrescriptions hook with its own queryKey), and when `meta.total` exceeds what was loaded show a line under the list, «Показаны не все назначения — полный список на вкладке «Назначения»», pointing to patient-prescriptions.tsx. Optional server-side variant: accept `encounterId` on GET /patients/:id/prescriptions (additive) and fetch per opened card.",
+  "needsDecision": false,
+  "decisionQuestion": "",
+  "tzRef": "Врач: просмотр истории обращений пациента; FR-007",
+  "confidence": "confirmed"
+}

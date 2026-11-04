@@ -1,0 +1,20 @@
+{
+  "id": "libs-common-06",
+  "unit": "libs-common",
+  "kind": "docs",
+  "severity": "low",
+  "title": "Problem Details: title равен имени класса исключения («ConflictException», «BadRequestException»), а не заголовку из спецификации («Slot conflict»); на 401 нет WWW-Authenticate; fromValidationError - мёртвый код",
+  "description": "Спецификация API §1 показывает RFC 7807-ответ с title «Slot conflict», а схема Swagger problemDetails и статический ProblemDetailsFilter.fromValidationError используют «Validation failed». Фактический фильтр кладёт в title exception.name, поэтому каждый клиент видит внутренние имена классов NestJS: ответ 409 SLOT_CONFLICT приходит с title «ConflictException», 400 VALIDATION_ERROR с title «BadRequestException», 404 с «NotFoundException». Это и расхождение с контрактом, и лишнее раскрытие внутренней технологии (A05). Кроме того, ответ 401 UNAUTHENTICATED/TOKEN_REVOKED уходит без заголовка WWW-Authenticate: Bearer, который RFC 9110 §15.5.2 требует для любого 401 (RFC 6750 §3 - для Bearer). Метод fromValidationError вызывается только из собственного spec: после появления validationException в ValidationPipe он стал мёртвым кодом. Фронтенд title не показывает (у него свой словарь STATUS_TITLES), поэтому видимого дефекта нет, это правка контракта и чистка.",
+  "evidence": "libs/common/src/lib/filters/problem-details.filter.ts:103 (title: exception.name) и :44-58 (fromValidationError, единственный вызов - problem-details.filter.spec.ts:27); specs/api-designer-spec.md:106 (\"title\": \"Slot conflict\"); libs/common/src/lib/swagger/problem-details.schema.ts:22-23 (пример title). Реальные ответы получены на минимальном Nest-приложении с настоящим фильтром: {\"title\":\"BadRequestException\",...}, {\"title\":\"NotFoundException\",...}. grep по libs/ и apps/: WWW-Authenticate нигде не выставляется.",
+  "files": [
+    "libs/common/src/lib/filters/problem-details.filter.ts",
+    "libs/common/src/lib/filters/problem-details.filter.spec.ts",
+    "libs/common/src/lib/guards/jwt-auth.guard.ts",
+    "specs/api-designer-spec.md"
+  ],
+  "proposedFix": "В ProblemDetailsFilter ввести таблицу заголовков по errorCode (например ERROR_CODE_TITLES: Record<ErrorCode, string> рядом с ERROR_CODES в libs/contracts: 'Validation failed', 'Unauthenticated', 'Slot conflict', ...) и использовать её вместо exception.name; тип ссылки на type уже строится из errorCode. Для статуса 401 добавлять заголовок WWW-Authenticate: Bearer (с error=\"invalid_token\" для UNAUTHENTICATED с токеном и TOKEN_REVOKED). Удалить статический fromValidationError и его тест. Обновить пример в спецификации, если названия заголовков уточнятся.",
+  "needsDecision": false,
+  "decisionQuestion": "",
+  "tzRef": "спецификация API §1 (модель ошибок RFC 7807), NFR-006 (A05)",
+  "confidence": "confirmed"
+}

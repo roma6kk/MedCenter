@@ -1,0 +1,57 @@
+frontend/src/components/admin/analytics/use-analytics.ts:12:const BASE = '/api/v1/admin/analytics';
+frontend/src/components/admin/audit/use-audit.ts:16: queryFn: () => apiFetch<PaginatedResponse<AuditEvent>>(withQuery('/api/v1/admin/audit', params)),
+frontend/src/components/admin/rooms/use-admin-rooms.ts:18: queryFn: async () => toPaginated(await apiFetch<PaginatedResponse<AdminRoom> | ReadonlyArray<AdminRoom>>(withQuery('/api/v1/rooms', params))),
+frontend/src/components/admin/rooms/use-admin-rooms.ts:26: queryFn: () => apiFetch<RoomUsage>(`/api/v1/admin/rooms/${roomId}/usage`),
+frontend/src/components/admin/rooms/use-admin-rooms.ts:32: mutationFn: (payload) => apiFetch<AdminRoom>('/api/v1/admin/rooms', { method: 'POST', body: JSON.stringify(payload) }),
+frontend/src/components/admin/rooms/use-admin-rooms.ts:45: mutationFn: ({ id, payload }) => apiFetch<AdminRoom>(`/api/v1/admin/rooms/${id}`, { method: 'PATCH', body: JSON.stringify(payload) }),
+frontend/src/components/admin/rooms/use-admin-rooms.ts:54: mutationFn: (id) => apiFetch<void>(`/api/v1/admin/rooms/${id}`, { method: 'DELETE' }),
+frontend/src/components/admin/schedules/use-admin-schedules.ts:28: queryFn: async () => toPaginated(await apiFetch<PaginatedResponse<AdminSchedule> | ReadonlyArray<AdminSchedule>>(withQuery('/api/v1/admin/schedules', par
+frontend/src/components/admin/schedules/use-admin-schedules.ts:35: mutationFn: (payload) => apiFetch<AdminSchedule>('/api/v1/admin/schedules', { method: 'POST', body: JSON.stringify(payload) }),
+frontend/src/components/admin/schedules/use-admin-schedules.ts:48: mutationFn: ({ id, payload }) => apiFetch<AdminSchedule>(`/api/v1/admin/schedules/${id}`, { method: 'PATCH', body: JSON.stringify(payload) }),
+frontend/src/components/admin/schedules/use-admin-schedules.ts:62: mutationFn: ({ id, cascade }) => apiFetch<void>(`/api/v1/admin/schedules/${id}`, { method: 'DELETE', body: JSON.stringify({ cascade }) }),
+frontend/src/components/admin/schedules/use-admin-schedules.ts:76: apiFetch<GenerateSlotsResult>(`/api/v1/admin/schedules/${scheduleId}/generate`, {
+frontend/src/components/admin/schedules/use-admin-schedules.ts:97: queryFn: () => apiFetch<ReadonlyArray<ScheduleSlot>>(withQuery(`/api/v1/admin/schedules/${scheduleId}/slots`, { ...range })),
+frontend/src/components/admin/services/use-admin-services.ts:28: queryFn: async () => toPaginated(await apiFetch<PaginatedResponse<AdminService> | ReadonlyArray<AdminService>>(withQuery('/api/v1/services', params), { hea
+frontend/src/components/admin/services/use-admin-services.ts:35: mutationFn: (payload) => apiFetch<AdminService>('/api/v1/admin/services', { method: 'POST', body: JSON.stringify(payload) }),
+frontend/src/components/admin/services/use-admin-services.ts:48: mutationFn: ({ id, payload }) => apiFetch<AdminService>(`/api/v1/admin/services/${id}`, { method: 'PATCH', body: JSON.stringify(payload) }),
+frontend/src/components/admin/services/use-admin-services.ts:57: mutationFn: (id) => apiFetch<void>(`/api/v1/admin/services/${id}`, { method: 'DELETE' }),
+frontend/src/components/admin/terminology/use-terminology.ts:15: queryFn: async () => toPaginated(await apiFetch<PaginatedResponse<ValueSetSummary> | ReadonlyArray<ValueSetSummary>>('/api/v1/terminology/value-sets')),
+frontend/src/components/admin/terminology/use-terminology.ts:31: mutationFn: ({ snapshotVersion }) => apiFetch<ImportAccepted>('/api/v1/admin/terminology/import', { method: 'POST', body: JSON.stringify({ snapshotVersion 
+frontend/src/components/admin/users/use-admin-users.ts:25: queryFn: () => apiFetch<PaginatedResponse<AdminUser>>(withQuery('/api/v1/admin/users', params)),
+frontend/src/components/admin/users/use-admin-users.ts:32: mutationFn: (payload) => apiFetch<AdminUser>('/api/v1/admin/users', { method: 'POST', body: JSON.stringify(payload) }),
+frontend/src/components/admin/users/use-admin-users.ts:47: mutationFn: ({ id, payload }) => apiFetch<AdminUser>(`/api/v1/admin/users/${id}`, { method: 'PATCH', body: JSON.stringify(payload) }),
+frontend/src/components/admin/users/use-admin-users.ts:56: mutationFn: (id) => apiFetch<AdminUser>(`/api/v1/admin/users/${id}`, { method: 'DELETE' }),
+frontend/src/components/appointments/appointment-api.ts:12:const BASE_PATH = '/api/v1/appointments';
+frontend/src/components/auth/use-register-form.ts:72: mutationFn: (values: RegisterRequest) => apiFetch('/api/v1/auth/register', { method: 'POST', body: JSON.stringify(values) }),
+frontend/src/components/booking/book-appointment.ts:51: return apiFetch<AppointmentCreated>('/api/v1/appointments', {
+frontend/src/components/catalog/catalog-api.ts:12: return toPaginated(await apiFetch<ServicePage>(withQuery('/api/v1/services', { pageSize: CATALOG_PAGE_SIZE })));
+frontend/src/components/catalog/catalog-api.ts:16: return apiFetch<CatalogService>(`/api/v1/services/${encodeURIComponent(serviceId)}`);
+frontend/src/components/catalog/catalog-api.ts:21: return toPaginated(await apiFetch<DoctorPage>(withQuery('/api/v1/doctors', params)));
+frontend/src/components/catalog/catalog-api.ts:25: return apiFetch<Doctor>(`/api/v1/doctors/${encodeURIComponent(doctorId)}`);
+frontend/src/components/catalog/catalog-api.ts:30: return apiFetch<DoctorSlots>(withQuery(`/api/v1/doctors/${encodeURIComponent(doctorId)}/slots`, { from: window.from, to: window.to }));
+frontend/src/components/catalog/catalog-server.ts:20: return loadList<CatalogService>(withQuery('/api/v1/services', { pageSize: CATALOG_PAGE_SIZE }));
+frontend/src/components/catalog/catalog-server.ts:24: return loadList<Doctor>(withQuery('/api/v1/doctors', { pageSize: CATALOG_PAGE_SIZE, ...query }));
+frontend/src/components/catalog/catalog-server.ts:29: const result = await publicApiFetch<PaginatedResponse<Doctor> | ReadonlyArray<Doctor>>(withQuery('/api/v1/doctors', { ...query }), await readServerLocale());
+frontend/src/components/catalog/catalog-server.ts:34: return publicApiFetch<Doctor>(`/api/v1/doctors/${encodeURIComponent(doctorId)}`, await readServerLocale());
+frontend/src/components/consent/consent-api.ts:11: return `/api/v1/patients/${encodeURIComponent(patientId)}/consent`;
+frontend/src/components/consent/consent-api.ts:16: return apiFetch<PatientConsent>('/api/v1/me/consent', { signal });
+frontend/src/components/consent/consent-api.ts:21: return apiFetch<ConsentRecord>('/api/v1/me/consent/revoke', { method: 'POST' });
+frontend/src/components/doctor/doctor-api.ts:46: const path = withQuery('/api/v1/doctor/appointments', { from: range.from, to: range.to, page: request.page, pageSize: request.pageSize, sortOrder: 'asc' });
+frontend/src/components/doctor/doctor-api.ts:51: return apiFetch(`/api/v1/doctor/appointments/${encodeURIComponent(appointmentId)}/noshow`, { method: 'POST' });
+frontend/src/components/doctor/doctor-api.ts:57: return apiFetch<EncounterSummary>('/api/v1/encounters', { method: 'POST', body: JSON.stringify(body) });
+frontend/src/components/doctor/doctor-api.ts:61: return apiFetch<EncounterDetails>(`/api/v1/encounters/${encodeURIComponent(encounterId)}`, { signal });
+frontend/src/components/doctor/doctor-api.ts:69: return apiFetch<EncounterSummary>(`/api/v1/encounters/${encodeURIComponent(encounterId)}/complete`, { method: 'POST', body: JSON.stringify(body) });
+frontend/src/components/doctor/doctor-api.ts:73: return apiFetch<PatientCard>(`/api/v1/patients/${encodeURIComponent(patientId)}`, { signal });
+frontend/src/components/doctor/doctor-api.ts:77: const path = withQuery(`/api/v1/patients/${encodeURIComponent(patientId)}/related`, { page: request.page, pageSize: request.pageSize });
+frontend/src/components/doctor/doctor-api.ts:82: const path = withQuery(`/api/v1/patients/${encodeURIComponent(patientId)}/history`, { page: request.page, pageSize: request.pageSize });
+frontend/src/components/doctor/doctor-api.ts:87: const path = withQuery(`/api/v1/patients/${encodeURIComponent(patientId)}/prescriptions`, { page: request.page, pageSize: request.pageSize });
+frontend/src/components/doctor/doctor-api.ts:92: return apiFetch<DoctorScheduleResponse>(withQuery('/api/v1/doctor/schedule', { from: range.from, to: range.to }), { signal });
+frontend/src/components/doctor/doctor-api.ts:97: const path = withQuery('/api/v1/terminology/expand', { system: valueSet, filter, count });
+frontend/src/components/patient/patient-api.ts:15: return apiFetch<PaginatedResponse<HistoryEntry>>(withQuery('/api/v1/me/history', params));
+frontend/src/components/patient/patient-api.ts:19: return apiFetch<PaginatedResponse<Prescription>>(withQuery('/api/v1/me/prescriptions', params));
+frontend/src/components/patient/patient-api.ts:23: return apiFetch<AccountProfile>('/api/v1/me');
+frontend/src/components/patient/patient-api.ts:27: return apiFetch<PatientProfile>('/api/v1/me/patient');
+frontend/src/components/patient/patient-api.ts:39: return apiFetch<PatientProfile>('/api/v1/me/patient', {
+frontend/src/lib/api/api-fetch.ts:92: * JSON fetch against the BFF (`/api/v1/*`, proxied by Next to the Traefik edge).
+frontend/src/lib/notifications/notification-api.ts:6: * `POST /notifications/read-all` → `{ updated }` (8.4). The paths are `/api/v1/notifications*`, not `/me/notifications*`.
+frontend/src/lib/notifications/notification-api.ts:34:const BASE_PATH = '/api/v1/notifications';

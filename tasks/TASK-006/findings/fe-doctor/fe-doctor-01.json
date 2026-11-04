@@ -1,0 +1,19 @@
+{
+  "id": "fe-doctor-01",
+  "unit": "fe-doctor",
+  "kind": "bug",
+  "severity": "high",
+  "title": "Поиск пациента и «Ближайший визит» читают только первую страницу журнала в порядке возрастания: у занятого врача находят не тех или никого",
+  "description": "Поиск пациента в боковой панели врача (useDoctorPatients) берёт одну страницу в 100 строк журнала за окно «90 дней назад … 30 вперёд», а fetchDoctorJournal всегда просит sortOrder=asc. Первые 100 строк по возрастанию — это самые СТАРЫЕ визиты окна. При 5+ приёмах в день 100 строк покрывают лишь первые ~3–4 недели из 120 дней, и пациент, принятый на прошлой неделе или записанный на завтра, в поиске не находится («Ничего не найдено»), хотя врач его видел. Тот же корень у блока «Ближайший визит» в сводке пациента (useUpcomingVisit): одна страница в 50 строк на 31 день по возрастанию — при ~8 приёмах в день страница заканчивается через ~6 дней, и пациент, записанный на повторный приём через две недели, показан как «Нет предстоящих визитов» (ложный отрицательный ответ). meta.totalPages ответа игнорируется, пользователю не сообщается об усечении. В демо-данных у врача мало визитов, поэтому дефект не виден. Это не вопрос про отсутствие эндпоинта поиска (verify-open-questions.md, T5+V6, первый пункт), а простая ошибка направления/объёма выборки внутри уже принятого обходного решения.",
+  "evidence": "frontend/src/components/doctor/doctor-api.ts:45-48 fetchDoctorJournal hardcodes sortOrder:'asc' (backend PageQueryDto supports asc|desc, pageSize<=MAX_PAGE_SIZE=100, page<=1000). use-doctor-queries.ts:207-219 useDoctorPatients: range [today-90d, today+30d], page 1, pageSize 100, select patientsOf(page.items); use-doctor-queries.ts:121-130 useUpcomingVisit: range [today, today+30d], page 1, pageSize JOURNAL_PAGE_SIZE=50, select first booked of that patient. Scenario: doctor with 6 visits/day, 5 days/week -> 90 days back ~ 390 rows; the 100 rows returned are the oldest ones; typing the surname of a patient seen last week -> hits=[] -> «none». Same doctor, patient with a re-visit booked in 14 days -> first 50 rows end ~day 8 -> summary says no upcoming visit.",
+  "files": [
+    "frontend/src/components/doctor/doctor-api.ts",
+    "frontend/src/components/doctor/use-doctor-queries.ts",
+    "frontend/src/lib/api/query-keys.ts"
+  ],
+  "proposedFix": "Add an optional sortOrder to fetchDoctorJournal (include it in the query key via queryKeys.doctorAppointments params so caches do not collide). For useDoctorPatients walk the pages with the real totalPages (queryFn loops page 1..min(totalPages, N), pageSize 100, merges items; N around 10) or at least request sortOrder:'desc' so the cap keeps the NEWEST rows; for useUpcomingVisit walk the pages ascending until the first booked visit of the patient is found (stop early), bounded by totalPages. Keep the existing patientsOf/select shaping. If the result is still truncated (page cap reached while totalPages is larger) show a one-line hint under the empty search result. Add a jest case in use-doctor-queries / patient-search-model specs with a 2-page journal.",
+  "needsDecision": false,
+  "decisionQuestion": "",
+  "tzRef": "FR-009 (врач: просмотр списка пациентов), FR-010 (история обращений пациента); TASK-005 open question T5+V6 «нет эндпоинта поиска пациентов»",
+  "confidence": "confirmed"
+}

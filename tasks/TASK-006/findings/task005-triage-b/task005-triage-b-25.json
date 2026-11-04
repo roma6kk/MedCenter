@@ -1,0 +1,18 @@
+{
+  "id": "task005-triage-b-25",
+  "unit": "task005-triage-b",
+  "kind": "question",
+  "severity": "low",
+  "title": "Хранить фильтры пользователей, услуг и аудита, а также период аналитики в адресе страницы",
+  "description": "Вопрос из T8. Сейчас фильтры живут в состоянии компонента: обновление страницы и кнопка «Назад» их сбрасывают, ссылку на отчёт за период не отправить. Хранение в query-параметрах это обычная практика для списков и отчётов, но добавляет работу (синхронизация с useSearchParams, дебаунс поиска) и новые состояния для проверки. ТЗ этого не требует.",
+  "evidence": "frontend/src/components/admin/analytics/analytics-filters.tsx and audit/audit-filters-form.tsx keep the period/filter in useState; admin list filters likewise (live filters from commit 414f818).",
+  "files": [
+    "frontend/src/components/admin/analytics/analytics-filters.tsx",
+    "frontend/src/components/admin/audit/audit-filters-form.tsx"
+  ],
+  "proposedFix": "Variant B (recommended scope): a small `useQueryState` hook over useSearchParams/router.replace used by the analytics period and the audit filters only (reports are the things people share); lists stay as is.",
+  "needsDecision": true,
+  "decisionQuestion": "Переносить ли фильтры в адрес страницы? Варианты: (A) нет, как сейчас; (B) только период аналитики и фильтры аудита (отчёты, которыми делятся); (C) все списки админки. Рекомендация: B.",
+  "tzRef": "",
+  "confidence": "confirmed"
+}

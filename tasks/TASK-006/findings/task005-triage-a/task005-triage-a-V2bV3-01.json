@@ -1,0 +1,19 @@
+{
+  "id": "task005-triage-a-V2bV3-01",
+  "unit": "task005-triage-a",
+  "kind": "question",
+  "severity": "low",
+  "title": "Формат даты в поле ввода в EN-интерфейсе: сейчас дд.мм.гггг на обоих языках — нужен dd/mm/yyyy или ISO?",
+  "description": "Поле даты (`DatePicker`) всегда показывает и подставляет `dd.mm.yyyy`, а подсказка `datePicker.placeholder` в EN — «dd.mm.yyyy». Все остальные даты в EN-интерфейсе форматируются через `Intl` с локалью en-GB (например «3 Nov 2026»). Разбор уже терпимый: принимает ISO и разделители «.», «/», «-», то есть ввод 03/11/2026 в EN распознаётся. Остаётся только вопрос вкуса — как поле ПОКАЗЫВАЕТ дату в EN.",
+  "evidence": "frontend/src/lib/calendar-grid.ts:40-42 formatTypedDate returns key.split('-').reverse().join('.') with no locale argument; frontend/src/messages/en.json:1833 \"placeholder\": \"dd.mm.yyyy\"; frontend/src/lib/clinic-time.ts:23 INTL_LOCALE = { ru: 'ru-BY', en: 'en-GB' }; calendar-grid.ts:48-56 parseTypedDate accepts ISO and д.м.гггг with '/' or '-'.",
+  "files": [
+    "frontend/src/lib/calendar-grid.ts",
+    "frontend/src/components/ui/date-picker.tsx",
+    "frontend/src/messages/en.json"
+  ],
+  "proposedFix": "If option 2 is chosen: formatTypedDate(key, locale) joins with '/' for 'en' and '.' for 'ru'; DatePicker passes useUiStore locale (already read at date-picker.tsx:93 for the calendar); en.json datePicker.placeholder becomes 'dd/mm/yyyy'; parseTypedDate stays unchanged. Update date-picker.spec.tsx and calendar-grid specs.",
+  "needsDecision": true,
+  "decisionQuestion": "Как показывать дату в поле ввода в EN-интерфейсе? Варианты: (1) оставить dd.mm.yyyy на обоих языках (однозначно день-месяц-год, как в Беларуси); (2) dd/mm/yyyy для EN (en-GB, как остальные даты EN-интерфейса), разбор не меняется; (3) ISO yyyy-mm-dd. Рекомендация: (2) — согласуется с локалью en-GB, уже выбранной для всех остальных EN-дат; ISO непривычен пациенту.",
+  "tzRef": "",
+  "confidence": "confirmed"
+}

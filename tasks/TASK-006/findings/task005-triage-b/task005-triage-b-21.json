@@ -1,0 +1,20 @@
+{
+  "id": "task005-triage-b-21",
+  "unit": "task005-triage-b",
+  "kind": "question",
+  "severity": "low",
+  "title": "График аналитики строится одним запросом отчёта 9.1 на каждый столбец: нужен ли эндпоинт временного ряда",
+  "description": "Вопрос из T8. Сервис не отдаёт временной ряд, поэтому график записей по дням/месяцам делает по запросу на столбец: месяц это 31 параллельный запрос, год 12, плюс основной период, прошлый период для сравнения и отчёты 9.2/9.3 (порядка 35 запросов на смену периода). Ответы кешируются по ключу from/to, но каждая смена периода это новая партия, а лимит сервиса по умолчанию 120 запросов в минуту (RATE_LIMIT_PER_MINUTE), так что три-четыре быстрых переключения месяца могут упереться в 429 и показать ошибку графика с кнопкой «Повторить». Один запрос с группировкой заодно решил бы вопрос о границах суток по Минску на сервере (см. отдельный пункт про часовой пояс). Это аддитивное изменение контракта, поэтому решение за владельцем.",
+  "evidence": "frontend/src/components/admin/analytics/use-analytics.ts:41-57 useAppointmentSeries = useQueries over buckets, one GET /api/v1/admin/analytics/appointments per column; libs/config/src/lib/env.schema.ts:21 RATE_LIMIT_PER_MINUTE default 120; docker-compose.yml:90; apps/analytics-service/src/modules/reports/reports.controller.ts:21 9.1 has no granularity.",
+  "files": [
+    "apps/analytics-service/src/modules/reports/reports.controller.ts",
+    "apps/analytics-service/src/modules/reports/reports.service.ts",
+    "frontend/src/components/admin/analytics/use-analytics.ts",
+    "frontend/src/components/admin/analytics/analytics-series.ts"
+  ],
+  "proposedFix": "Variant B: optional `granularity=day|month` on 9.1 returning `series: [{ start, booked, fulfilled, cancelled, noshow }]` bucketed by clinic day (Europe/Minsk) from one HAPI search plus the read-model; the hook uses it and falls back to the per-column requests if absent. Variant A: keep, and as a cheap mitigation cap parallelism (p-limit 6) in useAppointmentSeries.",
+  "needsDecision": true,
+  "decisionQuestion": "Добавлять ли в отчёт 9.1 параметр granularity (ряд по дням/месяцам одним запросом)? Варианты: (A) нет, оставить запрос на столбец (при желании ограничить параллелизм до 6); (B) да, аддитивное поле series в 9.1 с группировкой по суткам клиники. Рекомендация: B, если время позволяет: убирает 30+ запросов и риск 429, а границы дней по Минску ставятся на сервере; иначе A.",
+  "tzRef": "FR-019, NFR-005",
+  "confidence": "likely"
+}

@@ -1,0 +1,23 @@
+{
+  "id": "be-appointment-02",
+  "unit": "be-appointment",
+  "kind": "bug",
+  "severity": "medium",
+  "title": "Неявку можно поставить до начала приёма: markNoShow не сверяет время, а меню «Неявка» в журнале врача показано у каждой записи со статусом booked",
+  "description": "POST /doctor/appointments/{id}/noshow проверяет участие врача, статус booked и отсутствие приёма, но не время. Комментарий к markNoShow исходит из того, что «время уже прошло» (поэтому слот остаётся busy), и это нигде не обеспечено. В журнале врача меню «⋯ → Неявка» рисуется для каждой записи booked, в том числе завтрашней или той, что начнётся через час, а диалог подтверждения о времени ничего не знает. Последствия необратимы: статус noshow вернуть нельзя (диалог так и предупреждает), приём по такой записи открыть нельзя (encounter-service, BR-008: 409 ENCOUNTER_STATE_INVALID), слот остаётся busy и недоступен другому пациенту, а сам пациент ничего не узнаёт (уведомления о неявке нет, см. tz-matrix-02) и приходит на приём, которого для системы «не состоялось». Случайный клик по соседней строке журнала уничтожает будущий приём. Оговорка по спецификации: §6.4 пишет «врач не отменяет (использует 6.6)», что можно прочесть как допустимую раннюю неявку; но BR-008 говорит о «несостоявшейся» записи, а отмену по просьбе пациента по BR-002 делают пациент или администратор.",
+  "evidence": "apps/appointment-service/src/modules/appointments/appointments.service.ts:159-179 markNoShow(): requireDoctorRoleRef -> assertDoctorParticipates -> assertBooked (line 165) -> assertNoEncounter -> PUT Appointment status=noshow; appointment.start is never read. apps/encounter-service/src/modules/encounters/encounter-opening.service.ts:79 refuses a non-booked appointment (BR-008). frontend/src/components/doctor/journal-day-view.tsx:91 (VisitCard) and :211 (NextPatientPanel) render <NoshowMenu> for every status === 'booked' row, noshow-menu.tsx has no notion of the start time. Scenario: at 08:00 the doctor clicks ⋯ -> Неявка -> confirm on the 15:00 patient -> 200, status noshow, slot stays busy; at 15:00 the patient arrives and the doctor cannot open an encounter (409).",
+  "files": [
+    "apps/appointment-service/src/modules/appointments/appointments.service.ts",
+    "apps/appointment-service/src/modules/appointments/doctor-appointments.controller.ts",
+    "frontend/src/components/doctor/journal-day-view.tsx",
+    "frontend/src/components/doctor/journal-model.ts",
+    "tools/stack-smoke/checks-race.ts",
+    "tools/stack-smoke/checks-chain-encounter.ts",
+    "specs/api-designer-spec.md"
+  ],
+  "proposedFix": "Backend: in markNoShow(), after the booked and encounter checks (so the BR-008 refusals keep their meaning), refuse while Date.now() < Date.parse(start) with 409 ENCOUNTER_STATE_INVALID ('the appointment has not started yet: a no-show can be recorded once its time has come'). Update API §6.6 and the error-catalogue row, and the @ApiProblems 409 text in doctor-appointments.controller.ts. Frontend: render <NoshowMenu> in journal-day-view.tsx (both places) only for a visit that has started: add a small hasStarted(start, now) helper next to the other time helpers in journal-model.ts and reuse the `now` that already drives the now-line; use-doctor-mutations.ts:38 already refreshes the journal on a 409. Tests: markNoShow unit specs with a pinned clock (before start -> 409, at or after start -> 200), noshow-menu/journal specs. Stack smoke: checks-race.ts noShowChecks and checks-chain-encounter.ts mark a no-show on a freshly booked FUTURE appointment; after this change such an appointment can only be refused, so those arms need an appointment whose start is already past (create it directly in HAPI, as tools/demo-seed does for its old visits) or must move to unit/e2e checks with a fake clock. Together with be-appointment-01 a booked-and-started appointment can no longer be produced through the API alone.",
+  "needsDecision": false,
+  "decisionQuestion": "",
+  "tzRef": "BR-008; API §6.6",
+  "confidence": "likely"
+}

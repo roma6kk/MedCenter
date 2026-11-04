@@ -1,0 +1,19 @@
+{
+  "id": "task005-triage-a-T3-05",
+  "unit": "task005-triage-a",
+  "kind": "question",
+  "severity": "low",
+  "title": "В демо у каждой услуги ровно один врач, поэтому шаг «Врач» мастера записи пропускается — добавить вторых врачей в сид?",
+  "description": "Демо-каталог содержит четырёх врачей (терапевт, кардиолог, невролог, хирург) и шесть расписаний, по одному врачу на услугу. Мастер записи при единственном враче выбирает его сам, поэтому шаг выбора врача на показе не виден, хотя «поиск и выбор» — центральная функция пациента по ТЗ. Добавить второго врача для одной-двух услуг (например второй терапевт в другие часы и другом кабинете) несложно, но это правка демо-данных: нужны фото врача (frontend/public/demo-photos/doctors/<key>.jpg, иначе заглушка-инициалы), связь врач-услуга (её создаёт только сид, см. be-catalog-12), свободный кабинет или другое время, а также обновление счётчиков в тестах сида и в скриншотах пояснительной записки.",
+  "evidence": "tools/demo-seed/demo-catalog.ts:148-157 SCHEDULES: ivanova (ter-primary, ter-repeat), petrov (card-primary, ecg), sidorova (neuro-primary), kozlov (surg-primary) — every serviceKey has exactly one doctorKey; tools/demo-seed/demo-catalog.ts:~87 doctorPhotoUrl() uses /demo-photos/doctors/<key>.jpg; the demo-slots specs under tools/demo-seed pin the existing set.",
+  "files": [
+    "tools/demo-seed/demo-catalog.ts",
+    "tools/demo-seed/demo-slots.spec.ts",
+    "frontend/public/demo-photos/doctors"
+  ],
+  "proposedFix": "If chosen: add DoctorDef + ScheduleDef for a second therapist on ter-primary (afternoon window, a new room-102 or a free room slot), run the seed with --repair, update demo-slots specs and the docs/pz screenshots that count doctors.",
+  "needsDecision": true,
+  "decisionQuestion": "Добавлять ли в демо-сид вторых врачей? Варианты: (1) нет — оставить четырёх врачей, шаг выбора врача виден только на услугах без единственного врача; (2) добавить второго терапевта (и при желании второго кардиолога), чтобы на показе был виден выбор врача; нужны фото или заглушки и обновление тестов сида. Рекомендация: (2) для одной услуги (первичный приём терапевта) — это самый наглядный сценарий и небольшой объём.",
+  "tzRef": "Пациент: просмотр врачей, поиск и выбор времени",
+  "confidence": "confirmed"
+}

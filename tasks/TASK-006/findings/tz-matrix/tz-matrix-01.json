@@ -1,0 +1,21 @@
+{
+  "id": "tz-matrix-01",
+  "unit": "tz-matrix",
+  "kind": "security",
+  "severity": "high",
+  "title": "GET /api/v1/encounters/{id} отдаёт администратору полное клиническое содержимое приёма (диагнозы, назначения), без журнала чтения — вопреки ADR-018",
+  "description": "По ADR-018 и матрице доступа к ПДн (api-designer-spec §0) администратор НЕ видит историю обращений и диагнозы (7.4/7.6) и назначения (7.5/7.7); 7.4/7.5 для ADMIN дают 403, а в ПЗ написано «доступ администратора к медицинской карте не предусматривается». Но 7.2 (детали приёма) разрешён роли ADMIN без компартмента и возвращает summary, диагнозы МКБ-10, рекомендации, наблюдения, ServiceRequest/MedicationRequest завершённого приёма. Любой администратор, зная id приёма (id числовые и последовательные в HAPI, перебираются), читает врачебную тайну любого пациента, и это чтение не попадает в журнал аудита (PatientReadAudit вызывается только в 3.2/3.3/3.7/7.4/7.5). Это обход двух уровней защиты, которые владелец принял в ADR-018.",
+  "evidence": "apps/encounter-service/src/modules/encounters/encounters.controller.ts:62 `@RequiresRoles(Role.DOCTOR, Role.ADMIN)` on GET :id; encounter-access.ts `resolveEncounterViewer` returns {kind:'admin'} and `assertViewerSeesEncounter` checks only doctors, so findOne() (encounters.service.ts:113-130) returns toEncounterDetails(encounter, resources) with all _revinclude'd clinical resources. Test apps/encounter-service/src/modules/encounters/encounters-open.service.spec.ts:230 asserts `findOne(adminClaims, ENCOUNTER_ID)` resolves, while apps/encounter-service/test/history.e2e-spec.ts:100 asserts admin gets 403 on history/prescriptions. Scenario: admin token -> GET /api/v1/encounters/<any id> -> 200 with diagnoses, no AuditEvent written.",
+  "files": [
+    "apps/encounter-service/src/modules/encounters/encounters.controller.ts",
+    "apps/encounter-service/src/modules/encounters/encounter-access.ts",
+    "apps/encounter-service/src/modules/encounters/encounters.service.ts",
+    "apps/encounter-service/src/modules/encounters/encounters-open.service.spec.ts",
+    "specs/api-designer-spec.md"
+  ],
+  "proposedFix": "Align 7.2 with ADR-018: drop Role.ADMIN from @RequiresRoles on GET /encounters/:id and remove the 'admin' branch from resolveEncounterViewer (a non-doctor gets 403 FORBIDDEN_ROLE, same as 7.4/7.5). Update encounters-open.service.spec.ts:230 to expect 403 and add an e2e case next to history.e2e-spec.ts:100; change spec §7 row 7.2 access from 'участник / ADMIN' to 'участник-врач' and the swagger summary. No UI calls this endpoint with an admin token (the encounter page lives in the (doctor) group), so nothing else changes. Optionally also write a 'read' AuditEvent through PatientReadAudit for the doctor read of 7.2 for parity with 7.4/7.5 (ADR-014 addendum).",
+  "needsDecision": false,
+  "decisionQuestion": "",
+  "tzRef": "FR-010, NFR-006, ADR-018, api-designer-spec §0 (матрица доступа к ПДн), §7.2",
+  "confidence": "confirmed"
+}

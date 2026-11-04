@@ -1,0 +1,22 @@
+{
+  "id": "tz-matrix-08",
+  "unit": "tz-matrix",
+  "kind": "gap",
+  "severity": "high",
+  "title": "FR-018 «Управление системными настройками» реализован только как терминология: части «конфигурация» (A-9) нет ни в API, ни в интерфейсе",
+  "description": "В ТЗ у администратора пять функций; «управление системными настройками» — одна из них. Требования (A-9) трактуют её как «конфигурация + управление терминологией». Реализовано только второе: страница /admin/terminology (список ValueSet, импорт снапшота НСИ, 2.3.1–2.3.4) под пунктом меню «Терминология». Настроек как таковых нет: все параметры либо переменные окружения (libs/config/env.schema.ts: CONSENT_ENFORCEMENT, RATE_LIMIT_PER_MINUTE, SWAGGER_ENABLED…), либо константы в коде (apps/catalog-service/src/modules/slots/slot-range.ts: DEFAULT_SLOT_RANGE_DAYS=14, MAX_SLOT_LOOKAHEAD_DAYS=366; apps/analytics-service/.../date-range.ts: MAX_RANGE_DAYS=366), либо демо-тексты в i18n (контакты и часы клиники). ПЗ (docs/pz/content.py:343) при этом утверждает, что система позволяет «управлять системными настройками и справочниками терминологии». Эндпоинта /admin/settings и страницы настроек нет (grep по apps/libs/frontend по «settings» пуст).",
+  "evidence": "frontend/src/messages/ru.json layout.admin nav: Аналитика, Пользователи, Услуги, Кабинеты, Расписания, Терминология, Аудит — no settings entry; tasks/TASK-006/findings/verify-map-backend-routes.txt has no settings route; specs/api-designer-spec.md §12 maps FR-018 only to 2.3.1–2.3.4; requirements A-9 / brainstorming-design.md:313 define it as «конфигурация + терминология»; docs/pz/content.py:343.",
+  "files": [
+    "libs/config/src/lib/env.schema.ts",
+    "apps/catalog-service/src/modules/slots/slot-range.ts",
+    "apps/auth-service/src/modules/terminology",
+    "frontend/src/app/(admin)/admin",
+    "frontend/src/components/layout/staff-shell.tsx",
+    "docs/pz/content.py"
+  ],
+  "proposedFix": "Obvious minimal shape that follows the existing patterns (auth-service owns FR-018 per architecture §ownership): (1) table `auth.system_setting(key varchar(64) PK, value jsonb, updated_by uuid, updated_at timestamptz)` + TypeORM migration; (2) a code registry of WHITELISTED keys, each with type, default, min/max and description (no free-form keys, no secrets); (3) `GET /api/v1/admin/settings` (effective value, default, source=default|database, updatedAt/By) and `PATCH /api/v1/admin/settings/{key}` (ADMIN, validated by the registry, AuditEvent `update` through AuditService like recordUserChange); (4) page `/admin/settings` + nav item «Настройки» built from the same AdminShell/table/dialog primitives as rooms/services, i18n ru+en. Candidate keys that carry no legal risk: online booking look-ahead in days (replaces the constants in slot-range.ts), default slot-list window, clinic contact phone/address/opening hours shown on the site (today demo text), notification retention. Show CONSENT_ENFORCEMENT, token TTLs and rate limit READ-ONLY (legal/security policy). Consumers read the effective value through a small cached lookup (Redis, 60 s) so services stay stateless.",
+  "needsDecision": true,
+  "decisionQuestion": "FR-018 в ТЗ — «управление системными настройками», а сейчас это только справочники терминологии. Что делаем? (а) оставить как есть и в ПЗ прямо написать, что системные настройки = управление терминологией (0 кода, риск замечания руководителя); (б) РЕКОМЕНДУЮ: минимальная страница «Настройки» — таблица auth.system_setting, GET/PATCH /api/v1/admin/settings с аудитом, редактируемые только безопасные параметры (горизонт онлайн-записи, окно списка слотов по умолчанию, контакты и часы работы клиники для сайта), режим согласия и TTL токенов — только для чтения; (в) расширенный вариант, где администратор меняет и режим согласия/лимиты (потребует решения по юридической политике). Если выбираете (б), подтвердите набор редактируемых параметров.",
+  "tzRef": "ТЗ Администратор: управление системными настройками; FR-018; A-9",
+  "confidence": "confirmed"
+}

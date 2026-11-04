@@ -1,0 +1,18 @@
+{
+  "id": "be-auth-oauth-12",
+  "unit": "be-auth-oauth",
+  "kind": "robustness",
+  "severity": "low",
+  "title": "OAUTH_CLIENTS_JSON: redirectUris проверяются только на непустую строку — относительный или «безсхемный» адрес даёт 500 уже после успешного входа",
+  "description": "registeredClientSchema в oauth.module.ts объявляет redirectUris как z.array(z.string().min(1)).min(1) и при этом комментарий M3 обещает «rejected loudly at boot», чтобы ошибки конфигурации не превращались в TypeError на публичном маршруте. Сам адрес не проверяется: (1) относительный путь (`/api/auth/callback`) проходит валидацию, а OAuthService.authorize делает new URL(params.redirectUri) → ERR_INVALID_URL; в AuthorizeController.issueCode перехватывается только OAuthError, поэтому пользователь, уже введший верный пароль (login-сессия погашена строкой выше), получает 500 INTERNAL вместо перехода; (2) адрес без схемы (`localhost:3000/api/auth/callback`) разбирается как URL со схемой `localhost:` — браузер получит Location на неизвестный протокол; (3) схемы javascript:/data: и фрагмент (#…) RFC 6749 §3.1.2 не допускает, но схема их принимает. Ошибка опечатки в ручном override-файле стека (docker-compose.override.yml задаёт OAUTH_CLIENTS_JSON) обнаруживается только на первом входе.",
+  "evidence": "apps/auth-service/src/modules/oauth/oauth.module.ts:69-75 `redirectUris: z.array(z.string().min(1)).min(1)`; oauth.service.ts:134 `const redirect = new URL(params.redirectUri)`; authorize.controller.ts:118-120 (сессия гасится до issueCode) и :146-152 (ловится только OAuthError). Проверка в Node: new URL('/api/auth/callback') → throws ERR_INVALID_URL; new URL('localhost:3000/api/auth/callback') → 'localhost:3000/api/auth/callback?code=abc'; new URL('javascript:alert(1)') принимается. Сценарий: redirectUris=['/api/auth/callback'] → форма входа открывается, пароль верный → 500 application/problem+json.",
+  "files": [
+    "apps/auth-service/src/modules/oauth/oauth.module.ts",
+    "apps/auth-service/src/modules/oauth/oauth.module.spec.ts"
+  ],
+  "proposedFix": "Tighten registeredClientSchema.redirectUris items with a refine: `new URL(value)` must parse, `protocol` must be 'https:' or 'http:' (http only for localhost/127.0.0.1/[::1]/*.localhost, optional), and `hash` must be empty; use `z.url({ protocol: /^https?$/ })` plus the fragment check. The error text names the entry (`OAUTH_CLIENTS_JSON: redirectUris[0] must be an absolute http(s) URL without a fragment`). Add cases to oauth.module.spec.ts next to the existing 'missing redirectUris' test (line ~180).",
+  "needsDecision": false,
+  "decisionQuestion": "",
+  "tzRef": "NFR-006; RFC 6749 §3.1.2",
+  "confidence": "confirmed"
+}

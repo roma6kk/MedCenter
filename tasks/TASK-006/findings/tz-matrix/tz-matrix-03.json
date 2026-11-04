@@ -1,0 +1,21 @@
+{
+  "id": "tz-matrix-03",
+  "unit": "tz-matrix",
+  "kind": "i18n",
+  "severity": "medium",
+  "title": "NFR-008: серверная страница входа (auth-service) только на русском — при английском интерфейсе пользователь попадает на русскую форму",
+  "description": "ДУБЛЬ be-auth-oauth-03 (тот же дефект найден соседним модулем параллельно; здесь оставлен ради строки NFR-008 в матрице — при слиянии объединить, предложение по ui_locales/cookie `mc-locale` ниже). Каталог интерфейса ru/en полностью совпадает (1514 ключей в каждом), переключатель языка есть, но единственный экран входа рисуется auth-service строкой HTML с `<html lang=\"ru\">` и русскими подписями («Вход в личный кабинет», «Электронная почта», «Пароль», «Войти», сообщения об ошибках). Фронтенд при старте SMART-потока не передаёт язык (api/auth/authorize/route.ts не ставит ui_locales), а страница не читает cookie `mc-locale`. Пользователь, выбравший English, нажимает «Sign in» и видит русскую форму; ответы 200/400/403/429/503 этой формы тоже русские. Это вход в любой кабинет, поэтому дефект виден каждому англоязычному посетителю.",
+  "evidence": "apps/auth-service/src/modules/oauth/login/login-page.ts:153 `'<html lang=\"ru\">'`, :180-216 hard-coded Russian labels/title; login-messages.ts (all 5 messages Russian); frontend/src/app/api/auth/authorize/route.ts:20-30 builds the authorize URL without any locale parameter; locale cookie name is `mc-locale` (frontend/src/lib/i18n/locale.ts:35). Scenario: switch UI to English -> click Sign in -> GET /oauth/authorize -> Russian form.",
+  "files": [
+    "apps/auth-service/src/modules/oauth/login/login-page.ts",
+    "apps/auth-service/src/modules/oauth/login/login-messages.ts",
+    "apps/auth-service/src/modules/oauth/login/login-page.responder.ts",
+    "frontend/src/app/api/auth/authorize/route.ts",
+    "frontend/src/lib/i18n/locale.ts"
+  ],
+  "proposedFix": "Add a tiny two-locale dictionary to the login module (ru default, en) and pick the locale per request: first the OIDC-standard `ui_locales` authorize parameter (sanitised to ru|en, carried inside the sanitised `authorize_query` so the POST /oauth/login re-render keeps it), falling back to the `mc-locale` cookie when the auth origin is the same host. The frontend route passes `ui_locales=<current locale>` (read the cookie via request.cookies). Set `<html lang>` accordingly. Keep Russian as the default so existing tests and the spec text stay valid; extend login-page.spec.ts and authorize-query.spec.ts. No change of the OAuth contract (ui_locales is optional and ignored by clients that do not send it); add the optional parameter to api-designer-spec 2.1.2.",
+  "needsDecision": false,
+  "decisionQuestion": "",
+  "tzRef": "NFR-008, FR-001",
+  "confidence": "confirmed"
+}

@@ -1,0 +1,20 @@
+{
+  "id": "be-patient-02",
+  "unit": "be-patient",
+  "kind": "robustness",
+  "severity": "low",
+  "title": "signedAt и revokedAt согласия проверяются голым @IsISO8601(): недельные, порядковые, «базовые» и безвременные даты проходят, HAPI их отвергает, клиент получает 500 INTERNAL вместо 400 VALIDATION_ERROR",
+  "description": "В DTO 3.8 (signedAt) и 3.9 (revokedAt) стоит @IsISO8601() без ограничения формы, хотя в описании поля обещано «YYYY-MM-DD или RFC 3339». Валидатор принимает также 20261001, 2026-W40-3, 2026-274, 2026-10-01T10:00:00 (без часового пояса), 2026-10-01 10:00:00. Все они уходят в Consent.dateTime / provision.period.start|end / sourceAttachment.creation, где HAPI ждёт FHIR dateTime (дата либо дата-время с обязательным поясом) и отвечает 400/422, которые FhirClientError превращает в 500 INTERNAL («дефект на нашей стороне»). Ошибка клиента, который прислал допустимый по ISO 8601, но не по RFC 3339 формат, выглядит как сбой сервера. Попутно проверка «не в будущем» (isInTheFuture) для значений, которые Date не разбирает (20261001, 2026-W40-3, 2026-274), получает NaN и молча пропускает любую дату. Ту же ловушку appointment-service уже закрыл для GET /doctor/appointments (list-doctor-appointments-query.dto.ts: RFC3339_DATE_OR_DATE_TIME + @IsISO8601({strict:true}), комментарий прямо описывает этот 500), а здесь, для документа с юридической силой, осталась открытой. Интерфейс эти поля заполняет только датой из DatePicker, поэтому дефект виден лишь прямым клиентам API (Bruno, интеграции), но это граница системы.",
+  "evidence": "apps/patient-service/src/modules/consents/dto/create-consent.dto.ts:28-29 (@IsISO8601() on signedAt); dto/revoke-consent.dto.ts:14-15 (@IsISO8601() on revokedAt); consents.service.ts:74-79 isInTheFuture: new Date('2026-W40-3').getTime() is NaN, NaN > limit is false -> never 'future'. libs/fhir/src/lib/consent.ts buildConsent: dateTime / period.start / attachment.creation = params.signedAt as is. libs/fhir/src/lib/fhir-client.provider.ts:317-318 HAPI 400/422 -> 500 INTERNAL. Checked with validator.js in the repo: isISO8601 (also strict:true) returns true for '20261001', '2026-W40-3', '2026-274', '2026-10-01T10:00:00', '2026-10-01 10:00:00'; new Date() is Invalid for the first three. Scenario: POST /api/v1/patients/42/consent with signedAt '2026-10-01T10:00:00' (no zone) -> passes validation, HAPI rejects the Consent -> 500 INTERNAL instead of 400 VALIDATION_ERROR with details[{field:'signedAt'}].",
+  "files": [
+    "apps/patient-service/src/modules/consents/dto/create-consent.dto.ts",
+    "apps/patient-service/src/modules/consents/dto/revoke-consent.dto.ts",
+    "apps/patient-service/src/modules/consents/consents.service.ts",
+    "apps/appointment-service/src/modules/appointments/dto/list-doctor-appointments-query.dto.ts"
+  ],
+  "proposedFix": "Reuse the pattern that already exists in appointment-service: add @Matches(RFC3339_DATE_OR_DATE_TIME, { message }) next to @IsISO8601({ strict: true }) on signedAt and revokedAt (the regex /^\\d{4}-\\d{2}-\\d{2}(?:T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{1,9})?(?:Z|[+-]\\d{2}:\\d{2}))?$/ lives in list-doctor-appointments-query.dto.ts; better to move it into libs/common as an exported constant and use it in both places). Add two cases to a DTO spec (rejects '2026-W40-3', '2026-10-01T10:00:00'; accepts '2026-10-01' and '2026-10-01T10:00:00+03:00'). No contract change: the documented forms stay valid.",
+  "needsDecision": false,
+  "decisionQuestion": "",
+  "tzRef": "API §3.8/§3.9 (signedAt, revokedAt), §0 (RFC 3339), error catalogue VALIDATION_ERROR",
+  "confidence": "confirmed"
+}

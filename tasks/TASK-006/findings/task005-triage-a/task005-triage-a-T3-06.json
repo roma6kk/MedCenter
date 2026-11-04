@@ -1,0 +1,19 @@
+{
+  "id": "task005-triage-a-T3-06",
+  "unit": "task005-triage-a",
+  "kind": "robustness",
+  "severity": "medium",
+  "title": "Redis-кеш сохраняет пустые ответы: пустой каталог услуг на 5 минут, пустое раскрытие справочника МКБ-10/АТХ на целый час",
+  "description": "Проверка кеша на пустые ответы показала реальную проблему. (1) catalog-service: getOrLoad кладёт в Redis любой ответ загрузчика, в том числе страницу услуг с нулём элементов, на 300 с. Если первый запрос пришёл до сида или во время прогрева HAPI, публичный каталог остаётся пустым до 5 минут после появления данных, а демо-сид пишет в HAPI напрямую и кеш не сбрасывает. (2) auth-service (терминология): cachedPage кеширует любую страницу раскрытия ValueSet, а allConcepts — целый список понятий, на EXPANSION_TTL_SECONDS = 3600 с, и проверок на пустоту нет. Если HAPI ответит 200 с пустым раскрытием, пока справочник индексируется (тот же лаг, из-за которого сидер падает на $expand, см. T4-05), подсказки МКБ-10, АТХ, наблюдений и единиц у врача будут пустыми целый час, а диагноз в форме приёма обязателен. Ошибки не кешируются (они выбрасываются), слоты врача на пустые дни кешируются на 15 с — это нормально и сбрасывается при генерации. Побочно: CACHE_KEYS.DOCTORS и CACHE_TTLS.DOCTORS_SECONDS нигде не используются. Дополнительно: оба сида (seed:terminology, seed:demo) пишут в HAPI напрямую и Redis не трогают, поэтому после пополнения справочника или правки услуг устаревший список остаётся в кеше до часа (терминология) или до 5 минут (услуги).",
+  "evidence": "apps/catalog-service/src/modules/cache/redis-cache.service.ts getOrLoad: `const value = await loader(); await this.setJson(key, value, ttlSeconds); return value;` with no emptiness check; apps/catalog-service/src/modules/services/services.service.ts:62 getOrLoad(CACHE_KEYS.SERVICES_PAGE(...), CACHE_TTLS.SERVICES_SECONDS = 300, load); apps/auth-service/src/modules/terminology/terminology.service.ts:17 EXPANSION_TTL_SECONDS = 3600, :130-141 cachedPage sets any fetched page, :143-165 allConcepts sets the whole list even when concepts.length === 0; fetchPage:168-181 throws on unknown ValueSet so errors are not cached; redis-cache.service.ts:53 DOCTORS_SECONDS and CACHE_KEYS.DOCTORS are unused. Scenario: open the booking wizard once before seed:demo -> empty services page cached 300 s -> after the seed the catalogue still shows nothing; or: first doctor request during HAPI term-index lag -> empty ICD-10 expansion cached for 1 h. A grep for redis/flush/invalidate over tools/ (excluding specs) finds nothing relevant, so neither seed script clears the caches.",
+  "files": [
+    "apps/catalog-service/src/modules/cache/redis-cache.service.ts",
+    "apps/catalog-service/src/modules/services/services.service.ts",
+    "apps/auth-service/src/modules/terminology/terminology.service.ts"
+  ],
+  "proposedFix": "(1) RedisCacheService.getOrLoad gets an optional 4th argument `shouldCache: (value: T) => boolean` (default true); services.service.ts:62 passes `(page) => page.items.length > 0`. (2) terminology.service.ts: in cachedPage skip cache.set when page.items.length === 0 or page.total === 0; in allConcepts skip it when concepts.length === 0 (or use a 30 s TTL for empties). (3) Delete CACHE_KEYS.DOCTORS and CACHE_TTLS.DOCTORS_SECONDS. (4) Unit tests in redis-cache.service.spec.ts, services.service.spec.ts and terminology.service.spec.ts: an empty result is returned but not stored, a non-empty one is stored. (5) Optional: print a one-line reminder at the end of seed:terminology / seed:demo, or let the services drop the keys under the cache prefixes (catalog:services:, EXPANSION_CACHE_PREFIX) on an admin endpoint that the seeds call.",
+  "needsDecision": false,
+  "decisionQuestion": "",
+  "tzRef": "NFR-005 (кеш каталога), FR-003, FR-012",
+  "confidence": "likely"
+}

@@ -1,0 +1,19 @@
+{
+  "id": "task005-triage-b-04",
+  "unit": "task005-triage-b",
+  "kind": "question",
+  "severity": "low",
+  "title": "Демо-сид не создаёт ни одной записи и ни одного приёма: заполненный кабинет пациента не проверить вживую",
+  "description": "Вопрос из T6: у демо-пациентов нет будущей записи и завершённого приёма, поэтому hero с ближайшей записью, «Последний приём», история и назначения проверены только юнит-тестами. Сид (seed-demo.ts) создаёт справочники, 14 дней свободных слотов, учётные записи и согласия; записи/приёмы он не создаёт (только --repair чинит оставшиеся). Добавить шаг сида — это решение о составе демо-данных (какой пациент, какой врач, какие диагнозы и назначения, как это сочетается с оставленными владельцем тестовыми хвостами и с тем, что novikov без согласия по замыслу), поэтому нужен владелец. Технически шаг делается теми же PKCE-входами, что уже есть в сиде.",
+  "evidence": "tools/demo-seed/seed-demo.ts:14-30 usage lists FHIR data, users, consents, repair only; grep of tools/demo-seed/seed-demo*.ts finds no appointment or encounter creation. Context file: demo patient novikov has no consent on purpose; HAPI leftovers are intentionally left.",
+  "files": [
+    "tools/demo-seed/seed-demo.ts",
+    "tools/demo-seed/demo-cli-options.ts",
+    "tools/demo-seed/demo-manifest.ts"
+  ],
+  "proposedFix": "Add an opt-in step `npm run seed:demo -- --visits` (not part of the default run, so e2e/smoke slots are untouched): sign in as the demo doctor and patient via the existing oauth-pkce-client, book one slot in the future for patient.kuznetsov and one slot yesterday-or-earlier, start and complete an encounter for the second one with one diagnosis, one observation and one prescription; idempotent by checking the patient's appointments for the marker reason. Needs the patient's consent (kuznetsov has it).",
+  "needsDecision": true,
+  "decisionQuestion": "Добавлять ли в демо-сид опциональный шаг --visits (будущая запись + один завершённый приём с диагнозом и назначением для patient.kuznetsov)? Варианты: (A) да, опционально и отдельным флагом; (B) да, всегда вместе с --users; (C) нет, наполнять руками перед показом. Рекомендация: A — витрина кабинета пациента на защите будет заполненной, а e2e и smoke не страдают.",
+  "tzRef": "FR-006, FR-007",
+  "confidence": "confirmed"
+}

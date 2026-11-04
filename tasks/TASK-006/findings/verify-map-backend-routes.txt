@@ -1,0 +1,164 @@
+## apps/analytics-service/src/modules/audit/audit.controller.ts
+14:@Controller('api/v1/admin/audit')
+18:  @Get()
+## apps/analytics-service/src/modules/health/health.controller.ts
+21: * data, hence `@Public()`. Readiness of PostgreSQL is enforced at boot: the
+25:@Controller('health')
+27:  @Get()
+28:  @Public()
+## apps/analytics-service/src/modules/reports/reports.controller.ts
+16:@Controller('api/v1/admin/analytics')
+21:  @Get('appointments')
+32:  @Get('encounters')
+43:  @Get('services-popularity')
+## apps/appointment-service/src/modules/appointments/appointments.controller.ts
+52:@Controller('api/v1/appointments')
+60:  @Post()
+91:  @Get()
+115:  @Get(':id')
+133:  @Post(':id/cancel')
+## apps/appointment-service/src/modules/appointments/doctor-appointments.controller.ts
+29:@Controller('api/v1/doctor/appointments')
+36:  @Get()
+60:  @Post(':id/noshow')
+## apps/appointment-service/src/modules/health/health.controller.ts
+15: * carries no data, hence `@Public()`. `@nestjs/terminus` is not installed, so
+19:@Controller('health')
+21:  @Get()
+22:  @Public()
+## apps/auth-service/src/app/app.controller.ts
+13:@Controller()
+15:  @Public()
+19:  @Get()
+## apps/auth-service/src/modules/health/health.controller.ts
+15: * `@Public()`. `@nestjs/terminus` is not installed, so PostgreSQL/HAPI
+19:@Controller('health')
+21:  @Get()
+22:  @Public()
+## apps/auth-service/src/modules/oauth/authorize.controller.ts
+70:@Controller()
+80:  @Public()
+105:  @Get('oauth/authorize')
+## apps/auth-service/src/modules/oauth/login/login-assets.controller.ts
+22:@Controller('oauth/assets/fonts')
+24:  @Public()
+25:  @Get(':file')
+## apps/auth-service/src/modules/oauth/login/login.controller.ts
+60:@Controller('oauth')
+72:  @Public()
+112:  @Post('login')
+## apps/auth-service/src/modules/oauth/oauth.controller.ts
+97:@Controller()
+105:  @Public()
+109:  @Get('.well-known/smart-configuration')
+131:  @Public()
+135:  @Get('.well-known/jwks.json')
+148:  @Public()
+158:  @Post('oauth/token')
+187:  @Post('oauth/token/revoke')
+## apps/auth-service/src/modules/terminology/import/admin-terminology.controller.ts
+19:@Controller('api/v1/admin/terminology')
+24:  @Post('import')
+## apps/auth-service/src/modules/terminology/terminology.controller.ts
+34:@Controller('api/v1/terminology')
+38:  @Get('value-sets')
+49:  @Get('value-sets/:url/$expand')
+60:  @Get('expand')
+70:  @Get('validate')
+## apps/auth-service/src/modules/users/account.controller.ts
+22:@Controller('api/v1')
+30:  @Public()
+35:  @Post('auth/register')
+45:  @Get('me')
+## apps/auth-service/src/modules/users/admin-users.controller.ts
+39:@Controller('api/v1/admin/users')
+44:  @Post()
+54:  @Get()
+64:  @Get(':id')
+75:  @Patch(':id')
+93:  @Delete(':id')
+## apps/catalog-service/src/modules/schedules/schedules.controller.ts
+50:@Controller('api/v1/admin/schedules')
+58:  @Post()
+72:  @Get()
+86:  @Patch(':id')
+101:  @Delete(':id')
+121:  @Post(':id/generate')
+150:  @Get(':id/slots')
+## apps/catalog-service/src/modules/services/services.controller.ts
+37:@Controller('api/v1')
+41:  @Public()
+42:  @Get('services')
+55:  @Public()
+56:  @Get('services/:id')
+67:  @Post('admin/services')
+82:  @Patch('admin/services/:id')
+99:  @Delete('admin/services/:id')
+## apps/catalog-service/src/modules/slots/slots.controller.ts
+30:@Controller('api/v1')
+37:  @Public()
+38:  @Get('doctors/:id/slots')
+53:  @Get('doctor/schedule')
+## apps/encounter-service/src/app/health.controller.ts
+19:@Controller()
+21:  @Public()
+22:  @Get('health')
+## apps/encounter-service/src/modules/encounters/encounters.controller.ts
+25:@Controller('api/v1/encounters')
+33:  @Post()
+55:  @Get(':id')
+67:  @Post(':id/complete')
+## apps/encounter-service/src/modules/history/history.controller.ts
+35:@Controller('api/v1')
+45:  @Get('patients/:id/history')
+67:  @Get('patients/:id/prescriptions')
+89:  @Get('me/history')
+100:  @Get('me/prescriptions')
+## apps/notification-service/src/modules/notifications/notifications.controller.ts
+25:@Controller('api/v1/notifications')
+29:  @Get()
+52:  @Get('unread-count')
+64:  @Post('read-all')
+76:  @Post(':id/read')
+## apps/outbox-relay/src/modules/health/health.controller.ts
+9:@Controller('health')
+11:  @Get()
+## apps/patient-service/src/modules/consents/consents.controller.ts
+63:@Controller('api/v1/patients')
+67:  @Get(':id/consent')
+81:  @Post(':id/consent')
+98:  @Post(':id/consent/revoke')
+116:  @Post(':id/consent/scan')
+136:  @Get(':id/consent/scan/:scanId')
+## apps/patient-service/src/modules/consents/me-consent.controller.ts
+28:@Controller('api/v1/me/consent')
+32:  @Get()
+43:  @Post('revoke')
+## apps/patient-service/src/modules/health/health.controller.ts
+21: * Traefik (only `/api/v1/**` is), carries no data, hence `@Public()`.
+25:@Controller('health')
+27:  @Get()
+28:  @Public()
+## apps/patient-service/src/modules/patients/me-patient.controller.ts
+23:@Controller('api/v1/me/patient')
+28:  @Get()
+39:  @Patch()
+## apps/patient-service/src/modules/patients/patients.controller.ts
+20:@Controller('api/v1/patients')
+24:  @Get(':id')
+## apps/patient-service/src/modules/related-persons/related-persons.controller.ts
+15:@Controller('api/v1/patients')
+19:  @Get(':id/related')
+## apps/practitioner-service/src/modules/doctors/doctors.controller.ts
+15:@Controller('api/v1')
+19:  @Public()
+20:  @Get('doctors')
+34:  @Public()
+35:  @Get('doctors/:id')
+## apps/practitioner-service/src/modules/rooms/rooms.controller.ts
+31:@Controller('api/v1')
+38:  @Get('rooms')
+47:  @Post('admin/rooms')
+56:  @Patch('admin/rooms/:id')
+73:  @Get('admin/rooms/:id/usage')
+83:  @Delete('admin/rooms/:id')

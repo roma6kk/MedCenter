@@ -1,0 +1,17 @@
+{
+  "id": "be-encounter-07",
+  "unit": "be-encounter",
+  "kind": "docs",
+  "severity": "low",
+  "title": "Swagger обещает 404 «patient not found» для 7.4/7.5, а сервис по замыслу отвечает 403 COMPARTMENT_VIOLATION",
+  "description": "В history.controller.ts для GET /patients/{id}/history и /patients/{id}/prescriptions в `@ApiProblems` указано `404: 'NOT_FOUND: patient not found'`. Фактически 404 по неизвестному пациенту невозможен: пациент получает 403 (чужая карта), врач — 403, потому что у него нет общей записи (HAPI на несуществующий id отвечает 404, и `PatientAccessService.hasMatch` превращает его в «нет общей помощи»), администратор — 403 FORBIDDEN_ROLE. Это сделано намеренно, чтобы врач не мог перебором выяснять, какие id существуют (комментарий в patient-access.service.ts и тест `should refuse with COMPARTMENT_VIOLATION rather than 404 when HAPI does not know the patient id`), но OpenAPI-описание противоречит поведению, и клиент, написанный по нему, ждёт ответа, которого не бывает.",
+  "evidence": "apps/encounter-service/src/modules/history/history.controller.ts:49-52 and :71-74 (`404: 'NOT_FOUND: patient not found'`); apps/encounter-service/src/modules/history/patient-access.service.ts:81-102 (`hasMatch` maps HAPI 404 to no shared care -> 403); apps/encounter-service/src/modules/history/patient-access.service.spec.ts:113 (403 rather than 404). Scenario: doctor token, GET /api/v1/patients/999999/history -> 403 COMPARTMENT_VIOLATION, never 404.",
+  "files": [
+    "apps/encounter-service/src/modules/history/history.controller.ts"
+  ],
+  "proposedFix": "Drop 404 from the `@ApiProblems` list of 7.4 and 7.5 and say in the 403 text that an unknown patient id is indistinguishable from a foreign one (\"COMPARTMENT_VIOLATION: not the owner, not a treating doctor, or no such patient\"). No behaviour change; swagger.spec.ts keeps passing.",
+  "needsDecision": false,
+  "decisionQuestion": "",
+  "tzRef": "api-designer-spec §0 (access matrix, ADR-013), §10 Swagger",
+  "confidence": "confirmed"
+}

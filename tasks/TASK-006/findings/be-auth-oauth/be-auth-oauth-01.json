@@ -1,0 +1,22 @@
+{
+  "id": "be-auth-oauth-01",
+  "unit": "be-auth-oauth",
+  "kind": "bug",
+  "severity": "high",
+  "title": "Refresh-токены, коды авторизации и denylist хранятся в памяти процесса auth-service, а не в Redis/БД, как требует спецификация",
+  "description": "В oauth.module.ts в боевой конфигурации подключены InMemoryTokenStore и InMemoryTokenDenylist (комментарий в token.service.ts называет их «dev/test implementations»). Следствия: (1) любой рестарт/передеплой/падение auth-service мгновенно обнуляет все refresh-токены (TTL 14 дней) и коды — все пользователи (пациенты, врачи, администратор) разлогиниваются, обновление токена отвечает invalid_grant; (2) denylist (`reuse:`, `session:`, `login:`) теряется при рестарте — отозванная через /oauth/token/revoke сессия снова «жива» до истечения access-токена, а погашенная login-сессия снова принимается; (3) состояние нельзя разделить между репликами (нарушает NFR-009 / ADR-011 «любое число реплик, общее состояние — в HAPI/Redis»): при двух репликах code/refresh, выданный одной, не найдётся на другой; (4) память растёт без ограничений — InMemoryTokenStore никогда не удаляет невостребованные коды и неиспользованные refresh-токены, а записи InMemoryTokenDenylist чистятся только лениво при повторном has() того же ключа (каждая ротация и каждый вход добавляют запись, которую больше никто не читает). Спецификация прямо говорит: api-designer-spec §2.1.4 «jti → Redis-denylist», architect-architecture §7 «denylist отозванных jti» в Redis, таблица auth.oauth_token создана миграцией Init, но нигде не используется. Redis уже есть в стеке и в зависимостях сервиса (RedisLoginAttemptStore).",
+  "evidence": "apps/auth-service/src/modules/oauth/oauth.module.ts:120-121 `{ provide: TOKEN_STORE, useClass: InMemoryTokenStore }`, `{ provide: TOKEN_DENYLIST, useClass: InMemoryTokenDenylist }`; apps/auth-service/src/modules/oauth/token.service.ts:58-63 (комментарий «Production wiring ... is the persistence task that follows») и :64-98 (Map без вытеснения). Сценарий: пользователь вошёл, refresh-токен выдан; `docker compose restart auth-service` → POST /oauth/token grant_type=refresh_token → 400 invalid_grant → фронтенд уходит на /login?reason=session-ended. grep по apps/ и libs/ не находит ни одной другой реализации TokenStore/TokenDenylist. Миграция apps/auth-service/src/database/migrations/1700000000000-Init.ts:59-70 создаёт auth.oauth_token, но ни один запрос к ней не выполняется (сущность OAuthToken в users/entities/oauth-token.entity.ts: «a consumed/rotated token row is deleted and its jti lands in the Redis denylist (Task 6)» — Task 6 так и не сделан). Документация утверждает обратное: apps/auth-service/README.md:3-5 («State lives in the auth PostgreSQL schema (users, RBAC, the FHIR bridge and the OAuth store)») и docker-compose.yml:54-57 («redis (token denylist, idempotency keys) ... live in NAMED volumes») — владелец вправе считать, что токены переживают рестарт.",
+  "files": [
+    "apps/auth-service/src/modules/oauth/oauth.module.ts",
+    "apps/auth-service/src/modules/oauth/token.service.ts",
+    "apps/auth-service/src/modules/oauth/login/login-session.service.ts",
+    "apps/auth-service/src/database/migrations/1700000000000-Init.ts",
+    "specs/api-designer-spec.md",
+    "specs/architect-architecture.md"
+  ],
+  "proposedFix": "Add RedisTokenStore and RedisTokenDenylist next to the in-memory classes in token.service.ts (or token-stores.ts) behind the existing TokenStore/TokenDenylist interfaces and select them in oauth.module.ts with the same pattern as createLoginAttemptStore (Redis when REDIS_URL is set, in-memory only for unit/e2e). Store: `SET oauth:token:<jti> <json> EX <ttl>`, find = GET, delete = DEL; make consume atomic with GETDEL (or a Lua script) so a code/refresh token can be spent exactly once across replicas; denylist: `SET oauth:deny:<key> 1 EX <ttl>` / EXISTS, clamp ttl to >= 1 (TokenService.consume currently can pass a non-positive ttl for an already expired token). Keep the TypeORM oauth_token table either dropped from the migration or documented as unused. Add unit specs with a fake Redis client like login-attempt-store.spec.ts. See also be-auth-oauth-02 (revocation must be visible to the other services).",
+  "needsDecision": false,
+  "decisionQuestion": "",
+  "tzRef": "FR-001; NFR-009; ADR-008, ADR-011; api-designer-spec §2.1.3-2.1.4 (jti → Redis-denylist)",
+  "confidence": "confirmed"
+}

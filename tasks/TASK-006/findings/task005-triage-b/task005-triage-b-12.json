@@ -1,0 +1,15 @@
+{
+  "id": "task005-triage-b-12",
+  "unit": "task005-triage-b",
+  "kind": "question",
+  "severity": "low",
+  "title": "RESOLVED: три отменённые тестовые записи Кузнецова к Ивановой остаются в журнале и аудите",
+  "description": "Наблюдение из T5: записи на 28.10 16:40, 29.10 10:00 и 11:30, созданные и отменённые при проверке, остались как отменённые. Решение владельца уже принято (контекст прохода): тестовые хвосты в HAPI не чистим, `seed:demo --repair` существует. Удаление записей из аудита было бы удалением данных журнала, чего делать нельзя.",
+  "evidence": "tasks/TASK-006/findings/verify-polish-context.md, раздел решений владельца: «Demo/test leftovers in HAPI … owner said leave them».",
+  "files": [],
+  "proposedFix": "No change.",
+  "needsDecision": false,
+  "decisionQuestion": "",
+  "tzRef": "",
+  "confidence": "confirmed"
+}

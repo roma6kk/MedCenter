@@ -1,0 +1,19 @@
+{
+  "id": "infra-tools-10",
+  "unit": "infra-tools",
+  "kind": "robustness",
+  "severity": "low",
+  "title": "Версия Node нигде не зафиксирована (нет engines и .nvmrc), хотя сидеры требуют Node >= 20.12; в корне лежит мусорный пустой файл «**For»",
+  "description": "README требует «Node.js 22», но в package.json нет поля `engines`, а в корне нет `.nvmrc`/`.node-version`. Сидеры используют `util.parseEnv` (Node >= 20.12 / 21.7), встроенный `fetch` и `AbortSignal.timeout`, Nest 11 требует Node >= 20. На более старом Node `npm run seed:demo` упадёт с непонятным «parseEnv is not a function», а `npm ci` не предупредит. Образы при этом собираются на Node 22 (Dockerfile), а локально сейчас стоит Node 24 — разные версии никто не сверял. Отдельно: в корне репозитория лежит пустой (0 байт) неотслеживаемый файл с именем `**For` от 6 октября (след неудачного перенаправления shell-вывода из строки README `> **For agent policy rules`); он не в .gitignore, и `git add -A` занесёт его в коммит.",
+  "evidence": "package.json has no `engines` key; `ls -a` shows no .nvmrc/.node-version; tools/shared/load-seed-env.ts:3 `import { parseEnv } from 'node:util'`; infra/docker/nest-service.Dockerfile:18 pins node:22.23.3; `node --version` on the dev machine prints v24.x. `ls -la` of the root: `**For` 0 bytes, created Oct 6, status `??` in `git status`, not matched by .gitignore.",
+  "files": [
+    "package.json",
+    "README.md",
+    ".gitignore"
+  ],
+  "proposedFix": "Add `\"engines\": { \"node\": \">=22 <25\" }` to the root package.json (and the same to frontend/package.json) and a `.nvmrc` containing `22`; mention it in the README prerequisites line. Delete the empty root file named `**For` (0 bytes, `rm -- './**For'` by the owner or in the fix pass) or add it to .gitignore if it keeps reappearing.",
+  "needsDecision": false,
+  "decisionQuestion": "",
+  "tzRef": "",
+  "confidence": "confirmed"
+}

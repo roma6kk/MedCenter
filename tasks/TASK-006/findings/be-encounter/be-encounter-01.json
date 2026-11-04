@@ -1,0 +1,23 @@
+{
+  "id": "be-encounter-01",
+  "unit": "be-encounter",
+  "kind": "security",
+  "severity": "high",
+  "title": "GET /encounters/{id} (7.2) отдаёт администратору всю клиническую запись приёма, вопреки ADR-018 и матрице доступа к ПДн",
+  "description": "Решение владельца ADR-018 и матрица доступа в api-designer-spec §0 закрывают для роли ADMIN историю обращений, диагнозы и назначения (7.4–7.7: ADMIN получает 403). Но эндпоинт 7.2 допускает ADMIN (`@RequiresRoles(Role.DOCTOR, Role.ADMIN)`, `resolveEncounterViewer` возвращает `kind: 'admin'`, `assertViewerSeesEncounter` для admin ничего не проверяет) и возвращает тот же состав данных плюс показатели и назначения: summary, recommendations, diagnoses, observations, serviceRequests, medicationRequests. Id приёмов в HAPI числовые и последовательные, поэтому администратор может перебрать `/encounters/1..N` и прочитать все диагнозы; чтение нигде не журналируется (7.2 не использует PatientReadAudit). Строка 7.2 в таблице спецификации («участник / ADMIN») появилась до ADR-018 и ему противоречит; юнит-тест `should let an ADMIN read any encounter` закрепляет это поведение. Во frontend 7.2 вызывает только кабинет врача, т.е. у администратора легитимного пути к этому эндпоинту нет.",
+  "evidence": "apps/encounter-service/src/modules/encounters/encounters.controller.ts:60 `@RequiresRoles(Role.DOCTOR, Role.ADMIN)`; apps/encounter-service/src/modules/encounters/encounter-access.ts:45-48 (`if (claims.role === Role.ADMIN) return { kind: 'admin' }`) and :62-66 (`assertViewerSeesEncounter` checks only the doctor kind); apps/encounter-service/src/modules/encounters/encounters.service.ts:113-131 (no PatientReadAudit); apps/encounter-service/src/modules/encounters/encounters-open.service.spec.ts:227 asserts ADMIN may read any encounter; apps/encounter-service/test/history.e2e-spec.ts:105 asserts ADMIN -> 403 only for 7.4/7.5. Scenario: token role=ADMIN scope user/*.read -> GET /api/v1/encounters/1 -> 200 with diagnoses, summary, recommendations, prescriptions of a stranger patient, no AuditEvent. Same request on GET /patients/{id}/history -> 403 COMPARTMENT_VIOLATION.",
+  "files": [
+    "apps/encounter-service/src/modules/encounters/encounters.controller.ts",
+    "apps/encounter-service/src/modules/encounters/encounter-access.ts",
+    "apps/encounter-service/src/modules/encounters/encounters.service.ts",
+    "apps/encounter-service/src/modules/encounters/encounters-open.service.spec.ts",
+    "apps/encounter-service/test/history.e2e-spec.ts",
+    "specs/api-designer-spec.md",
+    "bruno/medcenter-api/08-encounters/7.2-encounter.bru"
+  ],
+  "proposedFix": "Follow ADR-018 (\"ADMIN excluded from @RequiresRoles and from the compartment check of encounter-service\"): 7.2 becomes DOCTOR-only. Controller: `@RequiresRoles(Role.DOCTOR)`, summary text without \"or admin\". encounter-access.ts: drop the admin branch (EncounterViewer = doctor only, or make resolveEncounterViewer throw FORBIDDEN_ROLE for non-doctors, the same shape as PatientAccessService). Update the unit test to `should refuse an ADMIN` (403 COMPARTMENT_VIOLATION / FORBIDDEN_ROLE), add an e2e case ADMIN -> 403 on GET /encounters/{id} next to the 7.4/7.5 one, fix the 7.2 row of api-designer-spec §7 (\"участник\") and the access wording in the bruno 7.2 request (README mentions ro-admin).",
+  "needsDecision": false,
+  "decisionQuestion": "",
+  "tzRef": "ADR-018, NFR-006, api-designer-spec §0 access matrix, 7.2",
+  "confidence": "confirmed"
+}

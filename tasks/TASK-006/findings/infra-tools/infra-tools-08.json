@@ -1,0 +1,19 @@
+{
+  "id": "infra-tools-08",
+  "unit": "infra-tools",
+  "kind": "test",
+  "severity": "low",
+  "title": "Таблица маршрутов Traefik (dynamic.yml) проверяется только живым smoke: нет офлайн-теста «каждый маршрут контроллера ведёт в свой сервис»",
+  "description": "В шапке infra/traefik/dynamic.yml сказано, что каждый маршрут `/api/v1/**` восьми сервисов отображён ровно на один router и это «проверено маршрут за маршрутом». Эта проверка была ручной (аудит из TASK-001) и осталась в виде комментария: ни один юнит-тест не читает dynamic.yml. Единственная защита от расхождения — живой `npm run smoke:stack` (шаг «route coverage»), который нужен поднятый стек и в обычный `npm test` не входит. Любой новый контроллерный маршрут (например, из пунктов этого прохода) без строки в dynamic.yml уйдёт в тихий 404 на краю, хотя все юнит- и e2e-тесты сервисов будут зелёными. При этом всё нужное для офлайн-проверки уже есть: `tools/stack-smoke/route-inventory.ts` (`loadRouteInventory`) умеет перечислять маршруты всех контроллеров с именем сервиса.",
+  "evidence": "grep for `dynamic.yml` in apps/, libs/, tools/ finds no test or helper; tools/stack-smoke/route-inventory.ts exports loadRouteInventory(appsDirectory) -> RouteTemplate[{service, method, path}] and templateToPattern; infra/traefik/dynamic.yml:11-12 claims the 1:1 mapping. Audited by hand for this pass: all 60+ routes of tasks/TASK-006/findings/verify-map-backend-routes.txt map to the right router today, so the test would be green now and would only guard the future.",
+  "files": [
+    "infra/traefik/dynamic.yml",
+    "tools/stack-smoke/route-inventory.ts",
+    "tools/stack-smoke/route-inventory.spec.ts"
+  ],
+  "proposedFix": "Add tools/stack-smoke/edge-routing.spec.ts (runs under `npm run test:tools`, no new dependency): (1) read infra/traefik/dynamic.yml as text and parse only the `routers:` and `services:` blocks line by line (name, `rule:`, optional `priority:`, `service:`; the file's layout is regular), (2) implement a tiny matcher for the rule atoms actually used: Path(`..`), PathPrefix(`..`), PathRegexp(`..`), Method(`..`) joined by `&&` and `||`, with Traefik's default priority = rule length when `priority` is absent, (3) for every route of loadRouteInventory(join(__dirname, '..', '..', 'apps')) replace each `:param` by `x` (and `$expand` literally), pick the matching router with the highest priority and assert that its backend URL port equals the port of the route's service (3001 auth, 3002 practitioner, 3003 catalog, 3004 patient, 3005 appointment, 3006 notification, 3007 encounter, 3008 analytics — the same table as the dynamic.yml header), (4) also assert that `/fhir/Patient` and `POST /fhir/metadata` match no router and `GET /fhir/metadata` matches only `fhir-metadata`, and that every `/api/docs/<service>` prefix exists for the eight services. Keep each function under the 30-line limit of tools/.eslintrc.golden.json.",
+  "needsDecision": false,
+  "decisionQuestion": "",
+  "tzRef": "NFR-001 (контейнеризация, единая точка входа), ADR-009",
+  "confidence": "confirmed"
+}

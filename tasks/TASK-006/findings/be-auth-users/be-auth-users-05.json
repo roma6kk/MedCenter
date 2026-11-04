@@ -1,0 +1,18 @@
+{
+  "id": "be-auth-users-05",
+  "unit": "be-auth-users",
+  "kind": "bug",
+  "severity": "low",
+  "title": "Пустой PATCH, PATCH без реальных изменений и повторный DELETE деактивированного пользователя пишут в журнал аудита ложное событие user.updated / user.deactivated",
+  "description": "UsersService.update и deactivate не проверяют, что что-то действительно изменилось: любой успешный вызов заканчивается recordUpdate(...) с outcome=0. PATCH `{}`, PATCH `{ \"isActive\": true }` для уже активной учётной записи или повторный DELETE уже деактивированной (двойной клик по «Деактивировать», повтор запроса после тайм-аута, повторный вызов скриптом) добавляют в журнал аудита (FR-021) запись «администратор X изменил/деактивировал пользователя Y», хотя состояние не менялось. Журнал, по которому разбирают, кто и когда отключил пользователя, становится недостоверным: после повторного DELETE «последняя деактивация» относится к другому моменту и другому администратору, чем фактическая.",
+  "evidence": "apps/auth-service/src/modules/users/users.service.ts:94-106 `update`: changesOf -> applyChanges -> syncPatient -> recordUpdate(current, updated, actor, dto.isActive === false ? 'user.deactivated' : 'user.updated') with no 'nothing changed' branch; :109-118 `deactivate`: `applyChanges(id, { isActive: false })` + recordUpdate(..., 'user.deactivated') even when current.isActive is already false. Scenario: DELETE /api/v1/admin/users/{id} twice by different admins -> two AuditEvents `user.deactivated`, the second one by an admin who changed nothing. Same for PATCH {} (changes = {} -> store.update saves an unchanged row).",
+  "files": [
+    "apps/auth-service/src/modules/users/users.service.ts",
+    "apps/auth-service/src/modules/users/user-changes.ts"
+  ],
+  "proposedFix": "In UsersService.update compute the effective change: drop fields equal to `current` (email/firstName/lastName/isActive/roles as a set/practitionerRoleId) in changesOf, and when the resulting UserChanges is empty and demographicsOf(dto) is null return toUserDetails(current) without writing or auditing (200, idempotent). In deactivate return the card of an already inactive account without an audit event. Keep the event name rule (`user.deactivated` only when isActive flips to false). Add spec cases to users.service.update.spec.ts: PATCH {} and repeated deactivate leave the AuditEvent count unchanged.",
+  "needsDecision": false,
+  "decisionQuestion": "",
+  "tzRef": "FR-021",
+  "confidence": "confirmed"
+}

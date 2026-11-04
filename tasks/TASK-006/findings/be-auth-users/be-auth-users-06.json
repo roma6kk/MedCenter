@@ -1,0 +1,20 @@
+{
+  "id": "be-auth-users-06",
+  "unit": "be-auth-users",
+  "kind": "question",
+  "severity": "medium",
+  "title": "Пароль нельзя ни сменить самому, ни сбросить администратором: забытый пароль (в том числе единственного администратора) означает потерю учётной записи",
+  "description": "В API нет ни одного способа изменить пароль существующей учётной записи. PATCH /admin/users/{id} намеренно исключает password (спецификация 2.2.4: PartialType(OmitType(RegisterPatientDto, ['password']))), эндпоинта «сменить свой пароль» нет, сброс по e-mail не реализован (в списке вопросов TASK-005, T7+V5, это уже есть как вопрос про почтовый транспорт и токены). Следствия: (1) пациент, забывший пароль, не может вернуться в свою учётную запись; зарегистрироваться заново с тем же e-mail нельзя (409 EMAIL_TAKEN, адрес занят и у деактивированных), администратор сбросить пароль не может; (2) пароль единственного администратора, заданный BOOTSTRAP_ADMIN_PASSWORD, хранится только в окружении: при его потере единственный выход — правка БД (бутстрап существующий e-mail не трогает); (3) утёкший или слабый пароль нельзя заменить без пересоздания записи. Для курсовой демонстрации вопрос «как сбросить пароль пользователя?» почти наверняка прозвучит.",
+  "evidence": "apps/auth-service/src/modules/users/dto/update-user.dto.ts has no `password` field (header comment: PartialType(OmitType(RegisterPatientDto, ['password']))); no route under apps/auth-service for password change/reset (route map: only register, me, admin/users CRUD); apps/auth-service/src/modules/users/bootstrap-admin.service.ts:`ensureAdmin` returns early when the e-mail exists; specs/api-designer-spec.md 2.2.4. Scenario: patient forgets the password -> login form has no recovery link; POST /auth/register with the same e-mail -> 409 EMAIL_TAKEN; admin PATCH {password} -> field dropped by the whitelist, nothing changes.",
+  "files": [
+    "apps/auth-service/src/modules/users/dto/update-user.dto.ts",
+    "apps/auth-service/src/modules/users/users.service.ts",
+    "apps/auth-service/src/modules/users/account.controller.ts",
+    "apps/auth-service/src/modules/users/credentials.service.ts"
+  ],
+  "proposedFix": "Smallest option without a mail transport: add an optional `password` (same IsStrongPassword policy and PASSWORD_MAX_LENGTH) to UpdateUserDto, hash it in UsersService.update (PasswordHasher), write the AuditEvent as `user.password-reset` (no value in the event), and drop the user's refresh tokens. Additionally `POST /api/v1/me/password` { currentPassword, newPassword } verified through CredentialsService.verify. E-mail reset (token, SMTP/Mailpit) can come later on the same service methods.",
+  "needsDecision": true,
+  "decisionQuestion": "Нужен ли в системе способ сменить/сбросить пароль, и в каком виде? (а) РЕКОМЕНДУЮ для курсовой: сброс администратором (поле password в PATCH /admin/users/{id}, событие аудита, закрытие сессий) + смена своего пароля (POST /me/password) — без почтового транспорта, около 1 дня работы с тестами; (б) полный сброс по e-mail со ссылкой и одноразовым токеном (нужен SMTP/Mailpit в compose, ссылка «Забыли пароль?» на форме входа) — решение из TASK-005 T7+V5, в разы больше работы; (в) не делать: описать в ПЗ, что восстановление доступа — вне границ системы, а пароль администратора хранится в секретах развёртывания.",
+  "tzRef": "ТЗ: аутентификация и авторизация; ТЗ Администратор: управление пользователями; FR-015",
+  "confidence": "confirmed"
+}

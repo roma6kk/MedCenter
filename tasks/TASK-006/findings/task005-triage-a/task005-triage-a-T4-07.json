@@ -1,0 +1,19 @@
+{
+  "id": "task005-triage-a-T4-07",
+  "unit": "task005-triage-a",
+  "kind": "question",
+  "severity": "low",
+  "title": "Единица измерения у нового наблюдения не подставляется (запрет пресетов записан в коде) — подставлять единицу по выбранному показателю?",
+  "description": "Пустая единица у новой строки наблюдения — сознательное решение: единая единица по умолчанию дала бы тихо неверную клиническую запись (кг, см, мм рт. ст., уд/мин, %, °C у разных показателей разные), а правило required заставляет выбрать единицу явно. Это решает КОНСТАНТНЫЙ пресет. Остаётся другой вариант: подставлять единицу, определённую выбранным показателем (температура — °C, пульс — уд/мин), с возможностью изменить; система уже знает связь показателя и единицы для подписей (UcumUnitSelect получает observationCode). Это клинический компромисс: скорость ввода против риска незаметной ошибки, поэтому решать владельцу.",
+  "evidence": "frontend/src/components/doctor/encounter-form-defaults.ts:8-18 EMPTY_OBSERVATION has unit '' with the comment that any preset would silently store a wrong clinical record; frontend/src/components/doctor/observations-editor.tsx:20-27 the unit select already receives observationCode (used by useUnitLabel for «уд/мин» vs «дых/мин»); frontend/src/components/doctor/ucum-unit-select.tsx:22-30 select-only picker, free text never accepted (BR-009).",
+  "files": [
+    "frontend/src/components/doctor/encounter-form-defaults.ts",
+    "frontend/src/components/doctor/observations-editor.tsx",
+    "frontend/src/components/doctor/ucum-unit-select.tsx"
+  ],
+  "proposedFix": "Option 2: a small curated map observationCode -> UCUM unit for the seeded concepts only (kept next to unit-label.ts); when the doctor picks a code and the unit is still empty, set it via setValue with shouldDirty, mark the field visibly as 'подставлено' and keep it editable; concepts without an entry keep the empty unit. Cover with observations-editor spec.",
+  "needsDecision": true,
+  "decisionQuestion": "Подставлять ли единицу измерения при выборе показателя? Варианты: (1) нет — оставить явный выбор единицы (безопасно, рекомендация для курсовой: решение уже описано в коде и защищено required); (2) подставлять единицу из короткой проверенной таблицы «показатель -> единица» только если поле ещё пустое, с возможностью изменить; (3) общий пресет — не рекомендуется (тихая ошибка).",
+  "tzRef": "Врач: оформление результатов приёма; FR-012, BR-009",
+  "confidence": "confirmed"
+}

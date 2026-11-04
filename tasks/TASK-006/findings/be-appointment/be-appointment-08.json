@@ -1,0 +1,21 @@
+{
+  "id": "be-appointment-08",
+  "unit": "be-appointment",
+  "kind": "question",
+  "severity": "low",
+  "title": "Пациент может отменить запись, время которой уже наступило или прошло (статус ещё booked): неявка стирается, слот возвращается в прошлое",
+  "description": "BR-002 и API §6.4 разрешают отмену любой записи со статусом booked и без приёма и ничего не говорят о времени; кнопка «Отменить» в кабинете тоже зависит только от статуса (isCancellable). Если пациент не пришёл, а врач ещё не отметил неявку, пациент может отменить запись задним числом: статус становится cancelled (причина произвольная), слот возвращается в free (в прошлом), неявку поставить уже нельзя (6.6 даёт 409), и клиника теряет факт неявки в аналитике и в журнале врача (строка зачёркнута как обычная отмена). Это выбор политики клиники, а не очевидный дефект: одни клиники запрещают отмену после начала, другие требуют отмену не позже чем за N часов, третьи не ограничивают. Свободный слот в прошлом после исправления be-appointment-01 уже не опасен, поэтому вопрос только про учёт неявок и про то, что видит пациент.",
+  "evidence": "apps/appointment-service/src/modules/appointments/appointments.service.ts:138-150 readCancellable(): ownership -> assertBooked -> assertNoEncounter, no time check; cancel() (lines 113-135) frees the slot unconditionally. frontend/src/components/appointments/appointment-types.ts:37-38 isCancellable(status) looks at the status only; appointment-card.tsx:37 and appointment-detail-view.tsx:36 offer the button by that rule. Scenario: appointment at 10:00, the patient does not come; at 14:00 the patient (or a stale tab) POSTs /appointments/{id}/cancel -> 200 cancelled, slot free; the doctor's POST .../noshow -> 409 ENCOUNTER_STATE_INVALID.",
+  "files": [
+    "apps/appointment-service/src/modules/appointments/appointments.service.ts",
+    "frontend/src/components/appointments/appointment-types.ts",
+    "frontend/src/components/appointments/appointment-card.tsx",
+    "frontend/src/components/appointments/appointment-detail-view.tsx",
+    "specs/api-designer-spec.md"
+  ],
+  "proposedFix": "Option A (recommended): in readCancellable(), for a PATIENT caller refuse when Date.now() >= Date.parse(start) with 409 APPOINTMENT_NOT_CANCELLABLE ('the appointment time has come: call the clinic'); ADMIN keeps the right to cancel at any time (clean-up of hanging records). Frontend: isCancellable(status, start, now) hides the button for a started visit and the detail page explains to call the clinic. Update API §6.4 and the controller docs; unit specs with a pinned clock. Option B: allow cancelling until the END of the slot. Option C: keep as it is.",
+  "needsDecision": true,
+  "decisionQuestion": "Может ли пациент отменить запись после начала приёма, пока она ещё в статусе booked? A) Нет: после начала запись отменяет только администратор (рекомендую: сохраняет учёт неявок и не даёт стереть неявку задним числом); B) можно до окончания слота; C) без ограничений, как сейчас. Порог вида «не позже чем за N часов до приёма» - отдельное решение клиники, здесь не предлагается.",
+  "tzRef": "BR-002, BR-008; API §6.4",
+  "confidence": "confirmed"
+}

@@ -1,0 +1,19 @@
+{
+  "id": "task005-triage-b-31",
+  "unit": "task005-triage-b",
+  "kind": "ux",
+  "severity": "low",
+  "title": "При смене темы кнопки и ссылки плавно меняют цвет 120 мс, а фон и карточки мгновенно: на долю секунды видна «чужая» тема",
+  "description": "Вопрос из V4/T9 («отключать переходы на время смены темы?») имеет очевидный ответ: да. Общий базовый стиль даёт переход цвета 120 мс элементам a, button, summary, [role=button|tab|radio], а фон страницы, карточки и текст такого перехода не имеют. Поэтому в момент переключения светлая/тёмная тема фон меняется сразу, а кнопки и ссылки ещё 120 мс остаются в цветах прежней темы (светлые кнопки на тёмном фоне и обратно): заметная вспышка. Это известный приём: на время смены темы выключать все переходы.",
+  "evidence": "frontend/src/styles/globals.css:244-257 `@layer base { a, button, summary, [role=...] { transition-property: color, background-color, border-color, ...; transition-duration: var(--duration-fast) } }`; frontend/src/lib/theme/theme.ts:43-46 applyTheme only sets `document.documentElement.dataset.theme`; frontend/src/components/layout/theme-sync.tsx follows the OS scheme the same way. Scenario: profile menu -> «Тёмная»: the page goes dark at once, buttons fade for 120 ms.",
+  "files": [
+    "frontend/src/lib/theme/theme.ts",
+    "frontend/src/styles/globals.css",
+    "frontend/src/lib/theme/theme.spec.ts"
+  ],
+  "proposedFix": "In applyTheme, around the dataset write set `document.documentElement.dataset.themeSwitching = ''` and remove it after two animation frames (or setTimeout 0 after forcing a reflow); in globals.css add `:root[data-theme-switching] *, :root[data-theme-switching] *::before, :root[data-theme-switching] *::after { transition: none !important; }`. Skip it in the head init script (no transitions exist before first paint). Add a theme.spec.ts case that the attribute is set during the switch and cleared afterwards.",
+  "needsDecision": false,
+  "decisionQuestion": "",
+  "tzRef": "",
+  "confidence": "confirmed"
+}

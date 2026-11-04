@@ -1,0 +1,18 @@
+{
+  "id": "be-notification-outbox-04",
+  "unit": "be-notification-outbox",
+  "kind": "robustness",
+  "severity": "low",
+  "title": "Relay пишет предупреждение о нечитаемой записи outbox при каждом опросе (раз в 2 с) бесконечно: журнал забивается одной «ядовитой» записью",
+  "description": "Запись outbox с нечитаемым payload или без обязательных расширений остаётся pending навсегда (так и задумано: pending не удаляется). Но каждый опрос заново читает её в первой пачке и снова пишет warn «outbox record is malformed and is skipped» либо «outbox payload is not valid JSON and is skipped». При опросе раз в 2 с это около 43 тысяч одинаковых строк в сутки на каждую такую запись; журнал контейнера (json-file, 10 МБ x 3 файла) вытесняется ими, и полезные предупреждения (в том числе итоговое «pending for too long» раз в минуту) теряются.",
+  "evidence": "apps/outbox-relay/src/modules/relay/relay.service.ts: dispatchPending() reads the oldest `batchSize` pending records on every tick; recordOf() logs `this.logger.warn({ basicId }, 'outbox record is malformed and is skipped')` and eventOf() logs `'outbox payload is not valid JSON and is skipped'` for every poison record on every pass, with no memory of what was already reported. Default pollIntervalMs = 2000 (relay.config.ts). Scenario: one Basic with outbox-payload `not json` stays pending -> 1 warn per 2 s for as long as it exists; the 5-minute stale warning already reports it once a minute.",
+  "files": [
+    "apps/outbox-relay/src/modules/relay/relay.service.ts",
+    "apps/outbox-relay/src/modules/relay/relay.service.spec.ts"
+  ],
+  "proposedFix": "Remember reported poison records in the service: `private readonly reportedPoison = new Map<string, number>()` keyed by basic id (cap the size, e.g. 1000, drop the oldest) and log a record at most once per hour (or once per process) from recordOf()/eventOf(); the stale-pending warning (once per OUTBOX_HOUSEKEEPING_INTERVAL_MS) keeps reminding. Keep skipping behaviour unchanged. Add a unit case: two ticks over the same malformed record produce one warning.",
+  "needsDecision": false,
+  "decisionQuestion": "",
+  "tzRef": "NFR-007 (наблюдаемость); architect ADR-021 (pending не удаляется, предупреждение о застрявших)",
+  "confidence": "confirmed"
+}

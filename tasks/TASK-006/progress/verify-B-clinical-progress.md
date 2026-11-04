@@ -1,0 +1,13 @@
+- be-encounter-01: done 8497c81 — 7.2 DOCTOR-only, admin 403, tests/spec/bruno updated
+- tz-matrix-01: done 8497c81 — duplicate of be-encounter-01
+- be-encounter-03: done e0b1d2f — optional encounterId on 7.5/7.7 (additive), unit+e2e tests, spec, bruno; frontend visit card must use it (frontend lane)
+- task005-triage-a-T1-04: done e0b1d2f — backend part is the same encounterId filter; the frontend change (query with encounterId / pageSize 100 in patient-history-timeline.tsx) is for the frontend lane
+- be-encounter-04: done ea1da3c — IsIn code system for ServiceRequest/Observation, UniqueBy for diagnoses/atcCode, dto spec
+- be-encounter-05: done ea1da3c — Trim on summary/recommendations/display/dosageText/notes (frontend .trim() in lib/contracts.ts is for the frontend lane)
+- be-encounter-06: done bb9fabf — Accept-Language doctorName in history (controller/service/mapper + spec in working tree)
+- be-encounter-07: done bb9fabf — 404 dropped from 7.4/7.5 swagger (in working tree)
+- be-patient-02: done bb9fabf — RFC3339_DATE_OR_DATE_TIME in libs/common + strict ISO on signedAt/revokedAt, dto spec
+- be-patient-03: done bb9fabf — doctor's name read at write time (PractitionerRole _include), stored with the reference; read-side neutral label for legacy rows is a frontend handoff
+- be-patient-04: done bb9fabf — revoke closes all consents in force (listActiveConsents); conditional create (ifNoneExist) NOT done: HAPI behaviour unverifiable here and an active-but-expired consent would wrongly give 409
+- be-patient-05: done bb9fabf — swagger 403/404 texts corrected for 3.1, 3.4, 3.6, 3.12
+Status: done

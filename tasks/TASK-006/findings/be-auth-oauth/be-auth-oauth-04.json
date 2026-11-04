@@ -1,0 +1,19 @@
+{
+  "id": "be-auth-oauth-04",
+  "unit": "be-auth-oauth",
+  "kind": "robustness",
+  "severity": "medium",
+  "title": "Ротация refresh-токена не атомарна: токен гасится до обращения к БД, и временный сбой БД необратимо разлогинивает пользователя",
+  "description": "OAuthService.refresh() и exchangeCode() сначала вызывают tokens.consume() (строка удаляется, jti попадает в denylist как «использован»), и только потом issuePair() → resolveGrant() → identities.resolve(), то есть запрос в БД auth. Если в этот момент БД недоступна/таймаут, клиент получает 500, а его refresh-токен уже уничтожен. Клиент-брокер (frontend/src/lib/auth/session-broker.ts: 400/401 → invalid → очистить cookie; остальные коды → unavailable → cookie оставить и повторить) по замыслу переживает сбой, но повтор с тем же токеном даёт 400 invalid_grant (isDenied=true), и сессия заканчивается без вины пользователя. Для authorization_code последствия мягче (повторить вход), но тот же порядок. Заодно resolveGrant отказывает в гранте деактивированной учётной записи уже после того, как токен погашен (там это допустимо).",
+  "evidence": "apps/auth-service/src/modules/oauth/oauth.service.ts:170-181 (refresh: consume → clientId check → issuePair) и :226-267 (issuePair → resolveGrant → this.identities.resolve(stored.userId)); token.service.ts:147-161 (consume удаляет строку и пишет reuse:-метку до возврата токена). Сценарий: PostgreSQL перезапускается/кратко недоступен → POST /oauth/token grant_type=refresh_token → UserIdentityResolver.resolve бросает → 500; повтор того же запроса → 400 invalid_grant «Refresh token has been revoked or already rotated» → фронтенд стирает cookie, пользователь на /login?reason=session-ended.",
+  "files": [
+    "apps/auth-service/src/modules/oauth/oauth.service.ts",
+    "apps/auth-service/src/modules/oauth/token.service.ts",
+    "frontend/src/lib/auth/session-broker.ts"
+  ],
+  "proposedFix": "Reorder refresh(): tokens.find(refreshToken) (non-destructive; null → invalid_grant) → client_id check → resolveGrant(stored) (DB) → tokens.consume(...) (single atomic spend; null → invalid_grant, this is what still prevents a concurrent double-spend) → issue the new pair. Equivalent for exchangeCode: find → client_id + PKCE check → resolveGrant → consume. Keep isDenied() first for the already-rotated case. Add a unit spec in oauth.service.spec.ts: identities.resolve rejects once → the refresh token is still usable on the retry.",
+  "needsDecision": false,
+  "decisionQuestion": "",
+  "tzRef": "FR-001; NFR-009 (устойчивость); api-designer-spec §2.1.3 (rotation)",
+  "confidence": "confirmed"
+}

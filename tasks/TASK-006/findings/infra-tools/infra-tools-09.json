@@ -1,0 +1,18 @@
+{
+  "id": "infra-tools-09",
+  "unit": "infra-tools",
+  "kind": "question",
+  "severity": "low",
+  "title": "В репозитории нет CI: нужен ли workflow, который гоняет lint, тесты и сборку образов при каждом пуше?",
+  "description": "AGENTS.md ставит на первое место иерархии источников правды «Enforcement (hooks, CI, linters)». Хуки и линтеры есть, но каталога .github/workflows (и любого другого CI-конфига) в репозитории нет: `npm test`, `npm run lint`, `npm run test:tools`, `cd frontend && npx jest` и сборка образов запускаются только вручную. Репозиторий уже лежит на GitHub (origin), все команды детерминированы и описаны в README. CI не входит в ТЗ, поэтому решать без владельца нельзя: это новая «фича» инфраструктуры со своей стоимостью поддержки.",
+  "evidence": "`ls -a` of the repository root shows no .github, .gitlab-ci.yml or similar; `git remote -v` points at github.com/roma6kk/MedCenter; README.md section «Tests and checks» lists the commands a workflow would run; baseline in tasks/TASK-006/findings/verify-polish-context.md: backend lint, unit tests, tools tests and frontend tsc/lint/jest are all green and can run without Docker.",
+  "files": [
+    "README.md",
+    "AGENTS.md"
+  ],
+  "proposedFix": "If the answer is yes: add .github/workflows/ci.yml with Node 22, `npm ci`, `npx nx run-many -t lint test --parallel=1`, `npm run test:tools && npm run lint:tools`, `cd frontend && npm ci && npx tsc --noEmit && npx next lint && npx jest`, and `docker compose config -q` with a dummy POSTGRES_PASSWORD (no secrets in CI). Live smoke and Playwright stay manual (they need the stack).",
+  "needsDecision": true,
+  "decisionQuestion": "Добавить GitHub Actions workflow для lint + unit-тестов + проверки compose (без запуска стека)? Варианты: (a) да, минимальный ci.yml без Docker-сборки, (b) да, плюс сборка всех образов, (c) нет, достаточно ручных команд из README. Рекомендация: (a) — быстро, бесплатно и закрывает пункт «Enforcement» из AGENTS.md.",
+  "tzRef": "",
+  "confidence": "confirmed"
+}

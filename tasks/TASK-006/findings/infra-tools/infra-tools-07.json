@@ -1,0 +1,17 @@
+{
+  "id": "infra-tools-07",
+  "unit": "infra-tools",
+  "kind": "security",
+  "severity": "low",
+  "title": "Единственный публичный маршрут к HAPI (/fhir/metadata) не защищён лимитом запросов на краю",
+  "description": "Все BFF ограничивают частоту запросов собственным RateLimitGuard, но маршрут `fhir-metadata` ведёт напрямую в HAPI, где нет ни аутентификации, ни лимита. Ответ CapabilityStatement у JPA-сервера большой (сотни килобайт), и анонимный клиент может непрерывно его запрашивать, создавая нагрузку на HAPI — тот самый контейнер, от которого зависят все остальные сервисы. HAPI кеширует метаданные примерно на минуту, но, насколько известно по реализации ConformanceMethodBinding, заголовок `Cache-Control: no-cache` этот кеш обходит (на живом стеке не проверялось; сидеры отправляют такой заголовок на каждый запрос). Traefik уже стоит на краю и умеет ограничивать по адресу клиента без кода.",
+  "evidence": "infra/traefik/dynamic.yml:41-45 (router `fhir-metadata`: only the `security-headers` middleware, no rateLimit/inFlightReq); the only protection of other routes is libs/common RateLimitGuard inside the BFFs, which is not in the path to HAPI. docker-compose.yml:226-254 (HAPI without authentication, 3 GB limit). Scenario: `while true; do curl -s -H 'Cache-Control: no-cache' http://localhost:8081/fhir/metadata >/dev/null; done` from a few shells keeps HAPI busy and slows every BFF call that needs it.",
+  "files": [
+    "infra/traefik/dynamic.yml"
+  ],
+  "proposedFix": "In infra/traefik/dynamic.yml add a middleware `fhir-metadata-limit: rateLimit: { average: 30, period: 1m, burst: 10 }` (source criterion = the client address, which is the real one on this route because browsers and tools reach Traefik directly) plus `headers: customRequestHeaders: { Cache-Control: '', Pragma: '' }` (an empty value removes the header, so the public call always uses HAPI's own minute cache) and attach both to the `fhir-metadata` router next to `security-headers`. Check that `npm run stack:wait` and `tools/stack-smoke/checks-edge.ts` still get 200 (they poll every 2.5 s, well under 30/min only if the poll interval stays >= 2 s; raise `average` to 60 if the wait loop is faster).",
+  "needsDecision": false,
+  "decisionQuestion": "",
+  "tzRef": "NFR-010 (CapabilityStatement), ADR-009",
+  "confidence": "likely"
+}

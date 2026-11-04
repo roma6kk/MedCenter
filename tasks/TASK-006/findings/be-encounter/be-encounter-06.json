@@ -1,0 +1,21 @@
+{
+  "id": "be-encounter-06",
+  "unit": "be-encounter",
+  "kind": "i18n",
+  "severity": "low",
+  "title": "doctorName в истории приёмов (7.4/7.6) всегда русский: encounter-service не учитывает Accept-Language, в английском интерфейсе врач в «Моей истории» остаётся кириллицей",
+  "description": "Последний коммит (520db7b) ввёл английские имена врачей и услуг: расширение HL7 `translation` на `Practitioner.name[0]._family/_given[i]`, хелпер `resolveContentLanguage` / `translated` в libs/fhir-mappers, `Accept-Language` читают practitioner-service и catalog-service, а фронтенд шлёт заголовок со всеми запросами. История приёмов собирает `doctorName` в history-item.mapper.ts функцией `humanNameOf` (text либо `family given`) без языка, хотя Practitioner уже приходит в том же Bundle (`_include:iterate=PractitionerRole:practitioner`) и переводы лежат на нём. В отчёте coder-i18n-data-report «остаются русскими» названы записи и расписания, история приёмов не названа. Итог: в EN-интерфейсе каталог показывает «Maria Ivanova», а строка визита в «Моей истории» и в профиле — «Иванова Мария Сергеевна». `serviceType.display` (имя НСИ-услуги, скопированное в Encounter) остаётся русским так же, как `typeDisplay` услуги, — переводов НСИ-справочника нет, это вне объёма.",
+  "evidence": "apps/encounter-service/src/modules/history/mappers/history-item.mapper.ts:13-25 (`humanNameOf` ignores `_family`/`_given`), :28-32 `doctorNameOf`; apps/encounter-service/src/modules/history/history.controller.ts:45-100 (no `@Headers('accept-language')`); apps/practitioner-service/src/modules/doctors/doctors.controller.ts:24,41 (the pattern); libs/fhir-mappers/src/lib/practitioner.mapper.ts:20-29 (translated family/given); frontend/src/components/patient/history/visit-row.tsx:126 renders `entry.doctorName`. Scenario: UI language EN, `GET /me/history` with `Accept-Language: en` -> `doctorName: \"Иванова Мария Сергеевна\"` although the Practitioner carries the English translation.",
+  "files": [
+    "apps/encounter-service/src/modules/history/history.controller.ts",
+    "apps/encounter-service/src/modules/history/history.service.ts",
+    "apps/encounter-service/src/modules/history/mappers/history-item.mapper.ts",
+    "libs/fhir-mappers/src/lib/translation.ts",
+    "frontend/src/lib/api/query-keys.ts"
+  ],
+  "proposedFix": "Controller: `@Headers('accept-language') acceptLanguage` -> `resolveContentLanguage(acceptLanguage)` (same as doctors.controller.ts) on 7.4 and 7.6; pass `lang` through HistoryService.historyOf to toHistoryItem and into humanNameOf, taking `translated(family, name._family, lang)` and `translated(given[i], name._given[i], lang)` (and `name.text`/`_text` when text is used); Russian and a missing translation keep the stored value, so nothing changes for ru. Frontend: add the locale to the history query keys (as is done for services/doctors in query-keys.ts) so a language switch does not serve the cached Russian page. Unit case in history.service.spec.ts with a translated Practitioner.",
+  "needsDecision": false,
+  "decisionQuestion": "",
+  "tzRef": "NFR (ru/en parity), TASK-005 coder-i18n-data-report",
+  "confidence": "confirmed"
+}

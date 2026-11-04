@@ -1,0 +1,19 @@
+{
+  "id": "fe-doctor-02",
+  "unit": "fe-doctor",
+  "kind": "ux",
+  "severity": "medium",
+  "title": "Ошибка завершения приёма (нет согласия, 5xx, 409) появляется внизу длинной формы вне экрана: врач нажимает «Завершить приём» и не видит никакой реакции",
+  "description": "Кнопка «Завершить приём» живёт в залипающей панели (sticky bottom-2), поэтому врач может нажать её из любого места длинной формы. Если ответ сервера не относится к конкретному полю, форма не прокручивается и не переводит фокус: баннер CompletionFailure рендерится в конце формы над панелью, а при 409 CONSENT_REQUIRED блок ConsentRequiredNotice вообще выводится ПОСЛЕ формы, в самом низу страницы. Видимой реакции нет: кнопка возвращается из «Завершение…» в «Завершить приём», а role=alert услышит только пользователь скринридера. Сценарий особенно частый для приёма, открытого как экстренный (7.1 с emergencyReason): 7.3 требует причину повторно, поэтому каждое такое завершение даёт 409 CONSENT_REQUIRED, и врач должен догадаться пролистать страницу вниз. Для 500/429/409 ENCOUNTER_STATE_INVALID без отмеченных полей то же самое (потеря связи и 429 спасены тостом из mutationCache, остальные коды тоста не имеют). Фокус после клиентской валидации и после 422 с отмеченными полями уже переводится на первое поле (focusAfterRender); не хватает аналога для ошибок без поля.",
+  "evidence": "frontend/src/components/doctor/encounter-complete-form.tsx:63 renders CompletionFailure inside the form before EncounterActionBar; :67 renders ConsentRequiredNotice after </form>; neither has a ref, tabIndex=-1, scrollIntoView or focus(). encounter-action-bar.tsx:38 the bar is `sticky bottom-2`. frontend/src/components/feedback/problem-banner.tsx:88 role=alert only. use-encounter-form.ts:58-68 markServerProblem focuses only when a field path was marked. encounter-complete-form-consent.spec.tsx only asserts the notice exists in the DOM (findByTestId), not that it is in view. Scenario: doctor opened the visit as emergency care, fills the form with the viewport at the top, presses «Завершить приём» in the sticky bar -> 409 CONSENT_REQUIRED -> the notice is rendered below the form, outside the viewport, nothing changes on screen.",
+  "files": [
+    "frontend/src/components/doctor/encounter-complete-form.tsx",
+    "frontend/src/components/doctor/use-encounter-form.ts",
+    "frontend/src/components/consent/consent-required-notice.tsx"
+  ],
+  "proposedFix": "Follow the pattern of useFocusBannerOnFinish in encounter-view.tsx: give the failure container (CompletionFailure wrapper and the consent-notice wrapper) tabIndex={-1} and a ref, and in a useEffect keyed on complete.isError / the error object call ref.current?.scrollIntoView({ block: 'center', behavior: motionSafeScrollBehavior() }) and ref.current?.focus({ preventScroll: true }) when the failure has no marked field (isMarked false). Alternatively render the ConsentRequiredNotice inside the form column above the action bar. Add a spec next to encounter-complete-form-consent.spec.tsx asserting document.activeElement is the notice after the 409.",
+  "needsDecision": false,
+  "decisionQuestion": "",
+  "tzRef": "FR-011 (оформление результатов приёма), ADR-019, frontend-design-spec §5.4",
+  "confidence": "confirmed"
+}

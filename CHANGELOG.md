@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Product polish pass (TASK-006, `git log --grep "TASK-006: "`): `/ready` and `/metrics` in every service and one JSON
+  log line format with the request id (NFR-007); an administrator can deactivate a service (`GET /admin/services`,
+  `isActive`); optional `status` and `patient` filters on `GET /doctor/appointments`, `encounterId` on the prescription
+  lists, `serviceId` on slots, `middleName` on doctors; the login page follows `ui_locales`; appointment reads follow
+  `Accept-Language`.
 - Transactional outbox, stage 1 (ADR-021): `appointment.booked.v1` and `appointment.cancelled.v1` are written as FHIR
   `Basic` outbox records in the same transaction Bundle as the booking or cancellation, and the new `apps/outbox-relay`
   service publishes them to RabbitMQ (at-least-once, Redis lock, `If-Match` status update). Sent records are deleted
@@ -79,6 +84,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- TASK-006: refresh tokens, codes and the revocation list of auth-service live in Redis, and every service sees a
+  revoked session; `DELETE /admin/schedules/{id}` answers `200 {deactivated}`; the `/oauth/token` rate limit is keyed by
+  the credential; Traefik trusts `X-Forwarded-For` only from the web container and limits `/fhir/metadata`; analytics
+  and date filters use Minsk calendar days.
 - `appointment.cancelled.v1`: `reason` is optional and no longer sent (payload minimisation); the cancellation
   notification no longer quotes it. Appointments are created with a client-assigned UUID id.
 - Payload minimisation (ADR-021): `encounter.completed.v1` no longer carries `diagnoses[]` (replaced by
@@ -97,6 +106,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- TASK-006: about 140 defects found by the polish pass. Highlights: an administrator no longer reads the clinical
+  content of an encounter (ADR-018); slot generation makes no overlaps and stays inside the planning horizon; a new
+  service is linked to its doctors; the patient is told about a no-show (FR-008); doctor search and the next visit read
+  every page; booking refuses a started slot or an inactive schedule; ru/en parity of the interface. Details in
+  `tasks/TASK-006/verify-polish-report.md`.
 - Middleware moved to `src/middleware.ts` — route-group guards now execute (the file previously sat in
   `src/app/` and was dead code).
 - JSX in a `.ts` file (`SectionTitle`) and the missing Jest transform.

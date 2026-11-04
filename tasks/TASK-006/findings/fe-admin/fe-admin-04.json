@@ -1,0 +1,18 @@
+{
+  "id": "fe-admin-04",
+  "unit": "fe-admin",
+  "kind": "robustness",
+  "severity": "low",
+  "title": "Журнал аудита подставляет ФИО только для первых 100 учётных записей: остальные действующие лица показаны сырым UUID",
+  "description": "Колонка «Кто» берёт имена из одного запроса GET /admin/users?pageSize=100 (все роли вместе, без сортировки по значимости). Когда в клинике больше 100 учётных записей (а пациентов, как правило, сотни), врачи и администраторы, которые создали новые записи после сотой, показываются как UUID: журнал «кто что сделал» теряет смысл именно для тех, кого проверяют чаще всего. Это заложено в код сознательно (комментарий «from the first 100 accounts»), но нигде не отмечено как ограничение и не проверяется «totalItems > 100».",
+  "evidence": "frontend/src/components/admin/audit/audit-table.tsx:26-29 (useAdminUsers({ page: 1, role: '', search: '', pageSize: 100 }) и Map по id), audit-table.tsx:31-38 (WhoCell: без имени выводится только userId). Сценарий: в системе 250 аккаунтов, врач создан сто пятым -> все его события в журнале подписаны UUID, имя не находится ни в таблице, ни во всплывающей подсказке.",
+  "files": [
+    "frontend/src/components/admin/audit/audit-table.tsx",
+    "frontend/src/components/admin/users/use-admin-users.ts"
+  ],
+  "proposedFix": "Without an API change: resolve names for the staff roles explicitly, i.e. two cached requests useAdminUsers({ role: 'DOCTOR', pageSize: 100 }) and useAdminUsers({ role: 'ADMIN', pageSize: 100 }) (the actors of reads, writes and consent events), and keep the existing all-roles page only as a fallback for patients. Optionally add a lookup by ids (GET /admin/users?ids=a,b,c, additive) and ask only for the ids of the visible page (at most 20). Add a test with totalItems > 100 for the fallback.",
+  "needsDecision": false,
+  "decisionQuestion": "",
+  "tzRef": "FR-021",
+  "confidence": "confirmed"
+}

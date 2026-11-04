@@ -1,0 +1,19 @@
+{
+  "id": "be-catalog-06",
+  "unit": "be-catalog",
+  "kind": "robustness",
+  "severity": "low",
+  "title": "Окно расписания с endTime не позже startTime принимается без ошибки и тихо даёт ноль слотов",
+  "description": "В API §5.2.1 стоит правило `endTime > startTime`, DTO WeeklyWindowDto повторяет его в описании («after startTime»), а форма админки проверяет его (isWindowValid). Но на сервере проверяется только формат HH:mm. Прямой вызов API с окном 13:00-09:00 или 10:00-10:00 возвращает 201/200, окно сохраняется, а генерация по нему даёт «generated: 0, skipped: 0» без объяснения. Перевёрнутое окно к тому же даёт бессмысленный результат в проверке SCHEDULE_OVERLAP: windowsIntersect считает пересечение формулой start < end, и для такого окна она то ложна (окно 13:00-09:00 и 10:00-11:00), то истинна (13:00-09:00 и 08:00-20:00) — ложный 409 или мусор в расписании врача. То же для окна короче slotDurationMin: слотов не будет.",
+  "evidence": "apps/catalog-service/src/modules/schedules/dto/create-schedule.dto.ts:42-54 (WeeklyWindowDto: только @Matches на HH:mm); grep по apps/catalog-service/src без spec: сравнение endTime > startTime есть только в slot-planner.ts (цикл `minute + slotDurationMin <= endMin` просто не выполняется) и window-overlap.ts. Сценарий: POST /admin/schedules с windows:[{dayOfWeek:'MO',startTime:'13:00',endTime:'09:00'}] -> 201; POST .../generate -> {generated:0, skipped:0}. Frontend frontend/src/components/admin/schedules/schedule-windows.ts:17-19 (isWindowValid) проверяет endTime > startTime, сервер — нет.",
+  "files": [
+    "apps/catalog-service/src/modules/schedules/dto/create-schedule.dto.ts",
+    "apps/catalog-service/src/modules/schedules/dto/update-schedule.dto.ts",
+    "apps/catalog-service/src/modules/schedules/schedules.service.ts"
+  ],
+  "proposedFix": "Add a small class-validator constraint on WeeklyWindowDto (e.g. @Validate(EndAfterStart) or a custom decorator `IsAfterStartTime` reading toMinutes from slot-planner.ts) so that endTime <= startTime gives 400 VALIDATION_ERROR with details[{field:'windows.0.endTime'}]. Optionally, in SchedulesService.create/update, also reject a window shorter than slotDurationMin (it yields no slot). Add DTO unit cases (09:00-09:00, 13:00-09:00 rejected, 09:00-09:05 with a 5-minute slot accepted) and one e2e row in the 400 it.each of schedules-admin-writes.e2e-spec.ts.",
+  "needsDecision": false,
+  "decisionQuestion": "",
+  "tzRef": "api-designer-spec §5.2.1 (endTime > startTime); AGENTS.md (validate at system boundaries); FR-020",
+  "confidence": "confirmed"
+}

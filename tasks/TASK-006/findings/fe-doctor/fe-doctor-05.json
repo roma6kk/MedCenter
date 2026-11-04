@@ -1,0 +1,23 @@
+{
+  "id": "fe-doctor-05",
+  "unit": "fe-doctor",
+  "kind": "robustness",
+  "severity": "low",
+  "title": "Форма приёма принимает один и тот же диагноз дважды; списки диагнозов используют код как React key",
+  "description": "Схема completeEncounterSchema не требует уникальности кодов в diagnoses, форма не предупреждает о повторе (подсказки «недавние диагнозы» уже исключают выбранные коды, но ручной ввод и результаты поиска — нет), сервер тоже не отсекает дубликаты. Врач, набирающий J06.9 в строках 1 и 3, сохранит запись с двумя одинаковыми Condition. Дальше DiagnosisList (карточка приёма и история врача), список кодов в patient-history-timeline и список визитов в кабинете пациента используют `key={diagnosis.code}`: при дубле React печатает предупреждение о повторяющемся ключе, а при перерисовке такие списки могут потерять или задвоить элемент. Клинически повтор кода бессмыслен и только засоряет историю.",
+  "evidence": "frontend/src/lib/contracts.ts:92-104 diagnoses array has min(1)/max(20) only, no uniqueness refine. frontend/src/components/doctor/diagnoses-editor.tsx:204-214 useDiagnosisShortcuts hides already chosen codes from suggestions only. Duplicate keys: components/doctor/diagnosis-list.tsx:16, components/doctor/patient-history-timeline.tsx:66, components/doctor/patient-summary.tsx:51 (deduplicated there), components/patient/history/visit-row.tsx:73. apps/encounter-service/.../complete-encounter.dto.ts has no uniqueness rule. Scenario: two rows with J06.9 -> POST 200 -> read-only record and patient history render two <li key=\"J06.9\">.",
+  "files": [
+    "frontend/src/lib/contracts.ts",
+    "frontend/src/components/doctor/diagnosis-list.tsx",
+    "frontend/src/components/doctor/patient-history-timeline.tsx",
+    "frontend/src/components/patient/history/visit-row.tsx",
+    "frontend/src/components/doctor/encounter-zod-messages.ts",
+    "frontend/src/messages/ru.json",
+    "frontend/src/messages/en.json"
+  ],
+  "proposedFix": "Add a superRefine to completeEncounterSchema.diagnoses that reports an issue on the second occurrence of a code (path ['diagnoses', index, 'code'], message key doctor.validation.duplicateDiagnosis in ru and en), mirror it on the server (a DTO-level check returning VALIDATION_ERROR with details field diagnoses.N.code) if the owner wants the API contract strict. Independently, switch the four lists to `key={`${diagnosis.code}-${index}`}` so existing records with duplicates render cleanly.",
+  "needsDecision": false,
+  "decisionQuestion": "",
+  "tzRef": "BR-004, FR-012",
+  "confidence": "likely"
+}

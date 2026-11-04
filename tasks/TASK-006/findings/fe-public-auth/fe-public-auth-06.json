@@ -1,0 +1,18 @@
+{
+  "id": "fe-public-auth-06",
+  "unit": "fe-public-auth",
+  "kind": "bug",
+  "severity": "low",
+  "title": "RoleGuard при завершённой сессии теряет query-часть адреса в returnTo",
+  "description": "Три места отправляют на вход «с возвратом на текущую страницу»: edge-middleware (pathname + search), redirectToLogin и endRevokedSession (window.location.pathname + search) и клиентский RoleGuard. Только RoleGuard берёт usePathname(), в котором нет строки запроса. Страницы журнала врача и аналитики администратора кладут выбранный день и период в адрес (?date=..., ?from=...&to=...), поэтому после повторного входа по этому пути врач или администратор возвращается на страницу без выбранного состояния. Случай срабатывает, когда сессия закончилась, а маркер mc_session остаётся (middleware пропускает страницу): refresh-токен отозван в другой вкладке или истёк, и /api/auth/session ответил анонимно.",
+  "evidence": "frontend/src/components/layout/role-guard.tsx:15,22 `const pathname = usePathname(); ... router.replace(`/login?returnTo=${encodeURIComponent(pathname)}`)`. Compare frontend/src/middleware.ts:18 `${pathname}${search}` and frontend/src/lib/auth/session-client.ts:127,133 `window.location.pathname + window.location.search`. Pages that keep state in the query: components/doctor/doctor-journal.tsx:28 and components/admin/analytics/analytics-panel.tsx:27 (useSearchParams mirrored into the address bar). role-guard.spec.tsx:36-40 pins `/login?returnTo=%2Fadmin%2Fusers` for a path without a query, so the omission is not covered. Scenario: administrator on /admin/analytics?from=2026-10-01&to=2026-10-31, refresh token revoked elsewhere, page reloaded -> RoleGuard -> /login?returnTo=%2Fadmin%2Fanalytics -> after sign-in the period filters are gone.",
+  "files": [
+    "frontend/src/components/layout/role-guard.tsx",
+    "frontend/src/components/layout/role-guard.spec.tsx"
+  ],
+  "proposedFix": "In the 'login' branch build the target the same way as redirectToLogin: `window.location.pathname + window.location.search` (the effect runs only in the browser), or export a small `currentReturnTo()` helper from lib/auth/session-client.ts and use it in all three places (RoleGuard, redirectToLogin, endRevokedSession). Add a role-guard spec case with a query string in the location.",
+  "needsDecision": false,
+  "decisionQuestion": "",
+  "tzRef": "frontend-design-spec §1 (middleware: redirect to /login with returnTo) and §2 (returnTo state)",
+  "confidence": "confirmed"
+}

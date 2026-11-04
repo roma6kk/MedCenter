@@ -1,0 +1,18 @@
+{
+  "id": "task005-triage-a-T4-05",
+  "unit": "task005-triage-a",
+  "kind": "robustness",
+  "severity": "medium",
+  "title": "Сидер терминологии при первом запуске падает на проверке $expand (HAPI-2788) — чинить сидер: это дефект, а не вопрос владельцу (дубликат infra-tools-01)",
+  "description": "Шаг `npm run seed:terminology` обязателен при запуске стека. На чистом HAPI его первый запуск падает на проверке $expand справочника МКБ-10, второй через минуту проходит: окно повторов сидера (1+2+4+8 с) короче времени, за которое HAPI освобождает кеш и индексацию, к тому же повтор срабатывает только на 5xx, а HAPI-2788 может прийти как 4xx, и цикл $validate-code вообще не повторяется. Причина и точечное исправление уже расписаны в находке infra-tools-01 (там же тесты); решения владельца не требуется, поэтому в этой группе новый вариант исправления не дублируется. Связанный риск на стороне рантайма, который стоит чинить вместе: пустой ответ $expand кешируется в auth-service на час (см. task005-triage-a-T3-06).",
+  "evidence": "tasks/TASK-006/findings/infra-tools/infra-tools-01.json (tools/terminology-seed/seed-terminology.ts:91-93, 104, 140, 165, 189-190); tasks/TASK-005/coder-frontend-t4-report.md:38 and tasks/TASK-005/verify-open-questions.md:30 record the first-run failure and the passing second run.",
+  "files": [
+    "tools/terminology-seed/seed-terminology.ts",
+    "tools/terminology-seed/seed-terminology.spec.ts"
+  ],
+  "proposedFix": "Implement infra-tools-01: retry budget of about 60-90 s with capped pauses, treat an error carrying HAPI-2788 as transient whatever the status, wrap the $validate-code loop (findRejectedCodes) in the same retry, extend seed-terminology.spec.ts. Do not implement it twice.",
+  "needsDecision": false,
+  "decisionQuestion": "",
+  "tzRef": "NFR: воспроизводимый запуск стека",
+  "confidence": "confirmed"
+}

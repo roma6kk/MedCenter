@@ -1,0 +1,22 @@
+{
+  "id": "fe-patient-01",
+  "unit": "fe-patient",
+  "kind": "bug",
+  "severity": "medium",
+  "title": "На экране «Вы записаны» кнопка «Записаться» в шапке ничего не делает: новую запись не начать без перезагрузки",
+  "description": "После успешной записи мастер показывает карточку успеха (BookingSuccess). Пока пациент на /booking, главная кнопка шапки «Записаться» (NavLink href=\"/booking\") ведёт на тот же адрес. Next.js делает мягкую навигацию на тот же pathname, страница и BookingWizard не перемонтируются, а карточка успеха живёт в состоянии мутации useBookingSubmit (mutation.data) внутри смонтированного мастера. Результат: клик по главной кнопке кабинета визуально ничего не меняет. На карточке нет и своей кнопки «Записаться ещё» (только «Мои записи», «На главную», «Отменить запись», «Добавить в календарь»). Чтобы записать второго пациента-родственника или ко второму врачу подряд, нужно уйти на другую страницу и вернуться либо обновить вкладку. То же происходит с мобильной нижней навигацией/ссылками BookLink, ведущими на /booking, пока открыт успех.",
+  "evidence": "frontend/src/components/layout/patient-shell.tsx:55 (NavLink href=\"/booking\"); frontend/src/components/layout/page-transition.tsx:26 (wrapper keyed by pathname only, /booking -> /booking keeps the key); frontend/src/components/booking/booking-wizard.tsx:74 (`if (booking.created !== null) return <BookingSuccess />` - no way back); frontend/src/components/booking/use-booking-submit.ts:120-126 (`reset` only clears the refusal Outcome, `created: mutation.data` is never reset). Scenario: book a visit -> success card -> click «Записаться» in the header -> URL unchanged, success card stays. grep for bookAnother/startOver in components/booking and messages/ru.json: nothing.",
+  "files": [
+    "frontend/src/components/booking/use-booking-submit.ts",
+    "frontend/src/components/booking/booking-wizard.tsx",
+    "frontend/src/components/booking/booking-success.tsx",
+    "frontend/src/components/layout/patient-shell.tsx",
+    "frontend/src/messages/ru.json",
+    "frontend/src/messages/en.json"
+  ],
+  "proposedFix": "Expose `startOver: () => { mutation.reset(); setOutcome(NO_OUTCOME); }` from useBookingSubmit and add a secondary «Записаться ещё» (booking.bookAnother, ru+en) button to BookingSuccess that calls it and moves focus to the wizard heading. Make the header/other /booking links work from the success state too: simplest is to key BookingScreen/BookingWizard by a counter bumped when a link to the current pathname is clicked (NavLink onClick: if pathname === href, bump a tiny zustand/ui-store `navTick`; PageTransition uses `${pathname}:${navTick}` as key), or in BookingWizard subscribe to usePathname()+useSearchParams() changes and call startOver when `created !== null` and the user re-enters /booking. Add a spec in booking-wizard-submit.spec.tsx: after success, clicking «Записаться ещё» shows step 1 with an empty draft.",
+  "needsDecision": false,
+  "decisionQuestion": "",
+  "tzRef": "FR-003/FR-004 (создание записи), сценарий записи: повторная запись после успешной",
+  "confidence": "likely"
+}

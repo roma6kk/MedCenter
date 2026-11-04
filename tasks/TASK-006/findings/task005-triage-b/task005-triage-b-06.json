@@ -1,0 +1,18 @@
+{
+  "id": "task005-triage-b-06",
+  "unit": "task005-triage-b",
+  "kind": "question",
+  "severity": "low",
+  "title": "Нужен ли врачу общий поиск пациентов (GET /patients?search=) вместо поиска по собственному журналу",
+  "description": "Вопрос из T5. Сейчас поиск пациента в боковой панели врача идёт по его журналу (90 дней назад, 30 вперёд, до 100 строк): врач находит тех, кто у него записан или был. Эндпоинта поиска в patient-service нет вообще (там только GET /patients/{id}, GET /me/patient, GET /patients/{id}/related). Общий поиск для роли DOCTOR раскрывает всю базу пациентов любому врачу; поиск «только своих» требует связи врач-пациент, которую знает appointment-service, а не patient-service, то есть межсервисный вызов или индекс. Это новый эндпоинт и вопрос политики доступа к медицинским данным, поэтому нужен владелец.",
+  "evidence": "apps/patient-service/src/modules/patients/patients.controller.ts:20-24 only `@Get(':id')`; tasks/TASK-006/findings/verify-map-backend-routes.txt lists no patient search route; the sidebar search is built on GET /doctor/appointments (use-doctor-queries.ts). ТЗ Врач: «просмотр расписания и списка пациентов» is covered by the journal.",
+  "files": [
+    "apps/patient-service/src/modules/patients/patients.controller.ts",
+    "frontend/src/components/doctor/use-doctor-queries.ts"
+  ],
+  "proposedFix": "Variant A (recommended): keep the journal-based search, document its window in the UI hint if it is not there yet. Variant B: GET /patients?search= for DOCTOR that intersects the name search with the doctor's own appointment/encounter patients (appointment-service call), 403 for others, audited like 7.1.",
+  "needsDecision": true,
+  "decisionQuestion": "Добавлять ли врачу поиск пациентов по всей базе? Варианты: (A) оставить поиск по своему журналу (90 дней назад, 30 вперёд); (B) новый GET /patients?search= только по «своим» пациентам с проверкой связи врач-пациент; (C) общий поиск для любого врача. Рекомендация: A — закрывает «список пациентов» из ТЗ без нового эндпоинта и без расширения доступа к ЭМК; C противоречит принципу минимального доступа и согласию на ЭМК.",
+  "tzRef": "FR-009; ADR-018/ADR-019 (доступ к ЭМК)",
+  "confidence": "confirmed"
+}

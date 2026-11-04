@@ -1,0 +1,19 @@
+{
+  "id": "fe-admin-02",
+  "unit": "fe-admin",
+  "kind": "bug",
+  "severity": "low",
+  "title": "Кабинет: очистка поля «Этаж» при правке сообщает «Кабинет обновлён», но этаж не меняется",
+  "description": "Поле «Этаж» необязательное, и форма правки показывает текущее значение. Если администратор стирает этаж и сохраняет, форма просто не отправляет floor, а patch кабинета меняет этаж только когда floor передан (UpdateRoomDto не принимает null). Ответ 200, тост «Кабинет обновлён», список перечитывается, и в строке по-прежнему старый этаж. Правка молча не выполнена. Для описания кабинета такой проблемы нет (оно отправляется всегда), поэтому поведение двух необязательных полей формы различается.",
+  "evidence": "frontend/src/components/admin/rooms/room-schema.ts:34 (`...(values.floor === '' ? {} : { floor: Number(values.floor) })`, и при isEdit тоже); apps/practitioner-service/src/modules/rooms/rooms.service.ts:99-106 (floor правится только при dto.floor !== undefined); apps/practitioner-service/src/modules/rooms/dto/update-room.dto.ts (floor: @IsOptional @IsInt @Min(1) @Max(10), null не допускается). Сценарий: кабинет с этажом 3 -> «Изменить» -> стереть «Этаж» -> «Сохранить» -> тост об успехе, в таблице этаж 3.",
+  "files": [
+    "frontend/src/components/admin/rooms/room-schema.ts",
+    "apps/practitioner-service/src/modules/rooms/rooms.service.ts",
+    "apps/practitioner-service/src/modules/rooms/dto/update-room.dto.ts"
+  ],
+  "proposedFix": "Smallest consistent fix: let UpdateRoomDto accept `floor: null` as «remove the floor» (`@ValidateIf((_, v) => v !== undefined)` plus `@ValidateIf(v !== null)` for the range rules, as UpdateUserDto does for practitionerRoleId) and in RoomsService.update drop the FLOOR_EXT extension when dto.floor === null; in toRoomPayload send `floor: null` on an edit when the field is blank and the room had a floor. Alternative without an API change: make the floor required in the edit schema when the room already has one, with a message. Note: be-practitioner-05/06 already cover null handling and description clearing in the same DTO, so this belongs in the same change.",
+  "needsDecision": false,
+  "decisionQuestion": "",
+  "tzRef": "FR-017",
+  "confidence": "confirmed"
+}

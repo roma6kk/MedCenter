@@ -1,0 +1,15 @@
+{
+  "id": "task005-triage-b-29",
+  "unit": "task005-triage-b",
+  "kind": "question",
+  "severity": "low",
+  "title": "RESOLVED: «тряска» поля при ошибке валидации не нужна",
+  "description": "Вопрос из V4/T9. Не делаем: движение, запускаемое ошибкой, плохо для вестибулярных нарушений (WCAG 2.3.3, у нас уже есть глобальное отключение анимаций по prefers-reduced-motion), а ошибка и так видна красной рамкой, текстом под полем, aria-invalid и переносом фокуса. Ничего не теряется.",
+  "evidence": "frontend/src/styles/globals.css reduced-motion rule; the form fields already set aria-invalid and show the error text (frontend/src/components/auth/auth-field.tsx).",
+  "files": [],
+  "proposedFix": "No change.",
+  "needsDecision": false,
+  "decisionQuestion": "",
+  "tzRef": "",
+  "confidence": "confirmed"
+}

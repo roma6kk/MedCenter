@@ -1,0 +1,23 @@
+{
+  "id": "task005-triage-b-01",
+  "unit": "task005-triage-b",
+  "kind": "ux",
+  "severity": "low",
+  "title": "Имя врача на публичных страницах («Имя Фамилия») отличается от мастера записи и кабинета («Фамилия Имя»)",
+  "description": "Вопрос из T6: «В каталоге врачей нет отчества … публичные страницы показывают «Имя Фамилия» — менять на «Фамилия Имя»?». Это не вопрос вкуса, а несогласованность двух мест, делающих одно и то же: хелпер frontend/src/lib/doctor-name.ts прямо заявлен как «единственный способ написать имя врача» («Имя Фамилия» там названо запрещённой формой), и мастер записи, итог, hero-окна, экран успеха уже используют doctorLabel(). А карточка врача, заголовок и title страницы профиля, aria-label ссылок «Профиль/Записаться» берут сырое doctor.name из practitioner-service, где оно собрано как «given family». Итог: у врача на /doctors «Мария Иванова», в мастере записи «Иванова Мария», в записи «Иванова Мария Сергеевна». Отчество каталог не отдаёт (в DTO нет middleName) — это отдельный вопрос про API (см. «Нужно ли отчество в DTO»), его не трогаем. Корень расхождения глубже: libs/fhir-mappers/src/lib/practitioner.mapper.ts (readHumanName) берёт из FHIR только given[0] и family, отчество (второе given, в демо-сиде оно задано: tools/demo-seed/demo-catalog.ts:141-144) в каталог не попадает, а хелпер doctorLabel уже умеет middleName.",
+  "evidence": "frontend/src/components/catalog/doctor-card.tsx:50 `{doctor.name}`; frontend/src/components/catalog/doctor-profile.tsx:56 `useDocumentTitle(doctor.name)` and :67 `<h1>{doctor.name}</h1>`; frontend/src/components/catalog/doctor-profile-link.tsx:18,39 aria-labels use doctor.name. Versus doctorLabel(doctor) in components/booking/doctor-option.tsx:83, booking-summary.tsx:85, slot-step.tsx:63, catalog/hero-windows.tsx:41. apps/practitioner-service/src/modules/doctors/doctor.mapper.ts:15 builds name = [firstName, lastName].join(' '). Scenario: open /doctors -> card heading «Мария Иванова»; press «Записаться» -> wizard step 'Врач' shows «Иванова Мария».",
+  "files": [
+    "frontend/src/components/catalog/doctor-card.tsx",
+    "frontend/src/components/catalog/doctor-profile.tsx",
+    "frontend/src/components/catalog/doctor-profile-link.tsx",
+    "frontend/src/components/catalog/doctor-card.spec.tsx",
+    "frontend/src/lib/doctor-name.ts",
+    "libs/fhir-mappers/src/lib/practitioner.mapper.ts",
+    "apps/practitioner-service/src/modules/doctors/dto/doctor-response.dto.ts"
+  ],
+  "proposedFix": "(1) Backend, additive: readHumanName in libs/fhir-mappers/src/lib/practitioner.mapper.ts also returns middleName = translated(given[1], _given[1], lang); doctor.mapper.ts keeps `name`; add `middleName?: string` to DoctorResponseDto and its Doc class, spec 4.1/4.2 and Bruno. (2) Frontend: Doctor type gets middleName?; doctor-card.tsx, doctor-profile.tsx (H1 and useDocumentTitle) and doctor-profile-link.tsx (both aria-labels) render doctorLabel(doctor), so the catalogue shows «Иванова Мария Сергеевна», the same as the visit record. Update the specs that assert 'Мария Иванова'. Optional: pass the locale to doctorLabel so the EN interface keeps given-family order.",
+  "needsDecision": false,
+  "decisionQuestion": "",
+  "tzRef": "FR-002 (просмотр доступных врачей); frontend-design-spec: единый формат имени врача",
+  "confidence": "confirmed"
+}

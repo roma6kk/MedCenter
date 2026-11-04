@@ -1,0 +1,19 @@
+{
+  "id": "be-catalog-09",
+  "unit": "be-catalog",
+  "kind": "question",
+  "severity": "medium",
+  "title": "Правка горизонта, окон или длительности расписания не трогает уже созданные слоты: свободные слоты вне нового плана остаются доступными для записи",
+  "description": "PATCH /admin/schedules/{id} меняет только расширения Schedule (окна, горизонт, длительность). Слоты, уже сгенерированные по старому плану, остаются free и продолжают предлагаться пациентам: после сокращения горизонта (слоты за его пределами), удаления дня недели из окон или смены длительности слота врач по-прежнему принимает по старой сетке. Хуже того, свободные слоты за новым горизонтом теперь не мешают создать другое расписание того же врача на этот период (SCHEDULE_OVERLAP сравнивает только горизонты и окна), и два расписания дают пересекающиеся слоты. Удалить такие слоты можно только DELETE расписания с cascade (удаляет и расписание). Нужно решение владельца, как должен вести себя PATCH: это поведение, а не очевидный дефект, и один из вариантов удаляет данные.",
+  "evidence": "apps/catalog-service/src/modules/schedules/schedules.service.ts:76-111 (update): после merge расширений вызывается только updateAudited, слоты не читаются и не меняются; кэш не сбрасывается. slot-generator.service.ts:118-127 (warnOnUnplannedSlots) лишь пишет в лог, что у расписания есть слоты, которых окна не планируют. Сценарий: Schedule ПН-ПТ 09:00-13:00 с горизонтом 2026-11-02..2026-12-31, сгенерированы слоты на всё; PATCH {horizonTo:'2026-11-15'} -> 200; GET /doctors/{id}/slots?from=2026-11-20 по-прежнему отдаёт свободные слоты этого расписания.",
+  "files": [
+    "apps/catalog-service/src/modules/schedules/schedules.service.ts",
+    "apps/catalog-service/src/modules/schedules/schedule-removal.ts",
+    "apps/catalog-service/src/modules/schedules/slot-generator.service.ts"
+  ],
+  "proposedFix": "Option A (recommended): in SchedulesService.update, when windows, horizon or slotDurationMin change, find the schedule's FREE slots that start from now on and are no longer planned by the new plan (outside the horizon, on a removed weekday/window, or off the new grid), and remove them with the existing deleteOrRetire helpers (slots referenced by cancelled appointments are retired as entered-in-error, busy slots are never touched); return their count in the response or as a header, invalidate SCHEDULE_SLOTS(id) and ALL_DOCTOR_SLOTS; the audit event of the PATCH already covers it (slots are not journalled one by one, like in the delete). Option B: refuse the PATCH with 409 SCHEDULE_IN_USE while such free slots exist and tell the admin to delete the schedule with cascade or to regenerate. Option C: leave as is and show the admin a warning with the number of slots the new plan no longer covers. be-catalog-04 (regeneration overlap) is independent of this decision and should be fixed in any case.",
+  "needsDecision": true,
+  "decisionQuestion": "Что делать со свободными слотами, которые остались после правки расписания (PATCH окон, горизонта или длительности) и больше не соответствуют новому плану? A) удалять/снимать их автоматически при сохранении (busy-слоты не трогаются; рекомендую, но это удаление данных); B) отказывать в правке (409), пока такие слоты есть; C) оставлять как есть и только предупреждать администратора в интерфейсе.",
+  "tzRef": "FR-020; ADR-015; api-designer-spec §5.2.3; BR-001",
+  "confidence": "confirmed"
+}

@@ -1,0 +1,18 @@
+{
+  "id": "task005-triage-a-T4-06",
+  "unit": "task005-triage-a",
+  "kind": "question",
+  "severity": "low",
+  "title": "Выпадающий список наблюдений показывает «20006 — Температура тела»: убрать числовой код?",
+  "description": "Все справочники в форме приёма (МКБ-10, АТХ, услуги, наблюдения) рисуются одним компонентом: сначала код моноширинным жирным, затем « — название». Для МКБ-10 и АТХ код — то, что врач знает наизусть и ищет по нему; для наблюдений ЦИСЗ код — это непрозрачное число (20006), оно только отвлекает от названия. Код при этом остаётся значением поля и уходит в API.",
+  "evidence": "frontend/src/components/doctor/terminology-combobox.tsx:311-312 <span className=\"mono font-semibold\">{term.code}</span>{term.display ? <span> — {term.display}</span> : null} for every value set; observations use CodedTermField with OBSERVATIONS_VALUE_SET (observations-editor.tsx:43).",
+  "files": [
+    "frontend/src/components/doctor/terminology-combobox.tsx",
+    "frontend/src/components/doctor/observations-editor.tsx"
+  ],
+  "proposedFix": "Option 2: add an optional `codeFirst` prop (default true) to the combobox; the observation field passes false and the list renders the display bold with the code as a muted suffix (and the picked text in the input reads the display only); the stored value stays the code. Update terminology-combobox/observations-editor specs.",
+  "needsDecision": true,
+  "decisionQuestion": "Как показывать наблюдения в списке? Варианты: (1) как сейчас — код, затем название (единообразно для всех справочников); (2) для наблюдений название первым, код приглушённо после него; (3) без кода совсем. Рекомендация: (2) — врач ищет по названию, а код не теряется для распечатки и проверки.",
+  "tzRef": "Врач: оформление результатов приёма; FR-012, BR-009",
+  "confidence": "confirmed"
+}

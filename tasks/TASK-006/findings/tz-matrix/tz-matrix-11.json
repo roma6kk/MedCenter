@@ -1,0 +1,20 @@
+{
+  "id": "tz-matrix-11",
+  "unit": "tz-matrix",
+  "kind": "gap",
+  "severity": "medium",
+  "title": "FR-021: генерация слотов (POST /admin/schedules/{id}/generate) не пишет AuditEvent — массовое создание записываемых слотов администратором не попадает в журнал",
+  "description": "Создание, изменение и удаление услуг, кабинетов и расписаний журналируются в той же транзакции (ADR-020), а вот генерация слотов расписания — действие администратора, создающее до сотен ресурсов Slot, которые сразу доступны для записи пациентов, — нигде не фиксируется: контроллер вызывает slotGenerator.generate(id, dto) без WriteActor, в slot-generator.service.ts и slot-batch-writer.ts нет ни одного обращения к аудиту. В журнале /admin/audit видно, кто создал расписание, но не кто и когда открыл запись на конкретные даты. Остальные изменяющие операции (запись, отмена, неявка, приём, согласие, пользователи, импорт терминологии, телефон пациента) журналируются — это единственный пробел покрытия FR-021 среди администраторских операций.",
+  "evidence": "apps/catalog-service/src/modules/schedules/schedules.controller.ts:144-147 `this.slotGenerator.generate(params.id, dto)` (compare lines 69, 98, 118 where create/update/remove receive `auditActorOf(request)`); `grep -nE 'udit' slot-generator.service.ts slot-batch-writer.ts` -> no matches; schedules.service.ts create/update/remove all go through createAudited/updateAudited/removeScheduleWithSlots with auditOf(actor).",
+  "files": [
+    "apps/catalog-service/src/modules/schedules/schedules.controller.ts",
+    "apps/catalog-service/src/modules/schedules/slot-generator.service.ts",
+    "apps/catalog-service/src/modules/schedules/slot-batch-writer.ts",
+    "libs/fhir/src/lib/write-audit.ts"
+  ],
+  "proposedFix": "Pass `auditActorOf(request)` into SlotGenerator.generate(); after the batches are committed write ONE AuditEvent (interaction `create`, logical entity reference Schedule/{id} per ADR-020 so the journal shows resourceType=Schedule, outcomeDesc like `slots generated: N, skipped: M, 2026-11-03..2026-11-30`) through the existing write-audit builder; skip it when generated=0 and do not write it again for an Idempotency-Key replay (the replay is answered from cache before generate runs). Cover with a unit spec next to the schedule specs (committedEntries helper in catalog-service/src/common/__tests__/audited-transactions.ts) and mention slot generation in specs §9.4 list of audited changes.",
+  "needsDecision": false,
+  "decisionQuestion": "",
+  "tzRef": "FR-021; ADR-014; ADR-020",
+  "confidence": "confirmed"
+}

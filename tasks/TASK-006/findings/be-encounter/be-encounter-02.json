@@ -1,0 +1,21 @@
+{
+  "id": "be-encounter-02",
+  "unit": "be-encounter",
+  "kind": "bug",
+  "severity": "medium",
+  "title": "Врач видит в истории пациента визиты коллег, но открыть их (7.2) не может: ссылка «Открыть приём» и блок «Последние показатели» упираются в 403",
+  "description": "Правило доступа врача к истории пациента (7.4/7.5, ADR-013 D-1) — «общая запись или приём» с пациентом: врач видит все завершённые приёмы пациента, в том числе чужие. Правило 7.2 строже — врач должен быть участником именно этого Encounter (`assertEncounterParticipant`). В результате в карте пациента: (1) каждая карточка визита другого врача содержит ссылку «Открыть приём», которая ведёт на страницу с ошибкой 403 COMPARTMENT_VIOLATION; (2) блок «Последние показатели» (patient-summary.tsx, LastVitals) читает 7.2 для самого свежего визита пациента — если его вёл другой врач, 7.2 отвечает 403, блок молча показывает «показателей нет», хотя они записаны. Показатели (Observation) других врачей врач не видит нигде, хотя ФТ-010 («история обращений: Encounter, Condition, Observation») их предполагает. Это же замечание уже записано в TASK-005 (T1: «403, если врач не участник»), но как наблюдение, не как дефект; здесь — разбор причины и два варианта исправления.",
+  "evidence": "apps/encounter-service/src/modules/encounters/encounter-access.ts:56-66 (`assertViewerSeesEncounter` -> `assertEncounterParticipant`) vs apps/encounter-service/src/modules/history/patient-access.service.ts:69-79 (`assertSharesCare`: any encounter OR booked/arrived/checked-in/fulfilled appointment with the patient). frontend/src/components/doctor/patient-history-timeline.tsx:83 renders `<Link href=/encounters/{item.id}>` for every history item without comparing `item.practitionerRoleId` to the doctor's own role. frontend/src/components/doctor/patient-summary.tsx:138-152 LastVitals: `useEncounter(latest.id)`; on error `encounter.isError` -> `vitalsEmpty`. Scenario: patient visited Dr. A (finished, temperature 38.2 Cel recorded), then has a booked appointment with Dr. B; Dr. B opens the patient card -> history lists A's visit with the link; link -> 403; summary shows \"no vitals\".",
+  "files": [
+    "apps/encounter-service/src/modules/encounters/encounter-access.ts",
+    "apps/encounter-service/src/modules/encounters/encounters.service.ts",
+    "apps/encounter-service/src/modules/history/patient-access.service.ts",
+    "frontend/src/components/doctor/patient-history-timeline.tsx",
+    "frontend/src/components/doctor/patient-summary.tsx"
+  ],
+  "proposedFix": "Variant A (consistent with ADR-013 D-1 and the access matrix \"DOCTOR (общая запись или приём)\"): in EncountersService.findOne, for a doctor who is not a participant, fall back to `PatientAccessService.assertSharesCare(roleRef, patientRef-of-the-encounter)`; record the read through PatientReadAudit.audited(... interaction 'read') the same way 7.4 does (non-participant reads only, or all doctor reads). Writes (7.3) stay participant-only (BR-003). With either variant show the treating doctor on every visit card: `doctorName` is already returned by 7.4 but is missing from `HistoryItem` in frontend/src/components/doctor/doctor-types.ts, so the doctor cannot tell own visits from a colleague's. Variant B (no API change): in the frontend show the link and the vitals only when `item.practitionerRoleId` equals the doctor's own PractitionerRole id, and in LastVitals take the newest visit of this doctor, otherwise show an explicit \"vitals of another doctor's visit are not available\" line instead of an empty state.",
+  "needsDecision": true,
+  "decisionQuestion": "Кто может открыть запись приёма (GET /encounters/{id}, 7.2) и увидеть показатели: только врач-участник приёма (как сейчас) или любой врач с общей записью/приёмом с пациентом (как в истории 7.4 и назначениях 7.5)? Вариант A (рекомендую): врач с общей записью читает любой приём пациента, чтение журналируется как в 7.4; запись (7.3) остаётся только у ведущего врача (BR-003). Вариант B: 7.2 остаётся участнику, а интерфейс прячет ссылку «Открыть приём» и берёт «Последние показатели» только из своих визитов.",
+  "tzRef": "ФТ-010 (Врач: просмотр истории обращений пациента), ADR-013, ADR-018, BR-003",
+  "confidence": "confirmed"
+}

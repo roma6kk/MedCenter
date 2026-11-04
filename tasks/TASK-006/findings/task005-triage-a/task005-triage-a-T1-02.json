@@ -1,0 +1,19 @@
+{
+  "id": "task005-triage-a-T1-02",
+  "unit": "task005-triage-a",
+  "kind": "question",
+  "severity": "low",
+  "title": "В сводке пациента у врача нет аллергий, статуса «разрешён» у диагноза и номера медкарты — добавлять в данные?",
+  "description": "Все три пункта — это новые данные, а не недоработка существующих: (1) аллергии — в требованиях FR-001..FR-021 и в спецификациях нет ни слова об аллергиях, потребовался бы новый ресурс AllergyIntolerance, эндпоинты и форма; (2) статус диагноза — в DTO истории диагноз приходит как код/текст без clinicalStatus, а действия врача «закрыть диагноз» в ТЗ нет; (3) номер медкарты — при регистрации у Patient создаётся единственный идентификатор (id учётной записи auth-service), собственной нумерации карт в системе нет. Сводка при этом закрывает функции ТЗ врача (просмотр истории обращений, назначений).",
+  "evidence": "grep -i 'аллерг|allerg' over tasks/TASK-001/requirements-analyst-requirements.md and specs/*.md finds nothing; apps/auth-service/src/modules/users/patient-provisioner.ts:36 creates Patient.identifier with only AUTH_USER_IDENTIFIER_SYSTEM; apps/encounter-service/src/modules/history/dto/history-item.dto.ts:16-18 exposes diagnosis/diagnoses without a status; apps/patient-service/.../patient-response.dto.ts:25 identifiers are passed through as stored.",
+  "files": [
+    "apps/auth-service/src/modules/users/patient-provisioner.ts",
+    "apps/encounter-service/src/modules/history/dto/history-item.dto.ts",
+    "frontend/src/components/doctor/patient-summary.tsx"
+  ],
+  "proposedFix": "None unless the owner chooses otherwise. If a medical-record number is wanted: generate it in patient-provisioner (identifier system https://fhir.by/NamingSystem/medical-record-number, sequential per clinic with a conditional create) and read it from Patient.identifiers in patient-summary.tsx and in admin/users links (see V2T2-02).",
+  "needsDecision": true,
+  "decisionQuestion": "Нужны ли в карте пациента у врача аллергии, статус диагноза и номер медкарты? Варианты: (1) нет — ТЗ этого не требует, сводка достаточна (рекомендация: для курсовой работы это лишний объём и лишние требования к данным); (2) только номер медкарты (генерация при регистрации + показ в карте и в админке) — малый объём; (3) всё трое — новые ресурсы FHIR, эндпоинты и формы, отдельная задача.",
+  "tzRef": "Врач: просмотр истории обращений пациента",
+  "confidence": "confirmed"
+}

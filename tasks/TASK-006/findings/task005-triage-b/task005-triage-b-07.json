@@ -1,0 +1,19 @@
+{
+  "id": "task005-triage-b-07",
+  "unit": "task005-triage-b",
+  "kind": "question",
+  "severity": "low",
+  "title": "Реальная загрузка врачей и кабинетов в админке: оставить недельный план окон или строить агрегирующий отчёт",
+  "description": "Вопрос из T5. Вместо процента загрузки админка показывает недельный план рабочих окон. Реальная загрузка (доля занятых слотов по врачу или кабинету за период) требует агрегата: кабинеты уже имеют GET /admin/rooms/{id}/usage (расписания и будущие записи кабинета, поле inUse), но это по одному кабинету, а для врачей аналога нет (GET /doctor/schedule отдаёт только расписание вошедшего врача). В ТЗ метрики загрузки не названы: «просмотр глобальной аналитики и отчётов» закрыт отчётами 9.1-9.3.",
+  "evidence": "apps/practitioner-service/src/modules/rooms/rooms.controller.ts:68-78 `GET admin/rooms/:id/usage` (per room, upcoming bookings, truncated flag); apps/analytics-service/src/modules/reports/reports.controller.ts:21,32,43 lists only appointments / encounters / services-popularity reports; frontend/src/components/admin/schedules/schedule-week-plan.tsx is the plan view.",
+  "files": [
+    "apps/analytics-service/src/modules/reports/reports.controller.ts",
+    "apps/practitioner-service/src/modules/rooms/rooms.controller.ts",
+    "frontend/src/components/admin/schedules/schedule-week-plan.tsx"
+  ],
+  "proposedFix": "Variant A (recommended): keep the week plan. Variant B: add an analytics report 9.4 `GET /admin/analytics/utilization?from=&to=&groupBy=doctor|room` returning booked/total slots per group (reads Slot counts from HAPI), shown as a bar on the schedules page.",
+  "needsDecision": true,
+  "decisionQuestion": "Строить ли отчёт «загрузка врачей/кабинетов»? Варианты: (A) нет, достаточно недельного плана окон и существующих отчётов 9.1-9.3; (B) да, новый отчёт 9.4 utilization и полоса загрузки на странице расписаний. Рекомендация: A — в ТЗ такого отчёта нет, а отчёты 9.1-9.3 уже покрывают «глобальную аналитику».",
+  "tzRef": "FR-017, FR-019",
+  "confidence": "confirmed"
+}

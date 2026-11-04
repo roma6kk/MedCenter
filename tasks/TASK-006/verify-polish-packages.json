@@ -1,0 +1,727 @@
+[
+ {
+  "key": "B-appt",
+  "lane": "backend",
+  "area": "apps/appointment-service",
+  "deps": [],
+  "items": [
+   {
+    "id": "be-appointment-01",
+    "file": "tasks/TASK-006/findings/be-appointment/be-appointment-01.json"
+   },
+   {
+    "id": "be-appointment-02",
+    "file": "tasks/TASK-006/findings/be-appointment/be-appointment-02.json"
+   },
+   {
+    "id": "be-appointment-03",
+    "file": "tasks/TASK-006/findings/be-appointment/be-appointment-03.json"
+   },
+   {
+    "id": "be-appointment-05",
+    "file": "tasks/TASK-006/findings/be-appointment/be-appointment-05.json"
+   },
+   {
+    "id": "be-appointment-07",
+    "file": "tasks/TASK-006/findings/be-appointment/be-appointment-07.json"
+   },
+   {
+    "id": "be-appointment-04",
+    "file": "tasks/TASK-006/findings/be-appointment/be-appointment-04.json"
+   },
+   {
+    "id": "be-appointment-06",
+    "file": "tasks/TASK-006/findings/be-appointment/be-appointment-06.json"
+   },
+   {
+    "id": "be-appointment-09",
+    "file": "tasks/TASK-006/findings/be-appointment/be-appointment-09.json"
+   }
+  ]
+ },
+ {
+  "key": "B-notify",
+  "lane": "backend",
+  "area": "apps/notification-service, apps/outbox-relay, libs/contracts, libs/messaging (+ the noshow outbox write in apps/appointment-service)",
+  "deps": [],
+  "items": [
+   {
+    "id": "tz-matrix-02",
+    "file": "tasks/TASK-006/findings/tz-matrix/tz-matrix-02.json"
+   },
+   {
+    "id": "tz-matrix-05",
+    "file": "tasks/TASK-006/findings/tz-matrix/tz-matrix-05.json"
+   },
+   {
+    "id": "be-notification-outbox-01",
+    "file": "tasks/TASK-006/findings/be-notification-outbox/be-notification-outbox-01.json"
+   },
+   {
+    "id": "be-notification-outbox-02",
+    "file": "tasks/TASK-006/findings/be-notification-outbox/be-notification-outbox-02.json"
+   },
+   {
+    "id": "be-notification-outbox-03",
+    "file": "tasks/TASK-006/findings/be-notification-outbox/be-notification-outbox-03.json"
+   },
+   {
+    "id": "be-notification-outbox-04",
+    "file": "tasks/TASK-006/findings/be-notification-outbox/be-notification-outbox-04.json"
+   },
+   {
+    "id": "be-notification-outbox-06",
+    "file": "tasks/TASK-006/findings/be-notification-outbox/be-notification-outbox-06.json"
+   },
+   {
+    "id": "be-notification-outbox-05",
+    "file": "tasks/TASK-006/findings/be-notification-outbox/be-notification-outbox-05.json"
+   },
+   {
+    "id": "tz-matrix-04",
+    "file": "tasks/TASK-006/findings/tz-matrix/tz-matrix-04.json"
+   }
+  ]
+ },
+ {
+  "key": "B-practitioner",
+  "lane": "backend",
+  "area": "apps/practitioner-service",
+  "deps": [],
+  "items": [
+   {
+    "id": "be-practitioner-05",
+    "file": "tasks/TASK-006/findings/be-practitioner/be-practitioner-05.json"
+   },
+   {
+    "id": "be-practitioner-06",
+    "file": "tasks/TASK-006/findings/be-practitioner/be-practitioner-06.json"
+   },
+   {
+    "id": "be-practitioner-02",
+    "file": "tasks/TASK-006/findings/be-practitioner/be-practitioner-02.json"
+   },
+   {
+    "id": "be-practitioner-01",
+    "file": "tasks/TASK-006/findings/be-practitioner/be-practitioner-01.json"
+   },
+   {
+    "id": "be-practitioner-03",
+    "file": "tasks/TASK-006/findings/be-practitioner/be-practitioner-03.json"
+   },
+   {
+    "id": "be-practitioner-07",
+    "file": "tasks/TASK-006/findings/be-practitioner/be-practitioner-07.json"
+   },
+   {
+    "id": "be-practitioner-04",
+    "file": "tasks/TASK-006/findings/be-practitioner/be-practitioner-04.json"
+   },
+   {
+    "id": "task005-triage-b-01",
+    "file": "tasks/TASK-006/findings/task005-triage-b/task005-triage-b-01.json"
+   }
+  ]
+ },
+ {
+  "key": "B-catalog-services",
+  "lane": "backend",
+  "area": "apps/catalog-service (services part)",
+  "deps": [],
+  "items": [
+   {
+    "id": "be-catalog-12",
+    "file": "tasks/TASK-006/findings/be-catalog/be-catalog-12.json"
+   },
+   {
+    "id": "be-catalog-13",
+    "file": "tasks/TASK-006/findings/be-catalog/be-catalog-13.json"
+   },
+   {
+    "id": "be-catalog-05",
+    "file": "tasks/TASK-006/findings/be-catalog/be-catalog-05.json"
+   },
+   {
+    "id": "be-catalog-03",
+    "file": "tasks/TASK-006/findings/be-catalog/be-catalog-03.json"
+   },
+   {
+    "id": "be-catalog-14",
+    "file": "tasks/TASK-006/findings/be-catalog/be-catalog-14.json"
+   },
+   {
+    "id": "be-catalog-15",
+    "file": "tasks/TASK-006/findings/be-catalog/be-catalog-15.json"
+   },
+   {
+    "id": "task005-triage-a-T3-06",
+    "file": "tasks/TASK-006/findings/task005-triage-a/task005-triage-a-T3-06.json"
+   }
+  ]
+ },
+ {
+  "key": "B-clinical",
+  "lane": "backend",
+  "area": "apps/encounter-service, apps/patient-service",
+  "deps": [],
+  "items": [
+   {
+    "id": "be-encounter-01",
+    "file": "tasks/TASK-006/findings/be-encounter/be-encounter-01.json"
+   },
+   {
+    "id": "tz-matrix-01",
+    "file": "tasks/TASK-006/findings/tz-matrix/tz-matrix-01.json"
+   },
+   {
+    "id": "be-encounter-03",
+    "file": "tasks/TASK-006/findings/be-encounter/be-encounter-03.json"
+   },
+   {
+    "id": "task005-triage-a-T1-04",
+    "file": "tasks/TASK-006/findings/task005-triage-a/task005-triage-a-T1-04.json"
+   },
+   {
+    "id": "be-encounter-04",
+    "file": "tasks/TASK-006/findings/be-encounter/be-encounter-04.json"
+   },
+   {
+    "id": "be-encounter-05",
+    "file": "tasks/TASK-006/findings/be-encounter/be-encounter-05.json"
+   },
+   {
+    "id": "be-encounter-06",
+    "file": "tasks/TASK-006/findings/be-encounter/be-encounter-06.json"
+   },
+   {
+    "id": "be-encounter-07",
+    "file": "tasks/TASK-006/findings/be-encounter/be-encounter-07.json"
+   },
+   {
+    "id": "be-patient-03",
+    "file": "tasks/TASK-006/findings/be-patient/be-patient-03.json"
+   },
+   {
+    "id": "be-patient-04",
+    "file": "tasks/TASK-006/findings/be-patient/be-patient-04.json"
+   },
+   {
+    "id": "be-patient-02",
+    "file": "tasks/TASK-006/findings/be-patient/be-patient-02.json"
+   },
+   {
+    "id": "be-patient-05",
+    "file": "tasks/TASK-006/findings/be-patient/be-patient-05.json"
+   }
+  ]
+ },
+ {
+  "key": "B-catalog-schedules",
+  "lane": "backend",
+  "area": "apps/catalog-service (schedules and slots part)",
+  "deps": [],
+  "items": [
+   {
+    "id": "be-catalog-04",
+    "file": "tasks/TASK-006/findings/be-catalog/be-catalog-04.json"
+   },
+   {
+    "id": "be-catalog-01",
+    "file": "tasks/TASK-006/findings/be-catalog/be-catalog-01.json"
+   },
+   {
+    "id": "be-catalog-08",
+    "file": "tasks/TASK-006/findings/be-catalog/be-catalog-08.json"
+   },
+   {
+    "id": "be-catalog-02",
+    "file": "tasks/TASK-006/findings/be-catalog/be-catalog-02.json"
+   },
+   {
+    "id": "be-catalog-06",
+    "file": "tasks/TASK-006/findings/be-catalog/be-catalog-06.json"
+   },
+   {
+    "id": "be-catalog-07",
+    "file": "tasks/TASK-006/findings/be-catalog/be-catalog-07.json"
+   },
+   {
+    "id": "be-catalog-11",
+    "file": "tasks/TASK-006/findings/be-catalog/be-catalog-11.json"
+   },
+   {
+    "id": "tz-matrix-11",
+    "file": "tasks/TASK-006/findings/tz-matrix/tz-matrix-11.json"
+   },
+   {
+    "id": "task005-triage-b-18",
+    "file": "tasks/TASK-006/findings/task005-triage-b/task005-triage-b-18.json"
+   }
+  ]
+ },
+ {
+  "key": "B-auth-tokens",
+  "lane": "backend",
+  "area": "apps/auth-service (oauth/token storage), libs/common (token revocation)",
+  "deps": [],
+  "items": [
+   {
+    "id": "be-auth-oauth-01",
+    "file": "tasks/TASK-006/findings/be-auth-oauth/be-auth-oauth-01.json"
+   },
+   {
+    "id": "be-auth-oauth-04",
+    "file": "tasks/TASK-006/findings/be-auth-oauth/be-auth-oauth-04.json"
+   },
+   {
+    "id": "be-auth-oauth-02",
+    "file": "tasks/TASK-006/findings/be-auth-oauth/be-auth-oauth-02.json"
+   },
+   {
+    "id": "be-auth-oauth-07",
+    "file": "tasks/TASK-006/findings/be-auth-oauth/be-auth-oauth-07.json"
+   },
+   {
+    "id": "be-auth-oauth-12",
+    "file": "tasks/TASK-006/findings/be-auth-oauth/be-auth-oauth-12.json"
+   },
+   {
+    "id": "be-auth-oauth-05",
+    "file": "tasks/TASK-006/findings/be-auth-oauth/be-auth-oauth-05.json"
+   },
+   {
+    "id": "be-auth-oauth-08",
+    "file": "tasks/TASK-006/findings/be-auth-oauth/be-auth-oauth-08.json"
+   }
+  ]
+ },
+ {
+  "key": "B-auth-pages-users",
+  "lane": "backend",
+  "area": "apps/auth-service (login page, users, terminology import)",
+  "deps": [],
+  "items": [
+   {
+    "id": "be-auth-oauth-03",
+    "file": "tasks/TASK-006/findings/be-auth-oauth/be-auth-oauth-03.json"
+   },
+   {
+    "id": "tz-matrix-03",
+    "file": "tasks/TASK-006/findings/tz-matrix/tz-matrix-03.json"
+   },
+   {
+    "id": "be-auth-oauth-09",
+    "file": "tasks/TASK-006/findings/be-auth-oauth/be-auth-oauth-09.json"
+   },
+   {
+    "id": "be-auth-oauth-10",
+    "file": "tasks/TASK-006/findings/be-auth-oauth/be-auth-oauth-10.json"
+   },
+   {
+    "id": "be-auth-users-01",
+    "file": "tasks/TASK-006/findings/be-auth-users/be-auth-users-01.json"
+   },
+   {
+    "id": "be-auth-users-03",
+    "file": "tasks/TASK-006/findings/be-auth-users/be-auth-users-03.json"
+   },
+   {
+    "id": "be-auth-users-04",
+    "file": "tasks/TASK-006/findings/be-auth-users/be-auth-users-04.json"
+   },
+   {
+    "id": "be-auth-users-05",
+    "file": "tasks/TASK-006/findings/be-auth-users/be-auth-users-05.json"
+   },
+   {
+    "id": "infra-tools-11",
+    "file": "tasks/TASK-006/findings/infra-tools/infra-tools-11.json"
+   }
+  ]
+ },
+ {
+  "key": "B-analytics",
+  "lane": "backend",
+  "area": "apps/analytics-service, bruno/",
+  "deps": [],
+  "items": [
+   {
+    "id": "be-analytics-01",
+    "file": "tasks/TASK-006/findings/be-analytics/be-analytics-01.json"
+   },
+   {
+    "id": "task005-triage-b-24",
+    "file": "tasks/TASK-006/findings/task005-triage-b/task005-triage-b-24.json"
+   },
+   {
+    "id": "be-analytics-02",
+    "file": "tasks/TASK-006/findings/be-analytics/be-analytics-02.json"
+   },
+   {
+    "id": "be-analytics-03",
+    "file": "tasks/TASK-006/findings/be-analytics/be-analytics-03.json"
+   },
+   {
+    "id": "be-analytics-04",
+    "file": "tasks/TASK-006/findings/be-analytics/be-analytics-04.json"
+   },
+   {
+    "id": "infra-tools-04",
+    "file": "tasks/TASK-006/findings/infra-tools/infra-tools-04.json"
+   }
+  ]
+ },
+ {
+  "key": "B-platform",
+  "lane": "backend",
+  "area": "libs/common, libs/config, libs/terminology, every apps/*/src/main.ts, health modules",
+  "deps": [],
+  "items": [
+   {
+    "id": "libs-common-01",
+    "file": "tasks/TASK-006/findings/libs-common/libs-common-01.json"
+   },
+   {
+    "id": "libs-common-02",
+    "file": "tasks/TASK-006/findings/libs-common/libs-common-02.json"
+   },
+   {
+    "id": "libs-common-03",
+    "file": "tasks/TASK-006/findings/libs-common/libs-common-03.json"
+   },
+   {
+    "id": "libs-common-04",
+    "file": "tasks/TASK-006/findings/libs-common/libs-common-04.json"
+   },
+   {
+    "id": "be-appointment-10",
+    "file": "tasks/TASK-006/findings/be-appointment/be-appointment-10.json"
+   },
+   {
+    "id": "infra-tools-06",
+    "file": "tasks/TASK-006/findings/infra-tools/infra-tools-06.json"
+   },
+   {
+    "id": "libs-common-05",
+    "file": "tasks/TASK-006/findings/libs-common/libs-common-05.json"
+   },
+   {
+    "id": "libs-common-06",
+    "file": "tasks/TASK-006/findings/libs-common/libs-common-06.json"
+   }
+  ]
+ },
+ {
+  "key": "B-observability",
+  "lane": "backend",
+  "area": "libs/common + apps/*: readiness, metrics, structured logs (NFR-007)",
+  "deps": [],
+  "items": [
+   {
+    "id": "tz-matrix-06",
+    "file": "tasks/TASK-006/findings/tz-matrix/tz-matrix-06.json"
+   },
+   {
+    "id": "tz-matrix-07",
+    "file": "tasks/TASK-006/findings/tz-matrix/tz-matrix-07.json"
+   }
+  ]
+ },
+ {
+  "key": "B-tools",
+  "lane": "backend",
+  "area": "tools/, infra/, docker-compose.yml, root configs, specs/api-designer-spec.md docs",
+  "deps": [],
+  "items": [
+   {
+    "id": "infra-tools-01",
+    "file": "tasks/TASK-006/findings/infra-tools/infra-tools-01.json"
+   },
+   {
+    "id": "task005-triage-a-T4-05",
+    "file": "tasks/TASK-006/findings/task005-triage-a/task005-triage-a-T4-05.json"
+   },
+   {
+    "id": "infra-tools-02",
+    "file": "tasks/TASK-006/findings/infra-tools/infra-tools-02.json"
+   },
+   {
+    "id": "infra-tools-05",
+    "file": "tasks/TASK-006/findings/infra-tools/infra-tools-05.json"
+   },
+   {
+    "id": "infra-tools-07",
+    "file": "tasks/TASK-006/findings/infra-tools/infra-tools-07.json"
+   },
+   {
+    "id": "infra-tools-08",
+    "file": "tasks/TASK-006/findings/infra-tools/infra-tools-08.json"
+   },
+   {
+    "id": "infra-tools-10",
+    "file": "tasks/TASK-006/findings/infra-tools/infra-tools-10.json"
+   },
+   {
+    "id": "be-auth-oauth-06",
+    "file": "tasks/TASK-006/findings/be-auth-oauth/be-auth-oauth-06.json"
+   }
+  ]
+ },
+ {
+  "key": "F-public-auth",
+  "lane": "frontend",
+  "area": "frontend/src: app/(public), app/(auth), app/api/auth, middleware, lib/api, lib/auth, components/{catalog,auth,layout}",
+  "deps": [],
+  "items": [
+   {
+    "id": "fe-public-auth-02",
+    "file": "tasks/TASK-006/findings/fe-public-auth/fe-public-auth-02.json"
+   },
+   {
+    "id": "fe-public-auth-04",
+    "file": "tasks/TASK-006/findings/fe-public-auth/fe-public-auth-04.json"
+   },
+   {
+    "id": "fe-public-auth-01",
+    "file": "tasks/TASK-006/findings/fe-public-auth/fe-public-auth-01.json"
+   },
+   {
+    "id": "fe-public-auth-03",
+    "file": "tasks/TASK-006/findings/fe-public-auth/fe-public-auth-03.json"
+   },
+   {
+    "id": "fe-public-auth-05",
+    "file": "tasks/TASK-006/findings/fe-public-auth/fe-public-auth-05.json"
+   },
+   {
+    "id": "fe-public-auth-06",
+    "file": "tasks/TASK-006/findings/fe-public-auth/fe-public-auth-06.json"
+   },
+   {
+    "id": "fe-public-auth-07",
+    "file": "tasks/TASK-006/findings/fe-public-auth/fe-public-auth-07.json"
+   },
+   {
+    "id": "fe-public-auth-08",
+    "file": "tasks/TASK-006/findings/fe-public-auth/fe-public-auth-08.json"
+   },
+   {
+    "id": "fe-public-auth-09",
+    "file": "tasks/TASK-006/findings/fe-public-auth/fe-public-auth-09.json"
+   },
+   {
+    "id": "contract-01",
+    "file": "tasks/TASK-006/findings/contract/contract-01.json"
+   }
+  ]
+ },
+ {
+  "key": "F-shared",
+  "lane": "frontend",
+  "area": "frontend/src: components/ui, components/feedback, styles/theme, messages, jest config, specs/frontend-design-spec.md",
+  "deps": [],
+  "items": [
+   {
+    "id": "task005-triage-b-32",
+    "file": "tasks/TASK-006/findings/task005-triage-b/task005-triage-b-32.json"
+   },
+   {
+    "id": "task005-triage-b-36",
+    "file": "tasks/TASK-006/findings/task005-triage-b/task005-triage-b-36.json"
+   },
+   {
+    "id": "task005-triage-a-V2bV3-02",
+    "file": "tasks/TASK-006/findings/task005-triage-a/task005-triage-a-V2bV3-02.json"
+   },
+   {
+    "id": "task005-triage-b-31",
+    "file": "tasks/TASK-006/findings/task005-triage-b/task005-triage-b-31.json"
+   },
+   {
+    "id": "task005-triage-a-V2T2-05",
+    "file": "tasks/TASK-006/findings/task005-triage-a/task005-triage-a-V2T2-05.json"
+   },
+   {
+    "id": "task005-triage-a-V2bV3-05",
+    "file": "tasks/TASK-006/findings/task005-triage-a/task005-triage-a-V2bV3-05.json"
+   },
+   {
+    "id": "task005-triage-b-05",
+    "file": "tasks/TASK-006/findings/task005-triage-b/task005-triage-b-05.json"
+   }
+  ]
+ },
+ {
+  "key": "F-patient",
+  "lane": "frontend",
+  "area": "frontend/src: app/(patient), components/{booking,appointments,patient,consent}",
+  "deps": [
+   "B-notify",
+   "B-catalog-schedules",
+   "B-practitioner"
+  ],
+  "items": [
+   {
+    "id": "fe-patient-01",
+    "file": "tasks/TASK-006/findings/fe-patient/fe-patient-01.json"
+   },
+   {
+    "id": "fe-patient-03",
+    "file": "tasks/TASK-006/findings/fe-patient/fe-patient-03.json"
+   },
+   {
+    "id": "i18n-03",
+    "file": "tasks/TASK-006/findings/i18n/i18n-03.json"
+   },
+   {
+    "id": "tz-matrix-04",
+    "file": "tasks/TASK-006/findings/tz-matrix/tz-matrix-04.json"
+   },
+   {
+    "id": "fe-patient-02",
+    "file": "tasks/TASK-006/findings/fe-patient/fe-patient-02.json"
+   },
+   {
+    "id": "fe-patient-05",
+    "file": "tasks/TASK-006/findings/fe-patient/fe-patient-05.json"
+   },
+   {
+    "id": "fe-patient-06",
+    "file": "tasks/TASK-006/findings/fe-patient/fe-patient-06.json"
+   },
+   {
+    "id": "fe-patient-07",
+    "file": "tasks/TASK-006/findings/fe-patient/fe-patient-07.json"
+   },
+   {
+    "id": "i18n-02",
+    "file": "tasks/TASK-006/findings/i18n/i18n-02.json"
+   },
+   {
+    "id": "task005-triage-b-18",
+    "file": "tasks/TASK-006/findings/task005-triage-b/task005-triage-b-18.json"
+   },
+   {
+    "id": "task005-triage-b-01",
+    "file": "tasks/TASK-006/findings/task005-triage-b/task005-triage-b-01.json"
+   }
+  ]
+ },
+ {
+  "key": "F-admin",
+  "lane": "frontend",
+  "area": "frontend/src: app/(admin), components/admin",
+  "deps": [
+   "B-practitioner",
+   "B-catalog-services",
+   "B-analytics"
+  ],
+  "items": [
+   {
+    "id": "fe-admin-02",
+    "file": "tasks/TASK-006/findings/fe-admin/fe-admin-02.json"
+   },
+   {
+    "id": "fe-admin-05",
+    "file": "tasks/TASK-006/findings/fe-admin/fe-admin-05.json"
+   },
+   {
+    "id": "be-catalog-05",
+    "file": "tasks/TASK-006/findings/be-catalog/be-catalog-05.json"
+   },
+   {
+    "id": "fe-admin-03",
+    "file": "tasks/TASK-006/findings/fe-admin/fe-admin-03.json"
+   },
+   {
+    "id": "fe-admin-01",
+    "file": "tasks/TASK-006/findings/fe-admin/fe-admin-01.json"
+   },
+   {
+    "id": "task005-triage-a-V2bV3-04",
+    "file": "tasks/TASK-006/findings/task005-triage-a/task005-triage-a-V2bV3-04.json"
+   },
+   {
+    "id": "fe-admin-04",
+    "file": "tasks/TASK-006/findings/fe-admin/fe-admin-04.json"
+   },
+   {
+    "id": "fe-admin-06",
+    "file": "tasks/TASK-006/findings/fe-admin/fe-admin-06.json"
+   }
+  ]
+ },
+ {
+  "key": "F-doctor",
+  "lane": "frontend",
+  "area": "frontend/src: app/(doctor), components/doctor",
+  "deps": [
+   "B-appt",
+   "B-clinical"
+  ],
+  "items": [
+   {
+    "id": "fe-doctor-01",
+    "file": "tasks/TASK-006/findings/fe-doctor/fe-doctor-01.json"
+   },
+   {
+    "id": "fe-doctor-04",
+    "file": "tasks/TASK-006/findings/fe-doctor/fe-doctor-04.json"
+   },
+   {
+    "id": "fe-doctor-06",
+    "file": "tasks/TASK-006/findings/fe-doctor/fe-doctor-06.json"
+   },
+   {
+    "id": "fe-doctor-02",
+    "file": "tasks/TASK-006/findings/fe-doctor/fe-doctor-02.json"
+   },
+   {
+    "id": "fe-doctor-03",
+    "file": "tasks/TASK-006/findings/fe-doctor/fe-doctor-03.json"
+   },
+   {
+    "id": "task005-triage-a-T1-03",
+    "file": "tasks/TASK-006/findings/task005-triage-a/task005-triage-a-T1-03.json"
+   },
+   {
+    "id": "task005-triage-b-33",
+    "file": "tasks/TASK-006/findings/task005-triage-b/task005-triage-b-33.json"
+   },
+   {
+    "id": "fe-doctor-05",
+    "file": "tasks/TASK-006/findings/fe-doctor/fe-doctor-05.json"
+   },
+   {
+    "id": "fe-doctor-07",
+    "file": "tasks/TASK-006/findings/fe-doctor/fe-doctor-07.json"
+   },
+   {
+    "id": "fe-doctor-08",
+    "file": "tasks/TASK-006/findings/fe-doctor/fe-doctor-08.json"
+   },
+   {
+    "id": "i18n-01",
+    "file": "tasks/TASK-006/findings/i18n/i18n-01.json"
+   },
+   {
+    "id": "i18n-04",
+    "file": "tasks/TASK-006/findings/i18n/i18n-04.json"
+   }
+  ]
+ },
+ {
+  "key": "X-client-ip",
+  "lane": "frontend",
+  "area": "frontend server-side proxying of /api calls + libs/common trust-proxy config + infra/traefik",
+  "deps": [
+   "B-observability"
+  ],
+  "items": [
+   {
+    "id": "infra-tools-03",
+    "file": "tasks/TASK-006/findings/infra-tools/infra-tools-03.json"
+   }
+  ]
+ }
+]

@@ -1,0 +1,26 @@
+{
+  "id": "be-auth-oauth-02",
+  "unit": "be-auth-oauth",
+  "kind": "security",
+  "severity": "medium",
+  "title": "Отзыв сессии (logout / revoke) не доходит до остальных сервисов: TOKEN_REVOCATION подключён только в auth-service",
+  "description": "JwtAuthGuard из libs/common принимает необязательный TokenRevocationChecker (@Optional, по умолчанию null → проверка пропускается). Комментарии в token-revocation.ts и token.service.ts утверждают, что «JwtAuthGuard in every BFF reads the same revocation state», а спецификация (api-designer-spec: TOKEN_REVOKED — «проверка в JwtAuthGuard (ADR-009)»; architect §7: denylist в Redis, потребители «все BFF-сервисы») требует именно общего denylist. Фактически провайдер TOKEN_REVOCATION объявлен только в OAuthModule auth-service (и привязан к его in-memory TokenService); в app.module.ts остальных семи BFF-сервисов (analytics, appointment, catalog, encounter, notification, patient, practitioner) его нет, поэтому guard там получает null. Итог: POST /oauth/token/revoke (его вызывает кнопка «Выйти» через /api/auth/logout) возвращает {revoked:true}, но уже выданный access-токен (до 15 минут) продолжает проходить во все сервисы, кроме auth-service: записи, расписание, медкарта, назначения. Для украденного токена выход пользователя ничего не закрывает.",
+  "evidence": "grep TOKEN_REVOCATION по apps/*/src/app/app.module.ts: 0 совпадений во всех, кроме provide в apps/auth-service/src/modules/oauth/oauth.module.ts:127. libs/common/src/lib/guards/jwt-auth.guard.ts:118-121 `@Optional() @Inject(TOKEN_REVOCATION) revocation = null` и :171-174 `if (checker === null) return;`. Сценарий: пациент входит → копирует Bearer из cookie → нажимает «Выйти» (revoke → denylist session:<sid>) → GET /api/v1/appointments с тем же Bearer возвращает 200 вместо 401 TOKEN_REVOKED; GET /api/v1/me (auth-service) вернёт 401 TOKEN_REVOKED. Спец: specs/api-designer-spec.md строка 123 и 156.",
+  "files": [
+    "libs/common/src/lib/guards/jwt-auth.guard.ts",
+    "libs/common/src/lib/guards/token-revocation.ts",
+    "apps/auth-service/src/modules/oauth/oauth.module.ts",
+    "apps/analytics-service/src/app/app.module.ts",
+    "apps/appointment-service/src/app/app.module.ts",
+    "apps/catalog-service/src/app/app.module.ts",
+    "apps/encounter-service/src/app/app.module.ts",
+    "apps/notification-service/src/app/app.module.ts",
+    "apps/patient-service/src/app/app.module.ts",
+    "apps/practitioner-service/src/app/app.module.ts"
+  ],
+  "proposedFix": "Depends on be-auth-oauth-01 (the denylist must live in Redis first). Add RedisTokenRevocationChecker to libs/common (implements TokenRevocationChecker, `EXISTS <prefix>session:<key>` on the Redis client each service already builds for RedisRateLimitStore from REDIS_URL, same fail-open behaviour already coded in JwtAuthGuard.assertNotRevoked) and bind `{ provide: TOKEN_REVOCATION, useFactory }` in every BFF AppModule (or export a small RevocationModule from libs/common). The key prefix must be one shared constant used by auth-service's writer and the readers. Add a guard spec in each service or one shared e2e: revoked sid -> 401 TOKEN_REVOKED.",
+  "needsDecision": false,
+  "decisionQuestion": "",
+  "tzRef": "FR-001; NFR-006; ADR-009; api-designer-spec §1 (TOKEN_REVOKED), §2.1.4",
+  "confidence": "confirmed"
+}

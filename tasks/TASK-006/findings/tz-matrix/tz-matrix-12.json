@@ -1,0 +1,20 @@
+{
+  "id": "tz-matrix-12",
+  "unit": "tz-matrix",
+  "kind": "question",
+  "severity": "low",
+  "title": "KDR-7/A-3 и спецификация §8 обещают e-mail-канал уведомлений («email-адаптер»), которого нет: уведомления только внутри приложения",
+  "description": "В требованиях KDR-7 и A-3: «Уведомления: in-app + email; SMS/push вне объёма», а api-designer-spec §8 описывает потребителя, который создаёт Communication «+ email-адаптер (A-3)». В коде нет ни SMTP-транспорта, ни зависимости (nodemailer и т.п.), ни почтового контейнера в compose; notification-service только пишет Communication в HAPI. Кроме того, событие patient.registered.v1 по решению владельца не несёт e-mail (минимизация payload), так что адаптеру пришлось бы читать адрес из auth-service. Формулировка ТЗ («получение уведомлений об изменениях статуса записи») этим не нарушена — центр уведомлений и счётчик работают, — но документы расходятся с реализацией. Тот же почтовый транспорт нужен для сброса пароля (открытый вопрос TASK-005, T7).",
+  "evidence": "`grep -rniE 'nodemailer|smtp|mailpit|mailhog' apps libs infra docker-compose.yml package.json` -> no matches; apps/notification-service/src/modules/notifications has no sender; specs/api-designer-spec.md:945 (§8) mentions the email adapter; tasks/TASK-001/requirements-analyst-requirements.md KDR-7, A-3.",
+  "files": [
+    "specs/api-designer-spec.md",
+    "tasks/TASK-001/requirements-analyst-requirements.md",
+    "apps/notification-service/src/modules/notifications/consumer.service.ts",
+    "docker-compose.yml"
+  ],
+  "proposedFix": "Option (a), no code: edit KDR-7/A-3 and §8 to say that the channel is in-app only and e-mail is out of scope (documentation consistency). Option (b): a transport-agnostic `NotificationChannel` port in notification-service with an SMTP adapter (nodemailer, Mailpit container in compose for the demo), recipient e-mail resolved from auth-service (not from the event), sending after the Communication is stored, failures logged and never failing the consumer; the same transport can later serve password reset.",
+  "needsDecision": true,
+  "decisionQuestion": "Нужен ли e-mail-канал уведомлений (KDR-7/A-3)? (а) РЕКОМЕНДУЮ для срока 15.12: канал только in-app, поправить KDR-7/A-3/§8 и ПЗ («e-mail вне объёма»); (б) добавить SMTP-адаптер с Mailpit в compose (демо-письма о записи/отмене/приёме), адрес брать из auth-service; тот же транспорт пригодится для сброса пароля. Нужно ли это для сдачи?",
+  "tzRef": "KDR-7; A-3; FR-008; api-designer-spec §8",
+  "confidence": "confirmed"
+}

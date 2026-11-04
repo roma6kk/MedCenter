@@ -1,0 +1,20 @@
+{
+  "id": "be-analytics-02",
+  "unit": "be-analytics",
+  "kind": "i18n",
+  "severity": "low",
+  "title": "Отчёт 9.2: группе без названия сервис подставляет русскую строку «Специальность не указана», и в английском интерфейсе она остаётся русской",
+  "description": "ReportsService.encountersSummary для каждой группы без display (приёмы, у которых специальность не определена: code=unknown — роль врача удалена в HAPI или HAPI был недоступен дольше попыток доставки, — а также специальность с кодом, но без display/text) подставляет жёсткую русскую строку «Специальность не указана». Фронтенд разделяет группы на именованные и безымянные по наличию display (splitGroups), для безымянных показывает локализованную подпись admin.analytics.encounters.unknown / unknownMany («Specialty not set» в английском UI), пояснение unknownNote и раскрывающийся список кодов. Из-за подстановки на сервере эта ветка недостижима: группа unknown приходит «с именем», в английском интерфейсе строка остаётся русской, а коды специальностей, которые администратору нужны именно для безымянных групп, не показываются. Отчёт 9.3 в той же ситуации (имя услуги не найдено) display не отправляет, то есть два отчёта одного сервиса ведут себя по-разному. Побочный дефект: специальность с известным code, но без display тоже получает подпись «не указана», хотя код известен.",
+  "evidence": "apps/analytics-service/src/modules/reports/reports.service.ts:12 (UNKNOWN_SPECIALTY_DISPLAY = 'Специальность не указана') and :68-75 (display: row.display ?? UNKNOWN_SPECIALTY_DISPLAY); 9.3 contrast at :85-86 (display omitted when HAPI has no name). Pinned by reports.service.spec.ts:141 ({ code: 'unknown', display: 'Специальность не указана', count: 1 }). Ingestion writes display=null for the unknown group: worker/specialty.resolver.ts UNKNOWN_SPECIALTY = { system: null, code: 'unknown', display: null }. Frontend: components/admin/analytics/analytics-math.ts splitGroups (named = display !== undefined, unnamed = display === undefined), unnamed-groups.tsx (comment: 'a deleted service, an unset specialty'), messages en.json admin.analytics.encounters.unknown = 'Specialty not set', unknownNote. Scenario: the PractitionerRole of the treating doctor is gone from HAPI (404/410), or the HAPI outage outlasted the 4 delivery retries -> encounter filed under code 'unknown' (worker/ingestion.service.ts specialtyOf) -> English UI shows the Russian text as a normal bar and no code chip.",
+  "files": [
+    "apps/analytics-service/src/modules/reports/reports.service.ts",
+    "apps/analytics-service/src/modules/reports/reports.service.spec.ts",
+    "apps/analytics-service/src/modules/reports/dto/encounters-summary.dto.ts",
+    "apps/analytics-service/test/reports.e2e-spec.ts"
+  ],
+  "proposedFix": "In ReportsService.encountersSummary stop inventing a display: build each group like servicesPopularity does, `...(row.display === null ? {} : { display: row.display })`, and delete UNKNOWN_SPECIALTY_DISPLAY. The frontend already renders such groups with its localized label and the code disclosure (no frontend change). Update reports.service.spec.ts:141 to expect `{ code: 'unknown', count: 1 }` without display, add a spec for a coded specialty without display, and extend the DTO comment in encounters-summary.dto.ts ('a group without `display` has no name in the clinical store; the client labels it'). On the frontend only a display-less services group is covered (analytics-panel.spec.tsx:273-282); add the equivalent case for the encounters bars (GroupBars + UnnamedGroups kind 'encounters'), no component change expected.",
+  "needsDecision": false,
+  "decisionQuestion": "",
+  "tzRef": "FR-019; NFR-008 (локализация, ru/en); api-designer-spec §9.2",
+  "confidence": "confirmed"
+}

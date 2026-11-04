@@ -1,0 +1,7 @@
+- be-auth-oauth-03/tz-matrix-03: done (uncommitted) ui_locales in authorize route + spec
+- B-analytics: done (uncommitted) locale in analytics key, e2e Minsk day, unnamed specialty spec (label already existed)
+- infra-tools-10: done (uncommitted) engines in frontend/package.json
+- fe-admin-06 remainder: done (uncommitted) DatePicker refuses typed out-of-range days + specs
+- consent signedBy PractitionerRole label: done (uncommitted); be-encounter-05 trim: done (uncommitted)
+- be-encounter-03/T1-04: done (uncommitted) doctor visit card queries by encounterId when opened; patient-side history-timeline.tsx untouched
+- committed

@@ -1,0 +1,20 @@
+{
+  "id": "be-catalog-01",
+  "unit": "be-catalog",
+  "kind": "bug",
+  "severity": "high",
+  "title": "Генерация слотов не проверяет, что период лежит внутри planningHorizon расписания — обходится защита SCHEDULE_OVERLAP",
+  "description": "API §5.2.5 и ADR-015 требуют генерировать слоты «в пределах planningHorizon», а DTO GenerateSlotsDto описывает `from` как «inside the planning horizon». Сервер проверяет только длину диапазона (≤ 90 дней), но никогда не читает сохранённый горизонт расписания. Горизонт проверяет лишь фронтенд (generation-range.ts → 'outsideHorizon'), любой прямой вызов API (Bruno, curl, другой клиент) этого ограничения не имеет. Последствие: SCHEDULE_OVERLAP сравнивает расписания одного PractitionerRole только по пересечению горизонтов, поэтому два расписания с непересекающимися горизонтами и одинаковыми окнами считаются допустимыми. Если сгенерировать слоты первого расписания на период второго, врач получит два свободных слота на одно и то же время (по одному на расписание) — двойная запись к врачу и в кабинет (нарушение BR-001/BR-007). Также можно сгенерировать слоты за горизонтом, который уже закончился.",
+  "evidence": "apps/catalog-service/src/modules/schedules/slot-generator.service.ts:63-96 (generate): читает Schedule, assertActive, readWindows, readSlotDuration, но PLANNING_HORIZON_EXT нигде не используется (grep: PLANNING_HORIZON_EXT встречается только в schedules.service.ts и schedule-summary.mapper.ts). assertWithinHorizon (стр. 187-197) сравнивает только to-from с 90 днями. Сценарий: расписание A (MO 09:00-12:00, горизонт 2026-11-01..2026-11-30) и расписание B того же PractitionerRole (те же окна, горизонт 2026-12-01..2026-12-30) проходят SCHEDULE_OVERLAP; POST /admin/schedules/A/generate {from:'2026-12-01', to:'2026-12-30'} -> 201, в декабре появляются слоты A поверх слотов B. В unit-тестах slot-generator.service.spec.ts расписание вообще без расширения горизонта, поэтому пробел не виден.",
+  "files": [
+    "apps/catalog-service/src/modules/schedules/slot-generator.service.ts",
+    "apps/catalog-service/src/modules/schedules/schedules.service.ts",
+    "apps/catalog-service/src/modules/slots/schedule-summary.mapper.ts",
+    "apps/catalog-service/src/modules/schedules/slot-generator.service.spec.ts"
+  ],
+  "proposedFix": "In SlotGeneratorService.generate, after assertActive, read the stored planning horizon (reuse toScheduleSummaryDto(schedule).horizonFrom/horizonTo or a small readHorizon helper over PLANNING_HORIZON_EXT.valuePeriod) and compare CLINIC days: clinicDateOf(Date.parse(dto.from)) must be >= horizonFrom day and clinicDateOf(Date.parse(dto.to)) must be <= horizonTo day; otherwise throw BadRequestException({errorCode:'VALIDATION_ERROR', message:'planningHorizon: range must be inside the schedule horizon (<from>..<to>)'}) — the same code/format as assertWithinHorizon. A missing bound stays open-ended, so legacy schedules and the existing fixtures keep working. Add spec cases: range before horizonFrom, after horizonTo, exactly on the bounds (accepted), schedule without horizon (accepted); keep the frontend 'outsideHorizon' check as is.",
+  "needsDecision": false,
+  "decisionQuestion": "",
+  "tzRef": "api-designer-spec §5.2.5; ADR-015; BR-001; BR-007; FR-020",
+  "confidence": "confirmed"
+}

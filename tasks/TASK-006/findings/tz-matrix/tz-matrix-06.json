@@ -1,0 +1,25 @@
+{
+  "id": "tz-matrix-06",
+  "unit": "tz-matrix",
+  "kind": "gap",
+  "severity": "medium",
+  "title": "NFR-007: нет метрик и нет readiness-проверки — есть только liveness /health, которая отвечает 200 при недоступных HAPI/Redis/PostgreSQL",
+  "description": "NFR-007: «Структурные логи, health/readiness endpoints, метрики». Архитектура §7 обещает `@nestjs/terminus` (`/health`, `/ready`) на каждом сервисе и `prom-client` (RED-метрики), MANIFEST перечисляет их в стеке. В коде: у каждого сервиса только liveness `GET /health` без проверок зависимостей (в комментариях контроллеров прямо сказано «@nestjs/terminus is not installed… readiness is not probed»), `/ready` отсутствует, `/metrics` отсутствует, пакеты terminus/prom-client не установлены. Compose-healthcheck считает «живым» любой ответ < 500, поэтому контейнер с оборванным HAPI/Redis остаётся healthy, а оператор не видит ни задержек, ни ошибок по маршрутам. Из трёх частей NFR-007 метрики и readiness не реализованы вовсе.",
+  "evidence": "apps/*/src/**/health.controller.ts (auth, patient, appointment, analytics, encounter, outbox-relay) return a static liveness body; `grep -rn '/metrics\\|prom-client\\|terminus' apps libs package.json` finds only comments; no `/ready` route in tasks/TASK-006/findings/verify-map-backend-routes.txt; specs/architect-architecture.md:184-185 and :380 promise `/ready` and prom-client; docker-compose.yml:120-135 healthcheck accepts any status < 500.",
+  "files": [
+    "apps/auth-service/src/modules/health/health.controller.ts",
+    "apps/appointment-service/src/modules/health/health.controller.ts",
+    "apps/patient-service/src/modules/health/health.controller.ts",
+    "apps/analytics-service/src/modules/health/health.controller.ts",
+    "apps/encounter-service/src/app/health.controller.ts",
+    "apps/outbox-relay/src/modules/health/health.controller.ts",
+    "libs/common/src/lib",
+    "docker-compose.yml",
+    "specs/architect-architecture.md"
+  ],
+  "proposedFix": "Shared, dependency-light shape in libs/common so every service gets it with one import: (1) `ReadinessService` + `GET /ready` (@Public, not routed by Traefik like /health) that runs the checks each service registers (HAPI `GET /metadata` for FHIR services, Redis PING where a store is used, PostgreSQL `SELECT 1` for auth/analytics, RabbitMQ channel state for notification/outbox-relay) with a 2 s timeout each and returns 200 {status:'ok'} or 503 {status:'unavailable', failed:[names]} without leaking details; (2) `MetricsModule` exposing `GET /metrics` (Prometheus text, @Public, internal network only, never in Traefik dynamic.yml) using `prom-client`: default process metrics plus an http_request_duration_seconds histogram labelled by method, route template and status class via a global interceptor (RED); (3) switch compose healthcheck path for BFF services to `/ready` only after (1) lands (HEALTH_PATH already supports this). Add `prom-client` (and `@nestjs/terminus` only if the owner prefers it over the hand-written checks) to package.json. Unit-test the readiness aggregation and the label cardinality (route template, not raw path).",
+  "needsDecision": false,
+  "decisionQuestion": "",
+  "tzRef": "NFR-007, specs/architect-architecture.md §7",
+  "confidence": "confirmed"
+}

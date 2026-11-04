@@ -1,0 +1,19 @@
+{
+  "id": "fe-public-auth-02",
+  "unit": "fe-public-auth",
+  "kind": "security",
+  "severity": "medium",
+  "title": "Выход не отзывает refresh-токен, если access-токен во вкладке уже истёк",
+  "description": "При выходе браузер отправляет в /api/auth/logout access-токен из памяти вкладки. Он живёт 15 минут и обновляется только после ответа 401, поэтому у вкладки, в которой дольше 15 минут не было ни одного запроса к API, токен уже просрочен (опрос есть только у колокольчика пациента; в кабинетах врача и администратора его нет, а перезапрос при возврате фокуса окна токен обновил бы, но не когда вкладка всё это время была в фокусе). Маршрут logout предпочитает именно этот Bearer и делает ровно один вызов POST /oauth/token/revoke; запасной путь «получить новую пару по refresh-cookie и отозвать её» включается только когда Bearer вообще не пришёл. auth-service проверяет Bearer глобальным JwtAuthGuard (jose.jwtVerify проверяет exp), поэтому просроченный токен даёт 401, revokeRefreshToken возвращает false, а маршрут всё равно очищает cookie и отвечает 200. Пользователь считает, что вышел, но refresh-токен остаётся действующим на сервере до 14 суток.",
+  "evidence": "frontend/src/app/api/auth/logout/route.ts:15-22 `if (bearer !== null) { await revokeRefreshToken(refreshToken, bearer); return; }` - the result is ignored and there is no fallback; :27 passes `bearerOf(request) ?? cookie mc_at`. frontend/src/lib/auth/session-client.ts:99-104 endSession sends getAccessToken() (memory, set only by session load / refresh). frontend/src/lib/auth/session-broker.ts:139 revokeRefreshToken returns response.ok. apps/auth-service/src/modules/oauth/oauth.controller.ts:187-204 revoke is not @Public (only lines 105/131/148 are), apps/auth-service/src/app/app.module.ts:53 mounts JwtAuthGuard as APP_GUARD, libs/common/src/lib/guards/jwt-auth.guard.ts:100 uses jose jwtVerify. Scenario: doctor signs in, leaves the tab for 20 min, clicks the sign-out in the profile menu -> revoke answers 401 -> mc_rt cookie is deleted but the refresh token is still valid server-side.",
+  "files": [
+    "frontend/src/app/api/auth/logout/route.ts",
+    "frontend/src/app/api/auth/logout/route.spec.ts",
+    "frontend/src/lib/auth/session-broker.ts"
+  ],
+  "proposedFix": "In logout/route.ts revokeSession: when a Bearer was supplied, check the boolean returned by revokeRefreshToken; if it is false, fall through to the existing branch (rotateRefreshToken(refreshToken), then revoke the NEW refresh token with the NEW access token). A 200 `{ revoked: false }` is also response.ok, so it needs no fallback. Add a route.spec.ts case: the first revoke call answers 401, the route then rotates and revokes the rotated pair (3 fetch calls), and still clears the cookies and answers 200.",
+  "needsDecision": false,
+  "decisionQuestion": "",
+  "tzRef": "frontend-design-spec §2 (POST /api/auth/logout -> /oauth/token/revoke, API 2.1.4); NFR-006",
+  "confidence": "likely"
+}

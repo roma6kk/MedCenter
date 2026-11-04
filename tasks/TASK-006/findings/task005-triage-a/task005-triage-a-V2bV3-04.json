@@ -1,0 +1,17 @@
+{
+  "id": "task005-triage-a-V2bV3-04",
+  "unit": "task005-triage-a",
+  "kind": "ux",
+  "severity": "low",
+  "title": "Фильтры журнала аудита: подсказка «Ресурс» уже вынесена под ряд, но текст ошибки внутри Field по-прежнему поднимает своё поле выше соседей (items-end)",
+  "description": "Исходная жалоба (подсказка «Ресурс» делает поле выше, подписи не выровнены) в коде закрыта: подсказка вынесена отдельной строкой `basis-full` под всю форму. Но тот же механизм остаётся для ТЕКСТА ОШИБКИ: форма использует `flex flex-wrap items-end`, а `Field` рисует `<p>` с ошибкой под полем ввода. Поле с ошибкой выше соседей, при выравнивании по нижней кромке его input и подпись поднимаются относительно остальных. Ошибка диапазона живёт в Field «С» (`rangeError`), ошибки «Ресурс» и «Пользователь» — в своих Field.",
+  "evidence": "frontend/src/components/admin/audit/audit-filters-form.tsx:63 className=\"... flex flex-wrap items-end gap-3 ...\"; :64 <Field id=\"audit-from\" ... error={rangeError}>, :70-ish <Field id=\"audit-entity\" error={entityError}>, :78-ish <Field id=\"audit-user\" error={userError}>; frontend/src/components/admin/shared/form-field.tsx renders the error <p> inside the Field grid (after the control). Scenario: set «С» later than «По» -> rangeError appears under «С» -> that Field is one text line taller -> its label and input sit ~20px higher than «По», «Ресурс», «Пользователь».",
+  "files": [
+    "frontend/src/components/admin/audit/audit-filters-form.tsx"
+  ],
+  "proposedFix": "Follow the hint's pattern: do not pass `error` to Field in this form (keep aria-invalid and aria-describedby via controlProps) and render the three messages in a row-wide `<p id=\"audit-from-error\" role=\"alert\" className=\"basis-full text-xs text-[var(--destructive)]\">` blocks under the controls (one per active error, ids audit-from-error / audit-entity-error / audit-user-error so the existing aria-describedby links keep working). Add a small audit-panel.spec.tsx case: invalid range shows the message and the button row stays one line.",
+  "needsDecision": false,
+  "decisionQuestion": "",
+  "tzRef": "Администратор: просмотр отчётов и журнала",
+  "confidence": "likely"
+}

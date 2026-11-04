@@ -1,0 +1,21 @@
+{
+  "id": "be-catalog-03",
+  "unit": "be-catalog",
+  "kind": "bug",
+  "severity": "medium",
+  "title": "PATCH услуги и расписания пишет без If-Match: параллельные правки затирают друг друга, а документированный 409 CONFLICT никогда не возвращается",
+  "description": "ServicesController.update в Swagger обещает «409 CONFLICT: the service was changed concurrently (version mismatch)», а ADR-012/комментарий TransactionWrite описывают optimistic lock через `ifMatch`. Но updateAudited (libs/fhir) кладёт в транзакцию `PUT Type/id` без ifMatch, хотя сервис читает ресурс непосредственно перед записью (read-modify-write с merge частичного DTO). Если два администратора одновременно правят одну услугу (один название, другой описание/длительность) или расписание (окна/горизонт), второй PUT, собранный из устаревшего чтения, молча затирает поле первого. Обещанный клиентам 409 CONFLICT в этом пути не достижим. Та же дыра у деактивации расписания при удалении (deactivateSchedule) и у PATCH кабинета в practitioner-service (общая функция).",
+  "evidence": "libs/fhir/src/lib/audited-write.ts:49-60 (updateAudited): entry `{ method: 'PUT', url, resource }` — поле ifMatch не задано, versionOf() (fhir-transaction.ts:30) не вызывается. Вызовы: apps/catalog-service/src/modules/services/services.service.ts:127, schedules/schedules.service.ts:110, schedules/schedule-removal.ts:114, apps/practitioner-service/src/modules/rooms/rooms.service.ts:108. Сценарий: админ A и админ B открывают услугу v1; A PATCH {name:'Новое'} -> v2; B PATCH {description:'Другое'} прочитала v1 до записи A -> PUT пишет v1+description поверх v2, название снова старое, ответ 200. Ни одного теста на version mismatch для update нет (grep: audited-write.spec.ts не содержит ifMatch).",
+  "files": [
+    "libs/fhir/src/lib/audited-write.ts",
+    "libs/fhir/src/lib/fhir-transaction.ts",
+    "apps/catalog-service/src/modules/services/services.service.ts",
+    "apps/catalog-service/src/modules/schedules/schedules.service.ts",
+    "apps/catalog-service/src/modules/schedules/schedule-removal.ts"
+  ],
+  "proposedFix": "In updateAudited add `ifMatch: versionOf(resource)` to the PUT entry when `resource.meta.versionId` is a string (callers merge from a fresh read, so meta is carried; leave the entry without ifMatch when no version is present so resources built from scratch still work). commitTransaction already turns HAPI's 409/412 into ConflictException with code 'CONFLICT'. Add a unit case in audited-write.spec.ts (PUT carries W/\"<versionId>\"; a 412/409 from HAPI becomes 409 CONFLICT, no AuditEvent written) and one service-level test that PATCH of a stale version answers 409. Check rooms.service.ts and the practitioner-service specs still pass (same helper).",
+  "needsDecision": false,
+  "decisionQuestion": "",
+  "tzRef": "api-designer-spec §5.1.4 (409 CONFLICT); ADR-012; ADR-014",
+  "confidence": "confirmed"
+}

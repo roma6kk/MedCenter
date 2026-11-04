@@ -1,0 +1,21 @@
+{
+  "id": "be-auth-oauth-09",
+  "unit": "be-auth-oauth",
+  "kind": "ux",
+  "severity": "low",
+  "title": "Сбой БД при входе показывает в браузере сырой JSON (problem+json / RFC 6749) вместо страницы входа с понятным сообщением",
+  "description": "GET /oauth/authorize и POST /oauth/login — страницы, на которые браузер попадает напрямую (навигация и отправка формы), но их ошибки, не пойманные локально, уходят JSON-документом. (1) Любое исключение, кроме HttpException, на POST /oauth/login (недоступна БД auth в credentials.verify → UserStore.findByEmail) не ловится LoginRateLimitFilter (он @Catch(HttpException)) и попадает в глобальный ProblemDetailsFilter: пользователь после нажатия «Войти» видит голый {\"type\":\"…/internal\",\"title\":\"Internal Server Error\",…} без ссылки назад. (2) То же на GET /oauth/authorize: LoginSessionGuard вызывает identities.resolve (БД) и роняет запрос в JSON 500 для пользователя с уже выданной сессией входа. (3) Ошибки до известного redirect_uri (неизвестный client_id, незарегистрированный redirect_uri, неверный response_type) — {\"error\":\"invalid_request\",…}; для API-клиента это контракт 2.1.2, но человек в браузере остаётся без объяснения и без перехода обратно, хотя готовая HTML-страница renderLoginErrorPage уже есть и используется для того же класса ошибок на POST /oauth/login (BROKEN_REQUEST_MESSAGE). Для 503 «счётчик недоступен» страница уже есть (UNAVAILABLE_MESSAGE) — аналогичного пути для сбоя БД нет.",
+  "evidence": "apps/auth-service/src/modules/oauth/login/login-rate-limit.filter.ts:37 `@Catch(HttpException)`; login.controller.ts:113-133 (credentials.verify на строке 126 без try/catch); login-session.guard.ts:35-46 (identities.resolve на строке 41 без обработки); authorize.controller.ts:69 `@UseFilters(OAuthErrorFilter)` → только OAuthError, остальное — глобальный фильтр; libs/common/src/lib/filters/problem-details.filter.ts:60-83 (500 → application/problem+json). Сценарий: остановить postgres, на странице входа ввести e-mail/пароль → ответ 500 application/problem+json отображается как текст.",
+  "files": [
+    "apps/auth-service/src/modules/oauth/login/login-rate-limit.filter.ts",
+    "apps/auth-service/src/modules/oauth/login/login.controller.ts",
+    "apps/auth-service/src/modules/oauth/authorize.controller.ts",
+    "apps/auth-service/src/modules/oauth/filters/oauth-error.filter.ts",
+    "apps/auth-service/src/modules/oauth/login/login-page.responder.ts"
+  ],
+  "proposedFix": "Add a browser-facing error branch: a filter (or widen LoginRateLimitFilter to @Catch() and reuse it on AuthorizeController) that, for a non-OAuthError / non-4xx failure when `request.accepts(['html','json']) === 'html'`, logs the error with the requestId and answers LoginPageResponder.sendError(response, 503, UNAVAILABLE_MESSAGE) — on POST /oauth/login re-render the form with the entered email via sendForm. Keep JSON for clients that do not accept HTML (the contract of 2.1.2/2.1.6 for API clients stays), and for OAuthError on GET /oauth/authorize with Accept: text/html show renderLoginErrorPage(BROKEN_REQUEST_MESSAGE) with the same status instead of the envelope. Update the 400/500 lines of api-designer-spec §2.1.2/§2.1.6 and the @ApiResponse docs accordingly; add specs in login-rate-limit.filter.spec.ts / authorize.controller.spec.ts. Message strings go through the locale mechanism of be-auth-oauth-03.",
+  "needsDecision": false,
+  "decisionQuestion": "",
+  "tzRef": "NFR-006; api-designer-spec §2.1.2, §2.1.6",
+  "confidence": "likely"
+}

@@ -1,0 +1,21 @@
+{
+  "id": "fe-public-auth-04",
+  "unit": "fe-public-auth",
+  "kind": "robustness",
+  "severity": "medium",
+  "title": "Временная недоступность сервиса входа (503, 429, обрыв сети) выкидывает вошедшего пользователя на /login",
+  "description": "Брокер сессии различает два исхода: «refresh-токен негоден» (cookie стираются) и «сервис входа временно недоступен» (503 auth_unavailable, cookie намеренно остаются, комментарий в session-broker: keep them). Клиент этого различия не использует. runExchange в session-client.ts на любой ответ не-2xx и на любую сетевую ошибку вызывает signOutLocally(): стирает токен в памяти и ставит hydrated=true с role=null. Дальше RoleGuard видит роль null и делает router.replace('/login?returnTo=...'), а apiFetch после неудачного refreshSession() вызывает redirectToLogin(). Итог: перезапуск auth-service, всплеск лимита на /oauth/token (брокер сам пишет, что лимит 20 в минуту на весь веб-сервер, а 429 попадает в ветку unavailable) или короткий обрыв сети превращаются в «вас разлогинило». /login сразу перенаправляет на недоступный auth-service, пользователь видит ошибку браузера, а его refresh-cookie при этом ещё живая: заново войти не нужно, достаточно было повторить запрос.",
+  "evidence": "frontend/src/lib/auth/session-client.ts:49-63 `if (!response.ok) { signOutLocally(); return false; }` and `catch { ... signOutLocally(); return false; }` - no distinction between 401 (anonymous / refused) and 503. frontend/src/lib/auth/session-response.ts:31-34 answers 503 `{ error: 'auth_unavailable' }` for reason 'unavailable' without clearing cookies; session-broker.ts:98-101 maps every non-400/401 status (429, 5xx, bad body) to 'unavailable'. frontend/src/components/layout/role-guard.tsx:20-22 redirects on role === null; frontend/src/lib/api/api-fetch.ts:72-74 `if (canRefresh && (await refreshSession())) ...; redirectToLogin();`. session-client.spec.ts:87-100 pins the current behaviour for a 500. Scenario: signed-in doctor on /doctor/appointments, auth-service restarts (or the token endpoint answers 429) -> access token expires -> any query gets 401 -> POST /api/auth/refresh answers 503 -> signOutLocally + redirectToLogin -> /login -> /api/auth/authorize -> connection error page, although mc_rt is still valid.",
+  "files": [
+    "frontend/src/lib/auth/session-client.ts",
+    "frontend/src/lib/api/api-fetch.ts",
+    "frontend/src/components/layout/role-guard.tsx",
+    "frontend/src/lib/auth/session-client.spec.ts",
+    "frontend/src/store/use-session-store.ts"
+  ],
+  "proposedFix": "Make runExchange return a tri-state ('ok' | 'ended' | 'unavailable'). 'ended' = 401 or an anonymous 200 -> signOutLocally as today. 'unavailable' (503, network error) -> keep the in-memory session untouched. In apiFetch.recoverFromUnauthorized treat 'unavailable' as a failed request (throw an ApiError with status 503 so the query shows its normal retry banner) instead of redirectToLogin(). For the first page load without any session in memory add a `status: 'unavailable'` flag to the session store and let RoleGuard render a retry state (the existing QueryFailure/ProblemBanner pattern with a «Повторить» button that calls loadSession again) instead of redirecting to /login. Update the spec at session-client.spec.ts:87 and add cases for 503 and a rejected fetch.",
+  "needsDecision": false,
+  "decisionQuestion": "",
+  "tzRef": "frontend-design-spec §2 (apiFetch: 401 -> single-flight refresh, only a repeated 401 or TOKEN_REVOKED logs out) and §D (5xx -> error page with requestId, not /login)",
+  "confidence": "likely"
+}

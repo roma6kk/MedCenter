@@ -1,0 +1,23 @@
+{
+  "id": "tz-matrix-10",
+  "unit": "tz-matrix",
+  "kind": "gap",
+  "severity": "medium",
+  "title": "FR-015: администратор не может завести нового врача целиком — учётная запись DOCTOR привязывается только к уже существующей PractitionerRole, а Practitioner/PractitionerRole создаются лишь сидером",
+  "description": "A-6: «врачей/админов создаёт администратор». В форме создания пользователя роль DOCTOR требует выбрать существующую PractitionerRole из каталога (use-practitioner-role-options.ts), а у practitioner-service нет ни одного пишущего эндпоинта для врачей (только GET /doctors, GET /doctors/{id} и CRUD кабинетов); Practitioner и PractitionerRole создаёт только tools/demo-seed. Следствие: «управление пользователями» для врачей — это управление логином уже заведённого в HAPI профиля; нового врача (ФИО, специальность, кабинет) из интерфейса не добавить, специальность и ФИО в каталоге не изменить, а правка имени в учётной записи DOCTOR не синхронизируется с Practitioner.name (синхронизация есть только для Patient: UsersService.syncPatient). DOCTOR-аккаунт без PractitionerRole получает 403 COMPARTMENT_VIOLATION на всех экранах врача. Жизненный цикл по ролям: PATIENT — саморегистрация и правка/блокировка админом (есть); ADMIN — создание/блокировка админом (есть, самоблокировка запрещена); DOCTOR — создание/блокировка/возврат есть, но без профиля врача.",
+  "evidence": "apps/practitioner-service/src/modules/doctors/doctors.controller.ts has only two @Get routes; no `create('Practitioner'` / `PractitionerRole` write in apps/*/src (grep) — resources are written by tools/demo-seed/demo-catalog.ts; frontend/src/components/admin/users/user-schema.ts:36-37 `effectiveLink`: DOCTOR needs a practitionerRoleId (existing); apps/auth-service/src/modules/users/users.service.ts:151-165 syncPatient returns early (line 159) when the account has no linked Patient, so a DOCTOR's name change touches no FHIR resource.",
+  "files": [
+    "apps/practitioner-service/src/modules/doctors/doctors.controller.ts",
+    "apps/practitioner-service/src/modules/doctors/doctors.service.ts",
+    "apps/auth-service/src/modules/users/users.service.ts",
+    "apps/auth-service/src/modules/users/patient-provisioner.ts",
+    "frontend/src/components/admin/users/user-fields.tsx",
+    "frontend/src/components/admin/users/use-practitioner-role-options.ts",
+    "tools/demo-seed/demo-catalog.ts"
+  ],
+  "proposedFix": "Follow the rooms pattern (admin writes carry their AuditEvent in the same transaction, client-assigned UUID ids, ADR-020): practitioner-service `POST /api/v1/admin/doctors` (firstName, lastName, specialty code from the specialty ValueSet, roomId optional) creating Practitioner + PractitionerRole in one audited FHIR transaction and returning ids, `PATCH /api/v1/admin/doctors/{id}` for name/specialty/room; frontend: in the DOCTOR branch of the user dialog offer «Создать профиль врача» next to the role picker (or a «Врачи» tab), and make PATCH of an account's name also update Practitioner.name for linked doctors (mirror syncPatient). Keep deactivation of the account independent from the catalog visibility.",
+  "needsDecision": true,
+  "decisionQuestion": "Как в системе должен появляться новый врач? (а) РЕКОМЕНДУЮ: расширить создание учётной записи DOCTOR — при создании админ вводит ФИО, специальность и кабинет, система сама создаёт Practitioner + PractitionerRole (новый admin-эндпоинт в practitioner-service) и привязывает их, правка ФИО синхронизируется; (б) отдельный раздел «Врачи» в админке (CRUD профиля врача) + привязка аккаунта как сейчас; (в) оставить сидер единственным способом заведения врачей и описать это в ПЗ/руководстве администратора (профили врачей ведёт IT-служба клиники). Для курсовой достаточно (в), но тогда формулировка «врачей создаёт администратор» из A-6 неточна.",
+  "tzRef": "ТЗ Администратор: управление пользователями; FR-015; A-6",
+  "confidence": "confirmed"
+}

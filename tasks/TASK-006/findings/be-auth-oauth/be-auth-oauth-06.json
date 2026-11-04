@@ -1,0 +1,18 @@
+{
+  "id": "be-auth-oauth-06",
+  "unit": "be-auth-oauth",
+  "kind": "docs",
+  "severity": "low",
+  "title": "Спецификация 2.1.3 показывает claim/поле patient как «Patient/9f2c…» (PatientRef), а сервис и все BFF используют голый id",
+  "description": "В api-designer-spec.md §2.1.3 пример ответа содержит \"patient\": \"Patient/9f2c…\" и перечень claims называет `patient?` (PatientRef). Реализация и остальные источники — другие: identity.ts: «patient — the bare Patient id (SMART launch context)», TokenResponse.patient и Swagger-пример example: '9f2c' («the bare Patient id»), а appointment-service прямо комментирует «the token carries a bare id, the Appointment needs a reference» и строит `Patient/{id}` сам. SMART App Launch тоже определяет patient в ответе токена как id. Клиент, написанный по примеру спецификации (а спецификация в иерархии источников выше кода), получит неверный формат и сломает compartment-проверки. Попутно та же категория: README auth-service (раздел «Browser login») называет форму входа «script-free» с «Russian labels», хотя страница содержит inline-скрипт переключателя пароля (login-page.ts, LOGIN_PAGE_SCRIPT, закреплён хешем в CSP), а после be-auth-oauth-03 подписи станут двуязычными.",
+  "evidence": "specs/api-designer-spec.md:209 `patient?` (PatientRef) и :220 `\"patient\": \"Patient/9f2c…\"`; apps/auth-service/src/modules/oauth/identity.ts:42-47 (`patient: identity.patientId`, fhirUser = `Patient/${id}`); apps/auth-service/src/modules/oauth/dto/oauth-response.doc.ts:24 (example '9f2c'); apps/appointment-service/src/modules/appointments/appointments.service.ts:59 (комментарий про bare id).",
+  "files": [
+    "specs/api-designer-spec.md",
+    "apps/auth-service/src/modules/oauth/dto/oauth-response.doc.ts"
+  ],
+  "proposedFix": "Edit specs/api-designer-spec.md §2.1.3: claims line `patient?` (bare Patient id, e.g. `9f2c…`; the FHIR reference lives in `fhirUser`) and the example `\"patient\": \"9f2c…\"`. No code change.",
+  "needsDecision": false,
+  "decisionQuestion": "",
+  "tzRef": "api-designer-spec §2.1.3; ADR-013",
+  "confidence": "confirmed"
+}

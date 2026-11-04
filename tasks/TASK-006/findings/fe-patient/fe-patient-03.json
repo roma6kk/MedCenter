@@ -1,0 +1,21 @@
+{
+  "id": "fe-patient-03",
+  "unit": "fe-patient",
+  "kind": "ux",
+  "severity": "medium",
+  "title": "Запись с причиной визита при 409 CONSENT_REQUIRED показывает пациенту текст для персонала («отправьте пациента в регистратуру») и не говорит убрать причину",
+  "description": "Поле «Причина обращения» в мастере закрывается, только если клиент точно знает, что согласия нет (useMyConsent вернул active === null). Если согласие не удалось прочитать или оно было отозвано в другой вкладке/сотрудником после загрузки шага (кеш 30 с), поле остаётся открытым и сервер (CONSENT_ENFORCEMENT=block) отвечает 409 CONSENT_REQUIRED на POST /appointments с reason. classifyBookingFailure не знает этого кода и возвращает 'other', поэтому на шаге подтверждения показывается общий ProblemBanner с errors.CONSENT_REQUIRED: «Нет действующего согласия на электронную медкарту: отправьте пациента в регистратуру или внесите бумажное согласие» - это текст для врача/регистратора (7.1/7.3), а читает его сам пациент. Кнопка «Подтвердить» остаётся рабочей и повторяет тот же запрос с тем же reason (и тем же Idempotency-Key), то есть снова 409. Центральный эффект инвалидирует consent, и если чтение согласия теперь удаётся, поле закроется само, но баннер для персонала так и останется на экране; если чтение согласия падает (сценарий, ради которого сделана ветка «сервер решает», см. confirm-step-consent.spec.tsx), пациент зациклен, пока сам не сотрёт причину, о чём ему нигде не сказано. Тестов на этот путь нет.",
+  "evidence": "frontend/src/components/booking/book-appointment.ts:71-78 (classifyBookingFailure: errorCode other than SLOT_CONFLICT/NOT_FOUND/COMPARTMENT_VIOLATION/VALIDATION_ERROR -> 'other'); frontend/src/components/booking/use-booking-submit.ts:70-71 (default -> { problem }); frontend/src/components/booking/confirm-step.tsx:115 (`<ProblemBanner problem={booking.problem} />`) and :96-98 (noConsent only from a successful read); frontend/src/messages/ru.json errors.CONSENT_REQUIRED (staff wording); backend apps/appointment-service/src/modules/appointments/appointments.controller.ts:68-69 documents `409 CONSENT_REQUIRED: reason given without an active EHR consent`. Scenario: patient types a reason, consent is revoked meanwhile (or GET /me/consent fails) -> Confirm -> banner «отправьте пациента в регистратуру…», Confirm again -> same 409.",
+  "files": [
+    "frontend/src/components/booking/book-appointment.ts",
+    "frontend/src/components/booking/use-booking-submit.ts",
+    "frontend/src/components/booking/confirm-step.tsx",
+    "frontend/src/messages/ru.json",
+    "frontend/src/messages/en.json"
+  ],
+  "proposedFix": "Add a 'consent' value to BookingFailure (errorCode === 'CONSENT_REQUIRED') and an Outcome flag `consentRefused` in use-booking-submit.ts (no problem banner for it). In ConfirmStep treat `noConsent = consent.data?.active === null || booking.consentRefused`: the field closes with the existing booking.reasonNoConsent hint, the existing effect clears the typed reason (which also drops the Idempotency-Key as a new intent), and the patient can simply press «Подтвердить» again to book without a reason. Reset the flag in choose()/goTo like the other refusals. Add cases to book-appointment.spec.ts and booking-wizard-conflict.spec.tsx (409 CONSENT_REQUIRED -> field disabled, reason cleared, no staff text, second submit sends no reason).",
+  "needsDecision": false,
+  "decisionQuestion": "",
+  "tzRef": "FR-004 (создание записи), ADR-019 (согласие на ЭМК), api-designer-spec §6.1 (409 CONSENT_REQUIRED)",
+  "confidence": "likely"
+}

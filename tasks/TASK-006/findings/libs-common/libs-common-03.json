@@ -1,0 +1,28 @@
+{
+  "id": "libs-common-03",
+  "unit": "libs-common",
+  "kind": "robustness",
+  "severity": "medium",
+  "title": "Шесть из восьми BFF создают Redis-клиент лимитера без таймаута команды: если Redis зависнет, а не откажет, каждый запрос зависает в RateLimitGuard и «fail open» не наступает",
+  "description": "RateLimitGuard задуман как fail-open: при недоступном хранилище запрос пропускается. Но это работает только если команда к Redis завершается ошибкой. catalog-service и practitioner-service создают клиент с FAIL_FAST_REDIS_OPTIONS (connectTimeout 1 с, commandTimeout 250 мс, enableOfflineQueue: false), и в комментарии к этим настройкам прямо сказано, зачем: Redis, который молча теряет пакеты, иначе держит каждый запрос и ломает бюджет NFR-005. analytics-, appointment-, auth-, encounter-, notification- и patient-service в main.ts создают клиент только с { maxRetriesPerRequest: 1 }: без commandTimeout. При «замороженном» Redis (docker pause, разрыв сети, долгий скрипт) INCR-скрипт лимитера никогда не завершается, RateLimitGuard ждёт его вечно (до TCP-тайм-аута ядра), и зависает весь API сервиса, включая запись на приём, журнал врача и вход. Такая же дыра на пути записи на приём: RedisIdempotencyStore в appointment-service (клиент с lazyConnect и без commandTimeout) ждёт Redis в IdempotencyService.run до выполнения операции, а фронтенд всегда присылает Idempotency-Key. В auth-service тот же вопрос уже решён для хранилища попыток входа (COMMAND_TIMEOUT_MS = 2000, «Commands that hang on a dead Redis must fail within a login's patience»), но не для клиента лимитера в том же процессе.",
+  "evidence": "apps/{analytics,appointment,encounter,notification}-service/src/main.ts:16, apps/auth-service/src/main.ts:21, apps/patient-service/src/main.ts:19: new Redis(url, { maxRetriesPerRequest: 1 }); сравнить apps/catalog-service/src/config/redis-options.ts и apps/practitioner-service/src/config/rate-limit.ts (FAIL_FAST_REDIS_OPTIONS, файлы побайтно одинаковы). apps/appointment-service/src/modules/idempotency/redis-idempotency.store.ts:47. Воспроизведено локально на фиктивном RESP-сервере, который отвечает на INFO/EVAL, а потом перестаёт отвечать: клиент с { maxRetriesPerRequest: 1 } -> eval «STILL PENDING after 5000 ms» (не завершается), клиент с FAIL_FAST_REDIS_OPTIONS -> «rejected (Command timed out)» за 250 мс. libs/common/src/lib/guards/rate-limit.guard.ts:96 (await store.increment без собственного таймаута, catch на :97 срабатывает только когда команда завершилась ошибкой).",
+  "files": [
+    "apps/analytics-service/src/main.ts",
+    "apps/appointment-service/src/main.ts",
+    "apps/auth-service/src/main.ts",
+    "apps/encounter-service/src/main.ts",
+    "apps/notification-service/src/main.ts",
+    "apps/patient-service/src/main.ts",
+    "apps/appointment-service/src/modules/idempotency/redis-idempotency.store.ts",
+    "apps/catalog-service/src/config/redis-options.ts",
+    "apps/catalog-service/src/config/rate-limit.ts",
+    "apps/practitioner-service/src/config/rate-limit.ts",
+    "libs/common/src/lib/guards/rate-limit.guard.ts",
+    "libs/common/src/lib/guards/redis-rate-limit.store.ts"
+  ],
+  "proposedFix": "1) Перенести FAIL_FAST_REDIS_OPTIONS и функцию enableRateLimit(env, logger) в libs/common (рядом с RedisRateLimitStore, экспорт из index.ts), удалить две одинаковые копии из catalog- и practitioner-service и вызывать общую функцию из main.ts/bootstrap.ts всех восьми сервисов (6 inline-копий enableRateLimit/new Redis исчезают). 2) Для Redis-клиента RedisIdempotencyStore в appointment-service добавить те же connectTimeout/commandTimeout (enableOfflineQueue не отключать из-за lazyConnect). 3) Запасной предохранитель в RateLimitGuard: обернуть store.increment в Promise.race с таймаутом около 250-500 мс, по истечении логировать warn и пропускать запрос (fail open), чтобы guard не зависел от настроек конкретного клиента. 4) Тест в rate-limit.guard.spec.ts: хранилище, чей increment никогда не завершается, не должно задерживать canActivate дольше таймаута.",
+  "needsDecision": false,
+  "decisionQuestion": "",
+  "tzRef": "NFR-005 (производительность и устойчивость), NFR-006 (rate-limit), спецификация API §0 (Idempotency-Key)",
+  "confidence": "confirmed"
+}

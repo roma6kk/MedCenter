@@ -1,0 +1,18 @@
+{
+  "id": "be-catalog-11",
+  "unit": "be-catalog",
+  "kind": "ux",
+  "severity": "low",
+  "title": "Список расписаний в админке отсортирован по _id, а id — случайные UUID: новое расписание появляется на произвольной странице",
+  "description": "SchedulesService.list сортирует по `_id` ради стабильного постраничного чтения. С ADR-020 все расписания создаются под клиентским UUID v4 (createAudited), поэтому порядок по _id — случайный: после «Расписание создано» новая строка не обязательно на первой странице таблицы (страница по 10), порядок строк нельзя объяснить ни врачом, ни датой. Недельный вид читает сразу до 100 расписаний и сортирует их на клиенте, а табличный вид — нет. Для списка услуг (без _sort) порядок остаётся порядком создания, поэтому расхождение между двумя админскими списками.",
+  "evidence": "apps/catalog-service/src/modules/schedules/schedules.service.ts:175-183 (list): `_sort: '_id'`; libs/fhir/src/lib/audited-write.ts:33 `const id = randomUUID()`; frontend/src/components/admin/schedules/use-admin-schedules.ts:12-14, 27-32 (SCHEDULES_PAGE_SIZE = 10, без клиентской сортировки в таблице). Сценарий: в системе 25 расписаний; админ создаёт 26-е — оно получает UUID вида 'f3…' и оказывается на последней странице, а на первой остаются расписания с UUID 'a0…', 'b1…'.",
+  "files": [
+    "apps/catalog-service/src/modules/schedules/schedules.service.ts",
+    "apps/catalog-service/src/modules/schedules/schedules.service.spec.ts"
+  ],
+  "proposedFix": "Sort the list by recency with a deterministic tie-break: `_sort: '-_lastUpdated,_id'` (HAPI supports a comma list; the newest/just-edited schedule comes first, paging stays stable between two reads without writes). Update the unit expectation in schedules.service.spec.ts and the e2e query assertion (schedules-admin-query.e2e-spec.ts) that checks the `_sort` parameter.",
+  "needsDecision": false,
+  "decisionQuestion": "",
+  "tzRef": "FR-020",
+  "confidence": "likely"
+}

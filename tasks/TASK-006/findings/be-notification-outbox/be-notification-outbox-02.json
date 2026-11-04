@@ -1,0 +1,19 @@
+{
+  "id": "be-notification-outbox-02",
+  "unit": "be-notification-outbox",
+  "kind": "robustness",
+  "severity": "medium",
+  "title": "Relay помечает событие отправленным, даже если ни одна очередь к нему не привязана: событие молча теряется",
+  "description": "AmqpEventPublisher публикует в exchange medical.events без флага mandatory и без обработки basic.return. Очереди notification.* и analytics.* объявляют только потребители при подключении (bindQueueWithDlq); relay их не объявляет. Если в момент публикации нужной очереди ещё нет (свежий брокер или удалённый том rabbitmqdata при сохранённом томе HAPI с pending-записями, потребитель ещё не стартовал, очередь удалена вручную), брокер не может маршрутизировать сообщение, но всё равно подтверждает его (confirm). publish() резолвится, relay помечает запись sent, через 7 суток удаляет и делает $expunge. Событие потеряно без ошибки, без DLQ и без предупреждения, что нарушает гарантию ADR-021 «событие существует тогда и только тогда, когда есть бизнес-изменение, и доставляется at-least-once».",
+  "evidence": "libs/messaging/src/lib/event-publisher.ts publish(): `channel.publish(DOMAIN_EVENT_EXCHANGE, event.type, Buffer.from(JSON.stringify(event)), { persistent: true, contentType: 'application/json', messageId: event.eventId }, cb)`; no `mandatory`, and no `channel.on('return', ...)` anywhere (grep for 'mandatory' in apps/libs finds nothing). Queues are declared only in consumers: apps/notification-service/.../consumer.service.ts and apps/analytics-service/.../analytics.worker.ts call bindQueueWithDlq(); apps/outbox-relay never does. RabbitMQ publisher-confirm semantics: an unroutable, non-mandatory message is acked once the exchange finds no queue. Scenario: `docker compose down` then `docker volume rm <project>_rabbitmqdata` (pgdata kept) then `up`: outbox-relay (poll every 2 s, starts as soon as rabbitmq is healthy) publishes the pending appointment.booked.v1 before notification-service has declared notification.appointment-booked -> broker acks, relay marks sent -> the patient never gets the notification and analytics never counts the booking. Also affects any future event type or routing key that has no consumer yet.",
+  "files": [
+    "libs/messaging/src/lib/event-publisher.ts",
+    "libs/messaging/src/lib/event-publisher.spec.ts",
+    "apps/outbox-relay/src/modules/relay/relay.service.ts"
+  ],
+  "proposedFix": "In AmqpEventPublisher: publish with `mandatory: true` and register once per channel `channel.on('return', (message) => returned.add(message.properties.messageId))`; the broker sends basic.return before basic.ack, so in the confirm callback `if (returned.delete(event.eventId)) reject(new Error(`event ${event.eventId} is unroutable: no queue is bound to ${event.type}`))`, otherwise resolve. publishInOrder() in the relay already treats a rejected publish as 'stays pending' (warn + break), so the record is retried every poll until a consumer queue exists, and OUTBOX_STALE_PENDING_MS reports it if it never does. Add unit tests to event-publisher.spec.ts: a 'return' event followed by ack rejects; ack without return resolves; update the existing expectation to include `mandatory: true`. Alternative (not instead): declare the known consumer queues in the relay at startup, which needs the binding lists of both consumers to move into libs/messaging.",
+  "needsDecision": false,
+  "decisionQuestion": "",
+  "tzRef": "NFR-005 (надёжность), FR-008; architect ADR-021 (at-least-once)",
+  "confidence": "likely"
+}

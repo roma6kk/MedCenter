@@ -1,0 +1,19 @@
+{
+  "id": "fe-patient-06",
+  "unit": "fe-patient",
+  "kind": "robustness",
+  "severity": "low",
+  "title": "Мастер записи проверяет, что выбранное время ещё не наступило, только при открытии, а не при нажатии «Подтвердить запись»",
+  "description": "repairDraft() (слот уже начался -> сбросить слот и вернуться на шаг «Время») вызывается из useDraftRepair один раз при монтировании мастера. Если пациент оставил шаг подтверждения открытым (вкладка в фоне, телефон, раздумья) и нажал «Подтвердить» после начала слота, sendDraft() отправляет POST /appointments как есть. Сейчас сервер примет такую запись (be-appointment-01: проверяется только status=free), то есть пациент получает запись на уже прошедшее время и успех; после исправления бэкенда придёт 4xx, который клиент покажет как «Выбранное время уже занято» (слот не занят, а прошёл) или как общий баннер. Клиентская проверка перед отправкой дёшева и не зависит от бэкенда.",
+  "evidence": "frontend/src/components/booking/use-draft-repair.ts:12-27 (repair only in the mount effect); frontend/src/components/booking/use-booking-submit.ts:81-87 (sendDraft builds the request from the store without a time check); frontend/src/components/booking/confirm-step.tsx:103-107 (handleConfirm validates only the reason); frontend/src/components/booking/booking-steps.ts:73-79 (repairDraft(draft, now) already exists and is pure). Scenario: choose a 10:00 slot at 09:55, leave the confirmation open, press «Подтвердить запись» at 10:05 -> request is sent.",
+  "files": [
+    "frontend/src/components/booking/use-booking-submit.ts",
+    "frontend/src/components/booking/confirm-step.tsx",
+    "frontend/src/components/booking/booking-steps.ts"
+  ],
+  "proposedFix": "In handleConfirm (or at the top of sendDraft) call repairDraft(useBookingDraftStore.getState()); when it returns a patch with an expired slot, apply it (updateDraft(patch)) and show the existing `booking.gone`-style notice instead of sending (add an `expired` BookingNotice with its own text «Это время уже наступило. Выберите другое.» ru+en). Cover with a spec in booking-wizard-submit.spec.tsx using jest fake timers.",
+  "needsDecision": false,
+  "decisionQuestion": "",
+  "tzRef": "FR-004 (создание записи), BR-001; связано с be-appointment-01",
+  "confidence": "confirmed"
+}

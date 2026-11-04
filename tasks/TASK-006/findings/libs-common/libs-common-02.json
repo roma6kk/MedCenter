@@ -1,0 +1,19 @@
+{
+  "id": "libs-common-02",
+  "unit": "libs-common",
+  "kind": "bug",
+  "severity": "medium",
+  "title": "Ошибки разбора тела запроса (тело больше 100 КБ, битый gzip) отдаются как 500 INTERNAL с записью «Unhandled exception» и requestId «unknown», хотя это ошибка клиента",
+  "description": "Лимит тела запроса нигде не задан, действует умолчание Express body-parser (100 КБ для JSON и urlencoded). Когда клиент превышает его (или присылает тело с неверным Content-Encoding), body-parser бросает http-error со статусом 413 или 400 (expose: true), но это не HttpException Nest. ProblemDetailsFilter (@Catch()) разбирает только HttpException, поэтому всё остальное считает неперехваченной ошибкой: клиент получает 500 INTERNAL «Внутренняя ошибка сервера», а в журнал на каждый такой запрос пишется ERROR «Unhandled exception». Кроме того, парсер тела работает раньше RequestIdMiddleware (тот подключён как Nest-middleware), поэтому в ответе requestId равен «unknown» и заголовка x-request-id нет — корреляция из NFR-007 теряется ровно на этих ответах. В проекте для загрузки скана согласия уже принято правило «слишком большой или битый запрос = 400 VALIDATION_ERROR, а не 413, потому что кода 413 в каталоге ошибок нет» (ScanUploadInterceptor), но для JSON-тела оно не соблюдается.",
+  "evidence": "libs/common/src/lib/filters/problem-details.filter.ts:64 (requestId = request.requestId ?? 'unknown') и :75-86 (ветка not-HttpException -> лог «Unhandled exception» и 500 INTERNAL). Воспроизведено на минимальном Nest-приложении с настоящими ProblemDetailsFilter, RequestIdMiddleware и createValidationPipe: POST /echo с JSON 200 КБ -> 500 application/problem+json {errorCode:'INTERNAL', requestId:'unknown'} + в логе «Unhandled exception ... type: 'entity.too.large', limit: 102400»; POST с Content-Encoding: gzip и обычным телом -> 500 (Z_DATA_ERROR, statusCode 400, expose true) + тот же лог. Тот же запрос с неверным Content-Type доходит до middleware и получает настоящий uuid, то есть проблема именно в порядке «парсер тела -> middleware -> filter». Приложения: apps/*/src/main.ts не задают лимит и не подключают собственный парсер.",
+  "files": [
+    "libs/common/src/lib/filters/problem-details.filter.ts",
+    "libs/common/src/lib/request-id.middleware.ts",
+    "libs/common/src/lib/filters/problem-details.filter.spec.ts"
+  ],
+  "proposedFix": "В ProblemDetailsFilter.catch до ветки 500 распознать ошибку клиента в стиле http-errors (число status или statusCode в диапазоне 400-499 и expose === true, либо type === 'entity.too.large') и ответить 400 VALIDATION_ERROR с detail вроде «request body is too large» / «request body could not be read» (как ScanUploadInterceptor: 413 -> 400 VALIDATION_ERROR), не логируя это как ERROR (достаточно debug/warn). Для requestId: если request.requestId не задан, брать валидный заголовок x-request-id или генерировать randomUUID() и выставлять заголовок x-request-id в ответе (вынести функцию выбора id из RequestIdMiddleware и использовать в обоих местах). Добавить в problem-details.filter.spec.ts случаи: ошибка {status: 413, type: 'entity.too.large', expose: true} -> 400 VALIDATION_ERROR; ошибка без requestId получает uuid, а не «unknown».",
+  "needsDecision": false,
+  "decisionQuestion": "",
+  "tzRef": "NFR-007 (корреляция по requestId), спецификация API §1 (модель ошибок RFC 7807)",
+  "confidence": "confirmed"
+}

@@ -1,0 +1,23 @@
+{
+  "id": "be-encounter-03",
+  "unit": "be-encounter",
+  "kind": "bug",
+  "severity": "medium",
+  "title": "Назначения визита в карте пациента у врача берутся из первой страницы из 10 назначений пациента: у «старых» визитов и у направлений они пропадают без предупреждения",
+  "description": "Список назначений 7.5/7.7 отдаёт сначала все MedicationRequest, затем все ServiceRequest, каждые по убыванию даты, постранично. Карточка визита в истории врача (patient-history-timeline.tsx) строит «Назначения» так: берёт ОДНУ страницу из 10 (CARD_PAGE_SIZE) назначений пациента и фильтрует её по `encounterId` визита. Следствия: (а) если у пациента 10 и больше лекарственных назначений, в первую страницу не попадает ни одно направление/процедура (ServiceRequest идут после всех лекарств) — у всех визитов, даже самого свежего, исчезают направления; (б) у более старых визитов назначения не показываются, как только их вытеснили 10 более свежих. Карточка при этом выглядит законченной: нет ни предупреждения, ни пагинации — врач принимает отсутствие назначений за факт. Та же схема у пациента (history-timeline.tsx, одна страница из 100), там порог выше, но поведение то же. В TASK-005 это записано как вопрос («Назначения в раскрытой карточке визита — только первая страница (10)»), но это не вопрос продукта, а дефект выборки: у API нет способа запросить назначения конкретного визита.",
+  "evidence": "frontend/src/components/doctor/patient-history-timeline.tsx:102 and :118: `usePatientPrescriptions(patientId, 1)` and `orders={(prescriptions.data?.items ?? []).filter((order) => order.encounterId === item.id)}`; frontend/src/components/doctor/doctor-api.ts:29 `CARD_PAGE_SIZE = 10`; apps/encounter-service/src/modules/history/prescriptions.service.ts:32-45 (all MedicationRequests first, ServiceRequests continue after them); apps/encounter-service/src/modules/history/history.controller.ts:67-86 (7.5 takes PageQueryDto only, no encounter filter). Scenario: patient with 12 MedicationRequests over 6 visits and 3 ServiceRequests -> page 1 = the 10 newest medications, the 3 referrals are on page 2 -> the card of every visit shows no referrals, and the 2 oldest visits show no medications.",
+  "files": [
+    "apps/encounter-service/src/modules/history/history.controller.ts",
+    "apps/encounter-service/src/modules/history/prescriptions.service.ts",
+    "apps/encounter-service/src/common/paging/page-query.dto.ts",
+    "frontend/src/components/doctor/patient-history-timeline.tsx",
+    "frontend/src/components/doctor/use-doctor-queries.ts",
+    "frontend/src/components/doctor/doctor-api.ts",
+    "frontend/src/components/patient/history-timeline.tsx"
+  ],
+  "proposedFix": "Additive, non-breaking: an optional `encounterId` query filter on 7.5 and 7.7 (FHIR id pattern, `PrescriptionsQueryDto extends PageQueryDto`). PrescriptionsService passes `encounter: Encounter/{id}` to both typed searches (MedicationRequest and ServiceRequest both have the `encounter` search parameter) and to the count search; the `patient=` constraint stays, so no cross-patient read. Frontend: the visit card loads its orders when it is opened (`enabled: isOpen`) with `encounterId` and pageSize 100 instead of filtering page 1; same change in the patient history timeline. Alternative with one request per page: add MedicationRequest:encounter and ServiceRequest:encounter to HISTORY_REVINCLUDES and return `orders` inside each history item (bigger contract change).",
+  "needsDecision": false,
+  "decisionQuestion": "",
+  "tzRef": "ФТ-010, ФТ-014 (врач: история обращений и назначения), Пациент: просмотр назначений врача; TASK-005 verify-open-questions T1",
+  "confidence": "confirmed"
+}

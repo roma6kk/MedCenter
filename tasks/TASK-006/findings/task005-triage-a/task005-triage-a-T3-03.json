@@ -1,0 +1,19 @@
+{
+  "id": "task005-triage-a-T3-03",
+  "unit": "task005-triage-a",
+  "kind": "question",
+  "severity": "low",
+  "title": "Группировка услуг на шаге 1 мастера записи стоит N запросов GET /doctors?serviceId= (по одному на услугу, до 100)",
+  "description": "У услуги нет поля направления, поэтому шаг 1 группирует услуги по специальности врачей: useServiceGroups запускает useQueries с отдельным GET /doctors?serviceId= на каждую услугу каталога (страница до 100 услуг). Ответы кладутся под тот же ключ, что использует шаг «Врач», поэтому дальше они не запрашиваются повторно, и пока группы не готовы, показывается скелетон. В демо услуг шесть, и это незаметно; для каталога в несколько десятков услуг каждый новый посетитель делает столько же параллельных запросов (каждый — несколько поисков в HAPI), а ограничитель БФФ считает посетителей по адресу и сейчас видит все браузеры как один (находка infra-tools-03).",
+  "evidence": "frontend/src/components/booking/use-service-groups.ts:18-34 useQueries(services.map(... fetchDoctors({ serviceId: service.id }) ...)); frontend/src/components/booking/service-groups.ts:1-5 'the catalogue has no direction on a service'; frontend/src/components/catalog/catalog-types.ts:60 CATALOG_PAGE_SIZE = 100.",
+  "files": [
+    "frontend/src/components/booking/use-service-groups.ts",
+    "frontend/src/components/booking/service-groups.ts",
+    "apps/catalog-service/src/modules/services"
+  ],
+  "proposedFix": "Option 2: optional `direction` (specialty code) on the service in catalog-service (HealthcareService.specialty), admin form field, seed value, response of 5.1.1/5.1.2; the wizard groups by it with no extra requests and keeps the current per-service doctor query as a fallback for services without it.",
+  "needsDecision": true,
+  "decisionQuestion": "Хранить направление в самой услуге? Варианты: (1) оставить как есть — для демо шесть запросов, результат кешируется и используется шагом «Врач» (рекомендация для курсовой); (2) добавить необязательное поле direction (специальность) в услугу catalog-service, форму админа и сид, группировать по нему — один запрос вместо N; (3) одним запросом отдавать специальности услуг из practitioner-service. Вернуться к (2), если каталог услуг вырастет.",
+  "tzRef": "Пациент: просмотр медицинских услуг; FR-003",
+  "confidence": "confirmed"
+}

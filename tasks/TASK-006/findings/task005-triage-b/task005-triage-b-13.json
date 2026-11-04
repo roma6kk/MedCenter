@@ -1,0 +1,20 @@
+{
+  "id": "task005-triage-b-13",
+  "unit": "task005-triage-b",
+  "kind": "question",
+  "severity": "medium",
+  "title": "В системе нет ни смены, ни сброса пароля: забытый пароль делает учётную запись непригодной",
+  "description": "Вопрос из T7 «нужен ли сброс пароля (почтовый транспорт, токены)?». Копнув глубже: пароль нельзя изменить вообще никем. UpdateUserDto намеренно строится без поля password, в форме администратора пароль есть только у нового пользователя, самостоятельной смены в профиле нет. Если пациент забыл пароль, повторная регистрация невозможна (e-mail уникален), а вернуть доступ можно только правкой БД. В ТЗ есть лишь «аутентификация и авторизация» и «управление пользователями», почтового канала в проекте нет (см. tz-matrix-12), поэтому полноценный сброс по ссылке из письма — это отдельная функция с новой инфраструктурой. Решение между вариантами нужно владельцу.",
+  "evidence": "apps/auth-service/src/modules/users/dto/update-user.dto.ts:31-35 `PartialType(OmitType(RegisterPatientDto, ['password']))`; frontend/src/components/admin/users/user-fields.tsx:138 «Only a new account has a password»; password appears only in create-user.dto.ts, register-patient.dto.ts, credentials/registration/bootstrap services; no route in admin-users.controller.ts or account.controller.ts changes a password; no mail transport anywhere (tasks/TASK-006/findings/tz-matrix/tz-matrix-12.json).",
+  "files": [
+    "apps/auth-service/src/modules/users/dto/update-user.dto.ts",
+    "apps/auth-service/src/modules/users/admin-users.controller.ts",
+    "apps/auth-service/src/modules/users/credentials.service.ts",
+    "frontend/src/components/admin/users/user-fields.tsx"
+  ],
+  "proposedFix": "Variant B (recommended): administrator-initiated reset through the existing PATCH /admin/users/{id}: optional `password` (same policy as registration, IsStrongPassword), hashed with password-hasher, all refresh tokens of the user revoked, AuditEvent without the value; in the admin edit dialog a «Новый пароль» field. Patients ask the registry desk, as with the paper consent. Add a self-service «сменить пароль» (current + new) in the cabinet only if variant C is chosen.",
+  "needsDecision": true,
+  "decisionQuestion": "Как закрыть потерю пароля? Варианты: (A) никак, описать ограничение в README и пояснительной записке; (B) сброс администратором: поле «Новый пароль» в правке пользователя (без почты, как и согласие, через регистратуру); (C) B плюс смена пароля самим пользователем в кабинете (текущий + новый); (D) сброс по ссылке из письма (нужны SMTP, токены, шаблоны — вне ТЗ). Рекомендация: B (при желании C): мало кода, нет новой инфраструктуры, укладывается в «управление пользователями».",
+  "tzRef": "FR-001, FR-015",
+  "confidence": "confirmed"
+}

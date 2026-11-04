@@ -1,0 +1,18 @@
+{
+  "id": "task005-triage-b-19",
+  "unit": "task005-triage-b",
+  "kind": "question",
+  "severity": "low",
+  "title": "RESOLVED: шрифты страницы входа в base64 в исходниках auth-service — оставить",
+  "description": "Вопрос из T7 («перенести в статическую папку?»). Причина осознанная и записана в самом файле: у auth-service нет папки ассетов (в project.json assets пуст), сборка @nx/js:tsc и образ контейнера несут исходники без отдельных шагов копирования; CSP страницы входа запрещает чужие источники, поэтому шрифты отдаются с самого сервиса. Контроллер отдаёт их по фиксированной карте имён (обхода путей нет), с Cache-Control на год immutable и nosniff. Перенос дал бы только чистоту репозитория ценой настройки ассетов сборки и образа.",
+  "evidence": "apps/auth-service/src/modules/oauth/login/login-fonts.ts:1-6 header comment; apps/auth-service/src/modules/oauth/login/login-assets.controller.ts:9-38 fixed Map lookup, immutable one-year cache; apps/auth-service/project.json:15 `\"assets\": []`.",
+  "files": [
+    "apps/auth-service/src/modules/oauth/login/login-fonts.ts",
+    "apps/auth-service/src/modules/oauth/login/login-assets.controller.ts"
+  ],
+  "proposedFix": "No change.",
+  "needsDecision": false,
+  "decisionQuestion": "",
+  "tzRef": "",
+  "confidence": "confirmed"
+}
