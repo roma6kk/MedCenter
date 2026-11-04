@@ -132,9 +132,17 @@ export class ServicesService {
   /**
    * The English text rides on `_name` / `_comment`. `mergeDefined` already keeps the stored one when the PATCH leaves
    * the English field out; a blank string removes it (e.g. the Russian name changed and the old translation no longer fits).
+   * A blank `description` clears the description: FHIR JSON forbids `"comment": ""`, so the element is removed, and its
+   * English text with it unless the same PATCH brings a new one.
    */
   private mergeTranslations(merged: FhirResource, dto: UpdateServiceDto): void {
     const target = merged as Record<string, unknown>;
+    if (dto.description !== undefined && dto.description.trim() === '') {
+      delete target['comment'];
+      if (dto.descriptionEn === undefined || dto.descriptionEn.trim() === '') {
+        delete target['_comment'];
+      }
+    }
     if (dto.nameEn?.trim() === '') {
       delete target['_name'];
     }
@@ -232,7 +240,7 @@ export class ServicesService {
     const resource: Record<string, unknown> = {
       resourceType: 'HealthcareService',
       name: dto.name,
-      comment: dto.description,
+      comment: dto.description?.trim() === '' ? undefined : dto.description,
       ...this.translationElements(dto),
       ...(dto.defaultDurationMin === undefined
         ? {}
