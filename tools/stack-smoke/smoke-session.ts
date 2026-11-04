@@ -22,6 +22,21 @@ const LOGIN_THROTTLE_MARKER = 'rate limit reached';
 const THROTTLE_WAIT_MS = 62_000;
 const MAX_THROTTLE_RETRIES = 2;
 
+const CREDENTIALS_REJECTED_MARKER = 'credentials rejected';
+
+/** What to do when a manifest account is refused: the auth database no longer holds it (e.g. a fresh volume). */
+export const RESEED_USERS_HINT =
+  'the account from the seed manifest is not in the auth database (was the postgres volume recreated?): ' +
+  'run "npm run seed:demo -- --users --with-admin --consents"';
+
+/** The login error, with the re-seed hint added when the form refused the credentials. Never adds a credential. */
+export function withLoginHint(error: unknown): unknown {
+  if (error instanceof Error && error.message.includes(CREDENTIALS_REJECTED_MARKER) && !error.message.includes(RESEED_USERS_HINT)) {
+    error.message = `${error.message}; ${RESEED_USERS_HINT}`;
+  }
+  return error;
+}
+
 const sleep = (millis: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, millis));
 
 /**

@@ -1,7 +1,7 @@
 import { join } from 'node:path';
 
 import { PROTECTED_ROUTES } from './access-matrix';
-import { RouteTracker, loadRouteInventory, parseControllerRoutes, routeKey, templateToPattern } from './route-inventory';
+import { RouteTracker, UNREACHABLE_ROUTES, loadRouteInventory, parseControllerRoutes, routeKey, templateToPattern } from './route-inventory';
 
 const SOURCE = `
 @Controller('api/v1/appointments')
@@ -78,6 +78,13 @@ describe('RouteTracker', () => {
 
     expect(tracker.uncovered().map(routeKey)).toEqual(['POST /api/v1/appointments', 'POST /api/v1/appointments/:id/cancel']);
   });
+
+  it('should not report a route that no 2xx can reach over the API', () => {
+    const tracker = new RouteTracker([{ service: 'appointment-service', method: 'POST', path: '/api/v1/doctor/appointments/:id/noshow' }, ...inventory]);
+
+    expect(tracker.uncovered().map(routeKey)).not.toContain('POST /api/v1/doctor/appointments/:id/noshow');
+    expect(tracker.uncovered()).toHaveLength(inventory.length);
+  });
 });
 
 describe('the real controllers', () => {
@@ -90,6 +97,12 @@ describe('the real controllers', () => {
     'GET /api/v1/services',
     'GET /api/v1/services/:id',
   ];
+
+  it('should only exempt routes that exist', () => {
+    const keys = new Set(inventory.map(routeKey));
+
+    expect(Object.keys(UNREACHABLE_ROUTES).filter((key) => !keys.has(key))).toEqual([]);
+  });
 
   it('should expose routes of all eight services', () => {
     const services = new Set(inventory.map((route) => route.service));

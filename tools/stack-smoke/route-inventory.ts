@@ -60,6 +60,15 @@ export function routeKey(route: Pick<RouteTemplate, 'method' | 'path'>): string 
 }
 
 /**
+ * Routes no 2xx can reach over the API alone, with the reason; the coverage check
+ * leaves them out. Keep it short: each entry is a route the suite cannot prove.
+ */
+export const UNREACHABLE_ROUTES: Readonly<Record<string, string>> = {
+  // FR-006 / 978d046: a no-show needs a started appointment, and a started slot cannot be booked; the refusal is checked.
+  'POST /api/v1/doctor/appointments/:id/noshow': 'a no-show is recorded only once the visit has started',
+};
+
+/**
  * Records which routes got a 2xx answer. A route counts as exercised only by a
  * success: a 401/403/404 proves the guard or the router, not the handler.
  */
@@ -83,9 +92,11 @@ export class RouteTracker {
     }
   }
 
-  /** Inventory routes no successful call reached. */
+  /** Inventory routes no successful call reached, apart from the `UNREACHABLE_ROUTES`. */
   uncovered(): RouteTemplate[] {
-    return this.patterns.map(({ route }) => route).filter((route) => !this.exercised.has(routeKey(route)));
+    return this.patterns
+      .map(({ route }) => route)
+      .filter((route) => !this.exercised.has(routeKey(route)) && !(routeKey(route) in UNREACHABLE_ROUTES));
   }
 
   get total(): number {

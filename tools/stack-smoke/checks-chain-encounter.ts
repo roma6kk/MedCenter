@@ -56,13 +56,13 @@ function reopenAndReadSteps(suite: Suite): SmokeStep[] {
       },
     },
     {
-      name: 'GET /encounters/{id} (doctor, admin) -> the open encounter',
+      // ADR-018: reading an encounter is for its participant doctor; an administrator gets 403 as for the history.
+      name: 'GET /encounters/{id} (doctor) -> the open encounter; admin -> 403 FORBIDDEN_ROLE',
       run: async () => {
-        for (const session of [sessions.doctor, sessions.admin]) {
-          const response = await api.get(`/api/v1/encounters/${chain.encounterId}`, { session });
-          expectStatus(response, 200);
-          expectEqual(expectShape(response.body, ENCOUNTER_DETAILS_SHAPE, 'encounter details')['status'], 'in-progress', 'status');
-        }
+        const response = await api.get(`/api/v1/encounters/${chain.encounterId}`, { session: sessions.doctor });
+        expectStatus(response, 200);
+        expectEqual(expectShape(response.body, ENCOUNTER_DETAILS_SHAPE, 'encounter details')['status'], 'in-progress', 'status');
+        expectProblem(await api.get(`/api/v1/encounters/${chain.encounterId}`, { session: sessions.admin }), 403, 'FORBIDDEN_ROLE');
       },
     },
   ];

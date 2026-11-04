@@ -1,7 +1,7 @@
 import type { SmokeAccounts } from './smoke-accounts';
 import { SmokeAssertionError, expectEqual, expectTrue } from './smoke-assert';
 import type { SmokeRunner } from './smoke-runner';
-import { signIn } from './smoke-session';
+import { signIn, withLoginHint } from './smoke-session';
 import type { Session, SmokeAccount, SmokeConfig, SmokeRole } from './smoke-types';
 import type { SmokeSessions } from './suite';
 
@@ -36,7 +36,9 @@ function assertGrant(session: Session, account: SmokeAccount): void {
 async function login(runner: SmokeRunner, config: SmokeConfig, label: string, account: SmokeAccount): Promise<Session | undefined> {
   let session: Session | undefined;
   await runner.check(GROUP, `${label}: authorize -> login form -> code -> token`, async () => {
-    session = await signIn(config, account);
+    session = await signIn(config, account).catch((error: unknown) => {
+      throw withLoginHint(error);
+    });
     assertGrant(session, account);
   });
   return session;

@@ -85,7 +85,7 @@ function serviceStep(suite: Suite, ids: Ids, tag: string): SmokeStep {
   const { api, sessions } = suite;
   const session = sessions.admin;
   return {
-    name: 'POST /admin/services -> 201; PATCH -> 200',
+    name: 'POST /admin/services -> 201; PATCH -> 200; GET /admin/services?search= -> a page with it',
     run: async () => {
       const body = { name: `Smoke ${tag}`, typeSystem: NSI_SERVICES, typeCode: '10001', defaultDurationMin: 30, description: 'created by the stack smoke' };
       const created = await api.post(`${API_PREFIX}/services`, { session, body });
@@ -94,6 +94,9 @@ function serviceStep(suite: Suite, ids: Ids, tag: string): SmokeStep {
       const patched = await api.patch(`${API_PREFIX}/services/${ids.service}`, { session, body: { defaultDurationMin: 25 } });
       expectStatus(patched, 200);
       expectEqual(bodyObject(patched)['defaultDurationMin'], 25, 'defaultDurationMin');
+      // 5.1.6: the administrator's list (deactivated services included) finds the new service by name.
+      const listed = expectPage(await api.get(`${API_PREFIX}/services`, { session, query: { search: `Smoke ${tag}`, pageSize: 100 } }), SERVICE_SHAPE);
+      expectTrue(listed.some((service) => service['id'] === ids.service), 'GET /admin/services does not list the created service');
     },
   };
 }
@@ -215,7 +218,7 @@ function deleteScheduleSteps(suite: Suite, ids: Ids): SmokeStep[] {
   const session = sessions.admin;
   return [
     {
-      name: 'DELETE /admin/schedules/{id} {cascade:true} -> 200 {deactivated:false} and its free slots are gone',
+      name: 'DELETE /admin/schedules/{id} {cascade:true} -> 200 {deactivated:false}; the schedule and its slots are gone (5.2.6 -> 404)',
       run: async () => {
         const scheduleId = ids.schedule;
         const removed = await api.delete(`${API_PREFIX}/schedules/${scheduleId}`, { session, body: { cascade: true } });
@@ -223,8 +226,9 @@ function deleteScheduleSteps(suite: Suite, ids: Ids): SmokeStep[] {
         expectEqual(bodyObject(removed)['deactivated'], false, 'deactivated');
         ids.removed.schedule = scheduleId;
         ids.schedule = '';
+        // 5.2.6 answers 404 for a schedule that no longer exists rather than an empty list (c76a22b).
         const slots = await api.get(`${API_PREFIX}/schedules/${scheduleId}/slots`, { session, query: { from: HORIZON.horizonFrom, to: HORIZON.horizonTo } });
-        expectEqual(asArray(slots.body, 'slots').length, 0, 'slots left after the cascade delete');
+        expectProblem(slots, 404, 'NOT_FOUND');
       },
     },
     {
