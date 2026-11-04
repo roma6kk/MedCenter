@@ -127,3 +127,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   per record instead of on every 2-second poll, so one poison record no longer fills the container log.
 - `GET /api/v1/notifications?unread=` answers `400 VALIDATION_ERROR` for anything but `true` or `false` (`unread=1` or a
   typo used to return every notification instead of the unread ones), like the other list endpoints.
+- API §8 and the Swagger of notification-service match the code: `POST /notifications/{id}/read` of another patient's
+  notification answers `403 COMPARTMENT_VIOLATION` (404 only for an unknown id), `Communication` is written without
+  `sender`, `category` is documented as `appointment` | `encounter` | `registration`; the `patient.registered.v1` fixture
+  carries a bare `patientId`.

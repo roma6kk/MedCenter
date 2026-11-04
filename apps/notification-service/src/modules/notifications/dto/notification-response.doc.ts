@@ -5,13 +5,13 @@ import type { NotificationResponseDto } from './notification-response.dto';
 
 /** Swagger description of `NotificationResponseDto` (API §8.1). */
 export class NotificationResponseDoc implements NotificationResponseDto {
-  @ApiProperty({ description: 'Communication id (FHIR id)', example: '1234' })
+  @ApiProperty({ description: 'Communication id (FHIR id)', example: '3f1c2a9e-7b4d-4c58-9a0e-5d6f8b1c2d3e' })
   id!: string;
 
-  @ApiProperty({ example: 'appointment-booked' })
+  @ApiProperty({ description: 'What the notification is about', enum: ['appointment', 'encounter', 'registration'], example: 'appointment' })
   category!: string;
 
-  @ApiProperty({ example: 'Вы записаны на приём 25.10.2026 09:00 (время Минска)' })
+  @ApiProperty({ example: 'Вы записаны на приём. Начало: 25.10.2026 09:00 (время Минска)' })
   text!: string;
 
   @ApiProperty({ type: String, format: 'date-time' })

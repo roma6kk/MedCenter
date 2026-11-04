@@ -89,7 +89,10 @@ export class NotificationsController {
   @ApiOperation({ summary: '8.3 Mark a notification as read' })
   @ApiParam({ name: 'id', description: 'Notification (Communication) id' })
   @ApiResponse({ status: 204, description: 'Marked as read' })
-  @ApiProblems([400, ...GUARD_PROBLEM_STATUSES, 404], { 404: 'NOT_FOUND: no such notification of the caller' })
+  @ApiProblems([400, ...GUARD_PROBLEM_STATUSES, 404], {
+    403: 'COMPARTMENT_VIOLATION: the notification belongs to another patient; FORBIDDEN_ROLE / FORBIDDEN_SCOPE',
+    404: 'NOT_FOUND: no such notification',
+  })
   @RequiresRoles(Role.PATIENT)
   @RequiresScopes(SMART_SCOPES.PATIENT_WRITE)
   async markRead(@Req() request: RequestWithClaims, @Param('id', FhirIdPipe) id: string): Promise<void> {

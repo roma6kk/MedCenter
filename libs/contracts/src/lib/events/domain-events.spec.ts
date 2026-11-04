@@ -42,7 +42,7 @@ const noshowEvent: AppointmentNoShowEvent = {
 const registeredEvent: PatientRegisteredEvent = {
   ...BASE,
   type: 'patient.registered.v1',
-  patientId: 'Patient/1',
+  patientId: '1',
   email: 'patient@example.by',
 };
 
