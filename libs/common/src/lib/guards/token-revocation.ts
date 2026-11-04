@@ -36,3 +36,12 @@ export function revocationKeysOf(claims: JwtClaims): ReadonlyArray<string> {
   const keys = [claims.jti, claims.sid].filter((key): key is string => typeof key === 'string');
   return [...new Set(keys)];
 }
+
+/**
+ * Shared layout of the Redis denylist. `auth-service` writes
+ * `<DENYLIST_KEY_PREFIX><namespace><key>` and every BFF reads the
+ * `SESSION_DENYLIST_NAMESPACE` entries, so the three constants are the one
+ * contract between the writer and the readers.
+ */
+export const DENYLIST_KEY_PREFIX = 'oauth:deny:';
+export const SESSION_DENYLIST_NAMESPACE = 'session:';

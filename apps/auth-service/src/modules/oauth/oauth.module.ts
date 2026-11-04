@@ -27,12 +27,13 @@ import { LoginController } from './login/login.controller';
 import { OAuthController } from './oauth.controller';
 import { OAuthService } from './oauth.service';
 import { PkceService } from './pkce.service';
+import { TOKEN_STORES, createTokenStores, type TokenStores } from './redis-token-stores';
 import {
-  InMemoryTokenDenylist,
-  InMemoryTokenStore,
   TOKEN_DENYLIST,
   TOKEN_STORE,
   TokenService,
+  type TokenDenylist,
+  type TokenStore,
 } from './token.service';
 
 /**
@@ -117,8 +118,9 @@ export function loadRegisteredClients(source: NodeJS.ProcessEnv = process.env): 
     { provide: LOGIN_ATTEMPT_STORE, useFactory: createLoginAttemptStore },
     { provide: LOGIN_KEYS, useFactory: loadLoginKeys },
     { provide: SIGNING_KEYS, useFactory: loadSigningKeys },
-    { provide: TOKEN_STORE, useClass: InMemoryTokenStore },
-    { provide: TOKEN_DENYLIST, useClass: InMemoryTokenDenylist },
+    { provide: TOKEN_STORES, useFactory: createTokenStores },
+    { provide: TOKEN_STORE, useFactory: (stores: TokenStores): TokenStore => stores.store, inject: [TOKEN_STORES] },
+    { provide: TOKEN_DENYLIST, useFactory: (stores: TokenStores): TokenDenylist => stores.denylist, inject: [TOKEN_STORES] },
     { provide: CLIENT_REGISTRY, useFactory: (): InMemoryClientRegistry => new InMemoryClientRegistry(loadRegisteredClients()) },
     // The issuer is the only party that knows what it revoked, so it is also the
     // one that answers the guard layer's revocation question. `TokenService`

@@ -8,6 +8,7 @@ export * from './lib/decorators/trim.decorator';
 export * from './lib/filters/problem-details.filter';
 export * from './lib/guards/jwt-auth.guard';
 export * from './lib/guards/token-revocation';
+export * from './lib/guards/redis-token-revocation';
 export * from './lib/guards/scope.guard';
 export * from './lib/guards/role.guard';
 export * from './lib/guards/rate-limit.guard';

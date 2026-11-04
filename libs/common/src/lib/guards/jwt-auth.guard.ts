@@ -12,6 +12,7 @@ import { parseJwtEnv } from '@medcenter/config';
 import type { JWTPayload, RemoteJWKSet } from 'jose';
 import { IS_PUBLIC_KEY } from '../decorators/public.decorator';
 import type { JwtClaims, RequestWithClaims } from '../request-context';
+import { createDefaultRevocationChecker } from './redis-token-revocation';
 import { TOKEN_REVOCATION, revocationKeysOf, type TokenRevocationChecker } from './token-revocation';
 
 const BEARER_PATTERN = /^Bearer\s+(\S+)$/i;
@@ -114,12 +115,20 @@ async function verifyBearerToken(token: string): Promise<JwtClaims> {
 export class JwtAuthGuard implements CanActivate {
   private readonly logger = new Logger(JwtAuthGuard.name);
 
+  private readonly revocation: TokenRevocationChecker | null;
+
+  /**
+   * A service that binds no `TOKEN_REVOCATION` (every BFF but `auth-service`)
+   * reads the shared Redis denylist when `REDIS_URL` is set.
+   */
   constructor(
     private readonly reflector: Reflector,
     @Optional()
     @Inject(TOKEN_REVOCATION)
-    private readonly revocation: TokenRevocationChecker | null = null,
-  ) {}
+    revocation: TokenRevocationChecker | null = null,
+  ) {
+    this.revocation = revocation ?? createDefaultRevocationChecker();
+  }
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const isPublic = this.reflector.getAllAndOverride<boolean | undefined>(IS_PUBLIC_KEY, [

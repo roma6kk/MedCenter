@@ -1,5 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
-import type { TokenRevocationChecker } from '@medcenter/common';
+import { SESSION_DENYLIST_NAMESPACE, type TokenRevocationChecker } from '@medcenter/common';
 import { randomUUID } from 'node:crypto';
 
 import { ACCESS_TOKEN_TTL_SECONDS } from './jwt.service';
@@ -25,7 +25,7 @@ export const REFRESH_TOKEN_TTL_SECONDS = 14 * 24 * 60 * 60;
  * log its own caller out.
  */
 const REUSE_PREFIX = 'reuse:';
-const SESSION_PREFIX = 'session:';
+const SESSION_PREFIX = SESSION_DENYLIST_NAMESPACE;
 
 export interface StoredToken {
   readonly jti: string;
@@ -44,6 +44,8 @@ export interface StoredToken {
 export interface TokenStore {
   save(token: StoredToken): Promise<void>;
   find(jti: string): Promise<StoredToken | null>;
+  /** Atomic read-and-delete: of two concurrent callers only one gets the token. */
+  take(jti: string): Promise<StoredToken | null>;
   delete(jti: string): Promise<void>;
 }
 
@@ -56,10 +58,9 @@ export const TOKEN_STORE = 'TOKEN_STORE';
 export const TOKEN_DENYLIST = 'TOKEN_DENYLIST';
 
 /**
- * Dev/test implementations. Production wiring (a TypeORM-backed store over the
- * `auth.oauth_token` table and a Redis-backed denylist) is the persistence task
- * that follows; both sit behind these two interfaces so the swap is a provider
- * change only.
+ * Per-process implementations for unit/e2e runs and for a stack without
+ * `REDIS_URL`. Production uses the Redis ones (`redis-token-stores.ts`): state
+ * here is lost on restart and not shared between replicas.
  */
 export class InMemoryTokenStore implements TokenStore {
   private readonly tokens = new Map<string, StoredToken>();
@@ -70,6 +71,12 @@ export class InMemoryTokenStore implements TokenStore {
 
   async find(jti: string): Promise<StoredToken | null> {
     return this.tokens.get(jti) ?? null;
+  }
+
+  async take(jti: string): Promise<StoredToken | null> {
+    const token = this.tokens.get(jti) ?? null;
+    this.tokens.delete(jti);
+    return token;
   }
 
   async delete(jti: string): Promise<void> {
@@ -145,11 +152,16 @@ export class TokenService implements TokenRevocationChecker {
    * `reuse:` namespace is written — the caller's live access token stays valid.
    */
   async consume(jti: string, expectedKind: TokenKind): Promise<StoredToken | null> {
-    const token = await this.store.find(jti);
-    if (token === null || token.kind !== expectedKind) {
+    const found = await this.store.find(jti);
+    if (found === null || found.kind !== expectedKind) {
       return null;
     }
-    await this.store.delete(jti);
+    // The spend itself is atomic: with concurrent callers (or replicas) one gets
+    // the token, the rest get null.
+    const token = await this.store.take(jti);
+    if (token === null) {
+      return null;
+    }
     await this.denylist.add(
       `${REUSE_PREFIX}${jti}`,
       Math.ceil((token.expiresAt.getTime() - Date.now()) / 1000),
