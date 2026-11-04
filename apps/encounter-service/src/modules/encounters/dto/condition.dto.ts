@@ -1,3 +1,4 @@
+import { Trim } from '@medcenter/common';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { IsIn, IsNotEmpty, IsOptional, IsString, MaxLength } from 'class-validator';
 
@@ -14,6 +15,7 @@ export class ConditionDto {
   code!: string;
 
   @ApiProperty({ example: 'Острый назофарингит', maxLength: 500 })
+  @Trim()
   @IsString()
   @IsNotEmpty()
   @MaxLength(500)

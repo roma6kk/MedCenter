@@ -11,7 +11,9 @@ import {
   MinLength,
   ValidateNested,
 } from 'class-validator';
+import { Trim } from '@medcenter/common';
 
+import { UniqueBy } from '../../../common/validators/unique-by.validator';
 import { EmergencyReason } from './emergency-reason.decorator';
 import { ConditionDto } from './condition.dto';
 import { MedicationRequestDto } from './medication-request.dto';
@@ -25,6 +27,7 @@ import { ServiceRequestDto } from './service-request.dto';
 export class CompleteEncounterDto {
   /** `ClinicalImpression.summary`. */
   @ApiProperty({ description: 'ClinicalImpression.summary', minLength: 3, maxLength: 4000 })
+  @Trim()
   @IsString()
   @IsNotEmpty()
   @MinLength(3)
@@ -36,12 +39,14 @@ export class CompleteEncounterDto {
   @IsArray()
   @ArrayMinSize(1)
   @ArrayMaxSize(20)
+  @UniqueBy('code')
   @ValidateNested({ each: true })
   @Type(() => ConditionDto)
   diagnoses!: ConditionDto[];
 
   /** `CarePlan.description` (FR-013). */
   @ApiProperty({ description: 'CarePlan.description', minLength: 3, maxLength: 2000 })
+  @Trim()
   @IsString()
   @IsNotEmpty()
   @MinLength(3)
@@ -68,6 +73,7 @@ export class CompleteEncounterDto {
   @IsOptional()
   @IsArray()
   @ArrayMaxSize(20)
+  @UniqueBy('atcCode')
   @ValidateNested({ each: true })
   @Type(() => MedicationRequestDto)
   medicationRequests?: MedicationRequestDto[];

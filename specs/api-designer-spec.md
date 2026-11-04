@@ -872,7 +872,7 @@ export class AppointmentResponseDto {
 `emergencyReason: string` (10…500): пациент не может дать согласие, приём открывается без него, и отдельный `AuditEvent`
 (`emergency-bypass`) фиксирует причину; согласие оформляется при первой возможности. Тот же параметр — у 7.3.
 
-**7.3 `CompleteEncounterDto`** — одно тело, атомарное оформление приёма (FR-011…FR-014):
+**7.3 `CompleteEncounterDto`** — одно тело, атомарное оформление приёма (FR-011…FR-014). Тексты `summary`, `recommendations`, `diagnoses[].display`, `medicationRequests[].dosageText` и заметки обрезаются по краям до проверки длины (пробелы не проходят); повтор кода в `diagnoses[].code` или `medicationRequests[].atcCode` — 400 `VALIDATION_ERROR`:
 
 ```typescript
 // apps/encounter-service/src/modules/encounters/dto/complete-encounter.dto.ts
@@ -900,7 +900,7 @@ export class ConditionDto {
 
 export class ObservationDto {
   @ApiProperty({ example: 'https://fhir.by/CodeSystem/nsi-observations' })
-  @IsString() @IsNotEmpty() @MaxLength(255)
+  @IsIn(['https://fhir.by/CodeSystem/nsi-observations'])   // другая система → 400 VALIDATION_ERROR
   codeSystem: string;
 
   @ApiProperty({ example: '50849' })
@@ -918,7 +918,7 @@ export class ObservationDto {
 
 export class ServiceRequestDto {
   @ApiProperty({ example: 'https://fhir.by/CodeSystem/nsi-services' })
-  @IsString() @IsNotEmpty() @MaxLength(255)
+  @IsIn(['https://fhir.by/CodeSystem/nsi-services'])       // другая система → 400 VALIDATION_ERROR
   codeSystem: string;                   // НСИ ЦИСЗ (ADR-002)
 
   @ApiProperty() @IsString() @IsNotEmpty() @MaxLength(50)
