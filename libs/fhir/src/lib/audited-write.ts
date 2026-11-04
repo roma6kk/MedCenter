@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 
 import type { FhirClient, FhirResource } from './fhir-client.provider';
-import { commitTransaction } from './fhir-transaction';
+import { commitTransaction, versionOf } from './fhir-transaction';
 import { writeAuditEntry, type WriteActor } from './write-audit';
 
 /** What an audited write needs besides the resource: who asked, and which service answers (`AuditEvent.source`). */
@@ -45,13 +45,20 @@ export async function createAudited(
   return created;
 }
 
-/** Replaces `resource` (its `id` is the target) and writes its `update` AuditEvent in one transaction. */
+/**
+ * Replaces `resource` (its `id` is the target) and writes its `update` AuditEvent in one transaction. A resource that
+ * carries the `meta.versionId` it was read at is written `If-Match` that version: a concurrent change makes HAPI refuse
+ * the bundle and the caller gets `409 CONFLICT`, instead of the read-modify-write silently undoing the other change. A
+ * resource built from scratch has no version and is written unconditionally.
+ */
 export async function updateAudited(fhir: FhirClient, resource: FhirResource, audit: AuditContext): Promise<FhirResource> {
   const id = resource.id ?? '';
+  const meta = resource['meta'] as { versionId?: unknown } | undefined;
+  const ifMatch = typeof meta?.versionId === 'string' ? versionOf(resource) : undefined;
   await commitTransaction(
     fhir,
     [
-      { method: 'PUT', url: `${resource.resourceType}/${id}`, resource },
+      { method: 'PUT', url: `${resource.resourceType}/${id}`, resource, ...(ifMatch === undefined ? {} : { ifMatch }) },
       writeAuditEntry({ interaction: 'update', resourceType: resource.resourceType, resourceId: id, ...audit }),
     ],
     'CONFLICT',

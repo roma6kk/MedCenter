@@ -1,4 +1,4 @@
-import type { FhirClient, FhirResource } from '@medcenter/fhir';
+import { FhirClientError, type FhirClient, type FhirResource } from '@medcenter/fhir';
 import { translationExtension } from '@medcenter/fhir-mappers';
 import { FHIR_BY } from '@medcenter/terminology';
 
@@ -72,5 +72,22 @@ describe('ServicesService description', () => {
 
     expect(written()['comment']).toBeUndefined();
     expect(emptyStrings(written())).toEqual([]);
+  });
+
+  describe('concurrent edits', () => {
+    it('should write the PUT If-Match the version it read, so an edit made in between is not overwritten', async () => {
+      fhirClient.read.mockResolvedValue({ ...stored, meta: { versionId: '4' } });
+
+      await service.update('svc-1', { name: 'Новое' }, ACTOR);
+
+      expect(committedEntries(fhirClient)[0]?.request).toEqual({ method: 'PUT', url: 'HealthcareService/svc-1', ifMatch: 'W/"4"' });
+    });
+
+    it('should answer 409 CONFLICT when HAPI refuses the stale version', async () => {
+      fhirClient.read.mockResolvedValue({ ...stored, meta: { versionId: '4' } });
+      fhirClient.batch.mockRejectedValue(new FhirClientError('POST', 'http://hapi/fhir', 412, '{}'));
+
+      await expect(service.update('svc-1', { name: 'Новое' }, ACTOR)).rejects.toMatchObject({ status: 409, response: { errorCode: 'CONFLICT' } });
+    });
   });
 });

@@ -69,6 +69,25 @@ describe('updateAudited', () => {
     expect(methodsOf(fhir)).toEqual(['PUT Location/room-1', 'POST AuditEvent']);
     expect(sent(fhir).entry[1]?.resource).toMatchObject({ action: 'U', entity: [{ what: { type: 'Location', identifier: { value: 'room-1' } } }, expect.anything()] });
     expect(updated).toEqual({ resourceType: 'Location', id: 'room-1', name: 'Новое' });
+    expect(sent(fhir).entry[0]?.request).not.toHaveProperty('ifMatch');
+  });
+
+  it('should write If-Match the version the resource was read at, so a stale read cannot overwrite a newer change', async () => {
+    const fhir = client();
+
+    await updateAudited(fhir, { resourceType: 'HealthcareService', id: 'svc-1', meta: { versionId: '7' }, name: 'Новое' }, AUDIT);
+
+    expect(sent(fhir).entry[0]?.request).toEqual({ method: 'PUT', url: 'HealthcareService/svc-1', ifMatch: 'W/"7"' });
+    expect(sent(fhir).entry[1]?.request['ifMatch']).toBeUndefined();
+  });
+
+  it('should answer 409 CONFLICT, with no AuditEvent kept, when HAPI refuses the stale version', async () => {
+    const fhir = { batch: jest.fn().mockRejectedValue(new FhirClientError('POST', 'http://hapi/fhir', 412, '{}')) } as unknown as jest.Mocked<FhirClient>;
+
+    const error = await updateAudited(fhir, { resourceType: 'Schedule', id: 's-1', meta: { versionId: '2' } }, AUDIT).catch((reason: unknown) => reason);
+
+    expect(error).toBeInstanceOf(ConflictException);
+    expect((error as ConflictException).getResponse()).toMatchObject({ errorCode: 'CONFLICT' });
   });
 });
 
