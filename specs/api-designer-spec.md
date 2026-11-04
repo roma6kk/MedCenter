@@ -160,7 +160,8 @@ export class PaginatedResponseDto<TItem> {
 | 2.1.6 | `POST /oauth/login` | шаг ввода учётных данных (`application/x-www-form-urlencoded`) серверной формы входа | public, rate-limit |
 
 **2.1.2 `GET /oauth/authorize`** — параметры: `response_type=code`, `client_id`, `redirect_uri`,
-`scope` (пробел-разделённые), `state`, `code_challenge`, `code_challenge_method=S256`, `launch?`.
+`scope` (пробел-разделённые), `state`, `code_challenge`, `code_challenge_method=S256`, `launch?`, `ui_locales?` (`ru`|`en`, OIDC Core §3.1.2.1: язык формы входа и её сообщений,
+по умолчанию `ru`; берётся первый поддерживаемый тег списка, остальные игнорируются; переходит в `authorize_query`).
 `redirect_uri` необязателен: если не передан, берётся первый зарегистрированный URI клиента; он обязан входить в
 зарегистрированные для `client_id`. Поведение (UI-1: форма входа — на стороне authorization server):
 
@@ -170,14 +171,16 @@ export class PaginatedResponseDto<TItem> {
   `redirect_uri?error=<код>&state=…` на **зарегистрированный** URI;
 - до того как известен адрес возврата (неизвестный `client_id` → **401** `invalid_client`; негодный `client_id`,
   `redirect_uri`, `response_type`, `code_challenge`, `code_challenge_method` → **400** `invalid_request`) — конверт RFC 6749 §5.2,
-  не Problem Details; **429** `RATE_LIMITED`, **500** — Problem Details.
+  не Problem Details; **429** `RATE_LIMITED`, **500** — Problem Details. Запрос, где `Accept` содержит `text/html` (браузер),
+  вместо конверта/Problem Details получает HTML-страницу ошибки входа с тем же статусом (неожиданный сбой, например недоступна
+  БД, — **503**); клиент без `text/html` в `Accept` получает JSON, как описано выше.
 
 **2.1.6 `POST /oauth/login`** — тело `email`, `password`, `csrf` (токен формы, дублируется cookie), `authorize_query`
 (санированный query исходного запроса 2.1.2). Принят вход → **302** на `GET /oauth/authorize?…` с исходным запросом и
 cookie сессии входа (затем 2.1.2 выдаёт код). Ответы-страницы (`text/html`, не JSON): **200** — неверные учётные данные
 (форма с сообщением); **400** — негодный исходный запрос; **403** — устаревшая форма (CSRF не совпал); **429** — лимит
 попыток (по IP — 10/мин, по учётной записи — 10 за 15 мин; `Retry-After`); **503** — счётчик попыток недоступен
-(вход закрывается: fail-closed). Ошибка валидации ввода (слишком длинное поле) — 400 `problem+json`.
+(вход закрывается: fail-closed), он же — неожиданный сбой (например, недоступна БД) для браузера. Ошибка валидации ввода (слишком длинное поле) — 400 `problem+json`.
 
 ##### 2.1.1 `GET /.well-known/smart-configuration`
 
@@ -208,7 +211,7 @@ refresh_token=…                                                 (refresh_token
 адрес возврата проверяется только на шаге 2.1.2 (зарегистрированный URI клиента), код привязан к `client_id` и PKCE-вызову.
 Обязательны `code`, `client_id`, `code_verifier` (иначе 400 `invalid_request`).
 
-**Response 200** (JWT claims: `sub` (userId), `patient?` (PatientRef), `encounter?`,
+**Response 200** (JWT claims: `sub` (userId), `patient?` (голый id Patient, напр. `9f2c…`; FHIR-ссылка — в `fhirUser`), `encounter?`,
 `scope`, `role` (`PATIENT`|`DOCTOR`|`ADMIN`), `fhirUser?` (PractitionerRoleRef), `jti`,
 `sid` (session id: `jti` парного refresh-токена), `iss`, `iat`, `exp`):
 
@@ -219,7 +222,7 @@ refresh_token=…                                                 (refresh_token
   "expires_in": 900,
   "refresh_token": "…",
   "scope": "patient/*.read patient/*.write launch",
-  "patient": "Patient/9f2c…"
+  "patient": "9f2c…"
 }
 ```
 

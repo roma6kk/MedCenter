@@ -1,4 +1,6 @@
+import { join } from 'node:path';
 import { FhirHttp, FhirHttpError } from '../shared/fhir-http';
+import { loadSeedEnv } from '../shared/load-seed-env';
 import { resolveFhirBaseUrl, runMain } from '../shared/seed-env';
 import { applyUpsert, planUpsert, type CanonicalResource, type UpsertPlan, type UpsertResult } from './canonical-upsert';
 import { expansionCodes, findMissingCodes } from './expansion-codes';
@@ -88,24 +90,35 @@ export interface VerifyOptions {
   readonly sleep: (ms: number) => Promise<void>;
 }
 
-/** Retries of one `$expand` that answered 5xx (so at most `1 + 4` calls): bounded, 1 s + 2 s + 4 s + 8 s by default. */
-const SERVER_ERROR_RETRIES = 4;
+/**
+ * Retries of one HAPI call that failed transiently (so at most `1 + 6` calls). The pause doubles from 1 s but a single
+ * pause is capped at 16 s: 1+2+4+8+16+16 = 47 s of waiting plus the calls themselves covers HAPI's ~1 minute cache.
+ */
+const SERVER_ERROR_RETRIES = 6;
 const DEFAULT_SERVER_ERROR_DELAY_MS = 1_000;
+const MAX_SERVER_ERROR_PAUSE_MS = 16_000;
+/** HAPI answers this (with any status) while a ValueSet it has just stored is not resolvable yet. */
+const HAPI_NOT_READY_MARKER = 'HAPI-2788';
+
+function isTransient(error: unknown): error is FhirHttpError {
+  return error instanceof FhirHttpError && (error.status >= 500 || error.message.includes(HAPI_NOT_READY_MARKER));
+}
 
 /**
- * HAPI runs its pre-expansion job right after a ValueSet PUT and a `$expand` that lands in that window can answer
- * 5xx although the next call works. Only a 5xx is retried; a 4xx or a network error is a real failure.
+ * HAPI runs its pre-expansion job right after a ValueSet PUT and a call that lands in that window can answer
+ * 5xx (or HAPI-2788 under any status) although a later call works. Only those are retried; any other 4xx or a
+ * network error is a real failure.
  */
 async function retryOnServerError<T>(options: VerifyOptions, call: () => Promise<T>): Promise<T> {
   for (let retry = 0; ; retry += 1) {
     try {
       return await call();
     } catch (error) {
-      if (!(error instanceof FhirHttpError) || error.status < 500 || retry >= SERVER_ERROR_RETRIES) {
+      if (!isTransient(error) || retry >= SERVER_ERROR_RETRIES) {
         throw error;
       }
-      const pause = (options.serverErrorDelayMs ?? DEFAULT_SERVER_ERROR_DELAY_MS) * 2 ** retry;
-      console.log(`$expand answered ${error.status}, retrying in ${pause} ms (${retry + 1}/${SERVER_ERROR_RETRIES})`);
+      const pause = Math.min((options.serverErrorDelayMs ?? DEFAULT_SERVER_ERROR_DELAY_MS) * 2 ** retry, MAX_SERVER_ERROR_PAUSE_MS);
+      console.log(`HAPI answered ${error.status}, retrying in ${pause} ms (${retry + 1}/${SERVER_ERROR_RETRIES})`);
       await options.sleep(pause);
     }
   }
@@ -162,7 +175,7 @@ async function verifyAll(http: FhirHttp, options: VerifyOptions, upserts: readon
   const reports: ExpansionReport[] = [];
   for (const check of buildExpansionChecks()) {
     const expanded = await verifyWithRecovery(http, check, ownCopyOf(valueSets, check, upserts), options);
-    const report = { ...expanded, rejectedCodes: await findRejectedCodes(http, check) };
+    const report = { ...expanded, rejectedCodes: await retryOnServerError(options, () => findRejectedCodes(http, check)) };
     console.log(
       `$expand ${report.valueSetUrl}: ${report.total} codes, missing: ${report.missingCodes.length}; ` +
         `$validate-code rejected: ${report.rejectedCodes.length}/${check.concepts.length}`,
@@ -211,6 +224,8 @@ export async function seedTerminology(
 
 if (require.main === module) {
   runMain(async () => {
+    // Like seed:demo: SEED_FHIR_BASE_URL of the repository's .env aims both seeds at the same server.
+    loadSeedEnv(join(__dirname, '..', '..'));
     await seedTerminology(new FhirHttp(resolveFhirBaseUrl()));
   });
 }

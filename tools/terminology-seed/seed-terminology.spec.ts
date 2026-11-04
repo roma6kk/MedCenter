@@ -113,14 +113,20 @@ describe('seedTerminology', () => {
 
   describe('$expand answering a server error right after a ValueSet PUT', () => {
     /** Fails the first `failures` $expand calls with `status`, then answers like the server. */
-    function flaky(server: InMemoryFhirServer, failures: number, status: number): { fetch: FetchLike; failed: () => number } {
+    function flaky(
+      server: InMemoryFhirServer,
+      failures: number,
+      status: number,
+      match: string = '$expand',
+      body: unknown = { resourceType: 'OperationOutcome' },
+    ): { fetch: FetchLike; failed: () => number } {
       let failed = 0;
       return {
         failed: () => failed,
         fetch: async (url, init) => {
-          if (url.includes('$expand') && failed < failures) {
+          if (url.includes(match) && failed < failures) {
             failed += 1;
-            return new Response(JSON.stringify({ resourceType: 'OperationOutcome' }), { status });
+            return new Response(JSON.stringify(body), { status });
           }
           return server.fetch(url, init);
         },
@@ -144,7 +150,37 @@ describe('seedTerminology', () => {
       const { fetch, failed } = flaky(server, 1000, 500);
 
       await expect(seedTerminology(new FhirHttp('http://fhir.test/fhir', fetch), NO_WAIT)).rejects.toBeInstanceOf(FhirHttpError);
-      expect(failed()).toBe(5);
+      expect(failed()).toBe(7);
+    });
+
+    it('should cap a single pause so the budget covers the HAPI cache', async () => {
+      const server = new InMemoryFhirServer();
+      const pauses: number[] = [];
+      const options: VerifyOptions = { ...NO_WAIT, sleep: (ms) => { pauses.push(ms); return Promise.resolve(); } };
+      const { fetch } = flaky(server, 6, 503);
+
+      await seedTerminology(new FhirHttp('http://fhir.test/fhir', fetch), options);
+
+      expect(pauses).toEqual([1000, 2000, 4000, 8000, 16000, 16000]);
+    });
+
+    it('should retry HAPI-2788 whatever the status', async () => {
+      const server = new InMemoryFhirServer();
+      const outcome = { resourceType: 'OperationOutcome', issue: [{ diagnostics: 'HAPI-2788: Unable to find ValueSet' }] };
+      const { fetch, failed } = flaky(server, 2, 404, '$expand', outcome);
+
+      await seedTerminology(new FhirHttp('http://fhir.test/fhir', fetch), NO_WAIT);
+
+      expect(failed()).toBe(2);
+    });
+
+    it('should retry a 503 of $validate-code', async () => {
+      const server = new InMemoryFhirServer();
+      const { fetch, failed } = flaky(server, 1, 503, '$validate-code');
+
+      await seedTerminology(new FhirHttp('http://fhir.test/fhir', fetch), NO_WAIT);
+
+      expect(failed()).toBe(1);
     });
 
     it('should not retry a 4xx', async () => {

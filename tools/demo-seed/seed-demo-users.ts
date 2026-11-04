@@ -20,9 +20,9 @@ import { obtainTokenGrant, type OAuthConfig } from './oauth-pkce-client';
  *   provisions the FHIR `Patient`.
  *
  * Must run AFTER auth-service is deployed and the FHIR part has run (the role
- * ids must exist in HAPI: the service checks them before linking). Not yet
- * exercised against a live auth-service — the request shapes were taken from
- * its controllers/DTOs and are covered by unit and contract tests.
+ * ids must exist in HAPI: the service checks them before linking). Exercised
+ * against a live stack (tasks/TASK-001/verify-live-stack-report.md); the request shapes follow
+ * the controllers/DTOs and are covered by unit and contract tests.
  *
  * Re-running is safe: a taken email answers `409` with `EMAIL_TAKEN`, which is
  * recorded as `exists` and keeps the password an earlier run generated. Any

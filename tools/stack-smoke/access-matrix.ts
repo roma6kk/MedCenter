@@ -54,6 +54,7 @@ export const PROTECTED_ROUTES: readonly ProtectedRoute[] = [
   route('GET', `/api/v1/admin/rooms/${ID}/usage`, ADMIN),
   route('DELETE', `/api/v1/admin/rooms/${ID}`, ADMIN),
   // catalog-service
+  route('GET', '/api/v1/admin/services', ADMIN),
   route('POST', '/api/v1/admin/services', ADMIN),
   route('PATCH', `/api/v1/admin/services/${ID}`, ADMIN),
   route('DELETE', `/api/v1/admin/services/${ID}`, ADMIN),

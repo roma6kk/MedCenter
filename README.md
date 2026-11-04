@@ -65,7 +65,7 @@ PNG images with their draw.io sources (same name, `.drawio`) in [docs/diagrams/l
 
 ## Running the project
 
-Prerequisites: Node.js 22 + npm, Docker with Compose. Copy `.env.example` to `.env` and fill the mandatory
+Prerequisites: Node.js 22 + npm (`.nvmrc`), Docker with Compose. Copy `.env.example` to `.env` and fill the mandatory
 values (never commit `.env`; the comments in `docker-compose.yml` list the optional keys).
 
 ```bash
@@ -86,7 +86,7 @@ npm run seed:demo                   # demo organisation, doctors, services, room
 
 - **Demo accounts.** `npm run seed:demo -- --users --with-admin` (with `SEED_*` and `BOOTSTRAP_ADMIN_*` set, see the
   header of `tools/demo-seed/seed-demo.ts`) creates demo doctors and patients and writes their credentials to the
-  git-ignored `tools/demo-seed/output/demo-manifest.json`. Re-running `--users` rotates the passwords. The account list
+  git-ignored `tools/demo-seed/output/demo-manifest.json`. Re-running `--users` is idempotent: existing accounts and their manifest passwords are kept; to change a password set `DEMO_*_PASSWORD` and reset the user through `PATCH /api/v1/admin/users/{id}` (or delete the account and its manifest entry first). The account list
   and the manual test checklist: [tasks/TASK-001/verify-manual-testing-guide.md](tasks/TASK-001/verify-manual-testing-guide.md).
 - **API docs.** Off by default. To publish them, the owner sets `SWAGGER_ENABLED=true` in the git-ignored `.env`, then recreates the services (`docker compose up -d --force-recreate <service>`, or `up -d --build` after a code change); the table above lists the URLs. `/fhir/**` stays closed at the edge. Details: API spec §10.
 - **Free slots run out** after smoke or E2E runs: run `npm run seed:demo` again.
@@ -186,7 +186,7 @@ See spec-desc.md for specification structure template.
 
 ### Node.js & npm (required)
 
-Node.js 18+ is required. npm comes bundled with Node.js.
+Node.js 22 (`>=22 <25`, see `.nvmrc`) is required. npm comes bundled with Node.js.
 
 ```bash
 # Check installed version
