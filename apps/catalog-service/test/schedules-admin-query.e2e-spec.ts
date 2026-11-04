@@ -24,7 +24,7 @@ describe('Admin schedule queries (e2e)', () => {
 
   beforeEach(async () => {
     applyE2eEnv();
-    fhir = { search: jest.fn().mockResolvedValue({ entry: [] }), read: jest.fn() } as unknown as jest.Mocked<FhirClient>;
+    fhir = { search: jest.fn().mockResolvedValue({ entry: [] }), read: jest.fn().mockResolvedValue({ resourceType: 'Schedule', id: 'sched-1' }) } as unknown as jest.Mocked<FhirClient>;
     const moduleRef = await Test.createTestingModule({ imports: [AppModule] })
       .overrideProvider(FHIR_CLIENT)
       .useValue(fhir)
@@ -51,7 +51,7 @@ describe('Admin schedule queries (e2e)', () => {
     expect(fhir.search).toHaveBeenCalledWith('Schedule', {
       actor: 'PractitionerRole/role-7',
       active: 'true',
-      _sort: '_id',
+      _sort: '-_lastUpdated,_id',
       _count: 20,
       _offset: 0,
       _total: 'accurate',
@@ -97,10 +97,14 @@ describe('Admin schedule queries (e2e)', () => {
       .expect(200);
 
     // Assert
+    expect(fhir.read).toHaveBeenCalledWith('Schedule', 'sched-1');
     expect(fhir.search).toHaveBeenCalledWith('Slot', {
       schedule: 'Schedule/sched-1',
-      start: ['ge2026-11-01', 'le2026-11-30'],
+      start: ['ge2026-10-31T21:00:00.000Z', 'le2026-11-30T20:59:59.999Z'],
       status: 'free,busy',
+      _sort: 'start,_id',
+      _count: 200,
+      _offset: 0,
     });
   });
 

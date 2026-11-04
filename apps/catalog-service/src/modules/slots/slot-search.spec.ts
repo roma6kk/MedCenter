@@ -2,7 +2,7 @@ import { Logger } from '@nestjs/common';
 import type { FhirBundleEntry, FhirClient, FhirSearchResult } from '@medcenter/fhir';
 
 import { FHIR_PAGE_SIZE } from '../../common/fhir-search';
-import { idsOf, searchActiveSchedules, searchScheduleSlots, SLOT_SEARCH_MAX_PAGES } from './slot-search';
+import { idsOf, searchActiveSchedules, searchScheduleSlots, SLOT_SEARCH_MAX_PAGES, withServiceIds } from './slot-search';
 
 function schedulesPage(count: number, offset: number): FhirSearchResult {
   return {
@@ -149,5 +149,32 @@ describe('searchScheduleSlots', () => {
 describe('idsOf', () => {
   it('should drop resources without an id when ids are collected', () => {
     expect(idsOf([{ resourceType: 'Schedule', id: 'a' }, { resourceType: 'Schedule' }, { resourceType: 'Schedule', id: '' }])).toEqual(['a']);
+  });
+});
+
+describe('withServiceIds', () => {
+  const schedule = (id: string, serviceId?: string) => ({
+    resourceType: 'Schedule',
+    id,
+    ...(serviceId === undefined ? {} : { actor: [{ reference: `HealthcareService/${serviceId}` }] }),
+  });
+  const slot = (id: string, scheduleId: string) => ({
+    id,
+    scheduleId,
+    start: '2026-11-02T06:00:00.000Z',
+    end: '2026-11-02T06:30:00.000Z',
+    status: 'free' as const,
+  });
+
+  it('should tell two same-length services of one doctor apart by the schedule of each slot', () => {
+    const slots = withServiceIds([slot('a', 'sch-A'), slot('b', 'sch-B')], [schedule('sch-A', 'svc-A'), schedule('sch-B', 'svc-B')]);
+
+    expect(slots.map((item) => item.serviceId)).toEqual(['svc-A', 'svc-B']);
+  });
+
+  it('should leave a slot as it is when its schedule names no service or is unknown', () => {
+    const slots = withServiceIds([slot('a', 'sch-A'), slot('b', 'sch-X')], [schedule('sch-A')]);
+
+    expect(slots.map((item) => 'serviceId' in item)).toEqual([false, false]);
   });
 });

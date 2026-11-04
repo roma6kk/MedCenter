@@ -26,6 +26,12 @@ export class SlotResponseDoc implements SlotResponseDto {
 
   @ApiProperty({ enum: ['free', 'busy', 'entered-in-error'], enumName: 'SlotStatus' })
   status!: 'free' | 'busy' | 'entered-in-error';
+
+  @ApiPropertyOptional({
+    description: 'HealthcareService id of the slot\'s schedule; present on the doctor slot list (5.2.7, 5.2.8), pick the slots of a service by it',
+    example: '1044',
+  })
+  serviceId?: string;
 }
 
 /** Documentation class of `WeeklyWindowView`: one weekly window in clinic time. */

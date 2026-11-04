@@ -28,5 +28,5 @@ assert {
 }
 
 docs {
-  Spec 5.2.6. ADMIN. `from` and `to` are **required** (date or date-time with an offset). `status`: comma list of `free|busy|busy-unavailable|busy-tentative|entered-in-error`; without it only `free` and `busy`. `fromDate`/`toDate` default to today and today + 13 days.
+  Spec 5.2.6. ADMIN. `from` and `to` are **required** (date or date-time with an offset). `status`: comma list of `free|busy|busy-unavailable|busy-tentative|entered-in-error`; without it only `free` and `busy`. Every page of HAPI is read; more than 10 000 slots -> 400 `VALIDATION_ERROR` (ask a shorter period); unknown schedule -> 404 `NOT_FOUND`. A date-only bound is a clinic day (Europe/Minsk). `fromDate`/`toDate` default to today and today + 13 days.
 }

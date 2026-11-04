@@ -7,6 +7,8 @@ import { batchResponseFor } from './__tests__/batch-echo';
 import { SLOT_DURATION_EXT, WEEKLY_WINDOWS_EXT } from './schedule.constants';
 import { EXISTING_SLOT_MAX_PAGES, SlotGeneratorService } from './slot-generator.service';
 
+const ACTOR = { sub: 'admin-1', requestId: 'req-1' };
+
 const SCHEDULE_ID = 'sched-9';
 /** Monday 2026-11-02, 09:00-10:00 in Minsk = 06:00Z-07:00Z, two 30-minute slots. */
 const WINDOWS = [{ dayOfWeek: 'MO', startTime: '09:00', endTime: '10:00' }];
@@ -52,7 +54,7 @@ describe('SlotGeneratorService when HAPI cannot confirm every slot', () => {
     const generator = new SlotGeneratorService(fhirClient, new RedisCacheService());
 
     // Act
-    const outcome = generator.generate(SCHEDULE_ID, ONE_DAY);
+    const outcome = generator.generate(SCHEDULE_ID, ONE_DAY, ACTOR);
 
     // Assert — one slot written, one not: the admin must not read that as "skipped".
     await expect(outcome).rejects.toBeInstanceOf(BadGatewayException);
@@ -76,7 +78,7 @@ describe('SlotGeneratorService when HAPI cannot confirm every slot', () => {
     const generator = new SlotGeneratorService(fhirClient, cache);
 
     // Act
-    await generator.generate(SCHEDULE_ID, ONE_DAY).catch(() => undefined);
+    await generator.generate(SCHEDULE_ID, ONE_DAY, ACTOR).catch(() => undefined);
 
     // Assert — the written slot is visible at once, not after the 15 s TTL.
     expect(invalidate).toHaveBeenCalledWith([CACHE_KEYS.SCHEDULE_SLOTS(SCHEDULE_ID), CACHE_KEYS.ALL_DOCTOR_SLOTS]);
@@ -89,7 +91,7 @@ describe('SlotGeneratorService when HAPI cannot confirm every slot', () => {
     const generator = new SlotGeneratorService(fhirClient, new RedisCacheService());
 
     // Act / Assert
-    await expect(generator.generate(SCHEDULE_ID, ONE_DAY)).rejects.toMatchObject({
+    await expect(generator.generate(SCHEDULE_ID, ONE_DAY, ACTOR)).rejects.toMatchObject({
       response: { message: expect.stringContaining('2 slots were not written (0 were)') },
     });
   });
@@ -101,7 +103,7 @@ describe('SlotGeneratorService when HAPI cannot confirm every slot', () => {
     const generator = new SlotGeneratorService(fhirClient, new RedisCacheService());
 
     // Act
-    const result = await generator.generate(SCHEDULE_ID, ONE_DAY);
+    const result = await generator.generate(SCHEDULE_ID, ONE_DAY, ACTOR);
 
     // Assert
     expect(result).toEqual({ generated: 1, skipped: 1 });
@@ -124,7 +126,7 @@ describe('SlotGeneratorService when the schedule already has many slots', () => 
     const generator = new SlotGeneratorService(fhirClient, new RedisCacheService());
 
     // Act
-    const outcome = generator.generate(SCHEDULE_ID, ONE_DAY);
+    const outcome = generator.generate(SCHEDULE_ID, ONE_DAY, ACTOR);
 
     // Assert
     await expect(outcome).rejects.toBeInstanceOf(BadRequestException);
@@ -147,7 +149,7 @@ describe('SlotGeneratorService when the schedule already has many slots', () => 
     const generator = new SlotGeneratorService(fhirClient, new RedisCacheService());
 
     // Act
-    const result = await generator.generate(SCHEDULE_ID, ONE_DAY);
+    const result = await generator.generate(SCHEDULE_ID, ONE_DAY, ACTOR);
 
     // Assert
     expect(fhirClient.search).toHaveBeenCalledTimes(Math.ceil(rows / FHIR_PAGE_SIZE));

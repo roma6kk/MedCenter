@@ -103,7 +103,7 @@ describe('SchedulesService', () => {
     expect(fhirClient.search).toHaveBeenCalledWith('Schedule', {
       actor: 'PractitionerRole/role-1',
       active: 'true',
-      _sort: '_id',
+      _sort: '-_lastUpdated,_id',
       _count: 20,
       _offset: 20,
       _total: 'accurate',

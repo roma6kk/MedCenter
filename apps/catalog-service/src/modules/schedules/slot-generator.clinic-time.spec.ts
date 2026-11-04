@@ -7,6 +7,8 @@ import { SLOT_DURATION_EXT, WEEKLY_WINDOWS_EXT } from './schedule.constants';
 import { batchResponseFor } from './__tests__/batch-echo';
 import { SlotGeneratorService } from './slot-generator.service';
 
+const ACTOR = { sub: 'admin-1', requestId: 'req-1' };
+
 const SCHEDULE_ID = 'sched-9';
 
 interface Window {
@@ -53,7 +55,7 @@ describe('SlotGeneratorService clinic time', () => {
     const generator = new SlotGeneratorService(fhirClient, new RedisCacheService());
 
     // Act
-    await generator.generate(SCHEDULE_ID, { from: '2026-11-02', to: '2026-11-02' });
+    await generator.generate(SCHEDULE_ID, { from: '2026-11-02', to: '2026-11-02' }, ACTOR);
 
     // Assert
     expect(generatedSlots(fhirClient).map((slot) => slot.start)).toEqual([
@@ -68,7 +70,7 @@ describe('SlotGeneratorService clinic time', () => {
     const generator = new SlotGeneratorService(fhirClient, new RedisCacheService());
 
     // Act
-    await generator.generate(SCHEDULE_ID, { from: '2026-11-02', to: '2026-11-02' });
+    await generator.generate(SCHEDULE_ID, { from: '2026-11-02', to: '2026-11-02' }, ACTOR);
     const [first] = generatedSlots(fhirClient);
 
     // Assert — window 09:00 -> generated instant -> `DoctorScheduleView` label.
@@ -83,7 +85,7 @@ describe('SlotGeneratorService clinic time', () => {
     const generator = new SlotGeneratorService(fhirClient, new RedisCacheService());
 
     // Act
-    await generator.generate(SCHEDULE_ID, { from: '2026-11-02', to: '2026-11-02' });
+    await generator.generate(SCHEDULE_ID, { from: '2026-11-02', to: '2026-11-02' }, ACTOR);
 
     // Assert
     expect(generatedSlots(fhirClient).map((slot) => slot.start)).toEqual(['2026-11-01T21:30:00.000Z']);
@@ -95,7 +97,7 @@ describe('SlotGeneratorService clinic time', () => {
     const generator = new SlotGeneratorService(fhirClient, new RedisCacheService());
 
     // Act
-    await generator.generate(SCHEDULE_ID, { from: '2026-11-02', to: '2026-11-02' });
+    await generator.generate(SCHEDULE_ID, { from: '2026-11-02', to: '2026-11-02' }, ACTOR);
 
     // Assert
     expect(generatedSlots(fhirClient).map((slot) => slot.start)).toEqual(['2026-11-02T20:00:00.000Z']);
@@ -107,7 +109,7 @@ describe('SlotGeneratorService clinic time', () => {
     const generator = new SlotGeneratorService(fhirClient, new RedisCacheService());
 
     // Act
-    await generator.generate(SCHEDULE_ID, { from: '2026-07-06', to: '2026-07-06' });
+    await generator.generate(SCHEDULE_ID, { from: '2026-07-06', to: '2026-07-06' }, ACTOR);
 
     // Assert
     expect(generatedSlots(fhirClient).map((slot) => slot.start)).toEqual(['2026-07-06T06:00:00.000Z']);
@@ -119,7 +121,7 @@ describe('SlotGeneratorService clinic time', () => {
     const generator = new SlotGeneratorService(fhirClient, new RedisCacheService());
 
     // Act
-    await generator.generate(SCHEDULE_ID, { from: '2026-11-02', to: '2026-11-09' });
+    await generator.generate(SCHEDULE_ID, { from: '2026-11-02', to: '2026-11-09' }, ACTOR);
 
     // Assert — the same days the windows were expanded for; a bare date would be read in HAPI's zone.
     expect(fhirClient.search).toHaveBeenCalledWith(
@@ -140,7 +142,7 @@ describe('SlotGeneratorService clinic time', () => {
     const generator = new SlotGeneratorService(fhirClient, new RedisCacheService());
 
     // Act
-    await generator.generate(SCHEDULE_ID, { from: '2026-11-02', to: '2026-11-02' });
+    await generator.generate(SCHEDULE_ID, { from: '2026-11-02', to: '2026-11-02' }, ACTOR);
 
     // Assert — only 09:30 is new; the stored offset spelling still matches the planned instant.
     expect(generatedSlots(fhirClient).map((slot) => slot.start)).toEqual(['2026-11-02T06:30:00.000Z']);
@@ -152,7 +154,7 @@ describe('SlotGeneratorService clinic time', () => {
     const generator = new SlotGeneratorService(fhirClient, new RedisCacheService());
 
     // Act
-    const result = await generator.generate(SCHEDULE_ID, { from: '2026-11-02', to: '2026-11-02' });
+    const result = await generator.generate(SCHEDULE_ID, { from: '2026-11-02', to: '2026-11-02' }, ACTOR);
 
     // Assert
     expect(result).toEqual({ generated: 0, skipped: 0 });
@@ -191,7 +193,7 @@ describe('SlotGeneratorService and the demo seed', () => {
     const generator = new SlotGeneratorService(fhirClient, new RedisCacheService());
 
     // Act
-    const result = await generator.generate(SCHEDULE_ID, MONDAY);
+    const result = await generator.generate(SCHEDULE_ID, MONDAY, ACTOR);
 
     // Assert — nothing new is written and nothing looks wrong.
     expect(result).toEqual({ generated: 0, skipped: 8 });
@@ -210,7 +212,7 @@ describe('SlotGeneratorService and the demo seed', () => {
     const generator = new SlotGeneratorService(fhirClient, new RedisCacheService());
 
     // Act
-    const result = await generator.generate(SCHEDULE_ID, MONDAY);
+    const result = await generator.generate(SCHEDULE_ID, MONDAY, ACTOR);
 
     // Assert — the day does grow (03:00Z-05:30Z are new), so the log has to say why.
     expect(result).toEqual({ generated: 6, skipped: 2 });

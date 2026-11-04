@@ -21,7 +21,6 @@ import {
   IdempotencyService,
   RequiresRoles,
   type AuditedRequest,
-  type RequestWithClaims,
 } from '@medcenter/common';
 import { DEFAULT_PAGE, DEFAULT_PAGE_SIZE, Role } from '@medcenter/contracts';
 import type { SlotResponseDto } from '@medcenter/fhir-mappers';
@@ -135,7 +134,7 @@ export class SchedulesController {
     409: 'CONFLICT: the schedule is deactivated (active=false), or the Idempotency-Key is still being processed or was used with another body',
   })
   async generate(
-    @Req() request: RequestWithClaims,
+    @Req() request: AuditedRequest,
     @Headers('idempotency-key') idempotencyKey: string | undefined,
     @Param() params: FhirIdParamDto,
     @Body() dto: GenerateSlotsDto,
@@ -143,7 +142,7 @@ export class SchedulesController {
     // API §0: a replayed `Idempotency-Key` is answered from the cache (24 h), per caller and schedule.
     const scope = `generate:${claimsOf(request).sub}:${params.id}`;
     return this.idempotency.run(scope, idempotencyKey, dto, () =>
-      this.slotGenerator.generate(params.id, dto),
+      this.slotGenerator.generate(params.id, dto, auditActorOf(request)),
     );
   }
 

@@ -87,3 +87,11 @@ export function resolveSlotRange(
   }
   return range;
 }
+
+/**
+ * Instants a `from`/`to` pair of a query stands for: a date-only bound is a clinic day
+ * (its first / last instant), a date-time bound is that instant. Format is checked by the DTO.
+ */
+export function clinicDayRange(from: string, to: string): InstantRange {
+  return { fromMs: startInstant(from), toMs: endInstant(to) };
+}

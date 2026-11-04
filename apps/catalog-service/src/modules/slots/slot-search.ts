@@ -2,6 +2,7 @@ import type { FhirClient, FhirResource } from '@medcenter/fhir';
 import { toSlotResponseDto, type SlotResponseDto } from '@medcenter/fhir-mappers';
 
 import { orReferences, searchAllPages, searchPages } from '../../common/fhir-search';
+import { toScheduleSummaryDto } from './schedule-summary.mapper';
 import type { InstantRange } from './slot-range';
 
 /** Ids of resources that carry one (search results always do). */
@@ -27,6 +28,22 @@ export async function searchActiveSchedules(fhirClient: FhirClient, actors: stri
  * can still exceed it; that is reported as `truncated`, never silently dropped.
  */
 export const SLOT_SEARCH_MAX_PAGES = 50;
+
+/**
+ * A slot with the service its schedule belongs to (API §5.2.8). A schedule belongs to one
+ * HealthcareService, and booking refuses a slot of another service, so a client picks the slots of
+ * a service by this id, not by equal duration. Absent for a schedule that names no service.
+ */
+export type ServiceSlotDto = SlotResponseDto & { readonly serviceId?: string };
+
+/** Adds `serviceId` (the HealthcareService of the slot's schedule) to every slot. */
+export function withServiceIds(slots: readonly SlotResponseDto[], schedules: readonly FhirResource[]): ServiceSlotDto[] {
+  const serviceOf = new Map(schedules.map((schedule) => [schedule.id ?? '', toScheduleSummaryDto(schedule).serviceId]));
+  return slots.map((slot) => {
+    const serviceId = serviceOf.get(slot.scheduleId);
+    return serviceId === undefined ? slot : { ...slot, serviceId };
+  });
+}
 
 /** Slots found by `searchScheduleSlots`; `truncated` means the page cap cut the tail. */
 export interface ScheduleSlots {

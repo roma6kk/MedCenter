@@ -6,6 +6,8 @@ import { SLOT_DURATION_EXT, WEEKLY_WINDOWS_EXT } from './schedule.constants';
 import { batchResponseFor } from './__tests__/batch-echo';
 import { SlotGeneratorService } from './slot-generator.service';
 
+const ACTOR = { sub: 'admin-1', requestId: 'req-1' };
+
 function createFhirClientMock(): jest.Mocked<FhirClient> {
   return {
     search: jest.fn(),
@@ -50,7 +52,7 @@ describe('SlotGeneratorService', () => {
       })),
     });
 
-    const result = await generator.generate(scheduleId, { from: '2026-11-02', to: '2026-11-02' });
+    const result = await generator.generate(scheduleId, { from: '2026-11-02', to: '2026-11-02' }, ACTOR);
 
     expect(result.generated).toBe(0);
     expect(result.skipped).toBe(6);
@@ -60,7 +62,7 @@ describe('SlotGeneratorService', () => {
   it('should refuse with CONFLICT and write nothing when the schedule was deactivated by its removal', async () => {
     fhirClient.read.mockResolvedValue({ resourceType: 'Schedule', id: scheduleId, active: false });
 
-    const attempt = generator.generate(scheduleId, { from: '2026-11-02', to: '2026-11-02' });
+    const attempt = generator.generate(scheduleId, { from: '2026-11-02', to: '2026-11-02' }, ACTOR);
 
     await expect(attempt).rejects.toBeInstanceOf(ConflictException);
     await expect(attempt).rejects.toMatchObject({ response: { errorCode: 'CONFLICT' } });
@@ -81,7 +83,7 @@ describe('SlotGeneratorService', () => {
       ],
     });
 
-    await generator.generate(scheduleId, { from: '2026-11-02', to: '2026-11-02' });
+    await generator.generate(scheduleId, { from: '2026-11-02', to: '2026-11-02' }, ACTOR);
 
     const bundle = fhirClient.batch.mock.calls[0][0];
     const starts = (bundle['entry'] as Array<{ resource: { start: string } }>).map(
@@ -105,18 +107,18 @@ describe('SlotGeneratorService', () => {
       ],
     });
 
-    await generator.generate(scheduleId, { from: '2026-11-02', to: '2026-11-02' });
+    await generator.generate(scheduleId, { from: '2026-11-02', to: '2026-11-02' }, ACTOR);
 
     const bundle = fhirClient.batch.mock.calls[0][0];
     expect((bundle['entry'] as unknown[]).length).toBe(2);
   });
 
   it('should reject a range longer than the 90-day planning horizon', async () => {
-    await expect(generator.generate(scheduleId, { from: '2026-01-01', to: '2026-12-31' })).rejects.toThrow(
+    await expect(generator.generate(scheduleId, { from: '2026-01-01', to: '2026-12-31' }, ACTOR)).rejects.toThrow(
       'planningHorizon',
     );
     await expect(
-      generator.generate(scheduleId, { from: '2026-01-01', to: '2026-12-31' }),
+      generator.generate(scheduleId, { from: '2026-01-01', to: '2026-12-31' }, ACTOR),
     ).rejects.toBeInstanceOf(BadRequestException);
   });
 
@@ -124,11 +126,12 @@ describe('SlotGeneratorService', () => {
     fhirClient.search.mockResolvedValue({ entry: [] });
 
     // 2026-11-02 is a Monday.
-    const result = await generator.generate(scheduleId, { from: '2026-11-02', to: '2026-11-02' });
+    const result = await generator.generate(scheduleId, { from: '2026-11-02', to: '2026-11-02' }, ACTOR);
 
     expect(result.generated).toBe(6);
     expect(result.skipped).toBe(0);
-    expect(fhirClient.batch).toHaveBeenCalledTimes(1);
+    // One batch of slots, then the AuditEvent transaction.
+    expect(fhirClient.batch).toHaveBeenCalledTimes(2);
     const bundle = fhirClient.batch.mock.calls[0][0];
     expect(bundle['type']).toBe('batch');
     const entries = bundle['entry'] as Array<{ request: { method: string; url: string } }>;
@@ -140,7 +143,7 @@ describe('SlotGeneratorService', () => {
   it('should produce FHIR-valid slot ids (no colon, 64 chars max)', async () => {
     fhirClient.search.mockResolvedValue({ entry: [] });
 
-    await generator.generate(scheduleId, { from: '2026-11-02', to: '2026-11-02' });
+    await generator.generate(scheduleId, { from: '2026-11-02', to: '2026-11-02' }, ACTOR);
 
     const bundle = fhirClient.batch.mock.calls[0][0];
     const ids = (bundle['entry'] as Array<{ resource: { id: string } }>).map(
@@ -156,13 +159,13 @@ describe('SlotGeneratorService', () => {
   it('should derive the same id for the same schedule+start (idempotency key)', async () => {
     fhirClient.search.mockResolvedValue({ entry: [] });
 
-    await generator.generate(scheduleId, { from: '2026-11-02', to: '2026-11-02' });
+    await generator.generate(scheduleId, { from: '2026-11-02', to: '2026-11-02' }, ACTOR);
     const first = (fhirClient.batch.mock.calls[0][0]['entry'] as Array<{ resource: { id: string } }>).map(
       (e) => e.resource.id,
     );
 
     fhirClient.batch.mockClear();
-    await generator.generate(scheduleId, { from: '2026-11-02', to: '2026-11-02' });
+    await generator.generate(scheduleId, { from: '2026-11-02', to: '2026-11-02' }, ACTOR);
     const second = (fhirClient.batch.mock.calls[0][0]['entry'] as Array<{ resource: { id: string } }>).map(
       (e) => e.resource.id,
     );
@@ -179,10 +182,10 @@ describe('SlotGeneratorService', () => {
       entry: existingStarts.map((start, i) => ({ resource: { resourceType: 'Slot', id: `existing-${i}`, start } })),
     });
 
-    const result = await generator.generate(scheduleId, { from: '2026-11-02', to: '2026-11-09' });
+    const result = await generator.generate(scheduleId, { from: '2026-11-02', to: '2026-11-09' }, ACTOR);
 
     expect(result.generated).toBe(6);
     expect(result.skipped).toBe(6);
-    expect(fhirClient.batch).toHaveBeenCalledTimes(1);
+    expect(fhirClient.batch).toHaveBeenCalledTimes(2);
   });
 });

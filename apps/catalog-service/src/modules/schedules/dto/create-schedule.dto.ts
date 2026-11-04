@@ -11,13 +11,35 @@ import {
   Max,
   MaxLength,
   Min,
+  registerDecorator,
   ValidateNested,
+  type ValidationArguments,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 
 import { FHIR_ID_PATTERN } from '../../../common/fhir-id';
+import { CALENDAR_DATE } from '../../../common/zoned-date';
+import { toMinutes } from '../slot-planner';
 
 const FHIR_ID_MESSAGE = '$property must be a FHIR resource id';
+
+/** API §5.2.1: `endTime > startTime`. A window that ends before it starts (or at once) yields no slots. */
+function IsAfterStartTime(): PropertyDecorator {
+  return (target, propertyKey) => {
+    registerDecorator({
+      name: 'isAfterStartTime',
+      target: target.constructor,
+      propertyName: String(propertyKey),
+      options: { message: 'endTime must be after startTime' },
+      validator: {
+        validate: (value: unknown, args: ValidationArguments): boolean => {
+          const startTime = (args.object as { startTime?: unknown }).startTime;
+          return typeof value === 'string' && typeof startTime === 'string' && toMinutes(value) > toMinutes(startTime);
+        },
+      },
+    });
+  };
+}
 
 /**
  * One weekly availability window inside a `Schedule.planningHorizon`.
@@ -50,6 +72,7 @@ export class WeeklyWindowDto {
   })
   @IsString()
   @Matches(/^([01]\d|2[0-3]):[0-5]\d$/)
+  @IsAfterStartTime()
   endTime!: string;
 }
 
@@ -86,7 +109,8 @@ export class CreateScheduleDto {
   serviceId!: string;
 
   @ApiProperty({ format: 'date', example: '2026-11-02' })
-  @IsDateString()
+  @IsDateString({ strict: true })
+  @Matches(CALENDAR_DATE, { message: 'horizonFrom must be a calendar date YYYY-MM-DD' })
   horizonFrom!: string;
 
   /** Inclusive planning horizon end — never more than 90 days after `horizonFrom`. */
@@ -95,7 +119,8 @@ export class CreateScheduleDto {
     example: '2026-12-31',
     description: 'Inclusive; at most 90 days after horizonFrom',
   })
-  @IsDateString()
+  @IsDateString({ strict: true })
+  @Matches(CALENDAR_DATE, { message: 'horizonTo must be a calendar date YYYY-MM-DD' })
   horizonTo!: string;
 
   @ApiProperty({ type: () => [WeeklyWindowDto], minItems: 1 })

@@ -6,6 +6,8 @@ import { SLOT_DURATION_EXT, WEEKLY_WINDOWS_EXT } from './schedule.constants';
 import { SchedulesService } from './schedules.service';
 import { SlotGeneratorService } from './slot-generator.service';
 
+const ACTOR = { sub: 'admin-1', requestId: 'req-1' };
+
 const SCHEDULE_ID = 'sched-9';
 const SCHEDULE_PAGE = `${CACHE_KEYS.SCHEDULE_SLOTS(SCHEDULE_ID)}2026-11-02:2026-11-03:all`;
 const DOCTOR_PAGE = CACHE_KEYS.DOCTOR_SLOTS_DAY('prac-1', '2026-11-02');
@@ -42,7 +44,7 @@ describe('slot cache invalidation', () => {
     const generator = new SlotGeneratorService(createFhirClientMock(), new RedisCacheService(store));
 
     // Act
-    const result = await generator.generate(SCHEDULE_ID, { from: '2026-11-02', to: '2026-11-02' });
+    const result = await generator.generate(SCHEDULE_ID, { from: '2026-11-02', to: '2026-11-02' }, ACTOR);
 
     // Assert
     expect(result.generated).toBe(2);
@@ -63,7 +65,7 @@ describe('slot cache invalidation', () => {
     const generator = new SlotGeneratorService(fhirClient, new RedisCacheService(store));
 
     // Act
-    const result = await generator.generate(SCHEDULE_ID, { from: '2026-11-02', to: '2026-11-02' });
+    const result = await generator.generate(SCHEDULE_ID, { from: '2026-11-02', to: '2026-11-02' }, ACTOR);
 
     // Assert
     expect(result.generated).toBe(0);

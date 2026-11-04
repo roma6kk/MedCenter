@@ -27,6 +27,8 @@ export interface ScheduleSummaryDto {
  * — the list shape `DoctorScheduleView` consumes (`items[].id` / `items[].label`).
  */
 export interface DoctorScheduleSlotDto extends SlotResponseDto {
+  /** HealthcareService of the slot's schedule (API §5.2.7). */
+  readonly serviceId?: string;
   readonly label: string;
 }
 

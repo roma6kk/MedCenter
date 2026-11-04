@@ -720,10 +720,21 @@ export class CreateScheduleDto {
 }
 ```
 
+**Проверки 5.2.1/5.2.3.** `horizonFrom`/`horizonTo` и `from`/`to` слотов — календарные даты `YYYY-MM-DD` (несуществующий день,
+недельная и порядковая формы, дата-время → 400 `VALIDATION_ERROR`). `horizonTo` не раньше `horizonFrom` и не позже чем через
+90 дней — это проверяет и создание, а не только `PATCH`. `windows[].endTime` позже `startTime`, иначе 400 с
+`details[{ field: 'windows.0.endTime' }]`. `practitionerRoleId`, `roomId`, `serviceId` должны существовать: неизвестный
+ресурс → 404 `NOT_FOUND` с именем поля в `message` (вместо 500 от HAPI). Список 5.2.2 отсортирован по времени изменения,
+новые и только что правленные расписания — первыми.
+
 **5.2.5 `POST /admin/schedules/{id}/generate`** — тело `GenerateSlotsDto`:
-`{ from: date; to: date }` (`to-from` ≤ 90 дней, в пределах `planningHorizon`) → **201** с
-`{ generated: number; skipped: number }` (существующие слоты не дублируются). Поддерживает
-`Idempotency-Key` (§0). Для расписания с `active=false` (см. 5.2.4) → 409 `CONFLICT`.
+`{ from: date; to: date }` (`to-from` ≤ 90 дней, в пределах `planningHorizon` расписания: день вне горизонта → 400
+`VALIDATION_ERROR`; расписание без границы горизонта считается открытым с этой стороны) → **201** с
+`{ generated: number; skipped: number }` (существующие слоты не дублируются). Слот, который пересекается по времени
+с уже существующим слотом этого расписания (сетку изменили `PATCH`ем или слоты остались от старого генератора), не пишется
+и входит в `skipped`: врач и кабинет не получают две свободные записи на одно время. Запуск, создавший слоты, пишет один
+`AuditEvent` (`create`, `entity=Schedule/{id}`, `outcomeDesc` вида `slots generated: N, skipped: M, from..to`; FR-021).
+Поддерживает `Idempotency-Key` (§0). Для расписания с `active=false` (см. 5.2.4) → 409 `CONFLICT`.
 
 **5.2.4** — тело `{ "cascade": false }` (по умолчанию). Фактическая семантика (live-стенд, 2026-10-15):
 
@@ -747,10 +758,14 @@ export class CreateScheduleDto {
 **5.2.7** — расписание берётся по `PractitionerRole` из токена; токен врача без `PractitionerRole` → **403**
 `COMPARTMENT_VIOLATION` (проверка идёт раньше правил диапазона `from`/`to`).
 
-**5.2.8 `SlotResponseDto`:** `{ id; scheduleId; start; end; status: 'free' | 'busy' | 'entered-in-error' }` —
+**5.2.8 `SlotResponseDto`:** `{ id; scheduleId; start; end; status: 'free' | 'busy' | 'entered-in-error'; serviceId? }` —
 пагинация отключена (данные компактны), сортировка по `start` обязательна. `entered-in-error` — слот, снятый при
 удалении расписания (5.2.4); он виден только в `GET /admin/schedules/{id}/slots?status=entered-in-error`:
-без `status` этот эндпоинт отдаёт только `free` и `busy`.
+без `status` этот эндпоинт отдаёт только `free` и `busy`. `serviceId` (аддитивное необязательное поле) — `HealthcareService`
+расписания слота; есть в 5.2.7 и 5.2.8. Расписание принадлежит услуге, а `POST /appointments` отвечает 400, если услуга запроса
+не совпала с услугой расписания слота, поэтому клиент выбирает слоты услуги по `serviceId`, а не по равной длительности.
+5.2.6 читает все страницы HAPI; период, в котором больше 10 000 слотов → 400 `VALIDATION_ERROR` («запросите период короче»);
+неизвестное расписание → 404 `NOT_FOUND`; `from`/`to` без времени — календарные дни клиники (Europe/Minsk).
 
 #### 6. `appointment-service` — Запись на приём (FR-004/005/006, BR-001/002, ADR-012)
 
@@ -1048,7 +1063,7 @@ PostgreSQL (worker наполняет по событиям). 9.1 разбива
 requestId; reason? }`. `read` — чтение данных пациента врачом или администратором, `denied` — отказ в нём (ADR-018);
 чтение пациентом своей карты в журнал не попадает. `emergency-bypass` — приём открыт или завершён без согласия пациента по
 `emergencyReason` (7.1/7.3, ADR-019): `userId` — врач, `resourceType/resourceId` — пациент, `reason` — указанная причина
-(только у этого действия); UI: «Экстренный обход согласия». Изменения услуг, кабинетов и расписаний (`create`/`update`/`delete`) пишутся в той же транзакции; ресурс в `resourceType/resourceId` определяется по логической ссылке (ADR-020). **Status:** 200 · 400 (диапазон > 366 дней).
+(только у этого действия); UI: «Экстренный обход согласия». Изменения услуг, кабинетов и расписаний (`create`/`update`/`delete`) пишутся в той же транзакции; генерация слотов расписания (5.2.5) пишет одно событие `create` с `resourceType=Schedule`; ресурс в `resourceType/resourceId` определяется по логической ссылке (ADR-020). **Status:** 200 · 400 (диапазон > 366 дней).
 
 #### 10. Swagger / OpenAPI
 

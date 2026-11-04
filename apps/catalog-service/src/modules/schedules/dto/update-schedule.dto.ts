@@ -6,6 +6,7 @@ import {
   IsInt,
   IsOptional,
   IsString,
+  Matches,
   Max,
   MaxLength,
   Min,
@@ -13,6 +14,7 @@ import {
 } from 'class-validator';
 import { Type } from 'class-transformer';
 
+import { CALENDAR_DATE } from '../../../common/zoned-date';
 import { WeeklyWindowDto } from './create-schedule.dto';
 
 /**
@@ -25,7 +27,8 @@ import { WeeklyWindowDto } from './create-schedule.dto';
 export class UpdateScheduleDto {
   @ApiPropertyOptional({ format: 'date', example: '2026-11-02' })
   @IsOptional()
-  @IsDateString()
+  @IsDateString({ strict: true })
+  @Matches(CALENDAR_DATE, { message: 'horizonFrom must be a calendar date YYYY-MM-DD' })
   horizonFrom?: string;
 
   @ApiPropertyOptional({
@@ -34,7 +37,8 @@ export class UpdateScheduleDto {
     description: 'Inclusive; at most 90 days after horizonFrom',
   })
   @IsOptional()
-  @IsDateString()
+  @IsDateString({ strict: true })
+  @Matches(CALENDAR_DATE, { message: 'horizonTo must be a calendar date YYYY-MM-DD' })
   horizonTo?: string;
 
   @ApiPropertyOptional({ type: () => [WeeklyWindowDto], minItems: 1 })

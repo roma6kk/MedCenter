@@ -1,13 +1,12 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { clinicDateOf, clinicDayEndMs, clinicDaysBetween, clinicDayStartMs } from '@medcenter/common';
 import { FHIR_CLIENT, type FhirClient } from '@medcenter/fhir';
-import type { SlotResponseDto } from '@medcenter/fhir-mappers';
 
 import { orReferences, searchAllPages } from '../../common/fhir-search';
 import { CACHE_KEYS, CACHE_TTLS, RedisCacheService } from '../cache/redis-cache.service';
 import type { DoctorSlotsResponseDto } from './dto/doctor-slots-response.dto';
 import type { SlotRange } from './slot-range';
-import { idsOf, searchActiveSchedules, searchScheduleSlots, type ScheduleSlots } from './slot-search';
+import { idsOf, searchActiveSchedules, searchScheduleSlots, withServiceIds, type ServiceSlotDto } from './slot-search';
 
 /**
  * Public free-slot search of one doctor (API §5.2.8, FR-003, NFR-005).
@@ -50,7 +49,7 @@ export class DoctorSlotsService {
   /** One page per day, in day order; the days missing from the cache load in a single search. */
   private async readDayPages(practitionerId: string, days: readonly string[]): Promise<DayPages> {
     const cached = await Promise.all(
-      days.map((day) => this.cache.getJson<SlotResponseDto[]>(CACHE_KEYS.DOCTOR_SLOTS_DAY(practitionerId, day))),
+      days.map((day) => this.cache.getJson<ServiceSlotDto[]>(CACHE_KEYS.DOCTOR_SLOTS_DAY(practitionerId, day))),
     );
     const missing = days.filter((_, index) => cached[index] === null);
     if (missing.length === 0) {
@@ -73,7 +72,7 @@ export class DoctorSlotsService {
    * The practitioner is read first and on its own: an unknown id (the public route
    * accepts any) costs HAPI one read that ends in 404, not a read plus a role search.
    */
-  private async loadFreeSlots(practitionerId: string, days: readonly string[]): Promise<ScheduleSlots> {
+  private async loadFreeSlots(practitionerId: string, days: readonly string[]): Promise<FreeSlots> {
     const first = days[0] ?? '';
     const last = days[days.length - 1] ?? first;
     // The read turns an unknown doctor into 404 NOT_FOUND instead of an empty list.
@@ -87,22 +86,28 @@ export class DoctorSlotsService {
       .filter((reference) => reference !== '')
       .join(',');
     const schedules = await searchActiveSchedules(this.fhirClient, actors);
-    return searchScheduleSlots(
+    const { slots, truncated } = await searchScheduleSlots(
       this.fhirClient,
       idsOf(schedules),
       { fromMs: clinicDayStartMs(first), toMs: clinicDayEndMs(last) },
       'free',
     );
+    return { slots: withServiceIds(slots, schedules), truncated };
   }
 }
 
+interface FreeSlots {
+  readonly slots: ServiceSlotDto[];
+  readonly truncated: boolean;
+}
+
 interface DayPages {
-  readonly pages: SlotResponseDto[][];
+  readonly pages: ServiceSlotDto[][];
   readonly truncated: boolean;
 }
 
 /** The days of `days` that end before the clinic day of the last slot read (nothing is safe without one). */
-function daysBeforeLastSlot(days: readonly string[], slots: readonly SlotResponseDto[]): string[] {
+function daysBeforeLastSlot(days: readonly string[], slots: readonly ServiceSlotDto[]): string[] {
   const lastSlot = slots[slots.length - 1];
   if (lastSlot === undefined) {
     return [];
@@ -112,8 +117,8 @@ function daysBeforeLastSlot(days: readonly string[], slots: readonly SlotRespons
 }
 
 /** Splits slots (already ordered by start) into per-clinic-day pages. */
-function groupByClinicDay(slots: readonly SlotResponseDto[]): Map<string, SlotResponseDto[]> {
-  const pages = new Map<string, SlotResponseDto[]>();
+function groupByClinicDay(slots: readonly ServiceSlotDto[]): Map<string, ServiceSlotDto[]> {
+  const pages = new Map<string, ServiceSlotDto[]>();
   for (const slot of slots) {
     const day = clinicDateOf(Date.parse(slot.start));
     const page = pages.get(day);

@@ -5,7 +5,7 @@ import { slotLabel } from './clinic-time';
 import type { DoctorScheduleResponseDto } from './dto/doctor-schedule-response.dto';
 import { toScheduleSummaryDto } from './schedule-summary.mapper';
 import type { SlotRange } from './slot-range';
-import { idsOf, searchActiveSchedules, searchScheduleSlots } from './slot-search';
+import { idsOf, searchActiveSchedules, searchScheduleSlots, withServiceIds } from './slot-search';
 
 /**
  * The signed-in doctor's own schedule (API §5.2.7, FR-009). The caller passes
@@ -27,7 +27,7 @@ export class DoctorScheduleService {
       from: range.from,
       to: range.to,
       schedules: schedules.map(toScheduleSummaryDto),
-      items: slots.map((slot) => ({ ...slot, label: slotLabel(slot) })),
+      items: withServiceIds(slots, schedules).map((slot) => ({ ...slot, label: slotLabel(slot) })),
       ...(truncated ? { truncated } : {}),
     };
   }

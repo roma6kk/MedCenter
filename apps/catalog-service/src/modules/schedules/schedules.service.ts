@@ -1,11 +1,14 @@
-import { BadRequestException, Inject, Injectable } from '@nestjs/common';
+import { BadRequestException, HttpException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { buildPaginatedResponse, type PaginatedResponseDto } from '@medcenter/contracts';
 import { createAudited, FHIR_CLIENT, updateAudited, type AuditContext, type FhirClient, type FhirResource, type WriteActor } from '@medcenter/fhir';
-import { toSlotResponseDto, type SlotResponseDto } from '@medcenter/fhir-mappers';
+import { type SlotResponseDto } from '@medcenter/fhir-mappers';
 
+import { FHIR_PAGE_SIZE } from '../../common/fhir-search';
 import { CACHE_KEYS, CACHE_TTLS, RedisCacheService } from '../cache/redis-cache.service';
 import type { ScheduleSummaryDto } from '../slots/dto/doctor-schedule-response.dto';
 import { toScheduleSummaryDto } from '../slots/schedule-summary.mapper';
+import { clinicDayRange } from '../slots/slot-range';
+import { SLOT_SEARCH_MAX_PAGES, searchScheduleSlots } from '../slots/slot-search';
 import { CreateScheduleDto } from './dto/create-schedule.dto';
 import { UpdateScheduleDto } from './dto/update-schedule.dto';
 import {
@@ -46,6 +49,8 @@ export class SchedulesService {
   }
 
   async create(dto: CreateScheduleDto, actor: WriteActor): Promise<ScheduleSummaryDto> {
+    this.assertHorizonSpan(dto.horizonFrom, dto.horizonTo);
+    await this.assertActorsExist(dto);
     await assertNoScheduleOverlap(this.fhirClient, {
       practitionerRoleId: dto.practitionerRoleId,
       windows: dto.windows,
@@ -71,6 +76,30 @@ export class SchedulesService {
       ...(dto.comment === undefined ? {} : { comment: dto.comment }),
     };
     return toScheduleSummaryDto(await createAudited(this.fhirClient, schedule, this.auditOf(actor)));
+  }
+
+  /**
+   * A reference to a missing resource would reach HAPI as a write it refuses (referential
+   * integrity) and come back as an unexplained 500: name the unknown reference as a 404 instead.
+   */
+  private async assertActorsExist(dto: CreateScheduleDto): Promise<void> {
+    const references = [
+      { field: 'practitionerRoleId', type: 'PractitionerRole', id: dto.practitionerRoleId },
+      { field: 'roomId', type: 'Location', id: dto.roomId },
+      { field: 'serviceId', type: 'HealthcareService', id: dto.serviceId },
+    ] as const;
+    await Promise.all(
+      references.map(async ({ field, type, id }) => {
+        try {
+          await this.fhirClient.read(type, id);
+        } catch (error: unknown) {
+          if (error instanceof HttpException && error.getStatus() === 404) {
+            throw new NotFoundException({ errorCode: 'NOT_FOUND', message: `NOT_FOUND: ${field} ${id} does not exist (${type})` });
+          }
+          throw error;
+        }
+      }),
+    );
   }
 
   async update(id: string, dto: UpdateScheduleDto, actor: WriteActor): Promise<ScheduleSummaryDto> {
@@ -176,7 +205,8 @@ export class SchedulesService {
     const result = await this.fhirClient.search('Schedule', {
       ...(doctorId === undefined ? {} : { actor: `PractitionerRole/${doctorId}` }),
       ...(active === undefined ? {} : { active }),
-      _sort: '_id',
+      // Newest change first; `_id` (a random UUID) only breaks ties so a page boundary stays stable.
+      _sort: '-_lastUpdated,_id',
       _count: pageSize,
       _offset: (page - 1) * pageSize,
       _total: 'accurate',
@@ -204,14 +234,22 @@ export class SchedulesService {
   ): Promise<SlotResponseDto[]> {
     const key = CACHE_KEYS.SLOTS(scheduleId, from, `${to}:${status ?? 'all'}`);
     return this.cache.getOrLoad(key, CACHE_TTLS.SLOTS_SECONDS, async () => {
-      const result = await this.fhirClient.search('Slot', {
-        schedule: `Schedule/${scheduleId}`,
-        start: [`ge${from}`, `le${to}`],
-        status: status ?? 'free,busy',
-      });
-      return (result.entry ?? [])
-        .map((entry) => toSlotResponseDto(entry.resource))
-        .sort((a, b) => a.start.localeCompare(b.start));
+      // An unknown schedule is a 404, not an empty list (a search on a missing reference finds nothing).
+      await this.fhirClient.read('Schedule', scheduleId);
+      const { slots, truncated } = await searchScheduleSlots(
+        this.fhirClient,
+        [scheduleId],
+        clinicDayRange(from, to),
+        status ?? 'free,busy',
+      );
+      if (truncated) {
+        // The answer is a bare array: a silent cut would show a partial grid as the whole one.
+        throw new BadRequestException({
+          errorCode: 'VALIDATION_ERROR',
+          message: `range: more than ${SLOT_SEARCH_MAX_PAGES * FHIR_PAGE_SIZE} slots, ask for a shorter period`,
+        });
+      }
+      return slots;
     });
   }
 
