@@ -1,7 +1,9 @@
 import { MAX_PAGE_SIZE, Role } from '@medcenter/contracts';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import { IsEnum, IsInt, IsOptional, IsString, Max, MaxLength, Min } from 'class-validator';
+import { IsEnum, IsInt, IsOptional, IsString, Matches, Max, MaxLength, Min } from 'class-validator';
+
+import { NO_CONTROL_CHARS, NO_CONTROL_CHARS_MESSAGE } from './validation-patterns';
 
 /** Upper bound on `page`, so a client cannot push the database into an unbounded offset scan. */
 export const MAX_PAGE = 1000;
@@ -17,6 +19,7 @@ export class ListUsersQueryDto {
   @IsOptional()
   @IsString()
   @MaxLength(100)
+  @Matches(NO_CONTROL_CHARS, { message: NO_CONTROL_CHARS_MESSAGE })
   search?: string;
 
   @ApiPropertyOptional({ type: Number, minimum: 1, maximum: MAX_PAGE, default: 1 })

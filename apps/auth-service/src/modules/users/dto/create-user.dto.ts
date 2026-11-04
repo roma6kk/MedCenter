@@ -1,5 +1,6 @@
 import { Role } from '@medcenter/contracts';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { Transform } from 'class-transformer';
 import {
   ArrayNotEmpty,
   ArrayUnique,
@@ -23,6 +24,10 @@ import {
   EMAIL_MAX_LENGTH,
   FHIR_ID_PATTERN,
   GENDERS,
+  IsPlausibleBirthDate,
+  NO_CONTROL_CHARS,
+  NO_CONTROL_CHARS_MESSAGE,
+  trimmed,
   isPresent,
   NAME_MAX_LENGTH,
   PASSWORD_MAX_LENGTH,
@@ -41,15 +46,19 @@ export class CreateUserDto {
   email!: string;
 
   @ApiProperty({ example: 'Иван', maxLength: NAME_MAX_LENGTH })
+  @Transform(trimmed)
   @IsString()
   @IsNotEmpty()
   @MaxLength(NAME_MAX_LENGTH)
+  @Matches(NO_CONTROL_CHARS, { message: NO_CONTROL_CHARS_MESSAGE })
   firstName!: string;
 
   @ApiProperty({ example: 'Иванов', maxLength: NAME_MAX_LENGTH })
+  @Transform(trimmed)
   @IsString()
   @IsNotEmpty()
   @MaxLength(NAME_MAX_LENGTH)
+  @Matches(NO_CONTROL_CHARS, { message: NO_CONTROL_CHARS_MESSAGE })
   lastName!: string;
 
   @ApiProperty({ format: 'password', example: 'Str0ng!Pass', maxLength: PASSWORD_MAX_LENGTH, description: 'Must satisfy the password policy' })
@@ -69,6 +78,7 @@ export class CreateUserDto {
   @ValidateIf(isPresent)
   @IsDateString({ strict: true })
   @Matches(DATE_ONLY_PATTERN, { message: '$property must be a date (YYYY-MM-DD)' })
+  @IsPlausibleBirthDate()
   birthDate?: string;
 
   @ApiPropertyOptional({ enum: [...GENDERS], enumName: 'PatientGender' })

@@ -42,6 +42,9 @@ const IDENTITY_CASES: ReadonlyArray<InvalidCase> = [
   ['the email is longer than 255 characters', { email: LONG_EMAIL }, 'email'],
   ['the first name is empty', { firstName: '' }, 'firstName'],
   ['the first name is longer than 100 characters', { firstName: LONG_NAME }, 'firstName'],
+  ['the first name is blanks only', { firstName: '   ' }, 'firstName'],
+  ['the last name is blanks only', { lastName: '  ' }, 'lastName'],
+  ['the first name carries a NUL character', { firstName: 'Иван\u0000' }, 'firstName'],
   ['the last name is missing', { lastName: undefined }, 'lastName'],
   ['the last name is not a string', { lastName: 42 }, 'lastName'],
 ];
@@ -51,6 +54,8 @@ const PATIENT_FIELD_CASES: ReadonlyArray<InvalidCase> = [
   ['the birth date is not a calendar day', { birthDate: '1990-02-31' }, 'birthDate'],
   ['the birth date is not ISO formatted', { birthDate: '12.05.1990' }, 'birthDate'],
   ['the birth date is JSON null', { birthDate: null }, 'birthDate'],
+  ['the birth date is in the future', { birthDate: '2999-01-01' }, 'birthDate'],
+  ['the birth date is before 1900', { birthDate: '1899-12-31' }, 'birthDate'],
   ['the gender is outside the supported set', { gender: 'other' }, 'gender'],
   ['the gender is JSON null', { gender: null }, 'gender'],
 ];
@@ -204,6 +209,8 @@ describe('RegisterPatientDto (POST /api/v1/auth/register)', () => {
     ...PASSWORD_CASES,
     ['the birth date is missing', { birthDate: undefined }, 'birthDate'],
     ['the birth date carries a time', { birthDate: '1990-05-12T00:00:00Z' }, 'birthDate'],
+    ['the birth date is in the future', { birthDate: '2999-01-01' }, 'birthDate'],
+    ['the consent text version has a control character', { accountConsent: { accepted: true, textVersion: '2026\u0000' } }, 'textVersion'],
     ['the gender is JSON null', { gender: null }, 'gender'],
     ['the gender is outside the supported set', { gender: 'other' }, 'gender'],
     ['the phone is JSON null', { phone: null }, 'phone'],
@@ -279,7 +286,22 @@ describe('ListUsersQueryDto (GET /api/v1/admin/users)', () => {
     ['role is outside the enum', { role: 'NURSE' }, 'role'],
     ['role is empty', { role: '' }, 'role'],
     ['search is longer than 100 characters', { search: 'x'.repeat(101) }, 'search'],
+    ['search carries a NUL character', { search: 'ива\u0000' }, 'search'],
   ])('should reject the query when %s', async (_label, query, property) => {
     expect((await rejects(query)).join('; ')).toContain(property);
+  });
+});
+
+describe('free-text fields', () => {
+  it('should trim the names so surrounding blanks are not stored', async () => {
+    const dto = await pipeline(CreateUserDto, { ...CREATE, firstName: '  Пётр ', lastName: ' Петров  ' }, 'body');
+
+    expect(dto).toMatchObject({ firstName: 'Пётр', lastName: 'Петров' });
+  });
+
+  it('should accept today as a birth date in the clinic time zone', async () => {
+    const today = new Intl.DateTimeFormat('sv-SE', { timeZone: 'Europe/Minsk' }).format(new Date());
+
+    expect(await violationsOf(CreateUserDto, { ...CREATE, roles: ['PATIENT'], birthDate: today }, 'body')).toEqual([]);
   });
 });

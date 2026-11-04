@@ -1,5 +1,6 @@
 import { Role } from '@medcenter/contracts';
 import { ApiPropertyOptional } from '@nestjs/swagger';
+import { Transform } from 'class-transformer';
 import {
   ArrayNotEmpty,
   ArrayUnique,
@@ -23,6 +24,10 @@ import {
   EMAIL_MAX_LENGTH,
   FHIR_ID_PATTERN,
   GENDERS,
+  IsPlausibleBirthDate,
+  NO_CONTROL_CHARS,
+  NO_CONTROL_CHARS_MESSAGE,
+  trimmed,
   NAME_MAX_LENGTH,
   isPresent,
 } from './validation-patterns';
@@ -42,22 +47,27 @@ export class UpdateUserDto {
 
   @ApiPropertyOptional({ example: 'Иван', maxLength: NAME_MAX_LENGTH })
   @ValidateIf(isPresent)
+  @Transform(trimmed)
   @IsString()
   @IsNotEmpty()
   @MaxLength(NAME_MAX_LENGTH)
+  @Matches(NO_CONTROL_CHARS, { message: NO_CONTROL_CHARS_MESSAGE })
   firstName?: string;
 
   @ApiPropertyOptional({ example: 'Иванов', maxLength: NAME_MAX_LENGTH })
   @ValidateIf(isPresent)
+  @Transform(trimmed)
   @IsString()
   @IsNotEmpty()
   @MaxLength(NAME_MAX_LENGTH)
+  @Matches(NO_CONTROL_CHARS, { message: NO_CONTROL_CHARS_MESSAGE })
   lastName?: string;
 
   @ApiPropertyOptional({ type: String, format: 'date', example: '1990-05-12' })
   @ValidateIf(isPresent)
   @IsDateString({ strict: true })
   @Matches(DATE_ONLY_PATTERN, { message: '$property must be a date (YYYY-MM-DD)' })
+  @IsPlausibleBirthDate()
   birthDate?: string;
 
   @ApiPropertyOptional({ enum: [...GENDERS], enumName: 'PatientGender' })
