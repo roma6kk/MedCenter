@@ -10,6 +10,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { buttonVariants } from '@/components/ui/button-variants';
 import { notificationAction, notificationKind } from '@/components/patient/notifications/notification-logic';
 import { WRAP_TEXT } from '@/components/patient/wrap-text';
+import { useNotificationText } from '@/components/patient/notifications/use-notification-text';
 import { useClinicFormat } from '@/hooks/use-clinic-format';
 import { useT } from '@/lib/i18n/use-t';
 import type { NotificationItem } from '@/lib/notifications/notification-api';
@@ -26,6 +27,7 @@ const FOCUSABLE = 'a[href], button:not([disabled])';
 function ItemBody({ item }: { readonly item: NotificationItem }): ReactNode {
   const t = useT('patient.notifications');
   const format = useClinicFormat();
+  const text = useNotificationText();
   const kind = notificationKind(item.category);
   const Icon = kind.icon;
   return (
@@ -34,7 +36,7 @@ function ItemBody({ item }: { readonly item: NotificationItem }): ReactNode {
         <Icon className="size-[18px]" />
       </span>
       <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-        <span className={cn('line-clamp-2 text-sm', WRAP_TEXT, item.read ? 'font-normal' : 'font-semibold')}>{format.prose(item.text)}</span>
+        <span className={cn('line-clamp-2 text-sm', WRAP_TEXT, item.read ? 'font-normal' : 'font-semibold')}>{text(item)}</span>
         <span className="flex items-center gap-2 text-xs text-muted-foreground">
           <span>{t(kind.labelKey)}</span>
           <time dateTime={item.sent} className="tabular-nums">{format.dateTime(item.sent)}</time>

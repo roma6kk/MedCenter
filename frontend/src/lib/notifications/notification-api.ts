@@ -17,6 +17,10 @@ export interface NotificationItem {
   /** RFC 3339 UTC. */
   readonly sent: string;
   readonly read: boolean;
+  /** The event the text was written for (`appointment.booked`, `appointment.cancelled`, …): the client words it in the UI language; absent on older notifications. */
+  readonly kind?: string;
+  /** Start of the booked visit, UTC (only `appointment.booked`). */
+  readonly start?: string;
   /** The appointment the notification is about (`Communication.about`); absent on other and older notifications. */
   readonly appointmentId?: string;
   readonly encounterId?: string;

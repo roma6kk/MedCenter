@@ -10,6 +10,7 @@ import type { NotificationItem } from '@/lib/notifications/notification-api';
 import { cn } from '@/lib/ui/cn';
 import { WRAP_TEXT } from '../wrap-text';
 import { notificationAction, notificationKind } from './notification-logic';
+import { useNotificationText } from './use-notification-text';
 
 export interface NotificationRowProps {
   readonly item: NotificationItem;
@@ -23,6 +24,7 @@ export function NotificationRow({ item, markingId, onMarkRead }: NotificationRow
   const t = useT('patient.notifications');
   const tn = useT('patientNotifications');
   const format = useClinicFormat();
+  const text = useNotificationText();
   const kind = notificationKind(item.category);
   const action = notificationAction(item);
   const Icon = kind.icon;
@@ -43,7 +45,7 @@ export function NotificationRow({ item, markingId, onMarkRead }: NotificationRow
             </span>
           )}
         </p>
-        <p id={`notification-${item.id}-text`} className={cn('text-base', WRAP_TEXT, item.read ? 'font-normal' : 'font-semibold')}>{format.prose(item.text)}</p>
+        <p id={`notification-${item.id}-text`} className={cn('text-base', WRAP_TEXT, item.read ? 'font-normal' : 'font-semibold')}>{text(item)}</p>
       </div>
       <div className="no-print flex flex-none items-center gap-2">
         {action ? (

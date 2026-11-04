@@ -1680,6 +1680,14 @@
     }
   },
   "patientNotifications": {
+    "text": {
+      "booked": "You are booked for a visit. Starts: {time} (Minsk time)",
+      "cancelled": "The appointment has been cancelled.",
+      "cancelledByClinic": "The clinic cancelled your appointment. Choose another time under «Book a visit».",
+      "noShow": "The visit is marked as missed: the doctor recorded a no-show.",
+      "encounterCompleted": "The visit is complete. The results are in your medical record.",
+      "registered": "Your registration at the medical centre is complete."
+    },
     "subtitleUnread": "Unread: {count}",
     "subtitleAllRead": "All notifications are read",
     "markAllRead": "Mark all as read",
