@@ -93,6 +93,9 @@ test.describe('doctor completes an encounter', () => {
     const opened = page.waitForResponse((response) => response.url().endsWith('/api/v1/encounters') && response.request().method() === 'POST');
     // The next visit of the day also has its call to action in the side panel, hence `.first()`.
     await page.getByRole('button', { name: new RegExp(`^Открыть приём: .*${time}$`) }).first().click();
+    // The slot lies at least 36 h ahead (findFreeSlots), so the journal asks before a visit of another day is started (bc90cb7).
+    const notToday = page.getByRole('dialog').filter({ has: page.getByRole('heading', { name: 'Приём не на сегодня' }) });
+    await notToday.getByRole('button', { name: 'Начать сейчас' }).click();
     expect((await opened).status()).toBe(201);
     await page.waitForURL(/\/encounters\/[^/]+$/);
     const encounterId = new URL(page.url()).pathname.split('/').pop() as string;
@@ -135,8 +138,8 @@ test.describe('doctor completes an encounter', () => {
     const record = page.getByTestId('encounter-record');
     await expect(record).toContainText(SUMMARY);
     await expect(record).toContainText(DIAGNOSIS_CODE);
-    await expect(record).toContainText(TEMPERATURE_VALUE);
-    await expect(record).toContainText(TEMPERATURE_UNIT);
+    // The record prints the value by locale and the unit by its symbol (b40af95, i18n-04): «36,6 °C».
+    await expect(record).toContainText(`${TEMPERATURE_VALUE.replace('.', ',')} °C`);
     await expect(record).toContainText(DRUG_CODE);
     await expect(record).toContainText(DOSAGE);
 

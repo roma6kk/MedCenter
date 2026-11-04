@@ -6,7 +6,7 @@
  */
 import { expect, test } from '@playwright/test';
 import { fillAuthServiceForm, returnToOfAuthorizeUrl } from './fixtures/auth';
-import { cancelAppointmentAs, findFreeSlots, type FreeSlot } from './fixtures/booking-api';
+import { cancelAppointmentAs, findFreeSlots, revealSlotOnDoctorPage, type FreeSlot } from './fixtures/booking-api';
 import { hasDemoManifest, loadDemoAccount } from './fixtures/demo-accounts';
 
 test.skip(!hasDemoManifest(), 'demo seed manifest not found');
@@ -27,6 +27,7 @@ test('should book an appointment through the login with the draft restored when 
     const card = page.getByTestId('doctor-card').filter({ hasText: target.doctorName });
     await card.getByRole('link', { name: /^Профиль/ }).click();
     await expect(page).toHaveURL(/\/doctors\/[^/]+$/);
+    await revealSlotOnDoctorPage(page, target);
     await page.getByTestId(`slot-${target.slotId}`).click();
     await expect(page.getByTestId(`slot-${target.slotId}`)).toHaveAttribute('aria-pressed', 'true');
   });
@@ -55,7 +56,11 @@ test('should book an appointment through the login with the draft restored when 
   });
 
   try {
-    await expect(page).toHaveURL(new RegExp(`/appointments/${created.id}$`));
+    // The wizard ends on its own success screen (0ac4f99), which links the new appointment.
+    await expect(page.getByRole('heading', { name: 'Вы записаны на приём' })).toBeVisible();
+    await expect(page.getByRole('main')).toContainText(target.doctorName);
+    await expect(page.getByRole('link', { name: 'Отменить запись' })).toHaveAttribute('href', `/appointments/${created.id}`);
+    await page.goto(`/appointments/${created.id}`);
     await expect(page.getByTestId('stamp-booked')).toBeVisible();
   } finally {
     await cancelAppointmentAs(page, created.id);

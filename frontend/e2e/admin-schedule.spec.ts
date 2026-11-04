@@ -58,9 +58,15 @@ test.describe('admin creates a schedule and generates slots', () => {
     return page;
   }
 
-  /** The row of the schedule under test in the admin table: found by its unique horizon. */
+  /**
+   * The row of the schedule under test in the admin table: found by its unique horizon, printed as the table does
+   * (050fb31): `28.12 – 30.12.2026` when both ends share a year, `30.12.2026 – 01.01.2027` otherwise.
+   */
   function scheduleRow(): Locator {
-    return adminPage.getByRole('row').filter({ hasText: `${numericDay(firstDay)} – ${numericDay(addDays(firstDay, HORIZON_DAYS - 1))}` });
+    const from = numericDay(firstDay);
+    const to = numericDay(addDays(firstDay, HORIZON_DAYS - 1));
+    const horizon = from.slice(6) === to.slice(6) ? `${from.slice(0, 5)} – ${to}` : `${from} – ${to}`;
+    return adminPage.getByRole('row').filter({ hasText: horizon });
   }
 
   test.beforeAll(async ({ browser, baseURL }) => {
@@ -211,17 +217,22 @@ test.describe('admin creates a schedule and generates slots', () => {
     // The same period again creates nothing new: every slot is skipped.
     await dialog.getByRole('button', { name: 'Сгенерировать', exact: true }).click();
     await expect(result).toContainText(`Создано слотов: 0, пропущено (уже были): ${generated}`);
-    await dialog.getByRole('button', { name: 'Закрыть' }).click();
+    // The footer button; the corner cross of the dialog carries the same name.
+    await dialog.locator('button:not([data-dialog-close])', { hasText: 'Закрыть' }).click();
+    await expect(dialog).toBeHidden();
   });
 
   test('should show the generated slots to the doctor in their schedule', async () => {
     const page = doctorPage;
     await page.goto('/doctor/schedule');
-    await page.getByLabel('С даты').fill(firstDay);
-    const day = page.locator(`section[aria-labelledby="day-${firstDay}"]`);
-    await expect(day).toBeVisible();
-    await expect(day.getByRole('listitem')).toHaveCount(generated);
-    await expect(day.getByRole('listitem').first()).toContainText(WINDOW_START);
+    // The schedule is a week calendar (050fb31): the date field jumps to the week of the day, a column per day whose
+    // header carries «занято N из M», a row per start time. Only the first day of the horizon is on the window's weekday.
+    await page.getByLabel('Дата', { exact: true }).fill(firstDay);
+    await page.getByLabel('Дата', { exact: true }).press('Enter');
+    const grid = page.getByRole('table', { name: 'Слоты недели: дни в столбцах, время в строках' });
+    await expect(grid).toBeVisible();
+    await expect(grid.getByRole('progressbar', { name: `занято 0 из ${generated}` })).toHaveCount(1);
+    await expect(grid.getByRole('rowheader', { name: WINDOW_START })).toBeVisible();
   });
 
   test('should show the generated slots to the patient as free time of the doctor', async () => {

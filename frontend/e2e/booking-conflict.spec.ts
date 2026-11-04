@@ -6,7 +6,7 @@
  * booking that was made is cancelled afterwards.
  */
 import { expect, test, type Browser, type BrowserContext, type Page } from '@playwright/test';
-import { bookSlotAs, cancelAppointmentAs, findFreeSlots } from './fixtures/booking-api';
+import { bookSlotAs, cancelAppointmentAs, findFreeSlots, revealSlotOnDoctorPage } from './fixtures/booking-api';
 import { hasDemoManifest } from './fixtures/demo-accounts';
 import { openStoredSession } from './fixtures/session-state';
 
@@ -58,6 +58,7 @@ test.describe('two patients, one slot', () => {
     const page = first.page;
 
     await page.goto(`/doctors/${encodeURIComponent(target.doctorId)}`);
+    await revealSlotOnDoctorPage(page, target);
     await page.getByTestId(`slot-${target.slotId}`).click();
     await page.getByRole('button', { name: /^Записаться на / }).click();
     await expect(page.getByRole('heading', { name: 'Проверьте данные записи' })).toBeVisible();

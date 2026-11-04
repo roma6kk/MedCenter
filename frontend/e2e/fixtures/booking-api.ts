@@ -11,8 +11,11 @@ import type { APIRequestContext, Page } from '@playwright/test';
 
 export interface FreeSlot {
   readonly doctorId: string;
+  /** As the public pages print a doctor (b7df9b2): family, given, patronymic. */
   readonly doctorName: string;
   readonly slotId: string;
+  /** The service of the slot's schedule (dca5349): the doctor page shows the time of the chosen service only. */
+  readonly serviceId?: string;
   readonly start: string;
   readonly end: string;
 }
@@ -20,6 +23,9 @@ export interface FreeSlot {
 interface DoctorItem {
   readonly id: string;
   readonly name: string;
+  readonly firstName?: string;
+  readonly lastName?: string;
+  readonly middleName?: string;
   readonly practitionerRoleIds?: ReadonlyArray<string>;
 }
 
@@ -28,6 +34,7 @@ interface SlotItem {
   readonly start: string;
   readonly end: string;
   readonly status: string;
+  readonly serviceId?: string;
 }
 
 export interface BookedAppointment {
@@ -54,6 +61,24 @@ export function clinicDay(date: Date): string {
   return new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Minsk', year: 'numeric', month: '2-digit', day: '2-digit' }).format(date);
 }
 
+/** `Петров Алексей Николаевич`: the order of `formatDoctorName` (src/lib/doctor-name.ts); the API `name` is given-first. */
+function displayName(doctor: DoctorItem): string {
+  const parts = [doctor.lastName, doctor.firstName, doctor.middleName].filter((part): part is string => (part ?? '').trim() !== '');
+  return parts.length > 0 ? parts.join(' ') : doctor.name;
+}
+
+/**
+ * Brings a slot onto the doctor page (`/doctors/{id}`): the page shows the time of one service (the first, until another
+ * chip is pressed) and of one day of the strip, so the slot's service chip and its day chip are pressed first.
+ */
+export async function revealSlotOnDoctorPage(page: Page, slot: FreeSlot): Promise<void> {
+  if (slot.serviceId !== undefined) {
+    const chip = page.getByTestId(`service-chip-${slot.serviceId}`);
+    if ((await chip.getAttribute('aria-pressed')) !== 'true') await chip.click();
+  }
+  await page.getByTestId(`slot-day-chip-${clinicDay(new Date(slot.start))}`).click();
+}
+
 /** Up to `count` free slots of distinct doctors where possible; `practitionerRoleId` narrows the search to one doctor (a seeded doctor account). */
 export async function findFreeSlots(request: APIRequestContext, count: number, practitionerRoleId?: string): Promise<FreeSlot[]> {
   const doctorsResponse = await request.get('/api/v1/doctors?pageSize=100');
@@ -73,7 +98,9 @@ export async function findFreeSlots(request: APIRequestContext, count: number, p
     );
     // One slot per doctor, except when a single doctor was asked for: then all of the slots come from them.
     const picks = shuffle(slots).slice(0, practitionerRoleId === undefined ? 1 : count - found.length);
-    for (const slot of picks) found.push({ doctorId: doctor.id, doctorName: doctor.name, slotId: slot.id, start: slot.start, end: slot.end });
+    for (const slot of picks) {
+      found.push({ doctorId: doctor.id, doctorName: displayName(doctor), slotId: slot.id, start: slot.start, end: slot.end, ...(slot.serviceId === undefined ? {} : { serviceId: slot.serviceId }) });
+    }
     if (found.length >= count) break;
   }
   if (found.length < count) throw new Error(`Only ${found.length} free slot(s) found, ${count} needed; run "npm run seed:demo" (without --users).`);

@@ -44,10 +44,15 @@ test.describe('anonymous visitor', () => {
     await expect(page.getByRole('link', { name: /На сайт/ })).toHaveAttribute('href', `${new URL(baseURL ?? DEFAULT_ORIGIN).origin}/`);
     const password = page.locator('input[name="password"]');
     await expect(password).toHaveAttribute('type', 'password');
-    await page.getByRole('button', { name: 'Показать пароль' }).click();
+    // ARIA toggle button pattern (d9bd4e8): the name stays «Показать пароль», aria-pressed carries the state.
+    const toggle = page.getByRole('button', { name: 'Показать пароль' });
+    await expect(toggle).toHaveAttribute('aria-pressed', 'false');
+    await toggle.click();
     await expect(password).toHaveAttribute('type', 'text');
-    await page.getByRole('button', { name: 'Скрыть пароль' }).click();
+    await expect(toggle).toHaveAttribute('aria-pressed', 'true');
+    await toggle.click();
     await expect(password).toHaveAttribute('type', 'password');
+    await expect(toggle).toHaveAttribute('aria-pressed', 'false');
   });
 });
 
@@ -155,7 +160,11 @@ for (const role of ['DOCTOR', 'ADMIN'] as const) {
     });
 
     test('should show no notification bell because staff have no notification endpoints', async () => {
-      await expect(session.page.getByRole('button', { name: 'Выйти' })).toBeVisible();
+      // The staff shell (050fb31) keeps «Выйти» in the profile menu at the foot of the sidebar.
+      const profileMenu = session.page.getByRole('button', { name: /^Меню профиля: / }).first();
+      await profileMenu.click();
+      await expect(session.page.getByRole('menuitem', { name: 'Выйти' })).toBeVisible();
+      await session.page.keyboard.press('Escape');
       await expect(session.page.getByRole('button', { name: /Уведомления/ })).toHaveCount(0);
     });
 
