@@ -219,6 +219,16 @@ describe('Complete encounter (API §7.1–7.3)', () => {
     expect(harness.hapi.transactions).toHaveLength(0);
   });
 
+  it('should refuse an admin token with 403 FORBIDDEN_ROLE when it reads an encounter (ADR-018)', async () => {
+    const encounterId = await openEncounter();
+    await as(DOCTOR).post(`/api/v1/encounters/${encounterId}/complete`, completeBody()).expect(200);
+
+    const response = await as(ADMIN).get(`/api/v1/encounters/${encounterId}`).expect(403);
+
+    expect(response.body).toMatchObject({ errorCode: 'FORBIDDEN_ROLE' });
+    expect(JSON.stringify(response.body)).not.toContain('J06.9');
+  });
+
   it('should show the completed clinical content to the participant doctor when the encounter is read', async () => {
     const encounterId = await openEncounter();
     await as(DOCTOR).post(`/api/v1/encounters/${encounterId}/complete`, completeBody()).expect(200);

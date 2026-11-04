@@ -109,7 +109,7 @@ export class EncountersService {
     @Inject(CONSENT_ENFORCEMENT_MODE) private readonly consentEnforcement: ConsentEnforcement,
   ) {}
 
-  /** 7.2 — the encounter and its clinical content, for its participant doctor or an admin. */
+  /** 7.2 — the encounter and its clinical content, for its participant doctor (ADMIN is excluded, ADR-018). */
   async findOne(claims: JwtClaims, encounterId: string): Promise<EncounterDetailsDto> {
     const viewer = resolveEncounterViewer(claims);
     const result = await this.fhir.search('Encounter', {

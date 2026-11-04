@@ -7,8 +7,11 @@ import { practitionerRoleRefFromClaims } from '../../common/access/claims-identi
 import { arrayField, referenceField } from '../../common/fhir/fhir-read';
 import { canonicalReference } from '../../common/fhir/fhir-reference';
 
-/** Who reads an encounter (API §7.2): its participant doctor or an admin. */
-export type EncounterViewer = { readonly kind: 'doctor'; readonly roleRef: string } | { readonly kind: 'admin' };
+/** Who reads an encounter (API §7.2): its participant doctor; ADMIN is excluded by ADR-018. */
+export interface EncounterViewer {
+  readonly kind: 'doctor';
+  readonly roleRef: string;
+}
 
 /** Parties of an Appointment as written by appointment-service (`participant[].actor`). */
 export interface AppointmentParties {
@@ -43,9 +46,6 @@ export function appointmentParties(appointment: FhirResource): AppointmentPartie
 
 /** Resolves the caller before any FHIR call, so an incomplete doctor token fails closed. */
 export function resolveEncounterViewer(claims: JwtClaims): EncounterViewer {
-  if (claims.role === Role.ADMIN) {
-    return { kind: 'admin' };
-  }
   if (claims.role === Role.DOCTOR) {
     return { kind: 'doctor', roleRef: practitionerRoleRefFromClaims(claims) };
   }
@@ -60,9 +60,7 @@ export function assertEncounterParticipant(roleRef: string, encounter: FhirResou
 }
 
 export function assertViewerSeesEncounter(viewer: EncounterViewer, encounter: FhirResource): void {
-  if (viewer.kind === 'doctor') {
-    assertEncounterParticipant(viewer.roleRef, encounter);
-  }
+  assertEncounterParticipant(viewer.roleRef, encounter);
 }
 
 /** The doctor must be the appointment's practitioner (API §7.1). */

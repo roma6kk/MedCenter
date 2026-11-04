@@ -855,7 +855,7 @@ export class AppointmentResponseDto {
 | # | Метод и путь | Назначение | Доступ |
 | --- | --- | --- | --- |
 | 7.1 | `POST /api/v1/encounters` | открыть приём по booked-записи (врач) | `user/*.write` (DOCTOR) |
-| 7.2 | `GET /api/v1/encounters/{id}` | детали приёма | участник / ADMIN |
+| 7.2 | `GET /api/v1/encounters/{id}` | детали приёма | участник-врач (ADMIN: 403, ADR-018) |
 | 7.3 | `POST /api/v1/encounters/{id}/complete` | завершить приём: диагноз/план/назначения | `user/*.write` (DOCTOR) |
 | 7.4 | `GET /api/v1/patients/{id}/history?page=` | история обращений | владелец / DOCTOR (ADMIN → 403) |
 | 7.5 | `GET /api/v1/patients/{id}/prescriptions?page=` | назначения (ServiceRequest/MedicationRequest) | владелец / DOCTOR (ADMIN → 403) |

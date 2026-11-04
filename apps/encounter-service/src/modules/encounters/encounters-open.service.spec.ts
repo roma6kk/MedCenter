@@ -224,13 +224,14 @@ describe('EncounterOpeningService.open / EncountersService.findOne', () => {
     });
   });
 
-  it('should let an ADMIN read any encounter', async () => {
+  it('should refuse an ADMIN before any FHIR call (ADR-018)', async () => {
     fhir.search.mockResolvedValue(searchResult(inProgressEncounter));
 
-    await expect(service.findOne(adminClaims, ENCOUNTER_ID)).resolves.toMatchObject({ id: ENCOUNTER_ID });
+    expect(await errorPayloadOf(service.findOne(adminClaims, ENCOUNTER_ID))).toMatchObject({ errorCode: 'FORBIDDEN_ROLE' });
+    expect(fhir.search).not.toHaveBeenCalled();
   });
 
   it('should answer NOT_FOUND when no encounter has the id', async () => {
-    expect(await errorPayloadOf(service.findOne(adminClaims, 'missing'))).toMatchObject({ errorCode: 'NOT_FOUND' });
+    expect(await errorPayloadOf(service.findOne(doctorClaims, 'missing'))).toMatchObject({ errorCode: 'NOT_FOUND' });
   });
 });
