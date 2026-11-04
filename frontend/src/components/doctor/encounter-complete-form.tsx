@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect, useRef } from 'react';
 import type { ReactNode } from 'react';
 import { FormProvider } from 'react-hook-form';
 import { ConsentRequiredNotice } from '@/components/consent/consent-required-notice';
@@ -7,6 +8,7 @@ import { ProblemBanner } from '@/components/feedback/problem-banner';
 import { isApiError } from '@/lib/api/api-fetch';
 import type { ProblemDetails } from '@/lib/api/problem';
 import { useT } from '@/lib/i18n/use-t';
+import { motionSafeScrollBehavior } from '@/lib/ui/motion';
 import { ConclusionSection } from './conclusion-section';
 import { DiagnosesEditor } from './diagnoses-editor';
 import { EncounterActionBar } from './encounter-action-bar';
@@ -17,6 +19,23 @@ import { MedicationsEditor } from './medications-editor';
 import { ObservationsEditor } from './observations-editor';
 import { ServiceRequestsEditor } from './service-requests-editor';
 import { useEncounterForm } from './use-encounter-form';
+
+/**
+ * What a refusal that belongs to no field shows (the banner, the consent notice) sits at the end of a long form, and the button
+ * that caused it in a bar that sticks to the screen: without this the doctor presses «Завершить приём» and sees nothing happen.
+ * It scrolls into view and takes the focus when it appears (`isActive`: not when a field took the focus already).
+ */
+function ScrollToFailure({ isActive = true, className, children }: { readonly isActive?: boolean; readonly className: string; readonly children: ReactNode }): ReactNode {
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!isActive) return;
+    ref.current?.scrollIntoView?.({ block: 'center', behavior: motionSafeScrollBehavior() });
+    ref.current?.focus({ preventScroll: true });
+    // Once per appearance of the failure: the container unmounts when the next attempt starts.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  return <div ref={ref} tabIndex={-1} className={`${className} focus:outline-none`}>{children}</div>;
+}
 
 interface FailureProps {
   readonly problem: ProblemDetails;
@@ -30,9 +49,9 @@ function CompletionFailure({ problem, foreignMessages, isMarked }: FailureProps)
   const t = useT('doctor.encounter');
   const detail: string | undefined = isMarked ? t('fixMarkedFields') : foreignMessages.length > 0 ? foreignMessages.join('. ') : problem.detail;
   return (
-    <div className="mt-4">
+    <ScrollToFailure isActive={!isMarked} className="mt-4">
       <ProblemBanner problem={problem} detail={detail} />
-    </div>
+    </ScrollToFailure>
   );
 }
 
@@ -64,7 +83,7 @@ export function EncounterCompleteForm({ encounterId, patientId }: { readonly enc
         <EncounterActionBar status={draft.status} onSaveDraft={draft.saveNow} isCompleting={complete.isPending} />
       </form>
       {/* Outside the form: the notice has a form of its own, and a nested one would submit the completion. */}
-      {needsConsent ? <div className="mt-4"><ConsentRequiredNotice action="complete" patientId={patientId} isPending={complete.isPending} onEmergency={completeAsEmergency} /></div> : null}
+      {needsConsent ? <ScrollToFailure className="mt-4"><ConsentRequiredNotice action="complete" patientId={patientId} isPending={complete.isPending} onEmergency={completeAsEmergency} /></ScrollToFailure> : null}
     </FormProvider>
   );
 }

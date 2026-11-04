@@ -3,6 +3,7 @@
 import type { ReactNode } from 'react';
 import { CodeChip } from '@/components/feedback/code-chip';
 import { Card } from '@/components/ui/card';
+import { formatNumber } from '@/lib/clinic-time';
 import { useT } from '@/lib/i18n/use-t';
 import { DiagnosisList } from './diagnosis-list';
 import type { EncounterDetails } from './doctor-types';
@@ -33,7 +34,7 @@ function Observations({ items }: { readonly items: EncounterDetails['observation
           <CodeChip code={item.code} system={item.codeSystem} />
           <span>{item.display ?? item.code}</span>
           {/* The unit is read as a clinician writes it («°C»); the UCUM code it is stored under is the tooltip. */}
-          <span className="tabular-nums font-semibold" title={item.unit}>{item.value} {unitLabel(item.unit, item.code)}</span>
+          <span className="tabular-nums font-semibold" title={item.unit}>{formatNumber(item.value)} {unitLabel(item.unit, item.code)}</span>
         </li>
       ))}
     </ul>

@@ -12,8 +12,8 @@ export function DiagnosisList({ diagnoses }: { readonly diagnoses: ReadonlyArray
   const t = useT('doctor.verification');
   return (
     <ul className="grid gap-1.5">
-      {diagnoses.map((diagnosis) => (
-        <li key={diagnosis.code} className="flex flex-wrap items-baseline gap-2 text-sm">
+      {diagnoses.map((diagnosis, index) => (
+        <li key={`${diagnosis.code}-${index}`} className="flex flex-wrap items-baseline gap-2 text-sm">
           <CodeChip code={diagnosis.code} system={ICD10_CODE_SYSTEM} />
           <span>{diagnosis.display}</span>
           {diagnosis.verificationStatus ? <span className="text-xs text-muted-foreground">{t(diagnosis.verificationStatus)}</span> : null}

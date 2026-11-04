@@ -9,12 +9,18 @@ import { DropdownMenu, type MenuItem } from '@/components/ui/dropdown-menu';
 import { useT } from '@/lib/i18n/use-t';
 import { InlineProblem } from './inline-problem';
 import { useNoshow } from './use-doctor-mutations';
+import { useNow } from './use-now';
 
 interface NoshowMenuProps {
   readonly appointmentId: string;
   /** Names the patient for assistive technology and in the dialog, so the same «⋯» in every row is distinguishable. */
   readonly patientName?: string;
+  /** Start (RFC 3339) of the visit: the menu is not offered before it. Without it the menu is always there. */
+  readonly start?: string;
 }
+
+/** How often the menu re-checks whether the visit's time has come. */
+const NOSHOW_TICK_MS = 30_000;
 
 /** Marks the element a row keeps focus on once its actions are gone (the journal puts it on the patient link). */
 const ROW_ANCHOR_SELECTOR = '[data-row-anchor]';
@@ -79,10 +85,13 @@ function NoshowDialog({ appointmentId, patientName, anchorFrom, onClose }: Dialo
  * to «Карта пациента» in the same weight (A5): a stray click on the neighbour cannot record a no-show, and recording one
  * takes a menu item and a confirmation that names the consequence.
  */
-export function NoshowMenu({ appointmentId, patientName }: NoshowMenuProps): ReactNode {
+export function NoshowMenu({ appointmentId, patientName, start }: NoshowMenuProps): ReactNode {
   const t = useT('doctor.noshow');
+  const now: number | null = useNow(NOSHOW_TICK_MS, start !== undefined);
   const [isOpen, setIsOpen] = useState(false);
   const wrapper = useRef<HTMLSpanElement>(null);
+  // A no-show cannot be taken back and burns the slot: it is offered once the visit's time has come.
+  if (start !== undefined && (now === null || Date.parse(start) > now)) return null;
   const items: ReadonlyArray<MenuItem> = [{ key: 'noshow', label: t('button'), icon: UserX, destructive: true, onSelect: () => setIsOpen(true) }];
   return (
     <span ref={wrapper} className="inline-flex">

@@ -50,6 +50,21 @@ describe('contracts', () => {
     expect(result.success).toBe(true);
   });
 
+  it('should report a repeated diagnosis code on the second row', () => {
+    const result = completeEncounterSchema.safeParse({
+      summary: 'ОРВИ, состояние удовлетворительное',
+      diagnoses: [
+        { code: 'J06.9', display: 'Острая респираторная инфекция' },
+        { code: 'I10', display: 'Гипертензия' },
+        { code: 'J06.9', display: 'Острая респираторная инфекция' },
+      ],
+      recommendations: 'Покой, обильное питьё, контроль температуры',
+    });
+
+    expect(result.success).toBe(false);
+    expect(result.success ? [] : result.error.issues.map((issue) => issue.path.join('.'))).toEqual(['diagnoses.2.code']);
+  });
+
   it('should reject an invalid ICD-10 code', () => {
     const result = completeEncounterSchema.safeParse({
       summary: 'ОРВИ, состояние удовлетворительное',

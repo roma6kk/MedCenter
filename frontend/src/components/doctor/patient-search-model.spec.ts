@@ -15,9 +15,24 @@ describe('patientsOf', () => {
       appointment({ id: 'a3', patientId: 'p1', patientName: 'Кузнецов Павел', start: '2026-10-27T07:00:00Z' }),
     ];
 
-    expect(patientsOf(visits)).toEqual([
+    expect(patientsOf(visits, Date.parse('2026-11-04T09:00:00Z'))).toEqual([
       { patientId: 'p1', name: 'Кузнецов Павел', lastVisit: '2026-10-27T07:00:00Z' },
       { patientId: 'p2', name: 'Лебедева Алёна', lastVisit: '2026-10-20T07:00:00Z' },
+    ]);
+  });
+
+  it('should keep a visit that has not begun out of the last visit and offer it as the next one', () => {
+    const now: number = Date.parse('2026-11-04T09:00:00Z');
+    const visits = [
+      appointment({ id: 'a1', patientId: 'p1', patientName: 'Иванов Пётр', start: '2026-11-05T07:00:00Z' }),
+      appointment({ id: 'a2', patientId: 'p2', patientName: 'Лебедева Алёна', start: '2026-10-20T07:00:00Z' }),
+      appointment({ id: 'a3', patientId: 'p2', patientName: 'Лебедева Алёна', start: '2026-11-10T07:00:00Z' }),
+      appointment({ id: 'a4', patientId: 'p2', patientName: 'Лебедева Алёна', start: '2026-11-07T07:00:00Z' }),
+    ];
+
+    expect(patientsOf(visits, now)).toEqual([
+      { patientId: 'p2', name: 'Лебедева Алёна', lastVisit: '2026-10-20T07:00:00Z', nextVisit: '2026-11-07T07:00:00Z' },
+      { patientId: 'p1', name: 'Иванов Пётр', nextVisit: '2026-11-05T07:00:00Z' },
     ]);
   });
 

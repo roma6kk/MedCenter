@@ -10,6 +10,7 @@ import { EMPTY_SERVICE } from './encounter-form-defaults';
 import { a11yOf, errorAt, INPUT_CLASS, ROW_CLASS } from './encounter-form-helpers';
 import { AddRowButton, EmptyListLine, FieldRow, RemoveRowButton } from './encounter-form-fields';
 import { FormSection } from './encounter-form-section';
+import { useRemoveRowFocus } from './use-remove-row-focus';
 
 function ServiceRow({ index, onRemove }: { readonly index: number; readonly onRemove: () => void }): ReactNode {
   const t = useT('doctor.services');
@@ -36,11 +37,12 @@ export function ServiceRequestsEditor(): ReactNode {
   const t = useT('doctor.services');
   const { control } = useFormContext<CompleteEncounterForm>();
   const { fields, append, remove } = useFieldArray({ control, name: 'serviceRequests' });
+  const removeRow = useRemoveRowFocus('serviceRequests', 'code', 'services', fields.length, remove);
   const add = (): void => append(EMPTY_SERVICE, { focusName: `serviceRequests.${fields.length}.code` });
   return (
     <FormSection id="services" title={t('legend')}>
       {fields.length === 0 ? <EmptyListLine message={t('empty')} addLabel={t('add')} onAdd={add} /> : null}
-      {fields.map((field, index) => <ServiceRow key={field.id} index={index} onRemove={() => remove(index)} />)}
+      {fields.map((field, index) => <ServiceRow key={field.id} index={index} onRemove={() => removeRow(index)} />)}
       {fields.length > 0 ? <AddRowButton label={t('add')} onClick={add} disabled={fields.length >= SERVICE_REQUESTS_MAX} /> : null}
     </FormSection>
   );

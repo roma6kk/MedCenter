@@ -50,6 +50,18 @@ describe('NoshowMenu', () => {
     expect(screen.queryByRole('button', { name: 'Неявка' })).not.toBeInTheDocument();
   });
 
+  it('should not offer the no-show for a visit whose time has not come', () => {
+    renderWithClient(<NoshowMenu appointmentId="a1" start={new Date(Date.now() + 3_600_000).toISOString()} />, newQueryClient());
+
+    expect(screen.queryByRole('button', { name: 'Действия с записью' })).not.toBeInTheDocument();
+  });
+
+  it('should offer the no-show once the visit has started', async () => {
+    renderWithClient(<NoshowMenu appointmentId="a1" start={new Date(Date.now() - 600_000).toISOString()} />, newQueryClient());
+
+    expect(await screen.findByRole('button', { name: 'Действия с записью' })).toBeInTheDocument();
+  });
+
   it('should not call the API until the no-show is confirmed in the dialog', async () => {
     renderMenu();
 

@@ -12,7 +12,8 @@ import { apiFetch } from '@/lib/api/api-fetch';
 import { createAppQueryClient } from '@/lib/api/query-client';
 import { encounter, FINISHED_CONTENT, pageOf, problem, renderWithClient, routeApi, type ApiMock, type ApiRoute } from './doctor-test-utils';
 import { ACTIVE_RECORD } from '@/components/consent/consent-fixtures';
-import { readDraft } from '@/lib/encounter-draft';
+import { readDraft, writeDraft } from '@/lib/encounter-draft';
+import { EMPTY_DIAGNOSIS } from './encounter-form-defaults';
 import { EncounterView } from './encounter-view';
 import type { EncounterDetails } from './doctor-types';
 
@@ -42,9 +43,10 @@ function encounterRoute(respond: () => EncounterDetails): ApiRoute {
   return { path: '/api/v1/encounters/enc-1', respond };
 }
 
-function setup(routes: ReadonlyArray<ApiRoute>): void {
+function setup(routes: ReadonlyArray<ApiRoute>, seed?: () => void): void {
   apiFetchMock.mockReset();
   window.localStorage.clear();
+  seed?.();
   routeApi(apiFetchMock, [...routes, PATIENT, ...CONTEXT, EXPANSION]);
   renderWithClient(<EncounterView encounterId="enc-1" />, createAppQueryClient());
 }
@@ -76,11 +78,23 @@ describe('EncounterView', () => {
     expect(within(record).getByText('Острый назофарингит')).toBeInTheDocument();
     expect(within(record).getByText('Температура тела')).toBeInTheDocument();
     // The value with the unit as a clinician writes it; the UCUM code `Cel` is only the tooltip.
-    expect(within(record).getByText('36.6 °C')).toHaveAttribute('title', 'Cel');
+    expect(within(record).getByText('36,6 °C')).toHaveAttribute('title', 'Cel');
     expect(within(record).getByText('J01FA10')).toBeInTheDocument();
     expect(within(record).getByText('Азитромицин')).toBeInTheDocument();
     expect(within(record).getByText('1 таб 3 раза в день')).toBeInTheDocument();
     expect(within(record).getByText('Покой, обильное питьё')).toBeInTheDocument();
+  });
+
+  it('should drop the local draft of a visit that turns out to be finished already', async () => {
+    const seedDraft = (): void => {
+      writeDraft('enc-1', { summary: 'Текст черновика чужого приёма', diagnoses: [EMPTY_DIAGNOSIS], recommendations: '', observations: [], serviceRequests: [], medicationRequests: [] });
+    };
+    setup([encounterRoute(() => encounter(FINISHED_CONTENT))], seedDraft);
+    expect(readDraft('enc-1')).not.toBeNull();
+
+    await screen.findByTestId('encounter-record');
+
+    await waitFor(() => expect(readDraft('enc-1')).toBeNull());
   });
 
   it('should spell out an empty section when the finished encounter has no observations', async () => {
@@ -152,7 +166,7 @@ describe('EncounterView patient context (A3)', () => {
     expect(await summary.findByText('Острый назофарингит')).toBeInTheDocument();
     expect(await summary.findByText('Азитромицин')).toBeInTheDocument();
     expect(await summary.findByText('Температура тела')).toBeInTheDocument();
-    expect(summary.getByText('36.6 °C')).toBeInTheDocument();
+    expect(summary.getByText('36,6 °C')).toBeInTheDocument();
   });
 
   it('should say compactly that there is nothing yet for a patient without history', async () => {

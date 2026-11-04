@@ -5,6 +5,7 @@ import type { ReactNode, RefObject } from 'react';
 import { ContentSkeleton } from '@/components/feedback/content-skeleton';
 import { Dialog } from '@/components/ui/dialog';
 import { useDocumentTitle } from '@/hooks/use-document-title';
+import { clearDraft } from '@/lib/encounter-draft';
 import { useT } from '@/lib/i18n/use-t';
 import type { EncounterDetails } from './doctor-types';
 import { EncounterAsideSlotContext } from './encounter-aside-slot';
@@ -46,6 +47,11 @@ function FinishedBanner({ bannerRef }: { readonly bannerRef: RefObject<HTMLParag
 function EncounterBody({ encounter }: { readonly encounter: EncounterDetails }): ReactNode {
   const t = useT('doctor.encounter');
   const bannerRef = useFocusBannerOnFinish(encounter.status);
+  // A visit finished by another tab, another device or a lost reply (a replay answers 409) never ran this form's own success
+  // path: its local draft is the text of a record that is closed now. Cheap and idempotent; it runs after the form's unmount flush.
+  useEffect(() => {
+    if (encounter.status === 'finished') clearDraft(encounter.id);
+  }, [encounter.status, encounter.id]);
   if (encounter.status === 'in-progress') return <div className="mt-4"><EncounterCompleteForm encounterId={encounter.id} patientId={encounter.patientId} /></div>;
   if (encounter.status === 'finished') {
     return (

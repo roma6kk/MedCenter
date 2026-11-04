@@ -25,6 +25,26 @@ describe('EncounterCompleteForm without a consent (409 CONSENT_REQUIRED)', () =>
     expect(screen.getByLabelText('Заключение')).toHaveValue('ОРВИ, состояние удовлетворительное');
   });
 
+  it('should bring the notice into focus, since it renders below a long form out of the sticky bar\'s sight', async () => {
+    setup(completeRoute(() => { throw problem(409, 'CONSENT_REQUIRED'); }));
+    await fillRequired();
+
+    await submit();
+
+    const notice = await screen.findByTestId('consent-required');
+    await waitFor(() => expect(notice.parentElement).toHaveFocus());
+  });
+
+  it('should bring a failure that belongs to no field into focus', async () => {
+    setup(completeRoute(() => { throw problem(500, 'INTERNAL'); }));
+    await fillRequired();
+
+    await submit();
+
+    const banner = await screen.findByTestId('problem-banner');
+    await waitFor(() => expect(banner.parentElement).toHaveFocus());
+  });
+
   it('should resend the same body with the emergency reason when the doctor completes it as emergency care', async () => {
     let attempts = 0;
     setup(completeRoute(() => {

@@ -93,6 +93,25 @@ describe('EncounterCompleteForm focus of added rows', () => {
     await waitFor(() => expect(diagnosisInput(2)).toHaveFocus());
   });
 
+  it('should keep the focus in the list after a diagnosis row is removed', async () => {
+    setup();
+    await userEvent.click(screen.getByRole('button', { name: 'Добавить диагноз' }));
+    await waitFor(() => expect(diagnosisInput(2)).toHaveFocus());
+
+    await userEvent.click(screen.getByRole('button', { name: 'Удалить диагноз 2' }));
+
+    await waitFor(() => expect(diagnosisInput(1)).toHaveFocus());
+  });
+
+  it('should move the focus to the section heading when the last row of a list is removed', async () => {
+    setup();
+    await userEvent.click(screen.getByRole('button', { name: 'Добавить лекарство' }));
+
+    await userEvent.click(await screen.findByRole('button', { name: /Удалить лекарство/ }));
+
+    await waitFor(() => expect(document.activeElement).toBe(document.getElementById('encounter-section-medications-title')));
+  });
+
   it('should focus the code field of a new drug row', async () => {
     setup();
 

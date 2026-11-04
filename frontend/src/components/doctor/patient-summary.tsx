@@ -6,13 +6,15 @@ import { CodeChip } from '@/components/feedback/code-chip';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { SkeletonText } from '@/components/ui/skeleton';
-import { formatClinicDate, formatClinicDateTime } from '@/lib/clinic-time';
+import { isApiError } from '@/lib/api/api-fetch';
+import { formatClinicDate, formatClinicDateTime, formatNumber } from '@/lib/clinic-time';
 import { useT } from '@/lib/i18n/use-t';
 import { cn } from '@/lib/ui/cn';
 import type { HistoryItem, ObservationView, Prescription } from './doctor-types';
 import { ATC_SYSTEM } from './encounter-problem-fields';
 import { buildRecentDiagnoses, currentPrescriptions, MAX_SUMMARY_ROWS, type RecentDiagnosis } from './patient-summary-model';
 import { useUnitLabel } from './unit-label';
+import { isOwnVisit, useOwnRoleId } from './use-own-role';
 import { useEncounter, usePatientHistory, usePatientPrescriptions, useUpcomingVisit } from './use-doctor-queries';
 
 function Block({ title, children }: { readonly title: string; readonly children: ReactNode }): ReactNode {
@@ -125,7 +127,7 @@ function VitalsList({ items, date }: { readonly items: ReadonlyArray<Observation
         {items.slice(0, MAX_SUMMARY_ROWS + 2).map((item, index) => (
           <li key={`${item.code}-${index}`} className="flex flex-wrap items-baseline justify-between gap-x-3 text-sm">
             <span>{item.display ?? item.code}</span>
-            <span className="tabular-nums font-semibold">{`${item.value} ${unitLabel(item.unit, item.code)}`}</span>
+            <span className="tabular-nums font-semibold">{`${formatNumber(item.value)} ${unitLabel(item.unit, item.code)}`}</span>
           </li>
         ))}
       </ul>
@@ -134,19 +136,29 @@ function VitalsList({ items, date }: { readonly items: ReadonlyArray<Observation
   );
 }
 
-/** The newest finished visit is the only one read: its observations are the "last vitals"; older visits are not searched. */
+/**
+ * The newest finished visit of the signed-in doctor is the only one read: its observations are the "last vitals". The history
+ * lists the visits of colleagues too, but their records are closed to this doctor (403), so a colleague's visit is never read
+ * and says so instead of «no vitals»; a failed read is a failure with a retry, not an empty block.
+ */
 function LastVitals({ patientId }: { readonly patientId: string }): ReactNode {
   const t = useT('doctor.summary');
+  const ownRoleId = useOwnRoleId();
   const history = usePatientHistory(patientId, 1);
-  const latest: HistoryItem | undefined = history.data?.items[0];
+  const items: ReadonlyArray<HistoryItem> = history.data?.items ?? [];
+  const latest: HistoryItem | undefined = items.find((item) => isOwnVisit(item, ownRoleId));
   const encounter = useEncounter(latest?.id ?? '', latest !== undefined);
   const isPending: boolean = history.isPending || (latest !== undefined && encounter.isPending);
   const observations: ReadonlyArray<ObservationView> = encounter.data?.observations ?? [];
+  const isForbidden: boolean = encounter.isError && isApiError(encounter.error) && encounter.error.status === 403;
+  const isColleagueOnly: boolean = history.data !== undefined && items.length > 0 && latest === undefined;
   return (
     <Block title={t('vitalsTitle')}>
       {isPending ? <SkeletonText lines={2} /> : null}
       {!isPending && history.isError ? <Unavailable onRetry={() => void history.refetch()} /> : null}
-      {!isPending && !history.isError && (latest === undefined || encounter.isError || observations.length === 0) ? <Empty>{t('vitalsEmpty')}</Empty> : null}
+      {!isPending && !history.isError && (isColleagueOnly || isForbidden) ? <Empty>{t('vitalsOtherDoctor')}</Empty> : null}
+      {!isPending && !history.isError && encounter.isError && !isForbidden ? <Unavailable onRetry={() => void encounter.refetch()} /> : null}
+      {!isPending && !history.isError && !isColleagueOnly && !encounter.isError && (latest === undefined || observations.length === 0) ? <Empty>{t('vitalsEmpty')}</Empty> : null}
       {latest !== undefined && !isPending && observations.length > 0 ? <VitalsList items={observations} date={latest.date} /> : null}
     </Block>
   );

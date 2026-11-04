@@ -39,7 +39,12 @@ function Results({ hits, onOpen }: { readonly hits: ReadonlyArray<PatientHit>; r
         <li key={hit.patientId}>
           <Link href={`/patients/${encodeURIComponent(hit.patientId)}`} onClick={onOpen} className={RESULT_CLASS}>
             <span className="font-semibold [overflow-wrap:anywhere]">{hit.name}</span>
-            <span className="tabular-nums text-xs text-muted-foreground">{t('lastVisit', { date: formatClinicDate(hit.lastVisit) })}</span>
+            {hit.lastVisit === undefined ? null : (
+              <span className="tabular-nums text-xs text-muted-foreground">{t('lastVisit', { date: formatClinicDate(hit.lastVisit) })}</span>
+            )}
+            {hit.nextVisit === undefined ? null : (
+              <span className="tabular-nums text-xs text-muted-foreground">{t('nextVisit', { date: formatClinicDate(hit.nextVisit) })}</span>
+            )}
           </Link>
         </li>
       ))}
@@ -54,13 +59,14 @@ function Results({ hits, onOpen }: { readonly hits: ReadonlyArray<PatientHit>; r
  */
 export function DoctorPatientSearch({ onNavigate }: DoctorPatientSearchProps): ReactNode {
   const t = useT('doctor.search');
+  const tCommon = useT('common');
   const inputId: string = useId();
   const input = useRef<HTMLInputElement>(null);
   const list = useRef<HTMLDivElement>(null);
   const [query, setQuery] = useState('');
   const isActive: boolean = query.trim().length >= MIN_QUERY_LENGTH;
   const patients = useDoctorPatients(isActive);
-  const hits: ReadonlyArray<PatientHit> = isActive ? findPatients(patients.data ?? [], query) : [];
+  const hits: ReadonlyArray<PatientHit> = isActive ? findPatients(patients.data?.patients ?? [], query) : [];
   const open = (): void => {
     setQuery('');
     onNavigate?.();
@@ -100,12 +106,23 @@ export function DoctorPatientSearch({ onNavigate }: DoctorPatientSearchProps): R
         {!isActive ? null : patients.isPending ? (
           <p className="px-3 py-2 text-sm text-muted-foreground">{t('searching')}</p>
         ) : patients.isError ? (
-          <p className="px-3 py-2 text-sm text-destructive">{t('failed')}</p>
+          <div className="flex flex-col items-start gap-1 px-3 py-2">
+            <p className="text-sm text-destructive">{t('failed')}</p>
+            <button
+              type="button"
+              disabled={patients.isFetching}
+              onClick={() => void patients.refetch()}
+              className="min-h-[44px] rounded-control px-2 text-sm font-semibold text-primary underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60"
+            >
+              {tCommon('retry')}
+            </button>
+          </div>
         ) : hits.length === 0 ? (
           <p className="px-3 py-2 text-sm text-muted-foreground">{t('none')}</p>
         ) : (
           <Results hits={hits} onOpen={open} />
         )}
+        {isActive && patients.data?.truncated === true ? <p className="px-3 py-1 text-xs text-muted-foreground">{t('truncated')}</p> : null}
       </div>
     </div>
   );

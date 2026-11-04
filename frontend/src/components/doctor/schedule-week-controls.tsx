@@ -40,7 +40,7 @@ export function ScheduleWeekControls({ weekStart, anchor, today, onChange }: Wee
       <button type="button" onClick={() => onChange(shiftDateKey(weekStart, -WEEK_LENGTH))} aria-label={t('previousWeek')} className={STEP_BUTTON}>
         <ChevronLeft aria-hidden="true" className="size-[18px]" />
       </button>
-      <label htmlFor="schedule-date" className="sr-only">{t('from')}</label>
+      <label htmlFor="schedule-date" className="sr-only">{t('date')}</label>
       <DatePicker id="schedule-date" value={anchor} onChange={handleDate} wrapperClassName="w-44" className="font-medium" />
       <button type="button" onClick={() => onChange(shiftDateKey(weekStart, WEEK_LENGTH))} aria-label={t('nextWeek')} className={STEP_BUTTON}>
         <ChevronRight aria-hidden="true" className="size-[18px]" />

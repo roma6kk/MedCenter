@@ -88,7 +88,7 @@ function VisitCard({ visit }: { readonly visit: JournalAppointment }): ReactNode
         </span>
         <span className="inline-flex flex-wrap items-center gap-2">
           <OpenEncounterButton appointmentId={visit.id} patientId={visit.patientId} start={visit.start} label={`${name}, ${formatClinicTime(visit.start)}`} />
-          <NoshowMenu appointmentId={visit.id} patientName={name} />
+          <NoshowMenu appointmentId={visit.id} patientName={name} start={visit.start} />
         </span>
       </div>
     );
@@ -208,7 +208,7 @@ function NextPatientPanel({ visit }: { readonly visit: JournalAppointment }): Re
       <OpenEncounterButton appointmentId={visit.id} patientId={visit.patientId} start={visit.start} label={label} size="lg" fullWidth />
       <div className="flex items-center gap-2.5">
         <Link href={`/patients/${encodeURIComponent(visit.patientId)}`} data-row-anchor className={cn(buttonVariants({ variant: 'secondary' }), 'flex-1')}>{t('patientCardLink')}</Link>
-        <NoshowMenu appointmentId={visit.id} patientName={name} />
+        <NoshowMenu appointmentId={visit.id} patientName={name} start={visit.start} />
       </div>
     </Card>
   );

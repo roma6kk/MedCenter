@@ -1038,7 +1038,8 @@
       "valueMin": "The value must be at least {min}",
       "valueMax": "The value must be at most {max}",
       "minLength": "At least {count} characters",
-      "maxLength": "At most {count} characters"
+      "maxLength": "At most {count} characters",
+      "duplicateDiagnosis": "This diagnosis is already added"
     },
     "patient": {
       "cardLabel": "Patient card",
@@ -1078,7 +1079,9 @@
       "recommendations": "Recommendations",
       "openEncounter": "Open the encounter",
       "openEncounterOn": "Open the encounter of {date}",
-      "orders": "Orders of the visit"
+      "orders": "Orders of the visit",
+      "doctor": "Doctor: {name}",
+      "otherDoctor": "Another doctor's visit"
     },
     "prescriptions": {
       "title": "All prescriptions",
@@ -1100,7 +1103,8 @@
       "vitalsOn": "From the encounter of {date}",
       "upcomingTitle": "Next appointment",
       "upcomingEmpty": "Nothing scheduled with you",
-      "unavailable": "Could not be loaded"
+      "unavailable": "Could not be loaded",
+      "vitalsOtherDoctor": "The latest visit was held by another doctor; its vitals are not available to you"
     },
     "unit": {
       "percent": "%",
@@ -1134,7 +1138,9 @@
       "lastVisit": "Last visit: {date}",
       "searching": "Searching…",
       "failed": "The search failed",
-      "none": "None of your patients of the last three months and the coming month matches"
+      "none": "None of your patients of the last three months and the coming month matches",
+      "nextVisit": "Next visit: {date}",
+      "truncated": "The search did not read the whole journal: the oldest visits are not included"
     }
   },
   "validation": {

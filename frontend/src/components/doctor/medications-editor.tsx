@@ -9,6 +9,7 @@ import { EMPTY_MEDICATION } from './encounter-form-defaults';
 import { a11yOf, errorAt, INPUT_CLASS, ROW_CLASS } from './encounter-form-helpers';
 import { AddRowButton, EmptyListLine, FieldRow, RemoveRowButton } from './encounter-form-fields';
 import { FormSection } from './encounter-form-section';
+import { useRemoveRowFocus } from './use-remove-row-focus';
 
 /** Dosage instruction (required) and a note (optional) of a drug row. */
 function MedicationTextFields({ index }: { readonly index: number }): ReactNode {
@@ -67,11 +68,12 @@ export function MedicationsEditor(): ReactNode {
   const t = useT('doctor.medications');
   const { control } = useFormContext<CompleteEncounterForm>();
   const { fields, append, remove } = useFieldArray({ control, name: 'medicationRequests' });
+  const removeRow = useRemoveRowFocus('medicationRequests', 'atcCode', 'medications', fields.length, remove);
   const add = (): void => append(EMPTY_MEDICATION, { focusName: `medicationRequests.${fields.length}.atcCode` });
   return (
     <FormSection id="medications" title={t('legend')}>
       {fields.length === 0 ? <EmptyListLine message={t('empty')} addLabel={t('add')} onAdd={add} /> : null}
-      {fields.map((field, index) => <MedicationRow key={field.id} index={index} onRemove={() => remove(index)} />)}
+      {fields.map((field, index) => <MedicationRow key={field.id} index={index} onRemove={() => removeRow(index)} />)}
       {fields.length > 0 ? <AddRowButton label={t('add')} onClick={add} disabled={fields.length >= MEDICATION_REQUESTS_MAX} /> : null}
     </FormSection>
   );

@@ -24,9 +24,9 @@ jest.mock('@/components/catalog/catalog-api', () => ({
 }));
 jest.mock('@/components/doctor/doctor-api', () => ({
   ...jest.requireActual('@/components/doctor/doctor-api'),
-  fetchDoctorJournal: jest.fn().mockResolvedValue({
+  fetchJournalScan: jest.fn().mockResolvedValue({
+    truncated: false,
     items: [{ id: 'a1', status: 'fulfilled', start: '2026-10-20T06:00:00Z', end: '2026-10-20T06:30:00Z', slotId: 's', patientId: 'p-9', patientName: 'Кузнецов Павел', doctorId: 'd', practitionerRoleId: 'r', serviceId: 'x', createdAt: '2026-10-01T00:00:00Z' }],
-    meta: { page: 1, pageSize: 100, totalItems: 1, totalPages: 1 },
   }),
 }));
 
@@ -185,11 +185,11 @@ describe('StaffShell patient search', () => {
 
   it('should not read the journal before something is typed', () => {
     signIn('DOCTOR');
-    const { fetchDoctorJournal } = jest.requireMock('@/components/doctor/doctor-api') as { fetchDoctorJournal: jest.Mock };
+    const { fetchJournalScan } = jest.requireMock('@/components/doctor/doctor-api') as { fetchJournalScan: jest.Mock };
 
     render(<StaffShell links={DOCTOR_LINKS}><p>x</p></StaffShell>, { wrapper: Wrapper });
 
-    expect(fetchDoctorJournal).not.toHaveBeenCalled();
+    expect(fetchJournalScan).not.toHaveBeenCalled();
   });
 });
 

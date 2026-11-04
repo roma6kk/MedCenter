@@ -5,6 +5,7 @@ import { initialsOf } from '@/components/doctor/journal-model';
 import { useAccount } from '@/components/patient/use-patient-queries';
 import { doctorLabel } from '@/lib/doctor-name';
 import { useT } from '@/lib/i18n/use-t';
+import { roleIdOf } from '@/lib/practitioner-role-id';
 import { useSessionStore } from '@/store/use-session-store';
 
 export interface StaffProfile {
@@ -13,12 +14,6 @@ export interface StaffProfile {
   /** The doctor's specialty, else the role word. */
   readonly subtitle: string;
   readonly initials: string;
-}
-
-/** `PractitionerRole/abc` → `abc`. */
-function roleIdOf(fhirUser: string | null): string | null {
-  const [type, id] = (fhirUser ?? '').split('/');
-  return type === 'PractitionerRole' && id !== undefined && id !== '' ? id : null;
 }
 
 /**

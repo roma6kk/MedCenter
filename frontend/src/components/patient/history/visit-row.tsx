@@ -69,8 +69,8 @@ function Details({ entry, prescriptions }: VisitRowProps): ReactNode {
         <div className="flex flex-col gap-1.5">
           <Label>{t('diagnoses')}</Label>
           <ul className="flex flex-col gap-1.5">
-            {others.map((d) => (
-              <li key={d.code} className="flex flex-wrap items-center gap-2 text-base"><CodeTag code={d.code} system={ICD10_SYSTEM} />{d.display ? <span className={WRAP_TEXT}>{d.display}</span> : null}</li>
+            {others.map((d, i) => (
+              <li key={`${d.code}-${i}`} className="flex flex-wrap items-center gap-2 text-base"><CodeTag code={d.code} system={ICD10_SYSTEM} />{d.display ? <span className={WRAP_TEXT}>{d.display}</span> : null}</li>
             ))}
           </ul>
         </div>

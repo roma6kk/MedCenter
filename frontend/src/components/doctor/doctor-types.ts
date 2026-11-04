@@ -88,6 +88,8 @@ export interface HistoryItem {
   readonly serviceType?: Coding;
   readonly appointmentId: string;
   readonly practitionerRoleId: string;
+  /** Display name of the doctor who held the visit; absent when the service could not resolve it. */
+  readonly doctorName?: string;
 }
 
 interface PrescriptionBase {

@@ -54,6 +54,22 @@ export function currentLocale(): Locale {
   return useUiStore.getState().locale;
 }
 
+const numberFormatters = new Map<Locale, Intl.NumberFormat>();
+
+/**
+ * A measured value as the language writes it: «36,6» in Russian, «36.6» in English. No digit grouping (a clinical value
+ * must not become «1 234,5») and no rounding to a few places; a number that is not finite is shown as `String` does.
+ */
+export function formatNumber(value: number, locale: Locale = currentLocale()): string {
+  if (!Number.isFinite(value)) return String(value);
+  let formatter: Intl.NumberFormat | undefined = numberFormatters.get(locale);
+  if (formatter === undefined) {
+    formatter = new Intl.NumberFormat(INTL_LOCALE[locale], { maximumFractionDigits: 6, useGrouping: false });
+    numberFormatters.set(locale, formatter);
+  }
+  return formatter.format(value);
+}
+
 function validDate(iso: string): Date | null {
   const date = new Date(iso);
   return Number.isNaN(date.getTime()) ? null : date;

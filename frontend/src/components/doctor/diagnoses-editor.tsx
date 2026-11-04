@@ -17,6 +17,7 @@ import { Icd10Combobox } from './icd10-combobox';
 import { codeOfTypedText, formatDiagnosis, upperCaseSearch } from './icd10-text';
 import { buildRecentDiagnoses } from './patient-summary-model';
 import { lookupTerm, usePatientHistory } from './use-doctor-queries';
+import { useRemoveRowFocus } from './use-remove-row-focus';
 
 const ICD10_SYSTEM = 'https://fhir.by/CodeSystem/InternClassificDiseases10';
 const STATUSES: ReadonlyArray<VerificationStatus> = ['working', 'provisional', 'confirmed'];
@@ -218,6 +219,7 @@ export function DiagnosesEditor({ patientId }: { readonly patientId: string }): 
   const t = useT('doctor.encounter');
   const { control } = useFormContext<CompleteEncounterForm>();
   const { fields, append, remove } = useFieldArray({ control, name: 'diagnoses' });
+  const removeRow = useRemoveRowFocus('diagnoses', 'code', 'diagnoses', fields.length, remove);
   const { errors } = useFormState({ control, name: 'diagnoses' });
   const listError = errorAt(errors, 'diagnoses');
   const shortcuts = useDiagnosisShortcuts(patientId);
@@ -226,7 +228,7 @@ export function DiagnosesEditor({ patientId }: { readonly patientId: string }): 
     <FormSection id="diagnoses" title={t('diagnosesLegend')} hint={t('diagnosesHint')}>
       {listError ? <p role="alert" data-testid="diagnoses-error" className="mb-3 text-sm text-destructive">{listError}</p> : null}
       {fields.map((field, index) => (
-        <DiagnosisRow key={field.id} index={index} canRemove={fields.length > 1} shortcuts={shortcuts} onRemove={() => remove(index)} />
+        <DiagnosisRow key={field.id} index={index} canRemove={fields.length > 1} shortcuts={shortcuts} onRemove={() => removeRow(index)} />
       ))}
       <AddRowButton label={t('addDiagnosis')} onClick={() => append(EMPTY_DIAGNOSIS, { focusName: `diagnoses.${fields.length}.code` })} disabled={fields.length >= DIAGNOSES_MAX} />
     </FormSection>

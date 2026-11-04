@@ -11,6 +11,7 @@ import { AddRowButton, EmptyListLine, FieldRow, RemoveRowButton } from './encoun
 import { FormSection } from './encounter-form-section';
 import { EMPTY_OBSERVATION } from './encounter-form-defaults';
 import { UcumUnitSelect } from './ucum-unit-select';
+import { useRemoveRowFocus } from './use-remove-row-focus';
 
 function ObservationUnitField({ index }: { readonly index: number }): ReactNode {
   const t = useT('doctor.observations');
@@ -56,11 +57,12 @@ export function ObservationsEditor(): ReactNode {
   const t = useT('doctor.observations');
   const { control } = useFormContext<CompleteEncounterForm>();
   const { fields, append, remove } = useFieldArray({ control, name: 'observations' });
+  const removeRow = useRemoveRowFocus('observations', 'code', 'observations', fields.length, remove);
   const add = (): void => append(EMPTY_OBSERVATION, { focusName: `observations.${fields.length}.code` });
   return (
     <FormSection id="observations" title={t('legend')}>
       {fields.length === 0 ? <EmptyListLine message={t('empty')} addLabel={t('add')} onAdd={add} /> : null}
-      {fields.map((field, index) => <ObservationRow key={field.id} index={index} onRemove={() => remove(index)} />)}
+      {fields.map((field, index) => <ObservationRow key={field.id} index={index} onRemove={() => removeRow(index)} />)}
       {fields.length > 0 ? <AddRowButton label={t('add')} onClick={add} disabled={fields.length >= OBSERVATIONS_MAX} /> : null}
     </FormSection>
   );

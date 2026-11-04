@@ -17,11 +17,13 @@ import {
   fetchDoctorSchedule,
   fetchEncounter,
   fetchExpansion,
+  fetchJournalScan,
   fetchPatient,
   fetchPatientHistory,
   fetchPatientPrescriptions,
   fetchRelatedPersons,
   type JournalRange,
+  type JournalScan,
 } from './doctor-api';
 import { patientsOf, type PatientHit } from './patient-search-model';
 import type {
@@ -121,11 +123,12 @@ export const UPCOMING_HORIZON_DAYS = 30;
 export function useUpcomingVisit(patientId: string, excludeAppointmentId?: string): UseQueryResult<JournalAppointment | null> {
   const today: string = clinicDateKey();
   const range: JournalRange = { from: clinicDayBounds(today).from, to: clinicDayBounds(shiftDateKey(today, UPCOMING_HORIZON_DAYS)).to };
+  const isUpcoming = (visit: JournalAppointment): boolean => visit.patientId === patientId && visit.status === 'booked' && visit.id !== excludeAppointmentId;
   return useQuery({
-    queryKey: queryKeys.doctorAppointments({ ...range, page: 1, pageSize: JOURNAL_PAGE_SIZE }),
-    queryFn: ({ signal }) => fetchDoctorJournal(range, { page: 1, pageSize: JOURNAL_PAGE_SIZE }, signal),
+    // The oldest-first walk stops at the first page that holds the patient's visit, so the entry is the patient's own.
+    queryKey: queryKeys.doctorAppointments({ ...range, scan: 'upcoming', patientId, exclude: excludeAppointmentId }),
+    queryFn: async ({ signal }) => (await fetchJournalScan(range, { until: (items) => items.some(isUpcoming) }, signal)).items.find(isUpcoming) ?? null,
     staleTime: STALE_TIME_MS.appointments,
-    select: (page) => page.items.find((visit) => visit.patientId === patientId && visit.status === 'booked' && visit.id !== excludeAppointmentId) ?? null,
   });
 }
 
@@ -200,22 +203,29 @@ export const PATIENT_SEARCH_AHEAD_DAYS = 30;
 /** The largest page the journal endpoint serves. */
 export const JOURNAL_MAX_PAGE_SIZE = 100;
 
+/** The patients of the scanned journal and whether the scan stopped at its page cap (older visits may be missing). */
+export interface DoctorPatients {
+  readonly patients: ReadonlyArray<PatientHit>;
+  readonly truncated: boolean;
+}
+
 /**
- * The patients the doctor has seen or will see, from the journal of the last three and the next month (one request, the
- * largest page): the doctor's side has no patient search endpoint. `enabled: false` holds the read back until someone types.
+ * The patients the doctor has seen or will see, from the journal of the last three and the next month (every page, newest
+ * first, up to `JOURNAL_SCAN_MAX_PAGES`): the doctor's side has no patient search endpoint. `enabled: false` holds the read
+ * back until someone types.
  */
-export function useDoctorPatients(enabled: boolean): UseQueryResult<ReadonlyArray<PatientHit>> {
+export function useDoctorPatients(enabled: boolean): UseQueryResult<DoctorPatients> {
   const today: string = clinicDateKey();
   const range: JournalRange = {
     from: clinicDayBounds(shiftDateKey(today, -PATIENT_SEARCH_BACK_DAYS)).from,
     to: clinicDayBounds(shiftDateKey(today, PATIENT_SEARCH_AHEAD_DAYS)).to,
   };
   return useQuery({
-    queryKey: queryKeys.doctorAppointments({ ...range, page: 1, pageSize: JOURNAL_MAX_PAGE_SIZE }),
-    queryFn: ({ signal }) => fetchDoctorJournal(range, { page: 1, pageSize: JOURNAL_MAX_PAGE_SIZE }, signal),
+    queryKey: queryKeys.doctorAppointments({ ...range, scan: 'patients', sortOrder: 'desc' }),
+    queryFn: async ({ signal }): Promise<JournalScan> => fetchJournalScan(range, { sortOrder: 'desc' }, signal),
     staleTime: STALE_TIME_MS.appointments,
     enabled,
-    select: (page) => patientsOf(page.items),
+    select: (scan): DoctorPatients => ({ patients: patientsOf(scan.items), truncated: scan.truncated }),
   });
 }
 

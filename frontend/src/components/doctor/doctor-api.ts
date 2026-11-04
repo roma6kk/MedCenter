@@ -4,7 +4,7 @@
  * Paths and bodies are exactly what the services accept; list endpoints answer the `{ items, meta }` envelope.
  */
 import { apiFetch } from '@/lib/api/api-fetch';
-import type { PaginatedResponse } from '@/lib/api/pagination';
+import type { PaginatedResponse, SortOrder } from '@/lib/api/pagination';
 import { withQuery } from '@/lib/api/query-string';
 import type {
   DoctorJournalPage,
@@ -13,6 +13,7 @@ import type {
   EncounterSummary,
   Expansion,
   HistoryItem,
+  JournalAppointment,
   PatientCard,
   Prescription,
   RelatedPerson,
@@ -42,9 +43,48 @@ export interface PageRequest {
   readonly pageSize: number;
 }
 
-export function fetchDoctorJournal(range: JournalRange, request: PageRequest, signal?: AbortSignal): Promise<DoctorJournalPage> {
-  const path = withQuery('/api/v1/doctor/appointments', { from: range.from, to: range.to, page: request.page, pageSize: request.pageSize, sortOrder: 'asc' });
+export interface JournalPageRequest extends PageRequest {
+  /** Oldest first by default. */
+  readonly sortOrder?: SortOrder;
+}
+
+export function fetchDoctorJournal(range: JournalRange, request: JournalPageRequest, signal?: AbortSignal): Promise<DoctorJournalPage> {
+  const path = withQuery('/api/v1/doctor/appointments', {
+    from: range.from,
+    to: range.to,
+    page: request.page,
+    pageSize: request.pageSize,
+    sortOrder: request.sortOrder ?? 'asc',
+  });
   return apiFetch<DoctorJournalPage>(path, { signal });
+}
+
+/** The journal pages a scan of a wide range reads at most (100 rows each): the search and the next-visit lookup stop here. */
+export const JOURNAL_SCAN_MAX_PAGES = 10;
+
+export interface JournalScan {
+  readonly items: ReadonlyArray<JournalAppointment>;
+  /** The page cap was reached while the journal has more pages: `items` is not the whole range. */
+  readonly truncated: boolean;
+}
+
+/**
+ * Reads the journal of a wide range page after page (largest page, up to `JOURNAL_SCAN_MAX_PAGES`, bounded by the real
+ * `meta.totalPages`) and merges the rows. `until` ends the walk early once a page has what the caller needs.
+ */
+export async function fetchJournalScan(
+  range: JournalRange,
+  options: { readonly sortOrder?: SortOrder; readonly until?: (items: ReadonlyArray<JournalAppointment>) => boolean },
+  signal?: AbortSignal,
+): Promise<JournalScan> {
+  const items: JournalAppointment[] = [];
+  for (let page = 1; page <= JOURNAL_SCAN_MAX_PAGES; page += 1) {
+    const result: DoctorJournalPage = await fetchDoctorJournal(range, { page, pageSize: 100, sortOrder: options.sortOrder }, signal);
+    items.push(...result.items);
+    if (options.until?.(result.items) === true) return { items, truncated: false };
+    if (page >= result.meta.totalPages) return { items, truncated: false };
+  }
+  return { items, truncated: true };
 }
 
 export function postNoshow(appointmentId: string): Promise<unknown> {

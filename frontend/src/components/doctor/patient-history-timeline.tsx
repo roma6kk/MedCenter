@@ -16,6 +16,7 @@ import { cn } from '@/lib/ui/cn';
 import { DiagnosisList } from './diagnosis-list';
 import type { HistoryItem, Prescription } from './doctor-types';
 import { QueryFailure } from '@/components/feedback/query-error-state';
+import { isOwnVisit, useOwnRoleId } from './use-own-role';
 import { usePatientHistory, usePatientPrescriptions } from './use-doctor-queries';
 
 function VisitText({ label, text }: { readonly label: string; readonly text: string }): ReactNode {
@@ -36,6 +37,8 @@ interface VisitEntryProps {
   readonly item: HistoryItem;
   readonly orders: ReadonlyArray<Prescription>;
   readonly isOpen: boolean;
+  /** The visit was held by another doctor: its record is not open to this one. */
+  readonly isColleague: boolean;
   readonly onToggle: () => void;
 }
 
@@ -43,7 +46,7 @@ interface VisitEntryProps {
  * A finished visit as a card that folds (A2): the date, the service and the diagnosis codes always show, the conclusion,
  * recommendations and orders of the visit appear when it is opened. The whole top row is the button, so the target is large.
  */
-function VisitEntry({ item, orders, isOpen, onToggle }: VisitEntryProps): ReactNode {
+function VisitEntry({ item, orders, isOpen, isColleague, onToggle }: VisitEntryProps): ReactNode {
   const t = useT('doctor.history');
   const detailsId: string = useId();
   return (
@@ -62,8 +65,9 @@ function VisitEntry({ item, orders, isOpen, onToggle }: VisitEntryProps): ReactN
               <span className="tabular-nums font-semibold">{formatClinicDateTime(item.date)}</span>
               {item.serviceType?.display ? <span className="text-sm text-muted-foreground">{item.serviceType.display}</span> : null}
             </span>
+            {item.doctorName ? <span className="block text-sm text-muted-foreground [overflow-wrap:anywhere]">{t('doctor', { name: item.doctorName })}</span> : null}
             <span className="mt-1.5 flex flex-wrap items-center gap-1.5 text-sm">
-              {item.diagnoses.length > 0 ? item.diagnoses.map((diagnosis) => <CodeChip key={diagnosis.code} code={diagnosis.code} />) : <span className="text-muted-foreground">{t('noDiagnoses')}</span>}
+              {item.diagnoses.length > 0 ? item.diagnoses.map((diagnosis, index) => <CodeChip key={`${diagnosis.code}-${index}`} code={diagnosis.code} />) : <span className="text-muted-foreground">{t('noDiagnoses')}</span>}
             </span>
           </span>
           <ChevronDown aria-hidden="true" className={cn('mt-0.5 size-5 shrink-0 text-muted-foreground transition-transform duration-fast ease-out', isOpen && 'rotate-180')} />
@@ -79,9 +83,13 @@ function VisitEntry({ item, orders, isOpen, onToggle }: VisitEntryProps): ReactN
                 <ul className="mt-1 grid gap-0.5 text-sm">{orders.map((order) => <li key={order.id}>{orderText(order)}</li>)}</ul>
               </div>
             ) : null}
-            <p className="text-sm">
-              <Link href={`/encounters/${encodeURIComponent(item.id)}`} aria-label={t('openEncounterOn', { date: formatClinicDateTime(item.date) })} className="inline-flex min-h-[44px] items-center font-semibold text-primary-soft-foreground hover:underline">{t('openEncounter')}</Link>
-            </p>
+            {isColleague ? (
+              <p className="text-sm text-muted-foreground">{t('otherDoctor')}</p>
+            ) : (
+              <p className="text-sm">
+                <Link href={`/encounters/${encodeURIComponent(item.id)}`} aria-label={t('openEncounterOn', { date: formatClinicDateTime(item.date) })} className="inline-flex min-h-[44px] items-center font-semibold text-primary-soft-foreground hover:underline">{t('openEncounter')}</Link>
+              </p>
+            )}
           </div>
         ) : null}
       </Card>
@@ -99,6 +107,7 @@ export function PatientHistoryTimeline({ patientId }: { readonly patientId: stri
   const [page, setPage] = useState(1);
   const [toggled, setToggled] = useState<Readonly<Record<string, boolean>>>({});
   const history = usePatientHistory(patientId, page);
+  const ownRoleId = useOwnRoleId();
   const prescriptions = usePatientPrescriptions(patientId, 1);
   const enter = useStaggerOnce(history.data !== undefined);
   const isOpen = (id: string, index: number): boolean => toggled[id] ?? (page === 1 && index === 0);
@@ -117,6 +126,7 @@ export function PatientHistoryTimeline({ patientId }: { readonly patientId: stri
                   item={item}
                   orders={(prescriptions.data?.items ?? []).filter((order) => order.encounterId === item.id)}
                   isOpen={isOpen(item.id, index)}
+                  isColleague={!isOwnVisit(item, ownRoleId)}
                   onToggle={() => setToggled((previous) => ({ ...previous, [item.id]: !isOpen(item.id, index) }))}
                 />
               ))}

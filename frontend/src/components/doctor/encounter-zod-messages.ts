@@ -40,6 +40,8 @@ export const encounterErrorMap: ZodErrorMap = (issue, context) => {
       return { message: invalidStringMessage(issue) };
     case 'invalid_enum_value':
       return { message: translate(`${COMMON}required`) };
+    case 'custom':
+      return { message: issue.path[0] === 'diagnoses' ? translate(`${OWN}duplicateDiagnosis`) : context.defaultError };
     default:
       return { message: context.defaultError };
   }

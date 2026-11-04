@@ -101,7 +101,16 @@ export const completeEncounterSchema = z.object({
       }),
     )
     .min(1)
-    .max(DIAGNOSES_MAX),
+    .max(DIAGNOSES_MAX)
+    // The same code twice is one diagnosis written twice; the issue lands on the second row's code (the form shows it there).
+    .superRefine((diagnoses, context) => {
+      const seen = new Set<string>();
+      diagnoses.forEach((diagnosis, index) => {
+        const code: string = diagnosis.code.trim().toUpperCase();
+        if (seen.has(code)) context.addIssue({ code: z.ZodIssueCode.custom, path: [index, 'code'] });
+        seen.add(code);
+      });
+    }),
   recommendations: z.string().min(RECOMMENDATIONS_MIN).max(RECOMMENDATIONS_MAX),
   observations: z
     .array(
