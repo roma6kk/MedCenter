@@ -68,6 +68,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (default `false`, passed via compose `x-bff-env`). Every endpoint and DTO is documented, errors reference the global
   RFC 7807 `problemDetails` schema (`ApiProblems`), auth is Bearer-only, and each service has a `swagger.spec.ts`
   that checks its document against the API spec (API §10).
+- `GET /api/v1/notifications` items carry an optional `kind` (`appointment.booked`, `appointment.cancelled`,
+  `appointment.cancelled.by-admin`, `appointment.noshow`, `encounter.completed`, `patient.registered`) and, for a
+  booking, the `start` instant, so the client can word a notification in the UI language (NFR-008); `text` stays the
+  Russian fallback for notifications stored before. Stored in `Communication.topic` and an extension (additive).
 
 ### Changed
 

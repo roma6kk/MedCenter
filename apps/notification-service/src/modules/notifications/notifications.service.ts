@@ -1,8 +1,10 @@
 import { ForbiddenException, Inject, Injectable } from '@nestjs/common';
 import { buildPaginatedResponse, type PaginatedResponseDto } from '@medcenter/contracts';
 import { FHIR_CLIENT, type FhirClient, type FhirResource } from '@medcenter/fhir';
+import { MEDCENTER_EXT } from '@medcenter/terminology';
 
 import type { NotificationResponseDto } from './dto/notification-response.dto';
+import { isNotificationKind, NOTIFICATION_KIND_SYSTEM, type NotificationKind } from './notification-kind';
 
 export interface ListNotificationsQuery {
   readonly page: number;
@@ -25,9 +27,25 @@ function aboutId(communication: FhirResource, resourceType: string): string | un
   return reference === undefined ? undefined : reference.slice(prefix.length);
 }
 
+/** The `kind` a notification was stored with (`Communication.topic`); `undefined` for one stored before the kind existed. */
+function kindOf(communication: FhirResource): NotificationKind | undefined {
+  const topic = communication['topic'] as { coding?: Array<{ system?: unknown; code?: unknown }> } | undefined;
+  const code = topic?.coding?.find((coding) => coding.system === NOTIFICATION_KIND_SYSTEM)?.code;
+  return isNotificationKind(code) ? code : undefined;
+}
+
+/** The booked start a booking notification carries as an extension. */
+function startOf(communication: FhirResource): string | undefined {
+  const extensions = (communication['extension'] as Array<{ url?: unknown; valueDateTime?: unknown }> | undefined) ?? [];
+  const value = extensions.find((extension) => extension.url === MEDCENTER_EXT.NOTIFICATION_APPOINTMENT_START)?.valueDateTime;
+  return typeof value === 'string' ? value : undefined;
+}
+
 function toDto(communication: FhirResource): NotificationResponseDto {
   const appointmentId = aboutId(communication, 'Appointment');
   const encounterId = aboutId(communication, 'Encounter');
+  const kind = kindOf(communication);
+  const start = startOf(communication);
   const payload = (communication['payload'] as Array<{ contentString?: unknown }> | undefined) ?? [];
   const category = (communication['category'] as Array<{ text?: unknown }> | undefined) ?? [];
   const text = payload[0]?.contentString;
@@ -38,6 +56,8 @@ function toDto(communication: FhirResource): NotificationResponseDto {
     text: typeof text === 'string' ? text : '',
     sent: typeof communication['sent'] === 'string' ? communication['sent'] : '',
     read: communication['status'] === READ,
+    ...(kind === undefined ? {} : { kind }),
+    ...(start === undefined ? {} : { start }),
     ...(appointmentId === undefined ? {} : { appointmentId }),
     ...(encounterId === undefined ? {} : { encounterId }),
   };

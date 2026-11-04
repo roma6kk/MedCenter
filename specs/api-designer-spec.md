@@ -956,8 +956,14 @@ export class CompleteEncounterDto {
 Потребитель RabbitMQ (`appointment.booked/cancelled/noshow.v1`, `encounter.completed.v1`,
 `patient.registered.v1` — каталог в §4.4 архитектуры) создаёт `Communication` (recipient=Patient; `sender` не пишется:
 id организации клиники сервису не известен, а HAPI проверяет ссылочную целостность) + email-адаптер (A-3). Компартмент: фильтр по `patientRef` из JWT (ADR-013).
-Элемент 8.1: `{ id, category, text, sent, read, appointmentId?, encounterId? }` — `category` ∈ `appointment` | `encounter` |
-`registration` (по ним клиент выбирает значок и фильтр); `appointmentId`/`encounterId`
+Элемент 8.1: `{ id, category, kind?, text, sent, read, start?, appointmentId?, encounterId? }` — `category` ∈ `appointment` |
+`encounter` | `registration` (по ним клиент выбирает значок и фильтр); `kind` — какое это событие, чтобы клиент сам сформулировал
+уведомление на языке интерфейса (NFR-008): `appointment.booked` | `appointment.cancelled` | `appointment.cancelled.by-admin`
+(отмена клиникой, BR-002) | `appointment.noshow` | `encounter.completed` | `patient.registered`; `start` — начало записи в UTC
+(только у `appointment.booked`, чтобы клиент показал время по Минску); `text` — русский текст сервера, запасной вариант для
+уведомлений без `kind` (созданных до его появления). `kind` хранится в `Communication.topic`
+(`https://fhir.by/CodeSystem/notification-kind`), `start` — в расширении `notification-appointment-start`; поля необязательные,
+контракт аддитивный. `appointmentId`/`encounterId`
 берутся из `Communication.about` (`Appointment/{id}` у `appointment.*`, `Encounter/{id}` у `encounter.completed.v1`);
 у уведомлений, созданных до этого поля, их нет. Время начала в тексте `appointment.booked.v1` — по Минску
 (`ДД.ММ.ГГГГ ЧЧ:ММ (время Минска)`). 8.4 пишет одним FHIR `batch` с `If-Match`; изменённое за это время уведомление

@@ -1,6 +1,7 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import type { PageMetaDto, PaginatedResponseDto } from '@medcenter/contracts';
 
+import { NOTIFICATION_KINDS, type NotificationKind } from '../notification-kind';
 import type { NotificationResponseDto } from './notification-response.dto';
 
 /** Swagger description of `NotificationResponseDto` (API §8.1). */
@@ -19,6 +20,16 @@ export class NotificationResponseDoc implements NotificationResponseDto {
 
   @ApiProperty()
   read!: boolean;
+
+  @ApiPropertyOptional({
+    description: 'Which event it is, so the client can word the notification in the UI language; absent for older notifications (show `text`)',
+    enum: NOTIFICATION_KINDS,
+    example: 'appointment.booked',
+  })
+  kind?: NotificationKind;
+
+  @ApiPropertyOptional({ description: 'Start of the booked appointment, UTC (only `appointment.booked`)', type: String, format: 'date-time' })
+  start?: string;
 
   @ApiPropertyOptional({ description: 'Appointment the notification is about (Communication.about)' })
   appointmentId?: string;

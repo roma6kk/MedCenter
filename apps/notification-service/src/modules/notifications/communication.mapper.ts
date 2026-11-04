@@ -1,14 +1,19 @@
 import { createHash } from 'node:crypto';
 
 import type { FhirResource } from '@medcenter/fhir';
+import { MEDCENTER_EXT } from '@medcenter/terminology';
 
 import { formatClinicDateTime } from './clinic-time';
 import type { NotificationEvent } from './notification-event';
+import { NOTIFICATION_KIND_SYSTEM, type NotificationKind } from './notification-kind';
 
 /**
  * Domain event → FHIR `Communication` (FR-008). The event has passed `parseNotificationEvent`, so every field read
  * here is there. It is typed over the contract interfaces: a renamed contract field fails compilation instead of
  * making every notification of that type silently disappear.
+ *
+ * The Russian `text` is the fallback; `kind` (and the start of a booking) let a client word the notification in the
+ * user's language (NFR-008, API §8.1).
  *
  * The text is built only from the fields needed for the message. In particular
  * older `patient.registered.v1` events carry an email (no longer sent, ADR-021),
@@ -22,10 +27,12 @@ export function communicationFromEvent(event: NotificationEvent): FhirResource {
     id: communicationIdFor(event.eventId),
     status: 'in-progress',
     category: [{ text: built.category }],
+    topic: { coding: [{ system: NOTIFICATION_KIND_SYSTEM, code: built.kind }] },
     recipient: [{ reference: recipientOf(event) }],
     sent: event.occurredAt,
     payload: [{ contentString: built.text }],
     ...(built.about === undefined ? {} : { about: [{ reference: built.about }] }),
+    ...(built.start === undefined ? {} : { extension: [{ url: MEDCENTER_EXT.NOTIFICATION_APPOINTMENT_START, valueDateTime: built.start }] }),
   };
 }
 
@@ -45,9 +52,13 @@ function recipientOf(event: NotificationEvent): string {
 
 interface Described {
   readonly category: string;
+  /** Which event this is, for a client that words the notification itself. */
+  readonly kind: NotificationKind;
   readonly text: string;
   /** `Communication.about`: the appointment or encounter the notification is about, so a client can link to it. */
   readonly about?: string;
+  /** The booked start as a UTC instant: the one fact of a booking the client cannot take from the text. */
+  readonly start?: string;
 }
 
 /** The start in clinic (Minsk) time, as the patient booked it; the raw value only when it is no instant. */
@@ -55,17 +66,26 @@ function startText(start: string): string {
   return formatClinicDateTime(start) ?? start;
 }
 
+/** The start as a UTC instant (`...Z`), whatever offset the event carried; `undefined` when it is no instant. */
+function startInstant(start: string): string | undefined {
+  const epochMs = Date.parse(start);
+  return Number.isNaN(epochMs) ? undefined : new Date(epochMs).toISOString();
+}
+
 function describe(event: NotificationEvent): Described {
   switch (event.type) {
     case 'appointment.booked.v1':
       return {
         category: 'appointment',
+        kind: 'appointment.booked',
         text: `Вы записаны на приём. Начало: ${startText(event.start)} (время Минска)`,
         about: `Appointment/${event.appointmentId}`,
+        start: startInstant(event.start),
       };
     case 'appointment.cancelled.v1':
       return {
         category: 'appointment',
+        kind: event.actorType === 'ADMIN' ? 'appointment.cancelled.by-admin' : 'appointment.cancelled',
         // The free-text reason is health data: it is neither carried by the event nor copied into the message (ADR-021).
         // A cancellation by the clinic (BR-002) says so: the patient did not cancel it and has to pick another time.
         text:
@@ -77,16 +97,18 @@ function describe(event: NotificationEvent): Described {
     case 'appointment.noshow.v1':
       return {
         category: 'appointment',
+        kind: 'appointment.noshow',
         text: 'Приём отмечен как несостоявшийся: врач зафиксировал неявку.',
         about: `Appointment/${event.appointmentId}`,
       };
     case 'encounter.completed.v1':
       return {
         category: 'encounter',
+        kind: 'encounter.completed',
         text: 'Приём завершён. Результаты доступны в медицинской карте.',
         about: `Encounter/${event.encounterId}`,
       };
     case 'patient.registered.v1':
-      return { category: 'registration', text: 'Регистрация в медицинском центре завершена.' };
+      return { category: 'registration', kind: 'patient.registered', text: 'Регистрация в медицинском центре завершена.' };
   }
 }

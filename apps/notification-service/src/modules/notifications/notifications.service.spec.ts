@@ -1,6 +1,9 @@
 import { ForbiddenException } from '@nestjs/common';
 import { FhirClientError, type FhirClient, type FhirResource } from '@medcenter/fhir';
 
+import { MEDCENTER_EXT } from '@medcenter/terminology';
+
+import { NOTIFICATION_KIND_SYSTEM } from './notification-kind';
 import { NotificationsService } from './notifications.service';
 
 const PATIENT = 'Patient/pat-1';
@@ -69,6 +72,47 @@ describe('NotificationsService', () => {
         { id: 'c-1', category: 'appointment', text: 'Вы записаны на приём.', sent: '2026-11-02T09:00:00.000Z', read: false },
         { id: 'c-2', category: 'appointment', text: 'Вы записаны на приём.', sent: '2026-11-02T09:00:00.000Z', read: true },
       ]);
+    });
+
+    it('should expose the kind and the booked start of a Communication that carries them', async () => {
+      // Arrange
+      fhir.search.mockResolvedValue({
+        entry: [
+          {
+            resource: communication({
+              topic: { coding: [{ system: NOTIFICATION_KIND_SYSTEM, code: 'appointment.booked' }] },
+              extension: [{ url: MEDCENTER_EXT.NOTIFICATION_APPOINTMENT_START, valueDateTime: '2026-11-02T06:00:00.000Z' }],
+            }),
+          },
+          { resource: communication({ id: 'c-2', topic: { coding: [{ system: NOTIFICATION_KIND_SYSTEM, code: 'appointment.cancelled.by-admin' }] } }) },
+        ],
+      });
+
+      // Act
+      const { items } = await service.list(PATIENT, { page: 1, pageSize: 20, unreadOnly: false });
+
+      // Assert
+      expect(items[0]).toMatchObject({ id: 'c-1', kind: 'appointment.booked', start: '2026-11-02T06:00:00.000Z' });
+      expect(items[1]).toMatchObject({ id: 'c-2', kind: 'appointment.cancelled.by-admin' });
+      expect(items[1]).not.toHaveProperty('start');
+    });
+
+    it.each([
+      ['no topic (a notification stored before the kind existed)', {}],
+      ['a code of another system', { topic: { coding: [{ system: 'https://example.test/other', code: 'appointment.booked' }] } }],
+      ['a code that is no kind of the API', { topic: { coding: [{ system: NOTIFICATION_KIND_SYSTEM, code: 'appointment.rescheduled' }] } }],
+      ['a start that is not a string', { extension: [{ url: MEDCENTER_EXT.NOTIFICATION_APPOINTMENT_START, valueDateTime: 5 }] }],
+    ])('should leave kind and start out of the item when the Communication has %s', async (_label, overrides) => {
+      // Arrange
+      fhir.search.mockResolvedValue({ entry: [{ resource: communication(overrides) }] });
+
+      // Act
+      const { items } = await service.list(PATIENT, { page: 1, pageSize: 20, unreadOnly: false });
+
+      // Assert
+      expect(items[0]).not.toHaveProperty('kind');
+      expect(items[0]).not.toHaveProperty('start');
+      expect(items[0]).toMatchObject({ text: 'Вы записаны на приём.' });
     });
 
     it('should fall back to empty strings when a Communication has no payload, category or sent time', async () => {

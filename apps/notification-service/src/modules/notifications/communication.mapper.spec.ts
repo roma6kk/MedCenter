@@ -1,5 +1,8 @@
+import { MEDCENTER_EXT } from '@medcenter/terminology';
+
 import { communicationFromEvent } from './communication.mapper';
 import type { NotificationEvent } from './notification-event';
+import { NOTIFICATION_KIND_SYSTEM, NOTIFICATION_KINDS } from './notification-kind';
 
 const BASE = { v: 1, eventId: 'evt-1', occurredAt: '2026-10-22T08:00:00.000Z' };
 
@@ -56,6 +59,60 @@ describe('communicationFromEvent', () => {
     expect(communication['payload']).toEqual([{ contentString: 'Приём отмечен как несостоявшийся: врач зафиксировал неявку.' }]);
     expect(communication['about']).toEqual([{ reference: 'Appointment/12' }]);
     expect(communication['recipient']).toEqual([{ reference: 'Patient/1439' }]);
+  });
+
+  describe('kind', () => {
+    const kindOf = (fields: Record<string, unknown>): unknown => {
+      const topic = communicationFromEvent(event(fields))['topic'] as { coding: Array<{ system: string; code: string }> };
+      expect(topic.coding.map((coding) => coding.system)).toEqual([NOTIFICATION_KIND_SYSTEM]);
+      return topic.coding[0]?.code;
+    };
+
+    it.each([
+      [{ type: 'appointment.booked.v1', appointmentId: '1', patientRef: 'Patient/1', start: '2026-10-22T09:30:00.000Z' }, 'appointment.booked'],
+      [{ type: 'appointment.cancelled.v1', appointmentId: '1', patientRef: 'Patient/1', actorType: 'PATIENT' }, 'appointment.cancelled'],
+      [{ type: 'appointment.cancelled.v1', appointmentId: '1', patientRef: 'Patient/1', actorType: 'ADMIN' }, 'appointment.cancelled.by-admin'],
+      [{ type: 'appointment.noshow.v1', appointmentId: '1', patientRef: 'Patient/1' }, 'appointment.noshow'],
+      [{ type: 'encounter.completed.v1', encounterId: 'e1', patientRef: 'Patient/1' }, 'encounter.completed'],
+      [{ type: 'patient.registered.v1', patientId: '5' }, 'patient.registered'],
+    ])('should store %p as the kind %s so a client can word it in the UI language', (fields, kind) => {
+      expect(kindOf(fields)).toBe(kind);
+    });
+
+    it('should use every kind of the API once', () => {
+      const kinds = [
+        { type: 'appointment.booked.v1', appointmentId: '1', patientRef: 'Patient/1', start: '2026-10-22T09:30:00.000Z' },
+        { type: 'appointment.cancelled.v1', appointmentId: '1', patientRef: 'Patient/1', actorType: 'PATIENT' },
+        { type: 'appointment.cancelled.v1', appointmentId: '1', patientRef: 'Patient/1', actorType: 'ADMIN' },
+        { type: 'appointment.noshow.v1', appointmentId: '1', patientRef: 'Patient/1' },
+        { type: 'encounter.completed.v1', encounterId: 'e1', patientRef: 'Patient/1' },
+        { type: 'patient.registered.v1', patientId: '5' },
+      ].map(kindOf);
+
+      expect([...kinds].sort()).toEqual([...NOTIFICATION_KINDS].sort());
+    });
+  });
+
+  describe('start', () => {
+    const extensionOf = (communication: Record<string, unknown>): unknown => communication['extension'];
+
+    it('should carry the booked start as a UTC instant in an extension, whatever offset the event had', () => {
+      const withOffset = communicationFromEvent(event({ type: 'appointment.booked.v1', appointmentId: '1', patientRef: 'Patient/1', start: '2026-11-02T09:00:00+03:00' }));
+      const utc = communicationFromEvent(event({ type: 'appointment.booked.v1', appointmentId: '1', patientRef: 'Patient/1', start: '2026-11-02T06:00:00Z' }));
+
+      const expected = [{ url: MEDCENTER_EXT.NOTIFICATION_APPOINTMENT_START, valueDateTime: '2026-11-02T06:00:00.000Z' }];
+      expect(extensionOf(withOffset)).toEqual(expected);
+      expect(extensionOf(utc)).toEqual(expected);
+    });
+
+    it.each([
+      { type: 'appointment.cancelled.v1', appointmentId: '1', patientRef: 'Patient/1', actorType: 'ADMIN' },
+      { type: 'appointment.noshow.v1', appointmentId: '1', patientRef: 'Patient/1' },
+      { type: 'encounter.completed.v1', encounterId: 'e1', patientRef: 'Patient/1' },
+      { type: 'patient.registered.v1', patientId: '5' },
+    ])('should write no extension for %p, which has no start to tell', (fields) => {
+      expect(communicationFromEvent(event(fields))).not.toHaveProperty('extension');
+    });
   });
 
   it('should notify on minimised events that carry no diagnoses and no email', () => {
