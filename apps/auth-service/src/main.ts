@@ -1,11 +1,17 @@
 import { Logger } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
-import { createValidationPipe, RedisRateLimitStore, setRateLimitStore, setupSwagger } from '@medcenter/common';
+import {
+  applyHttpEdge,
+  createValidationPipe,
+  parseTrustProxy,
+  RedisRateLimitStore,
+  setRateLimitStore,
+  setupSwagger,
+} from '@medcenter/common';
 import { parseGuardEnv, parseSwaggerEnv } from '@medcenter/config';
 import Redis from 'ioredis';
 
 import { AppModule } from './app/app.module';
-import { parseTrustProxy } from './config/trust-proxy';
 
 async function bootstrap(): Promise<void> {
   const logger = new Logger('Bootstrap');
@@ -13,9 +19,8 @@ async function bootstrap(): Promise<void> {
   const trustProxy = parseTrustProxy(process.env['TRUST_PROXY']);
   const { REDIS_URL } = parseGuardEnv(process.env);
   const app = await NestFactory.create(AppModule);
-  // Behind Traefik, `req.ip` is the proxy unless Express is told to read
-  // `X-Forwarded-For`. Without this every client shares the proxy's rate-limit bucket.
-  app.getHttpAdapter().getInstance().set('trust proxy', trustProxy);
+  // Trust proxy (every client would otherwise share the proxy's rate-limit bucket) and no X-Powered-By.
+  applyHttpEdge(app, trustProxy);
   // Shared across replicas so the per-minute budget holds cluster-wide. Redis
   // errors fail open in `RateLimitGuard`, so the connection's error listener only logs.
   const redis = new Redis(REDIS_URL, { maxRetriesPerRequest: 1 });
