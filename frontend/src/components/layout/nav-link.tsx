@@ -19,6 +19,9 @@ interface NavLinkProps {
 const DEFAULT_ACTIVE_CLASS = 'font-semibold underline underline-offset-4';
 const TARGET_CLASS = 'inline-flex min-h-[44px] items-center';
 
+/** Fired when the link of the current page is clicked: a screen that holds its own state (the booking success) can start over. */
+export const RENAVIGATE_EVENT = 'lifeline:renavigate';
+
 /** Link of a shell navigation; marks the current section with `aria-current="page"` (WCAG 1.3.1 / 2.4.8). */
 export function NavLink({ href, children, className, label, activeClassName = DEFAULT_ACTIVE_CLASS }: NavLinkProps): ReactNode {
   const pathname: string | null = usePathname();
@@ -28,6 +31,9 @@ export function NavLink({ href, children, className, label, activeClassName = DE
       href={href}
       aria-current={isCurrent ? 'page' : undefined}
       aria-label={label}
+      onClick={() => {
+        if (pathname === href) window.dispatchEvent(new Event(RENAVIGATE_EVENT));
+      }}
       className={cn(TARGET_CLASS, className, isCurrent && activeClassName)}
     >
       {children}

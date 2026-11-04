@@ -185,4 +185,50 @@ describe('BookingWizard booking', () => {
     expect(postKeys()).toHaveLength(2);
     expect(postKeys()[1]).toBe(postKeys()[0]);
   });
+  it('should start a fresh wizard with an empty draft when the visitor presses «Записаться ещё» on the success screen', async () => {
+    renderWizard();
+    await reachConfirmation();
+    await userEvent.click(screen.getByRole('button', { name: 'Подтвердить запись' }));
+    expect(await screen.findByTestId('booking-success')).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Записаться ещё' }));
+
+    expect(screen.queryByTestId('booking-success')).not.toBeInTheDocument();
+    expect(useBookingDraftStore.getState().step).toBe(1);
+    expect(useBookingDraftStore.getState().slotId).toBeNull();
+  });
+
+  it('should send nothing and return to the slot step when the chosen time has started before the visitor confirms', async () => {
+    renderWizard();
+    await reachConfirmation();
+    const later: number = Date.now() + 10 * 24 * 3600 * 1000;
+    const now = jest.spyOn(Date, 'now').mockReturnValue(later);
+
+    await userEvent.click(screen.getByRole('button', { name: 'Подтвердить запись' }));
+    now.mockRestore();
+
+    expect(await screen.findByTestId('slot-conflict-notice')).toHaveTextContent('Это время уже наступило');
+    expect(postBodies()).toHaveLength(0);
+    expect(useBookingDraftStore.getState().slotId).toBeNull();
+  });
+
+  it('should close the reason field and book without it when the server answers 409 CONSENT_REQUIRED', async () => {
+    serveOutcomes(
+      () => Promise.reject(new ApiError(problem({ status: 409, errorCode: 'CONSENT_REQUIRED' }))),
+      () => Promise.resolve({ id: 'appt-3' }),
+    );
+    renderWizard();
+    await reachConfirmation();
+    await userEvent.type(screen.getByLabelText(/Причина обращения/), 'Болит спина');
+
+    await userEvent.click(screen.getByRole('button', { name: 'Подтвердить запись' }));
+
+    await waitFor(() => expect(screen.getByLabelText(/Причина обращения/)).toBeDisabled());
+    expect(screen.queryByTestId('problem-banner')).not.toBeInTheDocument();
+    expect(screen.queryByText(/отправьте пациента/)).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Подтвердить запись' }));
+
+    expect(await screen.findByTestId('booking-success')).toBeInTheDocument();
+    expect(postBodies()[1]).toEqual({ slotId: 'slot-30', serviceId: 'svc-30' });
+  });
 });

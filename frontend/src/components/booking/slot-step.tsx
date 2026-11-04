@@ -26,6 +26,7 @@ const NOTICE_KEY: Readonly<Record<BookingNotice, string>> = {
   conflict: 'conflictLead',
   gone: 'gone',
   mismatch: 'mismatch',
+  expired: 'expired',
 };
 
 /**

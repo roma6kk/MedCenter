@@ -1,8 +1,9 @@
 'use client';
 
-import type { ReactNode } from 'react';
+import { useEffect, type ReactNode } from 'react';
 import { useBookingDraftStore, type BookingDraft, type BookingStep } from '@/store/use-booking-draft-store';
 import type { Slot } from '@/components/catalog/catalog-types';
+import { RENAVIGATE_EVENT } from '@/components/layout/nav-link';
 import { useT } from '@/lib/i18n/use-t';
 import { BookingStepper } from './booking-stepper';
 import { selectDoctor, selectDoctorSlot, selectService, selectSlot } from './booking-steps';
@@ -71,7 +72,14 @@ export function BookingWizard({ presetDoctorId, header }: BookingWizardProps): R
   const isRestored: boolean = useDraftRepair(presetDoctorId);
   const booking = useBookingSubmit();
   const container = useStepFocus(draft.step, booking.notice !== null);
-  if (booking.created !== null) return <BookingSuccess visit={booking.created} />;
+  const { startOver, created } = booking;
+  // A click on a link to /booking while the success screen is open (the header's «Записаться») starts the next booking.
+  useEffect(() => {
+    if (created === null) return undefined;
+    window.addEventListener(RENAVIGATE_EVENT, startOver);
+    return () => window.removeEventListener(RENAVIGATE_EVENT, startOver);
+  }, [created, startOver]);
+  if (created !== null) return <BookingSuccess visit={created} onBookAnother={startOver} />;
   const showsConfirm: boolean = draft.step === 4 && draft.doctorId !== null && draft.slotId !== null;
   const goTo = (step: BookingStep): void => {
     booking.reset();

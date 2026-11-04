@@ -60,9 +60,10 @@ export function bookAppointment(request: CreateAppointmentRequest, idempotencyKe
  * - `gone`: the slot does not exist any more (its schedule was removed);
  * - `mismatch`: the slot belongs to another service of the doctor (400, `serviceId` does not match its schedule);
  * - `reason`: the reason text was refused;
+ * - `consent`: no active consent to the electronic record, so the reason cannot be taken (409 CONSENT_REQUIRED; the visit itself can be booked);
  * - `other`: anything else — shown as a banner, the same request can be retried.
  */
-export type BookingFailure = 'conflict' | 'gone' | 'mismatch' | 'reason' | 'other';
+export type BookingFailure = 'conflict' | 'gone' | 'mismatch' | 'reason' | 'consent' | 'other';
 
 function mentions(problem: ProblemDetails, field: string): boolean {
   return (problem.details ?? []).some((item) => item.field === field) || (problem.detail ?? '').includes(field);
@@ -71,6 +72,7 @@ function mentions(problem: ProblemDetails, field: string): boolean {
 export function classifyBookingFailure(problem: ProblemDetails): BookingFailure {
   if (problem.errorCode === 'SLOT_CONFLICT') return 'conflict';
   if (problem.errorCode === 'NOT_FOUND' || problem.errorCode === 'COMPARTMENT_VIOLATION') return 'gone';
+  if (problem.errorCode === 'CONSENT_REQUIRED') return 'consent';
   if (problem.errorCode !== 'VALIDATION_ERROR') return 'other';
   if (mentions(problem, 'serviceId')) return 'mismatch';
   if (mentions(problem, 'slotId')) return 'gone';

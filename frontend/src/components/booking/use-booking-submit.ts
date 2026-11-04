@@ -17,9 +17,10 @@ import {
   type AppointmentCreated,
   type BookingFailure,
 } from './book-appointment';
+import { repairDraft } from './booking-steps';
 
 /** Why the wizard sent the visitor back to the slot step. */
-export type BookingNotice = 'conflict' | 'gone' | 'mismatch';
+export type BookingNotice = 'conflict' | 'gone' | 'mismatch' | 'expired';
 
 interface Outcome {
   readonly notice: BookingNotice | null;
@@ -29,9 +30,11 @@ interface Outcome {
   readonly problem: ProblemDetails | null;
   /** The server's words about the reason field. */
   readonly reasonError: string | null;
+  /** 409 CONSENT_REQUIRED: the record has no consent, so the reason (free text about health) cannot be taken; the visit can be booked without it. */
+  readonly consentRefused: boolean;
 }
 
-const NO_OUTCOME: Outcome = { notice: null, takenSlot: null, problem: null, reasonError: null };
+const NO_OUTCOME: Outcome = { notice: null, takenSlot: null, problem: null, reasonError: null, consentRefused: false };
 
 /**
  * The booking the server created, with what the draft held when it was sent: the draft is cleared on success, and the
@@ -48,6 +51,8 @@ export interface BookingSubmit extends Outcome {
   readonly created: BookedVisit | null;
   /** Forget the last refusal (the visitor changed a choice). */
   readonly reset: () => void;
+  /** Leave the success screen for a fresh wizard: the next booking starts from an empty draft. */
+  readonly startOver: () => void;
 }
 
 function takenFrom(draft: BookingDraft): Slot | null {
@@ -63,6 +68,8 @@ function outcomeFor(failure: BookingFailure, problem: ProblemDetails, taken: Slo
       return { ...NO_OUTCOME, notice: 'gone', takenSlot: taken };
     case 'mismatch':
       return { ...NO_OUTCOME, notice: 'mismatch' };
+    case 'consent':
+      return { ...NO_OUTCOME, consentRefused: true };
     case 'reason': {
       const reasonError: string | null = serverReasonMessage(problem);
       return reasonError === null ? { ...NO_OUTCOME, problem } : { ...NO_OUTCOME, reasonError };
@@ -103,7 +110,8 @@ export function useBookingSubmit(): BookingSubmit {
   const [outcome, setOutcome] = useState<Outcome>(NO_OUTCOME);
   const mutation = useMutation({
     mutationFn: sendDraft,
-    onMutate: () => setOutcome(NO_OUTCOME),
+    // The refusal for the consent stays: the reason field stays closed until the visitor changes a choice.
+    onMutate: () => setOutcome((last) => ({ ...NO_OUTCOME, consentRefused: last.consentRefused })),
     onSuccess: () => {
       useBookingDraftStore.getState().clearDraft();
       void invalidateFor(client, 'booking');
@@ -119,9 +127,22 @@ export function useBookingSubmit(): BookingSubmit {
   });
   return {
     ...outcome,
-    submit: () => mutation.mutate(),
+    submit: () => {
+      // A confirmation step left open past the start of the slot: the slot is dropped instead of sent (the server would refuse it, BR-001).
+      const repair = repairDraft(useBookingDraftStore.getState());
+      if (repair !== null && 'slotId' in repair) {
+        flushSync(() => setOutcome({ ...NO_OUTCOME, notice: 'expired' }));
+        useBookingDraftStore.getState().releaseSlot();
+        return;
+      }
+      mutation.mutate();
+    },
     isPending: mutation.isPending,
     created: mutation.data ?? null,
     reset: () => setOutcome(NO_OUTCOME),
+    startOver: () => {
+      mutation.reset();
+      setOutcome(NO_OUTCOME);
+    },
   };
 }

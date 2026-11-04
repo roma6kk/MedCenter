@@ -18,7 +18,7 @@ interface ConfirmStepProps {
   readonly onReasonChange: (reason: string) => void;
   /** «Изменить» of a summary row: back to the step that made the choice. */
   readonly onEdit: (step: BookingStep) => void;
-  readonly booking: Pick<BookingSubmit, 'submit' | 'isPending' | 'problem' | 'reasonError'>;
+  readonly booking: Pick<BookingSubmit, 'submit' | 'isPending' | 'problem' | 'reasonError'> & Partial<Pick<BookingSubmit, 'consentRefused'>>;
 }
 
 function useReasonField(reason: string, serverError: string | null): { readonly error: string | undefined; readonly touch: () => void } {
@@ -95,7 +95,8 @@ export function ConfirmStep({ draft, onReasonChange, onEdit, booking }: ConfirmS
   const cooldown: number = useRetryCooldown(booking.problem);
   // Only a known "no consent" closes the field; a consent that cannot be read leaves it open and the server decides.
   const consent = useMyConsent();
-  const noConsent: boolean = consent.data !== undefined && consent.data.active === null;
+  // The server's 409 CONSENT_REQUIRED counts too (the consent was revoked after the read): the next press books without the reason.
+  const noConsent: boolean = (consent.data !== undefined && consent.data.active === null) || booking.consentRefused === true;
   // A reason typed before the answer arrived (or kept in the draft) must not go out: the server would refuse or drop it.
   useEffect(() => {
     if (noConsent && draft.reason !== '') onReasonChange('');

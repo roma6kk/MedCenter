@@ -42,7 +42,7 @@ function Fact({ label, children }: { readonly label: string; readonly children: 
  * Shown after «Подтвердить запись» until the patient chooses where to go. The names come from the catalogue entries the
  * wizard already cached, then from the appointment itself (a visit booked from a doctor's page names no service).
  */
-export function BookingSuccess({ visit }: { readonly visit: BookedVisit }): ReactNode {
+export function BookingSuccess({ visit, onBookAnother }: { readonly visit: BookedVisit; readonly onBookAnother?: () => void }): ReactNode {
   const t = useT('booking');
   const home = useT('home');
   const common = useT('common');
@@ -98,6 +98,7 @@ export function BookingSuccess({ visit }: { readonly visit: BookedVisit }): Reac
         <Button variant="secondary" onClick={addToCalendar} data-testid="add-to-calendar"><CalendarPlus aria-hidden="true" size={18} />{t('addToCalendar')}</Button>
         <Link href="/appointments" className={buttonVariants({ variant: 'primary' })}>{t('toAppointments')}</Link>
         <Link href="/home" className={buttonVariants({ variant: 'ghost' })}>{t('toHome')}</Link>
+        {onBookAnother === undefined ? null : <Button variant="ghost" onClick={onBookAnother} data-testid="book-another">{t('bookAnother')}</Button>}
       </div>
       <Link href={`/appointments/${encodeURIComponent(visit.id)}`} data-testid="success-cancel-link" className="inline-flex min-h-[44px] items-center text-sm text-muted-foreground underline underline-offset-2 hover:text-foreground">
         {t('cancelLink')}
