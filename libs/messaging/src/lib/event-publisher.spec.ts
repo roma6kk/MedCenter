@@ -95,6 +95,7 @@ describe('AmqpEventPublisher', () => {
 
     expect(connection.close).toHaveBeenCalled();
   });
+
   describe('unroutable events', () => {
     /** A broker whose `publish` is scripted: it may return the message first, then it always confirms. */
     function brokerThatReturns(returned: ReadonlySet<string>) {
