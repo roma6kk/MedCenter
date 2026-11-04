@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import {
   HttpException,
   HttpStatus,
@@ -9,7 +10,7 @@ import {
 import { Reflector } from '@nestjs/core';
 import { rateLimitEnvSchema } from '@medcenter/config';
 import type { Response } from 'express';
-import { RATE_LIMIT_KEY } from '../decorators/rate-limit.decorator';
+import { RATE_LIMIT_CREDENTIAL_KEY, RATE_LIMIT_KEY } from '../decorators/rate-limit.decorator';
 import type { RequestWithClaims } from '../request-context';
 
 const WINDOW_SECONDS = 60;
@@ -78,8 +79,26 @@ function readRouteTemplate(request: RateLimitRequest, context: ExecutionContext)
   return `${context.getClass().name}.${context.getHandler().name}`;
 }
 
-function buildRateLimitKey(request: RateLimitRequest, context: ExecutionContext): string {
-  const identity = readBucketIdentity(request);
+/**
+ * Token-endpoint identity: `client_id|grant_type|sha256(code or refresh_token)`. Codes and refresh tokens are
+ * high-entropy, so the hash does not weaken guessing resistance; a replayed credential hits one small bucket
+ * wherever it comes from, while garbage credentials of one visitor cannot drain the budget of other visitors.
+ * Without a usable credential there is nothing to key on and the caller falls back to `client_id|ip`.
+ */
+function readCredentialIdentity(request: RateLimitRequest): string | undefined {
+  const body = request.body;
+  const grant = body?.['grant_type'];
+  const secret = grant === 'authorization_code' ? body?.['code'] : grant === 'refresh_token' ? body?.['refresh_token'] : undefined;
+  if (typeof grant !== 'string' || typeof secret !== 'string' || secret.length === 0) {
+    return undefined;
+  }
+  const fromBody = body?.['client_id'];
+  const clientId =
+    typeof fromBody === 'string' && fromBody.length > 0 ? fromBody.slice(0, MAX_CLIENT_ID_LENGTH) : '-';
+  return `${clientId}|${grant}|${createHash('sha256').update(secret).digest('hex')}`;
+}
+
+function buildRateLimitKey(request: RateLimitRequest, context: ExecutionContext, identity = readBucketIdentity(request)): string {
   const route = `${request.method ?? 'GET'}:${readRouteTemplate(request, context)}`;
   const minute = Math.floor(Date.now() / (WINDOW_SECONDS * 1000));
   return `${identity}:${route}:${minute}`;
@@ -123,26 +142,50 @@ export class RateLimitGuard implements CanActivate {
     }
 
     const request = context.switchToHttp().getRequest<RateLimitRequest>();
+    const ceiling = this.reflector.getAllAndOverride<number | undefined>(RATE_LIMIT_CREDENTIAL_KEY, [
+      context.getHandler(),
+      context.getClass(),
+    ]);
+    const credential = ceiling === undefined ? undefined : readCredentialIdentity(request);
+    if (ceiling !== undefined && credential !== undefined) {
+      // Generous per-address ceiling first (flood of ever-new credentials), then the per-credential budget.
+      const addressKey = buildRateLimitKey(request, context, `ceiling|${request.ip ?? 'anonymous'}`);
+      if (!(await this.withinBudget(store, addressKey, ceiling))) {
+        return this.reject(context);
+      }
+      const credentialKey = buildRateLimitKey(request, context, credential);
+      if (!(await this.withinBudget(store, credentialKey, this.resolveLimit(context)))) {
+        return this.reject(context);
+      }
+      return true;
+    }
+
     const key = buildRateLimitKey(request, context);
-    let count: number;
+    if (!(await this.withinBudget(store, key, this.resolveLimit(context)))) {
+      return this.reject(context);
+    }
+    return true;
+  }
+
+  /** Counts one hit; an unreachable or hung store counts as within budget (fail open). */
+  private async withinBudget(store: RateLimitStore, key: string, limit: number): Promise<boolean> {
     try {
-      count = await incrementWithin(store, key, WINDOW_SECONDS);
+      return (await incrementWithin(store, key, WINDOW_SECONDS)) <= limit;
     } catch (error: unknown) {
       this.logger.warn({ err: error, key }, 'Rate-limit store unreachable; failing open');
       return true;
     }
+  }
 
-    if (count > this.resolveLimit(context)) {
-      context.switchToHttp().getResponse<Response>().header('Retry-After', String(WINDOW_SECONDS));
-      throw new HttpException(
-        {
-          errorCode: 'RATE_LIMITED',
-          message: `Rate limit exceeded, retry in ${WINDOW_SECONDS}s`,
-        },
-        HttpStatus.TOO_MANY_REQUESTS,
-      );
-    }
-    return true;
+  private reject(context: ExecutionContext): never {
+    context.switchToHttp().getResponse<Response>().header('Retry-After', String(WINDOW_SECONDS));
+    throw new HttpException(
+      {
+        errorCode: 'RATE_LIMITED',
+        message: `Rate limit exceeded, retry in ${WINDOW_SECONDS}s`,
+      },
+      HttpStatus.TOO_MANY_REQUESTS,
+    );
   }
 
   private resolveLimit(context: ExecutionContext): number {

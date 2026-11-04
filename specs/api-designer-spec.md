@@ -89,7 +89,7 @@ export class PaginatedResponseDto<TItem> {
 ```
 
 **Rate-limit** (NFR-006, Redis-счётчики, guard `libs/common`): `120 req/min` на пользователя
-на сервис; `20 req/min` на `POST /oauth/token` (по `clientId`+IP); превышение → `429` с
+на сервис; `20 req/min` на `POST /oauth/token` (на один `code`/`refresh_token`: ключ `client_id`+`grant_type`+sha256 токена, плюс щедрый потолок 600 req/min на адрес; запрос без токена — по `client_id`+IP); превышение → `429` с
 заголовками `Retry-After`. Аудит (`AuditEvent`) пишется на create/update/delete (FR-021, ADR-014) и на чтение данных пациента врачом или администратором (3.2, 3.3, 7.4, 7.5) вместе с отказами 403 `COMPARTMENT_VIOLATION` (ADR-018).
 
 **Идемпотентность.** `POST /appointments` и `POST /admin/schedules/generate` принимают
@@ -797,6 +797,11 @@ export class CreateScheduleDto {
 **6.5 границы `from`/`to`:** включительные, по `Appointment.start`; RFC 3339 дата-время с зоной берётся как есть, а дата без
 времени — календарный день клиники (`Europe/Minsk`, как в 5.2): `from` — его первое мгновение, `to` — последнее (HAPI читал бы
 голую дату по UTC, со сдвигом на 3 часа). `from` позже `to` → **400** `VALIDATION_ERROR`.
+
+**6.2, 6.3, 6.5 язык ответа:** необязательный заголовок `Accept-Language`; при `en` поля `doctorName`, `serviceName` и `patientName`
+отдаются английским переводом из HL7-расширения `translation` ресурсов Practitioner (`_family`, `_given[i]`, `_text`), HealthcareService
+(`_name`) и Patient; без перевода и при любом другом значении (по умолчанию) остаётся русский оригинал. Форма ответа не меняется
+(как в 4.1/4.2 и 5.1.x).
 
 **6.5 фильтры `status` и `patient`:** необязательные; `status` — как в 6.2 (один статус или список через запятую, ИЛИ между
 значениями, неизвестное значение → **400** `VALIDATION_ERROR`), `patient` — id пациента (FHIR `id`, иначе **400**). Оба сужают

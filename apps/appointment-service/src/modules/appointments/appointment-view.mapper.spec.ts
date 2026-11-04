@@ -113,3 +113,77 @@ describe('toAppointmentView', () => {
     expect(view.serviceName).toBeUndefined();
   });
 });
+
+describe('toAppointmentView in English', () => {
+  const en = (content: string): { extension: unknown[] } => ({
+    extension: [
+      {
+        url: 'http://hl7.org/fhir/StructureDefinition/translation',
+        extension: [
+          { url: 'lang', valueCode: 'en' },
+          { url: 'content', valueString: content },
+        ],
+      },
+    ],
+  });
+  const translatedBundle = {
+    entry: [
+      { resource: appointment, search: { mode: 'match' } },
+      {
+        resource: {
+          resourceType: 'PractitionerRole',
+          id: 'role-1',
+          practitioner: { reference: 'Practitioner/doc-7' },
+        },
+        search: { mode: 'include' },
+      },
+      {
+        resource: {
+          resourceType: 'Practitioner',
+          id: 'doc-7',
+          name: [
+            {
+              text: 'Иванов Иван Иванович',
+              family: 'Иванов',
+              _family: en('Ivanov'),
+              given: ['Иван', 'Иванович'],
+              _given: [en('Ivan'), en('Ivanovich')],
+            },
+          ],
+        },
+        search: { mode: 'include' },
+      },
+      {
+        resource: {
+          resourceType: 'HealthcareService',
+          id: 'svc-1',
+          name: 'Приём терапевта (первичный)',
+          _name: en('Therapist appointment (initial)'),
+        },
+        search: { mode: 'include' },
+      },
+    ],
+  } as unknown as FhirSearchResult;
+
+  it('should answer the doctor and the service in English when the translations exist', () => {
+    const view = toAppointmentView(appointment, indexIncluded(translatedBundle), 'en');
+
+    expect(view.doctorName).toBe('Ivanov Ivan Ivanovich');
+    expect(view.serviceName).toBe('Therapist appointment (initial)');
+  });
+
+  it('should keep Russian when the language is ru or not given', () => {
+    const included = indexIncluded(translatedBundle);
+
+    expect(toAppointmentView(appointment, included).doctorName).toBe('Иванов Иван Иванович');
+    expect(toAppointmentView(appointment, included, 'ru').serviceName).toBe('Приём терапевта (первичный)');
+  });
+
+  it('should fall back to the stored Russian values when there is no translation', () => {
+    const view = toAppointmentView(appointment, indexIncluded(bundle), 'en');
+
+    expect(view.doctorName).toBe('Петров Иван Сергеевич');
+    expect(view.serviceName).toBe('Консультация терапевта');
+    expect(view.patientName).toBe('Иванова Анна Петровна');
+  });
+});

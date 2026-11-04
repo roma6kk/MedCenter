@@ -37,12 +37,23 @@ async function bootApp(trustProxy: boolean | number): Promise<INestApplication> 
   return (await startAuthApp({ trustProxy })).app;
 }
 
-/** An unknown refresh token: cheap, side-effect free, answered 400 below the limit. */
+/**
+ * A refresh grant without a token: cheap, side-effect free, answered 400 below the limit. It carries no credential,
+ * so it is bucketed on `client_id|address` — the bucket these proxy tests are about.
+ */
 function tokenCall(app: INestApplication, forwardedFor: string): request.Test {
   return request(app.getHttpServer())
     .post('/oauth/token')
     .set('X-Forwarded-For', forwardedFor)
-    .send({ grant_type: 'refresh_token', refresh_token: 'nope', client_id: E2E_CLIENT_ID });
+    .send({ grant_type: 'refresh_token', client_id: E2E_CLIENT_ID });
+}
+
+/** An unknown refresh token: bucketed per credential, answered 400 below the limit. */
+function refreshCall(app: INestApplication, forwardedFor: string, refreshToken: string): request.Test {
+  return request(app.getHttpServer())
+    .post('/oauth/token')
+    .set('X-Forwarded-For', forwardedFor)
+    .send({ grant_type: 'refresh_token', refresh_token: refreshToken, client_id: E2E_CLIENT_ID });
 }
 
 async function exhaust(app: INestApplication, forwardedFor: string): Promise<void> {
@@ -93,6 +104,27 @@ describe('Rate limit behind a reverse proxy (X-Forwarded-For)', () => {
       const other = await tokenCall(app, '203.0.113.11');
 
       expect(other.status).not.toBe(429);
+    });
+
+    it('should not let one visitor drain the token budget of visitors behind the same address', async () => {
+      for (let i = 0; i < TOKEN_LIMIT + 5; i += 1) {
+        const response = await refreshCall(app, '10.0.0.9', `garbage-${i}`);
+        expect(response.status).not.toBe(429);
+      }
+
+      const other = await refreshCall(app, '10.0.0.9', 'another-visitor-token');
+
+      expect(other.status).not.toBe(429);
+    });
+
+    it('should answer 429 for one replayed refresh token whatever the address', async () => {
+      for (let i = 0; i < TOKEN_LIMIT; i += 1) {
+        await refreshCall(app, `203.0.113.${i + 1}`, 'replayed-token');
+      }
+
+      const response = await refreshCall(app, '203.0.113.200', 'replayed-token');
+
+      expect(response.status).toBe(429);
     });
 
     it('should bucket on the client address, not the proxy hop appended to the chain', async () => {

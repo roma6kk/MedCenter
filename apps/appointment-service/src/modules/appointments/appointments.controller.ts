@@ -28,7 +28,7 @@ import {
   type RequestWithClaims,
 } from '@medcenter/common';
 import { Role, SMART_SCOPES } from '@medcenter/contracts';
-import type { AppointmentResponseDto } from '@medcenter/fhir-mappers';
+import { resolveContentLanguage, type AppointmentResponseDto } from '@medcenter/fhir-mappers';
 
 import { AppointmentQueriesService, type AppointmentPage } from './appointment-queries.service';
 import { AppointmentsService } from './appointments.service';
@@ -91,6 +91,11 @@ export class AppointmentsController {
   @Get()
   @RequiresRoles(Role.PATIENT)
   @RequiresScopes(SMART_SCOPES.PATIENT_READ)
+  @ApiHeader({
+    name: 'Accept-Language',
+    required: false,
+    description: 'en answers doctorName and serviceName in English where a translation exists; anything else (default) Russian',
+  })
   @ApiOperation({ summary: '6.2 List own appointments' })
   @ApiResponse({
     status: 200,
@@ -103,17 +108,23 @@ export class AppointmentsController {
   async list(
     @Req() request: RequestWithClaims,
     @Query() query: ListAppointmentsQueryDto,
+    @Headers('accept-language') acceptLanguage?: string,
   ): Promise<AppointmentPage> {
     return this.queries.listForPatient(claimsOf(request), {
       ...toPageQuery(query),
       upcoming: query.upcoming === 'true',
       status: query.status,
-    });
+    }, resolveContentLanguage(acceptLanguage));
   }
 
   /** 6.3 — owner patient (`patient/*.read`), participant doctor or admin (`user/*.read`). */
   @Get(':id')
   @RequiresRoles(Role.PATIENT, Role.DOCTOR, Role.ADMIN)
+  @ApiHeader({
+    name: 'Accept-Language',
+    required: false,
+    description: 'en answers doctorName and serviceName in English where a translation exists; anything else (default) Russian',
+  })
   @ApiOperation({ summary: '6.3 Get an appointment' })
   @ApiParam({ name: 'id', description: 'Appointment id (FHIR id)' })
   @ApiResponse({ status: 200, description: 'The appointment', type: AppointmentViewDoc })
@@ -123,10 +134,11 @@ export class AppointmentsController {
   async findOne(
     @Req() request: RequestWithClaims,
     @Param('id', FhirIdPipe) id: string,
+    @Headers('accept-language') acceptLanguage?: string,
   ): Promise<AppointmentViewDto> {
     const claims = claimsOf(request);
     assertRoleScope(claims, 'read');
-    return this.queries.findById(claims, id);
+    return this.queries.findById(claims, id, resolveContentLanguage(acceptLanguage));
   }
 
   /** 6.4 — owner patient (`patient/*.write`) or admin (`user/*.write`). */

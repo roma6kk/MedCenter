@@ -1,5 +1,5 @@
 import type { FhirResource, FhirSearchResult } from '@medcenter/fhir';
-import { toAppointmentResponseDto } from '@medcenter/fhir-mappers';
+import { DEFAULT_CONTENT_LANGUAGE, toAppointmentResponseDto, translated, type ContentLanguage } from '@medcenter/fhir-mappers';
 
 import type { AppointmentViewDto } from './dto/appointment-view.dto';
 import { parseReference } from './fhir-reference';
@@ -47,18 +47,31 @@ function nonEmpty(value: unknown): value is string {
   return typeof value === 'string' && value.trim() !== '';
 }
 
-/** Display form of the first `HumanName`: `text`, else `family given…` (ФИО order). */
-export function humanNameOf(resource: FhirResource | undefined): string | undefined {
+/**
+ * Display form of the first `HumanName`: `text`, else `family given…` (ФИО order). `lang` picks the HL7 `translation`
+ * of each part (`_family`, `_given[i]`) or of `text` (`_text`); without a translation the stored Russian value stays.
+ */
+export function humanNameOf(resource: FhirResource | undefined, lang: ContentLanguage = DEFAULT_CONTENT_LANGUAGE): string | undefined {
   const names = resource?.['name'];
   const first = Array.isArray(names) ? (names[0] as Record<string, unknown> | undefined) : undefined;
   if (first === undefined) {
     return undefined;
   }
-  if (nonEmpty(first['text'])) {
-    return first['text'];
-  }
   const given = Array.isArray(first['given']) ? (first['given'] as unknown[]) : [];
-  const parts = [first['family'], ...given].filter(nonEmpty);
+  const givenElements = Array.isArray(first['_given']) ? (first['_given'] as unknown[]) : [];
+  const stored = [first['family'], ...given];
+  const localized = [
+    nonEmpty(first['family']) ? translated(first['family'], first['_family'], lang) : undefined,
+    ...given.map((part, index) => (nonEmpty(part) ? translated(part, givenElements[index], lang) : undefined)),
+  ];
+  const partsChanged = localized.some((part, index) => part !== undefined && part !== stored[index]);
+  if (lang !== DEFAULT_CONTENT_LANGUAGE && partsChanged) {
+    return localized.filter(nonEmpty).join(' ');
+  }
+  if (nonEmpty(first['text'])) {
+    return translated(first['text'], first['_text'], lang);
+  }
+  const parts = stored.filter(nonEmpty);
   return parts.length === 0 ? undefined : parts.join(' ');
 }
 
@@ -67,19 +80,24 @@ function lookup(index: ReadonlyMap<string, FhirResource>, type: string, id: stri
 }
 
 /** Read-side DTO: the shared mapper plus names resolved from the included resources. */
-export function toAppointmentView(appointment: FhirResource, included: ReadonlyMap<string, FhirResource>): AppointmentViewDto {
+export function toAppointmentView(
+  appointment: FhirResource,
+  included: ReadonlyMap<string, FhirResource>,
+  lang: ContentLanguage = DEFAULT_CONTENT_LANGUAGE,
+): AppointmentViewDto {
   const base = toAppointmentResponseDto(appointment);
   const role = lookup(included, 'PractitionerRole', base.practitionerRoleId);
   const practitionerRef = parseReference((role?.['practitioner'] as { reference?: unknown } | undefined)?.reference);
   const doctorId = base.doctorId !== '' ? base.doctorId : practitionerRef?.id ?? '';
   const service = lookup(included, 'HealthcareService', base.serviceId);
-  const serviceName = service?.['name'];
+  const rawServiceName = service?.['name'];
+  const serviceName = nonEmpty(rawServiceName) ? translated(rawServiceName, service?.['_name'], lang) : undefined;
 
   return {
     ...base,
     doctorId,
-    doctorName: humanNameOf(lookup(included, 'Practitioner', doctorId)),
-    serviceName: nonEmpty(serviceName) ? serviceName : undefined,
-    patientName: humanNameOf(lookup(included, 'Patient', base.patientId)),
+    doctorName: humanNameOf(lookup(included, 'Practitioner', doctorId), lang),
+    serviceName,
+    patientName: humanNameOf(lookup(included, 'Patient', base.patientId), lang),
   };
 }

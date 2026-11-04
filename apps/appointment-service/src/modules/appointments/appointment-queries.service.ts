@@ -2,6 +2,7 @@ import { BadRequestException, Inject, Injectable, NotFoundException } from '@nes
 import { clinicDayEndMs, clinicDayStartMs, type JwtClaims } from '@medcenter/common';
 import { buildPaginatedResponse, type PaginatedResponseDto } from '@medcenter/contracts';
 import { FHIR_CLIENT, type FhirClient, type FhirSearchResult } from '@medcenter/fhir';
+import type { ContentLanguage } from '@medcenter/fhir-mappers';
 
 import { APPOINTMENT_INCLUDES, appointmentsOf, indexIncluded, toAppointmentView } from './appointment-view.mapper';
 import { assertViewerCanSee, requireDoctorRoleRef, resolveViewer } from './compartment';
@@ -107,7 +108,7 @@ export class AppointmentQueriesService {
   constructor(@Inject(FHIR_CLIENT) private readonly fhir: FhirClient) {}
 
   /** 6.2: the patient's own appointments; a `patient` query parameter is never consulted. */
-  async listForPatient(claims: JwtClaims, query: PatientListQuery): Promise<AppointmentPage> {
+  async listForPatient(claims: JwtClaims, query: PatientListQuery, lang?: ContentLanguage): Promise<AppointmentPage> {
     const patientRef = requirePatientReference(claims);
     const result = await this.fhir.search('Appointment', {
       patient: patientRef,
@@ -115,11 +116,11 @@ export class AppointmentQueriesService {
       ...statusFilter(query.status),
       ...searchParams(query),
     });
-    return this.toPage(result, query);
+    return this.toPage(result, query, lang);
   }
 
   /** 6.3: one appointment for its patient, its participant doctor or an admin. */
-  async findById(claims: JwtClaims, appointmentId: string): Promise<AppointmentViewDto> {
+  async findById(claims: JwtClaims, appointmentId: string, lang?: ContentLanguage): Promise<AppointmentViewDto> {
     const viewer = resolveViewer(claims);
     const result = await this.fhir.search('Appointment', { _id: appointmentId, ...APPOINTMENT_INCLUDES });
     const appointment = appointmentsOf(result).find((resource) => resource.id === appointmentId);
@@ -127,11 +128,11 @@ export class AppointmentQueriesService {
       throw new NotFoundException({ errorCode: 'NOT_FOUND', message: `NOT_FOUND: Appointment ${appointmentId} does not exist` });
     }
     assertViewerCanSee(viewer, appointment);
-    return toAppointmentView(appointment, indexIncluded(result));
+    return toAppointmentView(appointment, indexIncluded(result), lang);
   }
 
   /** 6.5: appointments where the doctor's PractitionerRole (`fhirUser`) is a participant. */
-  async listForDoctor(claims: JwtClaims, query: DoctorListQuery): Promise<AppointmentPage> {
+  async listForDoctor(claims: JwtClaims, query: DoctorListQuery, lang?: ContentLanguage): Promise<AppointmentPage> {
     const roleRef = requireDoctorRoleRef(claims);
     assertOrderedRange(query.from, query.to);
     const result = await this.fhir.search('Appointment', {
@@ -142,12 +143,12 @@ export class AppointmentQueriesService {
       ...dateRange(query.from, query.to),
       ...searchParams(query),
     });
-    return this.toPage(result, query);
+    return this.toPage(result, query, lang);
   }
 
-  private toPage(result: FhirSearchResult, query: PageQuery): AppointmentPage {
+  private toPage(result: FhirSearchResult, query: PageQuery, lang?: ContentLanguage): AppointmentPage {
     const included = indexIncluded(result);
-    const items = appointmentsOf(result).map((appointment) => toAppointmentView(appointment, included));
+    const items = appointmentsOf(result).map((appointment) => toAppointmentView(appointment, included, lang));
     // `_total=accurate` asks HAPI for the count; without it, the count is known up to this page.
     const totalItems = result.total ?? (query.page - 1) * query.pageSize + items.length;
     return buildPaginatedResponse(items, {

@@ -41,8 +41,9 @@ background. It is the in-service counterpart of `tools/terminology-seed` (the im
 
 ### Browser login (assumption UI-1)
 
-`GET /oauth/authorize` without a login session answers a server-rendered, script-free HTML form (Russian labels,
-CSRF double-submit token, inline CSS pinned by CSP hash). `POST /oauth/login` verifies the password (scrypt,
+`GET /oauth/authorize` without a login session answers a server-rendered HTML form that works without scripts (one
+inline script only reveals the show-password toggle; labels in Russian or English by the OIDC `ui_locales` of the request, Russian
+by default; CSRF double-submit token, inline CSS and script pinned by CSP hash). `POST /oauth/login` verifies the password (scrypt,
 per-user salt, constant-time compare; one generic error for unknown email, wrong password and inactive account),
 sets a signed `httpOnly; SameSite=Lax; Path=/oauth` session cookie valid for 5 minutes and **single use**, and
 302s back to `/oauth/authorize?<original query>`, which then issues the code. Tokens (authorization_code **and**

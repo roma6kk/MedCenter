@@ -75,6 +75,9 @@ export interface SmartConfiguration {
  * half-configured string — while staying independent of the full env schema
  * (which requires secrets this surface's unit tests never set).
  */
+/** Per-address ceiling of `POST /oauth/token` per minute; the per-credential budget is the tight one. */
+const TOKEN_ADDRESS_CEILING = 600;
+
 const fhirBaseUrlSchema = z.object({ FHIR_BASE_URL: z.url() });
 
 export function readFhirBaseUrl(source: NodeJS.ProcessEnv = process.env): string {
@@ -146,7 +149,9 @@ export class OAuthController {
   @Header('Cache-Control', 'no-store')
   @Header('Pragma', 'no-cache')
   @Public()
-  @RateLimit(20)
+  // Per credential (client_id|grant_type|sha256(code or refresh_token)) plus a generous per-address ceiling, so
+  // clients behind one NAT or one BFF address do not share a bucket and garbage codes cannot drain it for others.
+  @RateLimit(20, { perAddressCeiling: TOKEN_ADDRESS_CEILING })
   @ApiOperation({ summary: '2.1.3 Exchange an authorization code or refresh token for tokens' })
   @ApiConsumes('application/x-www-form-urlencoded')
   @ApiBody({ type: TokenRequestDto })

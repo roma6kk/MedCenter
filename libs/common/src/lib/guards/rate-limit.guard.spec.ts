@@ -16,6 +16,13 @@ class OauthController {
   }
 }
 
+class CredentialController {
+  @RateLimit(2, { perAddressCeiling: 5 })
+  token(): string {
+    return 'token';
+  }
+}
+
 function givenGuardEnvironment(): void {
   process.env['JWT_JWKS_URI'] = 'https://api.medcenter.by/.well-known/jwks.json';
   process.env['JWT_ISSUER'] = 'https://api.medcenter.by';
@@ -188,5 +195,83 @@ describe('RateLimitGuard', () => {
     } finally {
       jest.useRealTimers();
     }
+  });
+
+  describe('token endpoint keyed by credential', () => {
+    function createCredentialContext(body: Record<string, unknown>, ip = '10.0.0.1'): ReturnType<typeof createMockHttpContext> {
+      return createMockHttpContext({
+        handler: CredentialController.prototype.token,
+        controller: CredentialController,
+        request: { headers: {}, method: 'POST', route: { path: '/oauth/token' }, ip, body },
+      });
+    }
+
+    /** Counts per key like the real store does. */
+    function countingStore(): RateLimitStore {
+      const hits = new Map<string, number>();
+      return {
+        increment: async (key: string): Promise<number> => {
+          const next = (hits.get(key) ?? 0) + 1;
+          hits.set(key, next);
+          return next;
+        },
+      };
+    }
+
+    it('should let clients behind one address use their own codes without sharing a bucket', async () => {
+      setRateLimitStore(countingStore());
+
+      for (let i = 0; i < 4; i += 1) {
+        const body = { grant_type: 'authorization_code', client_id: 'medcenter-web', code: `code-${i}` };
+        await expect(guard.canActivate(createCredentialContext(body).context)).resolves.toBe(true);
+      }
+    });
+
+    it('should answer 429 once the same credential is replayed past the budget, from any address', async () => {
+      setRateLimitStore(countingStore());
+      const body = { grant_type: 'refresh_token', client_id: 'medcenter-web', refresh_token: 'rt-1' };
+      await guard.canActivate(createCredentialContext(body, '10.0.0.1').context);
+      await guard.canActivate(createCredentialContext(body, '10.0.0.2').context);
+
+      const error = await captureAsyncHttpException(() => guard.canActivate(createCredentialContext(body, '10.0.0.3').context));
+
+      expect(error.getStatus()).toBe(429);
+    });
+
+    it('should answer 429 when one address passes the ceiling with ever-new credentials', async () => {
+      setRateLimitStore(countingStore());
+      for (let i = 0; i < 5; i += 1) {
+        const body = { grant_type: 'authorization_code', client_id: 'c', code: `code-${i}` };
+        await guard.canActivate(createCredentialContext(body).context);
+      }
+
+      const body = { grant_type: 'authorization_code', client_id: 'c', code: 'code-new' };
+      const error = await captureAsyncHttpException(() => guard.canActivate(createCredentialContext(body).context));
+
+      expect(error.getStatus()).toBe(429);
+    });
+
+    it('should never put the raw code or refresh token into the store key', async () => {
+      const increment = jest.fn().mockResolvedValue(1);
+      setRateLimitStore({ increment });
+
+      await guard.canActivate(
+        createCredentialContext({ grant_type: 'refresh_token', client_id: 'c', refresh_token: 'super-secret-token' }).context,
+      );
+
+      const keys = increment.mock.calls.map((call) => String(call[0]));
+      expect(keys.some((key) => key.includes('super-secret-token'))).toBe(false);
+      expect(keys.some((key) => key.startsWith('c|refresh_token|'))).toBe(true);
+    });
+
+    it('should fall back to client_id and ip when the request carries no credential', async () => {
+      const increment = jest.fn().mockResolvedValue(1);
+      setRateLimitStore({ increment });
+
+      await guard.canActivate(createCredentialContext({ grant_type: 'authorization_code', client_id: 'c' }).context);
+
+      expect(increment).toHaveBeenCalledTimes(1);
+      expect(String(increment.mock.calls[0]?.[0]).startsWith('c|10.0.0.1:POST:/oauth/token:')).toBe(true);
+    });
   });
 });

@@ -1,5 +1,5 @@
-import { Controller, Get, HttpCode, HttpStatus, Param, Post, Query, Req } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiParam, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { Controller, Get, Headers, HttpCode, HttpStatus, Param, Post, Query, Req } from '@nestjs/common';
+import { ApiBearerAuth, ApiHeader, ApiOperation, ApiParam, ApiResponse, ApiTags } from '@nestjs/swagger';
 import {
   ApiProblems,
   claimsOf,
@@ -9,7 +9,7 @@ import {
   type RequestWithClaims,
 } from '@medcenter/common';
 import { Role, SMART_SCOPES } from '@medcenter/contracts';
-import type { AppointmentResponseDto } from '@medcenter/fhir-mappers';
+import { resolveContentLanguage, type AppointmentResponseDto } from '@medcenter/fhir-mappers';
 
 import { AppointmentQueriesService, type AppointmentPage } from './appointment-queries.service';
 import { AppointmentsService } from './appointments.service';
@@ -36,6 +36,11 @@ export class DoctorAppointmentsController {
   @Get()
   @RequiresRoles(Role.DOCTOR)
   @RequiresScopes(SMART_SCOPES.USER_READ)
+  @ApiHeader({
+    name: 'Accept-Language',
+    required: false,
+    description: 'en answers doctorName and serviceName in English where a translation exists; anything else (default) Russian',
+  })
   @ApiOperation({ summary: '6.5 List the appointments of the signed-in doctor' })
   @ApiResponse({
     status: 200,
@@ -49,6 +54,7 @@ export class DoctorAppointmentsController {
   async list(
     @Req() request: RequestWithClaims,
     @Query() query: ListDoctorAppointmentsQueryDto,
+    @Headers('accept-language') acceptLanguage?: string,
   ): Promise<AppointmentPage> {
     return this.queries.listForDoctor(claimsOf(request), {
       ...toPageQuery(query),
@@ -56,7 +62,7 @@ export class DoctorAppointmentsController {
       to: query.to,
       status: query.status,
       patient: query.patient,
-    });
+    }, resolveContentLanguage(acceptLanguage));
   }
 
   @Post(':id/noshow')
