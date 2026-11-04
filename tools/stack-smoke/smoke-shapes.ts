@@ -8,6 +8,7 @@ export const DOCTOR_SHAPE: FieldSpec = {
   name: 'string',
   firstName: 'string',
   lastName: 'string',
+  middleName: 'string?',
   specialty: 'string?',
   specialtyCode: 'string?',
   specialtySystem: 'string?',

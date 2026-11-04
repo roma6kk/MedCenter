@@ -17,6 +17,9 @@ export class DoctorResponseDoc implements DoctorResponseDto {
   @ApiProperty({ example: 'Иванов' })
   readonly lastName!: string;
 
+  @ApiPropertyOptional({ description: 'Patronymic (the second given name); absent when the doctor has none', example: 'Сергеевич' })
+  readonly middleName?: string;
+
   @ApiPropertyOptional({ description: 'Display text of the specialty', example: 'Терапевт' })
   readonly specialty?: string;
 

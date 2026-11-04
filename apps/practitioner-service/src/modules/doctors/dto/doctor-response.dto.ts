@@ -1,10 +1,12 @@
 /** API §4.1/4.2 doctor catalog DTO (Practitioner + specialty + room + roles). */
 export interface DoctorResponseDto {
   readonly id: string;
-  /** Display name: given + family (the client renders this one). */
+  /** Display name: given + family. A client that writes «Фамилия Имя Отчество» builds it from `lastName`, `firstName` and `middleName`. */
   readonly name: string;
   readonly firstName: string;
   readonly lastName: string;
+  /** Patronymic (the second given name); absent when the doctor has none. */
+  readonly middleName?: string;
   /** Display text of the specialty. */
   readonly specialty?: string;
   /** Code of the specialty: the value `?specialty=` of `GET /doctors` takes (with {@link specialtySystem}: `system|code`). */

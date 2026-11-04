@@ -17,6 +17,22 @@ describe('toDoctorDto', () => {
     expect(doctor).toMatchObject({ id: 'p1', name: 'Мария Иванова', firstName: 'Мария', lastName: 'Иванова' });
   });
 
+  it('should carry the patronymic as middleName and keep it out of the display name', () => {
+    // Act
+    const doctor = toDoctorDto(practitioner([{ family: 'Иванова', given: ['Мария', 'Сергеевна'] }]));
+
+    // Assert — `name` stays «given family» for the clients that render it as before; the parts are additive.
+    expect(doctor).toMatchObject({ name: 'Мария Иванова', firstName: 'Мария', lastName: 'Иванова', middleName: 'Сергеевна' });
+  });
+
+  it('should leave middleName out when the doctor has no patronymic', () => {
+    // Act
+    const doctor = toDoctorDto(practitioner([{ family: 'Иванова', given: ['Мария'] }]));
+
+    // Assert
+    expect(doctor).not.toHaveProperty('middleName');
+  });
+
   it('should leave no stray space in the display name when the given name is missing', () => {
     // Act
     const doctor = toDoctorDto(practitioner([{ family: 'Иванова' }]));
@@ -120,6 +136,17 @@ describe('toDoctorDto localization', () => {
 
   it('should return the English name and specialty when English is asked', () => {
     expect(toDoctorDto(localized, [], 'en')).toMatchObject({ name: 'Maria Ivanova', firstName: 'Maria', lastName: 'Ivanova', specialty: 'Therapist' });
+  });
+
+  it('should return the English patronymic when English is asked, and the Russian one when it has no translation', () => {
+    const translated = {
+      ...localized,
+      name: [{ family: 'Иванова', given: ['Мария', 'Сергеевна'], _given: [{ extension: [translationExtension('en', 'Maria')] }, { extension: [translationExtension('en', 'Sergeevna')] }] }],
+    } as unknown as FhirResource;
+
+    expect(toDoctorDto(translated, [], 'en')).toMatchObject({ firstName: 'Maria', middleName: 'Sergeevna' });
+    expect(toDoctorDto(translated)).toMatchObject({ firstName: 'Мария', middleName: 'Сергеевна' });
+    expect(toDoctorDto(localized, [], 'en')).toMatchObject({ firstName: 'Maria', middleName: 'Сергеевна' });
   });
 
   it('should fall back to the Russian value of whatever has no translation', () => {

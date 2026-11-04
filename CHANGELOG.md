@@ -72,6 +72,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `appointment.cancelled.by-admin`, `appointment.noshow`, `encounter.completed`, `patient.registered`) and, for a
   booking, the `start` instant, so the client can word a notification in the UI language (NFR-008); `text` stays the
   Russian fallback for notifications stored before. Stored in `Communication.topic` and an extension (additive).
+- `GET /api/v1/doctors` and `/doctors/{id}` (API §4.1/4.2) carry an optional `middleName` (the patronymic, the second `given`
+  of the doctor's name, translated by `Accept-Language` like `firstName`), so the public catalog can write a doctor as
+  «Иванова Мария Сергеевна», the same as the visit record does; `name` is unchanged («given family»). `toDoctorResponseDto`
+  in `libs/fhir-mappers` reads it; the demo seed already stores it.
 
 ### Changed
 

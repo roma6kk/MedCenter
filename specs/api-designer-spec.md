@@ -454,6 +454,7 @@ export interface DoctorResponseDto {
   name: string;                    // «Имя Фамилия»
   firstName: string;
   lastName: string;
+  middleName?: string;             // отчество — второй `given` имени; нет, если у врача его нет (4.1 и 4.2)
   specialty?: string;              // отображаемый текст специальности («Терапевт»)
   specialtyCode?: string;          // код специальности — значение для ?specialty= (4.1): `419192003`
   specialtySystem?: string;        // система кода: `http://snomed.info/sct`; ?specialty=system|code
@@ -462,6 +463,10 @@ export interface DoctorResponseDto {
   practitionerRoleIds: string[];   // id активных PractitionerRole врача по возрастанию; [] если ролей нет
 }
 ```
+
+`name` остаётся «Имя Фамилия» (как раньше); клиент, который пишет врача как «Фамилия Имя Отчество» (так же, как запись о приёме),
+собирает имя из `lastName`, `firstName` и `middleName`. `middleName` — второй `given` имени врача, переводится по `Accept-Language`
+так же, как `firstName` (без перевода остаётся русский текст); поле добавлено без изменения прежних.
 
 `specialtyCode`/`specialtySystem` — первый `coding` с `code` из `Practitioner.qualification[0].code` (тот же концепт,
 что хранит `PractitionerRole.specialty`, по которому фильтрует `?specialty=`); без кодированной квалификации (только

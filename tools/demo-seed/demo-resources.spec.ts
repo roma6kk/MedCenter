@@ -106,10 +106,11 @@ describe('buildPractitioners', () => {
   it('should carry an English translation of every doctor name part and specialty text', () => {
     const [ivanova] = buildPractitioners();
 
-    expect(toDoctorResponseDto(ivanova as never, 'en')).toMatchObject({ firstName: 'Maria', lastName: 'Ivanova', specialty: 'Therapist' });
-    expect(toDoctorResponseDto(ivanova as never, 'ru')).toMatchObject({ firstName: 'Мария', lastName: 'Иванова', specialty: 'Терапевт' });
+    expect(toDoctorResponseDto(ivanova as never, 'en')).toMatchObject({ firstName: 'Maria', middleName: 'Sergeevna', lastName: 'Ivanova', specialty: 'Therapist' });
+    expect(toDoctorResponseDto(ivanova as never, 'ru')).toMatchObject({ firstName: 'Мария', middleName: 'Сергеевна', lastName: 'Иванова', specialty: 'Терапевт' });
     for (const practitioner of buildPractitioners()) {
       expect(toDoctorResponseDto(practitioner as never, 'en').lastName).toMatch(/^[A-Za-z]+$/);
+      expect(toDoctorResponseDto(practitioner as never, 'en').middleName).toMatch(/^[A-Za-z]+$/);
     }
   });
 
