@@ -94,7 +94,7 @@ describe('loadSigningKeys', () => {
 });
 
 describe('OAuthModule wiring', () => {
-  const ENV_KEYS = ['JWT_PRIVATE_KEY', 'JWT_PUBLIC_KEY', 'JWT_ISSUER'] as const;
+  const ENV_KEYS = ['JWT_PRIVATE_KEY', 'JWT_PUBLIC_KEY', 'JWT_ISSUER', 'REDIS_URL'] as const;
   const saved: Record<string, string | undefined> = {};
 
   beforeAll(() => {
@@ -104,6 +104,8 @@ describe('OAuthModule wiring', () => {
     process.env['JWT_PRIVATE_KEY'] = SIGNING_ENV.JWT_PRIVATE_KEY;
     process.env['JWT_PUBLIC_KEY'] = SIGNING_ENV.JWT_PUBLIC_KEY;
     process.env['JWT_ISSUER'] = SIGNING_ENV.JWT_ISSUER;
+    // The token stores are in-process without REDIS_URL; a runner that sets it must not reach a real Redis.
+    delete process.env['REDIS_URL'];
   });
 
   afterAll(() => {
