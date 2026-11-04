@@ -1,6 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 import type { PaginatedResponseDto } from '@medcenter/contracts';
 import { FHIR_CLIENT, type FhirClient } from '@medcenter/fhir';
+import { DEFAULT_CONTENT_LANGUAGE, type ContentLanguage } from '@medcenter/fhir-mappers';
 
 import { resourcesOf, resourcesOfType, totalOf } from '../../common/fhir/fhir-search';
 import { pageOffset, toPage, type PageQuery } from '../../common/paging/page-query.dto';
@@ -20,13 +21,18 @@ const HISTORY_DOCTOR_INCLUDES: Readonly<Record<string, string>> = {
  * API §7.4/7.6 — the patient's visit history: finished encounters, ordered by
  * `Encounter.period` (`date`), each with its diagnoses (BR-004), summary and
  * recommendations. The caller resolves `patientRef` (token compartment or an
- * access check) before this service is reached.
+ * access check) before this service is reached. `lang` (Accept-Language) picks the
+ * translated name of the doctor.
  */
 @Injectable()
 export class HistoryService {
   constructor(@Inject(FHIR_CLIENT) private readonly fhir: FhirClient) {}
 
-  async historyOf(patientRef: string, query: PageQuery): Promise<PaginatedResponseDto<HistoryItemDto>> {
+  async historyOf(
+    patientRef: string,
+    query: PageQuery,
+    lang: ContentLanguage = DEFAULT_CONTENT_LANGUAGE,
+  ): Promise<PaginatedResponseDto<HistoryItemDto>> {
     const result = await this.fhir.search('Encounter', {
       patient: patientRef,
       status: 'finished',
@@ -38,7 +44,7 @@ export class HistoryService {
       ...HISTORY_DOCTOR_INCLUDES,
     });
     const related = resourcesOf(result);
-    const items = resourcesOfType(result, 'Encounter').map((encounter) => toHistoryItem(encounter, related));
+    const items = resourcesOfType(result, 'Encounter').map((encounter) => toHistoryItem(encounter, related, lang));
     return toPage(items, totalOf(result), query);
   }
 }

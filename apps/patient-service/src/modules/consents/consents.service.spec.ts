@@ -231,6 +231,30 @@ describe('ConsentsService', () => {
       ]);
     });
 
+    it('should store the name of the doctor next to the reference when the form carries none', async () => {
+      fhir.search.mockImplementation(async (type) => {
+        if (type === 'Consent') return bundleOf(...consents);
+        if (type === 'Appointment') return bundleOf(sharedAppointment);
+        if (type === 'PractitionerRole') {
+          return bundleOf({
+            resourceType: 'Practitioner',
+            id: 'doc-1',
+            name: [{ family: 'Петрова', given: ['Анна', 'Ивановна'] }],
+          });
+        }
+        return bundleOf();
+      });
+
+      await service.create(PATIENT_ID, { ...createDto, signedByName: undefined }, doctorClaims);
+
+      expect(writesOf(fhir)[0]?.resource['note']).toEqual([
+        expect.objectContaining({
+          authorString: 'Петрова А. И.',
+          authorReference: { reference: `PractitionerRole/${ROLE_ID}` },
+        }),
+      ]);
+    });
+
     it('should record a written refusal as rejected', async () => {
       await service.create(PATIENT_ID, { ...createDto, status: 'rejected' }, adminClaims);
 
@@ -444,6 +468,18 @@ describe('ConsentsService', () => {
         ],
       });
       expect(response).toMatchObject({ id: 'c-1', status: 'inactive', revocationNumber: 'ЗАЯВ-7' });
+    });
+
+    it('should close every consent in force, so a duplicate cannot outlive the revocation', async () => {
+      consents = [storedConsent({ id: 'c-2' }), storedConsent()];
+
+      const response = await service.revoke(PATIENT_ID, { applicationNumber: 'ЗАЯВ-7' }, adminClaims);
+
+      const writes = writesOf(fhir);
+      expect(writes.map((write) => write.request['url'])).toEqual(['Consent/c-2', 'AuditEvent', 'Consent/c-1', 'AuditEvent']);
+      expect(writes[0]?.resource).toMatchObject({ status: 'inactive' });
+      expect(writes[2]?.resource).toMatchObject({ status: 'inactive' });
+      expect(response).toMatchObject({ id: 'c-2', status: 'inactive' });
     });
 
     it('should default the revocation moment to now', async () => {

@@ -11,17 +11,18 @@ const FHIR_ID = /^(?!\.+$)[A-Za-z0-9\-.]{1,64}$/;
 const CANDIDATES = 10;
 
 /**
- * The `emr-processing` consent in force for a patient (design §2.3): HAPI
- * narrows by patient, scope, category and status, then every candidate is
- * re-checked in process, including its period. `null` when there is none.
+ * Every `emr-processing` consent in force for a patient, newest first (design §2.3):
+ * HAPI narrows by patient, scope, category and status, then every candidate is
+ * re-checked in process, including its period. Normally one; two concurrent writes
+ * can leave several, and a revocation must close them all.
  * HAPI answers a reference search on an unknown Patient with 404; that means
  * "no consent", not NOT_FOUND. Any other upstream failure propagates.
  */
-export async function findActiveConsent(
+export async function listActiveConsents(
   fhir: FhirClient,
   patientId: string,
   now: Date = new Date(),
-): Promise<FhirResource | null> {
+): Promise<ReadonlyArray<FhirResource>> {
   if (!FHIR_ID.test(patientId)) {
     throw new TypeError('patientId must be a FHIR id');
   }
@@ -34,17 +35,24 @@ export async function findActiveConsent(
       _sort: '-date',
       _count: CANDIDATES,
     });
-    return (
-      (result.entry ?? [])
-        .map((entry) => entry.resource)
-        .find((resource) => isConsentInForce(resource, patientId, now)) ?? null
-    );
+    return (result.entry ?? [])
+      .map((entry) => entry.resource)
+      .filter((resource) => isConsentInForce(resource, patientId, now));
   } catch (error) {
     if (error instanceof FhirClientError && error.getStatus() === HttpStatus.NOT_FOUND) {
-      return null;
+      return [];
     }
     throw error;
   }
+}
+
+/** The newest `emr-processing` consent in force for a patient, `null` when there is none. */
+export async function findActiveConsent(
+  fhir: FhirClient,
+  patientId: string,
+  now: Date = new Date(),
+): Promise<FhirResource | null> {
+  return (await listActiveConsents(fhir, patientId, now))[0] ?? null;
 }
 
 /**

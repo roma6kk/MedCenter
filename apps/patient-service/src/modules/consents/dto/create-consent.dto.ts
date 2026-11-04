@@ -6,6 +6,7 @@ import {
   type ConsentEntryStatus,
   type CreateConsentRequest,
 } from '@medcenter/contracts';
+import { RFC3339_DATE_OR_DATE_TIME } from '@medcenter/common';
 import { IsIn, IsISO8601, IsOptional, IsString, Length, Matches, MaxLength } from 'class-validator';
 
 import { FHIR_ID_PATTERN } from '../../access/patient-identity';
@@ -26,7 +27,8 @@ export class CreateConsentDto implements CreateConsentRequest {
   readonly formNumber!: string;
 
   @ApiProperty({ description: 'Signing date, YYYY-MM-DD or RFC 3339, not in the future', example: '2026-10-01' })
-  @IsISO8601()
+  @IsISO8601({ strict: true })
+  @Matches(RFC3339_DATE_OR_DATE_TIME, { message: 'signedAt must be YYYY-MM-DD or an RFC 3339 date-time with a zone' })
   readonly signedAt!: string;
 
   @ApiProperty({ description: 'scanId returned by 3.10', pattern: '^[A-Za-z0-9\\-.]{1,64}$' })

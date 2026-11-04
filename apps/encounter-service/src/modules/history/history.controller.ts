@@ -1,8 +1,9 @@
-import { Controller, Get, Param, Query, Req } from '@nestjs/common';
+import { Controller, Get, Headers, Param, Query, Req } from '@nestjs/common';
 import { ApiBearerAuth, ApiExtraModels, ApiOperation, ApiParam, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { ApiProblems, claimsOf, GUARD_PROBLEM_STATUSES, RequiresRoles, RequiresScopes, type RequestWithClaims, type RequestWithRequestId } from '@medcenter/common';
 import { Role, SMART_SCOPES, type PaginatedResponseDto } from '@medcenter/contracts';
 import { PatientReadAudit } from '@medcenter/fhir';
+import { resolveContentLanguage } from '@medcenter/fhir-mappers';
 
 import { patientRefFromClaims } from '../../common/access/claims-identity';
 import { FhirIdPipe } from '../../common/access/fhir-id.pipe';
@@ -44,23 +45,23 @@ export class HistoryController {
 
   /** 7.4 — owner patient (`patient/*.read`) or treating doctor (`user/*.read`); not an admin (ADR-018). */
   @Get('patients/:id/history')
-  @ApiOperation({ summary: '7.4 Patient history of encounters' })
+  @ApiOperation({ summary: '7.4 Patient history of encounters; doctorName follows Accept-Language (en or ru)' })
   @ApiParam({ name: 'id', description: 'Patient id (FHIR id)' })
   @ApiResponse({ status: 200, description: 'Page of finished encounters, newest first by default', type: HistoryPageDoc })
-  @ApiProblems([400, ...GUARD_PROBLEM_STATUSES, 404], {
-    403: 'COMPARTMENT_VIOLATION: not the owner or a treating doctor; FORBIDDEN_ROLE: administrators have no access (ADR-018)',
-    404: 'NOT_FOUND: patient not found',
+  @ApiProblems([400, ...GUARD_PROBLEM_STATUSES], {
+    403: 'COMPARTMENT_VIOLATION: not the owner, not a treating doctor, or no such patient (an unknown id is not told from a foreign one); FORBIDDEN_ROLE: administrators have no access (ADR-018)',
   })
   @RequiresRoles(Role.PATIENT, Role.DOCTOR)
   async patientHistory(
     @Req() request: AuditedRequest,
     @Param('id', FhirIdPipe) id: string,
     @Query() query: PageQueryDto,
+    @Headers('accept-language') acceptLanguage?: string,
   ): Promise<PaginatedResponseDto<HistoryItemDto>> {
     const claims = claimsOf(request);
     assertReadScope(claims);
     return this.readAudit.audited(claims, id, { interaction: 'search-type', source: AUDIT_SOURCE, requestId: request.requestId }, async () =>
-      this.history.historyOf(await this.access.resolveReadablePatient(claims, id), toPageQuery(query)),
+      this.history.historyOf(await this.access.resolveReadablePatient(claims, id), toPageQuery(query), resolveContentLanguage(acceptLanguage)),
     );
   }
 
@@ -69,9 +70,8 @@ export class HistoryController {
   @ApiOperation({ summary: '7.5 Patient prescriptions' })
   @ApiParam({ name: 'id', description: 'Patient id (FHIR id)' })
   @ApiResponse({ status: 200, description: 'Page of MedicationRequest / ServiceRequest items (discriminated by kind)', type: PrescriptionPageDoc })
-  @ApiProblems([400, ...GUARD_PROBLEM_STATUSES, 404], {
-    403: 'COMPARTMENT_VIOLATION: not the owner or a treating doctor; FORBIDDEN_ROLE: administrators have no access (ADR-018)',
-    404: 'NOT_FOUND: patient not found',
+  @ApiProblems([400, ...GUARD_PROBLEM_STATUSES], {
+    403: 'COMPARTMENT_VIOLATION: not the owner, not a treating doctor, or no such patient (an unknown id is not told from a foreign one); FORBIDDEN_ROLE: administrators have no access (ADR-018)',
   })
   @RequiresRoles(Role.PATIENT, Role.DOCTOR)
   async patientPrescriptions(
@@ -88,13 +88,17 @@ export class HistoryController {
 
   /** 7.6 — the caller's own history (patient compartment). */
   @Get('me/history')
-  @ApiOperation({ summary: '7.6 My history of encounters' })
+  @ApiOperation({ summary: '7.6 My history of encounters; doctorName follows Accept-Language (en or ru)' })
   @ApiResponse({ status: 200, description: 'Page of the caller\'s finished encounters', type: HistoryPageDoc })
   @ApiProblems([400, ...GUARD_PROBLEM_STATUSES])
   @RequiresRoles(Role.PATIENT)
   @RequiresScopes(SMART_SCOPES.PATIENT_READ)
-  async myHistory(@Req() request: RequestWithClaims, @Query() query: PageQueryDto): Promise<PaginatedResponseDto<HistoryItemDto>> {
-    return this.history.historyOf(patientRefFromClaims(claimsOf(request)), toPageQuery(query));
+  async myHistory(
+    @Req() request: RequestWithClaims,
+    @Query() query: PageQueryDto,
+    @Headers('accept-language') acceptLanguage?: string,
+  ): Promise<PaginatedResponseDto<HistoryItemDto>> {
+    return this.history.historyOf(patientRefFromClaims(claimsOf(request)), toPageQuery(query), resolveContentLanguage(acceptLanguage));
   }
 
   /** 7.7 — the caller's own prescriptions (patient compartment). */

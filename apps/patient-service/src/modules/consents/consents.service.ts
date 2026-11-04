@@ -27,6 +27,7 @@ import {
   findActiveConsent,
   idFromLocation,
   isConsentInForce,
+  listActiveConsents,
   listConsents,
   PatientReadAudit,
   revokeConsent,
@@ -37,6 +38,7 @@ import {
   type TransactionWrite,
 } from '@medcenter/fhir';
 
+import { readPersonName } from '../../shared/fhir-datatypes.mapper';
 import { PatientAccessService } from '../access/patient-access.service';
 import { ownPatientId, practitionerRoleIdOf } from '../access/patient-identity';
 import { validateScanUpload, type UploadedScan } from './consent-scan';
@@ -144,7 +146,7 @@ export class ConsentsService {
     requestId?: string,
   ): Promise<ConsentResponse> {
     await this.access.assertCanWrite(claims, patientId);
-    const signer = this.signerOf(dto, claims);
+    const signer = await this.signerOf(dto, claims);
     if (isInTheFuture(dto.signedAt, new Date())) {
       throw invalid('signedAt', 'must not be in the future');
     }
@@ -305,33 +307,34 @@ export class ConsentsService {
     if (isInTheFuture(revokedAt, now)) {
       throw invalid('revokedAt', 'must not be in the future');
     }
-    const active = await findActiveConsent(this.fhir, patientId, now);
-    if (active === null) {
+    // Concurrent writes can leave more than one consent in force; a revocation closes every one of them.
+    const inForce = await listActiveConsents(this.fhir, patientId, now);
+    if (inForce.length === 0) {
       throw notFound(`patient ${patientId} has no active consent to revoke`);
     }
-    const start = startOf(active);
-    if (start !== undefined && new Date(revokedAt).getTime() < start) {
-      throw invalid('revokedAt', 'must not be before the consent began');
+    for (const consent of inForce) {
+      const start = startOf(consent);
+      if (start !== undefined && new Date(revokedAt).getTime() < start) {
+        throw invalid('revokedAt', 'must not be before the consent began');
+      }
     }
-    const closed = revokeConsent(active, {
-      revokedAt,
-      applicationNumber: dto.applicationNumber?.trim(),
-    });
-    const consentId = active.id ?? '';
+    const closed = inForce.map((consent) =>
+      revokeConsent(consent, { revokedAt, applicationNumber: dto.applicationNumber?.trim() }),
+    );
     await commitTransaction(
       this.fhir,
-      [
+      inForce.flatMap((consent, index) => [
         {
-          method: 'PUT',
-          url: `Consent/${consentId}`,
-          resource: closed,
-          ifMatch: versionOf(active),
+          method: 'PUT' as const,
+          url: `Consent/${consent.id ?? ''}`,
+          resource: closed[index],
+          ifMatch: versionOf(consent),
         },
-        this.auditWrite('update', `Consent/${consentId}`, patientId, claims, requestId),
-      ],
+        this.auditWrite('update', `Consent/${consent.id ?? ''}`, patientId, claims, requestId),
+      ]),
       'CONFLICT',
     );
-    return toConsentResponse(closed);
+    return toConsentResponse(closed[0] as FhirResource);
   }
 
   private auditWrite(
@@ -355,22 +358,49 @@ export class ConsentsService {
     };
   }
 
-  /** The medical worker who signed the form: a doctor is the token's PractitionerRole, an administrator names them. */
-  private signerOf(
+  /**
+   * The medical worker who signed the form: a doctor is the token's PractitionerRole (the token carries no
+   * name, so it is read once here and stored next to the reference), an administrator names them.
+   */
+  private async signerOf(
     dto: CreateConsentRequest,
     claims: JwtClaims,
-  ): { reference?: string; name?: string } {
+  ): Promise<{ reference?: string; name?: string }> {
     const name = dto.signedByName?.trim();
     if (claims.role === Role.DOCTOR) {
+      const roleId = practitionerRoleIdOf(claims);
+      const stored = name !== undefined && name !== '' ? name : await this.practitionerNameOf(roleId);
       return {
-        reference: `PractitionerRole/${practitionerRoleIdOf(claims)}`,
-        ...(name === undefined ? {} : { name }),
+        reference: `PractitionerRole/${roleId}`,
+        ...(stored === undefined ? {} : { name: stored }),
       };
     }
     if (name === undefined || name === '') {
       throw invalid('signedByName', 'is required: the medical worker who signed the form');
     }
     return { name };
+  }
+
+  /** «Фамилия И. О.» of the Practitioner behind the role, `undefined` when it cannot be read (the reference stays). */
+  private async practitionerNameOf(roleId: string): Promise<string | undefined> {
+    try {
+      const result = await this.fhir.search('PractitionerRole', {
+        _id: roleId,
+        _include: 'PractitionerRole:practitioner',
+      });
+      const practitioner = (result.entry ?? [])
+        .map((entry) => entry.resource)
+        .find((resource) => resource.resourceType === 'Practitioner');
+      const person = readPersonName(practitioner?.['name']);
+      const initials = [person.firstName, person.middleName]
+        .filter((part): part is string => part !== undefined && part !== '')
+        .map((part) => `${part.charAt(0).toUpperCase()}.`);
+      const short = [person.lastName, ...initials].filter((part) => part !== '').join(' ');
+      return short === '' ? (person.fullName === '' ? undefined : person.fullName) : short;
+    } catch (error) {
+      this.logger.warn({ err: error, roleId }, 'Name of the signing doctor was not read; the reference is stored');
+      return undefined;
+    }
   }
 
   private assertRepresentativeFields(dto: CreateConsentRequest): void {

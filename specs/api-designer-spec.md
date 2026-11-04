@@ -391,11 +391,11 @@ export class CreateConsentDto {
   consenterType: 'self' | 'legal-representative' | 'guardian' | 'relative';
   relatedPersonId?: string;              // обязателен при consenterType ≠ self → performer=RelatedPerson
   representativeDocument?: string;       // ≤ 500, обязателен при consenterType ≠ self (документ полномочий)
-  signedByName?: string;                 // ≤ 200, ФИО медработника; обязателен для ADMIN, у DOCTOR берётся из токена
+  signedByName?: string;                 // ≤ 200, ФИО медработника; обязателен для ADMIN, у DOCTOR сервис читает «Фамилия И. О.» врача по PractitionerRole токена и пишет рядом со ссылкой
 }
 export class RevokeConsentDto {          // 3.9; для 3.6 тело пустое
   applicationNumber: string;             // 1…64, номер письменного заявления
-  revokedAt?: string;                    // по умолчанию сегодня
+  revokedAt?: string;                    // YYYY-MM-DD или RFC 3339 с поясом, по умолчанию сегодня
 }
 export class ConsentResponseDto {
   id: string; status: 'active' | 'inactive' | 'rejected' | 'entered-in-error';
@@ -415,7 +415,7 @@ export class PatientConsentDto {         // 3.4, 3.7
 - **3.8** → 201 `ConsentResponseDto`. Второе действующее согласие (или отказ при действующем) → **409** `CONSENT_ALREADY_ACTIVE`;
   чужой или неизвестный `scanId` → 400; `relatedPersonId` не этого пациента → 400. `Consent` и `AuditEvent` (`create`, `entity=Consent/{id}`)
   пишутся одной `transaction` Bundle. После `rejected` новое согласие вносится как обычно.
-- **3.6 / 3.9** → 200 `ConsentResponseDto` (`status=inactive`, `provision.period.end`=дата отзыва); без действующего согласия → **404** `NOT_FOUND`.
+- **3.6 / 3.9** → 200 `ConsentResponseDto` (`status=inactive`, `provision.period.end`=дата отзыва); без действующего согласия → **404** `NOT_FOUND`. Закрываются все действующие согласия пациента (при дубле от гонки ни одно не остаётся).
   `Consent` обновляется с `If-Match`, `AuditEvent` (`update`) — в той же Bundle. Данные пациента не удаляются, блокируются только новые записи.
 - **3.10** → 201 `{ scanId, contentType, size, hash }`. Типы `application/pdf`, `image/jpeg`, `image/png`, до **10 МБ**; тип проверяется
   по сигнатуре файла, а не по заголовку; `hash` — SHA-1 в base64 (`Consent.sourceAttachment.hash`). Нарушение → **400** `VALIDATION_ERROR`.
@@ -857,7 +857,7 @@ export class AppointmentResponseDto {
 | 7.1 | `POST /api/v1/encounters` | открыть приём по booked-записи (врач) | `user/*.write` (DOCTOR) |
 | 7.2 | `GET /api/v1/encounters/{id}` | детали приёма | участник-врач (ADMIN: 403, ADR-018) |
 | 7.3 | `POST /api/v1/encounters/{id}/complete` | завершить приём: диагноз/план/назначения | `user/*.write` (DOCTOR) |
-| 7.4 | `GET /api/v1/patients/{id}/history?page=` | история обращений | владелец / DOCTOR (ADMIN → 403) |
+| 7.4 | `GET /api/v1/patients/{id}/history?page=` | история обращений (`doctorName` по `Accept-Language`: `en`/`ru`; неизвестный пациент — 403, как чужой) | владелец / DOCTOR (ADMIN → 403) |
 | 7.5 | `GET /api/v1/patients/{id}/prescriptions?page=&encounterId=` | назначения (ServiceRequest/MedicationRequest) | владелец / DOCTOR (ADMIN → 403) |
 | 7.6 | `GET /api/v1/me/history` | своя история (компартмент) | `patient/*.read` |
 | 7.7 | `GET /api/v1/me/prescriptions?encounterId=` | свои назначения (компартмент) | `patient/*.read` |
