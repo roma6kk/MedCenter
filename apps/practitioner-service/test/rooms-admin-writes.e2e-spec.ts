@@ -97,6 +97,18 @@ describe('Rooms admin writes (e2e)', () => {
       },
     );
 
+    it('should store the name without its edge spaces', async () => {
+      // Act
+      await request(app.getHttpServer())
+        .post(ROOMS)
+        .set('Authorization', TOKENS.admin)
+        .send({ identifier: '101', name: '  Кабинет 101 ' })
+        .expect(201);
+
+      // Assert
+      expect(committedEntries(fhir)[0]?.resource).toMatchObject({ name: 'Кабинет 101' });
+    });
+
     it('should drop properties no DTO declares when the body smuggles id, status and meta', async () => {
       // Act
       await request(app.getHttpServer())
@@ -118,6 +130,9 @@ describe('Rooms admin writes (e2e)', () => {
       ['an identifier above 50 characters', { identifier: 'x'.repeat(51), name: 'Кабинет 204' }],
       ['no name', { identifier: '204-Х' }],
       ['an empty name', { identifier: '204-Х', name: '' }],
+      ['a blank name', { identifier: '204-Х', name: '   ' }],
+      ['a null name', { identifier: '204-Х', name: null }],
+      ['a null identifier', { identifier: null, name: 'Кабинет 204' }],
       ['a name above 200 characters', { identifier: '204-Х', name: 'x'.repeat(201) }],
       ['a numeric name', { identifier: '204-Х', name: 204 }],
       ['floor 0', { identifier: '204-Х', name: 'Кабинет 204', floor: 0 }],
@@ -238,6 +253,26 @@ describe('Rooms admin writes (e2e)', () => {
       },
     );
 
+    it('should store the name without its edge spaces', async () => {
+      // Act
+      await request(app.getHttpServer()).patch(ROOM_URL).set('Authorization', TOKENS.admin).send({ name: '  Кабинет 204А ' }).expect(200);
+
+      // Assert
+      expect(committedEntries(fhir)[0]?.resource).toMatchObject({ name: 'Кабинет 204А' });
+    });
+
+    it.each([
+      ['an empty body', {}],
+      ['the stored values', { identifier: '204-Х', name: 'Кабинет 204', description: 'Окна во двор', floor: 2 }],
+    ])('should answer 200 with the room and write no version and no AuditEvent when the patch is %s', async (_label, body) => {
+      // Act
+      const response = await request(app.getHttpServer()).patch(ROOM_URL).set('Authorization', TOKENS.admin).send(body).expect(200);
+
+      // Assert
+      expect(fhir.batch).not.toHaveBeenCalled();
+      expect(response.body).toEqual({ id: 'room-204', identifier: '204-Х', name: 'Кабинет 204', description: 'Окна во двор', floor: 2, isActive: true });
+    });
+
     it('should keep the stored resource identity when the body smuggles id and physicalType', async () => {
       // Act
       await request(app.getHttpServer())
@@ -255,8 +290,12 @@ describe('Rooms admin writes (e2e)', () => {
 
     it.each([
       ['an empty name', { name: '' }],
+      ['a blank name', { name: '   ' }],
+      ['a null name', { name: null }],
       ['a name above 200 characters', { name: 'x'.repeat(201) }],
       ['an empty identifier', { identifier: '' }],
+      ['a blank identifier', { identifier: '   ' }],
+      ['a null identifier', { identifier: null }],
       ['floor 11', { floor: 11 }],
       ['floor 0', { floor: 0 }],
       ['a floor sent as text', { floor: 'second' }],

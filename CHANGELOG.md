@@ -139,3 +139,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   every edit, and HAPI refuses an empty string in FHIR JSON): an empty or blank description removes the description,
   and `floor: null` removes the floor, which could not be taken away before (an emptied extension array is dropped as well).
   `POST /admin/rooms` leaves a `null` or blank optional element out of the `Location`. API §4.5 and Bruno describe it.
+- Room DTOs (API §4.4/4.5) validate at the boundary: `PATCH /admin/rooms/{id}` with `identifier: null` was a 500 (`null.trim()`), and
+  `null` for `name` went to HAPI as JSON null; both are now `400 VALIDATION_ERROR`, a name of spaces only is refused on create and
+  update, and `name`/`description` are stored without edge spaces like `identifier`. A PATCH that changes nothing (`{}` or the stored
+  values) answers 200 with the room and no longer writes a new version and a false `update` AuditEvent (FR-021); the identifier entry
+  of a seeded room (it has a `system`) is left as it is while the value is the same.

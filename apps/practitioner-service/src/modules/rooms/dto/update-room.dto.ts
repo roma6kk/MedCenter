@@ -1,7 +1,8 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Transform } from 'class-transformer';
-import { IsInt, IsNotEmpty, IsOptional, IsString, Max, MaxLength, Min } from 'class-validator';
+import { IsInt, IsNotEmpty, IsOptional, IsString, Max, MaxLength, Min, ValidateIf } from 'class-validator';
 
+import { isPresent } from './is-present';
 import { trimString } from './trim-string';
 
 /**
@@ -11,14 +12,15 @@ import { trimString } from './trim-string';
  * (and its Swagger re-export) is not a dependency of this workspace, and the
  * contract is small enough that an explicit DTO is clearer than a new package.
  *
- * A field that is absent keeps its stored value. `floor` and `description` are
- * the optional elements of a room, so `null` (and, for the text, an empty or
- * blank string) removes them — FHIR JSON has no empty strings, so the service
- * never sends one to HAPI.
+ * A field that is absent keeps its stored value. `identifier` and `name` are
+ * required elements of a room: `null` or a blank text is a 400, not a removal.
+ * `floor` and `description` are the optional ones, so `null` (and, for the text,
+ * an empty or blank string) removes them — FHIR JSON has no empty strings, so the
+ * service never sends one to HAPI.
  */
 export class UpdateRoomDto {
   @ApiPropertyOptional({ description: 'Unique room identifier; the room own value is allowed', maxLength: 50, example: '204-Х' })
-  @IsOptional()
+  @ValidateIf(isPresent)
   @Transform(trimString)
   @IsString()
   @IsNotEmpty()
@@ -26,7 +28,8 @@ export class UpdateRoomDto {
   identifier?: string;
 
   @ApiPropertyOptional({ maxLength: 200 })
-  @IsOptional()
+  @ValidateIf(isPresent)
+  @Transform(trimString)
   @IsString()
   @IsNotEmpty()
   @MaxLength(200)

@@ -168,6 +168,54 @@ describe('RoomsService', () => {
       const merged = (committedEntries(fhirClient)[0]?.resource ?? {}) as FhirResource;
       expect(merged).not.toHaveProperty('description');
     });
+
+    describe('a patch that changes nothing', () => {
+      const seeded = {
+        resourceType: 'Location',
+        id: roomId,
+        name: 'Cabinet 204',
+        identifier: [{ system: 'https://example.org/room-ids', value: '204' }],
+        extension: [
+          { url: FLOOR, valueInteger: 2 },
+          { url: 'https://example.org/StructureDefinition/other', valueString: 'keep-me' },
+        ],
+      };
+
+      const withoutDescription = { resourceType: 'Location', id: roomId, name: 'Cabinet 204', identifier: [{ value: '204' }] };
+
+      it.each([
+        ['an empty body', existing, {}],
+        ['the stored values', existing, { name: 'Cabinet 204', description: 'Old description' }],
+        ['an empty description for a room that has none', withoutDescription, { description: '' }],
+      ])('writes no version and no AuditEvent when the PATCH is %s', async (_label, stored, patch) => {
+        fhirClient.read.mockResolvedValue(stored);
+
+        const room = await roomsService.update(roomId, patch, ACTOR);
+
+        expect(fhirClient.batch).not.toHaveBeenCalled();
+        expect(room).toMatchObject({ id: roomId, name: 'Cabinet 204' });
+      });
+
+      it('writes nothing when a seeded room gets its identifier, name and floor again', async () => {
+        fhirClient.read.mockResolvedValue(seeded);
+        fhirClient.search.mockResolvedValue({ entry: [] });
+
+        await roomsService.update(roomId, { identifier: '204', name: 'Cabinet 204', floor: 2 }, ACTOR);
+
+        expect(fhirClient.batch).not.toHaveBeenCalled();
+      });
+
+      it('keeps the identifier entry of a seeded room, with its system, when only the name changes', async () => {
+        fhirClient.read.mockResolvedValue(seeded);
+        fhirClient.search.mockResolvedValue({ entry: [] });
+
+        await roomsService.update(roomId, { identifier: '204', name: 'Renamed' }, ACTOR);
+
+        const merged = (committedEntries(fhirClient)[0]?.resource ?? {}) as FhirResource;
+        expect(merged['identifier']).toEqual(seeded.identifier);
+        expect(merged['name']).toBe('Renamed');
+      });
+    });
   });
 
   describe('create', () => {

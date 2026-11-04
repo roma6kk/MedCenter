@@ -1,3 +1,5 @@
+import { isDeepStrictEqual } from 'node:util';
+
 import { ConflictException, Inject, Injectable } from '@nestjs/common';
 import type { PaginatedResponseDto } from '@medcenter/contracts';
 import {
@@ -17,7 +19,7 @@ import { toPage } from '../../common/page-envelope';
 import { CreateRoomDto } from './dto/create-room.dto';
 import { UpdateRoomDto } from './dto/update-room.dto';
 import type { RoomResponseDto } from './dto/room-response.dto';
-import { roomIdentifierQuery, roomUsingIdentifier } from './room-identifier';
+import { identifierValuesOf, roomIdentifierQuery, roomUsingIdentifier } from './room-identifier';
 import { roomScheduleQuery } from './room-schedules';
 import { findAllRooms, LOCATION_PHYSICAL_TYPE_SYSTEM, ROOM_PHYSICAL_TYPE_CODE } from './room-search';
 
@@ -90,6 +92,10 @@ export class RoomsService {
       await this.assertIdentifierFree(dto.identifier, id);
     }
     const merged = this.applyPatch(existing, dto);
+    // A patch that changes nothing (`{}`, or the stored values sent again) writes no version and no AuditEvent (FR-021).
+    if (isDeepStrictEqual(merged, existing)) {
+      return this.toResponseDto(existing);
+    }
     const updated = await updateAudited(this.fhirClient, { ...merged, id } as FhirResource, this.auditOf(actor));
     return this.toResponseDto(updated);
   }
@@ -104,7 +110,9 @@ export class RoomsService {
    */
   private applyPatch(existing: FhirResource, dto: UpdateRoomDto): Record<string, unknown> {
     const merged: Record<string, unknown> = { ...existing };
-    if (dto.identifier !== undefined) {
+    // The stored entry stays as it is while the value is the same: a seeded room carries a `system` the patch does not know.
+    const storedIdentifiers = identifierValuesOf(existing);
+    if (dto.identifier !== undefined && !(storedIdentifiers.length === 1 && storedIdentifiers[0] === dto.identifier)) {
       merged['identifier'] = [{ value: dto.identifier }];
     }
     if (dto.name !== undefined) {

@@ -17,6 +17,7 @@ export class CreateRoomDto {
   identifier!: string;
 
   @ApiProperty({ maxLength: 200, example: 'Кабинет 204' })
+  @Transform(trimString)
   @IsString()
   @IsNotEmpty()
   @MaxLength(200)
