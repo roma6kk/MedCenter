@@ -87,7 +87,10 @@ function describe(event: DomainEvent): Described | undefined {
       return {
         category: 'appointment',
         // The free-text reason is health data: it is neither carried by the event nor copied into the message (ADR-021).
-        text: 'Запись на приём отменена.',
+        // A cancellation by the clinic (BR-002) says so: the patient did not cancel it and has to pick another time.
+        text: stringField(event, 'actorType') === 'ADMIN'
+          ? 'Клиника отменила вашу запись на приём. Выберите другое время в разделе «Записаться».'
+          : 'Запись на приём отменена.',
         about: referenceTo('Appointment', stringField(event, 'appointmentId')),
       };
     case 'appointment.noshow.v1':

@@ -84,6 +84,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   by the Bruno collection); `README.md` documents running, seeding, testing, E2E and Bruno.
 - Test-only libraries moved from `dependencies` to `devDependencies`, so they no longer reach runtime images.
 - Encounter opening extracted into `EncounterOpeningService`.
+- The notification about an appointment cancelled by an administrator says that the clinic cancelled it and sends the
+  patient to the booking section; a cancellation by the patient keeps the plain wording (FR-008, BR-002).
 
 ### Fixed
 

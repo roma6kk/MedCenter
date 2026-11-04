@@ -39,6 +39,24 @@ describe('communicationFromEvent', () => {
     expect(communication?.['payload']).toEqual([{ contentString: 'Запись на приём отменена.' }]);
   });
 
+  it('should say the clinic cancelled the appointment, without a reason, when an administrator cancelled it', () => {
+    const communication = communicationFromEvent(event({ type: 'appointment.cancelled.v1', appointmentId: '7', patientRef: 'Patient/1', reason: 'Врач заболел', actorType: 'ADMIN' }));
+
+    expect(communication?.['payload']).toEqual([
+      { contentString: 'Клиника отменила вашу запись на приём. Выберите другое время в разделе «Записаться».' },
+    ]);
+    expect(JSON.stringify(communication)).not.toContain('Врач заболел');
+    expect(communication?.['about']).toEqual([{ reference: 'Appointment/7' }]);
+  });
+
+  it('should keep the plain wording for a cancellation by the patient or by an event without an actor', () => {
+    const byPatient = communicationFromEvent(event({ type: 'appointment.cancelled.v1', appointmentId: '7', patientRef: 'Patient/1', actorType: 'PATIENT' }));
+    const withoutActor = communicationFromEvent(event({ type: 'appointment.cancelled.v1', appointmentId: '7', patientRef: 'Patient/1' }));
+
+    expect(byPatient?.['payload']).toEqual([{ contentString: 'Запись на приём отменена.' }]);
+    expect(withoutActor?.['payload']).toEqual([{ contentString: 'Запись на приём отменена.' }]);
+  });
+
   it('should tell the patient the doctor recorded a no-show and point at the appointment', () => {
     const communication = communicationFromEvent(event({ type: 'appointment.noshow.v1', appointmentId: '12', patientRef: 'Patient/1439' }));
 
