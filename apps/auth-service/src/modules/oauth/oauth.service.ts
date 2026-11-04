@@ -103,6 +103,11 @@ function narrowScopeToPrincipal(scope: string, role: string | undefined): string
   return narrowed;
 }
 
+interface ResolvedGrant {
+  readonly scope: string;
+  readonly claims: IdentityClaims;
+}
+
 @Injectable()
 export class OAuthService {
   constructor(
@@ -139,21 +144,34 @@ export class OAuthService {
     return redirect.toString();
   }
 
-  /** API 2.1.3 — exchanges an authorization code (PKCE-verified) for a token pair. */
+  /**
+   * API 2.1.3 — exchanges an authorization code (PKCE-verified) for a token pair.
+   *
+   * The code is only *looked at* until the grant is resolved (the `auth` schema
+   * is queried there): a database hiccup must not burn a code the user can
+   * still use. The single spend is `consume`, which stays atomic.
+   */
   async exchangeCode(params: ExchangeCodeParams): Promise<TokenResponse> {
+    const found = await this.tokens.find(params.code);
+    if (found === null || found.kind !== 'code' || found.expiresAt.getTime() <= Date.now()) {
+      throw OAuthError.invalidGrant(
+        'Authorization code is invalid, expired or already used',
+      );
+    }
+    if (found.clientId !== params.clientId) {
+      throw OAuthError.invalidGrant('client_id does not match the authorization code');
+    }
+    if (!this.pkce.verify(found.codeChallenge, params.codeVerifier)) {
+      throw OAuthError.invalidGrant('PKCE verification failed');
+    }
+    const grant = await this.resolveGrant(found);
     const stored = await this.tokens.consume(params.code, 'code');
     if (stored === null) {
       throw OAuthError.invalidGrant(
         'Authorization code is invalid, expired or already used',
       );
     }
-    if (stored.clientId !== params.clientId) {
-      throw OAuthError.invalidGrant('client_id does not match the authorization code');
-    }
-    if (!this.pkce.verify(stored.codeChallenge, params.codeVerifier)) {
-      throw OAuthError.invalidGrant('PKCE verification failed');
-    }
-    return this.issuePair(stored);
+    return this.issuePair(stored, grant);
   }
 
   /**
@@ -171,14 +189,22 @@ export class OAuthService {
     if (await this.tokens.isDenied(params.refreshToken)) {
       throw OAuthError.invalidGrantRevoked();
     }
+    // Look first, spend last: the grant is resolved from the database before the
+    // token is consumed, so a database failure answers 5xx and the client can
+    // retry with the same refresh token instead of losing its session.
+    const found = await this.tokens.find(params.refreshToken);
+    if (found === null || found.kind !== 'refresh' || found.expiresAt.getTime() <= Date.now()) {
+      throw OAuthError.invalidGrant('Refresh token is invalid or expired');
+    }
+    if (found.clientId !== params.clientId) {
+      throw OAuthError.invalidGrant('client_id does not match the refresh token');
+    }
+    const grant = await this.resolveGrant(found);
     const stored = await this.tokens.consume(params.refreshToken, 'refresh');
     if (stored === null) {
       throw OAuthError.invalidGrant('Refresh token is invalid or expired');
     }
-    if (stored.clientId !== params.clientId) {
-      throw OAuthError.invalidGrant('client_id does not match the refresh token');
-    }
-    return this.issuePair(stored);
+    return this.issuePair(stored, grant);
   }
 
   /**
@@ -223,8 +249,8 @@ export class OAuthService {
    * next refresh. The scope is re-narrowed to the current role for the same
    * reason.
    */
-  private async issuePair(stored: StoredToken): Promise<TokenResponse> {
-    const { scope, claims } = await this.resolveGrant(stored);
+  private async issuePair(stored: StoredToken, grant: ResolvedGrant): Promise<TokenResponse> {
+    const { scope, claims } = grant;
     const refresh = await this.tokens.issue({
       userId: stored.userId,
       clientId: stored.clientId,
@@ -254,7 +280,7 @@ export class OAuthService {
     };
   }
 
-  private async resolveGrant(stored: StoredToken): Promise<{ readonly scope: string; readonly claims: IdentityClaims }> {
+  private async resolveGrant(stored: StoredToken): Promise<ResolvedGrant> {
     const identity = await this.identities.resolve(stored.userId);
     if (identity === null) {
       throw OAuthError.invalidGrant('The account is inactive or no longer exists');
