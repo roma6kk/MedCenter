@@ -6,6 +6,7 @@ import { attemptOf, bindQueueWithDlq, deferDelivery, type DomainEvent } from '@m
 import { communicationFromEvent } from './communication.mapper';
 import { DeduplicationService, EventInProgressError } from './deduplication.service';
 import { NOTIFICATION_BINDINGS } from './notification.bindings';
+import { InvalidEventError, parseNotificationEvent } from './notification-event';
 
 const RECONNECT_DELAY_MS = 5_000;
 const PREFETCH = 10;
@@ -37,7 +38,8 @@ function sleep(ms: number): Promise<void> {
  * A failed write is retried through `<queue>.retry` (delayed, at most
  * {@link MAX_NOTIFICATION_ATTEMPTS} deliveries); a malformed message, or one whose
  * last attempt failed, is rejected without requeue, which sends it to `<queue>.dlq`
- * for inspection instead of an endless redelivery loop.
+ * for inspection instead of an endless redelivery loop. An event of a known type whose
+ * payload fails the boundary check is dead-lettered at once: a retry cannot repair it.
  *
  * The consumer runs a reconnect loop: whenever the connection ends (error or
  * close) it waits `RECONNECT_DELAY_MS` and connects again. An unreachable broker
@@ -78,15 +80,17 @@ export class ConsumerService implements OnModuleInit, OnModuleDestroy {
    * Handles one domain event. A duplicate of a finished event is acknowledged
    * silently; a duplicate arriving while the first copy is still being written
    * throws `EventInProgressError` so it is deferred to the retry queue (acking it would drop the
-   * event if that first write then fails). Unknown event types are ignored; a
-   * failed write releases the dedup claim and rethrows so the message is retried.
+   * event if that first write then fails). Unknown event types are ignored; an invalid
+   * payload of a known type throws `InvalidEventError`; a failed write releases the dedup
+   * claim and rethrows so the message is retried.
    */
   async handle(event: DomainEvent): Promise<void> {
-    const communication = communicationFromEvent(event);
-    if (communication === undefined) {
-      this.logger.warn({ type: event.type, eventId: event.eventId }, 'no notification for this event type');
+    const known = parseNotificationEvent(event);
+    if (known === undefined) {
+      this.logger.warn({ type: event.type, eventId: event.eventId }, 'unknown event type; acknowledged without a notification');
       return;
     }
+    const communication = communicationFromEvent(known);
     const claim = await this.dedup.claim(event.eventId);
     if (claim === 'done') {
       return;
@@ -207,6 +211,12 @@ export class ConsumerService implements OnModuleInit, OnModuleDestroy {
     try {
       await this.handle(event);
     } catch (error) {
+      if (error instanceof InvalidEventError) {
+        // A retry cannot repair the payload: straight to the DLQ, which keeps the copy for inspection.
+        this.logger.error({ type: event.type, eventId: event.eventId, field: error.field }, 'event payload is invalid; dead-lettering');
+        this.settle(() => channel.nack(message, false, false), 'dead-letter invalid event');
+        return;
+      }
       if (error instanceof EventInProgressError) {
         // The first copy is still writing. Defer this copy and ack the original: a plain requeue would bounce
         // straight back and spin until the first copy settles. It keeps its attempt number: nothing failed yet.

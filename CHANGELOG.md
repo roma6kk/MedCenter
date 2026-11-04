@@ -119,3 +119,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `outbox-relay` no longer marks an event `sent` when no queue is bound for it (a fresh broker or a consumer that has not
   declared its queue yet): `AmqpEventPublisher` publishes `mandatory` and rejects what the broker returns, so the record
   stays `pending` and goes out once a queue exists.
+- notification-service validates an event at the broker boundary like analytics-service does: a known type without a
+  `Patient/{id}` reference, with a bad id, a start that is no instant or another schema version goes to the DLQ with a
+  log naming the type, the event id and the field (it used to be acknowledged and lost); an unknown type is still
+  acknowledged. The mapper is typed over the contract events, so a renamed contract field fails compilation.

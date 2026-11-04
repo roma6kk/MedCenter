@@ -6,6 +6,7 @@ import type { AppointmentBookedEvent, PatientRegisteredEvent } from '@medcenter/
 import { communicationIdFor } from './communication.mapper';
 import { ATTEMPT_HEADER, ConsumerService, MAX_NOTIFICATION_ATTEMPTS } from './consumer.service';
 import { DeduplicationService, type ClaimState, type DedupStore } from './deduplication.service';
+import { InvalidEventError } from './notification-event';
 
 jest.mock('amqplib', () => ({ connect: jest.fn() }));
 const connectMock = connect as jest.MockedFunction<typeof connect>;
@@ -138,6 +139,20 @@ describe('ConsumerService', () => {
       const unknown = { ...bookedEvent, type: 'something.else.v1' } as unknown as AppointmentBookedEvent;
 
       await expect(consumer.handle(unknown)).resolves.toBeUndefined();
+      expect(fhir.read).not.toHaveBeenCalled();
+      expect(fhir.update).not.toHaveBeenCalled();
+    });
+
+    it.each([
+      ['no patient reference', { ...bookedEvent, patientRef: undefined }, 'patientRef'],
+      ['an empty patient reference', { ...bookedEvent, patientRef: '' }, 'patientRef'],
+      ['a start that is no instant', { ...bookedEvent, start: 'soon' }, 'start'],
+      ['a schema version other than 1', { ...bookedEvent, v: 2 }, 'v'],
+    ])('rejects a booked event with %s without touching FHIR', async (_label, invalid, field) => {
+      const failure = consumer.handle(invalid as unknown as AppointmentBookedEvent);
+
+      await expect(failure).rejects.toBeInstanceOf(InvalidEventError);
+      await expect(failure).rejects.toMatchObject({ field });
       expect(fhir.read).not.toHaveBeenCalled();
       expect(fhir.update).not.toHaveBeenCalled();
     });
@@ -425,6 +440,33 @@ describe('ConsumerService', () => {
 
       expect(connection.channel.nack).toHaveBeenCalledWith(message, false, false);
       expect(connection.channel.ack).not.toHaveBeenCalled();
+      expect(fhir.update).not.toHaveBeenCalled();
+    });
+
+    it.each([
+      ['has no patient reference', { ...bookedEvent, patientRef: undefined }],
+      ['has a start that is no instant', { ...bookedEvent, start: 'soon' }],
+    ])('dead-letters a known event that %s at once, without writing, retrying or acknowledging it', async (_label, invalid) => {
+      const message = delivery(invalid);
+
+      deliverTo(message);
+      await drain();
+
+      expect(connection.channel.nack).toHaveBeenCalledWith(message, false, false);
+      expect(connection.channel.sendToQueue).not.toHaveBeenCalled();
+      expect(connection.channel.ack).not.toHaveBeenCalled();
+      expect(fhir.read).not.toHaveBeenCalled();
+      expect(fhir.update).not.toHaveBeenCalled();
+    });
+
+    it('acknowledges an event of a type it does not know without writing it', async () => {
+      const message = delivery({ ...bookedEvent, type: 'something.else.v1' });
+
+      deliverTo(message);
+      await drain();
+
+      expect(connection.channel.ack).toHaveBeenCalledWith(message);
+      expect(connection.channel.nack).not.toHaveBeenCalled();
       expect(fhir.update).not.toHaveBeenCalled();
     });
 

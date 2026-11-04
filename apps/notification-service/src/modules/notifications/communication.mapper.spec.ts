@@ -1,11 +1,11 @@
-import type { DomainEvent } from '@medcenter/messaging';
-
 import { communicationFromEvent } from './communication.mapper';
+import type { NotificationEvent } from './notification-event';
 
-const BASE = { eventId: 'evt-1', occurredAt: '2026-10-22T08:00:00.000Z' };
+const BASE = { v: 1, eventId: 'evt-1', occurredAt: '2026-10-22T08:00:00.000Z' };
 
-function event(fields: Record<string, unknown>): DomainEvent {
-  return { ...BASE, ...fields } as unknown as DomainEvent;
+/** An event as `parseNotificationEvent` hands it over; the fixtures name only the fields a case is about. */
+function event(fields: Record<string, unknown>): NotificationEvent {
+  return { ...BASE, ...fields } as unknown as NotificationEvent;
 }
 
 describe('communicationFromEvent', () => {
@@ -14,64 +14,56 @@ describe('communicationFromEvent', () => {
       event({ type: 'appointment.booked.v1', appointmentId: '3150', patientRef: 'Patient/1439', start: '2026-10-22T09:30:00.000Z' }),
     );
 
-    expect(communication?.['payload']).toEqual([{ contentString: 'Вы записаны на приём. Начало: 22.10.2026 12:30 (время Минска)' }]);
-    expect(communication?.['about']).toEqual([{ reference: 'Appointment/3150' }]);
-    expect(communication?.['recipient']).toEqual([{ reference: 'Patient/1439' }]);
-  });
-
-  it('should keep a start that is no instant as it came, rather than lose it', () => {
-    const communication = communicationFromEvent(event({ type: 'appointment.booked.v1', appointmentId: '1', patientRef: 'Patient/1', start: 'soon' }));
-
-    expect(communication?.['payload']).toEqual([{ contentString: 'Вы записаны на приём. Начало: soon (время Минска)' }]);
+    expect(communication['payload']).toEqual([{ contentString: 'Вы записаны на приём. Начало: 22.10.2026 12:30 (время Минска)' }]);
+    expect(communication['about']).toEqual([{ reference: 'Appointment/3150' }]);
+    expect(communication['recipient']).toEqual([{ reference: 'Patient/1439' }]);
   });
 
   it('should point a cancellation at its appointment and an encounter notice at its encounter', () => {
     const cancelled = communicationFromEvent(event({ type: 'appointment.cancelled.v1', appointmentId: '7', patientRef: 'Patient/1', reason: 'Заболел', actorType: 'PATIENT' }));
     const completed = communicationFromEvent(event({ type: 'encounter.completed.v1', encounterId: 'e9', patientRef: 'Patient/1', practitionerRef: 'Practitioner/p', diagnoses: [] }));
 
-    expect(cancelled?.['about']).toEqual([{ reference: 'Appointment/7' }]);
-    expect(completed?.['about']).toEqual([{ reference: 'Encounter/e9' }]);
+    expect(cancelled['about']).toEqual([{ reference: 'Appointment/7' }]);
+    expect(completed['about']).toEqual([{ reference: 'Encounter/e9' }]);
   });
 
   it('should word a cancellation without the reason even when an older event still carries one', () => {
     const communication = communicationFromEvent(event({ type: 'appointment.cancelled.v1', appointmentId: '7', patientRef: 'Patient/1', reason: 'Заболел', actorType: 'PATIENT' }));
 
-    expect(communication?.['payload']).toEqual([{ contentString: 'Запись на приём отменена.' }]);
+    expect(communication['payload']).toEqual([{ contentString: 'Запись на приём отменена.' }]);
   });
 
   it('should say the clinic cancelled the appointment, without a reason, when an administrator cancelled it', () => {
     const communication = communicationFromEvent(event({ type: 'appointment.cancelled.v1', appointmentId: '7', patientRef: 'Patient/1', reason: 'Врач заболел', actorType: 'ADMIN' }));
 
-    expect(communication?.['payload']).toEqual([
+    expect(communication['payload']).toEqual([
       { contentString: 'Клиника отменила вашу запись на приём. Выберите другое время в разделе «Записаться».' },
     ]);
     expect(JSON.stringify(communication)).not.toContain('Врач заболел');
-    expect(communication?.['about']).toEqual([{ reference: 'Appointment/7' }]);
+    expect(communication['about']).toEqual([{ reference: 'Appointment/7' }]);
   });
 
-  it('should keep the plain wording for a cancellation by the patient or by an event without an actor', () => {
-    const byPatient = communicationFromEvent(event({ type: 'appointment.cancelled.v1', appointmentId: '7', patientRef: 'Patient/1', actorType: 'PATIENT' }));
-    const withoutActor = communicationFromEvent(event({ type: 'appointment.cancelled.v1', appointmentId: '7', patientRef: 'Patient/1' }));
+  it('should keep the plain wording for a cancellation by the patient', () => {
+    const communication = communicationFromEvent(event({ type: 'appointment.cancelled.v1', appointmentId: '7', patientRef: 'Patient/1', actorType: 'PATIENT' }));
 
-    expect(byPatient?.['payload']).toEqual([{ contentString: 'Запись на приём отменена.' }]);
-    expect(withoutActor?.['payload']).toEqual([{ contentString: 'Запись на приём отменена.' }]);
+    expect(communication['payload']).toEqual([{ contentString: 'Запись на приём отменена.' }]);
   });
 
   it('should tell the patient the doctor recorded a no-show and point at the appointment', () => {
     const communication = communicationFromEvent(event({ type: 'appointment.noshow.v1', appointmentId: '12', patientRef: 'Patient/1439' }));
 
-    expect(communication?.['category']).toEqual([{ text: 'appointment' }]);
-    expect(communication?.['payload']).toEqual([{ contentString: 'Приём отмечен как несостоявшийся: врач зафиксировал неявку.' }]);
-    expect(communication?.['about']).toEqual([{ reference: 'Appointment/12' }]);
-    expect(communication?.['recipient']).toEqual([{ reference: 'Patient/1439' }]);
+    expect(communication['category']).toEqual([{ text: 'appointment' }]);
+    expect(communication['payload']).toEqual([{ contentString: 'Приём отмечен как несостоявшийся: врач зафиксировал неявку.' }]);
+    expect(communication['about']).toEqual([{ reference: 'Appointment/12' }]);
+    expect(communication['recipient']).toEqual([{ reference: 'Patient/1439' }]);
   });
 
   it('should notify on minimised events that carry no diagnoses and no email', () => {
     const completed = communicationFromEvent(event({ type: 'encounter.completed.v1', encounterId: 'e9', patientRef: 'Patient/1', practitionerRef: 'Practitioner/p', diagnosisCount: 1 }));
     const registered = communicationFromEvent(event({ type: 'patient.registered.v1', patientId: '5' }));
 
-    expect(completed?.['recipient']).toEqual([{ reference: 'Patient/1' }]);
-    expect(registered?.['recipient']).toEqual([{ reference: 'Patient/5' }]);
+    expect(completed['recipient']).toEqual([{ reference: 'Patient/1' }]);
+    expect(registered['recipient']).toEqual([{ reference: 'Patient/5' }]);
   });
 
   it('should leave about out when the event names nothing to point at, such as a registration', () => {
