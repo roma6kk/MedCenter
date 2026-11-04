@@ -58,7 +58,7 @@ describe('queryKeys', () => {
 
   it('should keep the keys the existing components already use', () => {
     expect(queryKeys.roomUsage('r1')).toEqual(['roomUsage', 'r1']);
-    expect(queryKeys.appointmentDetail('a1')).toEqual(['appointment', 'a1']);
+    expect(queryKeys.appointmentDetail('a1')).toEqual(['appointment', 'a1', 'ru']);
     expect(queryKeys.doctorSchedule).toEqual(['doctorSchedule']);
     expect(queryKeys.unreadCount).toEqual(['notifications', 'unreadCount']);
   });
@@ -75,6 +75,16 @@ describe('catalogue keys and the language', () => {
     expect(russian.map((key) => key.at(-1))).toEqual(['ru', 'ru', 'ru']);
     expect(english.map((key) => key.at(-1))).toEqual(['en', 'en', 'en']);
     russian.forEach((key, index) => expect(key).not.toEqual(english[index]));
+  });
+
+  it('should end the keys of the visits and the journal with the locale because they name the doctor and the service', () => {
+    const keys = (): ReadonlyArray<ReadonlyArray<unknown>> => [queryKeys.appointments(), queryKeys.appointmentDetail('a1'), queryKeys.doctorAppointments(), queryKeys.doctorScheduleRange()];
+    const russian = keys();
+    useUiStore.setState({ locale: 'en' });
+    const english = keys();
+
+    expect(russian.map((key) => key.at(-1))).toEqual(['ru', 'ru', 'ru', 'ru']);
+    expect(english.map((key) => key.at(-1))).toEqual(['en', 'en', 'en', 'en']);
   });
 
   it('should keep the domain first so a root invalidation still hits both languages', () => {

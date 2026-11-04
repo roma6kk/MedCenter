@@ -16,9 +16,14 @@ import { primaryCode } from './history-model';
 
 export const ICD10_SYSTEM = 'https://fhir.by/CodeSystem/InternClassificDiseases10';
 
+/** Where the prescriptions of the page came from: `failed` (the request failed) and `partial` (more than one page, the older visits may lack theirs) say a visit without any may not be a visit without any. */
+export type PrescriptionsState = 'ok' | 'failed' | 'partial';
+
 interface VisitRowProps {
   readonly entry: HistoryEntry;
   readonly prescriptions: ReadonlyArray<Prescription>;
+  readonly prescriptionsState?: PrescriptionsState;
+  readonly onRetryPrescriptions?: () => void;
 }
 
 /** The diagnoses of a visit; an old record that has only the primary code still shows it. */
@@ -60,7 +65,7 @@ function PrescriptionLine({ prescription }: { readonly prescription: Prescriptio
   );
 }
 
-function Details({ entry, prescriptions }: VisitRowProps): ReactNode {
+function Details({ entry, prescriptions, prescriptionsState = 'ok', onRetryPrescriptions }: VisitRowProps): ReactNode {
   const t = useT('patientHistory');
   const others = diagnosesOf(entry).slice(1);
   return (
@@ -90,6 +95,16 @@ function Details({ entry, prescriptions }: VisitRowProps): ReactNode {
           <ul className="flex flex-col gap-1.5">{prescriptions.map((p) => <PrescriptionLine key={p.id} prescription={p} />)}</ul>
         </div>
       ) : null}
+      {prescriptions.length === 0 && prescriptionsState !== 'ok' ? (
+        <p role="status" className="flex flex-wrap items-center gap-x-3 text-sm text-muted-foreground">
+          {prescriptionsState === 'failed' ? t('prescriptionsFailed') : t('prescriptionsPartial')}
+          {prescriptionsState === 'failed' && onRetryPrescriptions !== undefined ? (
+            <button type="button" onClick={onRetryPrescriptions} className="no-print inline-flex min-h-[44px] items-center font-semibold text-primary-soft-foreground underline underline-offset-2">{t('prescriptionsRetry')}</button>
+          ) : (
+            <Link href="/medcard?tab=prescriptions" className="no-print inline-flex min-h-[44px] items-center font-semibold text-primary-soft-foreground underline underline-offset-2">{t('prescriptionsLink')}</Link>
+          )}
+        </p>
+      ) : null}
       <div className="no-print flex flex-wrap gap-2 pt-1">
         <Link href="/booking" className={buttonVariants({ variant: 'primary' })}>{t('rebook')}</Link>
         <Link href={`/appointments/${encodeURIComponent(entry.appointmentId)}`} className={buttonVariants({ variant: 'secondary' })}>{t('openAppointment')}</Link>
@@ -100,7 +115,7 @@ function Details({ entry, prescriptions }: VisitRowProps): ReactNode {
 }
 
 /** One visit: a toggle with the date tile, service, time and primary diagnosis; the details open below it (and always print). */
-export function VisitRow({ entry, prescriptions }: VisitRowProps): ReactNode {
+export function VisitRow({ entry, prescriptions, prescriptionsState, onRetryPrescriptions }: VisitRowProps): ReactNode {
   const t = useT('patientHistory');
   const format = useClinicFormat();
   const [open, setOpen] = useState(false);
@@ -139,7 +154,7 @@ export function VisitRow({ entry, prescriptions }: VisitRowProps): ReactNode {
           <span aria-hidden="true" className="flex-none text-xl text-muted-foreground">{open ? '−' : '+'}</span>
         </button>
         <div id={panelId} hidden={!open} className="print:!block">
-          <Details entry={entry} prescriptions={prescriptions} />
+          <Details entry={entry} prescriptions={prescriptions} {...(prescriptionsState === undefined ? {} : { prescriptionsState })} {...(onRetryPrescriptions === undefined ? {} : { onRetryPrescriptions })} />
         </div>
       </article>
     </li>

@@ -229,7 +229,7 @@ describe('HomeView', () => {
       prescriptionsMock.mockResolvedValue(pageOf([serviceFixture({ id: 's1', status: 'active', display: 'Общий анализ крови' })]));
       renderWithClient(<HomeView />);
 
-      expect(await screen.findByTestId('reco-repeat-visit')).toHaveTextContent('По итогам приёма 19 октября 2026 г.');
+      expect(await screen.findByTestId('reco-repeat-visit-enc-1')).toHaveTextContent('По итогам приёма 19 октября 2026 г.');
       expect(screen.getByTestId('reco-referral-s1')).toHaveTextContent('Направление: Общий анализ крови');
     });
 

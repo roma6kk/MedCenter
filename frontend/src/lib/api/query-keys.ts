@@ -18,7 +18,8 @@ function normalise(params: Params): QueryParams {
 
 /**
  * The catalogue answers in the viewer's language (names, descriptions, specialties), so its keys end with the locale:
- * the other language is another cache entry, and switching the language refetches what is on screen.
+ * the other language is another cache entry, and switching the language refetches what is on screen. The visits of the
+ * cabinet and the journal name the doctor and the service in that language too, so their keys end with it as well.
  */
 function locale(): Locale {
   return useUiStore.getState().locale;
@@ -34,8 +35,8 @@ export const queryKeys = {
   slots: (doctorId: string, params?: Params) => ['slots', doctorId, normalise(params)] as const,
 
   // patient
-  appointments: (params?: Params) => ['appointments', normalise(params)] as const,
-  appointmentDetail: (appointmentId: string) => ['appointment', appointmentId] as const,
+  appointments: (params?: Params) => ['appointments', normalise(params), locale()] as const,
+  appointmentDetail: (appointmentId: string) => ['appointment', appointmentId, locale()] as const,
   history: (patientId: string = 'me', params?: Params) => ['patientHistory', patientId, normalise(params)] as const,
   prescriptions: (patientId: string = 'me', params?: Params) => ['prescriptions', patientId, normalise(params)] as const,
   profile: ['profile'] as const,
@@ -51,9 +52,9 @@ export const queryKeys = {
   unreadCount: ['notifications', 'unreadCount'] as const,
 
   // doctor
-  doctorAppointments: (params?: Params) => ['doctorAppointments', normalise(params)] as const,
+  doctorAppointments: (params?: Params) => ['doctorAppointments', normalise(params), locale()] as const,
   doctorSchedule: ['doctorSchedule'] as const,
-  doctorScheduleRange: (params?: Params) => ['doctorSchedule', normalise(params)] as const,
+  doctorScheduleRange: (params?: Params) => ['doctorSchedule', normalise(params), locale()] as const,
   /** The doctor's view of a patient: card (API 3.2) and trusted persons (3.3). History/prescriptions reuse the keys above. */
   patientCard: (patientId: string) => ['patientCard', patientId] as const,
   relatedPersons: (patientId: string, params?: Params) => ['relatedPersons', patientId, normalise(params)] as const,

@@ -178,6 +178,29 @@ describe('HistoryTimeline', () => {
     expect(within(second as HTMLElement).queryByText(/Азитромицин/)).not.toBeInTheDocument();
   });
 
+  it('should say the prescriptions could not be loaded, with a retry, when their request fails', async () => {
+    historyMock.mockResolvedValue(pageOf([historyFixture()]));
+    prescriptionsMock.mockRejectedValueOnce(apiProblem(500, 'INTERNAL'));
+
+    renderWithClient(<HistoryTimeline />);
+
+    const visit = await openVisit();
+    expect(await within(visit).findByText('Назначения не удалось загрузить.')).toBeInTheDocument();
+    prescriptionsMock.mockResolvedValue(pageOf([medicationFixture()]));
+    await userEvent.click(within(visit).getByRole('button', { name: 'Повторить' }));
+    await waitFor(() => expect(within(visit).queryByText('Назначения не удалось загрузить.')).not.toBeInTheDocument());
+  });
+
+  it('should point to the prescriptions tab when there are more prescriptions than one page holds', async () => {
+    historyMock.mockResolvedValue(pageOf([historyFixture()]));
+    prescriptionsMock.mockResolvedValue({ ...pageOf([]), meta: { ...pageOf([]).meta, totalPages: 2 } });
+
+    renderWithClient(<HistoryTimeline />);
+
+    const visit = await openVisit();
+    expect(await within(visit).findByText(/Назначений больше, чем показано здесь/)).toBeInTheDocument();
+  });
+
   it('should filter the loaded visits by diagnosis', async () => {
     historyMock.mockResolvedValue(pageOf([historyFixture(), historyFixture({ id: 'enc-2', diagnosis: 'I10', diagnoses: [{ code: 'I10', display: 'Гипертензия' }] })]));
     renderWithClient(<HistoryTimeline />);

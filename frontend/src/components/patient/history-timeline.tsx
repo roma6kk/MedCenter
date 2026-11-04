@@ -16,7 +16,7 @@ import { BookLink } from './book-link';
 import { DiagnosisPanel, RepeatVisitCard } from './history/diagnosis-panel';
 import { diagnosisFrequency, filterByDiagnosis, groupByMonth, prescriptionsByEncounter, summarize } from './history/history-model';
 import { SummaryTiles } from './history/summary-tiles';
-import { VisitRow } from './history/visit-row';
+import { VisitRow, type PrescriptionsState } from './history/visit-row';
 import type { HistoryEntry, Prescription } from './patient-types';
 import { PrintButton } from './print-button';
 import { useClampedPage } from './use-clamped-page';
@@ -53,10 +53,12 @@ interface LoadedProps {
   readonly items: ReadonlyArray<HistoryEntry>;
   readonly meta: PageMeta;
   readonly prescriptions: ReadonlyArray<Prescription>;
+  readonly prescriptionsState: PrescriptionsState;
+  readonly onRetryPrescriptions: () => void;
   readonly onPage: (page: number) => void;
 }
 
-function Loaded({ items, meta, prescriptions, onPage }: LoadedProps): ReactNode {
+function Loaded({ items, meta, prescriptions, prescriptionsState, onRetryPrescriptions, onPage }: LoadedProps): ReactNode {
   const t = useT('patientHistory');
   const [chosen, setChosen] = useState<string | null>(null);
   const enter = useStaggerOnce();
@@ -76,7 +78,7 @@ function Loaded({ items, meta, prescriptions, onPage }: LoadedProps): ReactNode 
             <section key={group.key} aria-labelledby={`hx-month-${group.key}`} className="flex flex-col gap-3">
               <MonthHeading monthKey={group.key} id={`hx-month-${group.key}`} />
               <ol aria-labelledby={`hx-month-${group.key}`} className={cn('flex flex-col gap-3', enter)}>
-                {group.entries.map((entry) => <VisitRow key={entry.id} entry={entry} prescriptions={byEncounter.get(entry.id) ?? EMPTY_PRESCRIPTIONS} />)}
+                {group.entries.map((entry) => <VisitRow key={entry.id} entry={entry} prescriptions={byEncounter.get(entry.id) ?? EMPTY_PRESCRIPTIONS} prescriptionsState={prescriptionsState} onRetryPrescriptions={onRetryPrescriptions} />)}
               </ol>
             </section>
           ))}
@@ -100,6 +102,8 @@ export function HistoryTimeline({ embedded = false }: { readonly embedded?: bool
   useClampedPage(query.data?.meta, page, setPage);
   useDocumentTitle(embedded ? null : t('title'));
   const data = query.data;
+  // A visit without prescriptions is not proof there were none: the lookup may have failed or may not reach the older visits.
+  const prescriptionsState: PrescriptionsState = prescriptions.data === undefined ? (prescriptions.isError ? 'failed' : 'ok') : prescriptions.data.meta.totalPages > 1 ? 'partial' : 'ok';
   return (
     <section className="flex flex-col gap-6">
       <div className="flex flex-wrap items-end justify-between gap-4">
@@ -112,7 +116,7 @@ export function HistoryTimeline({ embedded = false }: { readonly embedded?: bool
       <div aria-busy={query.isFetching} className="flex flex-col gap-6">
         {data === undefined ? <QueryFailure query={query} embedded pending={<ContentSkeleton shape="timeline" rows={3} />} /> : null}
         {data !== undefined && data.items.length === 0 ? <EmptyState icon={FileText} title={t('empty')} description={t('emptyHint')} action={<BookLink label={t('emptyCta')} />} /> : null}
-        {data !== undefined && data.items.length > 0 ? <Loaded items={data.items} meta={data.meta} prescriptions={prescriptions.data?.items ?? EMPTY_PRESCRIPTIONS} onPage={setPage} /> : null}
+        {data !== undefined && data.items.length > 0 ? <Loaded items={data.items} meta={data.meta} prescriptions={prescriptions.data?.items ?? EMPTY_PRESCRIPTIONS} prescriptionsState={prescriptionsState} onRetryPrescriptions={() => void prescriptions.refetch()} onPage={setPage} /> : null}
       </div>
     </section>
   );
