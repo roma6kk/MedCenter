@@ -4,8 +4,8 @@
  * card; one that adds something («ЭКГ в покое с расшифровкой») stays.
  */
 
-/** Words that name a visit without saying anything about it. */
-const GENERIC_STEMS: ReadonlySet<string> = new Set(['прием', 'приём', 'консу', 'врача', 'визит', 'осмот']);
+/** Words that name a visit without saying anything about it (the stems of the two alphabets cannot collide, so one set serves ru and en). */
+const GENERIC_STEMS: ReadonlySet<string> = new Set(['прием', 'приём', 'консу', 'врача', 'визит', 'осмот', 'appoi', 'consu', 'visit', 'exami', 'with']);
 const STEM_LENGTH = 5;
 const MIN_WORD_LENGTH = 3;
 

@@ -10,6 +10,19 @@ describe('isRedundantDescription', () => {
     expect(isRedundantDescription(name, description)).toBe(true);
   });
 
+  it.each([
+    ['Therapist appointment (initial)', 'Initial consultation with a therapist'],
+    ['Therapist appointment (follow-up)', 'Follow-up consultation with a therapist'],
+    ['Cardiologist appointment (initial)', 'Initial consultation with a cardiologist'],
+    ['Surgeon appointment (initial)', 'Initial consultation with a surgeon'],
+  ])('should call the English description of "%s" a repeat when it only rewords the title', (name, description) => {
+    expect(isRedundantDescription(name, description)).toBe(true);
+  });
+
+  it('should keep an English description that says something the title does not', () => {
+    expect(isRedundantDescription('Electrocardiography (ECG)', 'Resting ECG with interpretation')).toBe(false);
+  });
+
   it('should keep a description that says something the title does not', () => {
     expect(isRedundantDescription('Электрокардиография (ЭКГ)', 'ЭКГ в покое с расшифровкой')).toBe(false);
   });
