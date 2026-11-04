@@ -2,6 +2,8 @@ import { HttpStatus, Injectable } from '@nestjs/common';
 import type { Response } from 'express';
 
 import { LOGIN_CSRF_COOKIE, csrfCookieOptions, type CookieRequest } from './login-cookies';
+import { loginLocaleOf } from './authorize-query';
+import type { LoginLocale } from './login-messages';
 import { LOGIN_PAGE_CSP, renderLoginErrorPage, renderLoginPage } from './login-page';
 import { LoginSessionService } from './login-session.service';
 
@@ -11,9 +13,19 @@ export interface LoginFormView {
   readonly redirectUri: string;
   readonly status?: HttpStatus;
   readonly error?: string;
+  /** The error is about the entered credentials, so the fields are marked invalid. */
+  readonly fieldError?: boolean;
   readonly email?: string;
   /** Sent as `Retry-After` with a refusal that tells the browser when to come back. */
   readonly retryAfterSeconds?: number;
+}
+
+/**
+ * A browser navigation or form post names `text/html` in `Accept`; an API client that accepts any type or only JSON keeps the
+ * JSON contract of the endpoint.
+ */
+export function acceptsHtml(request: { readonly headers?: { readonly accept?: string } }): boolean {
+  return (request.headers?.accept ?? '').toLowerCase().includes('text/html');
 }
 
 /** The client's own registration page (`frontend/src/app/(auth)/register`), on the `redirect_uri` origin. */
@@ -69,6 +81,8 @@ export class LoginPageResponder {
     const html = renderLoginPage({
       authorizeQuery: view.authorizeQuery,
       csrfField: csrf.field,
+      locale: loginLocaleOf(view.authorizeQuery),
+      ...(view.fieldError === true ? { fieldError: true } : {}),
       ...(view.error !== undefined ? { error: view.error } : {}),
       ...(view.email !== undefined ? { email: view.email } : {}),
       ...(registerUrl !== undefined ? { registerUrl } : {}),
@@ -77,7 +91,7 @@ export class LoginPageResponder {
     sendHtml(response, view.status ?? HttpStatus.OK, html, view.retryAfterSeconds);
   }
 
-  sendError(response: Response, status: HttpStatus, message: string): void {
-    sendHtml(response, status, renderLoginErrorPage(message));
+  sendError(response: Response, status: HttpStatus, message: string, locale?: LoginLocale): void {
+    sendHtml(response, status, renderLoginErrorPage(message, locale));
   }
 }

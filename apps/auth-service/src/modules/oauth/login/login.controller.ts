@@ -5,7 +5,7 @@ import { ApiBody, ApiConsumes, ApiOperation, ApiResponse, ApiTags } from '@nestj
 
 import { CredentialsService } from '../../users/credentials.service';
 import { CLIENT_REGISTRY, type ClientRegistry } from '../guards/client.guard';
-import { authorizeLocation, sanitizeAuthorizeQuery } from './authorize-query';
+import { authorizeLocation, loginLocaleOf, sanitizeAuthorizeQuery } from './authorize-query';
 import {
   LOGIN_CSRF_COOKIE,
   LOGIN_SESSION_COOKIE,
@@ -15,13 +15,7 @@ import {
   type CookieRequest,
 } from './login-cookies';
 import { LoginFormDto } from './login-form.dto';
-import {
-  BROKEN_REQUEST_MESSAGE,
-  INVALID_CREDENTIALS_MESSAGE,
-  STALE_FORM_MESSAGE,
-  THROTTLED_MESSAGE,
-  UNAVAILABLE_MESSAGE,
-} from './login-messages';
+import { loginMessage, type LoginLocale } from './login-messages';
 import type { LoginFormView } from './login-page.responder';
 import { LoginPageResponder } from './login-page.responder';
 import { LoginRateLimitFilter } from './login-rate-limit.filter';
@@ -112,13 +106,14 @@ export class LoginController {
   @Post('login')
   async login(@Body() form: LoginFormDto, @Req() request: LoginRequest, @Res() response: Response): Promise<void> {
     const authorizeQuery = sanitizeAuthorizeQuery(form.authorize_query ?? '');
+    const locale = loginLocaleOf(authorizeQuery);
     const redirectUri = await resolveRedirectUri(this.clients, authorizeQuery);
     if (redirectUri === null) {
-      this.page.sendError(response, HttpStatus.BAD_REQUEST, BROKEN_REQUEST_MESSAGE);
+      this.page.sendError(response, HttpStatus.BAD_REQUEST, loginMessage('brokenRequest', locale), locale);
       return;
     }
     const email = form.email ?? '';
-    const refusal = await this.refusalOf(form, request);
+    const refusal = await this.refusalOf(form, request, locale);
     if (refusal !== null) {
       this.page.sendForm(request, response, { authorizeQuery, redirectUri, email, ...refusal });
       return;
@@ -126,7 +121,13 @@ export class LoginController {
     const userId = await this.credentials.verify(email, form.password ?? '');
     if (userId === null) {
       this.logger.warn({ ip: request.ip }, 'Login rejected: invalid credentials or inactive account');
-      this.page.sendForm(request, response, { authorizeQuery, redirectUri, email, error: INVALID_CREDENTIALS_MESSAGE });
+      this.page.sendForm(request, response, {
+        authorizeQuery,
+        redirectUri,
+        email,
+        error: loginMessage('invalidCredentials', locale),
+        fieldError: true,
+      });
       return;
     }
     await this.throttle.forgive(email);
@@ -138,20 +139,20 @@ export class LoginController {
    * refused first (CSRF costs nothing and is not an attempt); the rest is counted
    * against the account.
    */
-  private async refusalOf(form: LoginFormDto, request: LoginRequest): Promise<Refusal | null> {
+  private async refusalOf(form: LoginFormDto, request: LoginRequest, locale: LoginLocale): Promise<Refusal | null> {
     if (!this.sessions.verifyCsrf(readCookie(request, LOGIN_CSRF_COOKIE), form.csrf)) {
-      return { status: HttpStatus.FORBIDDEN, error: STALE_FORM_MESSAGE, email: '' };
+      return { status: HttpStatus.FORBIDDEN, error: loginMessage('staleForm', locale), email: '' };
     }
     const admission = await this.throttle.admit(form.email ?? '');
     if (admission === 'throttled') {
       this.logger.warn({ ip: request.ip }, 'Login refused: the account reached its attempt limit');
       return {
         status: HttpStatus.TOO_MANY_REQUESTS,
-        error: THROTTLED_MESSAGE,
+        error: loginMessage('throttled', locale),
         retryAfterSeconds: ACCOUNT_ATTEMPT_WINDOW_SECONDS,
       };
     }
-    return admission === 'unavailable' ? { status: HttpStatus.SERVICE_UNAVAILABLE, error: UNAVAILABLE_MESSAGE } : null;
+    return admission === 'unavailable' ? { status: HttpStatus.SERVICE_UNAVAILABLE, error: loginMessage('unavailable', locale) } : null;
   }
 
   private resumeAuthorization(request: LoginRequest, response: Response, userId: string, authorizeQuery: string): void {

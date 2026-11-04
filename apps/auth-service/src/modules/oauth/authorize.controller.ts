@@ -12,7 +12,7 @@ import {
 
 import { ApiOAuthBadRequest, ApiOAuthInvalidClient } from './dto/oauth-docs';
 import { OAuthErrorDoc } from './dto/oauth-response.doc';
-import { OAuthErrorFilter } from './filters/oauth-error.filter';
+import { AuthorizeErrorFilter } from './filters/authorize-error.filter';
 import { AuthorizePageGuard } from './guards/authorize-page.guard';
 import { ClientGuard, readQueryString, type RegisteredClient } from './guards/client.guard';
 import { sanitizeAuthorizeQuery } from './login/authorize-query';
@@ -60,13 +60,13 @@ function errorRedirect(redirectUri: string, state: string, error: AuthorizeRedir
  *   the account as it is now. A failure of this surface's domain bounces to
  *   the *registered* `redirect_uri` with its RFC 6749 §4.1.2.1 `error`; an
  *   infrastructure failure is not a consent decision and propagates to
- *   `ProblemDetailsFilter`.
+ *   `AuthorizeErrorFilter` (problem+json, or the error page for a browser).
  * - Errors raised before a redirect target is known leave as the RFC 6749
- *   §5.2 envelope via `OAuthErrorFilter`.
+ *   §5.2 envelope via `AuthorizeErrorFilter` (an error page for a browser).
  */
 @ApiTags('auth')
 @ApiExtraModels(OAuthErrorDoc)
-@UseFilters(OAuthErrorFilter)
+@UseFilters(AuthorizeErrorFilter)
 @Controller()
 export class AuthorizeController {
   private readonly logger = new Logger(AuthorizeController.name);
@@ -87,6 +87,7 @@ export class AuthorizeController {
   @ApiQuery({ name: 'state', required: false, description: 'Opaque value echoed back on the redirect' })
   @ApiQuery({ name: 'code_challenge', required: true, description: 'PKCE S256 challenge' })
   @ApiQuery({ name: 'code_challenge_method', enum: ['S256'], required: true })
+  @ApiQuery({ name: 'ui_locales', required: false, description: 'OIDC ui_locales: ru or en picks the language of the login page (default ru)' })
   @ApiQuery({ name: 'launch', required: false, description: 'SMART launch context token' })
   @ApiResponse({
     status: 200,
@@ -98,7 +99,7 @@ export class AuthorizeController {
     description: 'Redirect to redirect_uri with code and state, or with error (access_denied, invalid_request, invalid_scope) and state',
     headers: { Location: { description: 'redirect_uri?code=...&state=... | redirect_uri?error=...&state=...', schema: { type: 'string' } } },
   })
-  @ApiOAuthBadRequest('invalid_request: unusable client_id, redirect_uri, response_type, code_challenge or code_challenge_method (RFC 6749 envelope)')
+  @ApiOAuthBadRequest('invalid_request: unusable client_id, redirect_uri, response_type, code_challenge or code_challenge_method (RFC 6749 envelope; an HTML error page for a request that accepts text/html)')
   @ApiOAuthInvalidClient('invalid_client: unknown client_id')
   @ApiProblems([429, 500])
   @UseGuards(ClientGuard, AuthorizePageGuard, LoginSessionGuard)

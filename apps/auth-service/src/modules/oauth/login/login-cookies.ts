@@ -9,7 +9,7 @@ export const LOGIN_SESSION_COOKIE = 'mc_as_session';
 export const LOGIN_CSRF_COOKIE = 'mc_as_csrf';
 
 export interface CookieRequest {
-  readonly headers: { readonly cookie?: string };
+  readonly headers: { readonly cookie?: string; readonly accept?: string };
   /** Express `req.secure`: honours `X-Forwarded-Proto` once `trust proxy` is set (`main.ts`). */
   readonly secure?: boolean;
 }

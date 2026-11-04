@@ -1,4 +1,4 @@
-import { authorizeLocation, sanitizeAuthorizeQuery } from './authorize-query';
+import { authorizeLocation, loginLocaleOf, sanitizeAuthorizeQuery } from './authorize-query';
 
 describe('sanitizeAuthorizeQuery', () => {
   it('should keep exactly the authorization request parameters when a parsed query is given', () => {
@@ -50,5 +50,22 @@ describe('authorizeLocation', () => {
     expect(authorizeLocation('client_id=c&response_type=code')).toBe(
       '/oauth/authorize?client_id=c&response_type=code',
     );
+  });
+});
+
+describe('ui_locales', () => {
+  it('should keep the first supported language as a bare tag when the list names one', () => {
+    expect(new URLSearchParams(sanitizeAuthorizeQuery({ client_id: 'c', ui_locales: 'de EN-us ru' })).get('ui_locales')).toBe('en');
+  });
+
+  it('should drop ui_locales when no tag is supported', () => {
+    expect(new URLSearchParams(sanitizeAuthorizeQuery({ client_id: 'c', ui_locales: 'de fr' })).has('ui_locales')).toBe(false);
+  });
+
+  it('should survive the hidden-field round trip and default to Russian when absent', () => {
+    const query = sanitizeAuthorizeQuery({ client_id: 'c', ui_locales: 'en' });
+
+    expect(loginLocaleOf(sanitizeAuthorizeQuery(query))).toBe('en');
+    expect(loginLocaleOf('client_id=c')).toBe('ru');
   });
 });

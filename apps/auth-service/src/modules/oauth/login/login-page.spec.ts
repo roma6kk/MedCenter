@@ -29,12 +29,36 @@ describe('renderLoginPage', () => {
   });
 
   it('should announce the error and keep the typed email when the credentials were rejected', () => {
-    const html = renderLoginPage({ ...BASE, error: 'Неверный email или пароль', email: 'ivanov@example.by' });
+    const html = renderLoginPage({ ...BASE, error: 'Неверный email или пароль', fieldError: true, email: 'ivanov@example.by' });
 
     expect(html).toContain('role="alert"');
     expect(html).toContain('Неверный email или пароль');
     expect(html).toContain('value="ivanov@example.by"');
     expect(html).toContain('aria-describedby="login-error"');
+    expect(html.match(/aria-invalid="true"/g)).toHaveLength(2);
+  });
+
+  it('should not mark the fields invalid when the refusal is not about them (limit, stale form, outage)', () => {
+    const html = renderLoginPage({ ...BASE, error: 'Слишком много попыток входа', email: 'ivanov@example.by' });
+
+    expect(html).toContain('role="alert"');
+    expect(html).not.toContain('aria-invalid="true"');
+    expect(html).not.toContain('aria-describedby=');
+  });
+
+  it('should render the English page with lang en and the Lifeline name when the locale is en', () => {
+    const html = renderLoginPage({ ...BASE, locale: 'en', registerUrl: 'https://app.medcenter.by/register', siteUrl: 'https://app.medcenter.by/' });
+
+    expect(html).toContain('<html lang="en">');
+    expect(html).toContain('<h1 id="page-title">Sign in to your account</h1>');
+    expect(html).toContain('<label for="email">E-mail</label>');
+    expect(html).toContain('<label for="password">Password</label>');
+    expect(html).toContain('>Sign in</button>');
+    expect(html).toContain('aria-label="Show password"');
+    expect(html).toContain('No account yet?');
+    expect(html).toContain('Back to the site');
+    expect(html).toContain('<title>Sign in — Lifeline</title>');
+    expect(html).not.toMatch(/Лайфлайн|Войти|Пароль/);
   });
 
   it('should escape markup when the email or the query carries HTML', () => {
@@ -69,7 +93,8 @@ describe('renderLoginPage design', () => {
     const html = renderLoginPage(BASE);
 
     expect(html).toMatch(/<button type="button" id="pw-toggle" class="toggle" hidden aria-pressed="false" aria-controls="password" aria-label="Показать пароль"/);
-    expect(html).toContain('data-hide="Скрыть пароль"');
+    expect(html).not.toContain('data-hide');
+    expect(html).not.toContain('"aria-label"');
   });
 
   it('should keep the password field masked and its autocomplete hint when the toggle exists', () => {
@@ -97,6 +122,13 @@ describe('renderLoginErrorPage', () => {
 
     expect(html).toContain('Запрос входа некорректен');
     expect(html).not.toContain('<form');
+  });
+
+  it('should render the English error page when the locale is en', () => {
+    const html = renderLoginErrorPage('The sign-in request is invalid.', 'en');
+
+    expect(html).toContain('<html lang="en">');
+    expect(html).toContain('Could not continue signing in');
   });
 });
 

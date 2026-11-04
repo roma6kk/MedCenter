@@ -1,5 +1,7 @@
 import { createHash } from 'node:crypto';
 
+import { DEFAULT_LOGIN_LOCALE, type LoginLocale } from './login-messages';
+
 /** Path under which `LoginAssetsController` serves the two Onest subsets the page declares below. */
 export const LOGIN_FONT_BASE_PATH = '/oauth/assets/fonts';
 export const LOGIN_FONT_FILES = { cyrillic: 'onest-cyrillic.woff2', latin: 'onest-latin.woff2' } as const;
@@ -66,12 +68,67 @@ const LOGIN_PAGE_CSS = [
   '@media (prefers-reduced-motion:reduce){*{transition:none!important}}',
 ].join('');
 
-/** Reveals the toggle only when scripts run (the form works without it); labels come from data attributes, not from the script. */
+/**
+ * Reveals the toggle only when scripts run (the form works without it). The accessible name of the toggle stays the same
+ * and `aria-pressed` carries the state (ARIA toggle button pattern), so the script touches no text.
+ */
 const LOGIN_PAGE_SCRIPT = [
   '(function(){var b=document.getElementById("pw-toggle"),i=document.getElementById("password");if(!b||!i){return}',
   'b.hidden=false;b.addEventListener("click",function(){var s=i.type==="password";i.type=s?"text":"password";',
-  'b.setAttribute("aria-pressed",s?"true":"false");b.setAttribute("aria-label",b.getAttribute(s?"data-hide":"data-show")||"")})})();',
+  'b.setAttribute("aria-pressed",s?"true":"false")})})();',
 ].join('');
+
+interface LoginText {
+  readonly lang: string;
+  readonly brand: string;
+  readonly toSite: string;
+  readonly title: string;
+  readonly heading: string;
+  readonly lead: string;
+  readonly email: string;
+  readonly password: string;
+  readonly showPassword: string;
+  readonly submit: string;
+  readonly noAccount: string;
+  readonly register: string;
+  readonly errorTitle: string;
+  readonly errorHeading: string;
+}
+
+const LOGIN_TEXT: Readonly<Record<LoginLocale, LoginText>> = {
+  ru: {
+    lang: 'ru',
+    brand: 'Лайфлайн',
+    toSite: 'На сайт',
+    title: 'Вход',
+    heading: 'Вход в личный кабинет',
+    lead: 'Запись на приём, медкарта и назначения врача — в одном месте.',
+    email: 'Электронная почта',
+    password: 'Пароль',
+    showPassword: 'Показать пароль',
+    submit: 'Войти',
+    noAccount: 'Нет аккаунта?',
+    register: 'Зарегистрироваться',
+    errorTitle: 'Ошибка входа',
+    errorHeading: 'Не удалось продолжить вход',
+  },
+  en: {
+    lang: 'en',
+    brand: 'Lifeline',
+    toSite: 'Back to the site',
+    title: 'Sign in',
+    heading: 'Sign in to your account',
+    lead: 'Appointments, your medical record and your doctor’s orders in one place.',
+    email: 'E-mail',
+    password: 'Password',
+    showPassword: 'Show password',
+    submit: 'Sign in',
+    noAccount: 'No account yet?',
+    register: 'Register',
+    errorTitle: 'Sign-in error',
+    errorHeading: 'Could not continue signing in',
+  },
+};
 
 const sha256 = (value: string): string => createHash('sha256').update(value).digest('base64');
 
@@ -94,7 +151,11 @@ export interface LoginPageParams {
   readonly authorizeQuery: string;
   readonly csrfField: string;
   readonly error?: string;
+  /** The error belongs to the credential fields (wrong e-mail or password), not to the form as a whole (limit, stale form, outage). */
+  readonly fieldError?: boolean;
   readonly email?: string;
+  /** Language of the page (`ui_locales` of the authorization request); Russian when omitted. */
+  readonly locale?: LoginLocale;
   /** Registration page of the client the user came from. */
   readonly registerUrl?: string;
   /** Home page of the client the user came from: the «← На сайт» link. */
@@ -143,22 +204,22 @@ function eyeIcons(): string {
   ].join('');
 }
 
-function layout(title: string, body: string, siteUrl: string | undefined): string {
+function layout(title: string, body: string, siteUrl: string | undefined, text: LoginText): string {
   const back =
-    siteUrl === undefined ? '' : `<a class="back" href="${escapeHtml(siteUrl)}"><span aria-hidden="true">←</span> На сайт</a>`;
+    siteUrl === undefined ? '' : `<a class="back" href="${escapeHtml(siteUrl)}"><span aria-hidden="true">←</span> ${escapeHtml(text.toSite)}</a>`;
   const home = siteUrl === undefined ? '<span class="brand">' : `<a class="brand" href="${escapeHtml(siteUrl)}">`;
   const homeEnd = siteUrl === undefined ? '</span>' : '</a>';
   return [
     '<!doctype html>',
-    '<html lang="ru">',
+    `<html lang="${text.lang}">`,
     '<head><meta charset="utf-8">',
     '<meta name="viewport" content="width=device-width, initial-scale=1">',
     '<meta name="robots" content="noindex, nofollow">',
     '<meta name="color-scheme" content="light dark">',
     `<link rel="preload" href="${LOGIN_FONT_BASE_PATH}/${LOGIN_FONT_FILES.cyrillic}" as="font" type="font/woff2" crossorigin>`,
-    `<title>${escapeHtml(title)} — Лайфлайн</title>`,
+    `<title>${escapeHtml(title)} — ${text.brand}</title>`,
     `<style>${LOGIN_PAGE_CSS}</style></head>`,
-    `<body>${back}<main aria-labelledby="page-title">${home}${brandMark(40)}Лайфлайн${homeEnd}${body}</main>`,
+    `<body>${back}<main aria-labelledby="page-title">${home}${brandMark(40)}${text.brand}${homeEnd}${body}</main>`,
     `<script>${LOGIN_PAGE_SCRIPT}</script></body>`,
     '</html>',
   ].join('\n');
@@ -173,50 +234,53 @@ function errorBlock(error: string | undefined): string {
     : `<p id="login-error" class="error" role="alert">${ALERT_ICON}<span>${escapeHtml(error)}</span></p>`;
 }
 
-function emailField(params: LoginPageParams): string {
-  const invalid = params.error === undefined ? '' : ' aria-invalid="true" aria-describedby="login-error"';
+function emailField(params: LoginPageParams, text: LoginText): string {
+  const invalid = params.error !== undefined && params.fieldError === true ? ' aria-invalid="true" aria-describedby="login-error"' : '';
   const value = escapeHtml(params.email ?? '');
   return [
-    '<label for="email">Электронная почта</label>',
+    `<label for="email">${text.email}</label>`,
     `<input id="email" name="email" type="email" value="${value}" autocomplete="username" autocapitalize="none" spellcheck="false" required maxlength="255" autofocus${invalid}>`,
   ].join('\n');
 }
 
-function passwordField(): string {
+function passwordField(params: LoginPageParams, text: LoginText): string {
+  const invalid = params.error !== undefined && params.fieldError === true ? ' aria-invalid="true" aria-describedby="login-error"' : '';
   return [
-    '<label for="password">Пароль</label>',
+    `<label for="password">${text.password}</label>`,
     '<div class="pw">',
-    '<input id="password" name="password" type="password" autocomplete="current-password" required maxlength="128">',
-    `<button type="button" id="pw-toggle" class="toggle" hidden aria-pressed="false" aria-controls="password" aria-label="Показать пароль" data-show="Показать пароль" data-hide="Скрыть пароль">${eyeIcons()}</button>`,
+    `<input id="password" name="password" type="password" autocomplete="current-password" required maxlength="128"${invalid}>`,
+    `<button type="button" id="pw-toggle" class="toggle" hidden aria-pressed="false" aria-controls="password" aria-label="${text.showPassword}">${eyeIcons()}</button>`,
     '</div>',
   ].join('\n');
 }
 
-function registerHint(registerUrl: string | undefined): string {
+function registerHint(registerUrl: string | undefined, text: LoginText): string {
   if (registerUrl === undefined) {
     return '';
   }
-  return `<p class="hint">Нет аккаунта? <a href="${escapeHtml(registerUrl)}">Зарегистрироваться</a></p>`;
+  return `<p class="hint">${text.noAccount} <a href="${escapeHtml(registerUrl)}">${text.register}</a></p>`;
 }
 
 export function renderLoginPage(params: LoginPageParams): string {
+  const text = LOGIN_TEXT[params.locale ?? DEFAULT_LOGIN_LOCALE];
   const form = [
-    '<h1 id="page-title">Вход в личный кабинет</h1>',
-    '<p class="lead">Запись на приём, медкарта и назначения врача — в одном месте.</p>',
+    `<h1 id="page-title">${text.heading}</h1>`,
+    `<p class="lead">${text.lead}</p>`,
     errorBlock(params.error),
     '<form method="post" action="/oauth/login">',
     `<input type="hidden" name="csrf" value="${escapeHtml(params.csrfField)}">`,
     `<input type="hidden" name="authorize_query" value="${escapeHtml(params.authorizeQuery)}">`,
-    emailField(params),
-    passwordField(),
-    '<button type="submit" class="submit">Войти</button>',
+    emailField(params, text),
+    passwordField(params, text),
+    `<button type="submit" class="submit">${text.submit}</button>`,
     '</form>',
-    registerHint(params.registerUrl),
+    registerHint(params.registerUrl, text),
   ];
-  return layout('Вход', form.join('\n'), params.siteUrl);
+  return layout(text.title, form.join('\n'), params.siteUrl, text);
 }
 
 /** Dead end of a login request that cannot be resumed (e.g. the authorize parameters are gone). */
-export function renderLoginErrorPage(message: string): string {
-  return layout('Ошибка входа', `<h1 id="page-title">Не удалось продолжить вход</h1>\n${errorBlock(message)}`, undefined);
+export function renderLoginErrorPage(message: string, locale: LoginLocale = DEFAULT_LOGIN_LOCALE): string {
+  const text = LOGIN_TEXT[locale];
+  return layout(text.errorTitle, `<h1 id="page-title">${text.errorHeading}</h1>\n${errorBlock(message)}`, undefined, text);
 }
