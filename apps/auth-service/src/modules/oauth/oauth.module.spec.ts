@@ -189,6 +189,32 @@ describe('loadRegisteredClients', () => {
     ).toThrow();
   });
 
+  it.each([
+    ['a relative path', '/api/auth/callback'],
+    ['an address without a scheme', 'localhost:3000/api/auth/callback'],
+    ['a javascript: URI', 'javascript:alert(1)'],
+    ['a URI with a fragment', 'https://app.medcenter.by/callback#frag'],
+    ['an empty fragment', 'https://app.medcenter.by/callback#'],
+  ])('should throw at boot when a redirect URI is %s', (_label, redirectUri) => {
+    expect(() =>
+      loadRegisteredClients({
+        OAUTH_CLIENTS_JSON: JSON.stringify([
+          { clientId: 'broken', redirectUris: [redirectUri], scopes: ['launch'], isPublic: true },
+        ]),
+      }),
+    ).toThrow(/absolute http\(s\) URL without a fragment/);
+  });
+
+  it('should accept an http redirect URI on localhost', () => {
+    const clients = loadRegisteredClients({
+      OAUTH_CLIENTS_JSON: JSON.stringify([
+        { clientId: 'dev', redirectUris: ['http://localhost:3000/api/auth/callback'], scopes: ['launch'], isPublic: true },
+      ]),
+    });
+
+    expect(clients).toHaveLength(1);
+  });
+
   it('should throw at boot when an entry has an empty clientId', () => {
     expect(() =>
       loadRegisteredClients({

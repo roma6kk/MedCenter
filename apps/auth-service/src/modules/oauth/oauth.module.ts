@@ -67,9 +67,25 @@ export function loadSigningKeys(source: NodeJS.ProcessEnv = process.env): Signin
  * degrade to an empty registry where every client gets `401 invalid_client`,
  * indistinguishable from a real auth failure.
  */
+/** RFC 6749 §3.1.2: an absolute http(s) URI without a fragment; `new URL` on a relative one throws on a public route. */
+function isValidRedirectUri(value: string): boolean {
+  let url: URL;
+  try {
+    url = new URL(value);
+  } catch {
+    return false;
+  }
+  return (url.protocol === 'https:' || url.protocol === 'http:') && url.hash === '' && !value.includes('#');
+}
+
+const redirectUriSchema = z
+  .string()
+  .min(1)
+  .refine(isValidRedirectUri, { message: 'must be an absolute http(s) URL without a fragment' });
+
 const registeredClientSchema = z.object({
   clientId: z.string().min(1),
-  redirectUris: z.array(z.string().min(1)).min(1),
+  redirectUris: z.array(redirectUriSchema).min(1),
   scopes: z.array(z.string()),
   isPublic: z.boolean(),
   clientSecret: z.string().min(1).optional(),
