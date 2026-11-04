@@ -1726,6 +1726,7 @@
       "formNumber": "Form no. {number}",
       "signedAt": "Signed {date}",
       "signedBy": "Recorded by: {name}",
+      "signedByStaff": "a staff member",
       "consenter": "Signed by",
       "consenterTypes": {
         "self": "the patient",
@@ -1845,7 +1846,9 @@
       "year": "Year",
       "today": "Today",
       "hint": "Arrow keys move the day, PageUp and PageDown move the month, Enter selects, Esc closes.",
-      "unreadable": "Not a valid date. Format: dd.mm.yyyy"
+      "unreadable": "Not a valid date. Format: dd.mm.yyyy",
+      "beforeMin": "The date cannot be earlier than {day}",
+      "afterMax": "The date cannot be later than {day}"
     },
     "fileDrop": {
       "prompt": "Drag a file here or",

@@ -1726,6 +1726,7 @@
       "formNumber": "Форма № {number}",
       "signedAt": "Подписано {date}",
       "signedBy": "Оформил: {name}",
+      "signedByStaff": "медицинский работник",
       "consenter": "Подписал",
       "consenterTypes": {
         "self": "сам пациент",
@@ -1845,7 +1846,9 @@
       "year": "Год",
       "today": "Сегодня",
       "hint": "Стрелки двигают день, PageUp и PageDown — месяц, Enter выбирает, Esc закрывает.",
-      "unreadable": "Не похоже на дату. Формат: дд.мм.гггг"
+      "unreadable": "Не похоже на дату. Формат: дд.мм.гггг",
+      "beforeMin": "Дата не раньше {day}",
+      "afterMax": "Дата не позже {day}"
     },
     "fileDrop": {
       "prompt": "Перетащите файл сюда или",

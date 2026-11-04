@@ -4,8 +4,8 @@ import { GET } from './route';
 
 const CONTAINER_ORIGIN = 'http://0.0.0.0:3000';
 
-function authorize(query = ''): Promise<Response> {
-  return GET(new NextRequest(`${CONTAINER_ORIGIN}/api/auth/authorize${query}`));
+function authorize(query = '', cookie?: string): Promise<Response> {
+  return GET(new NextRequest(`${CONTAINER_ORIGIN}/api/auth/authorize${query}`, cookie === undefined ? {} : { headers: { cookie } }));
 }
 
 function locationOf(response: Response): URL {
@@ -80,6 +80,15 @@ describe('GET /api/auth/authorize', () => {
     const state = locationOf(await authorize('?returnTo=%2Fdoctor%2Fappointments%3Ffrom%3D2026-10-16')).searchParams.get('state') ?? '';
 
     expect(decodeURIComponent(state.slice(state.indexOf('.') + 1))).toBe('/doctor/appointments?from=2026-10-16');
+  });
+
+  it.each([
+    ['English', 'mc-locale=en', 'en'],
+    ['Russian', 'mc-locale=ru', 'ru'],
+    ['an unknown value', 'mc-locale=de', 'ru'],
+    ['no cookie', undefined, 'ru'],
+  ])('should pass ui_locales for %s', async (_label, cookie, expected) => {
+    expect(locationOf(await authorize('', cookie)).searchParams.get('ui_locales')).toBe(expected);
   });
 
   it.each([

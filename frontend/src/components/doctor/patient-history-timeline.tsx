@@ -16,8 +16,9 @@ import { cn } from '@/lib/ui/cn';
 import { DiagnosisList } from './diagnosis-list';
 import type { HistoryItem, Prescription } from './doctor-types';
 import { QueryFailure } from '@/components/feedback/query-error-state';
+import { SkeletonText } from '@/components/ui/skeleton';
 import { isOwnVisit, useOwnRoleId } from './use-own-role';
-import { usePatientHistory, usePatientPrescriptions } from './use-doctor-queries';
+import { usePatientHistory, useVisitPrescriptions } from './use-doctor-queries';
 
 function VisitText({ label, text }: { readonly label: string; readonly text: string }): ReactNode {
   return (
@@ -33,9 +34,24 @@ function orderText(item: Prescription): string {
   return item.kind === 'medication' ? `${item.atcDisplay ?? item.atcCode} — ${item.dosageText}` : item.display ?? item.code;
 }
 
+/** The orders of an opened visit, asked for by the visit's id (API 7.5 `encounterId`), not cut out of one page of the patient's orders. */
+function VisitOrders({ patientId, encounterId }: { readonly patientId: string; readonly encounterId: string }): ReactNode {
+  const t = useT('doctor.history');
+  const tOrders = useT('doctor.prescriptions');
+  const orders = useVisitPrescriptions(patientId, encounterId);
+  if (orders.data === undefined) return <QueryFailure query={orders} embedded notFoundText={tOrders('unavailable')} pending={<SkeletonText lines={1} />} />;
+  if (orders.data.items.length === 0) return null;
+  return (
+    <div>
+      <p className="form-label">{t('orders')}</p>
+      <ul className="mt-1 grid gap-0.5 text-sm">{orders.data.items.map((order) => <li key={order.id}>{orderText(order)}</li>)}</ul>
+    </div>
+  );
+}
+
 interface VisitEntryProps {
   readonly item: HistoryItem;
-  readonly orders: ReadonlyArray<Prescription>;
+  readonly patientId: string;
   readonly isOpen: boolean;
   /** The visit was held by another doctor: its record is not open to this one. */
   readonly isColleague: boolean;
@@ -46,7 +62,7 @@ interface VisitEntryProps {
  * A finished visit as a card that folds (A2): the date, the service and the diagnosis codes always show, the conclusion,
  * recommendations and orders of the visit appear when it is opened. The whole top row is the button, so the target is large.
  */
-function VisitEntry({ item, orders, isOpen, isColleague, onToggle }: VisitEntryProps): ReactNode {
+function VisitEntry({ item, patientId, isOpen, isColleague, onToggle }: VisitEntryProps): ReactNode {
   const t = useT('doctor.history');
   const detailsId: string = useId();
   return (
@@ -77,12 +93,7 @@ function VisitEntry({ item, orders, isOpen, isColleague, onToggle }: VisitEntryP
             {item.diagnoses.length > 0 ? <DiagnosisList diagnoses={item.diagnoses} /> : null}
             {item.summary ? <VisitText label={t('summary')} text={item.summary} /> : null}
             {item.recommendations ? <VisitText label={t('recommendations')} text={item.recommendations} /> : null}
-            {orders.length > 0 ? (
-              <div>
-                <p className="form-label">{t('orders')}</p>
-                <ul className="mt-1 grid gap-0.5 text-sm">{orders.map((order) => <li key={order.id}>{orderText(order)}</li>)}</ul>
-              </div>
-            ) : null}
+            <VisitOrders patientId={patientId} encounterId={item.id} />
             {isColleague ? (
               <p className="text-sm text-muted-foreground">{t('otherDoctor')}</p>
             ) : (
@@ -99,7 +110,7 @@ function VisitEntry({ item, orders, isOpen, isColleague, onToggle }: VisitEntryP
 
 /**
  * The patient's finished visits (API 7.4), newest first as the service returns them. Each one is a card that unfolds in place
- * (the newest starts open); its orders come from the same prescription page the summary reads. The full record of a visit
+ * (the newest starts open); its orders are asked for by the visit's id when it is opened. The full record of a visit
  * opens on its own page.
  */
 export function PatientHistoryTimeline({ patientId }: { readonly patientId: string }): ReactNode {
@@ -108,7 +119,6 @@ export function PatientHistoryTimeline({ patientId }: { readonly patientId: stri
   const [toggled, setToggled] = useState<Readonly<Record<string, boolean>>>({});
   const history = usePatientHistory(patientId, page);
   const ownRoleId = useOwnRoleId();
-  const prescriptions = usePatientPrescriptions(patientId, 1);
   const enter = useStaggerOnce(history.data !== undefined);
   const isOpen = (id: string, index: number): boolean => toggled[id] ?? (page === 1 && index === 0);
   return (
@@ -124,7 +134,7 @@ export function PatientHistoryTimeline({ patientId }: { readonly patientId: stri
                 <VisitEntry
                   key={item.id}
                   item={item}
-                  orders={(prescriptions.data?.items ?? []).filter((order) => order.encounterId === item.id)}
+                  patientId={patientId}
                   isOpen={isOpen(item.id, index)}
                   isColleague={!isOwnVisit(item, ownRoleId)}
                   onToggle={() => setToggled((previous) => ({ ...previous, [item.id]: !isOpen(item.id, index) }))}

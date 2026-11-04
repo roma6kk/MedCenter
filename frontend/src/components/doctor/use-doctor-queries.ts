@@ -167,6 +167,18 @@ export function usePatientPrescriptions(patientId: string, page: number): UseQue
   });
 }
 
+/** The orders of one visit (API 7.5 with `encounterId`): loaded when the visit card is opened, one request per visit. */
+/** One visit holds at most a few dozen orders (20 + 20 per encounter), so a single page of the maximum size is all of them. */
+const VISIT_ORDERS_PAGE_SIZE = 100;
+
+export function useVisitPrescriptions(patientId: string, encounterId: string): UseQueryResult<PaginatedResponse<Prescription>> {
+  return useQuery({
+    queryKey: queryKeys.prescriptions(patientId, { page: 1, pageSize: VISIT_ORDERS_PAGE_SIZE, encounterId }),
+    queryFn: ({ signal }) => fetchPatientPrescriptions(patientId, { page: 1, pageSize: VISIT_ORDERS_PAGE_SIZE, encounterId }, signal),
+    staleTime: DEFAULT_STALE_TIME_MS,
+  });
+}
+
 interface ExpansionOptions {
   /** Hold the request back (a search box waits for a few characters). */
   readonly enabled?: boolean;

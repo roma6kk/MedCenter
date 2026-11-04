@@ -87,6 +87,14 @@ describe('catalogue keys and the language', () => {
     expect(english.map((key) => key.at(-1))).toEqual(['en', 'en', 'en', 'en']);
   });
 
+  it('should end the analytics keys with the locale so the ranking refetches on a language switch', () => {
+    const russian = queryKeys.analytics('services-popularity', { top: 10 });
+    useUiStore.setState({ locale: 'en' });
+    const english = queryKeys.analytics('services-popularity', { top: 10 });
+
+    expect([russian.at(-1), english.at(-1)]).toEqual(['ru', 'en']);
+  });
+
   it('should keep the domain first so a root invalidation still hits both languages', () => {
     expect(queryKeys.services()[0]).toBe(queryRoots.services[0]);
     expect(queryKeys.doctor('d1')[0]).toBe(queryRoots.doctors[0]);

@@ -88,12 +88,12 @@ export const SERVICE_CODE_SYSTEM_DEFAULT = 'https://fhir.by/CodeSystem/nsi-servi
 export const UCUM_UNITS: ReadonlyArray<string> = ['Cel', 'mg', 'g', 'mL', 'mmol/L', 'mg/dL'];
 
 export const completeEncounterSchema = z.object({
-  summary: z.string().min(SUMMARY_MIN).max(SUMMARY_MAX),
+  summary: z.string().trim().min(SUMMARY_MIN).max(SUMMARY_MAX),
   diagnoses: z
     .array(
       z.object({
         code: z.string().regex(ICD10_PATTERN),
-        display: z.string().min(1).max(500),
+        display: z.string().trim().min(1).max(500),
         verificationStatus: z.preprocess(
           (value) => (value === '' ? undefined : value),
           z.enum(['working', 'provisional', 'confirmed']).optional(),
@@ -111,7 +111,7 @@ export const completeEncounterSchema = z.object({
         seen.add(code);
       });
     }),
-  recommendations: z.string().min(RECOMMENDATIONS_MIN).max(RECOMMENDATIONS_MAX),
+  recommendations: z.string().trim().min(RECOMMENDATIONS_MIN).max(RECOMMENDATIONS_MAX),
   observations: z
     .array(
       z.object({
@@ -128,7 +128,7 @@ export const completeEncounterSchema = z.object({
       z.object({
         codeSystem: z.string().min(1).max(255),
         code: z.string().min(1).max(50),
-        note: z.preprocess((value) => (value === '' ? undefined : value), z.string().max(500).optional()),
+        note: z.preprocess((value) => (typeof value === 'string' && value.trim() === '' ? undefined : value), z.string().trim().max(500).optional()),
       }),
     )
     .max(SERVICE_REQUESTS_MAX)
@@ -137,8 +137,8 @@ export const completeEncounterSchema = z.object({
     .array(
       z.object({
         atcCode: z.string().regex(ATC_PATTERN),
-        dosageText: z.string().min(3).max(1000),
-        note: z.preprocess((value) => (value === '' ? undefined : value), z.string().max(500).optional()),
+        dosageText: z.string().trim().min(3).max(1000),
+        note: z.preprocess((value) => (typeof value === 'string' && value.trim() === '' ? undefined : value), z.string().trim().max(500).optional()),
       }),
     )
     .max(MEDICATION_REQUESTS_MAX)

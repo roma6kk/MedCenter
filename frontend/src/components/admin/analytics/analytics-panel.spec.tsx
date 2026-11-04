@@ -280,6 +280,17 @@ describe('AnalyticsPanel', () => {
     expect(table.getByText('gone-a').closest('details')).toBeInTheDocument();
   });
 
+  it('should merge the specialties without a display into one localized row with the codes behind a disclosure', async () => {
+    apiFetchMock.mockImplementation((path) => (path.includes('/encounters') ? Promise.resolve({ ...encounters, total: 19, groups: [{ code: '419192003', system: 'http://snomed.info/sct', display: 'Терапия', count: 16 }, { code: 'spec-a', count: 2 }, { code: 'spec-b', count: 1 }] }) : answer(path)));
+    renderWithClient(<AnalyticsPanel />);
+
+    const list = within(await screen.findByRole('list', { name: 'Завершённые приёмы по специальностям' }));
+
+    expect(await list.findByText('Специальность не указана (2)')).toBeInTheDocument();
+    expect(list.getAllByTestId('unnamed-row')).toHaveLength(1);
+    expect(list.getByText('spec-a').closest('details')).toBeInTheDocument();
+  });
+
   it('should draw a share bar next to the percentage of every service when the top services arrive', async () => {
     renderWithClient(<AnalyticsPanel />);
 

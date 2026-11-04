@@ -20,6 +20,9 @@ function headlineRecord(consent: PatientConsent): ConsentRecord | null {
   return consent.active ?? consent.history.find((entry) => entry.status !== 'entered-in-error') ?? null;
 }
 
+/** A signer the server could not name stays a FHIR reference (`PractitionerRole/<id>`): it is not for the reader's eyes. */
+const RAW_REFERENCE = /^PractitionerRole\//;
+
 function EntryFacts({ record }: { readonly record: ConsentRecord }): ReactNode {
   const t = useT('consent.view');
   const format = useClinicFormat();
@@ -30,7 +33,7 @@ function EntryFacts({ record }: { readonly record: ConsentRecord }): ReactNode {
       <li>{t('signedAt', { date: format.date(record.signedAt) })}</li>
       {signer === undefined ? null : <li>{`${t('consenter')}: ${signer}`}</li>}
       {record.representativeDocument === undefined ? null : <li>{t('representativeDocument', { document: record.representativeDocument })}</li>}
-      {record.signedBy === undefined ? null : <li>{t('signedBy', { name: record.signedBy })}</li>}
+      {record.signedBy === undefined ? null : <li>{t('signedBy', { name: RAW_REFERENCE.test(record.signedBy) ? t('signedByStaff') : record.signedBy })}</li>}
       {record.period.end === undefined ? null : <li>{t('until', { date: format.date(record.period.end) })}</li>}
       {record.revocationNumber === undefined ? null : <li>{t('revocationNumber', { number: record.revocationNumber })}</li>}
     </ul>

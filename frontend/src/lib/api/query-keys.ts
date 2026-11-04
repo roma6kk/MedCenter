@@ -70,7 +70,7 @@ export const queryKeys = {
   adminUsers: (params?: Params) => ['adminUsers', normalise(params)] as const,
   adminSchedules: (params?: Params) => ['adminSchedules', normalise(params)] as const,
   adminScheduleSlots: (scheduleId: string, params?: Params) => ['adminScheduleSlots', scheduleId, normalise(params)] as const,
-  analytics: (kind: string, params?: Params) => ['analytics', kind, normalise(params)] as const,
+  analytics: (kind: string, params?: Params) => ['analytics', kind, normalise(params), locale()] as const,
   audit: (params?: Params) => ['audit', normalise(params)] as const,
 } as const;
 

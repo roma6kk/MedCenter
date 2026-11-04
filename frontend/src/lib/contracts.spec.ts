@@ -50,6 +50,24 @@ describe('contracts', () => {
     expect(result.success).toBe(true);
   });
 
+  it('should refuse clinical texts made of blanks and trim the ones that are kept', () => {
+    const blank = completeEncounterSchema.safeParse({
+      summary: '     ',
+      diagnoses: [{ code: 'J06.9', display: '   ' }],
+      recommendations: '     ',
+      medicationRequests: [{ atcCode: 'J01FA10', dosageText: '     ' }],
+    });
+    const padded = completeEncounterSchema.safeParse({
+      summary: '  ОРВИ  ',
+      diagnoses: [{ code: 'J06.9', display: ' Инфекция ' }],
+      recommendations: '  Покой  ',
+      medicationRequests: [{ atcCode: 'J01FA10', dosageText: ' 1 таб. ', note: '   ' }],
+    });
+
+    expect(blank.success ? [] : blank.error.issues.map((issue) => issue.path.join('.')).sort()).toEqual(['diagnoses.0.display', 'medicationRequests.0.dosageText', 'recommendations', 'summary']);
+    expect(padded.success && [padded.data.summary, padded.data.diagnoses[0]?.display, padded.data.medicationRequests[0]?.dosageText, padded.data.medicationRequests[0]?.note]).toEqual(['ОРВИ', 'Инфекция', '1 таб.', undefined]);
+  });
+
   it('should report a repeated diagnosis code on the second row', () => {
     const result = completeEncounterSchema.safeParse({
       summary: 'ОРВИ, состояние удовлетворительное',

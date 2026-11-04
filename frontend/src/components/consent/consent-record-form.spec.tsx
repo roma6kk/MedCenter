@@ -120,7 +120,7 @@ describe('ConsentRecordForm', () => {
     await userEvent.type(screen.getByLabelText('Дата подписания'), '2999-01-01');
     await submit();
 
-    expect(await screen.findByText('Дата подписания не может быть в будущем')).toBeInTheDocument();
+    expect(await screen.findByText(/^Дата не позже \d{2}\.\d{2}\.\d{4}$/)).toBeInTheDocument();
     expect(mocked.postConsentScan).not.toHaveBeenCalled();
   });
 

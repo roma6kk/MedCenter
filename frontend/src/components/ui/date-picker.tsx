@@ -30,7 +30,7 @@ export interface DatePickerProps extends Omit<InputHTMLAttributes<HTMLInputEleme
   readonly value: string;
   /** Called with a real ISO day, or `''` when the text is cleared or is not (yet) a day. */
   readonly onChange: (value: string) => void;
-  /** Earliest and latest day the calendar offers (ISO). A typed day outside them is passed on: the form's schema judges it. */
+  /** Earliest and latest day the field accepts (ISO): the calendar offers no other, and a typed day outside them is refused (the form holds `''`) and explained. */
   readonly min?: string;
   readonly max?: string;
   /** Classes of the box around the field (its width): a date is a short value, so it is narrow by default. */
@@ -294,8 +294,11 @@ export const DatePicker = forwardRef<HTMLInputElement, DatePickerProps>(function
     setIsJudged(false);
   }, [value]);
 
-  const isUnreadable: boolean = draft.trim() !== '' && parseTypedDate(draft) === null;
-  const hasProblem: boolean = isUnreadable && isJudged;
+  const typedDay: string | null = parseTypedDate(draft);
+  const isUnreadable: boolean = draft.trim() !== '' && typedDay === null;
+  const isOutOfRange: boolean = typedDay !== null && !inRange(typedDay, min, max);
+  const isRefused: boolean = isUnreadable || isOutOfRange;
+  const hasProblem: boolean = isRefused && isJudged;
   const report = (next: string): void => {
     if (next === reported.current) return;
     reported.current = next;
@@ -303,9 +306,10 @@ export const DatePicker = forwardRef<HTMLInputElement, DatePickerProps>(function
   };
   const handleChange = (event: ChangeEvent<HTMLInputElement>): void => {
     const text: string = event.target.value;
-    const day: string | null = parseTypedDate(text);
+    const parsed: string | null = parseTypedDate(text);
+    const day: string | null = parsed !== null && inRange(parsed, min, max) ? parsed : null;
     setDraft(text);
-    // The explanation stays while the text is corrected (no flicker per keystroke) and goes once it is a day, or nothing, again.
+    // The explanation stays while the text is corrected (no flicker per keystroke) and goes once it is a usable day, or nothing, again.
     if (day !== null || text.trim() === '') setIsJudged(false);
     report(day ?? '');
   };
@@ -313,7 +317,7 @@ export const DatePicker = forwardRef<HTMLInputElement, DatePickerProps>(function
     // A readable day is shown in the standard form; text that is not a day stays (and the field is marked and explained) so the visitor sees what was refused.
     const day: string | null = parseTypedDate(draft);
     if (draft.trim() === '' || day !== null) setDraft(formatTypedDate(day ?? ''));
-    setIsJudged(isUnreadable);
+    setIsJudged(isRefused);
     onBlur?.(event);
   };
   const select = (key: string): void => {
@@ -328,6 +332,12 @@ export const DatePicker = forwardRef<HTMLInputElement, DatePickerProps>(function
     if (restoreFocus) input.current?.focus();
   }, []);
   const problemId: string = `${popoverId}-unreadable`;
+  const rangeMessage: string =
+    !isOutOfRange || typedDay === null
+      ? t('unreadable')
+      : min !== undefined && isDateKey(min) && typedDay < min
+        ? t('beforeMin', { day: formatTypedDate(min) })
+        : t('afterMax', { day: formatTypedDate(max ?? '') });
   const describedBy: string = [rest['aria-describedby'], hasProblem ? problemId : undefined].filter(Boolean).join(' ');
   return (
     <div className={cn('w-full', FIELD_NARROW_CLASS, wrapperClassName)}>
@@ -347,13 +357,13 @@ export const DatePicker = forwardRef<HTMLInputElement, DatePickerProps>(function
           onBlur={handleBlur}
           onKeyDown={(event) => {
             rest.onKeyDown?.(event);
-            if (event.key === 'Enter') setIsJudged(isUnreadable);
+            if (event.key === 'Enter') setIsJudged(isRefused);
             if (event.altKey && event.key === 'ArrowDown' && disabled !== true) {
               event.preventDefault();
               setIsOpen(true);
             }
           }}
-          aria-invalid={rest['aria-invalid'] === true || isUnreadable ? true : undefined}
+          aria-invalid={rest['aria-invalid'] === true || isRefused ? true : undefined}
           aria-describedby={describedBy === '' ? undefined : describedBy}
           className={cn(FIELD_CLASS, 'pr-12 tabular-nums', className)}
         />
@@ -374,7 +384,7 @@ export const DatePicker = forwardRef<HTMLInputElement, DatePickerProps>(function
       {hasProblem ? (
         <p id={problemId} role="alert" className="mt-1.5 flex items-start gap-1.5 text-sm text-destructive">
           <CircleAlert aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0" />
-          <span>{t('unreadable')}</span>
+          <span>{rangeMessage}</span>
         </p>
       ) : null}
     </div>

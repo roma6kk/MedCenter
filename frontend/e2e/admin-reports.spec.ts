@@ -229,10 +229,10 @@ test.describe('admin audit journal', () => {
   });
 
   test('should filter by period: today holds the events, a past day does not', async () => {
-    // API §0: a date-only `from`/`to` is a UTC day, so «today» is the UTC date (the Minsk date differs between 00:00 and 03:00 local).
-    const utcDay = (date: Date): string => date.toISOString().slice(0, 10);
-    const today = utcDay(new Date());
-    const yesterdayOf = (day: string): string => utcDay(new Date(Date.parse(`${day}T12:00:00Z`) - 24 * 60 * 60 * 1000));
+    // A date-only `from`/`to` is a clinic (Minsk) day, so «today» is the Minsk day key, not the UTC date.
+    const dayKey = (date: Date): string => new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Minsk', year: 'numeric', month: '2-digit', day: '2-digit' }).format(date);
+    const today = dayKey(new Date());
+    const yesterdayOf = (day: string): string => dayKey(new Date(Date.parse(`${day}T12:00:00+03:00`) - 24 * 60 * 60 * 1000));
     const past = yesterdayOf(yesterdayOf(today));
 
     await applyFilters({ entity: `Location/${roomId}`, from: today, to: today });

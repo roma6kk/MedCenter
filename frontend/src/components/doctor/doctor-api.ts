@@ -123,8 +123,9 @@ export function fetchPatientHistory(patientId: string, request: PageRequest, sig
   return apiFetch<PaginatedResponse<HistoryItem>>(path, { signal });
 }
 
-export function fetchPatientPrescriptions(patientId: string, request: PageRequest, signal?: AbortSignal): Promise<PaginatedResponse<Prescription>> {
-  const path = withQuery(`/api/v1/patients/${encodeURIComponent(patientId)}/prescriptions`, { page: request.page, pageSize: request.pageSize });
+/** `encounterId` (optional) asks for the orders of one visit only (API 7.5), so a visit never depends on which page of the patient's orders it landed on. */
+export function fetchPatientPrescriptions(patientId: string, request: PageRequest & { readonly encounterId?: string }, signal?: AbortSignal): Promise<PaginatedResponse<Prescription>> {
+  const path = withQuery(`/api/v1/patients/${encodeURIComponent(patientId)}/prescriptions`, { page: request.page, pageSize: request.pageSize, encounterId: request.encounterId });
   return apiFetch<PaginatedResponse<Prescription>>(path, { signal });
 }
 

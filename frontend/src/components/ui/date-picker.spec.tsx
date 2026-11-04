@@ -123,6 +123,39 @@ describe('DatePicker unreadable text (WCAG 3.3.1, 1.4.1)', () => {
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
 
+  it('should refuse a typed day after max, report an empty value and explain it when the field is left', async () => {
+    const onChange = jest.fn();
+    render(<Harness max="2026-10-29" onChange={onChange} />);
+
+    await userEvent.type(field(), '01.01.2090');
+    expect(onChange).not.toHaveBeenCalledWith('2090-01-01');
+    await userEvent.tab();
+
+    expect(screen.getByTestId('value')).toHaveTextContent(/^$/);
+    expect(field()).toHaveAttribute('aria-invalid', 'true');
+    expect(screen.getByRole('alert')).toHaveTextContent('Дата не позже 29.10.2026');
+  });
+
+  it('should refuse a typed day before min and name the earliest day', async () => {
+    render(<Harness min="2026-10-20" />);
+
+    await userEvent.type(field(), '19.10.2026');
+    await userEvent.tab();
+
+    expect(screen.getByTestId('value')).toHaveTextContent(/^$/);
+    expect(screen.getByRole('alert')).toHaveTextContent('Дата не раньше 20.10.2026');
+  });
+
+  it('should accept a typed day on the edge of min and max', async () => {
+    render(<Harness min="2026-10-20" max="2026-10-29" />);
+
+    await userEvent.type(field(), '29.10.2026');
+    await userEvent.tab();
+
+    expect(screen.getByTestId('value')).toHaveTextContent('2026-10-29');
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
+
   it('should say what is wrong and which form is read when the visitor leaves the field with a text that is not a day', async () => {
     render(<Harness />);
 
