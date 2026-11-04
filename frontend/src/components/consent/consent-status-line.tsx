@@ -4,9 +4,9 @@ import type { ReactNode } from 'react';
 import { ShieldAlert, ShieldCheck, ShieldOff } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { clinicDayOf, formatDateKey, isDateKey } from '@/lib/clinic-time';
+import { formatDateKey } from '@/lib/clinic-time';
 import { useT } from '@/lib/i18n/use-t';
-import { consentStateOf, type ConsentState } from './consent-types';
+import { consentDayOf, consentStateOf, type ConsentState } from './consent-types';
 import { usePatientConsent } from './use-consent';
 
 interface ConsentStatusLineProps {
@@ -16,7 +16,7 @@ interface ConsentStatusLineProps {
 }
 
 function numericDate(value: string): string {
-  return formatDateKey(isDateKey(value) ? value : clinicDayOf(value), 'numeric');
+  return formatDateKey(consentDayOf(value), 'numeric');
 }
 
 /**

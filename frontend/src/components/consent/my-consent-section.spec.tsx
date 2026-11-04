@@ -41,6 +41,13 @@ describe('MyConsentSection', () => {
     expect(screen.queryByText(/ст\. 44/)).not.toBeInTheDocument();
   });
 
+  it('should write the day of a consent signed with a time, not the raw instant', async () => {
+    mocked.fetchMyConsent.mockResolvedValue({ ...WITH_ACTIVE, active: { ...WITH_ACTIVE.active!, signedAt: '2026-10-22T09:00:00.000Z' } });
+    renderWithClient(<MyConsentSection />);
+
+    expect(await screen.findByText('Согласие на ЭМК действует с 22.10.2026')).toBeInTheDocument();
+  });
+
   it('should show the law, the facts of the entry, the history and the revoke button once the details are opened', async () => {
     mocked.fetchMyConsent.mockResolvedValue(WITH_ACTIVE);
     renderWithClient(<MyConsentSection />);

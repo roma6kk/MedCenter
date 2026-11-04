@@ -11,7 +11,7 @@ import { formatDateKey } from '@/lib/clinic-time';
 import { useT } from '@/lib/i18n/use-t';
 import { cn } from '@/lib/ui/cn';
 import { ConsentStatusView } from './consent-status-view';
-import { consentStateOf, type ConsentState, type PatientConsent } from './consent-types';
+import { consentDayOf, consentStateOf, type ConsentState, type PatientConsent } from './consent-types';
 import { RevokeConsentDialog } from './revoke-consent-dialog';
 import { useMyConsent } from './use-consent';
 
@@ -26,7 +26,7 @@ function Summary({ consent, state }: { readonly consent: PatientConsent; readonl
   return (
     <p role="status" data-testid={`consent-state-${state}`} className="flex items-start gap-2.5 text-base font-semibold">
       <Icon aria-hidden="true" className={cn('mt-0.5 size-5 shrink-0', isActive ? 'text-success' : 'text-muted-foreground')} />
-      {isActive && consent.active !== null ? tMine('summaryActive', { date: formatDateKey(consent.active.signedAt, 'numeric') }) : t(`state.${state}`)}
+      {isActive && consent.active !== null ? tMine('summaryActive', { date: formatDateKey(consentDayOf(consent.active.signedAt), 'numeric') }) : t(`state.${state}`)}
     </p>
   );
 }

@@ -2,6 +2,7 @@
  * consent-types — the answers and bodies of the consent endpoints (api-designer-spec §3.4–3.11, ADR-019), as the
  * services send them. `libs/contracts` `consent.dto.ts` is the server's copy; the optional fields are omitted, not `null`.
  */
+import { clinicDayOf, isDateKey } from '@/lib/clinic-time';
 
 export type ConsentStatus = 'active' | 'inactive' | 'rejected' | 'entered-in-error';
 /** Statuses a clerk may enter: a signed consent or a written refusal. */
@@ -14,6 +15,11 @@ export interface ConsentScanRef {
   readonly id: string;
   readonly contentType: string;
   readonly hash: string;
+}
+
+/** The day (`YYYY-MM-DD`, clinic time) a consent was signed: `signedAt` is a date or an RFC 3339 instant. */
+export function consentDayOf(signedAt: string): string {
+  return isDateKey(signedAt) ? signedAt : clinicDayOf(signedAt);
 }
 
 export interface ConsentRecord {

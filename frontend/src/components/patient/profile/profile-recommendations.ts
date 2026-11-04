@@ -30,7 +30,7 @@ const ECG_NAME = /(?<!\p{L})(ЭКГ|ECG|EKG)(?!\p{L})|электрокардио
 export type RecommendationKind = 'follow-up' | 'referral' | 'prevention' | 'profile';
 
 export interface Recommendation {
-  /** Stable: the hidden ones are remembered by id (`repeat-visit`, `referral-<prescription id>`, `ecg`, `phone`). */
+  /** Stable: the hidden ones are remembered by id (`repeat-visit-<encounter id>`, `referral-<prescription id>`, `ecg`, `phone`). */
   readonly id: string;
   readonly kind: RecommendationKind;
   readonly titleKey: string;
@@ -72,7 +72,7 @@ function repeatVisit({ history, appointments, today }: RecommendationInput): Rec
   const followUpBooked: boolean = appointments.some((item) => item.status === 'booked' && Date.parse(item.start) > Date.parse(last.date));
   return followUpBooked
     ? null
-    : { id: 'repeat-visit', kind: 'follow-up', titleKey: 'reco.repeat.title', textKey: 'reco.repeat.text', ctaKey: 'reco.repeat.cta', ctaHref: '/booking', params: { day: clinicDayOf(last.date) } };
+    : { id: `repeat-visit-${last.id}`, kind: 'follow-up', titleKey: 'reco.repeat.title', textKey: 'reco.repeat.text', ctaKey: 'reco.repeat.cta', ctaHref: '/booking', params: { day: clinicDayOf(last.date) } };
 }
 
 function referrals({ prescriptions }: RecommendationInput): ReadonlyArray<Recommendation> {
