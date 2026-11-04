@@ -103,7 +103,7 @@ export function DoctorSlotsBooking({ doctorId, services = [], servicesPending = 
     <div className="space-y-4">
       {servicesPending ? <Skeleton aria-hidden="true" data-testid="service-chips-loading" className="h-11 w-2/3 rounded-full" /> : null}
       {service === null ? null : <ServiceChips services={services} chosenId={service.id} onChoose={handleChoose} />}
-      {servicesPending ? null : <SlotPicker doctorId={doctorId} selectedSlotId={selected?.id ?? null} onSelect={setSelected} durationMin={service?.defaultDurationMin ?? null} />}
+      {servicesPending ? null : <SlotPicker doctorId={doctorId} selectedSlotId={selected?.id ?? null} onSelect={setSelected} durationMin={service?.defaultDurationMin ?? null} serviceId={service?.id ?? null} />}
       <div className="no-print sticky bottom-0 -mx-4 border-t border-[var(--border)] bg-[var(--background)] p-4 md:static md:mx-0 md:border-0 md:p-0">
         {canBook ? <BookButton selected={selected} onBook={handleBook} /> : <p className="text-sm text-[var(--muted-foreground)]">{t('patientsOnly')}</p>}
       </div>

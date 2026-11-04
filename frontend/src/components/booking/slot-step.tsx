@@ -72,6 +72,7 @@ export function SlotStep({ doctorId, serviceId, selectedSlotId, selectedSlotStar
             selectedSlotId={selectedSlotId}
             onSelect={onSelect}
             durationMin={service.data?.defaultDurationMin ?? null}
+            serviceId={serviceId}
             takenSlot={takenSlot}
             {...(selectedSlotStart === null ? {} : { initialFrom: clinicDayOf(selectedSlotStart) })}
           />

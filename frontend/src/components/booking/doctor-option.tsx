@@ -20,6 +20,8 @@ interface DoctorOptionProps {
   readonly selected: boolean;
   /** Length of the chosen service: the nearest times are only those that fit it. */
   readonly durationMin: number | null;
+  /** The chosen service: its own slots are offered when the answer names them. */
+  readonly serviceId?: string | null;
   /** Opens the slot step for this doctor. */
   readonly onSelect: (doctorId: string) => void;
   /** A nearest-time chip: the doctor and the time at once, the wizard goes straight to the confirmation. */
@@ -29,10 +31,10 @@ interface DoctorOptionProps {
 const CHIP_CLASS =
   'inline-flex min-h-[44px] items-center rounded-control border border-border bg-card px-3 text-sm font-semibold tabular-nums transition-[background-color,border-color] duration-fast ease-out hover:border-primary hover:bg-primary-soft';
 
-function NearestTimes({ doctor, durationMin, onSelectSlot }: Pick<DoctorOptionProps, 'doctor' | 'durationMin' | 'onSelectSlot'>): ReactNode {
+function NearestTimes({ doctor, durationMin, serviceId = null, onSelectSlot }: Pick<DoctorOptionProps, 'doctor' | 'durationMin' | 'serviceId' | 'onSelectSlot'>): ReactNode {
   const t = useT('booking');
   const locale = useUiStore((state) => state.locale);
-  const { today, slots, isPending } = useNearestSlots(doctor.id, durationMin);
+  const { today, slots, isPending } = useNearestSlots(doctor.id, durationMin, serviceId);
   if (isPending) return <Skeleton aria-hidden="true" className="h-11 w-full rounded-control" />;
   const first: Slot | undefined = slots[0];
   if (first === undefined) return <p className="text-sm text-muted-foreground">{t('noNearest')}</p>;
@@ -72,7 +74,7 @@ function NearestTimes({ doctor, durationMin, onSelectSlot }: Pick<DoctorOptionPr
  * A doctor of the booking wizard: a large portrait, name, specialty, the nearest free time and up to three nearest times
  * as chips that book in one step; «Выбрать врача» opens the whole calendar of the doctor.
  */
-export function DoctorOption({ doctor, selected, durationMin, onSelect, onSelectSlot }: DoctorOptionProps): ReactNode {
+export function DoctorOption({ doctor, selected, durationMin, serviceId = null, onSelect, onSelectSlot }: DoctorOptionProps): ReactNode {
   const t = useT('booking');
   const catalog = useT('catalog');
   return (
@@ -83,7 +85,7 @@ export function DoctorOption({ doctor, selected, durationMin, onSelect, onSelect
           <h3 className="text-lg font-bold">{doctorLabel(doctor)}</h3>
           <p className="text-sm text-muted-foreground">{doctor.specialty ?? catalog('noSpecialty')}</p>
         </div>
-        <NearestTimes doctor={doctor} durationMin={durationMin} onSelectSlot={onSelectSlot} />
+        <NearestTimes doctor={doctor} durationMin={durationMin} serviceId={serviceId} onSelectSlot={onSelectSlot} />
         <div className="mt-auto">
           <Button
             variant="soft"

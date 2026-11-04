@@ -19,13 +19,13 @@ export interface NearestSlots {
  * The few earliest free slots of a doctor, for the doctor card. It asks for the same two-week window the slot step opens
  * with, so both share one cached answer: choosing the doctor does not search again.
  */
-export function useNearestSlots(doctorId: string, durationMin: number | null): NearestSlots {
+export function useNearestSlots(doctorId: string, durationMin: number | null, serviceId: string | null = null): NearestSlots {
   const today: string = clinicDateKey();
   const window = useMemo(() => slotWindow(today), [today]);
   const query = useDoctorSlots(doctorId, window);
   const slots: ReadonlyArray<Slot> = useMemo(
-    () => (query.data === undefined ? [] : nearestFreeSlots(query.data.items, durationMin, NEAREST_SLOT_COUNT)),
-    [query.data, durationMin],
+    () => (query.data === undefined ? [] : nearestFreeSlots(query.data.items, durationMin, NEAREST_SLOT_COUNT, serviceId)),
+    [query.data, durationMin, serviceId],
   );
   return { today, slots, isPending: query.isPending };
 }

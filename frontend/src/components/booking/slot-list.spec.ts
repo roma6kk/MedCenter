@@ -1,24 +1,30 @@
 import type { Slot } from '@/components/catalog/catalog-types';
-import { isSelectable, nearestFreeSlots, slotsForDuration, withTakenSlot } from './slot-list';
+import { isSelectable, nearestFreeSlots, slotsForService, withTakenSlot } from './slot-list';
 
 function slot(id: string, minutes: number, status: Slot['status'] = 'free'): Slot {
   const start = Date.parse('2026-10-19T11:00:00.000Z');
   return { id, start: new Date(start).toISOString(), end: new Date(start + minutes * 60_000).toISOString(), status };
 }
 
-describe('slotsForDuration', () => {
+describe('slotsForService', () => {
   const slots = [slot('a', 20), slot('b', 30), slot('c', 20)];
 
   it('should keep only the slots as long as the service when a duration is given', () => {
-    expect(slotsForDuration(slots, 20).map((item) => item.id)).toEqual(['a', 'c']);
+    expect(slotsForService(slots, 20).map((item) => item.id)).toEqual(['a', 'c']);
   });
 
   it('should keep every slot when no service is chosen', () => {
-    expect(slotsForDuration(slots, null)).toHaveLength(3);
+    expect(slotsForService(slots, null)).toHaveLength(3);
   });
 
   it('should return nothing when no slot has the length of the service', () => {
-    expect(slotsForDuration(slots, 40)).toEqual([]);
+    expect(slotsForService(slots, 40)).toEqual([]);
+  });
+
+  it('should tell two services of the same length apart by the service of the schedule', () => {
+    const two: ReadonlyArray<Slot> = [{ ...slot('a', 30), serviceId: 'svc-1' }, { ...slot('b', 30), serviceId: 'svc-2' }, slot('old', 30)];
+    expect(slotsForService(two, 30, 'svc-2').map((item) => item.id)).toEqual(['b', 'old']);
+    expect(nearestFreeSlots(two, 30, 5, 'svc-1').map((item) => item.id)).toEqual(['a', 'old']);
   });
 });
 

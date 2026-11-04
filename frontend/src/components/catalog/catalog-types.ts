@@ -40,6 +40,8 @@ export type SlotStatus = 'free' | 'busy' | 'entered-in-error';
 export interface Slot {
   readonly id: string;
   readonly scheduleId?: string;
+  /** The service of the slot's schedule (a schedule belongs to one service); absent in older answers. */
+  readonly serviceId?: string;
   /** RFC 3339 UTC. */
   readonly start: string;
   readonly end: string;

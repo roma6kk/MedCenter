@@ -33,7 +33,7 @@ function DoctorList({ serviceId, doctors, durationMin, selectedDoctorId, onSelec
     <ul className="grid gap-3 lg:grid-cols-2">
       {doctors.map((doctor) => (
         <li key={doctor.id}>
-          <DoctorOption doctor={doctor} selected={doctor.id === selectedDoctorId} durationMin={durationMin} onSelect={onSelect} onSelectSlot={onSelectSlot} />
+          <DoctorOption doctor={doctor} selected={doctor.id === selectedDoctorId} durationMin={durationMin} serviceId={serviceId} onSelect={onSelect} onSelectSlot={onSelectSlot} />
         </li>
       ))}
     </ul>
