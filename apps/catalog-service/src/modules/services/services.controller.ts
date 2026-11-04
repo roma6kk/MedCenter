@@ -117,7 +117,7 @@ export class ServicesController {
   @ApiOperation({ summary: '5.1.5 Delete a service' })
   @ApiResponse({ status: 204, description: 'The service is deleted' })
   @ApiProblems([...GUARD_PROBLEM_STATUSES, 400, 404, 409], {
-    409: 'SERVICE_IN_USE: a Schedule still references the service',
+    409: 'SERVICE_IN_USE: a Schedule or a doctor role still references the service',
   })
   @HttpCode(HttpStatus.NO_CONTENT)
   async remove(@Req() request: AuditedRequest, @Param() params: FhirIdParamDto): Promise<void> {

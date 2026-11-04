@@ -91,15 +91,15 @@ describe('Services admin delete and access (e2e)', () => {
       expect(harness.store.entries.has(SERVICE_PAGE_KEY)).toBe(true);
     });
 
-    it('should answer 409 CONFLICT when HAPI itself refuses the delete on referential integrity', async () => {
-      // Arrange — a schedule created between the check and the delete: HAPI's own 409.
+    it('should answer 409 SERVICE_IN_USE when HAPI itself refuses the delete on referential integrity', async () => {
+      // Arrange — a reference created between the check and the delete, or of a kind the checks do not know: HAPI's own 409.
       harness.fhir.batch.mockRejectedValue(new FhirClientError('POST', 'http://hapi:8080/fhir', 409, '{}'));
 
       // Act
       const response = await remove().expect(409);
 
       // Assert
-      expect(response.body).toMatchObject({ errorCode: 'CONFLICT' });
+      expect(response.body).toMatchObject({ errorCode: 'SERVICE_IN_USE' });
     });
 
     it('should answer 400 VALIDATION_ERROR before HAPI is called when the id is not a FHIR id', async () => {

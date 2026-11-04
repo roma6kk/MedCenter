@@ -182,7 +182,8 @@ export class ServicesService {
    * API §5.1.5. The service is a `Schedule.actor` and `actor` is the R4 search
    * parameter over it — R4 `Schedule` has no `service` parameter (HAPI answers
    * 400). No `active` filter: HAPI keeps referential integrity on delete, so a
-   * deactivated schedule pins the service too (same rule as `ROOM_IN_USE`).
+   * deactivated schedule pins the service too (same rule as `ROOM_IN_USE`). A doctor role that lists the service
+   * (`PractitionerRole.service`) pins it as well, and so does any other resource HAPI refuses the delete for.
    *
    * `SERVICE_IN_USE` is catalogued in `ERROR_CODES` (libs/contracts), so
    * `ProblemDetailsFilter` promotes it to the response `errorCode`; the same
@@ -196,13 +197,27 @@ export class ServicesService {
       _count: 1,
     });
     if ((schedules.entry ?? []).length > 0) {
-      throw new ConflictException({
-        errorCode: 'SERVICE_IN_USE',
-        message: `SERVICE_IN_USE: service ${id} is referenced by a schedule`,
-      });
+      throw this.serviceInUse(`service ${id} is referenced by a schedule`);
     }
-    await deleteAudited(this.fhirClient, 'HealthcareService', id, this.auditOf(actor));
+    // A doctor role that lists the service (`PractitionerRole.healthcareService`, written by the demo seed) pins it as well.
+    const roles = await this.fhirClient.search('PractitionerRole', { service: `HealthcareService/${id}`, _count: 1 });
+    if ((roles.entry ?? []).length > 0) {
+      throw this.serviceInUse(`service ${id} is referenced by a doctor role`);
+    }
+    try {
+      await deleteAudited(this.fhirClient, 'HealthcareService', id, this.auditOf(actor));
+    } catch (error) {
+      // HAPI's referential integrity refuses the delete for any other resource that points at the service.
+      if (error instanceof ConflictException) {
+        throw this.serviceInUse(`service ${id} is referenced by other resources`);
+      }
+      throw error;
+    }
     await this.invalidate();
+  }
+
+  private serviceInUse(reason: string): ConflictException {
+    return new ConflictException({ errorCode: 'SERVICE_IN_USE', message: `SERVICE_IN_USE: ${reason}` });
   }
 
   private async invalidate(): Promise<void> {

@@ -135,7 +135,7 @@ export class PaginatedResponseDto<TItem> {
 | `APPOINTMENT_NOT_CANCELLABLE` | 409 | BR-002: статус не позволяет отмену |
 | `ENCOUNTER_STATE_INVALID` | 409 | BR-003/BR-008: приём уже оформлен / запись не `booked` (cancelled/noshow/fulfilled); неявка (6.6) для записи, у которой уже есть приём или время которой ещё не наступило |
 | `SCHEDULE_OVERLAP` | 409 | пересечение `Schedule.planningHorizon` одного `PractitionerRole` |
-| `SERVICE_IN_USE` | 409 | 5.1.5: на услугу ссылается активное `Schedule` |
+| `SERVICE_IN_USE` | 409 | 5.1.5: на услугу ссылается `Schedule` или роль врача (`PractitionerRole.healthcareService`) |
 | `SCHEDULE_IN_USE` | 409 | 5.2.4: расписание нельзя удалить — есть слоты или busy-слот (таблица 5.2.4) |
 | `ROOM_IN_USE` | 409 | 4.6: на кабинет ссылается `Schedule` (активное или нет), роль врача (`PractitionerRole.location`) или услуга (`HealthcareService.location`) |
 | `INVALID_ICD10_CODE` | 422 | код не входит в ValueSet `https://fhir.by/ValueSet/InternClassificDiseases10`; `details[]` называет поля запроса (`diagnoses.1.code`), `detail` сохраняет список кодов |
@@ -571,7 +571,7 @@ export class UpdateRoomDto extends PartialType(CreateRoomDto) {}
 | 5.1.2 | `GET /api/v1/services/{id}` | карточка услуги +specialty | public |
 | 5.1.3 | `POST /api/v1/admin/services` | создать услугу | `ADMIN` |
 | 5.1.4 | `PATCH /api/v1/admin/services/{id}` | обновить услугу | `ADMIN` |
-| 5.1.5 | `DELETE /api/v1/admin/services/{id}` | удалить (нет активных `Schedule` → иначе 409 `SERVICE_IN_USE`) | `ADMIN` |
+| 5.1.5 | `DELETE /api/v1/admin/services/{id}` | удалить (нет `Schedule` и роли врача, что на неё ссылаются → иначе 409 `SERVICE_IN_USE`) | `ADMIN` |
 | 5.1.6 | `GET /api/v1/admin/services?page=&pageSize=&search=` | каталог услуг для администратора, **с** отключёнными; без кэша | `ADMIN` |
 
 **5.1.3 `CreateServiceDto`** (маппинг → `HealthcareService`; `type` биндится на НСИ ЦИСЗ через
