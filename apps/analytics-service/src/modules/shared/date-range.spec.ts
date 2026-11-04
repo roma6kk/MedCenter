@@ -14,11 +14,11 @@ function errorCodeOf(action: () => unknown): unknown {
 }
 
 describe('resolveDateRange', () => {
-  it('should treat a date-only "to" as inclusive by ending the range at the next UTC midnight when both bounds are dates', () => {
+  it('should treat a date-only "to" as inclusive by ending the range at the next Minsk midnight when both bounds are dates', () => {
     const range = resolveDateRange({ from: '2026-01-01', to: '2026-12-31' }, NOW);
 
-    expect(range.from.toISOString()).toBe('2026-01-01T00:00:00.000Z');
-    expect(range.toExclusive.toISOString()).toBe('2027-01-01T00:00:00.000Z');
+    expect(range.from.toISOString()).toBe('2025-12-31T21:00:00.000Z');
+    expect(range.toExclusive.toISOString()).toBe('2026-12-31T21:00:00.000Z');
   });
 
   it('should keep an explicit datetime "to" inclusive by adding one millisecond when "to" carries a time', () => {
@@ -30,8 +30,23 @@ describe('resolveDateRange', () => {
   it('should default to the last 30 days ending today when no bounds are given', () => {
     const range = resolveDateRange({}, NOW);
 
-    expect(range.toExclusive.toISOString()).toBe('2026-10-14T00:00:00.000Z');
-    expect(range.from.toISOString()).toBe('2026-09-14T00:00:00.000Z');
+    expect(range.toExclusive.toISOString()).toBe('2026-10-13T21:00:00.000Z');
+    expect(range.from.toISOString()).toBe('2026-09-13T21:00:00.000Z');
+  });
+
+  it('should end the default period at the Minsk midnight when it is already the next day in Minsk but not in UTC', () => {
+    const range = resolveDateRange({}, new Date('2026-11-02T22:30:00.000Z'));
+
+    expect(range.toExclusive.toISOString()).toBe('2026-11-03T21:00:00.000Z');
+  });
+
+  it('should count 00:00-02:59 Minsk time to the clinic day when the bounds are dates', () => {
+    const range = resolveDateRange({ from: '2026-11-03', to: '2026-11-03' }, NOW);
+    const earlyMorning = new Date('2026-11-02T22:10:00.000Z');
+
+    expect(range.from.getTime()).toBeLessThanOrEqual(earlyMorning.getTime());
+    expect(earlyMorning.getTime()).toBeLessThan(range.toExclusive.getTime());
+    expect(range.toExclusive.toISOString()).toBe('2026-11-03T21:00:00.000Z');
   });
 
   it('should accept a full leap year when the span is exactly 366 days', () => {

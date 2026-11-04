@@ -23,8 +23,19 @@ assert {
   res.body.measure: eq appointments-by-status
   res.body.total: isNumber
   res.body.groups: isArray
+  res.body.booked: isNumber
+  res.body.fulfilled: isNumber
+  res.body.cancelled: isNumber
+  res.body.noshow: isNumber
+}
+
+tests {
+  test("the four counters partition total", function () {
+    const b = res.body;
+    expect(b.booked + b.fulfilled + b.cancelled + b.noshow).to.equal(b.total);
+  });
 }
 
 docs {
-  Spec 9.1. ADMIN. MeasureReport-like `{ measure, scoring, period, total, groups[], booked, cancelled, noshow }`. 400 when the range exceeds 366 days.
+  Spec 9.1. ADMIN. MeasureReport-like `{ measure, scoring, period, total, groups[] (booked, fulfilled, cancelled, noshow), booked, fulfilled, cancelled, noshow }`. `booked` = still ahead; `fulfilled` = attended (BR-008); the four counts partition the appointments of the period. A date-only `from`/`to` is a calendar day of the clinic (Europe/Minsk). 400 when the range exceeds 366 days.
 }

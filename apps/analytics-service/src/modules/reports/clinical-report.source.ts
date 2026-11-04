@@ -1,5 +1,6 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { FHIR_CLIENT, type FhirClient } from '@medcenter/fhir';
+import { DEFAULT_CONTENT_LANGUAGE, translated, type ContentLanguage } from '@medcenter/fhir-mappers';
 
 import type { DateRange } from '../shared/date-range';
 
@@ -12,8 +13,8 @@ export interface ClinicalReportSource {
    * `appointmentId`, so the attended visits are known to HAPI only (BR-008 sets the status).
    */
   fulfilledAppointmentIds(range: DateRange): Promise<ReadonlyArray<string>>;
-  /** Current `HealthcareService.name` per id; unknown ids are absent from the map. */
-  serviceNames(serviceIds: ReadonlyArray<string>): Promise<ReadonlyMap<string, string>>;
+  /** Current `HealthcareService.name` per id in the content language (English translation, else Russian); unknown ids are absent. */
+  serviceNames(serviceIds: ReadonlyArray<string>, lang?: ContentLanguage): Promise<ReadonlyMap<string, string>>;
 }
 
 export const CLINICAL_REPORT_SOURCE = Symbol('CLINICAL_REPORT_SOURCE');
@@ -83,20 +84,24 @@ export class FhirClinicalReportSource implements ClinicalReportSource {
    * Names are display sugar: when HAPI cannot answer, the report is still
    * correct without them, so the failure is logged and the ids are shown bare.
    */
-  async serviceNames(serviceIds: ReadonlyArray<string>): Promise<ReadonlyMap<string, string>> {
+  async serviceNames(
+    serviceIds: ReadonlyArray<string>,
+    lang: ContentLanguage = DEFAULT_CONTENT_LANGUAGE,
+  ): Promise<ReadonlyMap<string, string>> {
     if (serviceIds.length === 0) {
       return new Map();
     }
     try {
       const result = await this.fhir.search('HealthcareService', {
         _id: serviceIds.join(','),
-        _elements: 'name',
+        // The translation lives in the `_name` sibling: ask for whole resources (at most `top`) when it is needed.
+        ...(lang === DEFAULT_CONTENT_LANGUAGE ? { _elements: 'name' } : {}),
         _count: serviceIds.length,
       });
       return new Map(
         (result.entry ?? []).flatMap((entry) => {
-          const { id, name } = entry.resource;
-          return typeof id === 'string' && typeof name === 'string' ? [[id, name] as const] : [];
+          const { id, name, _name: nameElement } = entry.resource;
+          return typeof id === 'string' && typeof name === 'string' ? [[id, translated(name, nameElement, lang)] as const] : [];
         }),
       );
     } catch (error) {

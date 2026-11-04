@@ -1,4 +1,5 @@
 import { BadRequestException } from '@nestjs/common';
+import { clinicDateOf, clinicDayStartMs } from '@medcenter/common';
 
 /** API §9: a report or audit query may span at most 366 days (a leap year). */
 export const MAX_RANGE_DAYS = 366;
@@ -19,7 +20,7 @@ const DATE_ONLY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 /** A date-time without `Z`/offset: JS would read it in the server's zone, the API means UTC. */
 const ZONELESS_DATE_TIME_PATTERN = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2}(\.\d{1,9})?)?$/;
 
-/** Raw `from`/`to` query values (RFC 3339 date or date-time, UTC). */
+/** Raw `from`/`to` query values (RFC 3339: a date is a clinic calendar day, a date-time is an instant). */
 export interface DateRangeInput {
   readonly from?: string;
   readonly to?: string;
@@ -38,26 +39,30 @@ function invalidRange(message: string): BadRequestException {
   return new BadRequestException({ errorCode: 'VALIDATION_ERROR', message: `Invalid date range: ${message}` });
 }
 
+/** A date-only bound is a calendar day of the clinic (Europe/Minsk), like the date bounds of catalog and encounters. */
 function parseInstant(value: string, field: 'from' | 'to'): Date {
   if (!RFC3339_DATE_OR_DATE_TIME.test(value)) {
     throw invalidRange(`"${field}" must be an RFC 3339 date (YYYY-MM-DD) or date-time`);
   }
-  const instant = new Date(ZONELESS_DATE_TIME_PATTERN.test(value) ? `${value}Z` : value);
+  const instant = new Date(
+    DATE_ONLY_PATTERN.test(value) ? clinicDayStartMs(value) : ZONELESS_DATE_TIME_PATTERN.test(value) ? `${value}Z` : value,
+  );
   if (Number.isNaN(instant.getTime())) {
     throw invalidRange(`"${field}" is not a calendar date or date-time`);
   }
   return instant;
 }
 
-/** A date-only `to` covers its whole UTC day; a date-time `to` is an inclusive instant. */
+/** A date-only `to` covers its whole clinic day; a date-time `to` is an inclusive instant. */
 function upperBound(to: string): Date {
   const instant = parseInstant(to, 'to');
   const extraMs = DATE_ONLY_PATTERN.test(to) ? DAY_MS : 1;
   return new Date(instant.getTime() + extraMs);
 }
 
-function startOfNextUtcDay(now: Date): Date {
-  return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1));
+/** Midnight that ends the current clinic day (the clinic has no daylight saving, so a day is 24 h). */
+function startOfNextClinicDay(now: Date): Date {
+  return new Date(clinicDayStartMs(clinicDateOf(now.getTime())) + DAY_MS);
 }
 
 /**
@@ -66,7 +71,7 @@ function startOfNextUtcDay(now: Date): Date {
  * {@link MAX_RANGE_DAYS} days with `400 VALIDATION_ERROR`.
  */
 export function resolveDateRange(input: DateRangeInput, now: Date = new Date()): DateRange {
-  const toExclusive = input.to === undefined ? startOfNextUtcDay(now) : upperBound(input.to);
+  const toExclusive = input.to === undefined ? startOfNextClinicDay(now) : upperBound(input.to);
   const from =
     input.from === undefined
       ? new Date(toExclusive.getTime() - DEFAULT_RANGE_DAYS * DAY_MS)

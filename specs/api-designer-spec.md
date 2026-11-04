@@ -1053,6 +1053,11 @@ ADR-013) · 404 `NOT_FOUND` (8.3: нет такого уведомления). �
 | 9.3 | `GET /api/v1/admin/analytics/services-popularity?from=&to=&top=` | топ услуг | `ADMIN` |
 | 9.4 | `GET /api/v1/admin/audit?from=&to=&entity=&userId=&page=` | журнал `AuditEvent` (read-model) | `ADMIN` |
 
+`from`/`to` (9.1–9.4): дата без времени — календарный день клиники (`Europe/Minsk`, как в 5.2): `from` — его первое мгновение, `to` — последнее;
+дата-время берётся как есть (без смещения — UTC), `to` включительно. Без `to` период кончается концом сегодняшнего дня клиники.
+Ответ 9.3 следует `Accept-Language`: название услуги по `en` — перевод из `HealthcareService._name`, иначе русское. В группе 9.2/9.3 без
+названия в клиническом хранилище поле `display` отсутствует (клиент подписывает её сам).
+
 Ответ 9.1–9.3 — `MeasureReport`-производный DTO (группировка `measureScoring`), из read-model
 PostgreSQL (worker наполняет по событиям). 9.1 разбивает записи периода по текущему `Appointment.status`: группы `booked` («Записано»), `fulfilled`
 («Посещено», приём состоялся, BR-008), `cancelled`, `noshow`; плоские поля `booked`/`fulfilled`/`cancelled`/`noshow` повторяют

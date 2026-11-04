@@ -150,6 +150,27 @@ describe('FhirClinicalReportSource', () => {
       expect(fhir.search).toHaveBeenCalledWith('HealthcareService', { _id: 'svc-1,svc-2', _elements: 'name', _count: 2 });
     });
 
+    it('should return the English translation of a name when English is asked and one is stored', async () => {
+      fhir.search.mockResolvedValueOnce({
+        entry: [
+          {
+            resource: {
+              resourceType: 'HealthcareService',
+              id: 'svc-1',
+              name: 'Приём терапевта',
+              _name: { extension: [{ url: 'http://hl7.org/fhir/StructureDefinition/translation', extension: [{ url: 'lang', valueCode: 'en' }, { url: 'content', valueString: 'Therapist appointment' }] }] },
+            },
+          },
+          { resource: { resourceType: 'HealthcareService', id: 'svc-2', name: 'Консультация' } },
+        ],
+      });
+
+      const names = await source.serviceNames(['svc-1', 'svc-2'], 'en');
+
+      expect(names).toEqual(new Map([['svc-1', 'Therapist appointment'], ['svc-2', 'Консультация']]));
+      expect(fhir.search).toHaveBeenCalledWith('HealthcareService', { _id: 'svc-1,svc-2', _count: 2 });
+    });
+
     it('should leave out a service that has no name when HAPI returns a resource without one', async () => {
       fhir.search.mockResolvedValueOnce({
         entry: [

@@ -1,4 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
+import { DEFAULT_CONTENT_LANGUAGE, type ContentLanguage } from '@medcenter/fhir-mappers';
 
 import { CLOCK, type Clock } from '../shared/clock';
 import { resolveDateRange, toInclusivePeriod, type DateRange, type DateRangeInput } from '../shared/date-range';
@@ -8,8 +9,6 @@ import type { EncountersSummaryDto } from './dto/encounters-summary.dto';
 import type { MeasureGroupDto, MeasureReportDto } from './dto/measure-report.dto';
 import { DEFAULT_TOP_SERVICES, type ServicesPopularityDto } from './dto/services-popularity.dto';
 import { REPORTS_REPOSITORY, type ReportsRepository, type SqlCount, type StatusCountRow } from './reports.repository';
-
-const UNKNOWN_SPECIALTY_DISPLAY = 'Специальность не указана';
 
 function toCount(value: SqlCount): number {
   const count = Number(value);
@@ -70,17 +69,23 @@ export class ReportsService {
       (row): MeasureGroupDto => ({
         code: row.code,
         ...(row.system === null ? {} : { system: row.system }),
-        display: row.display ?? UNKNOWN_SPECIALTY_DISPLAY,
+        ...(row.display === null ? {} : { display: row.display }),
         count: toCount(row.count),
       }),
     );
     return this.envelope('encounters-by-specialty', range, groups);
   }
 
-  async servicesPopularity(query: DateRangeInput & { readonly top?: number }): Promise<ServicesPopularityDto> {
+  async servicesPopularity(
+    query: DateRangeInput & { readonly top?: number },
+    lang: ContentLanguage = DEFAULT_CONTENT_LANGUAGE,
+  ): Promise<ServicesPopularityDto> {
     const range = this.rangeOf(query);
     const rows = await this.repository.countBookingsByService(range, query.top ?? DEFAULT_TOP_SERVICES);
-    const names = rows.length === 0 ? new Map<string, string>() : await this.clinical.serviceNames(rows.map((row) => row.serviceId));
+    const names = rows.length === 0 ? new Map<string, string>() : await this.clinical.serviceNames(
+            rows.map((row) => row.serviceId),
+            lang,
+          );
     const groups = rows.map((row): MeasureGroupDto => {
       const display = names.get(row.serviceId);
       return { code: row.serviceId, ...(display === undefined ? {} : { display }), count: toCount(row.count) };

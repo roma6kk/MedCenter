@@ -1,7 +1,8 @@
-import { Controller, Get, Query } from '@nestjs/common';
+import { Controller, Get, Headers, Query } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { ApiProblems, GUARD_PROBLEM_STATUSES, RequiresRoles, RequiresScopes } from '@medcenter/common';
 import { Role, SMART_SCOPES } from '@medcenter/contracts';
+import { resolveContentLanguage } from '@medcenter/fhir-mappers';
 
 import { DateRangeQueryDto } from '../shared/date-range-query.dto';
 import { AppointmentsSummaryDoc, EncountersSummaryDoc, ServicesPopularityDoc } from './dto/measure-report.doc';
@@ -41,12 +42,15 @@ export class ReportsController {
 
   /** §9.3 — the `top` most booked services (default 10). */
   @Get('services-popularity')
-  @ApiOperation({ summary: '9.3 Most booked services' })
+  @ApiOperation({ summary: '9.3 Most booked services; the name follows Accept-Language: en, else ru' })
   @ApiResponse({ status: 200, description: 'Top services, most popular first', type: ServicesPopularityDoc })
   @ApiProblems([400, ...GUARD_PROBLEM_STATUSES], { 400: 'VALIDATION_ERROR: malformed bound, from > to or range longer than 366 days' })
   @RequiresScopes(SMART_SCOPES.USER_READ)
   @RequiresRoles(Role.ADMIN)
-  servicesPopularity(@Query() query: ServicesPopularityQueryDto): Promise<ServicesPopularityDto> {
-    return this.reportsService.servicesPopularity(query);
+  servicesPopularity(
+    @Query() query: ServicesPopularityQueryDto,
+    @Headers('accept-language') acceptLanguage?: string,
+  ): Promise<ServicesPopularityDto> {
+    return this.reportsService.servicesPopularity(query, resolveContentLanguage(acceptLanguage));
   }
 }
