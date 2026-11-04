@@ -20,7 +20,6 @@ export interface CacheStore {
 /** Deterministic key namespace (API §5 — invalidation is done by these prefixes). */
 export const CACHE_KEYS = {
   SERVICES: 'catalog:services',
-  DOCTORS: (service: string): string => `catalog:doctors:${service}`,
   SLOTS: (schedule: string, from: string, to: string): string => `slots:${schedule}:${from}:${to}`,
   /** Prefix used to invalidate every cached slot page of one schedule. */
   SCHEDULE_SLOTS: (schedule: string): string => `slots:${schedule}:`,
@@ -50,7 +49,6 @@ export const CACHE_KEYS = {
 
 export const CACHE_TTLS = {
   SERVICES_SECONDS: 300,
-  DOCTORS_SECONDS: 300,
   SLOTS_SECONDS: 15,
 } as const;
 
@@ -90,17 +88,24 @@ export class RedisCacheService implements OnModuleDestroy {
     this.store = store;
   }
 
+  /**
+   * Read-through load. `shouldCache` keeps a value out of the store: an empty answer (a catalogue read before the seed,
+   * or while HAPI is still warming up) would otherwise be served for the whole TTL after the data appears.
+   */
   async getOrLoad<T>(
     key: string,
     ttlSeconds: number,
     loader: () => Promise<T>,
+    shouldCache: (value: T) => boolean = () => true,
   ): Promise<T> {
     const cached = await this.getJson<T>(key);
     if (cached !== null) {
       return cached;
     }
     const value = await loader();
-    await this.setJson(key, value, ttlSeconds);
+    if (shouldCache(value)) {
+      await this.setJson(key, value, ttlSeconds);
+    }
     return value;
   }
 

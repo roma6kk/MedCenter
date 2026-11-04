@@ -194,3 +194,41 @@ describe('TerminologyService', () => {
     });
   });
 });
+
+describe('TerminologyService empty expansion', () => {
+  const EMPTY: FhirResource = { resourceType: 'ValueSet', expansion: { total: 0 } };
+
+  it('should not cache an empty page, so codes show up once HAPI has indexed them', async () => {
+    const fhir = createFhir();
+    fhir.operation.mockResolvedValueOnce(EMPTY);
+    const service = new TerminologyService(fhir, new InMemoryTerminologyCache());
+
+    const first = await service.expand(ICD10_VALUE_SET, {});
+    const second = await service.expand(ICD10_VALUE_SET, {});
+
+    expect(first.items).toEqual([]);
+    expect(second.items).toHaveLength(1);
+    expect(fhir.operation).toHaveBeenCalledTimes(2);
+  });
+
+  it('should not cache an empty concept list of a text filter either', async () => {
+    const fhir = createFhir();
+    fhir.operation.mockResolvedValueOnce(EMPTY);
+    const service = new TerminologyService(fhir, new InMemoryTerminologyCache());
+
+    await service.expand(ICD10_VALUE_SET, { filter: 'j06' });
+    const second = await service.expand(ICD10_VALUE_SET, { filter: 'j06' });
+
+    expect(second.items.map((item) => item.code)).toEqual(['J06.9']);
+  });
+
+  it('should still serve a non-empty page from the cache', async () => {
+    const fhir = createFhir();
+    const service = new TerminologyService(fhir, new InMemoryTerminologyCache());
+
+    await service.expand(ICD10_VALUE_SET, {});
+    await service.expand(ICD10_VALUE_SET, {});
+
+    expect(fhir.operation).toHaveBeenCalledTimes(1);
+  });
+});

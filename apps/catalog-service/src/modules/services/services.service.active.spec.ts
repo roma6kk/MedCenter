@@ -2,6 +2,7 @@ import type { FhirClient, FhirResource } from '@medcenter/fhir';
 import { FHIR_BY } from '@medcenter/terminology';
 
 import { committedEntries, transactionResponder } from '../../common/__tests__/audited-transactions';
+import { InMemoryCacheStore } from '../cache/__tests__/in-memory-cache-store';
 import { RedisCacheService } from '../cache/redis-cache.service';
 import { ServicesService } from './services.service';
 
@@ -89,5 +90,20 @@ describe('ServicesService isActive', () => {
     fhirClient.batch.mockClear();
     await services.update('a', { name: 'Новое' }, ACTOR);
     expect(written()['active']).toBe(true);
+  });
+
+  describe('empty catalogue', () => {
+    it('should not keep an empty page in the cache, so the catalogue shows at once after the seed', async () => {
+      const store = new InMemoryCacheStore();
+      services = new ServicesService(fhirClient, new RedisCacheService(store));
+      fhirClient.search.mockResolvedValueOnce({ total: 0, entry: [] });
+
+      const empty = await services.list(1, 20);
+      const seeded = await services.list(1, 20);
+
+      expect(empty.items).toEqual([]);
+      expect(seeded.items.map((item) => item.id)).toEqual(['a']);
+      expect(store.entries.size).toBe(1);
+    });
   });
 });

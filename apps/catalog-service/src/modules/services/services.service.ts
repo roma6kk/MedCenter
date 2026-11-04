@@ -60,7 +60,7 @@ export class ServicesService {
     if (term !== '') {
       return load();
     }
-    return this.cache.getOrLoad(CACHE_KEYS.SERVICES_PAGE(page, pageSize, lang), CACHE_TTLS.SERVICES_SECONDS, load);
+    return this.cache.getOrLoad(CACHE_KEYS.SERVICES_PAGE(page, pageSize, lang), CACHE_TTLS.SERVICES_SECONDS, load, (page) => page.items.length > 0);
   }
 
   /**

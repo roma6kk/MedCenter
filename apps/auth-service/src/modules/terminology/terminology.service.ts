@@ -137,7 +137,11 @@ export class TerminologyService {
       return cached;
     }
     const page = await this.fetchPage(url, count, offset);
-    await this.cache.set(key, JSON.stringify(page), EXPANSION_TTL_SECONDS);
+    // An empty expansion is what HAPI answers while a code system is still being indexed; kept for an hour it would
+    // hide the codes long after they are there.
+    if (page.items.length > 0) {
+      await this.cache.set(key, JSON.stringify(page), EXPANSION_TTL_SECONDS);
+    }
     return page;
   }
 
@@ -161,7 +165,9 @@ export class TerminologyService {
       // The cap is a safety valve, not a feature: a filter over this set silently misses the rest, so say so.
       this.logger.warn({ url, scanned: concepts.length, total }, 'ValueSet exceeds the scan cap; the text filter sees only its first concepts');
     }
-    await this.cache.set(key, JSON.stringify(concepts), EXPANSION_TTL_SECONDS);
+    if (concepts.length > 0) {
+      await this.cache.set(key, JSON.stringify(concepts), EXPANSION_TTL_SECONDS);
+    }
     return concepts;
   }
 
