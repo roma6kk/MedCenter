@@ -167,7 +167,7 @@ export const PATIENTS: readonly PatientDef[] = [
 /** Demo administrators created by the users step; the bootstrap admin (from `.env`) is separate. */
 export const ADMINS: readonly AdminDef[] = [{ emailLocal: 'admin.demo', firstName: 'Демо', lastName: 'Администратор' }];
 
-/** Belarus abolished DST in 2011: Europe/Minsk is UTC+3 all year (same fixed offset as catalog-service `clinic-calendar.ts`). */
+/** Belarus abolished DST in 2011: Europe/Minsk is UTC+3 all year (same fixed offset as `clinic-calendar.ts` in libs/common). */
 export const CLINIC_UTC_OFFSET_MINUTES = 180;
 
 /** Planning horizon of the seeded slots. */
