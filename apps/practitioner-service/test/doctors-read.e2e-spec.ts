@@ -186,7 +186,8 @@ describe('Doctors read side (e2e)', () => {
       // Assert
       const [, params] = fhir.search.mock.calls[0] ?? [];
       expect(Object.keys(params ?? {})).not.toContain('qualification-code');
-      expect(Object.keys(params ?? {})).toEqual(expect.arrayContaining(['service', 'specialty', 'practitioner.name']));
+      expect(Object.keys(params ?? {})).toEqual(expect.arrayContaining(['service', 'specialty']));
+      expect(Object.keys(params ?? {})).not.toContain('practitioner.name');
     });
   });
 

@@ -24,7 +24,7 @@ export class ListDoctorsQueryDto extends PageQueryDto {
   @MaxLength(MAX_TERM_LENGTH)
   specialty?: string;
 
-  @ApiPropertyOptional({ description: 'Name fragment of the doctor', maxLength: MAX_TERM_LENGTH })
+  @ApiPropertyOptional({ description: 'Words of the doctor name, in Russian or English and in any order; each word is the start of a name, surname or patronymic', maxLength: MAX_TERM_LENGTH, example: 'Maria Ivanova' })
   @IsOptional()
   @IsString()
   @MaxLength(MAX_TERM_LENGTH)

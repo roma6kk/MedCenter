@@ -5,16 +5,21 @@ import { FHIR_CLIENT, FhirClientError, type FhirClient, type FhirResource } from
 
 import { toPage } from '../../common/page-envelope';
 import { toDoctorDto } from './doctor.mapper';
+import { matchesName } from './doctor-name-match';
 import {
   distinctPractitionerIds,
   ID_LOOKUP_CHUNK,
   needsRoleSearch,
   pageWindow,
+  PRACTITIONER_SCAN_CHUNK,
+  PRACTITIONER_SCAN_LIMIT,
   practitionerQuery,
   practitionerRoleQuery,
   practitionerRolesQuery,
+  practitionerScanQuery,
   practitionersByIdQuery,
   roleIdsByPractitioner,
+  searchTerm,
   type DoctorFilters,
 } from './doctor-search';
 import type { DoctorResponseDto } from './dto/doctor-response.dto';
@@ -35,21 +40,46 @@ export class DoctorsService {
    * `Practitioner` search parameter for either), so they are asked of the roles
    * (ids only). The distinct doctors behind the matching roles are what is paged
    * and counted: `totalItems` is the number of doctors, a doctor with two matching
-   * roles counts once, and a deactivated doctor is not one of them. Without the filters
-   * the list is a plain `Practitioner` search paged by HAPI. Either way every listed
-   * doctor carries all of its active roles (one more `PractitionerRole` search for the page),
-   * not only the ones the filter matched.
+   * roles counts once, and a deactivated doctor is not one of them. The name is matched
+   * here, in Russian and in English ({@link matchesName}), over the doctors the other filters
+   * left. Without any filter the list is a plain `Practitioner` search paged by HAPI. Either way
+   * every listed doctor carries all of its active roles (one more `PractitionerRole` search for the
+   * page), not only the ones the filter matched.
    */
   async list(filters: DoctorFilters, page = 1, pageSize = 20, lang: ContentLanguage = DEFAULT_CONTENT_LANGUAGE): Promise<DoctorPage> {
-    if (needsRoleSearch(filters)) {
-      const roles = await this.fhirClient.search('PractitionerRole', practitionerRoleQuery(filters));
-      const doctors = await this.practitionersById(distinctPractitionerIds(roles.entry ?? []));
-      const offset = (page - 1) * pageSize;
-      return toPage(await this.withRoles(doctors.slice(offset, offset + pageSize), lang), page, pageSize, doctors.length);
+    const term = searchTerm(filters);
+    if (!needsRoleSearch(filters) && term === undefined) {
+      const result = await this.fhirClient.search('Practitioner', practitionerQuery(pageWindow(page, pageSize)));
+      const practitioners = (result.entry ?? []).map((entry) => entry.resource);
+      return toPage(await this.withRoles(practitioners, lang), page, pageSize, result.total);
     }
-    const result = await this.fhirClient.search('Practitioner', practitionerQuery(filters, pageWindow(page, pageSize)));
-    const practitioners = (result.entry ?? []).map((entry) => entry.resource);
-    return toPage(await this.withRoles(practitioners, lang), page, pageSize, result.total);
+    const candidates = needsRoleSearch(filters) ? await this.practitionersOfRoles(filters) : await this.allPractitioners();
+    const doctors = term === undefined ? candidates : candidates.filter((practitioner) => matchesName(practitioner, term));
+    const offset = (page - 1) * pageSize;
+    return toPage(await this.withRoles(doctors.slice(offset, offset + pageSize), lang), page, pageSize, doctors.length);
+  }
+
+  /** The doctors behind the roles that match the service and specialty filters, in role order. */
+  private async practitionersOfRoles(filters: DoctorFilters): Promise<FhirResource[]> {
+    const roles = await this.fhirClient.search('PractitionerRole', practitionerRoleQuery(filters));
+    return this.practitionersById(distinctPractitionerIds(roles.entry ?? []));
+  }
+
+  /**
+   * Every doctor that is not deactivated, in HAPI order, read in chunks until HAPI runs out; bounded by
+   * {@link PRACTITIONER_SCAN_LIMIT}, which a clinic's staff does not come near.
+   */
+  private async allPractitioners(): Promise<FhirResource[]> {
+    const practitioners: FhirResource[] = [];
+    for (let scanned = 0; scanned < PRACTITIONER_SCAN_LIMIT; scanned += PRACTITIONER_SCAN_CHUNK) {
+      const result = await this.fhirClient.search('Practitioner', practitionerScanQuery(scanned));
+      const chunk = (result.entry ?? []).map((entry) => entry.resource);
+      practitioners.push(...chunk.filter((resource) => resource.resourceType === 'Practitioner'));
+      if (chunk.length < PRACTITIONER_SCAN_CHUNK) {
+        break;
+      }
+    }
+    return practitioners;
   }
 
   /**

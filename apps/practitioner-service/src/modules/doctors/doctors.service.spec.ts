@@ -1,4 +1,5 @@
 import { FhirClientError, type FhirClient, type FhirResource } from '@medcenter/fhir';
+import { translationExtension } from '@medcenter/fhir-mappers';
 
 import { DoctorsService } from './doctors.service';
 
@@ -59,15 +60,66 @@ describe('DoctorsService', () => {
       expect(fhirClient.search).toHaveBeenNthCalledWith(1, 'Practitioner', { 'active:not': 'false', _count: 20, _offset: 0, _total: 'accurate' });
     });
 
-    it('should search Practitioner by name and page when only a search term is supplied', async () => {
+    it('should scan the Practitioners and match the name here when only a search term is supplied', async () => {
       // Arrange
-      fhirClient.search.mockResolvedValue({ entry: [] });
+      fhirClient.search.mockImplementation((resourceType) =>
+        Promise.resolve(
+          resourceType === 'Practitioner'
+            ? bundle(practitioner('101', 'Ivanov'), practitioner('102', 'Petrov'), practitioner('103', 'Ivanova'))
+            : { entry: [] },
+        ),
+      );
 
       // Act
-      await doctorsService.list({ search: 'Ivanov' }, 2, 5);
+      const result = await doctorsService.list({ search: 'Ivanov' }, 1, 1);
+
+      // Assert — HAPI's `name` sees the stored Russian text only, so it is not asked; the page and the total count the matches.
+      expect(fhirClient.search).toHaveBeenNthCalledWith(1, 'Practitioner', { 'active:not': 'false', _count: 100, _offset: 0 });
+      expect(result.items.map((doc) => doc.id)).toEqual(['101']);
+      expect(result.meta).toEqual({ page: 1, pageSize: 1, totalItems: 2, totalPages: 2 });
+    });
+
+    it('should walk the Practitioner scan in chunks of 100 until HAPI runs out', async () => {
+      // Arrange
+      const all = Array.from({ length: 105 }, (_, index) => practitioner(`d${index}`, `Doc${index}`));
+      fhirClient.search.mockImplementation((resourceType, params) =>
+        Promise.resolve(resourceType === 'Practitioner' ? bundle(...all.slice(Number(params?.['_offset']), Number(params?.['_offset']) + 100)) : { entry: [] }),
+      );
+
+      // Act
+      const result = await doctorsService.list({ search: 'Doc' }, 6, 20);
 
       // Assert
-      expect(fhirClient.search).toHaveBeenCalledWith('Practitioner', { name: 'Ivanov', 'active:not': 'false', _count: 5, _offset: 5, _total: 'accurate' });
+      expect(fhirClient.search.mock.calls.filter(([type]) => type === 'Practitioner').map(([, params]) => params?.['_offset'])).toEqual([0, 100]);
+      expect(result.meta).toEqual({ page: 6, pageSize: 20, totalItems: 105, totalPages: 6 });
+      expect(result.items).toHaveLength(5);
+    });
+
+    it('should find a doctor by the English name and by the full name of the card, in either language of the page', async () => {
+      // Arrange
+      const ivanova = {
+        resourceType: 'Practitioner',
+        id: '201',
+        name: [{ family: 'Иванова', _family: { extension: [translationExtension('en', 'Ivanova')] }, given: ['Мария'], _given: [{ extension: [translationExtension('en', 'Maria')] }] }],
+      };
+      fhirClient.search.mockImplementation((resourceType) => Promise.resolve(resourceType === 'Practitioner' ? bundle(ivanova, practitioner('202', 'Petrov')) : { entry: [] }));
+
+      // Act + Assert
+      for (const [term, lang] of [['Ivanova', 'en'], ['Maria Ivanova', 'en'], ['Мария Иванова', 'ru'], ['Иванова Мария', 'en'], ['Maria', 'ru']] as const) {
+        const result = await doctorsService.list({ search: term }, 1, 20, lang);
+        expect(result.items.map((doc) => doc.id)).toEqual(['201']);
+      }
+    });
+
+    it('should answer an empty page with no total when no doctor matches the name', async () => {
+      // Arrange
+      fhirClient.search.mockResolvedValue(bundle(practitioner('101', 'Ivanov')));
+
+      // Act
+      const result = await doctorsService.list({ search: 'Nobody' });
+
+      // Assert
+      expect(result).toEqual({ items: [], meta: { page: 1, pageSize: 20, totalItems: 0, totalPages: 0 } });
     });
 
     it('should treat blank specialty and serviceId as absent when the query carries empty values', async () => {
@@ -148,22 +200,23 @@ describe('DoctorsService', () => {
       expect(result.items.map((doc) => doc.id)).toEqual(['101', '102']);
     });
 
-    it('should combine service, specialty and a chained practitioner name when all three filters are supplied', async () => {
+    it('should keep the name out of the role scan and match it on the doctors the other filters left', async () => {
       // Arrange
-      mockRoleFilter(fhirClient, [role('r1', 'Practitioner/101')], [practitioner('101', 'Ivanov')]);
+      mockRoleFilter(fhirClient, [role('r1', 'Practitioner/101'), role('r2', 'Practitioner/102')], [practitioner('101', 'Ivanov'), practitioner('102', 'Petrov')]);
 
       // Act
-      await doctorsService.list({ serviceId: 'svc-1', specialty: '419192003', search: 'Iva' }, 3, 10);
+      const result = await doctorsService.list({ serviceId: 'svc-1', specialty: '419192003', search: 'Ivano' }, 1, 10);
 
-      // Assert — the filters go to the scan; paging is applied to the doctors, not sent to HAPI.
+      // Assert — the filters go to the scan, the name is matched here, paging is applied to the matching doctors.
       expect(fhirClient.search).toHaveBeenCalledWith('PractitionerRole', {
         service: 'HealthcareService/svc-1',
         specialty: '419192003',
-        'practitioner.name': 'Iva',
         'active:not': 'false',
         _elements: 'practitioner',
         _count: 1000,
       });
+      expect(result.items.map((doc) => doc.id)).toEqual(['101']);
+      expect(result.meta.totalItems).toBe(1);
     });
   });
 

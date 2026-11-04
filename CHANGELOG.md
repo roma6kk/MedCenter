@@ -149,3 +149,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   service or specialty filter (only the role ids ignored it before). The filtered list reads the doctors of all matching roles before
   it cuts the page, so a hidden one cannot shorten a page or inflate `totalItems`. The two stale e2e rows of the role filter
   (they still described the `_include` search) now describe the id-only role scan.
+- `GET /api/v1/doctors?search=` finds a doctor by the English name (`Ivanova` in the English interface found nobody, the
+  English text sits in a `translation` extension HAPI does not index) and by the full name of the card (`Мария Иванова`
+  did not match the stored «Иванова Мария Сергеевна»): the service matches the words of the term against the name,
+  surname and patronymic in Russian and English, in any order, as word prefixes, over the doctors the service and
+  specialty filters left (a scan of at most 1000 practitioners; the list without `search` is still paged by HAPI).

@@ -37,16 +37,31 @@ export function needsRoleSearch(filters: DoctorFilters): boolean {
 const NOT_DEACTIVATED = { 'active:not': 'false' } as const;
 
 /**
- * Plain `Practitioner` search: the name filter, the page window and no deactivated doctor. R4 has
+ * Plain `Practitioner` search: the page window and no deactivated doctor. R4 has
  * no `Practitioner?qualification-code` (HAPI answers 400 HAPI-0524), so the
  * specialty cannot be asked of `Practitioner`; see {@link practitionerRoleQuery}.
+ * The name is not asked of HAPI either, see {@link searchTerm}.
  */
-export function practitionerQuery(
-  filters: DoctorFilters,
-  window: PageWindow,
-): Readonly<Record<string, unknown>> {
-  const search = nonBlank(filters.search);
-  return { ...(search === undefined ? {} : { name: search }), ...NOT_DEACTIVATED, ...window };
+export function practitionerQuery(window: PageWindow): Readonly<Record<string, unknown>> {
+  return { ...NOT_DEACTIVATED, ...window };
+}
+
+/** HAPI page size of one scan step over the practitioners, and the most a single name search reads. */
+export const PRACTITIONER_SCAN_CHUNK = 100;
+export const PRACTITIONER_SCAN_LIMIT = 1_000;
+
+/** One step of the scan over every (not deactivated) practitioner that a name search without a role filter walks. */
+export function practitionerScanQuery(offset: number): Readonly<Record<string, unknown>> {
+  return { ...NOT_DEACTIVATED, _count: PRACTITIONER_SCAN_CHUNK, _offset: offset };
+}
+
+/**
+ * The name term of the list, `undefined` when it is blank. HAPI's `name` parameter matches the start of one stored
+ * Russian field at a time, so it finds neither the English name nor a full name of two words; the term is matched by
+ * the service instead ({@link matchesName}), over the doctors the other filters left.
+ */
+export function searchTerm(filters: DoctorFilters): string | undefined {
+  return nonBlank(filters.search);
 }
 
 /** Upper bound of the role scan behind a service/specialty filter: a clinic holds far fewer `PractitionerRole`s. */
@@ -55,19 +70,16 @@ export const ROLE_SCAN_LIMIT = 1000;
 /**
  * `PractitionerRole` scan for the service and specialty filters, ids only (`_elements=practitioner`).
  * `specialty` is a token (`code` or `system|code`) over `PractitionerRole.specialty`, `service` a reference
- * over `PractitionerRole.healthcareService`, and the name filter chains through `practitioner`
- * (`practitioner.name`). A deactivated role matches nothing: its doctor is not offered for the service or
+ * over `PractitionerRole.healthcareService`; the name is not part of the scan. A deactivated role matches nothing: its doctor is not offered for the service or
  * specialty it carried. Not paged by HAPI: a doctor may hold several matching roles, so the page
  * and the total have to count distinct doctors ({@link distinctPractitionerIds}).
  */
 export function practitionerRoleQuery(filters: DoctorFilters): Readonly<Record<string, unknown>> {
   const serviceId = nonBlank(filters.serviceId);
   const specialty = nonBlank(filters.specialty);
-  const search = nonBlank(filters.search);
   return {
     ...(serviceId === undefined ? {} : { service: `HealthcareService/${serviceId}` }),
     ...(specialty === undefined ? {} : { specialty }),
-    ...(search === undefined ? {} : { 'practitioner.name': search }),
     ...NOT_DEACTIVATED,
     _elements: 'practitioner',
     _count: ROLE_SCAN_LIMIT,

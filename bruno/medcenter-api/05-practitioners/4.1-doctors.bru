@@ -49,5 +49,5 @@ tests {
 }
 
 docs {
-  Spec 4.1, public. Filters: `serviceId`, `specialty` (code or `system|code`, the `specialtyCode` of a result), `search`, `page`, `pageSize`. A deactivated doctor or role (`active=false`) is not listed. Stores the first doctor in `doctorId` and `practitionerRoleId`.
+  Spec 4.1, public. Filters: `serviceId`, `specialty` (code or `system|code`, the `specialtyCode` of a result), `search` (words of the name in ru or en, any order, prefixes: `Мария Иванова`, `ivanova`), `page`, `pageSize`. A deactivated doctor or role (`active=false`) is not listed. Stores the first doctor in `doctorId` and `practitionerRoleId`.
 }

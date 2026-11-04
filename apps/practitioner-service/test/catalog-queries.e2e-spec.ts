@@ -85,12 +85,12 @@ describe('Rooms and doctors queries (e2e)', () => {
     expect(fhir.search).not.toHaveBeenCalled();
   });
 
-  it('should list doctors without a token when the query is valid', async () => {
+  it('should list doctors without a token when the query is valid; the name is matched by the service over a scan of the practitioners', async () => {
     // Act
     await request(app.getHttpServer()).get('/api/v1/doctors?page=2&pageSize=5&search=Ivanov').expect(200);
 
     // Assert
-    expect(fhir.search).toHaveBeenCalledWith('Practitioner', { name: 'Ivanov', 'active:not': 'false', _count: 5, _offset: 5, _total: 'accurate' });
+    expect(fhir.search).toHaveBeenCalledWith('Practitioner', { 'active:not': 'false', _count: 100, _offset: 0 });
   });
 
   it('should answer the doctor list in the section 0 envelope with the display name when HAPI returns practitioners', async () => {
@@ -120,7 +120,6 @@ describe('Rooms and doctors queries (e2e)', () => {
     expect(fhir.search).toHaveBeenCalledWith('PractitionerRole', {
       service: 'HealthcareService/svc-1',
       specialty: '419192003',
-      'practitioner.name': 'Ivanov',
       'active:not': 'false',
       _elements: 'practitioner',
       _count: 1000,
