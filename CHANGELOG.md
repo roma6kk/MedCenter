@@ -125,3 +125,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   acknowledged. The mapper is typed over the contract events, so a renamed contract field fails compilation.
 - `outbox-relay` reports a `pending` record it cannot read (malformed record, payload that is not JSON) once per hour
   per record instead of on every 2-second poll, so one poison record no longer fills the container log.
+- `GET /api/v1/notifications?unread=` answers `400 VALIDATION_ERROR` for anything but `true` or `false` (`unread=1` or a
+  typo used to return every notification instead of the unread ones), like the other list endpoints.

@@ -95,6 +95,14 @@ describe('Notifications (e2e)', () => {
       });
     });
 
+    it.each(['unread=false', 'unread='])('should list every notification, read or not, when the query has %s', async (query) => {
+      // Act
+      await request(app.getHttpServer()).get(`${NOTIFICATIONS}?${query}`).set('Authorization', patient).expect(200);
+
+      // Assert
+      expect(fhir.search).toHaveBeenCalledWith('Communication', expect.not.objectContaining({ status: expect.anything() }));
+    });
+
     it('should ignore a patient query parameter when the token names the compartment', async () => {
       // Act — ADR-013: the patient comes from the token only.
       await request(app.getHttpServer()).get(`${NOTIFICATIONS}?patient=pat-2&recipient=Patient/pat-2`).set('Authorization', patient).expect(200);
@@ -121,6 +129,11 @@ describe('Notifications (e2e)', () => {
       ['pageSize=0', 'pageSize=0'],
       ['pageSize=101', 'pageSize=101'],
       ['pageSize=1.5', 'pageSize=1.5'],
+      ['unread=1', 'unread=1'],
+      ['unread=yes', 'unread=yes'],
+      ['unread=TRUE', 'unread=TRUE'],
+      ['unread=ture (a typo)', 'unread=ture'],
+      ['unread given twice', 'unread=true&unread=true'],
     ])('should answer 400 VALIDATION_ERROR before HAPI is called when the query has %s', async (_label, query) => {
       // Act
       const response = await request(app.getHttpServer()).get(`${NOTIFICATIONS}?${query}`).set('Authorization', patient).expect(400);

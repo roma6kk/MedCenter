@@ -19,6 +19,17 @@ function parsePositiveInt(raw: string | undefined, fallback: number, max: number
   return value;
 }
 
+/** `true` / `false`; absent or empty is `false`. Anything else is a typo, not "all": `400`, as `@IsIn(['true', 'false'])` in the other services. */
+function parseFlag(raw: string | undefined, name: string): boolean {
+  if (raw === undefined || raw === '' || raw === 'false') {
+    return false;
+  }
+  if (raw === 'true') {
+    return true;
+  }
+  throw new BadRequestException({ errorCode: 'VALIDATION_ERROR', message: `${name} must be true or false` });
+}
+
 /** API §8.1–8.3 — the patient's own in-app notifications (FR-008). */
 @ApiTags('notification')
 @ApiBearerAuth()
@@ -45,7 +56,7 @@ export class NotificationsController {
     return this.notifications.list(patientRef, {
       page: parsePositiveInt(page, 1, MAX_PAGE, 'page'),
       pageSize: parsePositiveInt(pageSize, DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE, 'pageSize'),
-      unreadOnly: unread === 'true',
+      unreadOnly: parseFlag(unread, 'unread'),
     });
   }
 
