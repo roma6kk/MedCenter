@@ -24,6 +24,22 @@ describe('applyHttpEdge', () => {
     }
   });
 
+  it('should mark every response no-store so patient data is not kept in a shared browser cache', async () => {
+    // Arrange
+    const { nest, server } = createApp();
+    applyHttpEdge(nest, false);
+    server.get('/late', (_req, res) => {
+      res.json({ ok: true });
+    });
+
+    // Act
+    const response = await request(server).get('/late');
+
+    // Assert
+    expect(response.headers['cache-control']).toBe('no-store');
+    expect(response.headers['pragma']).toBe('no-cache');
+  });
+
   it('should set the trust proxy hop count when an explicit setting is given', () => {
     // Arrange
     const { nest, server } = createApp();

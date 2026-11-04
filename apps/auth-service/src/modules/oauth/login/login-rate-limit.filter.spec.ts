@@ -31,9 +31,10 @@ function rateLimited(): HttpException {
 
 /** What `ProblemDetailsFilter` needs of a response, on top of the login page's own calls. */
 function withProblemSupport(fake: FakeResponse): { readonly type: jest.Mock } {
-  const response = fake.response as unknown as { status: jest.Mock; type?: jest.Mock };
+  const response = fake.response as unknown as { status: jest.Mock; type?: jest.Mock; setHeader?: jest.Mock };
   const type = jest.fn().mockReturnValue(fake.response);
   response.type = type;
+  response.setHeader = response.setHeader ?? jest.fn();
   return { type };
 }
 

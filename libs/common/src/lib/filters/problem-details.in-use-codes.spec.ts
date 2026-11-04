@@ -23,6 +23,7 @@ interface SentProblem {
 function createResponse(): MockHttpResponse {
   return {
     header: jest.fn(),
+    setHeader: jest.fn(),
     status: jest.fn().mockReturnThis(),
     type: jest.fn().mockReturnThis(),
     send: jest.fn(),

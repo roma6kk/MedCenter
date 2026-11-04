@@ -1,3 +1,4 @@
+import { blankAsUnset } from '@medcenter/config';
 import { z } from 'zod';
 
 /**
@@ -6,12 +7,9 @@ import { z } from 'zod';
  * Secrets have no defaults and are only ever read from the environment.
  */
 
-/** An empty variable (`FOO=`) means "unset", never an empty secret or host. */
-const blankAsUnset = (value: unknown): unknown => (value === '' ? undefined : value);
-
-const optionalText = z.preprocess(blankAsUnset, z.string().min(1).optional());
-const optionalPort = z.preprocess(blankAsUnset, z.coerce.number().int().min(1).max(65535).optional());
-const optionalFlag = z.preprocess(blankAsUnset, z.enum(['true', 'false', '1', '0']).optional());
+const optionalText = blankAsUnset(z.string().min(1).optional());
+const optionalPort = blankAsUnset(z.coerce.number().int().min(1).max(65535).optional());
+const optionalFlag = blankAsUnset(z.enum(['true', 'false', '1', '0']).optional());
 
 const databaseEnvSchema = z.object({
   DB_HOST: optionalText,
@@ -66,7 +64,7 @@ export const WORKER_CONFIG = Symbol('WORKER_CONFIG');
 
 const workerEnvSchema = z.object({
   CONSUMER_ENABLED: optionalFlag,
-  RABBITMQ_URL: z.preprocess(blankAsUnset, z.url().optional()),
+  RABBITMQ_URL: blankAsUnset(z.url().optional()),
 });
 
 /** `CONSUMER_ENABLED=false` switches the RabbitMQ worker off (e2e suites, read-only replicas). */
@@ -91,7 +89,7 @@ export const DEFAULT_AUDIT_SYNC_INTERVAL_MS = 15_000;
 
 const auditSyncEnvSchema = z.object({
   AUDIT_SYNC_ENABLED: optionalFlag,
-  AUDIT_SYNC_INTERVAL_MS: z.preprocess(blankAsUnset, z.coerce.number().int().min(1_000).max(3_600_000).optional()),
+  AUDIT_SYNC_INTERVAL_MS: blankAsUnset(z.coerce.number().int().min(1_000).max(3_600_000).optional()),
 });
 
 export function parseAuditSyncEnv(source: NodeJS.ProcessEnv): AuditSyncConfig {

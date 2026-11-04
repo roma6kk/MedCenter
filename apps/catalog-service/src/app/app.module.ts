@@ -9,6 +9,7 @@ import {
   ScopeGuard,
 } from '@medcenter/common';
 
+import { HealthModule } from '../modules/health/health.module';
 import { CacheModule } from '../modules/cache/cache.module';
 import { SchedulesModule } from '../modules/schedules/schedules.module';
 import { ServicesModule } from '../modules/services/services.module';
@@ -19,7 +20,7 @@ import { SlotsModule } from '../modules/slots/slots.module';
  * RBAC → rate-limit is the global default, so no route ships unprotected.
  */
 @Module({
-  imports: [CacheModule, ServicesModule, SchedulesModule, SlotsModule],
+  imports: [HealthModule, CacheModule, ServicesModule, SchedulesModule, SlotsModule],
   providers: [
     { provide: APP_GUARD, useClass: JwtAuthGuard },
     { provide: APP_GUARD, useClass: ScopeGuard },

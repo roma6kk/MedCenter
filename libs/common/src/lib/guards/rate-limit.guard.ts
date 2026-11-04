@@ -29,7 +29,7 @@ export function setRateLimitStore(store: RateLimitStore | null): void {
 
 interface RateLimitRequest extends RequestWithClaims {
   readonly method?: string;
-  readonly originalUrl?: string;
+  readonly route?: { readonly path?: unknown };
   readonly ip?: string;
   readonly body?: Record<string, unknown>;
 }
@@ -63,18 +63,51 @@ function readBucketIdentity(request: RateLimitRequest): string {
 }
 
 /**
- * Strips the query string: `POST /oauth/token?n=1` and `?n=2` must share one
- * bucket, otherwise any caller can mint a fresh budget per request.
+ * Names the route by its template (`/api/v1/doctors/:id`), never by the URL the
+ * caller sent. A bucket per concrete URL would let any caller mint a fresh
+ * budget per request just by changing a path parameter or the query string
+ * (`/doctors/a`, `/doctors/b`, `?n=1`, ...). Guards run after routing, so Express
+ * has set `request.route`; without it (a non-Express adapter) the handler's
+ * class and method name still give one bucket per route.
  */
-function readRoutePath(request: RateLimitRequest): string {
-  return (request.originalUrl ?? '/').split('?')[0] ?? '/';
+function readRouteTemplate(request: RateLimitRequest, context: ExecutionContext): string {
+  const path = request.route?.path;
+  if (typeof path === 'string' && path.length > 0) {
+    return path;
+  }
+  return `${context.getClass().name}.${context.getHandler().name}`;
 }
 
-function buildRateLimitKey(request: RateLimitRequest): string {
+function buildRateLimitKey(request: RateLimitRequest, context: ExecutionContext): string {
   const identity = readBucketIdentity(request);
-  const route = `${request.method ?? 'GET'}:${readRoutePath(request)}`;
+  const route = `${request.method ?? 'GET'}:${readRouteTemplate(request, context)}`;
   const minute = Math.floor(Date.now() / (WINDOW_SECONDS * 1000));
   return `${identity}:${route}:${minute}`;
+}
+
+/** Longest the guard waits for the store; a hung Redis must not hold every request (fail open instead). */
+export const RATE_LIMIT_STORE_TIMEOUT_MS = 500;
+
+class StoreTimeoutError extends Error {
+  constructor() {
+    super(`Rate-limit store did not answer within ${RATE_LIMIT_STORE_TIMEOUT_MS} ms`);
+  }
+}
+
+async function incrementWithin(
+  store: RateLimitStore,
+  key: string,
+  windowSeconds: number,
+): Promise<number> {
+  let timer: NodeJS.Timeout | undefined;
+  const timeout = new Promise<never>((_resolve, reject) => {
+    timer = setTimeout(() => reject(new StoreTimeoutError()), RATE_LIMIT_STORE_TIMEOUT_MS);
+  });
+  try {
+    return await Promise.race([store.increment(key, windowSeconds), timeout]);
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 @Injectable()
@@ -90,10 +123,10 @@ export class RateLimitGuard implements CanActivate {
     }
 
     const request = context.switchToHttp().getRequest<RateLimitRequest>();
-    const key = buildRateLimitKey(request);
+    const key = buildRateLimitKey(request, context);
     let count: number;
     try {
-      count = await store.increment(key, WINDOW_SECONDS);
+      count = await incrementWithin(store, key, WINDOW_SECONDS);
     } catch (error: unknown) {
       this.logger.warn({ err: error, key }, 'Rate-limit store unreachable; failing open');
       return true;

@@ -1,15 +1,9 @@
 const mockCreate = jest.fn();
 const mockRedis = jest.fn();
-const mockSetRateLimitStore = jest.fn();
 
 jest.mock('@nestjs/core', () => ({
   ...jest.requireActual<typeof import('@nestjs/core')>('@nestjs/core'),
   NestFactory: { create: (...args: unknown[]): unknown => mockCreate(...args) },
-}));
-
-jest.mock('@medcenter/common', () => ({
-  ...jest.requireActual<typeof import('@medcenter/common')>('@medcenter/common'),
-  setRateLimitStore: (...args: unknown[]): unknown => mockSetRateLimitStore(...args),
 }));
 
 jest.mock('ioredis', () => ({
@@ -46,7 +40,7 @@ function createFakeApp(): FakeApp {
   const useGlobalPipes = record('useGlobalPipes');
   const listen = jest.fn(async () => calls.push('listen'));
   const app = {
-    getHttpAdapter: () => ({ getInstance: () => ({ set, disable }) }),
+    getHttpAdapter: () => ({ getInstance: () => ({ set, disable, use: jest.fn() }) }),
     useGlobalPipes,
     enableShutdownHooks: record('enableShutdownHooks'),
     listen,
@@ -80,7 +74,6 @@ describe('analytics-service main', () => {
     fake = createFakeApp();
     mockCreate.mockReset().mockResolvedValue(fake.app);
     mockRedis.mockReset().mockReturnValue({ on: jest.fn() });
-    mockSetRateLimitStore.mockReset();
     exit = jest.spyOn(process, 'exit').mockImplementation((() => undefined) as never);
     jest.spyOn(console, 'error').mockImplementation(() => undefined);
   });
@@ -133,8 +126,10 @@ describe('analytics-service main', () => {
 
     // Assert
     expect(fake.useGlobalPipes.mock.calls[0]?.[0]?.constructor.name).toBe('ValidationPipe');
-    expect(mockRedis).toHaveBeenCalledWith(ENV['REDIS_URL'], { maxRetriesPerRequest: 1 });
-    expect(mockSetRateLimitStore).toHaveBeenCalledTimes(1);
+    expect(mockRedis).toHaveBeenCalledWith(
+      ENV['REDIS_URL'],
+      expect.objectContaining({ maxRetriesPerRequest: 1, commandTimeout: expect.any(Number) }),
+    );
   });
 
   it('should listen on the route-map port 3008 when PORT is not set', async () => {

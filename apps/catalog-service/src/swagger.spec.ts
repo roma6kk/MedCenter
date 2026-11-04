@@ -57,9 +57,10 @@ describe('catalog-service OpenAPI document (API §10)', () => {
       '/api/v1/admin/schedules/{id}/slots',
       '/api/v1/doctor/schedule',
       '/api/v1/doctors/{id}/slots',
+      '/health',
     ];
     expect(Object.keys(document.paths).sort()).toEqual([...expected].sort());
-    expect(operationsOf(document)).toHaveLength(14);
+    expect(operationsOf(document)).toHaveLength(15);
   });
 
   it('should tag every operation with the service name', () => {
@@ -73,6 +74,7 @@ describe('catalog-service OpenAPI document (API §10)', () => {
       'GET /api/v1/services',
       'GET /api/v1/services/{id}',
       'GET /api/v1/doctors/{id}/slots',
+      'GET /health',
     ];
     for (const { label, operation } of operationsOf(document)) {
       if (publicLabels.includes(label)) {

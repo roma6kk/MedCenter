@@ -107,3 +107,33 @@ describe('loadEnv', () => {
     clearEnvCache();
   });
 });
+
+describe('blank optional variables', () => {
+  it('should treat an empty optional variable as unset and apply its default', () => {
+    const env = parseEnv({
+      ...validSource,
+      SWAGGER_ENABLED: '',
+      RATE_LIMIT_PER_MINUTE: '',
+      PORT: '',
+      CONSENT_ENFORCEMENT: '',
+      TERMINOLOGY_UPSTREAM_URL: '',
+      JWT_PRIVATE_KEY: '',
+    });
+
+    expect(env.SWAGGER_ENABLED).toBe(false);
+    expect(env.RATE_LIMIT_PER_MINUTE).toBe(120);
+    expect(env.PORT).toBe(3000);
+    expect(env.CONSENT_ENFORCEMENT).toBe('block');
+    expect(env.TERMINOLOGY_UPSTREAM_URL).toBeUndefined();
+    expect(env.JWT_PRIVATE_KEY).toBeUndefined();
+  });
+
+  it('should still refuse an empty required variable', () => {
+    expect(() => parseEnv({ ...validSource, REDIS_URL: '' })).toThrow();
+    expect(() => parseEnv({ ...validSource, FHIR_BASE_URL: '' })).toThrow();
+  });
+
+  it('should keep an empty signing key an error for the service that signs tokens', () => {
+    expect(() => parseJwtSigningEnv({ ...signingSource, JWT_PRIVATE_KEY: '' })).toThrow();
+  });
+});

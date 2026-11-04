@@ -56,7 +56,13 @@ export function createRedisIdempotencyStore(env: NodeJS.ProcessEnv = process.env
     throw new Error('REDIS_URL is not configured — Idempotency-Key replay protection needs it');
   }
   const logger = new Logger(RedisIdempotencyStore.name);
-  const client = new Redis(url, { maxRetriesPerRequest: 1, lazyConnect: true });
+  const client = new Redis(url, {
+    maxRetriesPerRequest: 1,
+    lazyConnect: true,
+    // A Redis that stops answering (rather than refusing) must fail the request, not hang it.
+    connectTimeout: 2_000,
+    commandTimeout: 2_000,
+  });
   client.on('error', (error: Error) => {
     logger.warn(`Idempotency Redis connection error: ${error.message}`);
   });

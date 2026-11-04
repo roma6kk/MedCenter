@@ -66,6 +66,7 @@ describe('practitioner-service OpenAPI document', () => {
     const publicLabels: readonly string[] = [
       'GET /api/v1/doctors',
       'GET /api/v1/doctors/{id}',
+      'GET /health',
     ];
     for (const { label, operation } of all) {
       if (publicLabels.includes(label)) {

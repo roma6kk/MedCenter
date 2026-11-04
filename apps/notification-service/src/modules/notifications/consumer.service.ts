@@ -54,6 +54,7 @@ export class ConsumerService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(ConsumerService.name);
   private connection?: ChannelModel;
   private stopped = false;
+  private listening = false;
 
   constructor(
     @Inject(FHIR_CLIENT) private readonly fhir: FhirClient,
@@ -67,6 +68,11 @@ export class ConsumerService implements OnModuleInit, OnModuleDestroy {
     void this.consumeForever().catch((error: unknown) => {
       this.logger.error({ err: error }, 'notification consumer stopped unexpectedly');
     });
+  }
+
+  /** True while a connection is open and every queue is bound; the health probe reads it. */
+  isListening(): boolean {
+    return this.listening;
   }
 
   async onModuleDestroy(): Promise<void> {
@@ -193,12 +199,17 @@ export class ConsumerService implements OnModuleInit, OnModuleDestroy {
           });
         });
       }
+      this.listening = true;
       this.logger.log('notification consumer is listening');
     } catch (error) {
       connection.close().catch(() => undefined);
       throw error;
     }
-    await ended;
+    try {
+      await ended;
+    } finally {
+      this.listening = false;
+    }
   }
 
   private async onMessage(channel: Channel, queue: string, message: ConsumeMessage): Promise<void> {

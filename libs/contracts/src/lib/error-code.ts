@@ -49,3 +49,28 @@ export const ERROR_CODE_HTTP_STATUS: Readonly<Record<ErrorCode, number>> = {
   RATE_LIMITED: 429,
   INTERNAL: 500,
 };
+/** Short human title of each code (RFC 9457 `title`); stable per code, unlike the exception class name. */
+export const ERROR_CODE_TITLES: Readonly<Record<ErrorCode, string>> = {
+  VALIDATION_ERROR: 'Validation failed',
+  UNAUTHENTICATED: 'Unauthenticated',
+  TOKEN_REVOKED: 'Token revoked',
+  FORBIDDEN_SCOPE: 'Insufficient scope',
+  FORBIDDEN_ROLE: 'Insufficient role',
+  COMPARTMENT_VIOLATION: 'Compartment violation',
+  NOT_FOUND: 'Not found',
+  METHOD_NOT_ALLOWED: 'Method not allowed',
+  CONFLICT: 'Conflict',
+  SLOT_CONFLICT: 'Slot conflict',
+  APPOINTMENT_NOT_CANCELLABLE: 'Appointment not cancellable',
+  CONSENT_REQUIRED: 'Consent required',
+  CONSENT_ALREADY_ACTIVE: 'Consent already active',
+  ENCOUNTER_STATE_INVALID: 'Encounter state invalid',
+  SCHEDULE_OVERLAP: 'Schedule overlap',
+  SCHEDULE_IN_USE: 'Schedule in use',
+  ROOM_IN_USE: 'Room in use',
+  SERVICE_IN_USE: 'Service in use',
+  INVALID_ICD10_CODE: 'Invalid ICD-10 code',
+  TERMINOLOGY_NOT_FOUND: 'Terminology code not found',
+  RATE_LIMITED: 'Too many requests',
+  INTERNAL: 'Internal Server Error',
+};

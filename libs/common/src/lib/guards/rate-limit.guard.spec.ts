@@ -2,7 +2,12 @@ import { Reflector } from '@nestjs/core';
 import { clearEnvCache } from '@medcenter/config';
 import { captureAsyncHttpException, createMockHttpContext } from '../../__tests__/mock-context';
 import { RateLimit } from '../decorators/rate-limit.decorator';
-import { RateLimitGuard, type RateLimitStore, setRateLimitStore } from './rate-limit.guard';
+import {
+  RATE_LIMIT_STORE_TIMEOUT_MS,
+  RateLimitGuard,
+  type RateLimitStore,
+  setRateLimitStore,
+} from './rate-limit.guard';
 
 class OauthController {
   @RateLimit(20)
@@ -27,7 +32,7 @@ function createOauthContext(
     request: {
       headers: {},
       method: 'POST',
-      originalUrl: '/oauth/token',
+      route: { path: '/oauth/token' },
       ip: '127.0.0.1',
       user: { sub: 'client-1', scope: 'launch', role: 'PATIENT', jti: 'j5' },
       ...overrides,
@@ -153,5 +158,35 @@ describe('RateLimitGuard', () => {
     const firstKey = String(increment.mock.calls[0]?.[0] ?? '');
     const secondKey = String(increment.mock.calls[1]?.[0] ?? '');
     expect(firstKey).not.toBe(secondKey);
+  });
+
+  it('should share one bucket across values of a path parameter on the same route', async () => {
+    // Express reports the template, so `/doctors/a` and `/doctors/b` are one route.
+    const first = await keyFor({ route: { path: '/doctors/:id' }, originalUrl: '/doctors/a' });
+    const second = await keyFor({ route: { path: '/doctors/:id' }, originalUrl: '/doctors/b' });
+
+    expect(first).toBe(second);
+    expect(first).toContain(':POST:/doctors/:id:');
+  });
+
+  it('should fall back to the handler name when the adapter exposes no route template', async () => {
+    const key = await keyFor({ route: undefined });
+
+    expect(key).toContain(':POST:OauthController.token:');
+  });
+
+  it('should fail open when the store never answers', async () => {
+    jest.useFakeTimers();
+    try {
+      setRateLimitStore({ increment: jest.fn().mockReturnValue(new Promise<number>(() => undefined)) });
+      const { context } = createOauthContext();
+
+      const result = guard.canActivate(context);
+      await jest.advanceTimersByTimeAsync(RATE_LIMIT_STORE_TIMEOUT_MS + 1);
+
+      await expect(result).resolves.toBe(true);
+    } finally {
+      jest.useRealTimers();
+    }
   });
 });

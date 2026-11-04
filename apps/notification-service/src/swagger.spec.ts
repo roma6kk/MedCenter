@@ -64,7 +64,7 @@ describe('notification-service OpenAPI document (API §10)', () => {
 
   it('marks every operation with the bearer scheme', () => {
     const bearer = [{ bearer: [] }];
-    const guarded = operations; // the service has no @Public() route
+    const guarded = operations.filter(({ key }) => key !== 'GET /health'); // the liveness probe is the only @Public() route
     expect(guarded.length).toBeGreaterThan(0);
     expect(guarded.filter(({ operation }) => JSON.stringify(operation.security) !== JSON.stringify(bearer)).map(({ key }) => key)).toEqual([]);
   });

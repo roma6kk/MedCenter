@@ -1,6 +1,16 @@
 import { z } from 'zod';
 
 /**
+ * An empty variable (`FOO=` in a compose file or `.env`) means "unset", never an
+ * empty secret, port or flag. Wrap the *optional* keys only: a required key
+ * (`FHIR_BASE_URL`, `JWT_*`, `REDIS_URL`) stays strict so an empty value still
+ * fails the boot.
+ */
+export function blankAsUnset<T extends z.ZodType>(schema: T): z.ZodType<z.output<T>, unknown> {
+  return z.preprocess((value: unknown) => (value === '' ? undefined : value), schema);
+}
+
+/**
  * Full environment schema for a BFF service. Secrets (`FHIR_CLIENT_SECRET`,
  * `JWT_PRIVATE_KEY`) have no defaults on purpose — a production deployment
  * must provide them. The signing keys are optional here because only the
@@ -8,28 +18,28 @@ import { z } from 'zod';
  */
 export const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
-  PORT: z.coerce.number().int().positive().default(3000),
+  PORT: blankAsUnset(z.coerce.number().int().positive().default(3000)),
   FHIR_BASE_URL: z.url(),
   FHIR_CLIENT_ID: z.string().min(1),
   FHIR_CLIENT_SECRET: z.string().min(1),
   JWT_JWKS_URI: z.url(),
   JWT_ISSUER: z.string().min(1),
-  JWT_PRIVATE_KEY: z.string().min(1).optional(),
-  JWT_PUBLIC_KEY: z.string().min(1).optional(),
+  JWT_PRIVATE_KEY: blankAsUnset(z.string().min(1).optional()),
+  JWT_PUBLIC_KEY: blankAsUnset(z.string().min(1).optional()),
   REDIS_URL: z.url(),
   RABBITMQ_URL: z.url(),
-  RATE_LIMIT_PER_MINUTE: z.coerce.number().int().positive().default(120),
-  TERMINOLOGY_UPSTREAM_URL: z.url().optional(),
+  RATE_LIMIT_PER_MINUTE: blankAsUnset(z.coerce.number().int().positive().default(120)),
+  TERMINOLOGY_UPSTREAM_URL: blankAsUnset(z.url().optional()),
   /**
    * What a missing patient consent does to 7.1/7.3 (ADR-019): `warn` lets the request through,
    * `block` answers 409 `CONSENT_REQUIRED`. Services that enforce it pick this key.
    */
-  CONSENT_ENFORCEMENT: z.enum(['warn', 'block']).default('block'),
+  CONSENT_ENFORCEMENT: blankAsUnset(z.enum(['warn', 'block']).default('block')),
   /**
    * API §10: serve the Swagger UI (`/api/docs/<service>`) and its OpenAPI JSON. Off by default,
    * so production exposes no API documentation unless it is switched on explicitly.
    */
-  SWAGGER_ENABLED: z.stringbool().default(false),
+  SWAGGER_ENABLED: blankAsUnset(z.stringbool().default(false)),
 });
 
 /** Only the keys the shared guard stack (`libs/common`) depends on. */

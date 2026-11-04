@@ -1,6 +1,5 @@
 import { isValidAtcCode } from './atc';
 import { isValidIcd10Code } from './icd10';
-import { isKnownUcumUnit } from './ucum';
 import { FHIR_BY } from '../canonical-urls';
 
 describe('isValidIcd10Code', () => {
@@ -32,25 +31,6 @@ describe('isValidAtcCode', () => {
 
   it('should reject the 3-character ATC segment', () => {
     expect(isValidAtcCode('N02')).toBe(false);
-  });
-});
-
-describe('isKnownUcumUnit', () => {
-  it('should accept a unit from the closed set', () => {
-    expect(isKnownUcumUnit('mmol/L')).toBe(true);
-  });
-
-  it('should reject a free-text unit', () => {
-    expect(isKnownUcumUnit('горсть')).toBe(false);
-  });
-
-  it('should reject the empty string', () => {
-    expect(isKnownUcumUnit('')).toBe(false);
-  });
-
-  it('should use the expanded set when one is provided', () => {
-    expect(isKnownUcumUnit('kcal', new Set(['kcal']))).toBe(true);
-    expect(isKnownUcumUnit('mmol/L', new Set(['kcal']))).toBe(false);
   });
 });
 

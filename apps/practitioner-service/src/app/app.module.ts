@@ -9,6 +9,7 @@ import {
   ScopeGuard,
 } from '@medcenter/common';
 
+import { HealthModule } from '../modules/health/health.module';
 import { DoctorsModule } from '../modules/doctors/doctors.module';
 import { RoomsModule } from '../modules/rooms/rooms.module';
 
@@ -17,7 +18,7 @@ import { RoomsModule } from '../modules/rooms/rooms.module';
  * RBAC → rate-limit is the global default, so no route ships unprotected.
  */
 @Module({
-  imports: [DoctorsModule, RoomsModule],
+  imports: [HealthModule, DoctorsModule, RoomsModule],
   providers: [
     { provide: APP_GUARD, useClass: JwtAuthGuard },
     { provide: APP_GUARD, useClass: ScopeGuard },

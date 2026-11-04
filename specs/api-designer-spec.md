@@ -114,6 +114,12 @@ export class PaginatedResponseDto<TItem> {
 }
 ```
 
+`title` задаётся кодом ошибки (не именем исключения). Ответ `401` несёт `WWW-Authenticate: Bearer`
+(`Bearer error="invalid_token"`, если токен был предъявлен и отвергнут или отозван). Тело запроса больше 100 КБ или нечитаемое
+(битый gzip, JSON) → **400** `VALIDATION_ERROR`. Каждый ответ BFF по умолчанию идёт с `Cache-Control: no-store` (данные пациентов
+не оседают в кэше общего браузера); маршрут, безопасный для кэша, задаёт свой заголовок. Счётчик лимита запросов (`RATE_LIMIT_PER_MINUTE`)
+ведётся на маршрут по шаблону пути (`/doctors/:id`), а не по значению параметра.
+
 **FHIR-эндпоинты (HAPI) → `OperationOutcome`** — см. `architect-architecture.md` §4.5.
 
 Каталог кодов ошибок (`errorCode` / HTTP / условие):

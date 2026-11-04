@@ -363,12 +363,17 @@ export function createFhirClientProvider(env: NodeJS.ProcessEnv = process.env): 
       }
       return new HttpClient({
         baseUrl,
-        clientId: env['FHIR_CLIENT_ID'],
-        clientSecret: env['FHIR_CLIENT_SECRET'],
+        clientId: nonBlank(env['FHIR_CLIENT_ID']),
+        clientSecret: nonBlank(env['FHIR_CLIENT_SECRET']),
         timeoutMs: parseTimeout(env['FHIR_TIMEOUT_MS']),
       });
     },
   };
+}
+
+/** An empty variable (`FHIR_CLIENT_ID=`) is "unset": it must not become a `Basic Og==` header. */
+function nonBlank(value: string | undefined): string | undefined {
+  return value === undefined || value === '' ? undefined : value;
 }
 
 /** `FHIR_TIMEOUT_MS` must be a positive integer: `Number('abc')` is NaN and

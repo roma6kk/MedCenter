@@ -3,13 +3,11 @@ import { NestFactory } from '@nestjs/core';
 import {
   applyHttpEdge,
   createValidationPipe,
+  enableRateLimit,
   parseTrustProxy,
-  RedisRateLimitStore,
-  setRateLimitStore,
   setupSwagger,
 } from '@medcenter/common';
-import { parseGuardEnv, parseSwaggerEnv } from '@medcenter/config';
-import Redis from 'ioredis';
+import { parseSwaggerEnv } from '@medcenter/config';
 
 import { AppModule } from './app/app.module';
 
@@ -17,17 +15,11 @@ async function bootstrap(): Promise<void> {
   const logger = new Logger('Bootstrap');
   // Parsed before the app is created so a bad TRUST_PROXY fails the boot immediately.
   const trustProxy = parseTrustProxy(process.env['TRUST_PROXY']);
-  const { REDIS_URL } = parseGuardEnv(process.env);
   const app = await NestFactory.create(AppModule);
   // Trust proxy (every client would otherwise share the proxy's rate-limit bucket) and no X-Powered-By.
   applyHttpEdge(app, trustProxy);
-  // Shared across replicas so the per-minute budget holds cluster-wide. Redis
-  // errors fail open in `RateLimitGuard`, so the connection's error listener only logs.
-  const redis = new Redis(REDIS_URL, { maxRetriesPerRequest: 1 });
-  redis.on('error', (error: Error) => {
-    logger.warn(`Redis connection error: ${error.message}`);
-  });
-  setRateLimitStore(new RedisRateLimitStore(redis));
+  // Shared across replicas so the per-minute budget holds cluster-wide; Redis errors fail open in `RateLimitGuard`.
+  enableRateLimit(process.env, logger);
   // Global on purpose: without it every class-validator decorator in the service
   // is inert (the OAuth DTOs and everything Task 7 adds). See
   // `libs/common/src/lib/pipes/validation.pipe.ts` for the option choices.

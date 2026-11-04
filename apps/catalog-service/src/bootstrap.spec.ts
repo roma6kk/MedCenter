@@ -35,7 +35,7 @@ function createFakeApp(): FakeApp {
   const set = jest.fn();
   const disable = jest.fn();
   const useGlobalPipes = jest.fn();
-  const app = { getHttpAdapter: () => ({ getInstance: () => ({ set, disable }) }), useGlobalPipes } as unknown as INestApplication;
+  const app = { getHttpAdapter: () => ({ getInstance: () => ({ set, disable, use: jest.fn() }) }), useGlobalPipes } as unknown as INestApplication;
   return { app, set, disable, useGlobalPipes };
 }
 
