@@ -48,7 +48,7 @@ describe('DoctorCatalog', () => {
 
     expect(screen.getByRole('heading', { level: 1, name: 'Врачи' })).toBeInTheDocument();
     expect(screen.getAllByTestId('doctor-card')).toHaveLength(2);
-    expect(screen.getByRole('link', { name: 'Профиль: Имя a' })).toHaveAttribute('href', '/doctors/a');
+    expect(screen.getByRole('link', { name: 'Профиль: a Имя' })).toHaveAttribute('href', '/doctors/a');
     expect(screen.getByText('Найдено врачей: 2')).toBeInTheDocument();
   });
 
@@ -169,8 +169,8 @@ describe('DoctorCatalog', () => {
     renderWithCatalog(<DoctorCatalog params={{ page: 1 }} services={SERVICES} directory={directoryOf([doctor('a', 'Терапевт')])} />);
 
     expect(await screen.findByText(/Ближайшее: завтра, 11:00/)).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Записаться: Имя a' })).toHaveAttribute('href', '/booking?doctorId=a');
-    expect(screen.getByRole('link', { name: 'Профиль: Имя a' })).toHaveAttribute('href', '/doctors/a');
+    expect(screen.getByRole('link', { name: 'Записаться: a Имя' })).toHaveAttribute('href', '/booking?doctorId=a');
+    expect(screen.getByRole('link', { name: 'Профиль: a Имя' })).toHaveAttribute('href', '/doctors/a');
   });
 
   it('should say there is no free time when the doctor has none in the next two weeks', async () => {
@@ -185,7 +185,7 @@ describe('DoctorCatalog', () => {
 
     await screen.findByText('В ближайшие две недели свободного времени нет');
     expect(screen.queryByRole('link', { name: /^Записаться/ })).not.toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Профиль: Имя a' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Профиль: a Имя' })).toBeInTheDocument();
   });
 
   it('should say no doctor was found and offer to reset when the filters match nobody', () => {

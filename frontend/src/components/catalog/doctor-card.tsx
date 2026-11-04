@@ -10,6 +10,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useT } from '@/lib/i18n/use-t';
 import { useUiStore } from '@/store/use-ui-store';
 import type { Doctor } from './catalog-types';
+import { doctorLabel } from '@/lib/doctor-name';
 import { doctorInitials } from './doctor-initials';
 
 interface DoctorCardProps {
@@ -47,7 +48,7 @@ export function DoctorCard({ doctor, headingLevel = 2, tone, showNearest = false
     <Card as="article" tone={tone} padding="none" data-testid="doctor-card" className="flex h-full gap-5 p-5">
       <Avatar src={doctor.photoUrl} initials={doctorInitials(doctor)} className="h-24 w-24 text-3xl" />
       <div className="flex min-w-0 flex-1 flex-col">
-        <Heading className="text-lg font-bold">{doctor.name}</Heading>
+        <Heading className="text-lg font-bold">{doctorLabel(doctor)}</Heading>
         <p className="text-base font-medium text-primary-soft-foreground">{doctor.specialty ?? t('noSpecialty')}</p>
         {showNearest ? <NearestLine doctorId={doctor.id} /> : null}
         {children === undefined ? null : <div className="mt-auto flex flex-wrap gap-2 pt-4">{children}</div>}

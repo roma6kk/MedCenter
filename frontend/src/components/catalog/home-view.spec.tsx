@@ -253,7 +253,7 @@ describe('HomeView', () => {
 
     const teaser = screen.getByRole('region', { name: 'Наши врачи' });
     expect((await within(teaser).findAllByText(/Ближайшее: завтра, 11:00/))).toHaveLength(1);
-    expect(within(teaser).getByRole('link', { name: 'Записаться: Имя a' })).toHaveAttribute('href', '/booking?doctorId=a');
+    expect(within(teaser).getByRole('link', { name: 'Записаться: a Имя' })).toHaveAttribute('href', '/booking?doctorId=a');
   });
 
   it('should keep the static sections and show a banner with a retry link instead of the live catalog when it could not be loaded', () => {

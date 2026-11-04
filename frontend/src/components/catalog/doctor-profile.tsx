@@ -6,6 +6,7 @@ import { ArrowLeft } from 'lucide-react';
 import { Avatar } from '@/components/ui/avatar';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useDocumentTitle } from '@/hooks/use-document-title';
+import { doctorLabel } from '@/lib/doctor-name';
 import { useT } from '@/lib/i18n/use-t';
 import type { CatalogService, Doctor } from './catalog-types';
 import { doctorInitials } from './doctor-initials';
@@ -53,7 +54,7 @@ function DoctorAbout({ doctor, services, isPending }: { readonly doctor: Doctor;
 /** `/doctors/[doctorId]`: the doctor, what is known about him, his services and the free time to book (frontend-design-spec §3, C6). */
 export function DoctorProfile({ doctor }: { readonly doctor: Doctor }): ReactNode {
   const t = useT('catalog');
-  useDocumentTitle(doctor.name);
+  useDocumentTitle(doctorLabel(doctor));
   const { services, isPending } = useDoctorServices(doctor.id);
   return (
     <div>
@@ -64,7 +65,7 @@ export function DoctorProfile({ doctor }: { readonly doctor: Doctor }): ReactNod
       <header data-testid="doctor-card" className="mt-2 flex flex-col items-start gap-5 rounded-panel bg-primary-soft p-6 sm:flex-row sm:items-center">
         <Avatar src={doctor.photoUrl} initials={doctorInitials(doctor)} className="h-28 w-28 text-4xl ring-4 ring-card" />
         <div>
-          <h1 className="text-3xl font-bold">{doctor.name}</h1>
+          <h1 className="text-3xl font-bold">{doctorLabel(doctor)}</h1>
           <p className="mt-1 text-lg font-medium text-primary-soft-foreground">{doctor.specialty ?? t('noSpecialty')}</p>
         </div>
       </header>

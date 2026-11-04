@@ -8,7 +8,9 @@ export interface Doctor {
   readonly id: string;
   readonly firstName: string;
   readonly lastName: string;
-  /** "Имя Фамилия", ready to display. */
+  /** Patronymic (the second given name); the catalogue omits it when unknown. */
+  readonly middleName?: string;
+  /** "Имя Фамилия", the fallback when the parts are missing; the label is `doctorLabel()`. */
   readonly name: string;
   /** Display text of the specialty; absent when the practitioner has no qualification. */
   readonly specialty?: string;

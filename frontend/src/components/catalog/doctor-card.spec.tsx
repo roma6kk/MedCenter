@@ -17,10 +17,16 @@ describe('doctorInitials', () => {
 });
 
 describe('DoctorCard', () => {
+  it('should write the name as family, given, patronymic when the catalogue knows the patronymic', () => {
+    render(<DoctorCard doctor={{ ...DOCTOR, middleName: 'Сергеевна' }} />);
+
+    expect(screen.getByRole('heading', { level: 2, name: 'Иванова Мария Сергеевна' })).toBeInTheDocument();
+  });
+
   it('should show name and specialty under a heading when the doctor has a specialty', () => {
     render(<DoctorCard doctor={DOCTOR} />);
 
-    expect(screen.getByRole('heading', { level: 2, name: 'Мария Иванова' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 2, name: 'Иванова Мария' })).toBeInTheDocument();
     expect(screen.getByText('Терапевт')).toBeInTheDocument();
   });
 

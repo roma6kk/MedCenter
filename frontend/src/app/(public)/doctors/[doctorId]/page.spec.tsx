@@ -34,7 +34,7 @@ describe('DoctorProfilePage', () => {
 
     await renderPage('a');
 
-    expect(screen.getByRole('heading', { level: 1, name: 'Мария Иванова' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 1, name: 'Иванова Мария' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { level: 2, name: 'Свободное время' })).toBeInTheDocument();
   });
 

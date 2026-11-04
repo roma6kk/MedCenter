@@ -8,6 +8,7 @@ import { useCanBook } from '@/hooks/use-can-book';
 import { cn } from '@/lib/ui/cn';
 import { useT } from '@/lib/i18n/use-t';
 import type { Doctor } from './catalog-types';
+import { doctorLabel } from '@/lib/doctor-name';
 
 /** Link to the doctor's page; it stretches over the whole card (`interactive` tone), so the card is one click target; the accessible name starts with the visible word and adds whose profile it is. */
 export function DoctorProfileLink({ doctor }: { readonly doctor: Doctor }): ReactNode {
@@ -15,7 +16,7 @@ export function DoctorProfileLink({ doctor }: { readonly doctor: Doctor }): Reac
   return (
     <Link
       href={`/doctors/${encodeURIComponent(doctor.id)}`}
-      aria-label={`${t('profile')}: ${doctor.name}`}
+      aria-label={`${t('profile')}: ${doctorLabel(doctor)}`}
       className={cn(buttonVariants({ variant: 'secondary' }), STRETCHED_LINK_CLASS)}
     >
       {t('profile')}
@@ -36,7 +37,7 @@ export function DoctorCardActions({ doctor }: { readonly doctor: Doctor }): Reac
       {canBook ? (
         <Link
           href={`/booking?doctorId=${encodeURIComponent(doctor.id)}`}
-          aria-label={t('bookWith', { name: doctor.name })}
+          aria-label={t('bookWith', { name: doctorLabel(doctor) })}
           className={cn(buttonVariants({ variant: 'primary' }), 'relative z-10')}
         >
           {t('book')}
