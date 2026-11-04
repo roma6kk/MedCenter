@@ -168,6 +168,16 @@ describePostgres('TypeOrmUserStore', () => {
     expect(page.items.map((user) => user.lastName)).toEqual(['Васильев']);
   });
 
+  it('should find a user by the first and the last name typed together in either order', async () => {
+    await store.create(newUser({ email: 'ivanova@example.by', firstName: 'Мария', lastName: 'Иванова' }));
+    await store.create(newUser({ email: 'petrova@example.by', firstName: 'Мария', lastName: 'Петрова' }));
+
+    for (const search of ['Иванова Мария', 'мария ива']) {
+      const page = await store.list({ search, page: 1, pageSize: 20 });
+      expect(page.items.map((user) => user.lastName)).toEqual(['Иванова']);
+    }
+  });
+
   it('should treat LIKE wildcards in the search term literally', async () => {
     await store.create(newUser({ email: 'plain@example.by' }));
 

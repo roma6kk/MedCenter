@@ -100,3 +100,11 @@ export class ResourceAlreadyLinkedError extends Error {
     this.name = 'ResourceAlreadyLinkedError';
   }
 }
+
+/** At most this many words of a search take part: a longer phrase is not a name. */
+const MAX_SEARCH_TOKENS = 5;
+
+/** The words of a user search; a user matches when each word is part of the e-mail, the first or the last name. */
+export function searchTokens(search: string | undefined): string[] {
+  return (search ?? '').split(/\s+/).filter((token) => token.length > 0).slice(0, MAX_SEARCH_TOKENS);
+}

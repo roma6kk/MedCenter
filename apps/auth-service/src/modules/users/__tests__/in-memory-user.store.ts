@@ -4,6 +4,7 @@ import type { ExternalResourceType } from '../entities/external-link.entity';
 import {
   DuplicateEmailError,
   ResourceAlreadyLinkedError,
+  searchTokens,
   type NewUser,
   type UserChanges,
   type UserLinks,
@@ -29,11 +30,8 @@ function matches(user: UserRecord, query: UserListQuery): boolean {
   if (query.role !== undefined && !user.roles.includes(query.role)) {
     return false;
   }
-  const term = query.search?.toLowerCase();
-  if (term === undefined || term.length === 0) {
-    return true;
-  }
-  return [user.email, user.firstName, user.lastName].some((value) => value.toLowerCase().includes(term));
+  const fields = [user.email, user.firstName, user.lastName].map((value) => value.toLowerCase());
+  return searchTokens(query.search).every((token) => fields.some((value) => value.includes(token.toLowerCase())));
 }
 
 /**

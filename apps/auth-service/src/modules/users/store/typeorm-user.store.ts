@@ -8,6 +8,7 @@ import { User } from '../entities/user.entity';
 import {
   DuplicateEmailError,
   ResourceAlreadyLinkedError,
+  searchTokens,
   type NewUser,
   type UserChanges,
   type UserLinks,
@@ -143,12 +144,12 @@ export class TypeOrmUserStore implements UserStore {
         { role: query.role },
       );
     }
-    const term = query.search?.trim() ?? '';
-    if (term.length > 0) {
-      builder.andWhere('(u.email ILIKE :term OR u.firstName ILIKE :term OR u.lastName ILIKE :term)', {
-        term: `%${escapeLike(term)}%`,
+    // Every word of the search must match the e-mail or a name part, so «Иванова Мария» finds Мария Иванова too.
+    searchTokens(query.search).forEach((token, index) => {
+      builder.andWhere(`(u.email ILIKE :t${index} OR u.firstName ILIKE :t${index} OR u.lastName ILIKE :t${index})`, {
+        [`t${index}`]: `%${escapeLike(token)}%`,
       });
-    }
+    });
     const [rows, total] = await builder
       .orderBy('u.lastName', 'ASC')
       .addOrderBy('u.firstName', 'ASC')

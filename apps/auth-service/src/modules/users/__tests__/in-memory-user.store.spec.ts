@@ -15,6 +15,25 @@ function newUser(overrides: Partial<NewUser> = {}): NewUser {
 }
 
 /** The double must honour the `UserStore` contract the TypeORM adapter is held to (see `typeorm-user.store.spec.ts`). */
+describe('InMemoryUserStore.list search', () => {
+  it.each(['Иванова Мария', 'Мария Иванова', 'ива мар', 'мария example'])('should find a user by the words %j of its name', async (search) => {
+    const store = new InMemoryUserStore();
+    await store.create(newUser({ email: 'ivanova@example.by', firstName: 'Мария', lastName: 'Иванова' }));
+    await store.create(newUser({ email: 'petrov@example.by' }));
+
+    const page = await store.list({ search, page: 1, pageSize: 20 });
+
+    expect(page.items.map((user) => user.lastName)).toEqual(['Иванова']);
+  });
+
+  it('should find nobody when one of the words matches no part of the user', async () => {
+    const store = new InMemoryUserStore();
+    await store.create(newUser({ firstName: 'Мария', lastName: 'Иванова' }));
+
+    await expect(store.list({ search: 'Иванова Пётр', page: 1, pageSize: 20 })).resolves.toMatchObject({ total: 0 });
+  });
+});
+
 describe('InMemoryUserStore.update', () => {
   it('should link the PractitionerRole together with the other changes', async () => {
     const store = new InMemoryUserStore();
