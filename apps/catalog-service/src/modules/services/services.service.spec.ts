@@ -100,7 +100,7 @@ describe('ServicesService', () => {
       // Mixing the new code with the old system would be incoherent: the
       // whole coding is rebuilt with the default НСИ system.
       expect(merged['type']).toEqual([
-        { coding: [{ system: FHIR_BY.SERVICE_CODE_SYSTEM, code: '02' }] },
+        { coding: [{ system: FHIR_BY.SERVICE_CODE_SYSTEM, code: '02', display: 'Консультация терапевта' }] },
       ]);
       // ...while unrelated fields survive the partial merge.
       expect(merged['comment']).toBe('Existing description');
@@ -122,6 +122,7 @@ describe('ServicesService', () => {
             {
               system: 'https://fhir.by/CodeSystem/nsi-services',
               code: '03',
+              display: 'Консультация терапевта',
             },
           ],
         },

@@ -109,8 +109,12 @@ export class ServicesService {
   }
 
   async create(dto: CreateServiceDto, actor: WriteActor): Promise<ServiceResponseDto> {
-    await this.assertTerminology(dto.typeSystem, dto.typeCode);
-    const created = await createAudited(this.fhirClient, this.toHealthcareService({ ...dto, isActive: dto.isActive ?? true }), this.auditOf(actor));
+    const typeDisplay = await this.assertTerminology(dto.typeSystem, dto.typeCode);
+    const created = await createAudited(
+      this.fhirClient,
+      this.toHealthcareService({ ...dto, isActive: dto.isActive ?? true }, typeDisplay),
+      this.auditOf(actor),
+    );
     await this.invalidate();
     return this.toResponseDto(created);
   }
@@ -124,8 +128,9 @@ export class ServicesService {
         message: 'typeSystem: must be supplied together with typeCode',
       });
     }
+    let typeDisplay: string | undefined;
     if (dto.typeCode !== undefined) {
-      await this.assertTerminology(dto.typeSystem ?? FHIR_BY.SERVICE_CODE_SYSTEM, dto.typeCode);
+      typeDisplay = await this.assertTerminology(dto.typeSystem ?? FHIR_BY.SERVICE_CODE_SYSTEM, dto.typeCode);
     }
     const existing = await this.fhirClient.read('HealthcareService', id);
     const merged = this.mergeDefined(existing, this.toHealthcareService(dto));
@@ -133,10 +138,13 @@ export class ServicesService {
     // A partial type update (e.g. only typeCode) must replace the whole type
     // coding — mixing a new code with the old system would be incoherent.
     if (dto.typeCode !== undefined) {
-      const typeCoding = this.toHealthcareService({
-        typeSystem: dto.typeSystem ?? FHIR_BY.SERVICE_CODE_SYSTEM,
-        typeCode: dto.typeCode,
-      })['type'];
+      const typeCoding = this.toHealthcareService(
+        {
+          typeSystem: dto.typeSystem ?? FHIR_BY.SERVICE_CODE_SYSTEM,
+          typeCode: dto.typeCode,
+        },
+        typeDisplay,
+      )['type'];
       (merged as Record<string, unknown>)['type'] = typeCoding;
     }
     const updated = await updateAudited(this.fhirClient, { ...merged, id }, this.auditOf(actor));
@@ -232,9 +240,10 @@ export class ServicesService {
    * is a `CodeSystem/$lookup` against HAPI (`code` is not a CodeSystem search
    * parameter). HAPI answers a known concept with `200 Parameters` and an
    * unknown one with a 4xx OperationOutcome — that 4xx becomes the 422 here;
-   * any other failure (5xx, timeout) propagates as the client's 502/504.
+   * any other failure (5xx, timeout) propagates as the client's 502/504. Returns the `display` of the concept (what
+   * `typeDisplay` of the response reads back), `undefined` when the answer carries none.
    */
-  private async assertTerminology(typeSystem: string, typeCode: string): Promise<void> {
+  private async assertTerminology(typeSystem: string, typeCode: string): Promise<string | undefined> {
     if (typeSystem !== FHIR_BY.SERVICE_CODE_SYSTEM) {
       throw this.terminologyNotFound(`unsupported type system ${typeSystem}`);
     }
@@ -257,6 +266,9 @@ export class ServicesService {
     if (lookup.resourceType !== 'Parameters') {
       throw this.terminologyNotFound(`unknown НСИ service code ${typeCode}`);
     }
+    const parameters = Array.isArray(lookup['parameter']) ? (lookup['parameter'] as Array<{ name?: unknown; valueString?: unknown }>) : [];
+    const display = parameters.find((parameter) => parameter.name === 'display')?.valueString;
+    return typeof display === 'string' && display.trim() !== '' ? display : undefined;
   }
 
   private terminologyNotFound(reason: string): UnprocessableEntityException {
@@ -266,7 +278,7 @@ export class ServicesService {
     });
   }
 
-  private toHealthcareService(dto: Partial<CreateServiceDto>): FhirResource {
+  private toHealthcareService(dto: Partial<CreateServiceDto>, typeDisplay?: string): FhirResource {
     const resource: Record<string, unknown> = {
       resourceType: 'HealthcareService',
       name: dto.name,
@@ -290,6 +302,7 @@ export class ServicesService {
             {
               system: dto.typeSystem,
               code: dto.typeCode,
+              ...(typeDisplay === undefined ? {} : { display: typeDisplay }),
             },
           ],
         },

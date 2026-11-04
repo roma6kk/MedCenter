@@ -90,4 +90,41 @@ describe('ServicesService description', () => {
       await expect(service.update('svc-1', { name: 'Новое' }, ACTOR)).rejects.toMatchObject({ status: 409, response: { errorCode: 'CONFLICT' } });
     });
   });
+
+  describe('typeDisplay', () => {
+    const body = { name: 'Терапия', typeSystem: FHIR_BY.SERVICE_CODE_SYSTEM, typeCode: '01', defaultDurationMin: 30 };
+
+    it('should store the display of the НСИ concept and answer it as typeDisplay when a service is created', async () => {
+      const created = await service.create(body, ACTOR);
+
+      expect(written()['type']).toEqual([{ coding: [{ system: FHIR_BY.SERVICE_CODE_SYSTEM, code: '01', display: 'Консультация' }] }]);
+      expect(created.typeDisplay).toBe('Консультация');
+    });
+
+    it('should write the coding without a display when the lookup answers none', async () => {
+      fhirClient.operation.mockResolvedValue({ resourceType: 'Parameters', parameter: [{ name: 'name', valueString: 'nsi' }] });
+
+      await service.create(body, ACTOR);
+
+      expect(written()['type']).toEqual([{ coding: [{ system: FHIR_BY.SERVICE_CODE_SYSTEM, code: '01' }] }]);
+    });
+
+    it('should replace the display together with the code on a typeCode PATCH', async () => {
+      fhirClient.operation.mockResolvedValue({ resourceType: 'Parameters', parameter: [{ name: 'display', valueString: 'Осмотр хирурга' }] });
+
+      const updated = await service.update('svc-1', { typeCode: '02' }, ACTOR);
+
+      expect(updated.typeDisplay).toBe('Осмотр хирурга');
+    });
+
+    it('should leave the stored coding, display included, when the PATCH does not touch the type', async () => {
+      const withDisplay = { ...stored, type: [{ coding: [{ system: FHIR_BY.SERVICE_CODE_SYSTEM, code: '01', display: 'Старое' }] }] };
+      fhirClient.read.mockResolvedValue(withDisplay);
+
+      await service.update('svc-1', { name: 'Новое' }, ACTOR);
+
+      expect(written()['type']).toEqual(withDisplay.type);
+      expect(fhirClient.operation).not.toHaveBeenCalled();
+    });
+  });
 });
