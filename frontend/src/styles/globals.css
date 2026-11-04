@@ -58,9 +58,10 @@
   --focus-ring-danger: oklch(50% 0.178 29 / 0.28);
   /* Ground behind a modal dialog. */
   --scrim: oklch(25% 0.026 221 / 0.4);
-  /* Translucent «material» of the control layer (staff sidebar, top bar): the card colour at 72%, so the tinted ground of the
-     page shows through under a backdrop blur. Text on it stays `--foreground` on a near-white result. */
-  --glass: oklch(100% 0 0 / 0.72);
+  /* Translucent «material» of the control layer (staff sidebar, top bar, mobile booking bar): the card colour at 80%, so the
+     tinted ground of the page shows through under a backdrop blur. At 72% a saturated fill scrolling under it (a chart bar, a
+     red button) pulled `--muted-foreground` below 4.5:1 (4.18:1 light, 3.84:1 dark); `globals-contrast.spec.ts` holds 80%. */
+  --glass: oklch(100% 0 0 / 0.8);
   /* A dark band on a light page (audiences block): its own ground, text, hairline and link colour. */
   --inverse: oklch(25% 0.026 221);
   --inverse-foreground: oklch(100% 0 0);
@@ -142,7 +143,7 @@
   --focus-ring: oklch(69.6% 0.11 184 / 0.4);
   --focus-ring-danger: oklch(74.5% 0.127 26 / 0.4);
   --scrim: oklch(10% 0.02 221 / 0.65);
-  --glass: oklch(24.5% 0.022 221 / 0.72);
+  --glass: oklch(24.5% 0.022 221 / 0.8);
   --inverse: oklch(28.7% 0.026 216);
   --inverse-foreground: oklch(93.7% 0.009 206);
   --inverse-muted: oklch(74.4% 0.022 212);
