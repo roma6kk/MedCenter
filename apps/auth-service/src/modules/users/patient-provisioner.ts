@@ -56,15 +56,28 @@ function withHomeEmail(patient: FhirResource, email: string): ReadonlyArray<Cont
   return telecom.map((point) => (isHomeEmail(point) ? { ...point, value: email } : point));
 }
 
+/** The given names after the first one (the patronymic) of a `HumanName`; non-strings are dropped. */
+function furtherGiven(name: Record<string, unknown> | undefined): string[] {
+  const given = name?.['given'];
+  return Array.isArray(given) ? given.slice(1).filter((part): part is string => typeof part === 'string') : [];
+}
+
 /** Applies the change to the official `HumanName`, the email and the scalar fields, keeping everything else. */
 export function applyDemographics(patient: FhirResource, change: PatientDemographicsChange): FhirResource {
   const names = Array.isArray(patient['name']) ? (patient['name'] as ReadonlyArray<Record<string, unknown>>) : [];
   const [official, ...others] = names;
+  const renamed = change.lastName !== undefined || change.firstName !== undefined;
+  // A rewritten name must not keep the old `text` (it would still be shown as the full name), and a new first name
+  // keeps the rest of `given[]` (the patronymic, `given[1]`).
+  const kept: Record<string, unknown> = { ...official };
+  if (renamed) {
+    delete kept['text'];
+  }
   const name = {
     use: 'official',
-    ...official,
+    ...kept,
     ...(change.lastName !== undefined ? { family: change.lastName } : {}),
-    ...(change.firstName !== undefined ? { given: [change.firstName] } : {}),
+    ...(change.firstName !== undefined ? { given: [change.firstName, ...furtherGiven(official)] } : {}),
   };
   return {
     ...patient,
