@@ -16,7 +16,7 @@ import type { ListUsersQueryDto } from './dto/list-users-query.dto';
 import type { MeResponseDto } from './dto/me-response.dto';
 import type { UpdateUserDto } from './dto/update-user.dto';
 import type { UserDetailsResponseDto, UserResponseDto } from './dto/user-response.dto';
-import { PatientProvisioner } from './patient-provisioner';
+import { PatientProvisioner, type PatientDemographicsChange } from './patient-provisioner';
 import {
   DuplicateEmailError,
   ResourceAlreadyLinkedError,
@@ -25,7 +25,7 @@ import {
   type UserRecord,
   type UserStore,
 } from './store/user-store';
-import { changesOf, demographicsOf, inverseOf } from './user-changes';
+import { changesOf, demographicsOf, effectiveChangesOf, effectiveDemographicsOf, inverseOf } from './user-changes';
 import { emailTaken, practitionerRoleTaken, selfLockout, userNotFound } from './user-errors';
 import { linkedRefs } from './user-links';
 import { toUserDetails, toUserResponse } from './user-view.mapper';
@@ -90,7 +90,8 @@ export class UsersService {
    * `PractitionerRole` link — commit in one store transaction, so a `409`
    * leaves the account as it was. The `Patient` of the account is synced
    * after it; when HAPI refuses, the commit is reverted and the request fails
-   * with nothing changed. A change that stays committed always has its `AuditEvent`.
+   * with nothing changed. A change that stays committed always has its `AuditEvent`; a PATCH that changes
+   * nothing (the values are already there) writes and journals nothing and answers the unchanged card.
    */
   async update(id: string, dto: UpdateUserDto, actor: AuditActor): Promise<UserDetailsResponseDto> {
     const current = await this.require(id);
@@ -99,10 +100,15 @@ export class UsersService {
     if (typeof dto.practitionerRoleId === 'string') {
       await this.patients.assertPractitionerRoleExists(dto.practitionerRoleId);
     }
-    const changes = changesOf(dto, current);
+    const changes = effectiveChangesOf(changesOf(dto, current), current);
+    const demographics = effectiveDemographicsOf(demographicsOf(dto), current);
+    if (Object.keys(changes).length === 0 && demographics === null) {
+      // Nothing to write: no account change, no Patient sync and no journal entry for a change that did not happen.
+      return toUserDetails(current);
+    }
     const updated = await this.applyChanges(id, changes);
-    await this.syncPatient(current, updated, changes, dto, actor);
-    await this.recordUpdate(current, updated, actor, dto.isActive === false ? 'user.deactivated' : 'user.updated');
+    await this.syncPatient(current, updated, changes, demographics, actor);
+    await this.recordUpdate(current, updated, actor, changes.isActive === false ? 'user.deactivated' : 'user.updated');
     return toUserDetails(updated);
   }
 
@@ -112,6 +118,9 @@ export class UsersService {
       throw selfLockout();
     }
     const current = await this.require(id);
+    if (!current.isActive) {
+      return toUserDetails(current);
+    }
     const updated = await this.applyChanges(id, { isActive: false });
     await this.recordUpdate(current, updated, actor, 'user.deactivated');
     return toUserDetails(updated);
@@ -152,10 +161,9 @@ export class UsersService {
     before: UserRecord,
     after: UserRecord,
     changes: UserChanges,
-    dto: UpdateUserDto,
+    demographics: PatientDemographicsChange | null,
     actor: AuditActor,
   ): Promise<void> {
-    const demographics = demographicsOf(dto);
     if (demographics === null || after.links.patientId === undefined) {
       return;
     }

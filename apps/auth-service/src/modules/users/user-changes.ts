@@ -43,6 +43,41 @@ export function demographicsOf(dto: UpdateUserDto): PatientDemographicsChange | 
   return Object.keys(change).length === 0 ? null : change;
 }
 
+const sameSet = (a: ReadonlyArray<string>, b: ReadonlyArray<string>): boolean =>
+  a.length === b.length && a.every((value) => b.includes(value));
+
+/** `changes` without the fields that already hold the requested value: what a PATCH really changes in `auth`. */
+export function effectiveChangesOf(changes: UserChanges, current: UserRecord): UserChanges {
+  return {
+    ...(changes.email !== undefined && changes.email !== current.email ? { email: changes.email } : {}),
+    ...(changes.firstName !== undefined && changes.firstName !== current.firstName ? { firstName: changes.firstName } : {}),
+    ...(changes.lastName !== undefined && changes.lastName !== current.lastName ? { lastName: changes.lastName } : {}),
+    ...(changes.isActive !== undefined && changes.isActive !== current.isActive ? { isActive: changes.isActive } : {}),
+    ...(changes.roles !== undefined && !sameSet(changes.roles, current.roles) ? { roles: changes.roles } : {}),
+    ...(changes.practitionerRoleId !== undefined && changes.practitionerRoleId !== (current.links.practitionerRoleId ?? null)
+      ? { practitionerRoleId: changes.practitionerRoleId }
+      : {}),
+  };
+}
+
+/**
+ * `change` without the e-mail and names the account already has. `birthDate` and `gender` stay: the account does
+ * not hold them, the `Patient` does.
+ */
+export function effectiveDemographicsOf(change: PatientDemographicsChange | null, current: UserRecord): PatientDemographicsChange | null {
+  if (change === null) {
+    return null;
+  }
+  const effective: PatientDemographicsChange = {
+    ...(change.email !== undefined && change.email !== current.email ? { email: change.email } : {}),
+    ...(change.firstName !== undefined && change.firstName !== current.firstName ? { firstName: change.firstName } : {}),
+    ...(change.lastName !== undefined && change.lastName !== current.lastName ? { lastName: change.lastName } : {}),
+    ...(change.birthDate !== undefined ? { birthDate: change.birthDate } : {}),
+    ...(change.gender !== undefined ? { gender: change.gender } : {}),
+  };
+  return Object.keys(effective).length === 0 ? null : effective;
+}
+
 /** The changes that put exactly the fields of `changes` back to their values in `before`. */
 export function inverseOf(before: UserRecord, changes: UserChanges): UserChanges {
   return {

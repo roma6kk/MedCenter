@@ -183,4 +183,50 @@ describe('UsersService PATCH', () => {
       });
     });
   });
+
+  describe('PATCH without a real change', () => {
+    it('should write and journal nothing when the body is empty', async () => {
+      const harness = createUsersHarness();
+      const userId = await seedPatient(harness);
+      const audits = createdOf(harness.fhir, 'AuditEvent').length;
+
+      const card = await harness.users.update(userId, {}, ADMIN);
+
+      expect(card).toMatchObject({ id: userId, lastName: 'Иванов', isActive: true });
+      expect(createdOf(harness.fhir, 'AuditEvent')).toHaveLength(audits);
+      expect(harness.fhir.batch).not.toHaveBeenCalled();
+    });
+
+    it('should write and journal nothing when the body repeats the values the account already has', async () => {
+      const harness = createUsersHarness();
+      const userId = await seedPatient(harness);
+      const audits = createdOf(harness.fhir, 'AuditEvent').length;
+
+      await harness.users.update(userId, { firstName: 'Иван', email: 'Ivanov@Example.by', isActive: true, roles: [Role.PATIENT] }, ADMIN);
+
+      expect(createdOf(harness.fhir, 'AuditEvent')).toHaveLength(audits);
+    });
+
+    it('should leave the AuditEvent count alone when an inactive account is deactivated again', async () => {
+      const harness = createUsersHarness();
+      const userId = await seedPatient(harness);
+      await harness.users.deactivate(userId, ADMIN);
+      const audits = createdOf(harness.fhir, 'AuditEvent').length;
+
+      const card = await harness.users.deactivate(userId, { sub: 'admin-2', requestId: 'req-2' });
+
+      expect(card.isActive).toBe(false);
+      expect(createdOf(harness.fhir, 'AuditEvent')).toHaveLength(audits);
+    });
+
+    it('should journal the deactivation when a PATCH really flips an active account off', async () => {
+      const harness = createUsersHarness();
+      const userId = await seedPatient(harness);
+      const audits = createdOf(harness.fhir, 'AuditEvent').length;
+
+      await harness.users.update(userId, { isActive: false }, ADMIN);
+
+      expect(createdOf(harness.fhir, 'AuditEvent')).toHaveLength(audits + 1);
+    });
+  });
 });
