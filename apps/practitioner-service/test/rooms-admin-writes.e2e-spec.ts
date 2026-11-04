@@ -191,6 +191,35 @@ describe('Rooms admin writes (e2e)', () => {
     });
   });
 
+  describe('a Location that is not a room', () => {
+    beforeEach(() => {
+      fhir.read.mockResolvedValue(storedRoom({ id: 'building-1', physicalType: { coding: [{ system: ROOM_PHYSICAL_TYPE_SYSTEM, code: 'bu', display: 'Building' }] } }));
+      fhir.batch.mockImplementation(transactionResponder());
+    });
+
+    it.each([
+      ['PATCH', 'patch', { name: 'Кабинет 1' }],
+      ['DELETE', 'delete', undefined],
+    ] as const)('should answer 404 NOT_FOUND and write nothing when it is the target of %s', async (_label, method, body) => {
+      // Act
+      const response = await request(app.getHttpServer())[method](`${ROOMS}/building-1`).set('Authorization', TOKENS.admin).send(body).expect(404);
+
+      // Assert — the room list leaves it out, so a write must not turn it into a room or delete it.
+      expect(response.body).toMatchObject({ status: 404, errorCode: 'NOT_FOUND' });
+      expect(fhir.batch).not.toHaveBeenCalled();
+      expect(fhir.search).not.toHaveBeenCalled();
+    });
+
+    it('should answer 404 NOT_FOUND for its usage', async () => {
+      // Act
+      const response = await request(app.getHttpServer()).get(`${ROOMS}/building-1/usage`).set('Authorization', TOKENS.admin).expect(404);
+
+      // Assert
+      expect(response.body).toMatchObject({ status: 404, errorCode: 'NOT_FOUND' });
+      expect(fhir.search).not.toHaveBeenCalled();
+    });
+  });
+
   describe('PATCH /api/v1/admin/rooms/{id}', () => {
     beforeEach(() => {
       fhir.read.mockResolvedValue(storedRoom({ extension: [{ url: MEDCENTER_EXT.ROOM_FLOOR, valueInteger: 2 }, OTHER_EXTENSION] }));

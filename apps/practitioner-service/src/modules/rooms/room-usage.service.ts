@@ -4,6 +4,7 @@ import { FHIR_CLIENT, type FhirClient, type FhirResource, type FhirSearchResult 
 import type { RoomUsageResponseDto } from './dto/room-usage-response.dto';
 import { doctorsBySchedule, indexByReference, toScheduleUsage, toSlotUsage } from './room-usage.mapper';
 import { roomScheduleQuery } from './room-schedules';
+import { readRoom } from './room-search';
 
 /** HAPI's default `max_page_size`; a room is never shared by more schedules. */
 export const MAX_ROOM_SCHEDULES = 200;
@@ -27,8 +28,8 @@ export class RoomUsageService {
   constructor(@Inject(FHIR_CLIENT) private readonly fhirClient: FhirClient) {}
 
   async usage(roomId: string, nowMs: number = Date.now()): Promise<RoomUsageResponseDto> {
-    // An unknown room surfaces as 404 NOT_FOUND straight from the FHIR client.
-    await this.fhirClient.read('Location', roomId);
+    // An unknown id, and a Location that is not a room, surface as 404 NOT_FOUND.
+    await readRoom(this.fhirClient, roomId);
     // `_include`s bring the role → practitioner and the service, so every
     // schedule line names its doctor and service without extra round trips.
     const result = await this.fhirClient.search('Schedule', {

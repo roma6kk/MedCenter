@@ -3,6 +3,8 @@ import { MEDCENTER_EXT } from '@medcenter/terminology';
 
 import { MAX_USAGE_SLOTS, RoomUsageService } from './room-usage.service';
 
+const IS_ROOM = { physicalType: { coding: [{ system: 'http://terminology.hl7.org/CodeSystem/location-physical-type', code: 'ro' }] } };
+
 const ROOM_ID = 'room-204';
 const NOW = Date.parse('2026-11-01T06:00:00.000Z');
 
@@ -34,12 +36,12 @@ const INCLUDED: readonly Json[] = [
   { resourceType: 'PractitionerRole', id: 'role-7', practitioner: { reference: 'Practitioner/prac-1' } },
   { resourceType: 'Practitioner', id: 'prac-1', name: [{ family: 'Иванов', given: ['Иван'] }] },
   { resourceType: 'HealthcareService', id: 'svc-1', name: 'Консультация терапевта' },
-  { resourceType: 'Location', id: ROOM_ID, name: 'Кабинет 204' },
+  { resourceType: 'Location', ...IS_ROOM, id: ROOM_ID, name: 'Кабинет 204' },
 ];
 
 function createFhirClientMock(schedules: readonly Json[], slots: readonly Json[]): jest.Mocked<FhirClient> {
   const fhirClient = { read: jest.fn(), search: jest.fn() } as unknown as jest.Mocked<FhirClient>;
-  fhirClient.read.mockResolvedValue({ resourceType: 'Location', id: ROOM_ID });
+  fhirClient.read.mockResolvedValue({ resourceType: 'Location', ...IS_ROOM, id: ROOM_ID });
   fhirClient.search.mockImplementation(async (resourceType) =>
     resourceType === 'Schedule' ? bundle(schedules) : bundle(slots),
   );
@@ -175,6 +177,22 @@ describe('RoomUsageService', () => {
     );
 
     // Assert
+    expect(error?.getStatus()).toBe(404);
+    expect(fhirClient.search).not.toHaveBeenCalled();
+  });
+  it('should answer 404 and search nothing when the Location is not a room', async () => {
+    // Arrange
+    const fhirClient = createFhirClientMock([], []);
+    fhirClient.read.mockResolvedValue({ resourceType: 'Location', id: 'building-1', physicalType: { coding: [{ code: 'bu' }] } });
+
+    // Act
+    const error = await new RoomUsageService(fhirClient).usage('building-1').then(
+      () => undefined,
+      (caught: unknown) => caught as FhirClientError,
+    );
+
+    // Assert
+    expect(error).toBeInstanceOf(FhirClientError);
     expect(error?.getStatus()).toBe(404);
     expect(fhirClient.search).not.toHaveBeenCalled();
   });

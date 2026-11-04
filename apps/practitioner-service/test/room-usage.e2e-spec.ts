@@ -9,6 +9,8 @@ import { auditedResource, committedAudit, committedEntries, transactionResponder
 import { applyE2eEnv } from './e2e-env';
 import { ADMIN_SCOPE, bearer, DOCTOR_SCOPE } from './e2e-tokens';
 
+const IS_ROOM = { physicalType: { coding: [{ system: 'http://terminology.hl7.org/CodeSystem/location-physical-type', code: 'ro' }] } };
+
 jest.mock('jose', () => jest.requireActual<typeof import('./e2e-tokens')>('./e2e-tokens').decodeOnlyJose());
 
 const USAGE = '/api/v1/admin/rooms/room-204/usage';
@@ -35,7 +37,7 @@ const BOOKED = {
 
 function createFhirStub(schedules: ReadonlyArray<Record<string, unknown>>): jest.Mocked<FhirClient> {
   const stub = { read: jest.fn(), search: jest.fn(), delete: jest.fn(), batch: jest.fn().mockImplementation(transactionResponder()) } as unknown as jest.Mocked<FhirClient>;
-  stub.read.mockResolvedValue({ resourceType: 'Location', id: 'room-204' });
+  stub.read.mockResolvedValue({ resourceType: 'Location', ...IS_ROOM, id: 'room-204' });
   stub.search.mockImplementation(async (resourceType) =>
     resourceType === 'Schedule' ? bundle(schedules) : bundle([BOOKED]),
   );

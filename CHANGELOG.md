@@ -154,3 +154,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   did not match the stored «Иванова Мария Сергеевна»): the service matches the words of the term against the name,
   surname and patronymic in Russian and English, in any order, as word prefixes, over the doctors the service and
   specialty filters left (a scan of at most 1000 practitioners; the list without `search` is still paged by HAPI).
+- `PATCH`, `DELETE` and `GET .../usage` of `/admin/rooms/{id}` answer 404 for a `Location` that is not a room (`physicalType`
+  other than `ro`), like the room list leaves it out: a PATCH used to turn a building into a room and a DELETE removed it.

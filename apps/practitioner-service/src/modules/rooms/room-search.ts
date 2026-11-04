@@ -1,4 +1,5 @@
-import type { FhirClient, FhirResource } from '@medcenter/fhir';
+import { HttpStatus } from '@nestjs/common';
+import { FhirClientError, type FhirClient, type FhirResource } from '@medcenter/fhir';
 
 /** `Location.physicalType` code system and the code that marks a room. */
 export const LOCATION_PHYSICAL_TYPE_SYSTEM = 'http://terminology.hl7.org/CodeSystem/location-physical-type';
@@ -16,6 +17,18 @@ export function isRoom(location: FhirResource): boolean {
     const { system, code } = coding as { system?: unknown; code?: unknown };
     return system === LOCATION_PHYSICAL_TYPE_SYSTEM && code === ROOM_PHYSICAL_TYPE_CODE;
   });
+}
+
+/**
+ * `Location/{id}` when it is a room. Another Location (a building, a ward) is answered as HAPI answers an id it does not
+ * know — `404 NOT_FOUND` — because the room list leaves it out and an admin write must not turn it into a room or delete it.
+ */
+export async function readRoom(fhirClient: FhirClient, id: string): Promise<FhirResource> {
+  const location = await fhirClient.read('Location', id);
+  if (!isRoom(location)) {
+    throw new FhirClientError('GET', `Location/${id}`, HttpStatus.NOT_FOUND);
+  }
+  return location;
 }
 
 /**

@@ -498,6 +498,9 @@ HAPI не имеет unique-ограничения, проверка выпол�
 `description` сохраняются без крайних пробелов. PATCH, который ничего не меняет (`{}` или прежние значения), отвечает **200**
 с текущим кабинетом и не пишет ни новую версию ресурса, ни `AuditEvent` (FR-021).
 
+**4.5–4.7 — только кабинеты:** `{id}` должен быть `Location` с `physicalType=ro`, как в списке 4.3. `Location` другого типа
+(здание, отделение) для 4.5, 4.6 и 4.7 — **404** `NOT_FOUND`, как неизвестный id: PATCH не превращает его в кабинет, DELETE не удаляет.
+
 ```typescript
 // apps/practitioner-service/src/modules/rooms/dto/create-room.dto.ts
 import { IsInt, IsNotEmpty, IsOptional, IsString, Max, MaxLength, Min } from 'class-validator';

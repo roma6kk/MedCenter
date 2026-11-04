@@ -21,7 +21,7 @@ import { UpdateRoomDto } from './dto/update-room.dto';
 import type { RoomResponseDto } from './dto/room-response.dto';
 import { identifierValuesOf, roomIdentifierQuery, roomUsingIdentifier } from './room-identifier';
 import { roomScheduleQuery } from './room-schedules';
-import { findAllRooms, LOCATION_PHYSICAL_TYPE_SYSTEM, ROOM_PHYSICAL_TYPE_CODE } from './room-search';
+import { findAllRooms, LOCATION_PHYSICAL_TYPE_SYSTEM, readRoom, ROOM_PHYSICAL_TYPE_CODE } from './room-search';
 
 /** One page of the room list in the API §0 envelope. */
 export type RoomPage = PaginatedResponseDto<RoomResponseDto>;
@@ -60,8 +60,7 @@ export class RoomsService {
   }
 
   async findById(id: string): Promise<RoomResponseDto> {
-    const resource = await this.fhirClient.read('Location', id);
-    return this.toResponseDto(resource);
+    return this.toResponseDto(await readRoom(this.fhirClient, id));
   }
 
   /** Admin writes carry their `AuditEvent` in the same transaction (FR-021, ADR-014). */
@@ -87,7 +86,7 @@ export class RoomsService {
   }
 
   async update(id: string, dto: UpdateRoomDto, actor: WriteActor): Promise<RoomResponseDto> {
-    const existing = await this.fhirClient.read('Location', id);
+    const existing = await readRoom(this.fhirClient, id);
     if (dto.identifier !== undefined) {
       await this.assertIdentifierFree(dto.identifier, id);
     }
@@ -150,8 +149,8 @@ export class RoomsService {
    * label stays at the start of `detail` for logs and older clients.
    */
   async remove(id: string, actor: WriteActor): Promise<void> {
-    // An unknown id surfaces as 404 NOT_FOUND straight from the FHIR client.
-    await this.fhirClient.read('Location', id);
+    // An unknown id, and a Location that is not a room, surface as 404 NOT_FOUND.
+    await readRoom(this.fhirClient, id);
     // `_count: 1` — one referencing schedule is enough to refuse the delete.
     // Same query as the usage view (API §4.7), so both always agree.
     const schedules = await this.fhirClient.search('Schedule', {
