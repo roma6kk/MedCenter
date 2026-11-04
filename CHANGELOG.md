@@ -144,3 +144,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   update, and `name`/`description` are stored without edge spaces like `identifier`. A PATCH that changes nothing (`{}` or the stored
   values) answers 200 with the room and no longer writes a new version and a false `update` AuditEvent (FR-021); the identifier entry
   of a seeded room (it has a `system`) is left as it is while the value is the same.
+- The public doctor catalog (API §4.1/4.2) hides a deactivated doctor: `Practitioner.active=false` takes the doctor out of the list
+  and answers the card with the same 404 as an unknown id, and a `PractitionerRole.active=false` no longer brings its doctor into a
+  service or specialty filter (only the role ids ignored it before). The filtered list reads the doctors of all matching roles before
+  it cuts the page, so a hidden one cannot shorten a page or inflate `totalItems`. The two stale e2e rows of the role filter
+  (they still described the `_include` search) now describe the id-only role scan.

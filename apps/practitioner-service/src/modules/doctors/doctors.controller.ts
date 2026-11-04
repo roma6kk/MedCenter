@@ -33,7 +33,7 @@ export class DoctorsController {
 
   @Public()
   @Get('doctors/:id')
-  @ApiOperation({ summary: '4.2 Get a doctor card (public)' })
+  @ApiOperation({ summary: '4.2 Get a doctor card (public); a deactivated doctor answers 404 like an unknown id' })
   @ApiResponse({ status: HttpStatus.OK, type: DoctorResponseDoc })
   @ApiProblems([400, 404, 429, 500])
   async findById(

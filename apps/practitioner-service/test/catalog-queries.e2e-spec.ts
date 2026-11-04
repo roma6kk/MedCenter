@@ -90,7 +90,7 @@ describe('Rooms and doctors queries (e2e)', () => {
     await request(app.getHttpServer()).get('/api/v1/doctors?page=2&pageSize=5&search=Ivanov').expect(200);
 
     // Assert
-    expect(fhir.search).toHaveBeenCalledWith('Practitioner', { name: 'Ivanov', _count: 5, _offset: 5, _total: 'accurate' });
+    expect(fhir.search).toHaveBeenCalledWith('Practitioner', { name: 'Ivanov', 'active:not': 'false', _count: 5, _offset: 5, _total: 'accurate' });
   });
 
   it('should answer the doctor list in the section 0 envelope with the display name when HAPI returns practitioners', async () => {
@@ -110,21 +110,20 @@ describe('Rooms and doctors queries (e2e)', () => {
     });
   });
 
-  it('should search PractitionerRole with the practitioner included when the doctor list has a specialty and a service', async () => {
+  it('should scan the active PractitionerRoles by ids only when the doctor list has a specialty and a service', async () => {
     // Act
     await request(app.getHttpServer())
       .get('/api/v1/doctors?specialty=419192003&serviceId=svc-1&search=Ivanov&page=2&pageSize=5')
       .expect(200);
 
-    // Assert — R4 has no `Practitioner?qualification-code`: specialty and service are asked of the role.
+    // Assert — R4 has no `Practitioner?qualification-code`: specialty and service are asked of the role, paging is done on the doctors.
     expect(fhir.search).toHaveBeenCalledWith('PractitionerRole', {
       service: 'HealthcareService/svc-1',
       specialty: '419192003',
       'practitioner.name': 'Ivanov',
-      _include: 'PractitionerRole:practitioner',
-      _count: 5,
-      _offset: 5,
-      _total: 'accurate',
+      'active:not': 'false',
+      _elements: 'practitioner',
+      _count: 1000,
     });
   });
 

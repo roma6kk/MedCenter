@@ -82,6 +82,22 @@ describe('Doctors read side (e2e)', () => {
       expect(response.body.requestId).toBeDefined();
     });
 
+    it('should answer the same 404 NOT_FOUND for a deactivated doctor as for an unknown one', async () => {
+      // Arrange
+      fhir.read.mockRejectedValueOnce(new FhirClientError('GET', 'http://hapi:8080/fhir/Practitioner/ghost', 404, '{}'));
+      fhir.read.mockResolvedValueOnce({ ...practitioner('doc-1', 'Иванова', 'Мария'), active: false });
+      const withoutRequestIds = (body: Record<string, unknown>): Record<string, unknown> => ({ ...body, instance: undefined, requestId: undefined });
+
+      // Act
+      const unknown = await request(app.getHttpServer()).get(`${DOCTORS}/ghost`).expect(404);
+      const hidden = await request(app.getHttpServer()).get(`${DOCTORS}/doc-1`).expect(404);
+
+      // Assert — the public cannot tell a hidden doctor from a missing one.
+      expect(hidden.headers['content-type']).toContain('application/problem+json');
+      expect(withoutRequestIds(hidden.body)).toEqual(withoutRequestIds(unknown.body));
+      expect(fhir.search).not.toHaveBeenCalled();
+    });
+
     it('should answer 504 INTERNAL when HAPI times out', async () => {
       // Arrange
       fhir.read.mockRejectedValue(new FhirClientError('GET', 'http://hapi:8080/fhir/Practitioner/doc-1', undefined, undefined, { timedOut: true }));
@@ -95,31 +111,37 @@ describe('Doctors read side (e2e)', () => {
   });
 
   describe('GET /api/v1/doctors with a role filter', () => {
-    it('should list the included practitioners and report the role total when a specialty is given', async () => {
-      // Arrange
-      fhir.search.mockResolvedValue({
-        total: 7,
-        entry: [
-          { resource: role('role-1', 'doc-1') },
-          { resource: practitioner('doc-1', 'Иванова', 'Мария', 'Терапевт') },
-          { resource: role('role-2', 'doc-2') },
-          { resource: practitioner('doc-2', 'Козлов', 'Пётр', 'Терапевт') },
-        ],
-      });
+    it('should page the doctors behind the matching roles and report their total when a specialty is given', async () => {
+      // Arrange — the id-only role scan, the practitioners of those ids, then the roles of the page.
+      fhir.search.mockImplementation((resourceType) =>
+        Promise.resolve(
+          resourceType === 'PractitionerRole'
+            ? { entry: [{ resource: role('role-1', 'doc-1') }, { resource: role('role-2', 'doc-2') }, { resource: role('role-3', 'doc-3') }] }
+            : resourceType === 'Practitioner'
+              ? {
+                  entry: [
+                    { resource: practitioner('doc-1', 'Иванова', 'Мария', 'Терапевт') },
+                    { resource: practitioner('doc-2', 'Козлов', 'Пётр', 'Терапевт') },
+                    { resource: practitioner('doc-3', 'Сидоров', 'Иван', 'Терапевт') },
+                  ],
+                }
+              : { entry: [] },
+        ),
+      );
 
       // Act
       const response = await request(app.getHttpServer()).get(`${DOCTORS}?specialty=419192003&page=2&pageSize=2`).expect(200);
 
       // Assert
-      expect(fhir.search).toHaveBeenCalledWith('PractitionerRole', {
+      expect(fhir.search).toHaveBeenNthCalledWith(1, 'PractitionerRole', {
         specialty: '419192003',
-        _include: 'PractitionerRole:practitioner',
-        _count: 2,
-        _offset: 2,
-        _total: 'accurate',
+        'active:not': 'false',
+        _elements: 'practitioner',
+        _count: 1000,
       });
-      expect(response.body.items.map((item: { id: string }) => item.id)).toEqual(['doc-1', 'doc-2']);
-      expect(response.body.meta).toEqual({ page: 2, pageSize: 2, totalItems: 7, totalPages: 4 });
+      expect(fhir.search).toHaveBeenNthCalledWith(2, 'Practitioner', { _id: 'doc-1,doc-2,doc-3', 'active:not': 'false', _count: 3 });
+      expect(response.body.items.map((item: { id: string }) => item.id)).toEqual(['doc-3']);
+      expect(response.body.meta).toEqual({ page: 2, pageSize: 2, totalItems: 3, totalPages: 2 });
     });
 
     it('should list a practitioner once when two roles on the page belong to the same doctor', async () => {
@@ -154,7 +176,7 @@ describe('Doctors read side (e2e)', () => {
       await request(app.getHttpServer()).get(`${DOCTORS}?specialty=%20%20`).expect(200);
 
       // Assert
-      expect(fhir.search).toHaveBeenCalledWith('Practitioner', { _count: 20, _offset: 0, _total: 'accurate' });
+      expect(fhir.search).toHaveBeenCalledWith('Practitioner', { 'active:not': 'false', _count: 20, _offset: 0, _total: 'accurate' });
     });
 
     it('should never ask HAPI for a parameter R4 does not define when every filter is combined', async () => {
