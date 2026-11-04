@@ -37,6 +37,7 @@ export function trimmed({ value }: { readonly value: unknown }): unknown {
 }
 
 /** No C0/C1-free control characters: PostgreSQL refuses NUL (22021) and a name or a search has no use for the rest. */
+// eslint-disable-next-line no-control-regex -- the control range is the point of the pattern
 export const NO_CONTROL_CHARS = /^[^\u0000-\u001F\u007F]*$/;
 export const NO_CONTROL_CHARS_MESSAGE = '$property must not contain control characters';
 
