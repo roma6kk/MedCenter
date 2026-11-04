@@ -4,6 +4,7 @@ import type { ReactNode } from 'react';
 import type { LucideIcon } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { LoadingNote } from './loading-note';
+import { useLeadSkeleton } from './use-lead-skeleton';
 import { useT } from '@/lib/i18n/use-t';
 
 interface StateProps {
@@ -58,12 +59,16 @@ export function EmptyState({ title, description, action, icon: Icon }: EmptyStat
   );
 }
 
-/** Rows of a table while it loads: each row has the rhythm of real content (a short key, a long name, a badge); the admin tables use it. */
+/**
+ * Rows of a table while it loads: each row has the rhythm of real content (a short key, a long name, a badge); the admin tables use it.
+ * Like `ContentSkeleton` it is the `role="status"` region only when it is the first skeleton of its screen (`useLeadSkeleton`).
+ */
 export function TableSkeleton(): ReactNode {
   const t = useT('common');
+  const { ref, isLead } = useLeadSkeleton<HTMLDivElement>();
   return (
-    <div data-testid="table-skeleton" role="status" aria-busy="true" className="space-y-2">
-      <span className="sr-only">{t('loading')}</span>
+    <div ref={ref} data-testid="table-skeleton" role={isLead ? 'status' : undefined} aria-busy={isLead ? 'true' : undefined} className="space-y-2">
+      {isLead ? <span className="sr-only">{t('loading')}</span> : null}
       {[0, 1, 2, 3].map((row) => (
         <div key={row} aria-hidden="true" className="flex h-14 items-center gap-4 rounded-control border border-border-soft px-4">
           <Skeleton className="h-4 w-16" />
@@ -71,7 +76,7 @@ export function TableSkeleton(): ReactNode {
           <Skeleton className="hidden h-6 w-24 rounded-full sm:block" />
         </div>
       ))}
-      <LoadingNote />
+      <LoadingNote quiet={!isLead} />
     </div>
   );
 }

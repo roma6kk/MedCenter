@@ -5,6 +5,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useT } from '@/lib/i18n/use-t';
 import { cn } from '@/lib/ui/cn';
 import { LoadingNote } from './loading-note';
+import { useLeadSkeleton } from './use-lead-skeleton';
 
 export type ContentSkeletonShape = 'list' | 'tiles' | 'timeline' | 'cards' | 'detail';
 
@@ -113,12 +114,15 @@ function Detail(): ReactNode {
 /**
  * Placeholder of a read in flight, drawn in the shape of what is coming (E4), with the shimmer of `Skeleton`. The whole
  * block is one `role="status"` region that says «Загрузка…» once; after three seconds it adds «Загружаем…» (`LoadingNote`).
+ * When a screen shows several skeletons at once only the first of them is the region and carries the note
+ * (`useLeadSkeleton`); the rest are decoration.
  */
 export function ContentSkeleton({ shape, rows = 3, className }: ContentSkeletonProps): ReactNode {
   const t = useT('common');
+  const { ref, isLead } = useLeadSkeleton<HTMLDivElement>();
   return (
-    <div role="status" aria-busy="true" className={cn('flex flex-col', className)}>
-      <span className="sr-only">{t('loading')}</span>
+    <div ref={ref} role={isLead ? 'status' : undefined} aria-busy={isLead ? 'true' : undefined} className={cn('flex flex-col', className)}>
+      {isLead ? <span className="sr-only">{t('loading')}</span> : null}
       <div aria-hidden="true">
         {shape === 'list' ? <ListRows rows={rows} /> : null}
         {shape === 'tiles' ? <TileRows rows={rows} /> : null}
@@ -126,7 +130,7 @@ export function ContentSkeleton({ shape, rows = 3, className }: ContentSkeletonP
         {shape === 'cards' ? <Cards rows={rows} /> : null}
         {shape === 'detail' ? <Detail /> : null}
       </div>
-      <LoadingNote />
+      <LoadingNote quiet={!isLead} />
     </div>
   );
 }

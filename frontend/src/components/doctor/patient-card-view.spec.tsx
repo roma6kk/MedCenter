@@ -62,6 +62,21 @@ function setup(overrides: ReadonlyArray<ApiRoute> = []): void {
   renderWithClient(<PatientCardView patientId="p1" />);
 }
 
+describe('PatientCardView loading (NFR-008, WCAG 4.1.3)', () => {
+  const NEVER = (): Promise<never> => new Promise<never>(() => undefined);
+
+  it('should announce the loading once while the header, the visits and the orders load side by side', () => {
+    setup([
+      { path: '/api/v1/patients/p1', respond: NEVER },
+      { path: '/api/v1/patients/p1/history', respond: NEVER },
+      { path: '/api/v1/patients/p1/prescriptions', respond: NEVER },
+    ]);
+
+    expect(screen.getAllByRole('status')).toHaveLength(1);
+    expect(screen.getAllByText('Загрузка…')).toHaveLength(1);
+  });
+});
+
 describe('PatientCardView header (API 3.2)', () => {
   it('should show the full name, birth date with age and the sex of the patient', async () => {
     setup();

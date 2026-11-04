@@ -29,6 +29,19 @@ describe('LoadingNote', () => {
     expect(screen.getByText('Загружаем…')).toBeInTheDocument();
   });
 
+  it('should keep counting while it is quiet and speak at once when it is allowed to', () => {
+    const { rerender } = render(<LoadingNote quiet />);
+
+    act(() => {
+      jest.advanceTimersByTime(SLOW_LOADING_MS);
+    });
+    expect(screen.queryByText('Загружаем…')).not.toBeInTheDocument();
+
+    rerender(<LoadingNote />);
+
+    expect(screen.getByText('Загружаем…')).toBeInTheDocument();
+  });
+
   it('should be in English when the locale is English', () => {
     useUiStore.setState({ locale: 'en' });
     render(<LoadingNote />);
