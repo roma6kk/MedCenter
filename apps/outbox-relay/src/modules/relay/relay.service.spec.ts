@@ -183,6 +183,70 @@ describe('RelayService', () => {
     expect(hapi.statusOf('b2')).toBe('sent');
   });
 
+  describe('a record that cannot be read', () => {
+    const unreadablePayload = (id: string, ageMs: number): void => {
+      hapi.seed(id, 'pending', ageMs);
+      const bad = hapi.rows.get(id) as unknown as { extension: Array<{ valueString?: string }> };
+      bad.extension[2] = { ...bad.extension[2], valueString: '{not json' };
+    };
+    const malformedRecord = (id: string, ageMs: number): void => {
+      hapi.rows.set(id, {
+        resourceType: 'Basic',
+        id,
+        meta: { versionId: '1', lastUpdated: new Date(NOW.getTime() - ageMs).toISOString(), tag: [{ system: OUTBOX.STATUS_SYSTEM, code: 'pending' }] },
+      });
+    };
+    const poisonWarnings = (): number =>
+      warn.mock.calls.filter(([, message]) => /is not valid JSON|is malformed/.test(String(message))).length;
+
+    it('should be reported once, not on every poll, when its payload is not JSON', async () => {
+      unreadablePayload('b1', 3 * MIN);
+
+      await service.tick(NOW);
+      await service.tick(NOW);
+      await service.tick(NOW);
+
+      expect(poisonWarnings()).toBe(1);
+      expect(hapi.statusOf('b1')).toBe('pending');
+    });
+
+    it('should be reported once, not on every poll, when the record itself is malformed', async () => {
+      malformedRecord('junk', 3 * MIN);
+
+      await service.tick(NOW);
+      await service.tick(NOW);
+
+      expect(poisonWarnings()).toBe(1);
+    });
+
+    it('should be reported again an hour later while it is still there, and not before', async () => {
+      unreadablePayload('b1', 3 * MIN);
+      const now = jest.spyOn(Date, 'now');
+      const start = NOW.getTime();
+
+      now.mockReturnValue(start);
+      await service.tick(NOW);
+      now.mockReturnValue(start + 30 * MIN);
+      await service.tick(NOW);
+      expect(poisonWarnings()).toBe(1);
+
+      now.mockReturnValue(start + 61 * MIN);
+      await service.tick(NOW);
+      expect(poisonWarnings()).toBe(2);
+    });
+
+    it('should be reported for each record, and still let the ones behind it through', async () => {
+      unreadablePayload('b1', 4 * MIN);
+      unreadablePayload('b2', 3 * MIN);
+      hapi.seed('b3', 'pending', 2 * MIN);
+
+      await service.tick(NOW);
+      await service.tick(NOW);
+
+      expect(poisonWarnings()).toBe(2);
+    });
+  });
+
   it('should not poll when another replica holds the lock', async () => {
     lock.acquire.mockResolvedValue(false);
 

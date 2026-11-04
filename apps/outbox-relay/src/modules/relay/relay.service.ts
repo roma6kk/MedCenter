@@ -15,10 +15,19 @@ import { OUTBOX } from '@medcenter/terminology';
 
 import { RELAY_CONFIG, type RelayConfig } from './relay.config';
 import { LOCK_STORE, type LockStore } from './redis-lock';
+import { ReportThrottle } from './report-throttle';
 
 export const LOCK_KEY = 'outbox-relay:lock';
 /** One poll never holds the lock for longer than this share of its lifetime. */
 const LOCK_BUDGET_SHARE = 0.5;
+
+/**
+ * A record the relay cannot read stays `pending` (it is never deleted) and every poll reads it again: it is reported
+ * once per this long, per record; the stale-pending warning keeps reminding once per housekeeping interval.
+ */
+const POISON_REPORT_INTERVAL_MS = 60 * 60_000;
+/** How many unreadable records are remembered; the one reported longest ago is forgotten first. */
+const POISON_REPORT_CAPACITY = 1000;
 
 /** `$expunge` counts the deleted resource and each of its versions against `limit`; one record has a handful. */
 const EXPUNGE_LIMIT = 1000;
@@ -49,6 +58,7 @@ export class RelayService implements OnApplicationBootstrap, OnModuleDestroy {
   private inFlight?: Promise<void>;
   private stopped = false;
   private lastHousekeeping = 0;
+  private readonly poisonReports = new ReportThrottle(POISON_REPORT_INTERVAL_MS, POISON_REPORT_CAPACITY);
 
   constructor(
     @Inject(FHIR_CLIENT) private readonly fhir: FhirClient,
@@ -137,7 +147,7 @@ export class RelayService implements OnApplicationBootstrap, OnModuleDestroy {
 
   private recordOf(resource: FhirResource): OutboxRecord | undefined {
     const record = parseOutboxRecord(resource);
-    if (record === undefined) {
+    if (record === undefined && this.poisonReports.shouldReport(resource.id ?? '')) {
       this.logger.warn({ basicId: resource.id }, 'outbox record is malformed and is skipped');
     }
     return record;
@@ -172,7 +182,9 @@ export class RelayService implements OnApplicationBootstrap, OnModuleDestroy {
       // The routing key and `eventId` come from the record's own extensions, never from the opaque payload.
       return { ...(parsed as Record<string, unknown>), type: record.eventType, eventId: record.eventId } as unknown as DomainEvent;
     } catch {
-      this.logger.warn({ basicId: record.id, eventId: record.eventId, type: record.eventType }, 'outbox payload is not valid JSON and is skipped');
+      if (this.poisonReports.shouldReport(record.id)) {
+        this.logger.warn({ basicId: record.id, eventId: record.eventId, type: record.eventType }, 'outbox payload is not valid JSON and is skipped');
+      }
       return undefined;
     }
   }

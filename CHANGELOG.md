@@ -123,3 +123,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `Patient/{id}` reference, with a bad id, a start that is no instant or another schema version goes to the DLQ with a
   log naming the type, the event id and the field (it used to be acknowledged and lost); an unknown type is still
   acknowledged. The mapper is typed over the contract events, so a renamed contract field fails compilation.
+- `outbox-relay` reports a `pending` record it cannot read (malformed record, payload that is not JSON) once per hour
+  per record instead of on every 2-second poll, so one poison record no longer fills the container log.
