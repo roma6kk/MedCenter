@@ -116,3 +116,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - notification-service no longer dead-letters a notification on the first failed write: the consumer retries through
   `<queue>.retry` (up to 12 deliveries, about 55 s), like analytics-service; the attempt bookkeeping (`attemptOf`,
   `deferDelivery`) moved to `libs/messaging` and both consumers use it.
+- `outbox-relay` no longer marks an event `sent` when no queue is bound for it (a fresh broker or a consumer that has not
+  declared its queue yet): `AmqpEventPublisher` publishes `mandatory` and rejects what the broker returns, so the record
+  stays `pending` and goes out once a queue exists.
