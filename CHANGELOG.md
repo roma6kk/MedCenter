@@ -113,3 +113,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The doctor journal no longer links cancelled and no-show rows to the patient card.
 - `GET /api/v1/doctors` filtered by service or specialty now pages and counts doctors, not roles: `totalItems`
   was the number of matching `PractitionerRole`s and a doctor with two roles shortened the page.
+- notification-service no longer dead-letters a notification on the first failed write: the consumer retries through
+  `<queue>.retry` (up to 12 deliveries, about 55 s), like analytics-service; the attempt bookkeeping (`attemptOf`,
+  `deferDelivery`) moved to `libs/messaging` and both consumers use it.
