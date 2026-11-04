@@ -2,12 +2,14 @@ import { Test } from '@nestjs/testing';
 import { TOKEN_REVOCATION, type TokenRevocationChecker } from '@medcenter/common';
 
 import { withInfrastructureFakes } from '../../__tests__/infrastructure-fakes';
+import { createTestKeys } from './__tests__/test-keys';
 import { OAuthModule, loadRegisteredClients, loadSigningKeys } from './oauth.module';
 import { TokenService } from './token.service';
 
+const KEYS = createTestKeys();
 const SIGNING_ENV = {
-  JWT_PRIVATE_KEY: '-----BEGIN PRIVATE KEY-----\nstub\n-----END PRIVATE KEY-----',
-  JWT_PUBLIC_KEY: '-----BEGIN PUBLIC KEY-----\nstub\n-----END PUBLIC KEY-----',
+  JWT_PRIVATE_KEY: KEYS.privateKeyPem,
+  JWT_PUBLIC_KEY: KEYS.publicKeyPem,
   JWT_ISSUER: 'https://api.medcenter.by',
 };
 
@@ -56,6 +58,34 @@ describe('loadSigningKeys', () => {
     };
 
     expect(() => loadSigningKeys(withoutIssuer)).toThrow();
+  });
+
+  it('should read a literal backslash-n in the PEM as a line break', () => {
+    const flattened = {
+      ...SIGNING_ENV,
+      JWT_PRIVATE_KEY: SIGNING_ENV.JWT_PRIVATE_KEY.trim().replace(/\n/g, '\\n'),
+      JWT_PUBLIC_KEY: SIGNING_ENV.JWT_PUBLIC_KEY.trim().replace(/\n/g, '\\n'),
+    };
+
+    expect(loadSigningKeys(flattened).privateKeyPem).toContain('\n');
+  });
+
+  it('should throw a clear error when the private key is not a PEM', () => {
+    expect(() => loadSigningKeys({ ...SIGNING_ENV, JWT_PRIVATE_KEY: 'not a key' })).toThrow(
+      'JWT_PRIVATE_KEY is not a valid PEM private key',
+    );
+  });
+
+  it('should throw a clear error when the public key is not a PEM', () => {
+    expect(() => loadSigningKeys({ ...SIGNING_ENV, JWT_PUBLIC_KEY: 'not a key' })).toThrow(
+      'JWT_PUBLIC_KEY is not a valid PEM public key',
+    );
+  });
+
+  it('should throw when the public key belongs to another private key', () => {
+    expect(() => loadSigningKeys({ ...SIGNING_ENV, JWT_PUBLIC_KEY: createTestKeys().publicKeyPem })).toThrow(
+      'JWT_PUBLIC_KEY does not match JWT_PRIVATE_KEY',
+    );
   });
 
   it('should throw when the environment is empty', () => {

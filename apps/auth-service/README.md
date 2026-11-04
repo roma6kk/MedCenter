@@ -102,7 +102,9 @@ Specific to this service (`src/config/auth-env.ts`):
 | `AUTH_SESSION_SECRET` | key material of the login-session and CSRF cookies (>= 32 chars); falls back to `JWT_PRIVATE_KEY` |
 | `AUTH_COOKIE_SECURE` | `true` forces `Secure` on the login cookies; unset = decided per request (`req.secure`) |
 | `BOOTSTRAP_ADMIN_EMAIL/PASSWORD/FIRST_NAME/LAST_NAME` | first administrator, see above |
-| `OAUTH_CLIENTS_JSON` | registered OAuth clients and their redirect URIs |
+| `JWT_PRIVATE_KEY` / `JWT_PUBLIC_KEY` | RS256 key pair in PEM (PKCS#8/SPKI or PKCS#1); parsed and matched at boot, a literal `\n` is read as a line break |
+| `JWT_PRIVATE_KEY_B64` / `JWT_PUBLIC_KEY_B64` | the same PEMs base64-encoded; when set they replace the plain variables |
+| `OAUTH_CLIENTS_JSON` | registered OAuth clients; every redirect URI is an absolute http(s) URL without a fragment (checked at boot) |
 
 `TRUST_PROXY` sets Express's `trust proxy` (unset = `false`, so `X-Forwarded-For` is ignored). Behind Traefik use the
 hop count `1`; a list of IPs/CIDRs (`10.0.0.0/8,loopback`) is also accepted. `true` trusts every hop, so a client can

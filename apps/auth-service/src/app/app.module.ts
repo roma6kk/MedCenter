@@ -31,10 +31,11 @@ function decodePemFromBase64Env(key: string): string {
 function ensureSigningEnv(): void {
   const privateKey = decodePemFromBase64Env('JWT_PRIVATE_KEY_B64');
   const publicKey = decodePemFromBase64Env('JWT_PUBLIC_KEY_B64');
-  if (privateKey && privateKey.startsWith('-----BEGIN RSA PRIVATE KEY-----')) {
+  // Any PEM is taken (PKCS#1 and PKCS#8/SPKI alike); loadSigningKeys() parses it at boot.
+  if (privateKey.includes('-----BEGIN ')) {
     process.env['JWT_PRIVATE_KEY'] = privateKey;
   }
-  if (publicKey && publicKey.startsWith('-----BEGIN RSA PUBLIC KEY-----')) {
+  if (publicKey.includes('-----BEGIN ')) {
     process.env['JWT_PUBLIC_KEY'] = publicKey;
   }
 }

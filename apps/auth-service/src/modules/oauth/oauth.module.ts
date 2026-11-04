@@ -1,3 +1,5 @@
+import { createPrivateKey, createPublicKey } from 'node:crypto';
+
 import { Module } from '@nestjs/common';
 import { TOKEN_REVOCATION } from '@medcenter/common';
 import { z } from 'zod';
@@ -41,8 +43,9 @@ import {
  * (PEM), `JWT_ISSUER` and an optional `JWT_KEY_ID` (default `auth-1`).
  *
  * The factory is eager, so importing this module makes all three variables a
- * hard boot requirement for the whole service — a deployment that forgets them
- * fails at startup, not on the first token request.
+ * hard boot requirement for the whole service — a deployment that forgets them,
+ * or ships a PEM that does not parse or a pair that does not match, fails at
+ * startup, not on the first token request.
  */
 export function loadSigningKeys(source: NodeJS.ProcessEnv = process.env): SigningKeys {
   const privateKeyPem = source['JWT_PRIVATE_KEY'];
@@ -53,7 +56,38 @@ export function loadSigningKeys(source: NodeJS.ProcessEnv = process.env): Signin
       'OAuth signing requires JWT_PRIVATE_KEY, JWT_PUBLIC_KEY and JWT_ISSUER to be set',
     );
   }
-  return { privateKeyPem, publicKeyPem, issuer, kid: source['JWT_KEY_ID'] ?? 'auth-1' };
+  const keys = {
+    privateKeyPem: normalisePem(privateKeyPem),
+    publicKeyPem: normalisePem(publicKeyPem),
+    issuer,
+    kid: source['JWT_KEY_ID'] ?? 'auth-1',
+  };
+  assertKeyPair(keys);
+  return keys;
+}
+
+/** A PEM passed through an env file or compose often carries a literal `\n` instead of line breaks. */
+function normalisePem(pem: string): string {
+  return pem.includes('\\n') ? pem.replace(/\\n/g, '\n') : pem;
+}
+
+/** Parses both keys and proves they are a pair, so a bad key fails the boot instead of the first login or every BFF. */
+function assertKeyPair(keys: Pick<SigningKeys, 'privateKeyPem' | 'publicKeyPem'>): void {
+  let derivedPublic: Buffer;
+  try {
+    derivedPublic = createPublicKey(createPrivateKey(keys.privateKeyPem)).export({ type: 'spki', format: 'der' });
+  } catch (error: unknown) {
+    throw new Error('JWT_PRIVATE_KEY is not a valid PEM private key', { cause: error });
+  }
+  let suppliedPublic: Buffer;
+  try {
+    suppliedPublic = createPublicKey(keys.publicKeyPem).export({ type: 'spki', format: 'der' });
+  } catch (error: unknown) {
+    throw new Error('JWT_PUBLIC_KEY is not a valid PEM public key', { cause: error });
+  }
+  if (!derivedPublic.equals(suppliedPublic)) {
+    throw new Error('JWT_PUBLIC_KEY does not match JWT_PRIVATE_KEY');
+  }
 }
 
 /**
