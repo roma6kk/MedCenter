@@ -3,6 +3,7 @@ import {
   Controller,
   Delete,
   Get,
+  Headers,
   HttpCode,
   HttpStatus,
   Param,
@@ -14,6 +15,7 @@ import {
 import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { ApiProblems, auditActorOf, GUARD_PROBLEM_STATUSES, RequiresRoles, RequiresScopes, type AuditedRequest } from '@medcenter/common';
 import { DEFAULT_PAGE, DEFAULT_PAGE_SIZE, Role, SMART_SCOPES } from '@medcenter/contracts';
+import { resolveContentLanguage } from '@medcenter/fhir-mappers';
 
 import { PageQueryDto } from '../../common/page-query.dto';
 import { CreateRoomDto } from './dto/create-room.dto';
@@ -67,25 +69,30 @@ export class RoomsController {
   }
 
   /**
-   * API §4.7 — schedules and upcoming bookings that use the room; `inUse`
-   * mirrors the `ROOM_IN_USE` rule of §4.6. Read-only, hence `user/*.read`.
+   * API §4.7 — schedules, doctor roles, services and upcoming bookings that use
+   * the room; `inUse` mirrors the `ROOM_IN_USE` rule of §4.6. The lines follow
+   * `Accept-Language`. Read-only, hence `user/*.read`.
    */
   @Get('admin/rooms/:id/usage')
   @RequiresRoles(Role.ADMIN)
   @RequiresScopes(SMART_SCOPES.USER_READ)
-  @ApiOperation({ summary: '4.7 Get the usage of a room by schedules and upcoming bookings' })
+  @ApiOperation({
+    summary: '4.7 Get the usage of a room by schedules, doctor roles, services and upcoming bookings (names follow Accept-Language: en, else ru)',
+  })
   @ApiResponse({ status: HttpStatus.OK, type: RoomUsageResponseDoc })
   @ApiProblems([...GUARD_PROBLEM_STATUSES, 400, 404])
-  async usage(@Param() params: RoomIdParamDto): Promise<RoomUsageResponseDto> {
-    return this.roomUsage.usage(params.id);
+  async usage(@Param() params: RoomIdParamDto, @Headers('accept-language') acceptLanguage?: string): Promise<RoomUsageResponseDto> {
+    return this.roomUsage.usage(params.id, resolveContentLanguage(acceptLanguage));
   }
 
   @Delete('admin/rooms/:id')
   @RequiresRoles(Role.ADMIN)
   @HttpCode(HttpStatus.NO_CONTENT)
-  @ApiOperation({ summary: '4.6 Delete a room that no schedule uses' })
+  @ApiOperation({ summary: '4.6 Delete a room that no schedule, doctor role or service uses' })
   @ApiResponse({ status: HttpStatus.NO_CONTENT, description: 'Room deleted' })
-  @ApiProblems([...GUARD_PROBLEM_STATUSES, 400, 404, 409], { 409: 'ROOM_IN_USE: an active Schedule references the room' })
+  @ApiProblems([...GUARD_PROBLEM_STATUSES, 400, 404, 409], {
+    409: 'ROOM_IN_USE: a Schedule (active or not), a doctor role or a service references the room',
+  })
   async remove(@Req() request: AuditedRequest, @Param() params: RoomIdParamDto): Promise<void> {
     await this.roomsService.remove(params.id, auditActorOf(request));
   }

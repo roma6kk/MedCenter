@@ -137,7 +137,7 @@ export class PaginatedResponseDto<TItem> {
 | `SCHEDULE_OVERLAP` | 409 | пересечение `Schedule.planningHorizon` одного `PractitionerRole` |
 | `SERVICE_IN_USE` | 409 | 5.1.5: на услугу ссылается активное `Schedule` |
 | `SCHEDULE_IN_USE` | 409 | 5.2.4: расписание нельзя удалить — есть слоты или busy-слот (таблица 5.2.4) |
-| `ROOM_IN_USE` | 409 | 4.6: на кабинет ссылается активное `Schedule` |
+| `ROOM_IN_USE` | 409 | 4.6: на кабинет ссылается `Schedule` (активное или нет), роль врача (`PractitionerRole.location`) или услуга (`HealthcareService.location`) |
 | `INVALID_ICD10_CODE` | 422 | код не входит в ValueSet `https://fhir.by/ValueSet/InternClassificDiseases10`; `details[]` называет поля запроса (`diagnoses.1.code`), `detail` сохраняет список кодов |
 | `TERMINOLOGY_NOT_FOUND` | 422 | код отсутствует в локальном seed НСИ (ADR-002/016); `details[]` называет поля запроса (`medicationRequests.0.atcCode`, `observations.0.unit`), `detail` сохраняет список кодов |
 | `RATE_LIMITED` | 429 | превышение лимита |
@@ -443,8 +443,8 @@ export class PatientConsentDto {         // 3.4, 3.7
 | 4.3 | `GET /api/v1/rooms?page=&pageSize=` | кабинеты (`Location.physicalType=room`) | `user/*.read` |
 | 4.4 | `POST /api/v1/admin/rooms` | создать кабинет | `ADMIN` |
 | 4.5 | `PATCH /api/v1/admin/rooms/{id}` | обновить кабинет | `ADMIN` |
-| 4.6 | `DELETE /api/v1/admin/rooms/{id}` | удалить (если нет активных `Schedule`) → иначе 409 `ROOM_IN_USE` | `ADMIN` |
-| 4.7 | `GET /api/v1/admin/rooms/{id}/usage` | занятость кабинета (`Schedule`/`Slot` references); только чтение | `ADMIN` + `user/*.read` |
+| 4.6 | `DELETE /api/v1/admin/rooms/{id}` | удалить (если на кабинет не ссылается ни одно `Schedule`, активное или нет, ни роль врача, ни услуга) → иначе 409 `ROOM_IN_USE` | `ADMIN` |
+| 4.7 | `GET /api/v1/admin/rooms/{id}/usage` | занятость кабинета (`Schedule`, `PractitionerRole`, `HealthcareService` и ближайшие занятые `Slot`); только чтение; названия по `Accept-Language` | `ADMIN` + `user/*.read` |
 
 **4.1/4.2 `DoctorResponseDto`** (`apps/practitioner-service/src/modules/doctors/dto/doctor-response.dto.ts`):
 
@@ -500,6 +500,19 @@ HAPI не имеет unique-ограничения, проверка выпол�
 
 **4.5–4.7 — только кабинеты:** `{id}` должен быть `Location` с `physicalType=ro`, как в списке 4.3. `Location` другого типа
 (здание, отделение) для 4.5, 4.6 и 4.7 — **404** `NOT_FOUND`, как неизвестный id: PATCH не превращает его в кабинет, DELETE не удаляет.
+
+**4.6/4.7 — что значит «кабинет занят»:** HAPI не удаляет `Location`, на который есть ссылка, поэтому кабинет держат
+`Schedule` (`actor`; любое, активное или нет), роль врача (`PractitionerRole.location`) и услуга (`HealthcareService.location`;
+эти две ссылки пишет демо-сид, через API они не создаются). Для 4.6 и 4.7 это одно правило: 4.6 ищет по одному ресурсу каждого
+типа и при любой находке отвечает **409** `ROOM_IN_USE` (в `detail` названо, кто держит: «a schedule», «a doctor role»,
+«a service»), а 4.7 даёт `inUse: true` ровно тогда же. Если HAPI всё же отказал в удалении ссылкой, которой проверка не видела
+(ресурс создан между проверкой и записью), ответ тот же — 409 `ROOM_IN_USE` («another resource»), а не общий `CONFLICT`: у
+удаления нет `If-Match`, поэтому его 409 — это ссылочная целостность, а не параллельная правка.
+Ответ 4.7: `items` — сначала `Schedule`, `PractitionerRole`, `HealthcareService`, затем ближайшие занятые `Slot` (до 50,
+`truncated`); `resourceType` ∈ `Schedule | PractitionerRole | HealthcareService | Slot`; `isActive: false` — деактивированный
+ресурс, который всё ещё держит кабинет. Строка `display` — имена и период по `Accept-Language` (`en`, иначе `ru`: имя врача и
+название услуги берутся из `translation`-расширения, без перевода остаётся русский текст); слов «активно/неактивно» в ней нет,
+состояние — в `isActive`; в строке слота одно слово — «запись» / «booking».
 
 ```typescript
 // apps/practitioner-service/src/modules/rooms/dto/create-room.dto.ts

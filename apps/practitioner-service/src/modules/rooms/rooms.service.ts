@@ -20,7 +20,7 @@ import { CreateRoomDto } from './dto/create-room.dto';
 import { UpdateRoomDto } from './dto/update-room.dto';
 import type { RoomResponseDto } from './dto/room-response.dto';
 import { identifierValuesOf, roomIdentifierQuery, roomUsingIdentifier } from './room-identifier';
-import { roomScheduleQuery } from './room-schedules';
+import { firstRoomReferrer, type RoomReferrerType } from './room-references';
 import { findAllRooms, LOCATION_PHYSICAL_TYPE_SYSTEM, readRoom, ROOM_PHYSICAL_TYPE_CODE } from './room-search';
 
 /** One page of the room list in the API §0 envelope. */
@@ -39,13 +39,21 @@ function isBlank(value: string | null | undefined): boolean {
   return value === undefined || value === null || value.trim() === '';
 }
 
+/** What names the referencing resource in the `ROOM_IN_USE` detail. */
+const REFERRER_TEXT: Readonly<Record<RoomReferrerType, string>> = {
+  Schedule: 'a schedule',
+  PractitionerRole: 'a doctor role',
+  HealthcareService: 'a service',
+};
+
 /**
  * Admin CRUD over `Location` resources whose `physicalType` is `room`
  * (API §4.3–4.7, FR-017).
  *
  * The delete path protects busy slots: a room referenced by any `Schedule`
- * is never removed (BR-001) — the caller gets `409 ROOM_IN_USE`, and
- * `GET /admin/rooms/{id}/usage` (API §4.7) lists exactly those schedules.
+ * is never removed (BR-001), and neither is one a doctor role or a service
+ * lists — the caller gets `409 ROOM_IN_USE`, and
+ * `GET /admin/rooms/{id}/usage` (API §4.7) lists exactly those resources.
  */
 @Injectable()
 export class RoomsService {
@@ -139,10 +147,10 @@ export class RoomsService {
   }
 
   /**
-   * Refuses to delete a room referenced by any schedule (active or not — HAPI
-   * keeps referential integrity on delete, so a deactivated schedule pins the
-   * room too). Busy slots are protected (BR-001); the contract is 409 `ROOM_IN_USE`
-   * (API §4.6).
+   * Refuses to delete a room referenced by any schedule, doctor role or service
+   * (active or not — HAPI keeps referential integrity on delete, so a
+   * deactivated one pins the room too). Busy slots are protected (BR-001); the
+   * contract is 409 `ROOM_IN_USE` (API §4.6).
    *
    * `ROOM_IN_USE` is catalogued in `ERROR_CODES` (libs/contracts), so
    * `ProblemDetailsFilter` promotes it to the response `errorCode`; the same
@@ -151,19 +159,29 @@ export class RoomsService {
   async remove(id: string, actor: WriteActor): Promise<void> {
     // An unknown id, and a Location that is not a room, surface as 404 NOT_FOUND.
     await readRoom(this.fhirClient, id);
-    // `_count: 1` — one referencing schedule is enough to refuse the delete.
-    // Same query as the usage view (API §4.7), so both always agree.
-    const schedules = await this.fhirClient.search('Schedule', {
-      ...roomScheduleQuery(id),
-      _count: 1,
-    });
-    if ((schedules.entry ?? []).length > 0) {
-      throw new ConflictException({
-        errorCode: 'ROOM_IN_USE',
-        message: `ROOM_IN_USE: room ${id} is referenced by a schedule`,
-      });
+    // Same probes as the usage view (API §4.7), so both always agree.
+    const referrer = await firstRoomReferrer(this.fhirClient, id);
+    if (referrer !== undefined) {
+      throw this.roomInUse(id, REFERRER_TEXT[referrer]);
     }
-    await deleteAudited(this.fhirClient, 'Location', id, this.auditOf(actor));
+    try {
+      await deleteAudited(this.fhirClient, 'Location', id, this.auditOf(actor));
+    } catch (error) {
+      // A delete carries no `If-Match`, so the 409 of its transaction is HAPI keeping a reference intact: a resource the probes
+      // above did not see (created since, or of a type they do not know) points at the room. That is a room in use, not a
+      // concurrent edit, which is what the generic `CONFLICT` of `commitTransaction` would tell the admin.
+      if (error instanceof ConflictException) {
+        throw this.roomInUse(id, 'another resource');
+      }
+      throw error;
+    }
+  }
+
+  private roomInUse(roomId: string, referrer: string): ConflictException {
+    return new ConflictException({
+      errorCode: 'ROOM_IN_USE',
+      message: `ROOM_IN_USE: room ${roomId} is referenced by ${referrer}`,
+    });
   }
 
   /**

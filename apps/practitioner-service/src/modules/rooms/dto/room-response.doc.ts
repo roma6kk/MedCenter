@@ -36,16 +36,21 @@ export class RoomPageDoc {
 
 /** Swagger projection of `RoomUsageReferenceDto` (API §4.7). */
 export class RoomUsageReferenceDoc implements RoomUsageReferenceDto {
-  @ApiProperty({ enum: ['Schedule', 'Slot'] })
-  readonly resourceType!: 'Schedule' | 'Slot';
+  @ApiProperty({ enum: ['Schedule', 'PractitionerRole', 'HealthcareService', 'Slot'] })
+  readonly resourceType!: 'Schedule' | 'PractitionerRole' | 'HealthcareService' | 'Slot';
 
   @ApiProperty()
   readonly id!: string;
 
-  @ApiProperty({ description: 'Human-readable line in clinic time (Europe/Minsk)' })
+  @ApiProperty({
+    description:
+      'Human-readable line (names, period in clinic time Europe/Minsk) in the language of Accept-Language (en, else ru); no active/inactive wording, see isActive',
+  })
   readonly display!: string;
 
-  @ApiPropertyOptional({ description: 'Schedule only: false for a deactivated schedule that still pins the room' })
+  @ApiPropertyOptional({
+    description: 'Schedule, PractitionerRole and HealthcareService only: false for a deactivated one that still pins the room',
+  })
   readonly isActive?: boolean;
 
   @ApiPropertyOptional({ description: 'Slot only: owning schedule id' })
@@ -69,6 +74,9 @@ export class RoomUsageResponseDoc implements RoomUsageResponseDto {
   @ApiProperty({ description: 'True when more upcoming bookings exist than listed' })
   readonly truncated!: boolean;
 
-  @ApiProperty({ type: [RoomUsageReferenceDoc], description: 'Schedules first, then upcoming busy slots by start' })
+  @ApiProperty({
+    type: [RoomUsageReferenceDoc],
+    description: 'Schedules, doctor roles and services that reference the room first, then upcoming busy slots by start',
+  })
   readonly items!: readonly RoomUsageReferenceDoc[];
 }

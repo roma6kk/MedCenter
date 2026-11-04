@@ -132,6 +132,80 @@ describe('RoomsService', () => {
     });
   });
 
+  describe('what pins a room', () => {
+    /** HAPI finds one resource of `type` that references the room, and nothing of the other types. */
+    function referencedOnlyBy(type: string): void {
+      fhirClient.search.mockImplementation(async (resourceType) => ({
+        entry: resourceType === type ? [{ resource: { resourceType: type, id: 'ref-1' } }] : [],
+      }));
+    }
+
+    it.each([
+      ['Schedule', 'a schedule'],
+      ['PractitionerRole', 'a doctor role'],
+      ['HealthcareService', 'a service'],
+    ])('should refuse with ROOM_IN_USE and delete nothing when only a %s references the room', async (type, referrer) => {
+      referencedOnlyBy(type);
+
+      const error = await roomsService.remove(roomId, ACTOR).then(
+        () => undefined,
+        (e: unknown) => e as ConflictException,
+      );
+
+      expect(error).toBeInstanceOf(ConflictException);
+      expect(error?.getResponse()).toMatchObject({ errorCode: 'ROOM_IN_USE', message: `ROOM_IN_USE: room ${roomId} is referenced by ${referrer}` });
+      expect(fhirClient.batch).not.toHaveBeenCalled();
+    });
+
+    // `Schedule.actor` is the room of a schedule; the role and the service list it in `location`. No `active` filter: HAPI keeps
+    // referential integrity for a deactivated one too.
+    it('should probe the three referrers with the search parameter each type has, one hit being enough', async () => {
+      fhirClient.search.mockResolvedValue({ entry: [] });
+
+      await roomsService.remove(roomId, ACTOR);
+
+      expect(fhirClient.search).toHaveBeenCalledWith('Schedule', { actor: `Location/${roomId}`, _count: 1 });
+      expect(fhirClient.search).toHaveBeenCalledWith('PractitionerRole', { location: `Location/${roomId}`, _count: 1 });
+      expect(fhirClient.search).toHaveBeenCalledWith('HealthcareService', { location: `Location/${roomId}`, _count: 1 });
+      expect(fhirClient.search).toHaveBeenCalledTimes(3);
+    });
+
+    it('should name the schedule when a schedule and a doctor role both reference the room', async () => {
+      fhirClient.search.mockImplementation(async (resourceType) => ({ entry: [{ resource: { resourceType, id: 'ref-1' } }] }));
+
+      await expect(roomsService.remove(roomId, ACTOR)).rejects.toThrow('referenced by a schedule');
+    });
+
+    it('should not count an entry that is not of the probed type, such as the OperationOutcome of a warning', async () => {
+      fhirClient.search.mockResolvedValue({ entry: [{ resource: { resourceType: 'OperationOutcome' } }] });
+
+      await expect(roomsService.remove(roomId, ACTOR)).resolves.toBeUndefined();
+      expect(fhirClient.batch).toHaveBeenCalledTimes(1);
+    });
+
+    // A delete carries no If-Match, so its 409 is HAPI keeping a reference intact — a resource the probes did not see.
+    it('should answer ROOM_IN_USE, not the generic CONFLICT, when HAPI refuses the delete on a reference', async () => {
+      fhirClient.search.mockResolvedValue({ entry: [] });
+      fhirClient.batch.mockRejectedValue(new FhirClientError('POST', 'http://hapi/fhir', 409, '{}'));
+
+      const error = await roomsService.remove(roomId, ACTOR).then(
+        () => undefined,
+        (e: unknown) => e as ConflictException,
+      );
+
+      expect(error).toBeInstanceOf(ConflictException);
+      expect(error?.getResponse()).toMatchObject({ errorCode: 'ROOM_IN_USE', message: `ROOM_IN_USE: room ${roomId} is referenced by another resource` });
+    });
+
+    it('should let any other failure of the delete through unchanged', async () => {
+      fhirClient.search.mockResolvedValue({ entry: [] });
+      const failure = new FhirClientError('POST', 'http://hapi/fhir', 500, '{}');
+      fhirClient.batch.mockRejectedValue(failure);
+
+      await expect(roomsService.remove(roomId, ACTOR)).rejects.toBe(failure);
+    });
+  });
+
   describe('update', () => {
     const existing = {
       resourceType: 'Location', ...IS_ROOM,

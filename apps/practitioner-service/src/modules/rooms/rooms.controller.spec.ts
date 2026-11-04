@@ -20,9 +20,22 @@ describe('RoomsController', () => {
     // Act
     const response = await controller.usage({ id: 'room-204' });
 
-    // Assert
-    expect(roomUsage.usage).toHaveBeenCalledWith('room-204');
+    // Assert — no Accept-Language: the language the data is stored in.
+    expect(roomUsage.usage).toHaveBeenCalledWith('room-204', 'ru');
     expect(response).toBe(usageResponse);
+  });
+
+  it.each([
+    ['en', 'en'],
+    ['en-US,en;q=0.9,ru;q=0.8', 'en'],
+    ['ru', 'ru'],
+    ['de', 'ru'],
+  ])('should word the usage view in the language of Accept-Language: %s', async (header, language) => {
+    // Act
+    await controller.usage({ id: 'room-204' }, header);
+
+    // Assert
+    expect(roomUsage.usage).toHaveBeenCalledWith('room-204', language);
   });
 
   it('should require the user/*.read scope and no role when the room list route is declared', () => {

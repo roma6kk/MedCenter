@@ -4,11 +4,14 @@
  * additive detail for API clients.
  */
 export interface RoomUsageReferenceDto {
-  readonly resourceType: 'Schedule' | 'Slot';
+  readonly resourceType: 'Schedule' | 'PractitionerRole' | 'HealthcareService' | 'Slot';
   readonly id: string;
-  /** Human-readable line in clinic time (Europe/Minsk), Russian UI wording. */
+  /**
+   * Human-readable line: the names and the clinic-time (Europe/Minsk) period of the resource, in the language of
+   * `Accept-Language` (en, else ru). It carries no active/inactive wording — `isActive` does.
+   */
   readonly display: string;
-  /** `Schedule` only: `false` for a deactivated schedule that still pins the room. */
+  /** `Schedule`, `PractitionerRole` and `HealthcareService` only: `false` for a deactivated one that still pins the room. */
   readonly isActive?: boolean;
   /** `Slot` only: owning schedule and the booked period. */
   readonly scheduleId?: string;
@@ -17,10 +20,11 @@ export interface RoomUsageReferenceDto {
 }
 
 /**
- * API §4.7 response. `items` lists every `Schedule` that references the room
- * first, then its upcoming booked (`busy`) `Slot`s sorted by `start` — a
- * booked appointment holds its slot busy (ADR-012), so these are the room's
- * upcoming appointments.
+ * API §4.7 response. `items` lists every `Schedule`, `PractitionerRole` and
+ * `HealthcareService` that references the room first (what makes `DELETE`
+ * answer 409 `ROOM_IN_USE`), then its upcoming booked (`busy`) `Slot`s sorted by
+ * `start` — a booked appointment holds its slot busy (ADR-012), so these are the
+ * room's upcoming appointments.
  */
 export interface RoomUsageResponseDto {
   readonly roomId: string;

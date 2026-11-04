@@ -170,8 +170,8 @@ describe('Rooms access control (e2e)', () => {
       expect(fhir.batch).not.toHaveBeenCalled();
     });
 
-    it('should answer 409 CONFLICT when HAPI itself refuses the delete on referential integrity', async () => {
-      // Arrange — a schedule created between the usage check and the delete: HAPI's own 409, not ROOM_IN_USE.
+    it('should answer 409 ROOM_IN_USE when HAPI itself refuses the delete on referential integrity', async () => {
+      // Arrange — a schedule created between the usage check and the delete: HAPI's own 409 (a delete has no If-Match), which is a room in use.
       fhir.read.mockResolvedValue(storedRoom());
       fhir.batch.mockRejectedValue(new FhirClientError('POST', 'http://hapi:8080/fhir', 409, '{}'));
 
@@ -179,7 +179,7 @@ describe('Rooms access control (e2e)', () => {
       const response = await call(ADMIN_ROUTES[2] as AdminRoute, TOKENS.admin).expect(409);
 
       // Assert
-      expect(response.body).toMatchObject({ status: 409, errorCode: 'CONFLICT' });
+      expect(response.body).toMatchObject({ status: 409, errorCode: 'ROOM_IN_USE' });
     });
   });
 });

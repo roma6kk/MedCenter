@@ -156,3 +156,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   specialty filters left (a scan of at most 1000 practitioners; the list without `search` is still paged by HAPI).
 - `PATCH`, `DELETE` and `GET .../usage` of `/admin/rooms/{id}` answer 404 for a `Location` that is not a room (`physicalType`
   other than `ro`), like the room list leaves it out: a PATCH used to turn a building into a room and a DELETE removed it.
+- `DELETE /api/v1/admin/rooms/{id}` and `GET .../usage` (API §4.6/4.7) agree with HAPI on what keeps a room: besides a `Schedule`
+  (active or not) a doctor role (`PractitionerRole.location`) and a service (`HealthcareService.location`) do, and the demo seed
+  lists every demo room in both. A room only they list was reported free by the usage view and then refused by the delete with the
+  generic «CONFLICT: changed concurrently»; now both answer `ROOM_IN_USE`, the usage view lists the doctor and the service lines
+  (`resourceType` `PractitionerRole` and `HealthcareService`, additive), and a 409 of the delete transaction itself (a reference
+  the probes did not see) is `ROOM_IN_USE` too, not `CONFLICT`. The wording «an active Schedule» became «a Schedule (active or not)».
+- `GET /api/v1/admin/rooms/{id}/usage` follows `Accept-Language`: the doctor's name and the service title come from the
+  `translation` extension (they were always Russian) and the slot line says «booking» in English. The lines no longer carry the
+  words «активно/неактивно», so an inactive schedule is marked once (by `isActive` and the drawer's own marker), not twice.

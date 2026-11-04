@@ -1,12 +1,20 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { FHIR_CLIENT, type FhirClient, type FhirResource, type FhirSearchResult } from '@medcenter/fhir';
+import { DEFAULT_CONTENT_LANGUAGE, type ContentLanguage } from '@medcenter/fhir-mappers';
 
 import type { RoomUsageResponseDto } from './dto/room-usage-response.dto';
-import { doctorsBySchedule, indexByReference, toScheduleUsage, toSlotUsage } from './room-usage.mapper';
-import { roomScheduleQuery } from './room-schedules';
+import {
+  doctorsBySchedule,
+  indexByReference,
+  toRoleUsage,
+  toScheduleUsage,
+  toServiceUsage,
+  toSlotUsage,
+} from './room-usage.mapper';
+import { roomReferrerQuery } from './room-references';
 import { readRoom } from './room-search';
 
-/** HAPI's default `max_page_size`; a room is never shared by more schedules. */
+/** HAPI's default `max_page_size`; a room is never shared by more schedules, roles or services. */
 export const MAX_ROOM_SCHEDULES = 200;
 
 /** Upcoming bookings listed per room; one more is fetched to detect truncation. */
@@ -18,37 +26,60 @@ function resourcesOf(result: FhirSearchResult, resourceType?: string): FhirResou
 }
 
 /**
- * Room occupancy (API §4.7, FR-017): the `Schedule`s that reference the room
- * and their upcoming booked `Slot`s — exactly what makes `DELETE` answer
- * `409 ROOM_IN_USE` (API §4.6), computed by the same query
- * (`roomScheduleQuery`). Read-only, so no AuditEvent (ADR-014 audits writes).
+ * Room occupancy (API §4.7, FR-017): the `Schedule`s, doctor roles
+ * (`PractitionerRole`) and services (`HealthcareService`) that reference the
+ * room, and the upcoming booked `Slot`s of those schedules — exactly what
+ * makes `DELETE` answer `409 ROOM_IN_USE` (API §4.6), computed by the same
+ * queries (`roomReferrerQuery`). Read-only, so no AuditEvent (ADR-014 audits
+ * writes).
+ *
+ * `lang` picks the language of the names and of the one word of a booking line.
  */
 @Injectable()
 export class RoomUsageService {
   constructor(@Inject(FHIR_CLIENT) private readonly fhirClient: FhirClient) {}
 
-  async usage(roomId: string, nowMs: number = Date.now()): Promise<RoomUsageResponseDto> {
+  async usage(
+    roomId: string,
+    lang: ContentLanguage = DEFAULT_CONTENT_LANGUAGE,
+    nowMs: number = Date.now(),
+  ): Promise<RoomUsageResponseDto> {
     // An unknown id, and a Location that is not a room, surface as 404 NOT_FOUND.
     await readRoom(this.fhirClient, roomId);
     // `_include`s bring the role → practitioner and the service, so every
-    // schedule line names its doctor and service without extra round trips.
-    const result = await this.fhirClient.search('Schedule', {
-      ...roomScheduleQuery(roomId),
-      _include: 'Schedule:actor',
-      '_include:iterate': 'PractitionerRole:practitioner',
-      _count: MAX_ROOM_SCHEDULES,
-    });
-    const schedules = resourcesOf(result, 'Schedule');
-    const index = indexByReference(resourcesOf(result));
+    // schedule and role line names its doctor and service without extra round trips.
+    const [scheduleResult, roleResult, serviceResult] = await Promise.all([
+      this.fhirClient.search('Schedule', {
+        ...roomReferrerQuery('Schedule', roomId),
+        _include: 'Schedule:actor',
+        '_include:iterate': 'PractitionerRole:practitioner',
+        _count: MAX_ROOM_SCHEDULES,
+      }),
+      this.fhirClient.search('PractitionerRole', {
+        ...roomReferrerQuery('PractitionerRole', roomId),
+        _include: 'PractitionerRole:practitioner',
+        _count: MAX_ROOM_SCHEDULES,
+      }),
+      this.fhirClient.search('HealthcareService', {
+        ...roomReferrerQuery('HealthcareService', roomId),
+        _count: MAX_ROOM_SCHEDULES,
+      }),
+    ]);
+    const schedules = resourcesOf(scheduleResult, 'Schedule');
+    const roles = resourcesOf(roleResult, 'PractitionerRole');
+    const services = resourcesOf(serviceResult, 'HealthcareService');
+    const index = indexByReference([...resourcesOf(scheduleResult), ...resourcesOf(roleResult)]);
     const slots = await this.upcomingBookedSlots(schedules, nowMs);
-    const doctorBySchedule = doctorsBySchedule(schedules, index);
+    const doctorBySchedule = doctorsBySchedule(schedules, index, lang);
     return {
       roomId,
-      inUse: schedules.length > 0,
+      inUse: schedules.length + roles.length + services.length > 0,
       truncated: slots.length > MAX_USAGE_SLOTS,
       items: [
-        ...schedules.map((schedule) => toScheduleUsage(schedule, index)),
-        ...slots.slice(0, MAX_USAGE_SLOTS).map((slot) => toSlotUsage(slot, doctorBySchedule)),
+        ...schedules.map((schedule) => toScheduleUsage(schedule, index, lang)),
+        ...roles.map((role) => toRoleUsage(role, index, lang)),
+        ...services.map((service) => toServiceUsage(service, lang)),
+        ...slots.slice(0, MAX_USAGE_SLOTS).map((slot) => toSlotUsage(slot, doctorBySchedule, lang)),
       ],
     };
   }

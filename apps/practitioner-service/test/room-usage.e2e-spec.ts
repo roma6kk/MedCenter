@@ -2,6 +2,7 @@ import { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { createValidationPipe } from '@medcenter/common';
 import { FHIR_CLIENT, FhirClientError, type FhirClient, type FhirSearchResult } from '@medcenter/fhir';
+import { translationExtension } from '@medcenter/fhir-mappers';
 import request from 'supertest';
 
 import { AppModule } from '../src/app/app.module';
@@ -35,12 +36,41 @@ const BOOKED = {
   schedule: { reference: 'Schedule/sched-1' },
 };
 
-function createFhirStub(schedules: ReadonlyArray<Record<string, unknown>>): jest.Mocked<FhirClient> {
+/** A doctor role and a service that list the room in `location`, as the demo seed writes them. */
+const ROLE = { resourceType: 'PractitionerRole', id: 'role-7', practitioner: { reference: 'Practitioner/prac-1' } };
+
+/** The English text of a primitive, in the `translation` extension HAPI keeps next to the Russian one. */
+function inEnglish(content: string): Record<string, unknown> {
+  return { extension: [translationExtension('en', content)] };
+}
+
+const DOCTOR = {
+  resourceType: 'Practitioner',
+  id: 'prac-1',
+  name: [{ family: 'Иванов', _family: inEnglish('Ivanov'), given: ['Иван'], _given: [inEnglish('Ivan')] }],
+};
+const SERVICE = { resourceType: 'HealthcareService', id: 'svc-1', name: 'Консультация терапевта', _name: inEnglish('Therapist consultation') };
+
+interface Referrers {
+  readonly roles?: ReadonlyArray<Record<string, unknown>>;
+  readonly services?: ReadonlyArray<Record<string, unknown>>;
+}
+
+function createFhirStub(schedules: ReadonlyArray<Record<string, unknown>>, { roles = [], services = [] }: Referrers = {}): jest.Mocked<FhirClient> {
   const stub = { read: jest.fn(), search: jest.fn(), delete: jest.fn(), batch: jest.fn().mockImplementation(transactionResponder()) } as unknown as jest.Mocked<FhirClient>;
   stub.read.mockResolvedValue({ resourceType: 'Location', ...IS_ROOM, id: 'room-204' });
-  stub.search.mockImplementation(async (resourceType) =>
-    resourceType === 'Schedule' ? bundle(schedules) : bundle([BOOKED]),
-  );
+  stub.search.mockImplementation(async (resourceType) => {
+    switch (resourceType) {
+      case 'Schedule':
+        return bundle(schedules);
+      case 'PractitionerRole':
+        return bundle(roles);
+      case 'HealthcareService':
+        return bundle(services);
+      default:
+        return bundle([BOOKED]);
+    }
+  });
   return stub;
 }
 
@@ -53,9 +83,9 @@ describe('Room usage (e2e)', () => {
   let app: INestApplication;
   let fhir: jest.Mocked<FhirClient>;
 
-  async function boot(schedules: ReadonlyArray<Record<string, unknown>>): Promise<void> {
+  async function boot(schedules: ReadonlyArray<Record<string, unknown>>, referrers: Referrers = {}): Promise<void> {
     applyE2eEnv();
-    fhir = createFhirStub(schedules);
+    fhir = createFhirStub(schedules, referrers);
     const moduleRef = await Test.createTestingModule({ imports: [AppModule] })
       .overrideProvider(FHIR_CLIENT)
       .useValue(fhir)
@@ -112,7 +142,7 @@ describe('Room usage (e2e)', () => {
       // Assert
       expect(response.body).toMatchObject({ roomId: 'room-204', inUse: true, truncated: false });
       expect(response.body.items).toEqual([
-        { resourceType: 'Schedule', id: 'sched-1', isActive: true, display: 'PractitionerRole/role-7 · активно' },
+        { resourceType: 'Schedule', id: 'sched-1', isActive: true, display: 'PractitionerRole/role-7' },
         {
           resourceType: 'Slot',
           id: 'slot-1',
@@ -122,6 +152,24 @@ describe('Room usage (e2e)', () => {
           display: '02.11.2099 12:00–12:30 · запись · PractitionerRole/role-7',
         },
       ]);
+    });
+
+    it('should word the lines in English when the admin UI asks for it with Accept-Language', async () => {
+      // Arrange — a room that only a doctor role and a service list, as in the demo seed.
+      await app.close();
+      await boot([], { roles: [ROLE, DOCTOR], services: [SERVICE] });
+
+      // Act
+      const english = await request(app.getHttpServer()).get(USAGE).set('Authorization', admin).set('Accept-Language', 'en').expect(200);
+      const russian = await request(app.getHttpServer()).get(USAGE).set('Authorization', admin).expect(200);
+
+      // Assert
+      expect(english.body).toMatchObject({ inUse: true, truncated: false });
+      expect(english.body.items).toEqual([
+        { resourceType: 'PractitionerRole', id: 'role-7', isActive: true, display: 'Ivanov Ivan' },
+        { resourceType: 'HealthcareService', id: 'svc-1', isActive: true, display: 'Therapist consultation' },
+      ]);
+      expect(russian.body.items.map((item: { display: string }) => item.display)).toEqual(['Иванов Иван', 'Консультация терапевта']);
     });
 
     it('should reject the call with 400 VALIDATION_ERROR when the id is not a FHIR id', async () => {
@@ -166,6 +214,26 @@ describe('Room usage (e2e)', () => {
       expect(response.body).toMatchObject({ status: 409, errorCode: 'ROOM_IN_USE' });
       expect(response.body.detail).toContain('ROOM_IN_USE');
       expect(fhir.search).toHaveBeenCalledWith('Schedule', { actor: 'Location/room-204', _count: 1 });
+      expect(fhir.batch).not.toHaveBeenCalled();
+    });
+
+    it.each([
+      ['a doctor role', { roles: [ROLE] }],
+      ['a service', { services: [SERVICE] }],
+    ])('should refuse with 409 ROOM_IN_USE when only %s lists the room, as the usage view reports', async (_label, referrers) => {
+      // Arrange — no schedule: the demo seed still lists the room in `PractitionerRole.location` and `HealthcareService.location`.
+      await boot([], referrers);
+
+      // Act
+      const usage = await request(app.getHttpServer()).get(USAGE).set('Authorization', admin).expect(200);
+      const response = await request(app.getHttpServer())
+        .delete('/api/v1/admin/rooms/room-204')
+        .set('Authorization', admin)
+        .expect(409);
+
+      // Assert
+      expect(usage.body.inUse).toBe(true);
+      expect(response.body).toMatchObject({ status: 409, errorCode: 'ROOM_IN_USE' });
       expect(fhir.batch).not.toHaveBeenCalled();
     });
 
