@@ -46,6 +46,7 @@ function recipientOf(event: DomainEvent): string | undefined {
   switch (event.type) {
     case 'appointment.booked.v1':
     case 'appointment.cancelled.v1':
+    case 'appointment.noshow.v1':
     case 'encounter.completed.v1':
       return stringField(event, 'patientRef');
     case 'patient.registered.v1': {
@@ -87,6 +88,12 @@ function describe(event: DomainEvent): Described | undefined {
         category: 'appointment',
         // The free-text reason is health data: it is neither carried by the event nor copied into the message (ADR-021).
         text: 'Запись на приём отменена.',
+        about: referenceTo('Appointment', stringField(event, 'appointmentId')),
+      };
+    case 'appointment.noshow.v1':
+      return {
+        category: 'appointment',
+        text: 'Приём отмечен как несостоявшийся: врач зафиксировал неявку.',
         about: referenceTo('Appointment', stringField(event, 'appointmentId')),
       };
     case 'encounter.completed.v1':

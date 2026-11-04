@@ -133,11 +133,12 @@ SMART-scopes и RBAC общим guard-слоем (`libs/common`); Traefik мар
 | --- | --- | --- | --- |
 | `appointment.booked.v1` | appointment-service (через outbox, ADR-021) | notification-service | `appointmentId`, `patientRef`, `practitionerRoleRef`, `slotRef`, `start`, `serviceId` |
 | `appointment.cancelled.v1` | appointment-service (через outbox, ADR-021) | notification-service | `appointmentId`, `patientRef`, `actorType`; `reason` — необязательное, не заполняется (ADR-021) |
+| `appointment.noshow.v1` | appointment-service (через outbox, ADR-021) | notification-service | `appointmentId`, `patientRef` |
 | `encounter.completed.v1` | encounter-service (через outbox, ADR-021) | notification-service, analytics-service | `encounterId`, `patientRef`, `practitionerRef`, `diagnosisCount`; `diagnoses[]` — необязательное, не заполняется (ADR-021) |
 | `patient.registered.v1` | auth-service (через outbox, ADR-021) | notification-service | `patientId`; `email` — необязательное, не заполняется (ADR-021) |
 
 Соглашение: события идемпотентно обрабатываются (dedup по `eventId`); контракт — в `libs/contracts`. Доставка — at-least-once; события
-все четыре события публикует `outbox-relay` из записей `Basic` (ADR-021); сервисы-издатели брокера не знают.
+все события публикует `outbox-relay` из записей `Basic` (ADR-021); сервисы-издатели брокера не знают.
 
 **4.5 Форматы ошибок**
 

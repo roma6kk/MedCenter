@@ -5,7 +5,7 @@ import { Role, type ErrorCode } from '@medcenter/contracts';
 import { assertActiveConsent, findActiveConsent, FHIR_CLIENT, outboxWrite, type FhirClient, type FhirResource } from '@medcenter/fhir';
 import { toAppointmentResponseDto, type AppointmentResponseDto } from '@medcenter/fhir-mappers';
 
-import { bookedEvent, cancelledEvent } from '../events/appointment-events';
+import { bookedEvent, cancelledEvent, noshowEvent } from '../events/appointment-events';
 import {
   BOOKED,
   buildBookedAppointment,
@@ -212,6 +212,8 @@ export class AppointmentsService {
       [
         { method: 'PUT', url: `Appointment/${appointmentId}`, resource: updated, ifMatch: versionOf(appointment) },
         auditWrite({ interaction: 'update', actorSub: claims.sub, entityRef: `Appointment/${appointmentId}`, patientRef, requestId }),
+        // The patient is told the visit was recorded as missed (FR-008); the event commits with the status or not at all (ADR-021).
+        outboxWrite(noshowEvent({ appointmentId, patientRef: patientRef ?? '' })),
       ],
       'ENCOUNTER_STATE_INVALID',
     );

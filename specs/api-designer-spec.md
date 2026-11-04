@@ -790,6 +790,8 @@ export class AppointmentResponseDto {
 состояния. Приём, открытый в тот же момент между проверкой и коммитом, тоже исключён: открытие (7.1) меняет Appointment
 (`meta.tag` `encounter-opened`) под `If-Match`, и проигравший гонку получает 409 `ENCOUNTER_STATE_INVALID`.
 Отмена (6.4) записи с приёмом → 409 `APPOINTMENT_NOT_CANCELLABLE` (так же при проигрыше гонки).
+Успешная неявка публикует `appointment.noshow.v1` (запись outbox в той же транзакции, ADR-021): пациент получает уведомление 8.1
+категории `appointment` со ссылкой на запись.
 
 **Status:** 201 (6.1) · 200 (6.2–6.6) · 400/401/403/404/409 — §1.
 
@@ -951,7 +953,7 @@ export class CompleteEncounterDto {
 | 8.3 | `POST /api/v1/notifications/{id}/read` | отметить прочитанным | `PATIENT`, `patient/*.write`, владелец |
 | 8.4 | `POST /api/v1/notifications/read-all` | отметить прочитанными все свои непрочитанные (до 200 за вызов), ответ `{ "updated": n }` | `PATIENT`, `patient/*.write`, владелец |
 
-Потребитель RabbitMQ (`appointment.booked/cancelled.v1`, `encounter.completed.v1`,
+Потребитель RabbitMQ (`appointment.booked/cancelled/noshow.v1`, `encounter.completed.v1`,
 `patient.registered.v1` — каталог в §4.4 архитектуры) создаёт `Communication` (recipient=Patient,
 sender=Organization) + email-адаптер (A-3). Компартмент: фильтр по `patientRef` из JWT (ADR-013).
 Элемент 8.1: `{ id, category, text, sent, read, appointmentId?, encounterId? }` — `appointmentId`/`encounterId`

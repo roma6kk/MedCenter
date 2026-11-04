@@ -1,4 +1,4 @@
-import { bookedEvent, cancelledEvent } from './appointment-events';
+import { bookedEvent, cancelledEvent, noshowEvent } from './appointment-events';
 
 const BOOKED = {
   appointmentId: 'apt-1',
@@ -23,6 +23,13 @@ describe('appointment events', () => {
 
     expect(event).toMatchObject({ v: 1, type: 'appointment.cancelled.v1', actorType: 'PATIENT' });
     expect(event).not.toHaveProperty('reason');
+  });
+
+  it('should build an appointment.noshow.v1 envelope that carries the ids only when a no-show is announced', () => {
+    const event = noshowEvent({ appointmentId: 'apt-1', patientRef: 'Patient/pat-1' });
+
+    expect(event).toMatchObject({ v: 1, type: 'appointment.noshow.v1', appointmentId: 'apt-1', patientRef: 'Patient/pat-1' });
+    expect(Object.keys(event).sort()).toEqual(['appointmentId', 'eventId', 'occurredAt', 'patientRef', 'type', 'v']);
   });
 
   it('should use a different eventId for every event', () => {

@@ -39,6 +39,15 @@ describe('communicationFromEvent', () => {
     expect(communication?.['payload']).toEqual([{ contentString: 'Запись на приём отменена.' }]);
   });
 
+  it('should tell the patient the doctor recorded a no-show and point at the appointment', () => {
+    const communication = communicationFromEvent(event({ type: 'appointment.noshow.v1', appointmentId: '12', patientRef: 'Patient/1439' }));
+
+    expect(communication?.['category']).toEqual([{ text: 'appointment' }]);
+    expect(communication?.['payload']).toEqual([{ contentString: 'Приём отмечен как несостоявшийся: врач зафиксировал неявку.' }]);
+    expect(communication?.['about']).toEqual([{ reference: 'Appointment/12' }]);
+    expect(communication?.['recipient']).toEqual([{ reference: 'Patient/1439' }]);
+  });
+
   it('should notify on minimised events that carry no diagnoses and no email', () => {
     const completed = communicationFromEvent(event({ type: 'encounter.completed.v1', encounterId: 'e9', patientRef: 'Patient/1', practitionerRef: 'Practitioner/p', diagnosisCount: 1 }));
     const registered = communicationFromEvent(event({ type: 'patient.registered.v1', patientId: '5' }));

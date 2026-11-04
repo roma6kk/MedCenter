@@ -17,6 +17,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   completion transaction (encounter-service), and `patient.registered.v1` as the last step of creating an account
   (auth-service; if the write fails the user row and the Patient are removed again, so an account exists if and only if
   its outbox record does). encounter-, auth- and appointment-service no longer depend on RabbitMQ.
+- `appointment.noshow.v1` (`libs/contracts`): the doctor's no-show (API §6.6) is written to the outbox in the same transaction
+  as the status, and notification-service tells the patient (FR-008: every appointment status now has a notification).
 - `OUTBOX_STALE_PENDING_MS` and `OUTBOX_RETENTION_MS` (overrides `OUTBOX_RETENTION_DAYS`, for live verification only)
   for `outbox-relay`; `diagnosisCount` in `encounter.completed.v1`.
 - Frontend (`frontend/`) — standalone Next.js 15 App Router client (5 route groups, 27 routes): public catalog,

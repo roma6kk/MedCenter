@@ -404,9 +404,27 @@ describe('AppointmentsService', () => {
       const result = await service.markNoShow(doctor, 'apt-1');
 
       expect(result.status).toBe('noshow');
-      const bundle = fhir.batch.mock.calls[0]?.[0] as unknown as { entry: Array<{ request: Record<string, unknown> }> };
-      expect(bundle.entry).toHaveLength(2);
+      const bundle = fhir.batch.mock.calls[0]?.[0] as unknown as { entry: Array<{ resource: FhirResource; request: Record<string, unknown> }> };
+      expect(bundle.entry).toHaveLength(3);
       expect(bundle.entry[0]?.request).toEqual({ method: 'PUT', url: 'Appointment/apt-1', ifMatch: 'W/"2"' });
+    });
+
+    it('should record the appointment.noshow.v1 outbox event in the same transaction as the status when a no-show is marked', async () => {
+      fhir.read.mockResolvedValue(bookedAppointment);
+      fhir.batch.mockResolvedValue({ resourceType: 'Bundle', type: 'transaction-response', entry: [] });
+
+      await service.markNoShow(doctorClaims, 'apt-1');
+
+      const bundle = fhir.batch.mock.calls[0]?.[0] as unknown as { entry: Array<{ resource: FhirResource; request: Record<string, unknown> }> };
+      expect(outboxEventOf(bundle.entry[2]?.resource)).toMatchObject({ type: 'appointment.noshow.v1', appointmentId: 'apt-1', patientRef: 'Patient/9f2c' });
+    });
+
+    it('should write no outbox event when the no-show is refused', async () => {
+      fhir.read.mockResolvedValue({ ...bookedAppointment, status: 'cancelled' });
+
+      await errorPayloadOf(service.markNoShow(doctorClaims, 'apt-1'));
+
+      expect(fhir.batch).not.toHaveBeenCalled();
     });
 
     it('should refuse with COMPARTMENT_VIOLATION when the practitioner does not participate', async () => {

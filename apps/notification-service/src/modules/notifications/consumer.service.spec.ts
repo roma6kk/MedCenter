@@ -185,7 +185,7 @@ describe('ConsumerService', () => {
 
       expect(connectMock).toHaveBeenCalledTimes(2);
       expect(second.createChannel).toHaveBeenCalled();
-      expect(second.channel.consume).toHaveBeenCalledTimes(4);
+      expect(second.channel.consume).toHaveBeenCalledTimes(5);
 
       await consumer.onModuleDestroy();
       second.emit('close');
@@ -243,7 +243,7 @@ describe('ConsumerService', () => {
       await jest.advanceTimersByTimeAsync(5_000);
 
       expect(connectMock).toHaveBeenCalledTimes(2);
-      expect(connection.channel.consume).toHaveBeenCalledTimes(4);
+      expect(connection.channel.consume).toHaveBeenCalledTimes(5);
       await consumer.onModuleDestroy();
     });
 
@@ -318,7 +318,7 @@ describe('ConsumerService', () => {
       await jest.advanceTimersByTimeAsync(5_000);
 
       expect(connectMock).toHaveBeenCalledTimes(2);
-      expect(second.channel.consume).toHaveBeenCalledTimes(4);
+      expect(second.channel.consume).toHaveBeenCalledTimes(5);
       await consumer.onModuleDestroy();
     });
 
