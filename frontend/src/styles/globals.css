@@ -257,6 +257,17 @@ p {
   }
 }
 
+/*
+ * While the theme is switched (`applyTheme` sets `data-theme-switching` on <html> for an instant) nothing eases: the base rule
+ * above gives links and buttons 120 ms of colour transition while the page, the cards and the text change at once, so for that
+ * long buttons would show in the colours of the other theme. `!important` so that it also beats a utility such as `transition-colors`.
+ */
+:root[data-theme-switching] *,
+:root[data-theme-switching] *::before,
+:root[data-theme-switching] *::after {
+  transition: none !important;
+}
+
 @keyframes skeleton-shimmer {
   from { background-position: 150% 0; }
   to { background-position: -50% 0; }

@@ -18,6 +18,7 @@ describe('theme', () => {
   beforeEach(() => {
     window.localStorage.clear();
     delete document.documentElement.dataset['theme'];
+    delete document.documentElement.dataset['themeSwitching'];
     mockSystemScheme(false);
   });
 
@@ -75,6 +76,51 @@ describe('theme', () => {
     expect(document.documentElement.dataset['theme']).toBe('dark');
   });
 
+  describe('switching without transitions', () => {
+    beforeEach(() => jest.useFakeTimers());
+    afterEach(() => {
+      jest.restoreAllMocks();
+      jest.useRealTimers();
+    });
+
+    it('should turn every transition off while the theme is written and lift that on the next tick', () => {
+      applyTheme('dark');
+
+      expect(document.documentElement).toHaveAttribute('data-theme-switching');
+      expect(document.documentElement.dataset['theme']).toBe('dark');
+
+      jest.runOnlyPendingTimers();
+
+      expect(document.documentElement).not.toHaveAttribute('data-theme-switching');
+      expect(document.documentElement.dataset['theme']).toBe('dark');
+    });
+
+    it('should force a layout with the new theme written and the transitions still off, before they come back', () => {
+      const root = document.documentElement;
+      const seen: Array<{ readonly isSwitching: boolean; readonly theme: string | undefined }> = [];
+      jest.spyOn(root, 'getBoundingClientRect').mockImplementation(() => {
+        seen.push({ isSwitching: root.hasAttribute('data-theme-switching'), theme: root.dataset['theme'] });
+        return {} as DOMRect;
+      });
+
+      applyTheme('dark');
+
+      expect(seen).toEqual([{ isSwitching: true, theme: 'dark' }]);
+    });
+
+    it('should keep the transitions off until the last of two switches in the same instant is written', () => {
+      applyTheme('dark');
+      applyTheme('light');
+
+      expect(jest.getTimerCount()).toBe(1);
+
+      jest.runOnlyPendingTimers();
+
+      expect(document.documentElement).not.toHaveAttribute('data-theme-switching');
+      expect(document.documentElement.dataset['theme']).toBe('light');
+    });
+  });
+
   describe('THEME_INIT_SCRIPT', () => {
     it.each([
       ['dark', false, 'dark'],
@@ -91,6 +137,12 @@ describe('theme', () => {
       runInitScript();
 
       expect(document.documentElement.dataset['theme']).toBe(expected);
+    });
+
+    it('should not switch the transitions off, since nothing eases before the first paint', () => {
+      runInitScript();
+
+      expect(document.documentElement).not.toHaveAttribute('data-theme-switching');
     });
 
     it('should fall back to light and not throw when storage and matchMedia are both unavailable', () => {

@@ -40,9 +40,25 @@ export function resolveTheme(mode: ThemeMode): 'light' | 'dark' {
   return mode;
 }
 
-/** Writes the resolved theme to `<html data-theme>`, the single hook of the dark token set in `globals.css`. */
+/** The pending lift of `data-theme-switching`: a second switch within the same instant restarts it instead of being cut short by the first. */
+let liftSwitching: ReturnType<typeof setTimeout> | undefined;
+
+/**
+ * Writes the resolved theme to `<html data-theme>`, the single hook of the dark token set in `globals.css`. Links and buttons
+ * ease their colours over 120 ms while the page, the cards and the text change at once, so for that long a switch showed
+ * buttons in the colours of the other theme. `<html data-theme-switching>` turns every transition off around the write: the
+ * forced layout makes the browser compute the new colours under it, and only then the attribute is lifted. The head script
+ * (`THEME_INIT_SCRIPT`) does not need it, nothing eases before the first paint.
+ */
 export function applyTheme(mode: ThemeMode): void {
-  document.documentElement.dataset['theme'] = resolveTheme(mode);
+  const root: HTMLElement = document.documentElement;
+  root.dataset['themeSwitching'] = '';
+  root.dataset['theme'] = resolveTheme(mode);
+  root.getBoundingClientRect();
+  clearTimeout(liftSwitching);
+  liftSwitching = setTimeout(() => {
+    delete root.dataset['themeSwitching'];
+  }, 0);
 }
 
 /**
