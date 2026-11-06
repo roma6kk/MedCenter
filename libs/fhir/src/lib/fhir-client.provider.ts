@@ -253,27 +253,17 @@ function toApiStatus(upstreamStatus: number | undefined, timedOut: boolean): Htt
 }
 
 function toErrorCode(status: HttpStatus): ErrorCode {
-  switch (status) {
-    case HttpStatus.NOT_FOUND:
-      return 'NOT_FOUND';
-    case HttpStatus.CONFLICT:
-      return 'CONFLICT';
-    default:
-      return 'INTERNAL';
-  }
+  return status === HttpStatus.NOT_FOUND ? 'NOT_FOUND' : status === HttpStatus.CONFLICT ? 'CONFLICT' : 'INTERNAL';
 }
 
+const CLIENT_MESSAGES: Partial<Record<HttpStatus, string>> = {
+  [HttpStatus.NOT_FOUND]: 'NOT_FOUND: requested resource does not exist',
+  [HttpStatus.CONFLICT]: 'CONFLICT: resource was changed or already exists',
+  [HttpStatus.INTERNAL_SERVER_ERROR]: 'Внутренняя ошибка сервера',
+};
+
 function clientMessage(status: HttpStatus): string {
-  switch (status) {
-    case HttpStatus.NOT_FOUND:
-      return 'NOT_FOUND: requested resource does not exist';
-    case HttpStatus.CONFLICT:
-      return 'CONFLICT: resource was changed or already exists';
-    case HttpStatus.INTERNAL_SERVER_ERROR:
-      return 'Внутренняя ошибка сервера';
-    default:
-      return 'FHIR server is unavailable';
-  }
+  return CLIENT_MESSAGES[status] ?? 'FHIR server is unavailable';
 }
 
 export function createFhirClientProvider(env: NodeJS.ProcessEnv = process.env): Provider {

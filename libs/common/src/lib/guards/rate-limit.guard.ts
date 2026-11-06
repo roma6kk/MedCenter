@@ -35,18 +35,18 @@ interface RateLimitRequest extends RequestWithClaims {
 
 const MAX_CLIENT_ID_LENGTH = 64;
 
+function clientIdOf(request: RateLimitRequest): string {
+  const fromBody = request.body?.['client_id'];
+  return typeof fromBody === 'string' && fromBody.length > 0 ? fromBody.slice(0, MAX_CLIENT_ID_LENGTH) : '-';
+}
+
 /** Authenticated: bucket on `sub`. Otherwise `client_id|ip`: `client_id` is unauthenticated, so the IP must stay in the key or it could be rotated or exhausted. */
 function readBucketIdentity(request: RateLimitRequest): string {
   const sub = request.user?.sub;
   if (typeof sub === 'string' && sub.length > 0) {
     return sub;
   }
-  const fromBody = request.body?.['client_id'];
-  const clientId =
-    typeof fromBody === 'string' && fromBody.length > 0
-      ? fromBody.slice(0, MAX_CLIENT_ID_LENGTH)
-      : '-';
-  return `${clientId}|${request.ip ?? 'anonymous'}`;
+  return `${clientIdOf(request)}|${request.ip ?? 'anonymous'}`;
 }
 
 /** The route template, never the URL: a bucket per concrete URL would let a caller mint a fresh budget by changing a path parameter or query. */
@@ -66,10 +66,7 @@ function readCredentialIdentity(request: RateLimitRequest): string | undefined {
   if (typeof grant !== 'string' || typeof secret !== 'string' || secret.length === 0) {
     return undefined;
   }
-  const fromBody = body?.['client_id'];
-  const clientId =
-    typeof fromBody === 'string' && fromBody.length > 0 ? fromBody.slice(0, MAX_CLIENT_ID_LENGTH) : '-';
-  return `${clientId}|${grant}|${createHash('sha256').update(secret).digest('hex')}`;
+  return `${clientIdOf(request)}|${grant}|${createHash('sha256').update(secret).digest('hex')}`;
 }
 
 function buildRateLimitKey(request: RateLimitRequest, context: ExecutionContext, identity = readBucketIdentity(request)): string {
@@ -133,8 +130,7 @@ export class RateLimitGuard implements CanActivate {
       return true;
     }
 
-    const key = buildRateLimitKey(request, context);
-    if (!(await this.withinBudget(store, key, this.resolveLimit(context)))) {
+    if (!(await this.withinBudget(store, buildRateLimitKey(request, context), this.resolveLimit(context)))) {
       return this.reject(context);
     }
     return true;
