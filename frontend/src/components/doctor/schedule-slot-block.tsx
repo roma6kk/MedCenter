@@ -10,7 +10,6 @@ import type { AppointmentState } from './doctor-types';
 import { canOpenPatientCard, shortName } from './journal-model';
 import type { CalendarCell } from './schedule-week-model';
 
-/** The tone of a visit in the calendar: the same three states as the journal's week grid, as a tinted fill with a bar on its left edge. */
 const VISIT_TONE: Readonly<Record<Exclude<AppointmentState, 'cancelled'>, string>> = {
   booked: 'border-primary bg-primary-soft text-primary-soft-foreground',
   fulfilled: 'border-success bg-success-soft text-success',
@@ -19,14 +18,9 @@ const VISIT_TONE: Readonly<Record<Exclude<AppointmentState, 'cancelled'>, string
 
 interface SlotBlockProps {
   readonly cell: CalendarCell;
-  /** `grid`: a short block of the week table; `list`: a wide row of the day list (the phone), with the service under the name. */
   readonly layout: 'grid' | 'list';
 }
 
-/**
- * One slot of the doctor's calendar. A free slot is a quiet tile (the background of the day, A10); a busy one is a filled
- * block with the patient's name that opens the patient card; a busy one the journal does not list says only «Занято».
- */
 export function SlotBlock({ cell, layout }: SlotBlockProps): ReactNode {
   const t = useT('doctor.schedule');
   const tStamp = useT('stamp');

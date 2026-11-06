@@ -6,13 +6,11 @@ import { useClinicFormat } from '@/hooks/use-clinic-format';
 import { useT } from '@/lib/i18n/use-t';
 
 interface EncounterDraftNoticeProps {
-  /** ISO time the restored draft was saved. */
   readonly savedAt: string;
   readonly onDismiss: () => void;
   readonly onStartOver: () => void;
 }
 
-/** «Восстановлен черновик от …»: the form was filled from what this browser kept; the doctor can dismiss the note or start over. */
 export function EncounterDraftNotice({ savedAt, onDismiss, onStartOver }: EncounterDraftNoticeProps): ReactNode {
   const t = useT('doctor.encounter');
   const { dateTime } = useClinicFormat();

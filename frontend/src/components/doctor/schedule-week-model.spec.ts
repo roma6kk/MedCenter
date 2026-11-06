@@ -6,7 +6,6 @@ function slot(id: string, start: string, status: ScheduleSlot['status'] = 'free'
   return { id, scheduleId: 'sch-1', start, end: start, status, label: id };
 }
 
-// 2026-10-28 is a Wednesday; clinic time is UTC+3, so 06:00Z is 09:00.
 describe('weekStartOf and weekDaysOf', () => {
   it('should start the week on Monday', () => {
     expect(weekStartOf('2026-10-28')).toBe('2026-10-26');

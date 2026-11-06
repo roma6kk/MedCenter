@@ -27,7 +27,6 @@ const LEGEND_ROWS: ReadonlyArray<{ readonly status: AppointmentState; readonly l
   { status: 'cancelled', labelKey: 'legendCancelled' },
 ];
 
-/** The legend belongs in the shell's sidebar; a page rendered without that shell keeps it under the grid. */
 function useAsideSlot(): HTMLElement | null | undefined {
   const [slot, setSlot] = useState<HTMLElement | null | undefined>(undefined);
   useLayoutEffect(() => setSlot(document.getElementById(STAFF_ASIDE_SLOT_ID)), []);
@@ -87,11 +86,9 @@ export interface DayColumn {
 interface JournalWeekViewProps {
   readonly days: ReadonlyArray<DayColumn>;
   readonly today: string;
-  /** A day heading opens that day in the day view. */
   readonly onOpenDay: (dateKey: string) => void;
 }
 
-/** Week view: five working days side by side, every visit a block at its time on a half-hour grid. */
 export function JournalWeekView({ days, today, onOpenDay }: JournalWeekViewProps): ReactNode {
   const t = useT('doctor.journal');
   const locale = useUiStore((state) => state.locale);

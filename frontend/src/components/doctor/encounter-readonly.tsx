@@ -33,7 +33,6 @@ function Observations({ items }: { readonly items: EncounterDetails['observation
         <li key={`${item.code}-${index}`} className="flex flex-wrap items-baseline gap-2">
           <CodeChip code={item.code} system={item.codeSystem} />
           <span>{item.display ?? item.code}</span>
-          {/* The unit is read as a clinician writes it («°C»); the UCUM code it is stored under is the tooltip. */}
           <span className="tabular-nums font-semibold" title={item.unit}>{formatNumber(item.value)} {unitLabel(item.unit, item.code)}</span>
         </li>
       ))}
@@ -76,10 +75,6 @@ function Medications({ items }: { readonly items: EncounterDetails['medicationRe
   );
 }
 
-/**
- * The finished encounter as a record (API 7.2): the blocks of the form in the same order as the form (A6), read-only (BR-003).
- * The content comes back in the field names of `CompleteEncounterDto`, so nothing needs translating between form and record.
- */
 export function EncounterReadOnly({ encounter }: { readonly encounter: EncounterDetails }): ReactNode {
   const t = useT('doctor.readonly');
   return (

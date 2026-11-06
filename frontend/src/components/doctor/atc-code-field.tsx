@@ -20,10 +20,6 @@ interface AtcCodeFieldProps {
 
 const ATC_LENGTH = 7;
 
-/**
- * АТХ (ATC) code of a drug (FR-014, BR-009): monospace, upper-cased as typed, suggestions with the drug name from the
- * `atc` ValueSet. The service checks the code against the seeded ValueSet on submit.
- */
 export const AtcCodeField = forwardRef<HTMLInputElement, AtcCodeFieldProps>(function AtcCodeField(
   { value, onChange, onSelectTerm, onBlur, id, labelSuffix, error },
   ref,

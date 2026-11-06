@@ -3,7 +3,6 @@ jest.mock('@/lib/api/api-fetch', () => {
   return { ...actual, apiFetch: jest.fn() };
 });
 
-// Long typing sequences (hundreds of keystrokes through user-event) take well over 5 s when the machine is busy.
 jest.setTimeout(30_000);
 
 import { screen, waitFor, within } from '@testing-library/react';
@@ -19,7 +18,6 @@ import type { EncounterDetails } from './doctor-types';
 
 const apiFetchMock = apiFetch as ApiMock;
 const PATIENT: ApiRoute = { path: '/api/v1/patients/p1', respond: () => ({ id: 'p1', active: true, fullName: 'Кузнецов Алексей Иванович', lastName: 'Кузнецов', firstName: 'Алексей', birthDate: '1978-07-21', gender: 'male', telecom: [] }) };
-/** What the patient bar and the summary beside the form read (A3). */
 const CONTEXT: ReadonlyArray<ApiRoute> = [
   { path: '/api/v1/patients/p1/consent', respond: () => ({ active: ACTIVE_RECORD, history: [ACTIVE_RECORD] }) },
   { path: '/api/v1/patients/p1/history', respond: () => pageOf([]) },
@@ -31,7 +29,6 @@ const EXPANSION: ApiRoute = {
   respond: (path) => ({ valueSet: 'x', total: 1, items: path.includes('InternClassificDiseases10') ? [{ system: 'https://fhir.by/CodeSystem/InternClassificDiseases10', code: 'J06.9', display: 'Острый назофарингит' }] : [] }),
 };
 
-/** The required fields of the completion form: the conclusion, a diagnosis picked from the terminology, the recommendations. */
 async function fillTheForm(): Promise<void> {
   await userEvent.type(await screen.findByLabelText('Заключение'), 'ОРВИ, состояние удовлетворительное');
   await userEvent.type(screen.getByLabelText(/Диагноз 1:/), 'J06');
@@ -77,7 +74,6 @@ describe('EncounterView', () => {
     expect(within(record).getByText('J06.9')).toBeInTheDocument();
     expect(within(record).getByText('Острый назофарингит')).toBeInTheDocument();
     expect(within(record).getByText('Температура тела')).toBeInTheDocument();
-    // The value with the unit as a clinician writes it; the UCUM code `Cel` is only the tooltip.
     expect(within(record).getByText('36,6 °C')).toHaveAttribute('title', 'Cel');
     expect(within(record).getByText('J01FA10')).toBeInTheDocument();
     expect(within(record).getByText('Азитромицин')).toBeInTheDocument();
@@ -234,7 +230,6 @@ describe('EncounterView in progress (A6, A7, A8)', () => {
 
     await screen.findByRole('form', { name: 'Оформление приёма' });
 
-    // One in the column (a card with a heading) and one compact strip in the form; CSS shows one of them per width.
     await waitFor(() => expect(screen.getAllByRole('navigation', { name: 'Разделы приёма' })).toHaveLength(2));
     expect(within(screen.getByRole('complementary', { name: 'Сведения о пациенте' }).parentElement as HTMLElement).getByRole('heading', { name: 'Разделы приёма' })).toBeInTheDocument();
   });

@@ -11,7 +11,6 @@ interface FieldRowProps {
   readonly children: ReactNode;
 }
 
-/** A labelled field with its error underneath (announced; the input points at it through `aria-describedby`). */
 export function FieldRow({ id, label, error, children }: FieldRowProps): ReactNode {
   return (
     <div>
@@ -22,7 +21,6 @@ export function FieldRow({ id, label, error, children }: FieldRowProps): ReactNo
   );
 }
 
-/** Removing a row is the one destructive action of the form: the quiet red button with an icon, the same everywhere. */
 export function RemoveRowButton({ onClick, label, ariaLabel }: { readonly onClick: () => void; readonly label: string; readonly ariaLabel: string }): ReactNode {
   return (
     <Button variant="quiet-danger" onClick={onClick} aria-label={ariaLabel} className="mt-2">
@@ -38,7 +36,6 @@ interface AddRowButtonProps {
   readonly disabled?: boolean;
 }
 
-/** «+ Добавить …» under the rows of a list. */
 export function AddRowButton({ label, onClick, disabled }: AddRowButtonProps): ReactNode {
   return (
     <Button variant="secondary" onClick={onClick} disabled={disabled} className="mt-4">
@@ -49,13 +46,11 @@ export function AddRowButton({ label, onClick, disabled }: AddRowButtonProps): R
 }
 
 interface EmptyListLineProps {
-  /** What the list is empty of («Наблюдения не добавлены»). */
   readonly message: string;
   readonly addLabel: string;
   readonly onAdd: () => void;
 }
 
-/** An empty repeatable section is one line, not a box with a hole in it (A9): the statement and the way to add. */
 export function EmptyListLine({ message, addLabel, onAdd }: EmptyListLineProps): ReactNode {
   return (
     <p className="flex flex-wrap items-center gap-x-2 text-sm text-muted-foreground">

@@ -17,11 +17,6 @@ import { EncounterReadOnly } from './encounter-readonly';
 import { QueryFailure } from '@/components/feedback/query-error-state';
 import { useEncounter } from './use-doctor-queries';
 
-/**
- * The form disappears under the doctor's hands when the visit is completed (their own submit, or a replay that the service
- * refuses with 409): the pressed button is gone and the page is scrolled to its bottom. Focus goes to the banner that says why,
- * so it is read out and in view. A finished visit that is simply opened keeps the default focus.
- */
 function useFocusBannerOnFinish(status: EncounterDetails['status']): RefObject<HTMLParagraphElement> {
   const bannerRef = useRef<HTMLParagraphElement>(null);
   const wasEditing = useRef(false);
@@ -47,8 +42,7 @@ function FinishedBanner({ bannerRef }: { readonly bannerRef: RefObject<HTMLParag
 function EncounterBody({ encounter }: { readonly encounter: EncounterDetails }): ReactNode {
   const t = useT('doctor.encounter');
   const bannerRef = useFocusBannerOnFinish(encounter.status);
-  // A visit finished by another tab, another device or a lost reply (a replay answers 409) never ran this form's own success
-  // path: its local draft is the text of a record that is closed now. Cheap and idempotent; it runs after the form's unmount flush.
+  // A visit finished elsewhere (replay 409) never ran this form's success path: clear its stale local draft here.
   useEffect(() => {
     if (encounter.status === 'finished') clearDraft(encounter.id);
   }, [encounter.status, encounter.id]);
@@ -64,16 +58,10 @@ function EncounterBody({ encounter }: { readonly encounter: EncounterDetails }):
   return <p role="status" className="mt-4 rounded-card border border-border bg-card p-4 text-sm">{t('notEditable', { status: encounter.status })}</p>;
 }
 
-/**
- * `/encounters/[encounterId]` (FR-011…FR-014): the form while the visit is in progress, the read-only record once it is finished.
- * The patient stays in view while the doctor works (A3): a bar that sticks to the top, and the same summary as the patient's card
- * in a column beside the form from 1024 px up, in a drawer below it. The column also carries the form's section navigator.
- */
 export function EncounterView({ encounterId }: { readonly encounterId: string }): ReactNode {
   const t = useT('doctor.encounter');
   const encounter = useEncounter(encounterId);
   const [isSummaryOpen, setIsSummaryOpen] = useState(false);
-  // The side column offers a place at its top for the form's section navigator (see `EncounterAsideSlotContext`).
   const [asideSlot, setAsideSlot] = useState<HTMLElement | null>(null);
   useDocumentTitle(t('title'));
   return (

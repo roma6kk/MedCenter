@@ -3,7 +3,6 @@ jest.mock('@/lib/api/api-fetch', () => {
   return { ...actual, apiFetch: jest.fn() };
 });
 
-// Long typing sequences (hundreds of keystrokes through user-event) take well over 5 s when the machine is busy.
 jest.setTimeout(30_000);
 
 import { screen, waitFor, within } from '@testing-library/react';
@@ -16,7 +15,6 @@ function navigator(): HTMLElement {
   return screen.getByRole('navigation', { name: 'Разделы приёма' });
 }
 
-/** The state words a screen reader hears after the section's name in the navigator. */
 function stateOf(title: string): string {
   const link = within(navigator()).getByRole('link', { name: new RegExp(`^${title}`) });
   return link.getAttribute('data-state') ?? '';

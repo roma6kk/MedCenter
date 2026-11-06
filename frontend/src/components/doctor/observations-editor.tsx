@@ -52,7 +52,6 @@ function ObservationRow({ index, onRemove }: { readonly index: number; readonly 
   );
 }
 
-/** Examination and vital signs (FR-012…): a NSI observation code, a number and a UCUM unit (BR-009). Optional. */
 export function ObservationsEditor(): ReactNode {
   const t = useT('doctor.observations');
   const { control } = useFormContext<CompleteEncounterForm>();

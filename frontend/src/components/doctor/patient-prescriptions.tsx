@@ -17,7 +17,6 @@ import { QueryFailure } from '@/components/feedback/query-error-state';
 import { isOwnVisit, useOwnRoleId } from './use-own-role';
 import { usePatientHistory, usePatientPrescriptions } from './use-doctor-queries';
 
-/** `ServiceRequest` and `MedicationRequest` share one list (API 7.5): the `kind` decides what the card shows. */
 function PrescriptionBody({ item }: { readonly item: Prescription }): ReactNode {
   const t = useT('doctor.prescriptions');
   if (item.kind === 'medication') {
@@ -43,7 +42,6 @@ function PrescriptionBody({ item }: { readonly item: Prescription }): ReactNode 
   );
 }
 
-/** What the order is called: the drug or service name, its code while the name is unknown. */
 function orderName(item: Prescription): string {
   return item.kind === 'medication' ? item.atcDisplay ?? item.atcCode : item.display ?? item.code;
 }
@@ -64,17 +62,14 @@ function PrescriptionCard({ item, canOpenEncounter }: { readonly item: Prescript
   );
 }
 
-/** The patient's whole prescription list (API 7.5): drugs by ATC code and ordered services, in one list; the summary beside it shows what is in force. */
 export function PatientPrescriptions({ patientId }: { readonly patientId: string }): ReactNode {
   const t = useT('doctor.prescriptions');
   const [page, setPage] = useState(1);
   const prescriptions = usePatientPrescriptions(patientId, page);
-  // A visit of a colleague (the history says whose it is) has no record this doctor may open; one the history page does not list keeps its link.
   const history = usePatientHistory(patientId, 1);
   const ownRoleId = useOwnRoleId();
   const colleagueVisits: ReadonlySet<string> = new Set((history.data?.items ?? []).filter((visit) => !isOwnVisit(visit, ownRoleId)).map((visit) => visit.id));
   const enter = useStaggerOnce(prescriptions.data !== undefined);
-  // A patient who has never been prescribed anything gets no section: the summary beside it already says so in one line (A2).
   if (page === 1 && prescriptions.data?.items.length === 0) return null;
   return (
     <section aria-labelledby="prescriptions-title">

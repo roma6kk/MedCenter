@@ -61,7 +61,6 @@ describe('journal-model', () => {
 
 describe('gridRange', () => {
   it('should reach the hour that holds a short visit at the end of the day, which is drawn one half-hour tall', () => {
-    // 16:40–17:00 in Minsk: the 40-px block would stick out of a grid that ends at 17:00.
     const late = [[visit('l', '2026-10-21T13:40:00Z', '2026-10-21T14:00:00Z')]];
 
     expect(gridRange(late)).toEqual({ startHour: 9, endHour: 18 });

@@ -31,30 +31,19 @@ const DEFAULT_VALUES: CompleteEncounterForm = {
 type Methods = UseFormReturn<CompleteEncounterForm>;
 
 interface ServerMarks {
-  /** At least one field of the form was marked from the server's answer. */
   readonly isMarked: boolean;
-  /** What the server said about fields this form does not have; shown in the banner because it would otherwise be lost. */
   readonly foreignMessages: ReadonlyArray<string>;
 }
 
-/**
- * Focus after the render that the errors cause: a field that exists only while it is marked (the manual name of a diagnosis)
- * is not mounted yet at the moment the error is set.
- */
 function focusAfterRender(methods: Methods, path: string): void {
   setTimeout(() => methods.setFocus(path as FieldPath<CompleteEncounterForm>), 0);
 }
 
-/** The server's field paths that this form shows (the rest end up in the banner), in the order the server listed them. */
 function namedFields(problem: ProblemDetails, values: CompleteEncounterForm): ReadonlyArray<string> {
   const known: ReadonlyArray<string> = knownFieldPaths(values);
   return Object.keys(groupFieldErrors(problem.details)).filter((field) => known.includes(field));
 }
 
-/**
- * Puts a failed completion on the form: the rejected codes get their message, other field errors land on their fields,
- * and focus goes to the first marked field on screen.
- */
 function markServerProblem(methods: Methods, problem: ProblemDetails): ServerMarks {
   const values: CompleteEncounterForm = methods.getValues();
   const assignments = mapProblemToFieldAssignments(problem, values);
@@ -71,11 +60,8 @@ export interface EncounterFormController extends ServerMarks {
   readonly methods: Methods;
   readonly complete: UseMutationResult<EncounterSummary, Error, CompleteEncounterBody>;
   readonly onSubmit: ReturnType<Methods['handleSubmit']>;
-  /** Sends the same, validated form again with the reason for emergency care (ADR-019: after a 409 `CONSENT_REQUIRED`). */
   readonly completeAsEmergency: (reason: string) => void;
-  /** The local draft of the form (A8): its status, the notice about a restored one, «Сохранить черновик». */
   readonly draft: EncounterDraftController;
-  /** Empties the form and drops the draft that was restored into it. */
   readonly startOver: () => void;
 }
 
@@ -85,11 +71,6 @@ interface Completion {
   readonly send: (values: CompleteEncounterForm, emergencyReason?: string) => void;
 }
 
-/**
- * The atomic POST and what comes of it. The button stays focusable while the request runs (`aria-disabled`, not `disabled`: a
- * disabled button drops keyboard focus), so a second press must not send the POST twice, not even one that lands before React
- * has rendered the pending state; a refusal from the server is put on the form.
- */
 function useCompletion(encounterId: string, methods: Methods, onCompleted: () => void): Completion {
   const complete = useCompleteEncounter(encounterId, onCompleted);
   const [marks, setMarks] = useState<ServerMarks>({ isMarked: false, foreignMessages: [] });
@@ -108,11 +89,8 @@ function useCompletion(encounterId: string, methods: Methods, onCompleted: () =>
   return { complete, marks, send };
 }
 
-/** State and submit of the completion form: zod rules mirroring the server's, one atomic POST, server answers shown on the fields. */
 export function useEncounterForm(encounterId: string): EncounterFormController {
-  // `shouldFocusError: false`: react-hook-form would focus the first *registered* field with an error, which is not the first one
-  // on screen (a Controller registers after its row's plain inputs); `firstErrorPath` picks the right one.
-  // The draft is read once, before the first render of the form: it becomes the starting values, so nothing flashes empty first.
+  // shouldFocusError: false: RHF would focus the first registered field, not the first on screen (a Controller registers late); firstErrorPath decides.
   const [restored] = useState(() => readDraft(encounterId));
   const methods = useForm<CompleteEncounterForm>({
     resolver: zodResolver(completeEncounterSchema, { errorMap: encounterErrorMap }),

@@ -10,22 +10,17 @@ import { useExpansion } from './use-doctor-queries';
 
 export interface ValueSetSelectProps {
   readonly id: string;
-  /** ValueSet canonical whose concepts are the options. */
   readonly valueSet: string;
-  /** The chosen code (`''` while nothing is chosen). */
   readonly value: string;
   readonly onChange: (term: Term | null) => void;
   readonly onBlur?: () => void;
   readonly placeholder: string;
-  /** Codes offered when the terminology service cannot be reached; without them the field degrades to typing a code. */
   readonly fallbackCodes?: ReadonlyArray<string>;
-  /** What an option says (the default is `code — display`); the option's value stays the code. */
   readonly optionLabel?: (term: Term) => string;
   readonly 'aria-invalid'?: boolean;
   readonly 'aria-describedby'?: string;
 }
 
-/** Gap between the label above and the control. */
 const BOX_CLASS = 'mt-1';
 
 function defaultOptionLabel(term: Term): string {
@@ -43,7 +38,6 @@ interface FallbackInputProps {
   readonly inputRef: FieldRef;
 }
 
-/** The terminology service is down and no short list exists: the code is typed, and the service validates it on submit. */
 function FallbackInput({ props, inputRef }: FallbackInputProps): ReactNode {
   const { id, value, onChange, onBlur } = props;
   const t = useT('doctor.valueSet');
@@ -72,7 +66,6 @@ interface OptionsSelectProps extends FallbackInputProps {
 function OptionsSelect({ props, inputRef, options, isPending }: OptionsSelectProps): ReactNode {
   const { id, value, onChange, onBlur, placeholder, optionLabel = defaultOptionLabel } = props;
   const t = useT('doctor.valueSet');
-  // A value the list does not contain (a code kept from before, a fallback code) stays selectable instead of silently vanishing.
   const isKnown: boolean = value === '' || options.some((option) => option.code === value);
   const handleChange = (event: ChangeEvent<HTMLSelectElement>): void => onChange(termFor(options, event.target.value));
   return (
@@ -96,10 +89,6 @@ function OptionsSelect({ props, inputRef, options, isPending }: OptionsSelectPro
   );
 }
 
-/**
- * A closed list of concepts of a ValueSet (select-only: free text is refused, BR-009). A themed native `<select>` keeps keyboard
- * and screen-reader behaviour free. When the service is down it offers `fallbackCodes`, or a plain code input.
- */
 export const ValueSetSelect = forwardRef<HTMLSelectElement | HTMLInputElement, ValueSetSelectProps>(function ValueSetSelect(props, ref): ReactNode {
   const { valueSet, fallbackCodes } = props;
   const expansion = useExpansion(valueSet, '');

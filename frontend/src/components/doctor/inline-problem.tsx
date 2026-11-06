@@ -8,11 +8,9 @@ import { useT } from '@/lib/i18n/use-t';
 
 interface InlineProblemProps {
   readonly error: unknown;
-  /** Texts that replace the catalogue message for particular codes (e.g. a more helpful one for a 409 in this context). */
   readonly overrides?: Partial<Readonly<Record<ErrorCode, string>>>;
 }
 
-/** A failed action in a table cell or a button group: one localized sentence and the request id for support, announced at once. */
 export function InlineProblem({ error, overrides }: InlineProblemProps): ReactNode {
   const tErrors = useT();
   const code: ErrorCode = isApiError(error) ? error.problem.errorCode : 'INTERNAL';

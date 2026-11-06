@@ -18,7 +18,6 @@ import { ScheduleWindows } from './schedule-windows';
 import { useDoctorSchedule, useDoctorWeekAppointments } from './use-doctor-queries';
 import { useMinskToday } from './use-minsk-today';
 
-/** The day a phone opens on: the chosen one when it is in the week and has slots, else the first day with slots. */
 function dayToShow(calendar: WeekCalendar, chosen: string | null, today: string): string {
   const withSlots = (day: string): boolean => (calendar.days.find((candidate) => candidate.dateKey === day)?.total ?? 0) > 0;
   if (chosen !== null && calendar.days.some((day) => day.dateKey === chosen)) return chosen;
@@ -46,11 +45,6 @@ function ScheduleCalendar({ data, visits, days, today }: CalendarProps): ReactNo
   );
 }
 
-/**
- * The signed-in doctor's own schedule (API 5.2.7, FR-009) as a week calendar (A10): free slots are the quiet background,
- * a busy one is a block with the patient's name (the journal of the same week supplies it, joined by slot id). On a phone one
- * day at a time with a strip of the week's days. The working windows are said in words above the calendar (A11).
- */
 export function DoctorScheduleView(): ReactNode {
   const t = useT('doctor.schedule');
   useDocumentTitle(t('title'));

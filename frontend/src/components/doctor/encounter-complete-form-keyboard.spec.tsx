@@ -3,7 +3,6 @@ jest.mock('@/lib/api/api-fetch', () => {
   return { ...actual, apiFetch: jest.fn() };
 });
 
-// Long typing sequences (hundreds of keystrokes through user-event) take well over 5 s when the machine is busy.
 jest.setTimeout(30_000);
 
 import { act, fireEvent, screen, waitFor } from '@testing-library/react';
@@ -11,10 +10,6 @@ import userEvent from '@testing-library/user-event';
 import { callsTo } from './doctor-test-utils';
 import { apiFetchMock, COMPLETE, completeCall, completeRoute, DIAGNOSIS_DISPLAY, diagnosisInput, fillRequired, setup, submit } from './encounter-form-test-utils';
 
-/**
- * Gives a stray request time to show up (the form submits asynchronously) before asserting that none was sent. It outlasts the
- * 250 ms debounce of the code fields, and runs inside `act` so their timers do not update state outside of it.
- */
 async function settle(): Promise<void> {
   await act(async () => {
     await new Promise((resolve) => setTimeout(resolve, 300));
@@ -26,7 +21,6 @@ describe('EncounterCompleteForm implicit submit', () => {
     setup();
     await fillRequired();
     await userEvent.click(screen.getByRole('button', { name: 'Добавить диагноз' }));
-    // A code the terminology does not know: the doctor names it by hand, in a field of its own.
     await userEvent.type(diagnosisInput(2), 'K21.0');
     await userEvent.tab();
     await userEvent.type(await screen.findByLabelText(/Название диагноза 2/), 'ГЭРБ');
@@ -70,7 +64,6 @@ describe('EncounterCompleteForm implicit submit', () => {
 
     await userEvent.keyboard('{ArrowDown}{Enter}');
 
-    // One field for both: the picked concept reads as its code and its name.
     expect(diagnosisInput()).toHaveValue(`J06.9 — ${DIAGNOSIS_DISPLAY}`);
     expect(completeCall()).toBeUndefined();
   });

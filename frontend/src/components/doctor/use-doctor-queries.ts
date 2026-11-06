@@ -1,9 +1,5 @@
 'use client';
 
-/**
- * use-doctor-queries — TanStack Query reads of the doctor area. Keys come from the shared factory
- * (`lib/api/query-keys`, frontend-design-spec §5.1), lifetimes from `query-config`.
- */
 import { keepPreviousData, useQueries, useQuery, type QueryClient, type UseQueryResult } from '@tanstack/react-query';
 import type { PaginatedResponse } from '@/lib/api/pagination';
 import { DEFAULT_STALE_TIME_MS, STALE_TIME_MS } from '@/lib/api/query-config';
@@ -39,19 +35,13 @@ import type {
   Term,
 } from './doctor-types';
 
-/** A clinic day rarely has more than a few dozen visits; 50 keeps one day on one page so the status filter sees all of it. */
 export const JOURNAL_PAGE_SIZE = 50;
 
-/** Params object of a journal query key (`['doctorAppointments', { from, to, page, pageSize }]`), if it is one. */
 function journalFrom(query: { readonly queryKey: ReadonlyArray<unknown> } | undefined): unknown {
   const params: unknown = query?.queryKey[1];
   return typeof params === 'object' && params !== null && 'from' in params ? (params as { from: unknown }).from : undefined;
 }
 
-/**
- * The doctor's own appointments of one clinic day (API 6.5), one server page at a time.
- * Turning the page keeps the old rows on screen meanwhile; switching the day does not (rows of another day would mislead).
- */
 export function useDoctorJournal(dateKey: string, page: number): UseQueryResult<DoctorJournalPage> {
   const range: JournalRange = clinicDayBounds(dateKey);
   return useQuery({
@@ -62,10 +52,6 @@ export function useDoctorJournal(dateKey: string, page: number): UseQueryResult<
   });
 }
 
-/**
- * The first journal page of each of several clinic days, fetched in parallel (the week view). Every query has the key of the
- * day view's first page, so a day opened from the week is already cached and the other way round.
- */
 export function useDoctorWeekJournal(dateKeys: ReadonlyArray<string>): ReadonlyArray<UseQueryResult<DoctorJournalPage>> {
   return useQueries({
     queries: dateKeys.map((dateKey) => {
@@ -79,7 +65,6 @@ export function useDoctorWeekJournal(dateKeys: ReadonlyArray<string>): ReadonlyA
   });
 }
 
-/** The doctor's schedules and their slots in the range (API 5.2.7); not cached long — a booking must show at once. */
 export function useDoctorSchedule(range: JournalRange): UseQueryResult<DoctorScheduleResponse> {
   return useQuery({
     queryKey: queryKeys.doctorScheduleRange({ from: range.from, to: range.to }),
@@ -88,11 +73,6 @@ export function useDoctorSchedule(range: JournalRange): UseQueryResult<DoctorSch
   });
 }
 
-/**
- * Every visit of one calendar week (API 6.5, one request with the largest page): the week calendar of the schedule joins them
- * to the slots by `slotId` to show who sits in a busy one. A doctor does not see more than a page of visits in a week;
- * `meta` tells the view when that is not so.
- */
 export function useDoctorWeekAppointments(weekStart: string): UseQueryResult<DoctorJournalPage> {
   const range: JournalRange = { from: clinicDayBounds(weekStart).from, to: clinicDayBounds(shiftDateKey(weekStart, 6)).to };
   return useQuery({
@@ -102,7 +82,6 @@ export function useDoctorWeekAppointments(weekStart: string): UseQueryResult<Doc
   });
 }
 
-/** `enabled: false` holds the read back until the id is known (the summary reads the newest finished visit it has just learned about). */
 export function useEncounter(encounterId: string, enabled: boolean = true): UseQueryResult<EncounterDetails> {
   return useQuery({
     queryKey: queryKeys.encounterDetail(encounterId),
@@ -112,20 +91,13 @@ export function useEncounter(encounterId: string, enabled: boolean = true): UseQ
   });
 }
 
-/** How far ahead the summary looks for the patient's next visit with this doctor. */
 export const UPCOMING_HORIZON_DAYS = 30;
 
-/**
- * The patient's next booked visit with the signed-in doctor, from the doctor's own journal (API 6.5) over the coming month:
- * there is no endpoint for "a patient's appointments" on the doctor's side, so the journal is filtered by patient. The
- * visit being worked on (`excludeAppointmentId`) is not an upcoming one.
- */
 export function useUpcomingVisit(patientId: string, excludeAppointmentId?: string): UseQueryResult<JournalAppointment | null> {
   const today: string = clinicDateKey();
   const range: JournalRange = { from: clinicDayBounds(today).from, to: clinicDayBounds(shiftDateKey(today, UPCOMING_HORIZON_DAYS)).to };
   const isUpcoming = (visit: JournalAppointment): boolean => visit.patientId === patientId && visit.status === 'booked' && visit.id !== excludeAppointmentId;
   return useQuery({
-    // The oldest-first walk stops at the first page that holds the patient's visit, so the entry is the patient's own.
     queryKey: queryKeys.doctorAppointments({ ...range, scan: 'upcoming', patientId, exclude: excludeAppointmentId }),
     queryFn: async ({ signal }) => (await fetchJournalScan(range, { until: (items) => items.some(isUpcoming) }, signal)).items.find(isUpcoming) ?? null,
     staleTime: STALE_TIME_MS.appointments,
@@ -167,8 +139,6 @@ export function usePatientPrescriptions(patientId: string, page: number): UseQue
   });
 }
 
-/** The orders of one visit (API 7.5 with `encounterId`): loaded when the visit card is opened, one request per visit. */
-/** One visit holds at most a few dozen orders (20 + 20 per encounter), so a single page of the maximum size is all of them. */
 const VISIT_ORDERS_PAGE_SIZE = 100;
 
 export function useVisitPrescriptions(patientId: string, encounterId: string): UseQueryResult<PaginatedResponse<Prescription>> {
@@ -180,12 +150,10 @@ export function useVisitPrescriptions(patientId: string, encounterId: string): U
 }
 
 interface ExpansionOptions {
-  /** Hold the request back (a search box waits for a few characters). */
   readonly enabled?: boolean;
   readonly count?: number;
 }
 
-/** A page of a ValueSet (API 2.3.2). Expansions only change on a terminology import, hence the 1 h lifetime. */
 export function useExpansion(valueSet: string, filter: string, options: ExpansionOptions = {}): UseQueryResult<Expansion> {
   const count: number = options.count ?? EXPAND_COUNT;
   return useQuery({
@@ -196,10 +164,6 @@ export function useExpansion(valueSet: string, filter: string, options: Expansio
   });
 }
 
-/**
- * The concept whose code is exactly `code` (API 2.3.2 searches by code and name), `null` when the value set has none.
- * Reads through the query cache with the key of a suggestion search, so a code the doctor just searched costs no request.
- */
 export async function lookupTerm(client: QueryClient, valueSet: string, code: string): Promise<Term | null> {
   const expansion: Expansion = await client.fetchQuery({
     queryKey: [...queryKeys.terminologyExpand(valueSet, code), SUGGESTION_COUNT] as const,
@@ -209,23 +173,15 @@ export async function lookupTerm(client: QueryClient, valueSet: string, code: st
   return expansion.items.find((item) => item.code === code) ?? null;
 }
 
-/** How far back and ahead the patient search looks through the doctor's own journal. */
 export const PATIENT_SEARCH_BACK_DAYS = 90;
 export const PATIENT_SEARCH_AHEAD_DAYS = 30;
-/** The largest page the journal endpoint serves. */
 export const JOURNAL_MAX_PAGE_SIZE = 100;
 
-/** The patients of the scanned journal and whether the scan stopped at its page cap (older visits may be missing). */
 export interface DoctorPatients {
   readonly patients: ReadonlyArray<PatientHit>;
   readonly truncated: boolean;
 }
 
-/**
- * The patients the doctor has seen or will see, from the journal of the last three and the next month (every page, newest
- * first, up to `JOURNAL_SCAN_MAX_PAGES`): the doctor's side has no patient search endpoint. `enabled: false` holds the read
- * back until someone types.
- */
 export function useDoctorPatients(enabled: boolean): UseQueryResult<DoctorPatients> {
   const today: string = clinicDateKey();
   const range: JournalRange = {
@@ -241,13 +197,8 @@ export function useDoctorPatients(enabled: boolean): UseQueryResult<DoctorPatien
   });
 }
 
-/** How many days ahead an empty journal day looks for the doctor's next visit (A12). */
 export const NEXT_VISIT_LOOKAHEAD_DAYS = 14;
 
-/**
- * The doctor's nearest booked visit after `afterDay` (and never before today), looked for within `NEXT_VISIT_LOOKAHEAD_DAYS`
- * from one journal request. `null` when there is none in that time; `enabled: false` holds the read back for a day that is not empty.
- */
 export function useNextBookedVisit(afterDay: string, today: string, enabled: boolean): UseQueryResult<JournalAppointment | null> {
   const first: string = shiftDateKey(afterDay, 1) > today ? shiftDateKey(afterDay, 1) : today;
   const range: JournalRange = { from: clinicDayBounds(first).from, to: clinicDayBounds(shiftDateKey(first, NEXT_VISIT_LOOKAHEAD_DAYS - 1)).to };

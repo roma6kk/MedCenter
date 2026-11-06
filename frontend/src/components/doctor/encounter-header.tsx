@@ -8,7 +8,6 @@ import { useT } from '@/lib/i18n/use-t';
 import { formatClinicDateTime } from '@/lib/clinic-time';
 import type { EncounterDetails, EncounterState } from './doctor-types';
 
-/** Encounter status as the stamp the design system already has (`in-progress` reads as "На приёме"). */
 function stampOf(status: EncounterState): StampStatus {
   if (status === 'in-progress') return 'checked-in';
   if (status === 'finished' || status === 'cancelled' || status === 'entered-in-error') return status;
@@ -24,7 +23,6 @@ function Fact({ label, children }: { readonly label: string; readonly children: 
   );
 }
 
-/** When and what: the start and end of the visit and the booked service; who it is about sits in the sticky patient bar above. */
 export function EncounterHeader({ encounter }: { readonly encounter: EncounterDetails }): ReactNode {
   const t = useT('doctor.encounter');
   return (

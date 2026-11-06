@@ -14,19 +14,12 @@ import { PatientSummary } from './patient-summary';
 import { QueryErrorState } from '@/components/feedback/query-error-state';
 import { usePatient } from './use-doctor-queries';
 
-/** A patient who does not exist or is outside the doctor's compartment (BR-006 shows both as "not found"): nothing below the header can load either. */
 function isUnreachable(error: unknown): boolean {
   if (!isApiError(error)) return false;
   const { kind } = errorCodeToUx(error.problem.errorCode);
   return kind === 'not-found' || kind === 'forbidden';
 }
 
-/**
- * The doctor's view of one patient (FR-010), arranged for the work of a visit (A1, A2): the patient and where the consent
- * stands on top, then the visits (left) beside a sticky clinical summary (right; first on a phone), and the rare consent
- * paperwork folded at the bottom. The sections load in parallel with the header (same cache entry); if the patient turns out
- * to be unreachable only that one message is shown instead of the whole page.
- */
 export function PatientCardView({ patientId }: { readonly patientId: string }): ReactNode {
   const t = useT('doctor.patient');
   const patient = usePatient(patientId);

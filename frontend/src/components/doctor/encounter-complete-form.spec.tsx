@@ -3,7 +3,6 @@ jest.mock('@/lib/api/api-fetch', () => {
   return { ...actual, apiFetch: jest.fn() };
 });
 
-// Long typing sequences (hundreds of keystrokes through user-event) take well over 5 s when the machine is busy.
 jest.setTimeout(30_000);
 
 import { screen, waitFor, within } from '@testing-library/react';
@@ -161,7 +160,6 @@ describe('EncounterCompleteForm submit', () => {
     setup();
     await fillRequired();
     await userEvent.click(screen.getByRole('button', { name: 'Добавить диагноз' }));
-    // A code the terminology does not know: the name field appears and the doctor types it.
     await userEvent.type(diagnosisInput(2), 'K21.0');
     await userEvent.tab();
     await userEvent.type(await screen.findByLabelText(/Название диагноза 2/), 'ГЭРБ');

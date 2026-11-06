@@ -15,12 +15,10 @@ interface DayListProps {
   readonly onSelect: (day: string) => void;
 }
 
-/** What the strip shows for a day: its free windows; a day without slots is closed (not offered). */
 function stripDaysOf(days: ReadonlyArray<DayLoad>): ReadonlyArray<StripDay> {
   return days.map((day) => ({ day: day.dateKey, free: day.total - day.busy, hasSlots: day.total > 0 }));
 }
 
-/** The phone's schedule (A10): a strip of the week's days and the slots of the chosen one as a list. */
 export function ScheduleDayList({ calendar, selectedDay, onSelect }: DayListProps): ReactNode {
   const t = useT('doctor.schedule');
   const locale = useUiStore((state) => state.locale);

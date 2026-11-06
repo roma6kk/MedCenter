@@ -21,7 +21,6 @@ const TITLE_KEY: Readonly<Record<SectionId, string>> = {
   conclusion: 'doctor.encounter.conclusionLegend',
 };
 
-/** Scrolls to a section and moves focus to its heading, so the jump is announced and the next Tab starts inside the section. */
 function jumpTo(id: SectionId, event: MouseEvent<HTMLAnchorElement>): void {
   const target: HTMLElement | null = document.getElementById(sectionDomId(id));
   if (target === null) return;
@@ -30,10 +29,8 @@ function jumpTo(id: SectionId, event: MouseEvent<HTMLAnchorElement>): void {
   target.querySelector<HTMLElement>('h2')?.focus({ preventScroll: true });
 }
 
-/** The mark of a section: its shape says the state (a tick, a ring, an alert), the colour only agrees; a screen reader gets words. */
 function StateMark({ state, isRequired }: { readonly state: SectionState; readonly isRequired: boolean }): ReactNode {
   const t = useT('doctor.encounter');
-  // Drawn first (`order-first`), read last: the name of the section comes before its state.
   const icon: ReactNode =
     state === 'filled' ? <CheckCircle2 aria-hidden="true" className="order-first size-4 shrink-0 text-success" /> :
     state === 'error' ? <AlertCircle aria-hidden="true" className="order-first size-4 shrink-0 text-destructive" /> :
@@ -70,11 +67,6 @@ function NavItems({ states, itemClassName }: NavItemsProps): ReactNode {
 
 const LINK_BASE = 'inline-flex min-h-[44px] items-center gap-2 rounded-control text-sm font-medium text-foreground transition-[background-color] duration-fast ease-out hover:bg-secondary';
 
-/**
- * Section navigator of the completion form (A6): the sections in the order of the visit, each with its state (empty, filled,
- * has errors). In the side column (from 1024 px) it is a list that stays in view while the form scrolls; where there is no column
- * it is a compact strip of chips above the form. Both are plain anchors, so they also work without scripts.
- */
 export function SectionNavigator(): ReactNode {
   const t = useT('doctor.encounter');
   const slot: HTMLElement | null = useContext(EncounterAsideSlotContext);

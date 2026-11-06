@@ -9,7 +9,6 @@ function relationshipOf(person: RelatedPerson): string | undefined {
   return person.relationship.map((coding) => coding.display ?? coding.code).find((text) => text !== undefined && text !== '');
 }
 
-/** The first phone of the person, the one a doctor would call; other contacts stay out of a one-line summary. */
 function phoneOf(person: RelatedPerson): Telecom | undefined {
   return person.telecom.find((contact) => contact.system === 'phone');
 }
@@ -27,10 +26,6 @@ function Person({ person }: { readonly person: RelatedPerson }): ReactNode {
   );
 }
 
-/**
- * Trusted persons of the patient (API 3.3, `RelatedPerson`) as one small line of the patient header (A15): nothing is shown
- * for a patient who has none, a failed read costs only a muted note, never a banner.
- */
 export function RelatedPersons({ patientId }: { readonly patientId: string }): ReactNode {
   const t = useT('doctor.patient');
   const related = useRelatedPersons(patientId, 1);

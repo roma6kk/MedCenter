@@ -22,7 +22,6 @@ import { useRemoveRowFocus } from './use-remove-row-focus';
 const ICD10_SYSTEM = 'https://fhir.by/CodeSystem/InternClassificDiseases10';
 const STATUSES: ReadonlyArray<VerificationStatus> = ['working', 'provisional', 'confirmed'];
 
-/** The segment for "not stated" has the empty value the form already uses for it (the schema turns it into an absent field). */
 type StatusChoice = '' | VerificationStatus;
 
 function VerificationField({ index }: { readonly index: number }): ReactNode {
@@ -45,7 +44,6 @@ function VerificationField({ index }: { readonly index: number }): ReactNode {
             options={options}
             value={field.value ?? ''}
             onChange={(next) => field.onChange(next === '' ? undefined : next)}
-            // Four segments do not fit one line on a phone: two by two there, one row from 640 px.
             className="mt-1 grid w-full grid-cols-2 sm:inline-flex sm:w-auto"
           />
         )}
@@ -56,30 +54,19 @@ function VerificationField({ index }: { readonly index: number }): ReactNode {
 }
 
 interface DiagnosisText {
-  /** What the input shows: what the doctor is typing, otherwise the chosen concept («J06.9 — Острая инфекция…»). */
   readonly text: string;
   readonly onTextChange: (raw: string) => void;
   readonly onSelectTerm: (term: Term) => void;
-  /** Leaving the field: a code written out in full still gets its name from the terminology. */
   readonly onLeave: (code: string) => void;
-  /**
-   * A valid code is in the field and the terminology has no name for it (it was asked when the field was left): the doctor
-   * types the name. Stays true while that name is typed, and ends when the code changes.
-   */
   readonly needsManualName: boolean;
 }
 
-/**
- * The one field of a diagnosis row (A7). The form still holds `code` and `display`; the field shows them as one text and
- * turns what is typed into the code: a code typed out in full is the code, anything else is only a search until a concept is picked.
- */
 function useDiagnosisText(index: number, hasCodeError: boolean): DiagnosisText {
   const { control, setValue, getValues } = useFormContext<CompleteEncounterForm>();
   const client = useQueryClient();
   const code: string = useWatch({ control, name: `diagnoses.${index}.code` });
   const display: string = useWatch({ control, name: `diagnoses.${index}.display` });
   const [typed, setTyped] = useState<string | null>(null);
-  // The code that has no name in the terminology. A restored draft may already hold one.
   const [unnamedCode, setUnnamedCode] = useState<string | null>(() => (ICD10_PATTERN.test(code) && display === '' ? code : null));
   const codePath = `diagnoses.${index}.code` as const;
   const displayPath = `diagnoses.${index}.display` as const;
@@ -87,12 +74,9 @@ function useDiagnosisText(index: number, hasCodeError: boolean): DiagnosisText {
   const onTextChange = (raw: string): void => {
     const shown: string = typed === null ? formatDiagnosis(code, display) : typed;
     const isChosen: boolean = typed === null && code !== '' && display !== '';
-    // Editing a chosen diagnosis starts a new search instead of editing «J06.9 — Острая инфекция…» in place:
-    // deleting clears the field, typing over it (or after it) keeps only what was typed.
     const next: string = !isChosen ? raw : raw.length < shown.length ? '' : raw.startsWith(shown) ? raw.slice(shown.length) : raw;
     setTyped(upperCaseSearch(next));
     setUnnamedCode(null);
-    // The name described the code that is being replaced; it must not outlive it.
     setValue(codePath, codeOfTypedText(next), { shouldDirty: true, shouldValidate: hasCodeError });
     setValue(displayPath, '', { shouldDirty: true });
   };
@@ -107,7 +91,7 @@ function useDiagnosisText(index: number, hasCodeError: boolean): DiagnosisText {
     if (!isNameEmpty()) return;
     lookupTerm(client, ICD10_VALUE_SET, current)
       .then((term) => (term?.display && isNameEmpty() ? setValue(displayPath, term.display, { shouldDirty: true, shouldValidate: true }) : undefined))
-      // The lookup is a convenience: when it fails the doctor types the name, and the server still validates the code on submit.
+      // The lookup is a convenience: on failure the doctor types the name; the server validates the code on submit.
       .catch(() => undefined)
       .finally(() => setUnnamedCode(isNameEmpty() ? current : null));
   };
@@ -120,7 +104,6 @@ interface DiagnosisCodeFieldProps {
   readonly text: DiagnosisText;
 }
 
-/** The combobox «код или название»: it fills both the code and the name of the row. */
 function DiagnosisCombobox({ index, shortcuts, text }: DiagnosisCodeFieldProps): ReactNode {
   const t = useT('doctor.encounter');
   const { control } = useFormContext<CompleteEncounterForm>();
@@ -152,11 +135,6 @@ function DiagnosisCombobox({ index, shortcuts, text }: DiagnosisCodeFieldProps):
   );
 }
 
-/**
- * The name of a diagnosis is derived from its code and has no field of its own. This one appears only when the terminology
- * could not supply a name for a valid code (a code outside the seed, the service down) or the form/server marked the name:
- * the service accepts any text there, so the doctor can still finish the visit.
- */
 function ManualNameField({ index }: { readonly index: number }): ReactNode {
   const t = useT('doctor.encounter');
   const { control, register } = useFormContext<CompleteEncounterForm>();
@@ -186,7 +164,6 @@ function DiagnosisRow({ index, canRemove, shortcuts, onRemove }: DiagnosisRowPro
   const { errors } = useFormState({ control, name: [`diagnoses.${index}.code`, `diagnoses.${index}.display`] });
   const text = useDiagnosisText(index, errorAt(errors, `diagnoses.${index}.code`) !== undefined);
   const code: string = useWatch({ control, name: `diagnoses.${index}.code` });
-  // A marked name is shown only next to a code it could belong to: with no code, the code is what the doctor has to fix first.
   const needsName: boolean = text.needsManualName || (ICD10_PATTERN.test(code) && errorAt(errors, `diagnoses.${index}.display`) !== undefined);
   return (
     <div className={ROW_CLASS}>
@@ -198,10 +175,6 @@ function DiagnosisRow({ index, canRemove, shortcuts, onRemove }: DiagnosisRowPro
   );
 }
 
-/**
- * The patient's earlier diagnoses as shortcuts for an empty field. They come from the history list the clinical summary beside
- * the form has already loaded (same query key, no extra request); codes already chosen in this form are left out.
- */
 function useDiagnosisShortcuts(patientId: string): ReadonlyArray<Term> {
   const { control } = useFormContext<CompleteEncounterForm>();
   const history = usePatientHistory(patientId, 1);
@@ -214,7 +187,6 @@ function useDiagnosisShortcuts(patientId: string): ReadonlyArray<Term> {
   }, [history.data, chosen]);
 }
 
-/** The ICD-10 diagnoses (BR-004): at least one, at most 20; the first is the primary one. */
 export function DiagnosesEditor({ patientId }: { readonly patientId: string }): ReactNode {
   const t = useT('doctor.encounter');
   const { control } = useFormContext<CompleteEncounterForm>();

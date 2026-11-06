@@ -20,12 +20,10 @@ import { useMinskToday } from './use-minsk-today';
 
 const JOURNAL_PATH = '/doctor/appointments';
 
-/** The day in `?date=`; `null` (today) when it is missing or not a calendar date. */
 function dayFromUrl(raw: string | null): string | null {
   return raw !== null && isDateKey(raw) ? raw : null;
 }
 
-/** Mirrors the chosen day into the address bar without a navigation (Next syncs `useSearchParams` with `replaceState`). */
 function writeDayToUrl(day: string | null): void {
   window.history.replaceState(null, '', day === null ? JOURNAL_PATH : `${JOURNAL_PATH}?date=${day}`);
 }
@@ -35,18 +33,12 @@ interface JournalState {
   readonly today: string;
   readonly status: StatusFilter;
   readonly journal: UseQueryResult<DoctorJournalPage>;
-  /** Rows of the loaded page that pass the status filter. */
   readonly rows: ReadonlyArray<JournalAppointment>;
   readonly setPage: (page: number) => void;
   readonly setStatus: (status: StatusFilter) => void;
   readonly changeDate: (dateKey: string) => void;
 }
 
-/**
- * The day the address bar names, followed in both directions: a choice on screen is written to the URL, and a navigation
- * that changes the URL (the shell's "Journal" link, back/forward) moves the screen. `null` means "today", which keeps
- * following the clock for a journal left open overnight.
- */
 function useSelectedDay(): readonly [string | null, (day: string | null) => void] {
   const urlDay: string | null = dayFromUrl(useSearchParams().get('date'));
   const [selected, setSelected] = useState<string | null>(urlDay);
@@ -62,12 +54,10 @@ function useSelectedDay(): readonly [string | null, (day: string | null) => void
   return [selected, choose];
 }
 
-/** The day, the server page, the status filter and the journal query that follow from them. */
 function useJournalState(): JournalState {
   const today: string = useMinskToday();
   const [selected, choose] = useSelectedDay();
   const dateKey: string = selected ?? today;
-  // The page belongs to the day it was chosen on: another day starts from page 1 however it came about.
   const [pageOf, setPageOf] = useState<{ readonly day: string; readonly page: number }>({ day: dateKey, page: 1 });
   const page: number = pageOf.day === dateKey ? pageOf.page : 1;
   const [status, setStatus] = useState<StatusFilter>('all');
@@ -82,10 +72,8 @@ function passesFilter(item: JournalAppointment, status: StatusFilter): boolean {
   return status === 'all' || item.status === status;
 }
 
-/** The week view's columns: five working days from the chosen day, each with the rows of its first journal page that pass the filter. */
 function useWeekColumns(dateKey: string, status: StatusFilter, enabled: boolean): ReadonlyArray<DayColumn> {
   const dateKeys: ReadonlyArray<string> = workingDays(dateKey);
-  // Parallel per-day queries (no waterfall); they share their cache keys with the day view's first page.
   const queries: ReadonlyArray<UseQueryResult<DoctorJournalPage>> = useDoctorWeekJournal(enabled ? dateKeys : []);
   return enabled
     ? dateKeys.map((day, index) => {
@@ -135,7 +123,6 @@ function WeekBody({ columns, today, onOpenDay }: { readonly columns: ReadonlyArr
   );
 }
 
-/** The doctor's journal (FR-009): one clinic day as a timeline or five working days as a grid, a status filter, the actions of a booked visit. */
 export function DoctorJournal(): ReactNode {
   const t = useT('doctor.journal');
   const { dateKey, today, status, journal, rows, setPage, setStatus, changeDate } = useJournalState();

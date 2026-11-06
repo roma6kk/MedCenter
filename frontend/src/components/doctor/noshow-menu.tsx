@@ -13,19 +13,14 @@ import { useNow } from './use-now';
 
 interface NoshowMenuProps {
   readonly appointmentId: string;
-  /** Names the patient for assistive technology and in the dialog, so the same «⋯» in every row is distinguishable. */
   readonly patientName?: string;
-  /** Start (RFC 3339) of the visit: the menu is not offered before it. Without it the menu is always there. */
   readonly start?: string;
 }
 
-/** How often the menu re-checks whether the visit's time has come. */
 const NOSHOW_TICK_MS = 30_000;
 
-/** Marks the element a row keeps focus on once its actions are gone (the journal puts it on the patient link). */
 const ROW_ANCHOR_SELECTOR = '[data-row-anchor]';
 
-/** The anchor of the table row or card that holds `from`: the nearest ancestor that contains one is the row itself. */
 function rowAnchorOf(from: HTMLElement | null): HTMLElement | null {
   for (let node: HTMLElement | null = from?.parentElement ?? null; node !== null; node = node.parentElement) {
     const anchor: HTMLElement | null = node.querySelector<HTMLElement>(ROW_ANCHOR_SELECTOR);
@@ -39,16 +34,10 @@ interface DialogProps extends NoshowMenuProps {
   readonly onClose: () => void;
 }
 
-/**
- * The confirmation (A5, E3): says what the no-show does and that the journal cannot take it back, and the solid red button is
- * the only place where the action is confirmed. The service's refusal is spelled out inside. While the request runs the
- * dialog cannot be dismissed: the no-show would be recorded after the doctor closed it.
- */
 function NoshowDialog({ appointmentId, patientName, anchorFrom, onClose }: DialogProps): ReactNode {
   const t = useT('doctor.noshow');
   const tCommon = useT('common');
-  // The pressed «⋯» disappears with the refresh (a no-show leaves the booked-only actions): once the answer is in, the focus
-  // goes to the patient link of the row. It waits a frame so the dialog's own «return focus to the opener» has run first.
+  // The pressed «⋯» disappears with the refresh: after the answer focus goes to the row link, a frame later so the dialog restores its own first.
   const noshow = useNoshow(() => {
     const anchor: HTMLElement | null = rowAnchorOf(anchorFrom.current);
     requestAnimationFrame(() => anchor?.focus());
@@ -59,7 +48,7 @@ function NoshowDialog({ appointmentId, patientName, anchorFrom, onClose }: Dialo
   const footer: ReactNode = (
     <>
       <Button variant="secondary" aria-disabled={noshow.isPending} onClick={() => (noshow.isPending ? undefined : onClose())}>{t('cancel')}</Button>
-      {/* aria-disabled, not disabled: a control that loses the focus to the body would let Tab walk out of the dialog. */}
+      {/* aria-disabled, not disabled: losing focus to body would let Tab walk out of the dialog. */}
       <Button variant="destructive" aria-disabled={noshow.isPending} onClick={confirm}>{noshow.isPending ? tCommon('loading') : t('confirm')}</Button>
     </>
   );
@@ -80,17 +69,11 @@ function NoshowDialog({ appointmentId, patientName, anchorFrom, onClose }: Dialo
   );
 }
 
-/**
- * «⋯» menu of a booked appointment in the journal with its one destructive item, «Неявка» (API 6.6). It no longer sits next
- * to «Карта пациента» in the same weight (A5): a stray click on the neighbour cannot record a no-show, and recording one
- * takes a menu item and a confirmation that names the consequence.
- */
 export function NoshowMenu({ appointmentId, patientName, start }: NoshowMenuProps): ReactNode {
   const t = useT('doctor.noshow');
   const now: number | null = useNow(NOSHOW_TICK_MS, start !== undefined);
   const [isOpen, setIsOpen] = useState(false);
   const wrapper = useRef<HTMLSpanElement>(null);
-  // A no-show cannot be taken back and burns the slot: it is offered once the visit's time has come.
   if (start !== undefined && (now === null || Date.parse(start) > now)) return null;
   const items: ReadonlyArray<MenuItem> = [{ key: 'noshow', label: t('button'), icon: UserX, destructive: true, onSelect: () => setIsOpen(true) }];
   return (

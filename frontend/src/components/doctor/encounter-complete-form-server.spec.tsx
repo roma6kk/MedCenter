@@ -3,7 +3,6 @@ jest.mock('@/lib/api/api-fetch', () => {
   return { ...actual, apiFetch: jest.fn() };
 });
 
-// Long typing sequences (hundreds of keystrokes through user-event) take well over 5 s when the machine is busy.
 jest.setTimeout(30_000);
 
 import { screen, waitFor } from '@testing-library/react';
@@ -46,7 +45,6 @@ describe('EncounterCompleteForm server errors', () => {
 
     await submit();
 
-    // The name is derived from the code and has no field of its own until the server marks it: then it appears, marked.
     expect(await screen.findByText('Слишком длинное значение')).toBeInTheDocument();
     expect(screen.getByLabelText(/Название диагноза 1/)).toHaveAttribute('aria-invalid', 'true');
     expect(screen.getByTestId('problem-banner')).toHaveTextContent('patientId is not allowed');

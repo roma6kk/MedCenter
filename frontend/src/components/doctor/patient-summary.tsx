@@ -26,12 +26,10 @@ function Block({ title, children }: { readonly title: string; readonly children:
   );
 }
 
-/** One quiet line for a block that has nothing to show: an empty block must not take the room a full one would. */
 function Empty({ children }: { readonly children: ReactNode }): ReactNode {
   return <p className="text-sm text-muted-foreground">{children}</p>;
 }
 
-/** A block whose read failed says so in one quiet line and offers «Повторить» (E4): a failed block never ends in a dead end. */
 function Unavailable({ onRetry }: { readonly onRetry: () => void }): ReactNode {
   const t = useT('doctor.summary');
   const tCommon = useT('common');
@@ -136,11 +134,6 @@ function VitalsList({ items, date }: { readonly items: ReadonlyArray<Observation
   );
 }
 
-/**
- * The newest finished visit of the signed-in doctor is the only one read: its observations are the "last vitals". The history
- * lists the visits of colleagues too, but their records are closed to this doctor (403), so a colleague's visit is never read
- * and says so instead of «no vitals»; a failed read is a failure with a retry, not an empty block.
- */
 function LastVitals({ patientId }: { readonly patientId: string }): ReactNode {
   const t = useT('doctor.summary');
   const ownRoleId = useOwnRoleId();
@@ -184,19 +177,11 @@ function UpcomingVisit({ patientId, excludeAppointmentId }: { readonly patientId
 
 interface PatientSummaryProps {
   readonly patientId: string;
-  /** The visit the doctor is in right now (the encounter screen): it is not an "upcoming" one. */
   readonly excludeAppointmentId?: string;
-  /** `plain` drops the card and its heading, for a panel that already has a title of its own (the drawer). */
   readonly plain?: boolean;
   readonly className?: string;
 }
 
-/**
- * The clinical summary of a patient (A2, A3): recent diagnoses, current prescriptions, the last vitals and the next visit,
- * from what the history and prescription lists already return. Shared by the patient card and the encounter screen, so both
- * show the same picture. Every block loads and fails on its own, and an empty one is a single quiet line. Allergies are not
- * in any API yet and are left out rather than shown as "none".
- */
 export function PatientSummary({ patientId, excludeAppointmentId, plain = false, className }: PatientSummaryProps): ReactNode {
   const t = useT('doctor.summary');
   const blocks: ReactNode = (

@@ -7,7 +7,6 @@ import type { DiagnosisView } from './doctor-types';
 
 const ICD10_CODE_SYSTEM = 'https://fhir.by/CodeSystem/InternClassificDiseases10';
 
-/** ICD-10 diagnoses as `J06.9` chips with the name next to them; `verificationStatus` is spelled out when the doctor set it. */
 export function DiagnosisList({ diagnoses }: { readonly diagnoses: ReadonlyArray<DiagnosisView> }): ReactNode {
   const t = useT('doctor.verification');
   return (

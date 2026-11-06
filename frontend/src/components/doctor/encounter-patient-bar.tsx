@@ -16,13 +16,11 @@ import { usePatient } from './use-doctor-queries';
 function PatientName({ patientId, patient, isPending }: { readonly patientId: string; readonly patient: PatientCard | undefined; readonly isPending: boolean }): ReactNode {
   const t = useT('doctor.encounter');
   const tCommon = useT('common');
-  // The id is shown only when the card cannot be read; while it loads a placeholder avoids flashing a number as the name.
   if (isPending) return <span className="text-muted-foreground">{tCommon('loading')}</span>;
   const name: string = patient?.fullName || t('patientFallback', { id: patientId });
   return <Link href={`/patients/${encodeURIComponent(patientId)}`} className="inline-flex min-h-[44px] items-center underline-offset-2 hover:underline">{name}</Link>;
 }
 
-/** How long the visit has been going, from its start: «Идёт 23 мин». The minute is enough, so it ticks every 30 s, not every second. */
 function Duration({ startedAt }: { readonly startedAt: string }): ReactNode {
   const t = useT('doctor.encounter');
   const now: number | null = useNow(30_000);
@@ -42,16 +40,10 @@ function Duration({ startedAt }: { readonly startedAt: string }): ReactNode {
 
 interface EncounterPatientBarProps {
   readonly patientId: string;
-  /** Start of the visit while it is in progress: the bar then shows how long it has been going. */
   readonly startedAt?: string;
-  /** Opens the patient's summary in a drawer; only offered below the width where the summary has a column of its own. */
   readonly onOpenSummary: () => void;
 }
 
-/**
- * Who the visit is about, kept at the top of the encounter screen while the form scrolls (A3): name (a link to the card),
- * age and sex, and where the consent stands. On a narrow screen it also carries the button that opens the patient's summary.
- */
 export function EncounterPatientBar({ patientId, startedAt, onOpenSummary }: EncounterPatientBarProps): ReactNode {
   const t = useT('doctor.encounter');
   const tPatient = useT('doctor.patient');

@@ -28,7 +28,6 @@ function setup(respond: () => unknown = () => pageOf(ROWS)): void {
   renderWithClient(<DoctorJournal />);
 }
 
-/** The timeline of the day: a labelled region that holds one list item per visit. */
 async function findTable(): Promise<HTMLElement> {
   return screen.findByRole('region', { name: 'Приёмы по времени' });
 }
@@ -51,7 +50,6 @@ describe('DoctorJournal', () => {
     expect(query.has('date')).toBe(false);
   });
 
-// Long typing sequences (hundreds of keystrokes through user-event) take well over 5 s when the machine is busy.
 jest.setTimeout(30_000);
 
   it('should show the Minsk time of each visit with the patient and the booked service', async () => {
@@ -191,7 +189,6 @@ jest.setTimeout(30_000);
     const tomorrow: string = shiftDateKey(TODAY, 1);
     const next = appointment({ id: 'n1', patientName: 'Кузнецов Павел', start: `${tomorrow}T07:00:00Z`, end: `${tomorrow}T07:30:00Z` });
     setup(() => pageOf([]));
-    // Today's own request ends at the end of today; the look-ahead range reaches into tomorrow and finds the visit.
     apiFetchMock.mockImplementation((path: string) => Promise.resolve(path.includes(encodeURIComponent(`${TODAY}T23:59:59+03:00`)) ? pageOf([]) : pageOf([next])));
 
     expect(await screen.findByText('Сегодня записей нет')).toBeInTheDocument();
@@ -364,7 +361,6 @@ jest.setTimeout(30_000);
     await findTable();
     expect(new URL(lastJournalPath(), 'http://x').searchParams.get('from')).toBe('2026-10-19T00:00:00+03:00');
 
-    // The shell's "Журнал" link: same route, no `?date=`, the component is not remounted.
     window.history.replaceState(null, '', '/doctor/appointments');
     rerender(<DoctorJournal />);
 
@@ -385,7 +381,6 @@ jest.setTimeout(30_000);
   });
 
   it('should move a journal that follows today to the new day when midnight passes in Minsk', async () => {
-    // 2026-10-20 23:59:30 in Minsk (UTC+3).
     jest.useFakeTimers({ now: new Date('2026-10-20T20:59:30Z'), advanceTimers: true });
     try {
       setup();
@@ -411,7 +406,6 @@ jest.setTimeout(30_000);
     }
 
     it('should request the five working days at once and show each visit as a block at its time', async () => {
-      // On a weekend the day view first asks for that day, which is outside the working week.
       jest.useFakeTimers({ now: new Date('2026-10-21T09:00:00Z'), advanceTimers: true });
       try {
         await openWeek();

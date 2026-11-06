@@ -16,7 +16,6 @@ function renderMenu(patientName?: string): void {
   renderWithClient(<NoshowMenu appointmentId="a1" patientName={patientName} />, newQueryClient());
 }
 
-/** The menu where the journal puts it: a row that has the patient link, which the actions of a finished visit leave behind. */
 function renderInRow(): void {
   renderWithClient(
     <table>

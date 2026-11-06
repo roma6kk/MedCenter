@@ -13,11 +13,9 @@ import { NEXT_VISIT_LOOKAHEAD_DAYS, useNextBookedVisit } from './use-doctor-quer
 interface JournalEmptyDayProps {
   readonly dateKey: string;
   readonly today: string;
-  /** Opens the day of the next visit in the journal. */
   readonly onJump: (dateKey: string) => void;
 }
 
-/** `сегодня`, `завтра` or the day with its weekday: how the next visit is placed in time. */
 function useWhen(): (dayKey: string, today: string) => string {
   const t = useT('doctor.journal');
   return (dayKey, today) => {
@@ -28,10 +26,6 @@ function useWhen(): (dayKey: string, today: string) => string {
   };
 }
 
-/**
- * A day without visits (A12). «No visits» alone is a dead end: the card looks ahead (`NEXT_VISIT_LOOKAHEAD_DAYS`) for the
- * doctor's next booked visit, says when it is and with whom, and jumps to that day.
- */
 export function JournalEmptyDay({ dateKey, today, onJump }: JournalEmptyDayProps): ReactNode {
   const t = useT('doctor.journal');
   const when = useWhen();

@@ -3,7 +3,6 @@ jest.mock('@/lib/api/api-fetch', () => {
   return { ...actual, apiFetch: jest.fn() };
 });
 
-// Long typing sequences (hundreds of keystrokes through user-event) take well over 5 s when the machine is busy.
 jest.setTimeout(30_000);
 
 import { screen, waitFor, within } from '@testing-library/react';
@@ -23,7 +22,6 @@ const WEEK: ReadonlyArray<string> = weekDaysOf(weekStartOf(TODAY));
 const MONDAY: string = WEEK[0] as string;
 const TUESDAY: string = WEEK[1] as string;
 
-/** 06:00Z is 09:00 in Minsk, whatever the date. */
 function slot(id: string, day: string, time: string, status: ScheduleSlot['status']): ScheduleSlot {
   return { id, scheduleId: 'sch-1', start: `${day}T${time}:00Z`, end: `${day}T${time}:00Z`, status, label: `${day} ${status}` };
 }

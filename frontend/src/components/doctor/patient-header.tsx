@@ -41,14 +41,9 @@ function PatientFacts({ patient }: { readonly patient: PatientCard }): ReactNode
 
 interface PatientHeaderProps {
   readonly patientId: string;
-  /** Reveals the consent management of the card from the consent line. */
   readonly onManageConsent: () => void;
 }
 
-/**
- * The top of the doctor's card (API 3.2, A1/A15): the name, birth date and age, sex and contacts, then two compact lines —
- * where the patient's consent stands and the trusted persons (none when there are none). The internal record id is not shown.
- */
 export function PatientHeader({ patientId, onManageConsent }: PatientHeaderProps): ReactNode {
   const t = useT('doctor.patient');
   const patient = usePatient(patientId);

@@ -15,12 +15,10 @@ export type JournalView = 'day' | 'week';
 
 const STATUS_FILTERS: ReadonlyArray<StatusFilter> = ['all', 'booked', 'fulfilled', 'noshow', 'cancelled'];
 const VIEWS: ReadonlyArray<JournalView> = ['day', 'week'];
-/** The week view moves by calendar weeks, the day view by days. */
 const STEP_DAYS: Readonly<Record<JournalView, number>> = { day: 1, week: 7 };
 
 interface JournalControlsProps {
   readonly dateKey: string;
-  /** Today in the clinic zone: the "Today" button is inert while the journal already shows it. */
   readonly today: string;
   readonly view: JournalView;
   readonly onViewChange: (view: JournalView) => void;
@@ -32,11 +30,9 @@ interface JournalControlsProps {
 const STEP_BUTTON =
   'inline-flex size-11 items-center justify-center rounded-control border border-border bg-card text-foreground transition-[background-color,transform] duration-fast ease-out hover:bg-secondary active:scale-[0.97]';
 
-/** Previous / the date field / next: the day (day view) or the first day of the week (week view). */
 function PeriodPicker({ dateKey, view, onDateChange }: Pick<JournalControlsProps, 'dateKey' | 'view' | 'onDateChange'>): ReactNode {
   const t = useT('doctor.journal');
   const step: number = STEP_DAYS[view];
-  // A half-typed day reaches the picker as `''`: only a real day moves the journal.
   const handleDate = (next: string): void => {
     if (isDateKey(next)) onDateChange(next);
   };
@@ -54,7 +50,6 @@ function PeriodPicker({ dateKey, view, onDateChange }: Pick<JournalControlsProps
   );
 }
 
-/** Segmented switch between the day timeline and the week grid. */
 function ViewToggle({ view, onViewChange }: Pick<JournalControlsProps, 'view' | 'onViewChange'>): ReactNode {
   const t = useT('doctor.journal');
   return (
@@ -77,7 +72,6 @@ function ViewToggle({ view, onViewChange }: Pick<JournalControlsProps, 'view' | 
   );
 }
 
-/** The period to show (previous / any date / next / today), the day-or-week switch and the status filter of the doctor's journal. */
 export function JournalControls({ dateKey, today, view, onViewChange, onDateChange, status, onStatusChange }: JournalControlsProps): ReactNode {
   const t = useT('doctor.journal');
   const tStamp = useT('stamp');
@@ -85,7 +79,7 @@ export function JournalControls({ dateKey, today, view, onViewChange, onDateChan
   return (
     <div className="flex flex-wrap items-center gap-2.5">
       <PeriodPicker dateKey={dateKey} view={view} onDateChange={onDateChange} />
-      {/* `aria-disabled`, not `disabled`: the pressed button keeps keyboard focus instead of dropping it to the page top. */}
+      {/* aria-disabled, not disabled: the pressed button keeps keyboard focus. */}
       <button type="button" onClick={() => (isToday ? undefined : onDateChange(today))} aria-disabled={isToday} className={buttonVariants({ variant: 'secondary' })}>
         {t('today')}
       </button>

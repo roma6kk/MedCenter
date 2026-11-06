@@ -13,25 +13,20 @@ const STEP_BUTTON =
   'inline-flex size-11 items-center justify-center rounded-control border border-border bg-card text-foreground transition-[background-color,transform] duration-fast ease-out hover:bg-secondary active:scale-[0.97]';
 
 interface WeekControlsProps {
-  /** Monday of the shown week. */
   readonly weekStart: string;
-  /** The day the date field shows: any day of the week. */
   readonly anchor: string;
   readonly today: string;
   readonly onChange: (dateKey: string) => void;
 }
 
-/** The week label, `26 окт. – 1 нояб.`. */
 export function WeekRangeLabel({ weekStart }: { readonly weekStart: string }): ReactNode {
   const locale = useUiStore((state) => state.locale);
   return <>{`${formatDayShort(weekStart, locale)} – ${formatDayShort(shiftDateKey(weekStart, WEEK_LENGTH - 1), locale)}`}</>;
 }
 
-/** Previous / next week, a date field that jumps to the week of any day, and «Сегодня» (A10). */
 export function ScheduleWeekControls({ weekStart, anchor, today, onChange }: WeekControlsProps): ReactNode {
   const t = useT('doctor.schedule');
   const isThisWeek: boolean = weekStart <= today && today < shiftDateKey(weekStart, WEEK_LENGTH);
-  // A half-typed day reaches the picker as `''`: only a real day moves the calendar.
   const handleDate = (next: string): void => {
     if (isDateKey(next)) onChange(next);
   };
@@ -45,7 +40,7 @@ export function ScheduleWeekControls({ weekStart, anchor, today, onChange }: Wee
       <button type="button" onClick={() => onChange(shiftDateKey(weekStart, WEEK_LENGTH))} aria-label={t('nextWeek')} className={STEP_BUTTON}>
         <ChevronRight aria-hidden="true" className="size-[18px]" />
       </button>
-      {/* `aria-disabled`, not `disabled`: the pressed button keeps keyboard focus instead of dropping it to the page top. */}
+      {/* aria-disabled, not disabled: the pressed button keeps keyboard focus. */}
       <button type="button" className={buttonVariants({ variant: 'secondary' })} aria-disabled={isThisWeek} onClick={() => (isThisWeek ? undefined : onChange(today))}>
         {t('today')}
       </button>

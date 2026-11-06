@@ -1,15 +1,3 @@
-/**
- * encounter-problem-fields — turns a failed `POST /encounters/{id}/complete` into the form fields to mark.
- *
- * `422 INVALID_ICD10_CODE` and `422 TERMINOLOGY_NOT_FOUND` name the offending codes only inside `detail`
- * (`INVALID_ICD10_CODE: not in <ValueSet>: Z99, A00` / `TERMINOLOGY_NOT_FOUND: not in the terminology seed: <system>#<code>, …`),
- * so the codes are read back from that text and matched to the rows of the form (frontend-design-spec §5.4).
- *
- * This is a contract with the wording of `terminology-validator.service.ts`, pinned by the sample strings in
- * `encounter-problem-fields.spec.ts`. If the wording drifts nothing is matched and the form shows the server's `detail` in the
- * banner with no field marked (never a wrong field). The durable fix is on the server: `details[{ field, message }]` on 422,
- * which `useEncounterForm` already turns into field errors for `VALIDATION_ERROR`.
- */
 import type { CompleteEncounterForm } from '@/lib/contracts';
 import type { ProblemDetails } from '@/lib/api/problem';
 
@@ -17,13 +5,10 @@ export const ATC_SYSTEM = 'http://www.whocc.no/atc';
 export const UCUM_SYSTEM = 'http://unitsofmeasure.org';
 
 export interface FieldAssignment {
-  /** react-hook-form path, e.g. `diagnoses.1.code`. */
   readonly path: string;
-  /** Key under `doctor.` in the messages catalogue. */
   readonly messageKey: string;
 }
 
-/** The comma-separated list after the last `: ` of the server detail, trimmed. */
 function listedItems(detail: string | undefined): ReadonlyArray<string> {
   if (detail === undefined) return [];
   const at: number = detail.lastIndexOf(': ');
@@ -54,7 +39,6 @@ function terminologyAssignments(refs: ReadonlySet<string>, values: CompleteEncou
   return found;
 }
 
-/** Fields to mark for a 422 terminology problem; empty for any other problem or when the codes cannot be matched. */
 export function mapProblemToFieldAssignments(problem: ProblemDetails, values: CompleteEncounterForm): ReadonlyArray<FieldAssignment> {
   const items: ReadonlySet<string> = new Set(listedItems(problem.detail));
   if (problem.errorCode === 'INVALID_ICD10_CODE') return icd10Assignments(items, values);
@@ -62,7 +46,6 @@ export function mapProblemToFieldAssignments(problem: ProblemDetails, values: Co
   return [];
 }
 
-/** Every form path a server `details[].field` may name, so `applyProblemToForm` can tell form fields from foreign ones. */
 export function knownFieldPaths(values: CompleteEncounterForm): ReadonlyArray<string> {
   const paths: string[] = ['summary', 'recommendations', 'diagnoses', 'observations', 'serviceRequests', 'medicationRequests'];
   values.diagnoses.forEach((_row, index) => ['code', 'display', 'verificationStatus'].forEach((key) => paths.push(`diagnoses.${index}.${key}`)));

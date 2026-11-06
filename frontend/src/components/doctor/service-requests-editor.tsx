@@ -32,7 +32,6 @@ function ServiceRow({ index, onRemove }: { readonly index: number; readonly onRe
   );
 }
 
-/** Ordered services / referrals (ServiceRequest, НСИ code; FR-014). Optional. */
 export function ServiceRequestsEditor(): ReactNode {
   const t = useT('doctor.services');
   const { control } = useFormContext<CompleteEncounterForm>();

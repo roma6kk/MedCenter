@@ -3,7 +3,6 @@ jest.mock('@/lib/api/api-fetch', () => {
   return { ...actual, apiFetch: jest.fn() };
 });
 
-// Long typing sequences (hundreds of keystrokes through user-event) take well over 5 s when the machine is busy.
 jest.setTimeout(30_000);
 
 import { act, screen, waitFor } from '@testing-library/react';
@@ -137,7 +136,6 @@ describe('EncounterCompleteForm leaving the page (A8)', () => {
 
     const event = leave();
 
-    // The draft is written on the way out, so there is nothing to lose and nothing to ask.
     expect(event.defaultPrevented).toBe(false);
     expect(readDraft('enc-1')?.values.summary).toBe('ОРВИ');
   });

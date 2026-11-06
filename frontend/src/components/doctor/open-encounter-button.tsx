@@ -19,28 +19,19 @@ import { useOpenEncounter } from './use-doctor-mutations';
 interface OpenEncounterButtonProps {
   readonly appointmentId: string;
   readonly patientId: string;
-  /** RFC 3339 start of the appointment: an appointment that is not today is not started without a confirmation (A4). */
   readonly start: string;
-  /** Names the visit for assistive technology (`Open encounter: Kuznetsov, 09:00`). */
   readonly label: string;
-  /** `lg` is the single call to action of the next-patient panel. */
   readonly size?: 'md' | 'lg';
   readonly fullWidth?: boolean;
 }
 
-/** Whether this browser already opened the appointment's encounter; read after mount because storage does not exist while the page is rendered on the server. */
+// Read after mount: storage does not exist during server rendering.
 function useStartedEncounter(appointmentId: string): boolean {
   const [isStarted, setIsStarted] = useState(false);
   useEffect(() => setIsStarted(startedEncounterOf(appointmentId) !== null), [appointmentId]);
   return isStarted;
 }
 
-/**
- * "Open encounter" of a booked appointment (BR-008): creates the encounter (API 7.1, idempotent) and goes to it.
- * The id of the Encounter — not of the appointment — is what `/encounters/[id]` needs.
- * Starting a visit is a clinical act, so an appointment that is not today asks first (A4); one the doctor has already
- * started reads «Продолжить приём» and goes straight back in.
- */
 export function OpenEncounterButton({ appointmentId, patientId, start, label, size = 'md', fullWidth = false }: OpenEncounterButtonProps): ReactNode {
   const t = useT('doctor.journal');
   const tConsent = useT('consent.required');
@@ -48,8 +39,7 @@ export function OpenEncounterButton({ appointmentId, patientId, start, label, si
   const open = useOpenEncounter();
   const today: string = useMinskToday();
   const isContinuing: boolean = useStartedEncounter(appointmentId);
-  // ADR-019: no active consent. The dialog is its own state, not derived from the mutation: a new request (the emergency
-  // one) resets the mutation, and the dialog must stay up through it.
+  // ADR-019 dialog is its own state, not derived from the mutation: a new request (emergency) resets the mutation.
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
   const send = (emergencyReason?: string): void => {

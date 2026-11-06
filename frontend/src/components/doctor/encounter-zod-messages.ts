@@ -1,9 +1,3 @@
-/**
- * encounter-zod-messages — Russian texts for the zod issues of `completeEncounterSchema`.
- *
- * The schema lives in `lib/contracts` (parity with the server's class-validator rules) and carries no messages; the form passes
- * this map to its resolver so the doctor reads `Введите код МКБ-10`, not `String must contain at least 3 character(s)`.
- */
 import type { ZodErrorMap, ZodIssueOptionalMessage } from 'zod';
 import { translate } from '@/lib/i18n/translate';
 
@@ -27,7 +21,6 @@ function tooSmallMessage(issue: ZodIssueOptionalMessage & { code: 'too_small' })
   return Number(issue.minimum) <= 1 ? translate(`${COMMON}required`) : translate(`${OWN}minLength`, { count: Number(issue.minimum) });
 }
 
-/** The zod error map of the encounter form (`zodResolver(schema, { errorMap })`). */
 export const encounterErrorMap: ZodErrorMap = (issue, context) => {
   switch (issue.code) {
     case 'invalid_type':

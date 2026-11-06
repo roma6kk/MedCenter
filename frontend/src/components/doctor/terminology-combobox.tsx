@@ -13,34 +13,21 @@ import { useExpansion } from './use-doctor-queries';
 
 export interface TerminologyComboboxProps {
   readonly id: string;
-  /** Visible label; the input is named by it. */
   readonly label: string;
-  /** ValueSet canonical the suggestions come from (`https://fhir.by/ValueSet/...`). */
   readonly valueSet: string;
-  /** The code in the field. Free typing stays possible: the service re-validates every code on submit (BR-004, BR-009). */
   readonly value: string;
   readonly onChange: (value: string) => void;
-  /** Called when a suggestion is picked (the owner can copy its display name into a sibling field). */
   readonly onSelectTerm?: (term: Term) => void;
   readonly onBlur?: () => void;
-  /** Client mask: a typed value that does not match it is flagged once the field loses focus. */
   readonly pattern: RegExp;
   readonly invalidMessage: string;
-  /** Text of the suggestion list for assistive technology. */
   readonly listLabel: string;
   readonly placeholder?: string;
   readonly maxLength?: number;
-  /** Shapes what is typed (upper-casing a code); applied before `onChange`. */
   readonly normalize?: (raw: string) => string;
-  /** A message from the form (zod or the server); wins over the mask message. */
   readonly error?: string;
-  /**
-   * The text in the input, when it is not the code itself (a picked concept reads «J06.9 — Острый назофарингит»). With it the
-   * input shows and searches this text, typing goes to `onTextChange`, and the owner decides which code (if any) the text is.
-   */
   readonly text?: string;
   readonly onTextChange?: (raw: string) => void;
-  /** Offered when the field is focused with (almost) nothing typed: the doctor's shortcuts (a patient's earlier diagnoses). */
   readonly shortcuts?: ReadonlyArray<Term>;
   readonly shortcutsLabel?: string;
 }
@@ -56,21 +43,13 @@ function useDebounced(value: string, delayMs: number): string {
 
 interface SuggestionState {
   readonly items: ReadonlyArray<Term>;
-  /** The items are the owner's shortcuts, not search results. */
   readonly isShortcuts: boolean;
-  /** A search is typed and has not answered yet (the debounce, or the request). */
   readonly isSearching: boolean;
-  /** The search answered with nothing. */
   readonly isEmpty: boolean;
   readonly isFailed: boolean;
   readonly retry: () => void;
 }
 
-/**
- * Suggestions for what is typed: held back until two characters, and only while the list is open and the text has settled.
- * Under that the field is always in exactly one of five states: shortcuts or nothing (too little typed), searching, results,
- * empty, failed; a silent field is how «ничего не происходит» (audit A7) happens.
- */
 function useSuggestions(valueSet: string, query: string, isOpen: boolean, shortcuts: ReadonlyArray<Term>): SuggestionState {
   const debounced: string = useDebounced(query, DEBOUNCE_MS);
   const isSearch: boolean = isOpen && query.length >= MIN_QUERY_LENGTH;
@@ -83,13 +62,12 @@ function useSuggestions(valueSet: string, query: string, isOpen: boolean, shortc
     isShortcuts,
     isSearching: isSearch && !expansion.isError && (!isSettled || expansion.isFetching),
     isEmpty: isSearch && isSettled && expansion.isSuccess && found.length === 0,
-    // Not tied to the open list: leaving the field (Tab to «Повторить») must not take the notice, or its button, away.
+    // Not tied to the open list: leaving the field (Tab to «Повторить») must not remove the notice.
     isFailed: query.length >= MIN_QUERY_LENGTH && isSettled && expansion.isError,
     retry: () => void expansion.refetch(),
   };
 }
 
-/** Whether the suggestion list is open and which option is active; closing always forgets the active option. */
 function useListState(): {
   readonly isOpen: boolean;
   readonly activeIndex: number | null;
@@ -114,16 +92,11 @@ function useListState(): {
 interface ComboboxMessagesProps {
   readonly id: string;
   readonly error: string | undefined;
-  /** The name of the picked concept, shown under the field while its code is still the value. */
   readonly hint: string | undefined;
   readonly query: string;
   readonly state: SuggestionState;
 }
 
-/**
- * What is said under the input: the error (announced), the picked concept's name, and the state of the search: looking,
- * nothing found, or the terminology is down (with a retry; the code can still be typed and the server checks it on submit).
- */
 function ComboboxMessages({ id, error, hint, query, state }: ComboboxMessagesProps): ReactNode {
   const t = useT('doctor.combobox');
   return (
@@ -135,7 +108,7 @@ function ComboboxMessages({ id, error, hint, query, state }: ComboboxMessagesPro
       {state.isFailed ? (
         <p role="status" className="mt-1 flex flex-wrap items-center gap-x-3 text-sm text-warning">
           <span>{t('unavailable')}</span>
-          {/* The mouse press must not blur the field: that closes the list the retry is meant to bring back. */}
+          {/* The mouse press must not blur the field: that closes the list the retry should bring back. */}
           <Button variant="ghost" onClick={state.retry} onMouseDown={(event) => event.preventDefault()}>{t('retry')}</Button>
         </p>
       ) : null}
@@ -156,7 +129,6 @@ interface ComboboxInputProps {
   readonly onLeave: () => void;
 }
 
-/** The labelled input of the combobox with its ARIA 1.2 attributes; all behaviour comes from the owner. */
 function ComboboxInput({ props, inputRef, text, isListVisible, activeIndex, shownError, onType, onKeyDown, onFocus, onLeave }: ComboboxInputProps): ReactNode {
   const { id, label, maxLength, placeholder } = props;
   return (
@@ -181,7 +153,6 @@ function ComboboxInput({ props, inputRef, text, isListVisible, activeIndex, show
         onKeyDown={onKeyDown}
         onFocus={onFocus}
         onBlur={onLeave}
-        // A bare code reads best in the monospace face; a line with a name («J06.9 — Острая инфекция…») is prose.
         className={`${props.text === undefined ? 'mono ' : ''}mt-1 ${FIELD_CLASS}`}
       />
     </>
@@ -202,7 +173,6 @@ interface ComboboxModel {
   readonly handleKeyDown: (event: KeyboardEvent<HTMLInputElement>) => void;
 }
 
-/** Everything the combobox decides: the open list, the suggestions, the picked concept, which error shows, and the handlers. */
 function useComboboxModel(props: TerminologyComboboxProps): ComboboxModel {
   const { valueSet, value, onChange, onSelectTerm, onBlur, pattern, invalidMessage, normalize, error, text: ownerText, onTextChange, shortcuts = NO_TERMS } = props;
   const list = useListState();
@@ -211,7 +181,6 @@ function useComboboxModel(props: TerminologyComboboxProps): ComboboxModel {
   const text: string = ownerText ?? value;
   const state = useSuggestions(valueSet, text, list.isOpen, shortcuts);
   const isListVisible: boolean = list.isOpen && state.items.length > 0;
-  // A text that is not a code (a name being searched) is not an invalid code while the owner keeps the code empty only until a pick.
   const shownError: string | undefined = error ?? (isTouched && text !== '' && !pattern.test(value) ? invalidMessage : undefined);
 
   const pick = (term: Term): void => {
@@ -240,11 +209,6 @@ function useComboboxModel(props: TerminologyComboboxProps): ComboboxModel {
 
 const NO_TERMS: ReadonlyArray<Term> = [];
 
-/**
- * Search-as-you-type over a terminology ValueSet (`$expand`, API 2.3.2) with the ARIA 1.2 combobox pattern:
- * the input keeps focus, arrows move `aria-activedescendant`, Enter picks, Escape closes. Every state of the search is
- * visible: looking, nothing found, the terminology down (retry).
- */
 export const TerminologyCombobox = forwardRef<HTMLInputElement, TerminologyComboboxProps>(function TerminologyCombobox(props, ref): ReactNode {
   const { id, value, listLabel, shortcutsLabel } = props;
   const model = useComboboxModel(props);
@@ -283,7 +247,6 @@ interface SuggestionListProps {
   readonly id: string;
   readonly optionPrefix: string;
   readonly label: string;
-  /** A caption above the options (the shortcuts say where they come from). */
   readonly heading: string | undefined;
   readonly items: ReadonlyArray<Term>;
   readonly isVisible: boolean;

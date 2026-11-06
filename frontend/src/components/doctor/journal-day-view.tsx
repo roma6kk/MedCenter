@@ -51,13 +51,11 @@ function PatientLink({ visit, className }: { readonly visit: JournalAppointment;
   );
 }
 
-/** The status of a visit that is no longer on the doctor's plate: the shared soft badge, pushed to the end of the row. */
 function StatusChip({ status }: { readonly status: JournalAppointment['status'] }): ReactNode {
-  // A no-show card is tinted with the very colour of the warning badge, which would melt into it: the badge stands on a white pill with a ring.
+  // A no-show card is tinted like the warning badge: the badge stands on a white pill with a ring.
   return <span className="ml-auto"><StampBadge status={status} className={status === 'noshow' ? 'bg-card ring-1 ring-inset ring-warning' : undefined} /></span>;
 }
 
-/** The card of the visit that comes next: the doctor's eye lands here first. Its actions live in the panel beside the timeline. */
 function NextVisitCard({ visit }: { readonly visit: JournalAppointment }): ReactNode {
   const t = useT('doctor.journal');
   const name: string = patientNameOf(visit, t);
@@ -73,7 +71,6 @@ function NextVisitCard({ visit }: { readonly visit: JournalAppointment }): React
   );
 }
 
-/** A visit of the day that is not "next": booked ones carry their actions, every other state only says what happened. */
 function VisitCard({ visit }: { readonly visit: JournalAppointment }): ReactNode {
   const t = useT('doctor.journal');
   const name: string = patientNameOf(visit, t);
@@ -133,7 +130,6 @@ function GapLine({ gap }: { readonly gap: GapEntry }): ReactNode {
   );
 }
 
-/** The line of the current time between the visits that are behind the doctor and those ahead (A13). */
 function NowRow({ entry }: { readonly entry: NowEntry }): ReactNode {
   const t = useT('doctor.journal');
   return (
@@ -150,7 +146,6 @@ function NowRow({ entry }: { readonly entry: NowEntry }): ReactNode {
   );
 }
 
-/** One row of the timeline: the time, the rail with its dot and the card. */
 function TimelineRow({ entry, isFirst }: { readonly entry: Exclude<TimelineEntry, NowEntry>; readonly isFirst: boolean }): ReactNode {
   const isGap: boolean = entry.kind === 'gap';
   const status = entry.kind === 'visit' ? entry.visit.status : null;
@@ -186,7 +181,6 @@ function DetailCell({ term, children, wide }: { readonly term: string; readonly 
   );
 }
 
-/** Side panel of the next patient with the actions that exist today: open the visit, the patient card, no-show. */
 function NextPatientPanel({ visit }: { readonly visit: JournalAppointment }): ReactNode {
   const t = useT('doctor.journal');
   const name: string = patientNameOf(visit, t);
@@ -221,7 +215,6 @@ const SUMMARY_ROWS: ReadonlyArray<{ readonly status: 'booked' | 'fulfilled' | 'n
   { status: 'cancelled', labelKey: 'summaryCancelled', swatch: 'bg-destructive' },
 ];
 
-/** "Итоги дня": a status bar (one segment per state that occurs) and the counts under it. */
 function DaySummary({ counts }: { readonly counts: StatusCounts }): ReactNode {
   const t = useT('doctor.journal');
   return (
@@ -251,25 +244,19 @@ function DaySummary({ counts }: { readonly counts: StatusCounts }): ReactNode {
 
 interface JournalDayViewProps {
   readonly data: DoctorJournalPage;
-  /** The loaded rows that pass the status filter. */
   readonly rows: ReadonlyArray<JournalAppointment>;
   readonly onPage: (page: number) => void;
-  /** Empty-result message when the filter hides everything. */
   readonly emptyFilteredText: string;
-  /** What a day without any visit shows: a way forward (the next visit), not a dead end (A12). */
   readonly empty: ReactNode;
-  /** Today's timeline carries the line of the current time. */
   readonly isToday: boolean;
 }
 
-/** The timeline of a day, with the «now» line on today's. The clock ticks once a minute and only while today is open. */
 function useTimeline(rows: ReadonlyArray<JournalAppointment>, isToday: boolean): ReadonlyArray<TimelineEntry> {
   const now: number | null = useNow(60_000, isToday);
   const timeline: ReadonlyArray<TimelineEntry> = buildTimeline(rows);
   return isToday && now !== null && rows.length > 0 ? withNowLine(timeline, now) : timeline;
 }
 
-/** Day view: the timeline of the day's visits and, beside it, the next patient and the summary of the day. */
 export function JournalDayView({ data, rows, onPage, emptyFilteredText, empty, isToday }: JournalDayViewProps): ReactNode {
   const t = useT('doctor.journal');
   const timeline: ReadonlyArray<TimelineEntry> = useTimeline(rows, isToday);

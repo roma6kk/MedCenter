@@ -11,7 +11,6 @@ import { useT } from '@/lib/i18n/use-t';
 import type { ScheduleSummary, WeekDay } from './doctor-types';
 
 
-/** Names of the rooms (the same read the admin pickers make, so it is cached already when the doctor has just come from there); an unknown room is left out. */
 function useRoomNames(): ReadonlyMap<string, string> {
   const rooms = useAdminRooms(1, 100);
   return new Map((rooms.data?.items ?? []).map((room) => [room.id, roomLabel(room)]));
@@ -28,7 +27,6 @@ interface ScheduleLineProps {
   readonly serviceName: string | undefined;
 }
 
-/** `Пн–Пт, 09:00–13:00 · Кабинет 101` and under it the service, the slot length and how long the schedule is planned. */
 function ScheduleLine({ schedule, roomName, serviceName }: ScheduleLineProps): ReactNode {
   const t = useT('doctor.schedule');
   const groups = describeWindows(schedule.windows, (day: WeekDay) => t(`weekdaysShort.${day}`));
@@ -52,7 +50,6 @@ function ScheduleLine({ schedule, roomName, serviceName }: ScheduleLineProps): R
   );
 }
 
-/** The doctor's working windows in words (A11), one line per schedule: no RRULE text and no table of seven days. */
 export function ScheduleWindows({ schedules }: { readonly schedules: ReadonlyArray<ScheduleSummary> }): ReactNode {
   const t = useT('doctor.schedule');
   const rooms = useRoomNames();

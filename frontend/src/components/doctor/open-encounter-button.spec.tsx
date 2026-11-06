@@ -24,9 +24,7 @@ function historyRoute(items: ReadonlyArray<{ id: string; appointmentId: string }
   return { path: '/api/v1/patients/p1/history', respond: () => ({ items, meta: { page: 1, pageSize: 100, totalItems: items.length, totalPages: 1 } }) };
 }
 
-/** The appointment is now, so it is "today" in the clinic zone whatever the machine's own zone is. */
 const TODAY_START: string = new Date().toISOString();
-/** Three days ahead is another clinic day at any hour. */
 const LATER_START: string = new Date(Date.now() + 3 * 24 * 3_600_000).toISOString();
 
 function setup(routes: ReadonlyArray<ApiRoute>, start: string = TODAY_START): void {

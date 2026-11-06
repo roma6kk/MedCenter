@@ -28,10 +28,6 @@ interface EncounterActionBarProps {
   readonly isCompleting: boolean;
 }
 
-/**
- * The actions of the visit, kept at the bottom of the screen while the form scrolls (A8): where the draft stands, «Сохранить
- * черновик» and the one primary action «Завершить приём». Completing stays a submit button of the form: only it may submit.
- */
 export function EncounterActionBar({ status, onSaveDraft, isCompleting }: EncounterActionBarProps): ReactNode {
   const t = useT('doctor.encounter');
   return (

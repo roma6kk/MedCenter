@@ -15,22 +15,15 @@ interface Icd10ComboboxProps {
   readonly onSelectTerm?: (term: Term) => void;
   readonly onBlur?: () => void;
   readonly id?: string;
-  /** Distinguishes several diagnosis rows for assistive technology (`диагноз 2`). */
   readonly labelSuffix?: string;
-  /** Replaces the whole visible label (the diagnosis row calls it «код или название»). */
   readonly label?: string;
   readonly error?: string;
-  /** Text of the input when it is not the code itself, see `TerminologyCombobox`. */
   readonly text?: string;
   readonly onTextChange?: (raw: string) => void;
   readonly shortcuts?: ReadonlyArray<Term>;
   readonly shortcutsLabel?: string;
 }
 
-/**
- * ICD-10 code field (FR-012, BR-004): suggestions from the `InternClassificDiseases10` ValueSet by code or name, the
- * client mask `^[A-Z]\d{2}(\.\d{1,2})?$`, and the display name handed to `onSelectTerm`.
- */
 export const Icd10Combobox = forwardRef<HTMLInputElement, Icd10ComboboxProps>(function Icd10Combobox(
   { value, onChange, onSelectTerm, onBlur, id = 'icd10', labelSuffix, label, error, text: inputText, onTextChange, shortcuts, shortcutsLabel },
   ref,

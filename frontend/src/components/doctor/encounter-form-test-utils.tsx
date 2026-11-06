@@ -1,7 +1,3 @@
-/**
- * encounter-form-test-utils — shared fixtures and steps of the `EncounterCompleteForm` specs (never imported by application code).
- * The spec that imports it must `jest.mock('@/lib/api/api-fetch', …)` first: the helpers drive that mocked `apiFetch`.
- */
 import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { apiFetch } from '@/lib/api/api-fetch';
@@ -31,13 +27,10 @@ export function completeRoute(respond: ApiRoute['respond'] = () => ({ id: 'enc-1
 
 export function setup(complete: ApiRoute = completeRoute(), draft?: CompleteEncounterForm): void {
   apiFetchMock.mockReset();
-  // A draft kept by an earlier test would be restored into this form.
   window.localStorage.clear();
-  // A draft the test wants the form to open with is stored after the clean-up and before the form reads it.
   if (draft !== undefined) writeDraft('enc-1', draft);
   routeApi(apiFetchMock, [
     { path: '/api/v1/terminology/expand', respond: expansion },
-    // The patient's earlier diagnoses (shortcuts of the diagnosis field): none here.
     { path: '/api/v1/patients/p-1/history', respond: () => ({ items: [], meta: { page: 1, pageSize: 10, totalItems: 0, totalPages: 0 } }) },
     complete,
   ]);
@@ -48,10 +41,8 @@ export function completeCall(): ApiCall | undefined {
   return callsTo(apiFetchMock, COMPLETE, 'POST')[0];
 }
 
-/** The text field of the n-th diagnosis row: one combobox for the code or the name. */
 export const diagnosisInput = (n: number = 1): HTMLElement => screen.getByLabelText(new RegExp(`Диагноз ${n}:`));
 
-/** Searches the terminology by what is typed and picks the J06.9 suggestion: the way a doctor fills the diagnosis. */
 export async function pickDiagnosis(n: number = 1, query: string = 'J06'): Promise<void> {
   await userEvent.type(diagnosisInput(n), query);
   await userEvent.click(await screen.findByRole('option', { name: /J06\.9/ }));

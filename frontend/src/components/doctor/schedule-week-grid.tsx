@@ -8,7 +8,6 @@ import { weekdayShort } from './journal-model';
 import { SlotBlock } from './schedule-slot-block';
 import { loadPercent, minutesLabel, type CalendarCell, type DayLoad, type WeekCalendar } from './schedule-week-model';
 
-/** «занято N из M» as a small bar and a line of text; a day without slots says so instead of showing an empty bar. */
 export function DayLoadMeter({ day }: { readonly day: DayLoad }): ReactNode {
   const t = useT('doctor.schedule');
   if (day.total === 0) return <span className="text-xs font-normal text-muted-foreground">{t('noSlotsDay')}</span>;
@@ -39,10 +38,6 @@ interface WeekGridProps {
   readonly today: string;
 }
 
-/**
- * The week as a table (A10): a column per day, a row per start time. Only the cells that hold a slot are drawn, so the lunch
- * break and the days off stay empty. The header of each day carries its load.
- */
 export function ScheduleWeekGrid({ calendar, today }: WeekGridProps): ReactNode {
   const t = useT('doctor.schedule');
   const locale = useUiStore((state) => state.locale);

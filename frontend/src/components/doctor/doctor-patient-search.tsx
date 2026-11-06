@@ -11,14 +11,12 @@ import { MIN_QUERY_LENGTH, findPatients, type PatientHit } from './patient-searc
 import { useDoctorPatients } from './use-doctor-queries';
 
 interface DoctorPatientSearchProps {
-  /** Runs when a result is opened (the mobile drawer closes itself). */
   readonly onNavigate?: () => void;
 }
 
 const RESULT_CLASS =
   'flex min-h-[44px] flex-col justify-center rounded-control px-3 py-1.5 text-left text-sm outline-none transition-[background-color] duration-fast ease-out hover:bg-secondary focus-visible:bg-secondary focus-visible:ring-2 focus-visible:ring-ring';
 
-/** Moves the focus along the result links with the arrow keys; the input is the first stop, so ArrowUp from the first result returns to it. */
 function moveFocus(event: KeyboardEvent<HTMLElement>, input: HTMLInputElement | null, list: HTMLElement | null): void {
   const links: ReadonlyArray<HTMLElement> = list === null ? [] : Array.from(list.querySelectorAll<HTMLElement>('a'));
   const stops: ReadonlyArray<HTMLElement | null> = [input, ...links];
@@ -52,11 +50,6 @@ function Results({ hits, onOpen }: { readonly hits: ReadonlyArray<PatientHit>; r
   );
 }
 
-/**
- * «Найти пациента» in the doctor's sidebar (A13). The doctor's side of the API has no patient search, so it searches the
- * patients of the doctor's own journal (the last three months and the next one); the hint under an empty result says so.
- * The read starts with the first typed letters, not with the page, so it costs the other screens nothing.
- */
 export function DoctorPatientSearch({ onNavigate }: DoctorPatientSearchProps): ReactNode {
   const t = useT('doctor.search');
   const tCommon = useT('common');
@@ -73,7 +66,7 @@ export function DoctorPatientSearch({ onNavigate }: DoctorPatientSearchProps): R
   };
   const onKeyDown = (event: KeyboardEvent<HTMLDivElement>): void => {
     if (event.key === 'Escape' && query !== '') {
-      // The first Escape clears the field; only the next one may close a drawer this search sits in.
+      // The first Escape clears the field; only the next one may close a drawer around it.
       event.preventDefault();
       event.stopPropagation();
       setQuery('');

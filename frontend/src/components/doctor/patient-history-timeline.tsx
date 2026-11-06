@@ -29,12 +29,10 @@ function VisitText({ label, text }: { readonly label: string; readonly text: str
   );
 }
 
-/** What one order of the visit is called: the drug or the service, with the dosage for a drug. */
 function orderText(item: Prescription): string {
   return item.kind === 'medication' ? `${item.atcDisplay ?? item.atcCode} — ${item.dosageText}` : item.display ?? item.code;
 }
 
-/** The orders of an opened visit, asked for by the visit's id (API 7.5 `encounterId`), not cut out of one page of the patient's orders. */
 function VisitOrders({ patientId, encounterId }: { readonly patientId: string; readonly encounterId: string }): ReactNode {
   const t = useT('doctor.history');
   const tOrders = useT('doctor.prescriptions');
@@ -53,15 +51,10 @@ interface VisitEntryProps {
   readonly item: HistoryItem;
   readonly patientId: string;
   readonly isOpen: boolean;
-  /** The visit was held by another doctor: its record is not open to this one. */
   readonly isColleague: boolean;
   readonly onToggle: () => void;
 }
 
-/**
- * A finished visit as a card that folds (A2): the date, the service and the diagnosis codes always show, the conclusion,
- * recommendations and orders of the visit appear when it is opened. The whole top row is the button, so the target is large.
- */
 function VisitEntry({ item, patientId, isOpen, isColleague, onToggle }: VisitEntryProps): ReactNode {
   const t = useT('doctor.history');
   const detailsId: string = useId();
@@ -108,11 +101,6 @@ function VisitEntry({ item, patientId, isOpen, isColleague, onToggle }: VisitEnt
   );
 }
 
-/**
- * The patient's finished visits (API 7.4), newest first as the service returns them. Each one is a card that unfolds in place
- * (the newest starts open); its orders are asked for by the visit's id when it is opened. The full record of a visit
- * opens on its own page.
- */
 export function PatientHistoryTimeline({ patientId }: { readonly patientId: string }): ReactNode {
   const t = useT('doctor.history');
   const [page, setPage] = useState(1);

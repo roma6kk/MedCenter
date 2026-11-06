@@ -20,18 +20,12 @@ import { ObservationsEditor } from './observations-editor';
 import { ServiceRequestsEditor } from './service-requests-editor';
 import { useEncounterForm } from './use-encounter-form';
 
-/**
- * What a refusal that belongs to no field shows (the banner, the consent notice) sits at the end of a long form, and the button
- * that caused it in a bar that sticks to the screen: without this the doctor presses «Завершить приём» and sees nothing happen.
- * It scrolls into view and takes the focus when it appears (`isActive`: not when a field took the focus already).
- */
 function ScrollToFailure({ isActive = true, className, children }: { readonly isActive?: boolean; readonly className: string; readonly children: ReactNode }): ReactNode {
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (!isActive) return;
     ref.current?.scrollIntoView?.({ block: 'center', behavior: motionSafeScrollBehavior() });
     ref.current?.focus({ preventScroll: true });
-    // Once per appearance of the failure: the container unmounts when the next attempt starts.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   return <div ref={ref} tabIndex={-1} className={`${className} focus:outline-none`}>{children}</div>;
@@ -39,12 +33,10 @@ function ScrollToFailure({ isActive = true, className, children }: { readonly is
 
 interface FailureProps {
   readonly problem: ProblemDetails;
-  /** What the server said about fields this form does not have; shown because the banner would otherwise hide it. */
   readonly foreignMessages: ReadonlyArray<string>;
   readonly isMarked: boolean;
 }
 
-/** A failed completion: the localized headline and code, plus a pointer to the fields marked in the form. */
 function CompletionFailure({ problem, foreignMessages, isMarked }: FailureProps): ReactNode {
   const t = useT('doctor.encounter');
   const detail: string | undefined = isMarked ? t('fixMarkedFields') : foreignMessages.length > 0 ? foreignMessages.join('. ') : problem.detail;
@@ -55,13 +47,6 @@ function CompletionFailure({ problem, foreignMessages, isMarked }: FailureProps)
   );
 }
 
-/**
- * The completion form (FR-011…FR-014), in the order of the visit (A6): examination and vital signs, diagnoses, ordered
- * services, drugs, then the conclusion and recommendations; one atomic submit (API 7.3). Client rules mirror the server's;
- * what only the server knows (a code outside the terminology seed, a replay) comes back as problem+json and is shown on the
- * field or as the read-only view. While the doctor works the form is kept as a local draft, and the actions stay at the
- * bottom of the screen (A8).
- */
 export function EncounterCompleteForm({ encounterId, patientId }: { readonly encounterId: string; readonly patientId: string }): ReactNode {
   const t = useT('doctor.encounter');
   const { methods, complete, onSubmit, completeAsEmergency, foreignMessages, isMarked, draft, startOver } = useEncounterForm(encounterId);
@@ -82,7 +67,7 @@ export function EncounterCompleteForm({ encounterId, patientId }: { readonly enc
         {complete.isError && !needsConsent && isApiError(complete.error) ? <CompletionFailure problem={complete.error.problem} foreignMessages={foreignMessages} isMarked={isMarked} /> : null}
         <EncounterActionBar status={draft.status} onSaveDraft={draft.saveNow} isCompleting={complete.isPending} />
       </form>
-      {/* Outside the form: the notice has a form of its own, and a nested one would submit the completion. */}
+      {/* Outside the form: a nested form would submit the completion. */}
       {needsConsent ? <ScrollToFailure className="mt-4"><ConsentRequiredNotice action="complete" patientId={patientId} isPending={complete.isPending} onEmergency={completeAsEmergency} /></ScrollToFailure> : null}
     </FormProvider>
   );

@@ -11,7 +11,6 @@ import { AddRowButton, EmptyListLine, FieldRow, RemoveRowButton } from './encoun
 import { FormSection } from './encounter-form-section';
 import { useRemoveRowFocus } from './use-remove-row-focus';
 
-/** Dosage instruction (required) and a note (optional) of a drug row. */
 function MedicationTextFields({ index }: { readonly index: number }): ReactNode {
   const t = useT('doctor.medications');
   const { control, register } = useFormContext<CompleteEncounterForm>();
@@ -63,7 +62,6 @@ function MedicationRow({ index, onRemove }: { readonly index: number; readonly o
   );
 }
 
-/** Drug prescriptions (MedicationRequest, ATC code, BR-009/BR-005): code, dosage text and a note. Optional. */
 export function MedicationsEditor(): ReactNode {
   const t = useT('doctor.medications');
   const { control } = useFormContext<CompleteEncounterForm>();
