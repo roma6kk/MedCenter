@@ -3,7 +3,7 @@ export function elapsedMinutes(startIso: string, now: number): number {
   return Number.isNaN(start) ? 0 : Math.max(0, Math.floor((now - start) / 60_000));
 }
 
-export interface DurationParts {
+interface DurationParts {
   readonly kind: 'minutes' | 'hours' | 'days';
   readonly days: number;
   readonly hours: number;

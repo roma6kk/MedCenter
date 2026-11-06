@@ -3,7 +3,7 @@ import type { Locale } from '@/lib/i18n/locale';
 import type { AppointmentState, JournalAppointment } from './doctor-types';
 
 const MS_PER_MINUTE = 60_000;
-export const GAP_MIN_MINUTES = 30;
+const GAP_MIN_MINUTES = 30;
 export const HALF_HOUR_PX = 40;
 const DEFAULT_GRID_START_HOUR = 9;
 const DEFAULT_GRID_END_HOUR = 17;
@@ -136,7 +136,7 @@ export interface WeekBlock {
   readonly width: number;
 }
 
-export interface GridRange {
+interface GridRange {
   readonly startHour: number;
   readonly endHour: number;
 }

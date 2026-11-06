@@ -22,7 +22,7 @@ export interface JournalAppointment {
 
 export type DoctorJournalPage = PaginatedResponse<JournalAppointment>;
 
-export interface Coding {
+interface Coding {
   readonly system?: string;
   readonly code?: string;
   readonly display?: string;
@@ -116,14 +116,14 @@ export interface ObservationView {
   readonly unit: string;
 }
 
-export interface ServiceRequestView {
+interface ServiceRequestView {
   readonly codeSystem: string;
   readonly code: string;
   readonly display?: string;
   readonly note?: string;
 }
 
-export interface MedicationRequestView {
+interface MedicationRequestView {
   readonly atcCode: string;
   readonly atcDisplay?: string;
   readonly dosageText: string;
@@ -150,7 +150,7 @@ export interface EncounterDetails extends EncounterSummary {
   readonly medicationRequests: ReadonlyArray<MedicationRequestView>;
 }
 
-export type SlotState = 'free' | 'busy' | 'entered-in-error';
+type SlotState = 'free' | 'busy' | 'entered-in-error';
 
 export interface ScheduleSlot {
   readonly id: string;

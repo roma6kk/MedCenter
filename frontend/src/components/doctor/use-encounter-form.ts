@@ -56,7 +56,7 @@ function markServerProblem(methods: Methods, problem: ProblemDetails): ServerMar
   return { isMarked: assignments.length > 0, foreignMessages };
 }
 
-export interface EncounterFormController extends ServerMarks {
+interface EncounterFormController extends ServerMarks {
   readonly methods: Methods;
   readonly complete: UseMutationResult<EncounterSummary, Error, CompleteEncounterBody>;
   readonly onSubmit: ReturnType<Methods['handleSubmit']>;

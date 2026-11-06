@@ -4,7 +4,7 @@ import type { ProblemDetails } from '@/lib/api/problem';
 export const ATC_SYSTEM = 'http://www.whocc.no/atc';
 export const UCUM_SYSTEM = 'http://unitsofmeasure.org';
 
-export interface FieldAssignment {
+interface FieldAssignment {
   readonly path: string;
   readonly messageKey: string;
 }

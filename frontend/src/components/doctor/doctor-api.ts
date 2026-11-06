@@ -35,7 +35,7 @@ export interface PageRequest {
   readonly pageSize: number;
 }
 
-export interface JournalPageRequest extends PageRequest {
+interface JournalPageRequest extends PageRequest {
   readonly sortOrder?: SortOrder;
 }
 

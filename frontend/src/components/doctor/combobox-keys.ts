@@ -6,7 +6,7 @@ export const DEBOUNCE_MS = 250;
 
 const NAVIGATION_KEYS: ReadonlyArray<string> = ['ArrowDown', 'ArrowUp', 'Home', 'End'];
 
-export function nextIndex(key: string, current: number | null, last: number): number | null {
+function nextIndex(key: string, current: number | null, last: number): number | null {
   if (key === 'ArrowDown') return current === null ? 0 : Math.min(current + 1, last);
   if (key === 'ArrowUp') return current === null ? last : Math.max(current - 1, 0);
   if (key === 'Home') return 0;
@@ -14,7 +14,7 @@ export function nextIndex(key: string, current: number | null, last: number): nu
   return current;
 }
 
-export interface ComboboxKeyContext {
+interface ComboboxKeyContext {
   readonly items: ReadonlyArray<Term>;
   readonly isListVisible: boolean;
   readonly activeIndex: number | null;

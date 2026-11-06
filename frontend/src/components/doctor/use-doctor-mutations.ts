@@ -8,7 +8,7 @@ import { postCompleteEncounter, postNoshow, postOpenEncounter, type CompleteEnco
 import type { EncounterSummary } from './doctor-types';
 import { findFinishedEncounterId } from './find-finished-encounter';
 
-export interface OpenEncounterInput {
+interface OpenEncounterInput {
   readonly appointmentId: string;
   readonly patientId: string;
   readonly emergencyReason?: string;

@@ -9,9 +9,9 @@ export interface PatientHit {
 }
 
 export const MIN_QUERY_LENGTH = 2;
-export const MAX_HITS = 6;
+const MAX_HITS = 6;
 
-export function normalizeName(text: string): string {
+function normalizeName(text: string): string {
   return text.toLowerCase().replaceAll('ё', 'е').replace(/\s+/g, ' ').trim();
 }
 

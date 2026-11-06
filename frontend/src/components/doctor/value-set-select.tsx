@@ -8,7 +8,7 @@ import { useT } from '@/lib/i18n/use-t';
 import type { Term } from './doctor-types';
 import { useExpansion } from './use-doctor-queries';
 
-export interface ValueSetSelectProps {
+interface ValueSetSelectProps {
   readonly id: string;
   readonly valueSet: string;
   readonly value: string;

@@ -35,7 +35,7 @@ import type {
   Term,
 } from './doctor-types';
 
-export const JOURNAL_PAGE_SIZE = 50;
+const JOURNAL_PAGE_SIZE = 50;
 
 function journalFrom(query: { readonly queryKey: ReadonlyArray<unknown> } | undefined): unknown {
   const params: unknown = query?.queryKey[1];
@@ -91,7 +91,7 @@ export function useEncounter(encounterId: string, enabled: boolean = true): UseQ
   });
 }
 
-export const UPCOMING_HORIZON_DAYS = 30;
+const UPCOMING_HORIZON_DAYS = 30;
 
 export function useUpcomingVisit(patientId: string, excludeAppointmentId?: string): UseQueryResult<JournalAppointment | null> {
   const today: string = clinicDateKey();
@@ -173,11 +173,11 @@ export async function lookupTerm(client: QueryClient, valueSet: string, code: st
   return expansion.items.find((item) => item.code === code) ?? null;
 }
 
-export const PATIENT_SEARCH_BACK_DAYS = 90;
-export const PATIENT_SEARCH_AHEAD_DAYS = 30;
-export const JOURNAL_MAX_PAGE_SIZE = 100;
+const PATIENT_SEARCH_BACK_DAYS = 90;
+const PATIENT_SEARCH_AHEAD_DAYS = 30;
+const JOURNAL_MAX_PAGE_SIZE = 100;
 
-export interface DoctorPatients {
+interface DoctorPatients {
   readonly patients: ReadonlyArray<PatientHit>;
   readonly truncated: boolean;
 }

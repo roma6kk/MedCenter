@@ -4,7 +4,6 @@ import { get, type FieldErrors } from 'react-hook-form';
 import type { CompleteEncounterForm } from '@/lib/contracts';
 
 export const INPUT_CLASS = `mt-1 ${FIELD_CLASS}`;
-export const SELECT_BOX_CLASS = 'mt-1';
 export const ROW_CLASS = 'mt-4 border-t border-border-soft pt-4 first:mt-0 first:border-t-0 first:pt-0';
 
 export function errorAt(errors: FieldErrors<CompleteEncounterForm>, path: string): string | undefined {

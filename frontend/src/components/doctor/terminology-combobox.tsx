@@ -11,7 +11,7 @@ import { SUGGESTION_COUNT } from './doctor-api';
 import type { Term } from './doctor-types';
 import { useExpansion } from './use-doctor-queries';
 
-export interface TerminologyComboboxProps {
+interface TerminologyComboboxProps {
   readonly id: string;
   readonly label: string;
   readonly valueSet: string;
