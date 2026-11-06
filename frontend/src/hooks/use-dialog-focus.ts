@@ -1,9 +1,7 @@
 import { useEffect, useRef } from 'react';
 
-/** The close cross of a dialog: it stays in the Tab cycle but never takes the initial focus (the body's first control does). */
-export const DIALOG_CLOSE_ATTRIBUTE = 'data-dialog-close'; // set by `Dialog`
+export const DIALOG_CLOSE_ATTRIBUTE = 'data-dialog-close';
 
-/** Traps Tab inside `container`, focuses the first focusable child (not the close cross; the container itself when there is none), closes on Escape. */
 export function useDialogFocus<TElement extends HTMLElement>(open: boolean, onClose: () => void): React.RefCallback<TElement> {
   const containerRef = useRef<TElement | null>(null);
   const previousFocus = useRef<Element | null>(null);

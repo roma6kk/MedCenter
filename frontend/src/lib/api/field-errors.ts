@@ -1,15 +1,7 @@
-/**
- * field-errors — maps `ProblemDetails.details[]` onto react-hook-form fields (frontend-design-spec §5.4:
- * `VALIDATION_ERROR` → field errors with `aria-describedby`).
- *
- * The server paths are class-validator property paths (`email`, `diagnoses.0.code`); a field can carry several
- * messages. Unknown server fields are returned so the form can show them in a banner instead of dropping them.
- */
 import type { FieldPath, FieldValues, UseFormSetError } from 'react-hook-form';
 import { translate } from '@/lib/i18n/translate';
 import type { FieldErrorDetail, ProblemDetails } from './problem';
 
-/** class-validator wording → key under `validation.*` of the messages catalogue (both languages). */
 const VALIDATION_MESSAGES: ReadonlyArray<readonly [RegExp, string]> = [
   [/should not be empty|must be longer than or equal to 1 characters/, 'validation.required'],
   [/must be an email/, 'validation.email'],
@@ -26,16 +18,11 @@ const VALIDATION_MESSAGES: ReadonlyArray<readonly [RegExp, string]> = [
   [/must match .* regular expression/, 'validation.format'],
 ];
 
-/**
- * The class-validator messages the forms meet, in the language of the interface (the server always writes English);
- * anything else is shown as the server wrote it.
- */
 export function localizeFieldMessage(message: string): string {
   const match = VALIDATION_MESSAGES.find(([pattern]) => pattern.test(message));
   return match === undefined ? message : translate(match[1]);
 }
 
-/** `{ field: [messages…] }` with `[0]` / `[0].x` normalised to dotted paths. */
 export function groupFieldErrors(details: ReadonlyArray<FieldErrorDetail> | undefined): Readonly<Record<string, ReadonlyArray<string>>> {
   const grouped: Record<string, string[]> = {};
   (details ?? []).forEach(({ field, message }) => {
@@ -49,10 +36,6 @@ export function isValidationProblem(problem: ProblemDetails): boolean {
   return problem.errorCode === 'VALIDATION_ERROR' && (problem.details?.length ?? 0) > 0;
 }
 
-/**
- * Sets one RHF error per server field. Returns the server fields that are not part of the form so the caller can
- * show them (`ProblemBanner`) rather than lose them.
- */
 export function applyProblemToForm<TValues extends FieldValues>(
   problem: ProblemDetails,
   setError: UseFormSetError<TValues>,
@@ -69,7 +52,6 @@ export function applyProblemToForm<TValues extends FieldValues>(
   return unmatched;
 }
 
-/** `EMAIL_TAKEN`-style codes arrive inside `detail` of a generic 409 (`POST /auth/register`). */
 export function hasDetailCode(problem: ProblemDetails, code: string): boolean {
   return problem.detail?.startsWith(`${code}:`) === true || problem.detail === code;
 }

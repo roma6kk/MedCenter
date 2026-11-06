@@ -25,9 +25,7 @@ export function isApiError(error: unknown): error is ApiError {
 }
 
 interface ApiFetchOptions extends RequestInit {
-  /** Set `false` to handle a 401 yourself (no silent refresh, no redirect). */
   readonly retry?: boolean;
-  /** `blob` returns the bytes of a successful answer (a scan) instead of parsing JSON; errors stay problem+json. */
   readonly responseAs?: 'json' | 'blob';
 }
 
@@ -35,7 +33,6 @@ async function readJson(response: Response): Promise<unknown> {
   try {
     return await response.json();
   } catch {
-    // An empty or non-JSON body (204-like 200, an HTML error page from the edge) carries no payload.
     return undefined;
   }
 }
@@ -43,10 +40,7 @@ async function readJson(response: Response): Promise<unknown> {
 function buildHeaders(init: RequestInit): Headers {
   const headers = new Headers(init.headers);
   const hasBody: boolean = init.body !== undefined && init.body !== null;
-  // A form body (multipart upload) gets its content type, with the boundary, from the browser.
   if (hasBody && !(init.body instanceof FormData) && !headers.has('Content-Type')) headers.set('Content-Type', 'application/json');
-  // The API localizes catalog data (service names, doctor names and specialties) by this header; a caller that needs the
-  // stored Russian text (the admin editing a service) sets its own.
   if (!headers.has('Accept-Language')) headers.set('Accept-Language', useUiStore.getState().locale);
   const token: string | null = getAccessToken();
   if (token !== null && !headers.has('Authorization')) headers.set('Authorization', `Bearer ${token}`);
@@ -62,11 +56,7 @@ async function send(path: string, init: RequestInit): Promise<Response> {
   }
 }
 
-/**
- * 401 handling: a revoked session ends at once; otherwise one silent refresh and one retry. When the token service itself
- * did not answer (a restart, a rate limit) the session is not judged: the request fails like any 503 — the page offers its
- * retry — and the visitor stays signed in instead of being sent to a sign-in page that leads to the same dead service.
- */
+// A 401 from an unreachable token service (restart, rate limit) is not judged: fail like a 503 and stay signed in, instead of redirecting to a dead sign-in.
 async function recoverFromUnauthorized<T>(path: string, init: ApiFetchOptions, problem: ProblemDetails, canRefresh: boolean): Promise<T> {
   if (problem.errorCode === 'TOKEN_REVOKED') {
     await endRevokedSession();
@@ -96,13 +86,6 @@ async function execute<T>(path: string, init: ApiFetchOptions, canRefresh: boole
   throw new ApiError(problem);
 }
 
-/**
- * JSON fetch against the BFF (`/api/v1/*`, proxied by Next to the Traefik edge).
- *
- * - attaches the in-memory Bearer token; sends `Content-Type: application/json` only when there is a body;
- * - errors become `ApiError` carrying an RFC 7807 `ProblemDetails` (also for non-JSON edge errors and network failures);
- * - `401 TOKEN_REVOKED` ends the session; any other 401 triggers a single-flight refresh and one retry.
- */
 export async function apiFetch<T>(path: string, options: ApiFetchOptions = {}): Promise<T> {
   return execute<T>(path, options, true);
 }

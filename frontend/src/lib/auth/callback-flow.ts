@@ -1,9 +1,4 @@
-/**
- * callback-flow — the verification half of `GET /api/auth/callback` (fail-closed PKCE).
- *
- * Every missing or mismatching piece (code, PKCE cookie, state) rejects the callback:
- * the verifier is never sent to auth-service unless the browser proves it started this flow.
- */
+// Fail closed: the verifier is never sent to auth-service unless code, PKCE cookie and state all match.
 import { resolveAuthBackendUrl, resolveOauthClientId, resolveRedirectUri, type EnvSource } from './auth-config';
 import { parsePkceCookie, sanitizeReturnTo } from './return-to';
 import { parseTokenSet, type TokenSet } from './token-response';
@@ -11,7 +6,6 @@ import { parseTokenSet, type TokenSet } from './token-response';
 export interface CallbackInput {
   readonly code: string;
   readonly verifier: string;
-  /** Sanitized same-origin path the user asked for, or `null` (then the role landing page is used). */
   readonly returnTo: string | null;
 }
 
@@ -44,7 +38,6 @@ export function parseCallback(params: URLSearchParams, pkceCookie: string | unde
   return { code, verifier: pkce.verifier, returnTo: returnToFrom(encodedReturnTo) };
 }
 
-/** `invalid`: auth-service refused the code (the visitor signs in again). `unavailable`: it could not answer (try again in a minute). */
 export type CodeExchangeResult =
   | { readonly ok: true; readonly tokens: TokenSet }
   | { readonly ok: false; readonly reason: 'invalid' | 'unavailable' };
@@ -64,8 +57,7 @@ export async function exchangeAuthorizationCode(input: CallbackInput, env: EnvSo
       cache: 'no-store',
       signal: AbortSignal.timeout(TOKEN_TIMEOUT_MS),
     });
-    // The endpoint refuses a code with 400 (invalid_grant, invalid_request) or 401 (invalid_client); a rate limit (429), 5xx or a body
-    // that is not a token pair says the service could not decide, as in the refresh rotation.
+    // 400/401 mean the code was refused; 429, 5xx or a non-token body mean the service could not decide.
     if (response.status === 400 || response.status === 401) return { ok: false, reason: 'invalid' };
     if (!response.ok) return { ok: false, reason: 'unavailable' };
     const tokens: TokenSet | null = parseTokenSet(await response.json());

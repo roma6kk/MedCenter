@@ -1,6 +1,5 @@
 import { applyTheme, DARK_SCHEME_QUERY, readStoredThemeMode, resolveTheme, storeThemeMode, THEME_INIT_SCRIPT, THEME_STORAGE_KEY } from './theme';
 
-/** Replaces `window.matchMedia` with a fake whose dark-scheme query reports `dark`; `undefined` removes the API. */
 function mockSystemScheme(dark: boolean | undefined): void {
   Object.defineProperty(window, 'matchMedia', {
     configurable: true,
@@ -9,7 +8,6 @@ function mockSystemScheme(dark: boolean | undefined): void {
   });
 }
 
-/** Runs the head script the way the browser does: as a classic script against the current `window`. */
 function runInitScript(): void {
   new Function(THEME_INIT_SCRIPT)();
 }

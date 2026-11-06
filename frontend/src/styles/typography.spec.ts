@@ -3,7 +3,6 @@ import { join } from 'node:path';
 
 const CSS: string = readFileSync(join(__dirname, 'globals.css'), 'utf8');
 
-/** The declaration block of the first rule whose selector list is exactly `selector`. */
 function rule(selector: string): string {
   const start: number = CSS.indexOf(`${selector} {`);
   if (start === -1) return '';

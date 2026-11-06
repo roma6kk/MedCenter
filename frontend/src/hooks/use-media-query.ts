@@ -2,11 +2,7 @@
 
 import { useCallback, useSyncExternalStore } from 'react';
 
-/**
- * Whether a CSS media query currently matches, following the viewport live. The server snapshot and an environment without
- * `matchMedia` (the jsdom of the unit tests) answer `fallback`, so a component that must pick one of two layouts in script
- * (a sidebar or a top bar, a week grid or a day list) renders its wide layout there.
- */
+// The server snapshot and jsdom (no matchMedia) answer `fallback`, so the wide layout renders there.
 export function useMediaQuery(query: string, fallback: boolean = true): boolean {
   const subscribe = useCallback(
     (notify: () => void): (() => void) => {
@@ -21,7 +17,5 @@ export function useMediaQuery(query: string, fallback: boolean = true): boolean 
   return useSyncExternalStore(subscribe, getSnapshot, () => fallback);
 }
 
-/** The width from which the staff shell shows its sidebar (Tailwind `lg`). */
 export const DESKTOP_QUERY = '(min-width: 1024px)';
-/** The width from which the doctor's schedule shows the whole week at once (Tailwind `md`). */
 export const WIDE_QUERY = '(min-width: 768px)';

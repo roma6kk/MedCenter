@@ -1,5 +1,3 @@
-/** Test support: an unsigned JWT shaped like auth-service's access token (the broker only decodes the payload). */
-
 function encode(value: unknown): string {
   return Buffer.from(JSON.stringify(value)).toString('base64url');
 }

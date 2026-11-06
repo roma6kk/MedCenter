@@ -305,7 +305,6 @@ describe('groupSlotsByDay', () => {
 
 describe('Intl formatters', () => {
   const SLOT_COUNT = 300;
-  /** 14 days of 16 half-hour slots from 08:00 Minsk time: the load of a doctor page. */
   const slots = Array.from({ length: SLOT_COUNT }, (_, index) => {
     const dayStart: number = Date.parse(`${shiftDateKey('2026-10-19', Math.floor(index / 16))}T05:00:00.000Z`);
     return slot(`s-${index}`, new Date(dayStart + (index % 16) * 30 * 60_000).toISOString());

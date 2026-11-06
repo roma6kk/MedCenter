@@ -28,7 +28,6 @@ function codeFiles(dir: string): ReadonlyArray<string> {
   });
 }
 
-/** The nearest block or function that holds `node`: the scope a `const t = useT(…)` is visible in. */
 function scopeOf(node: ts.Node): ts.Node {
   let current: ts.Node = node.parent;
   while (!ts.isBlock(current) && !ts.isSourceFile(current) && !ts.isArrowFunction(current) && !ts.isFunctionDeclaration(current) && !ts.isFunctionExpression(current)) {
@@ -37,7 +36,6 @@ function scopeOf(node: ts.Node): ts.Node {
   return current;
 }
 
-/** `full.key` of every `t('literal')` where the nearest `const t = useT('namespace')` above the call is known. */
 function usedKeys(file: string): ReadonlyArray<string> {
   const source: ts.SourceFile = ts.createSourceFile(file, readFileSync(file, 'utf8'), ts.ScriptTarget.Latest, true);
   const declared = new Map<ts.Node, Map<string, string>>();

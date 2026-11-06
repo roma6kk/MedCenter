@@ -5,7 +5,6 @@ const CSS: string = readFileSync(join(__dirname, 'globals.css'), 'utf8');
 
 type Theme = 'light' | 'dark';
 
-/** The declarations of one theme: `:root { … }` for light, `:root[data-theme='dark'] { … }` for dark. */
 function themeBlock(theme: Theme): string {
   const selector: string = theme === 'light' ? ':root {' : ":root[data-theme='dark'] {";
   const start: number = CSS.indexOf(selector);
@@ -13,16 +12,10 @@ function themeBlock(theme: Theme): string {
   return CSS.slice(start, CSS.indexOf('}', start));
 }
 
-/** A colour as linear-light sRGB channels (0..1). */
 type LinearRgb = readonly [number, number, number];
 
 const OKLCH_PATTERN: RegExp = /^oklch\(\s*([\d.]+)(%?)\s+([\d.]+)\s+([\d.]+)\s*(?:\/\s*([\d.]+)\s*)?\)$/;
 
-/**
- * OKLCH to linear sRGB, per Björn Ottosson's reference conversion (https://bottosson.github.io/posts/oklab/):
- * LCH to Lab (polar to cartesian), Lab to the cube-root LMS, cube it, then the LMS-to-linear-sRGB matrix.
- * Channels outside the gamut are clamped, the way a browser maps an out-of-gamut colour onto an sRGB screen.
- */
 function oklchToLinearRgb(lightness: number, chroma: number, hue: number): LinearRgb {
   const a: number = chroma * Math.cos((hue * Math.PI) / 180);
   const b: number = chroma * Math.sin((hue * Math.PI) / 180);
@@ -37,13 +30,11 @@ function oklchToLinearRgb(lightness: number, chroma: number, hue: number): Linea
   ];
 }
 
-/** A token's colour as linear-light sRGB and its opacity (1 when the token has no `/ alpha`). */
 interface Paint {
   readonly rgb: LinearRgb;
   readonly alpha: number;
 }
 
-/** The value of `--name` in a theme block; only `oklch(L% C H)` or `oklch(L C H)` (L in 0..1), each with an optional `/ alpha`, is accepted. */
 function paint(name: string, theme: Theme): Paint {
   const match: RegExpMatchArray | null = themeBlock(theme).match(new RegExp(`--${name}:\\s*([^;]+);`));
   const value: string | undefined = match?.[1]?.trim();
@@ -53,25 +44,21 @@ function paint(name: string, theme: Theme): Paint {
   return { rgb: oklchToLinearRgb(lightness, Number(parts[3]), Number(parts[4])), alpha: parts[5] === undefined ? 1 : Number(parts[5]) };
 }
 
-/** The value of `--name` in a theme block as linear-light sRGB; a translucent token is `paint`ed over something with `over` instead. */
 function token(name: string, theme: Theme = 'light'): LinearRgb {
   const { rgb, alpha } = paint(name, theme);
   if (alpha !== 1) throw new Error(`token --${name} is translucent (${alpha}); lay it over a ground with over()`);
   return rgb;
 }
 
-/** WCAG 2.x relative luminance: the sRGB weights applied to linear-light channels. */
 function luminance([red, green, blue]: LinearRgb): number {
   return 0.2126 * red + 0.7152 * green + 0.0722 * blue;
 }
 
-/** WCAG contrast ratio of two colours. */
 function contrast(a: LinearRgb, b: LinearRgb): number {
   const [light, dark] = [luminance(a), luminance(b)].sort((x, y) => y - x);
   return ((light ?? 0) + 0.05) / ((dark ?? 0) + 0.05);
 }
 
-/** The sRGB transfer function of a linear-light channel: the gamma-encoded value a browser stores and blends. */
 function encode(channel: number): number {
   return channel <= 0.0031308 ? 12.92 * channel : 1.055 * channel ** (1 / 2.4) - 0.055;
 }
@@ -80,10 +67,6 @@ function decode(channel: number): number {
   return channel <= 0.04045 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4;
 }
 
-/**
- * `top` at the opacity `alpha` laid over the ground `under`, the way a browser composites sRGB colours: per channel, on the
- * gamma-encoded values (not in linear light). The blur of `backdrop-filter` only smears the ground, it does not change its mean.
- */
 function over({ rgb: top, alpha }: Paint, under: LinearRgb): LinearRgb {
   const blend = (above: number, below: number): number => decode(alpha * encode(above) + (1 - alpha) * encode(below));
   return [blend(top[0], under[0]), blend(top[1], under[1]), blend(top[2], under[2])];
@@ -95,7 +78,6 @@ describe('oklch conversion', () => {
   });
 
   it('should match the sRGB value of #0f766e when it is fed oklch(51.1% 0.086 186)', () => {
-    // #0f766e: 0x0f/255 -> 0.0048 linear, 0x76/255 -> 0.1812, 0x6e/255 -> 0.1559 (rounded oklch, so a loose tolerance).
     const [red, green, blue] = oklchToLinearRgb(0.511, 0.086, 186);
 
     expect(red).toBeCloseTo(0.0048, 2);
@@ -106,7 +88,6 @@ describe('oklch conversion', () => {
 
 describe('compositing', () => {
   it('should give the mid grey of the gamma-encoded blend when half-opaque white is laid over black', () => {
-    // 0.5 in gamma-encoded sRGB is 0.2140 in linear light; a blend in linear light would give 0.5.
     const [red, green, blue] = over({ rgb: [1, 1, 1], alpha: 0.5 }, [0, 0, 0]);
 
     expect(red).toBeCloseTo(0.214, 3);
@@ -121,10 +102,6 @@ describe('compositing', () => {
 
 const THEMES: ReadonlyArray<Theme> = ['light', 'dark'];
 
-/**
- * What can scroll under a translucent sticky bar (`bg-glass` of the staff header and sidebar, the mobile booking bar): the
- * grounds and every saturated solid fill (a chart bar, a primary or a destructive button). The worst case sets the opacity.
- */
 const GLASS_FILLS: ReadonlyArray<string> = ['background', 'card', 'secondary', 'primary', 'destructive', 'warm', 'info', 'success', 'warning'];
 const GLASS_CASES: ReadonlyArray<[string, string]> = ['foreground', 'muted-foreground'].flatMap((text) => GLASS_FILLS.map((fill): [string, string] => [text, fill]));
 

@@ -7,12 +7,7 @@ type Catalog = { readonly [key: string]: string | Catalog };
 
 const RU: Catalog = JSON.parse(readFileSync(join(SRC, 'messages', 'ru.json'), 'utf8')) as Catalog;
 
-/**
- * Keys that are put together at run time, so their last segment never stands in the code as it is: `t(`path${step}Title`)`,
- * `t(`${key}Hint`)`, or a value of a FHIR enum that the API sends. A key goes here only with the reason.
- */
 const COMPOSED: ReadonlyArray<string> = [
-  // home-path.tsx: t(`path${step}Title`), t(`path${step}Text`)
   'home.path1Title',
   'home.path1Text',
   'home.path2Title',
@@ -21,10 +16,8 @@ const COMPOSED: ReadonlyArray<string> = [
   'home.path3Text',
   'home.path4Title',
   'home.path4Text',
-  // prescription-list.tsx: t(`${key}Hint`)
   'patientPrescriptions.emptyActiveHint',
   'patientPrescriptions.emptyClosedHint',
-  // values of FHIR enums that the API sends, looked up by value: MedicationRequest.status and ContactPoint.system
   'patient.prescriptions.status.on-hold',
   'doctor.patient.telecom.sms',
 ];
@@ -33,7 +26,6 @@ function leafKeys(node: Catalog, prefix: string = ''): ReadonlyArray<string> {
   return Object.entries(node).flatMap(([key, value]) => (typeof value === 'string' ? [`${prefix}${key}`] : leafKeys(value, `${prefix}${key}.`)));
 }
 
-/** The application code: every .ts/.tsx under `src` except the catalogues and the specs (a key only a test mentions is dead). */
 function codeFiles(dir: string): ReadonlyArray<string> {
   return readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
     const path: string = join(dir, entry.name);

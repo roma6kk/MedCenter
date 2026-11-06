@@ -1,13 +1,4 @@
-/**
- * session-client — the browser side of the token broker.
- *
- * The broker (`/api/auth/session`, `/api/auth/refresh`) reads the httpOnly `mc_rt` refresh cookie, rotates it and
- * returns a short-lived access token plus the derived claims. The access token lives in memory only (never in Web
- * Storage); the user-facing session is mirrored into the Zustand store.
- *
- * Refresh tokens are single-use, so every exchange in this tab goes through ONE in-flight request: a mount-time
- * `loadSession`, a React StrictMode double effect and a 401-triggered refresh share a result instead of racing.
- */
+// Refresh tokens are single-use: every exchange in this tab goes through ONE in-flight request.
 import { clearAllDrafts } from '@/lib/encounter-draft';
 import { SESSION_ENDED_REASON } from './authorize-href';
 import { setAccessToken, clearAccessToken, getAccessToken } from './access-token';
@@ -25,12 +16,6 @@ interface SessionResponse {
   readonly fhirUser?: string | null;
 }
 
-/**
- * How an exchange with the broker ended. `ok`: there is a session (or nothing changed). `ended`: the server says there is
- * none any more (401, an anonymous answer) and this tab signs out. `unavailable`: the broker could not ask auth-service
- * (503, a rate limit, a dropped connection) — the refresh cookie was not judged, so the tab keeps what it has and the
- * caller may try again; a restart of auth-service must not read as "you were signed out".
- */
 export type ExchangeOutcome = 'ok' | 'ended' | 'unavailable';
 
 let exchangeInFlight: Promise<ExchangeOutcome> | null = null;
@@ -55,7 +40,6 @@ function applySession(data: SessionResponse): ExchangeOutcome {
   return token === null ? 'ended' : 'ok';
 }
 
-/** 429 and the 5xx family (the broker's own 503 above all) say "ask again later", not "this token is no good". */
 function isTemporaryFailure(status: number): boolean {
   return status === 429 || status >= 500;
 }
@@ -89,17 +73,12 @@ function exchange(url: string, init: RequestInit): Promise<ExchangeOutcome> {
   return attempt;
 }
 
-/** Hydrates the store from `GET /api/auth/session`; an anonymous visitor ends up hydrated with no role. */
 export async function loadSession(): Promise<void> {
   await exchange('/api/auth/session', {});
 }
 
 const SESSION_REUSE_MARGIN_MS = 60_000;
 
-/**
- * Hydrates the store once per page load: a second route group mounting its own `Providers` reuses the live session
- * instead of rotating the refresh token again. An expired or missing token is exchanged.
- */
 export async function ensureSession(now: number = Date.now()): Promise<void> {
   const { hydrated, accessToken, expiresAt } = useSessionStore.getState();
   const isLive: boolean = accessToken !== null && expiresAt !== null && Date.parse(expiresAt) - now > SESSION_REUSE_MARGIN_MS;
@@ -107,12 +86,10 @@ export async function ensureSession(now: number = Date.now()): Promise<void> {
   await loadSession();
 }
 
-/** Silent refresh (`POST /api/auth/refresh`): `ok` when renewed, `ended` when the session is gone, `unavailable` when auth-service did not answer. */
 export function refreshSession(): Promise<ExchangeOutcome> {
   return exchange('/api/auth/refresh', { method: 'POST' });
 }
 
-/** Revokes the refresh token server-side and forgets the session in this tab. Never throws. */
 export async function endSession(): Promise<void> {
   const token: string | null = getAccessToken();
   try {
@@ -128,29 +105,24 @@ export async function endSession(): Promise<void> {
   }
 }
 
-/** User-initiated sign-out: ends the session and returns to the home page with a clean in-memory state (`/login` now leads straight into the sign-in form, which is no place to land after signing out). */
 export async function logout(): Promise<void> {
   await endSession();
-  // The booking draft carries the visit reason (health data) in this tab's sessionStorage: it must not outlive a sign-out.
+  // The booking draft (visit reason) and the encounter drafts (clinical text) must not outlive a sign-out.
   useBookingDraftStore.getState().clearDraft();
-  // Likewise the unfinished encounter forms kept for the doctor in this browser (clinical text, A8).
   clearAllDrafts();
   window.location.assign('/');
 }
 
-/** The page the visitor is on, path and query, as the `returnTo` that brings them back after signing in: the query carries a doctor's chosen day or an analytics period. Browser only. */
 export function currentReturnTo(): string {
   return window.location.pathname + window.location.search;
 }
 
-/** The session died on the server (revoked token): leave a toast for the login page and go there with `returnTo`. */
 export async function endRevokedSession(): Promise<void> {
   await endSession();
   setFlash('session-ended');
   window.location.assign(`/login?returnTo=${encodeURIComponent(currentReturnTo())}&reason=${SESSION_ENDED_REASON}`);
 }
 
-/** The session can not be renewed: go to login and come back to the current page afterwards. */
 export function redirectToLogin(): void {
   window.location.assign(`/login?returnTo=${encodeURIComponent(currentReturnTo())}`);
 }

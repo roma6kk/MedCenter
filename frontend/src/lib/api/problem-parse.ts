@@ -1,10 +1,3 @@
-/**
- * problem-parse — turns whatever an HTTP error response carried into a `ProblemDetails`.
- *
- * The edge can answer with something that is not problem+json (Traefik 502/504 HTML, a Next 404, an empty
- * body), and a service can send a code the client does not know yet. Neither may crash the UI: the status
- * is mapped to the closest catalogue code instead.
- */
 import { ERROR_CODES, type ErrorCode, type FieldErrorDetail, type ProblemDetails } from './problem';
 
 const STATUS_TITLES: Readonly<Record<number, string>> = {
@@ -57,7 +50,6 @@ function parseDetails(value: unknown): ReadonlyArray<FieldErrorDetail> | undefin
   return details.length > 0 ? details : undefined;
 }
 
-/** `Retry-After` is delta-seconds or an HTTP date (RFC 9110 §10.2.3). */
 export function parseRetryAfter(raw: string | null | undefined, now: number = Date.now()): number | undefined {
   const value: string = raw?.trim() ?? '';
   if (value === '') return undefined;
@@ -77,7 +69,6 @@ function detailOf(record: UnknownRecord): string | undefined {
   return asString(message);
 }
 
-/** Header access that tolerates a minimal `Response` (some test doubles carry no `Headers`). */
 export function readHeader(response: Pick<Response, 'headers'>, name: string): string | null {
   const headers: Headers | undefined = response.headers;
   return headers?.get(name) ?? null;
@@ -100,12 +91,10 @@ export function parseProblem(response: Pick<Response, 'status' | 'headers'>, bod
   };
 }
 
-/** The problem for a request that never got a response (offline, DNS, CORS, aborted by the browser). */
 export function networkProblem(): ProblemDetails {
   return { title: STATUS_TITLES[0] ?? 'Нет связи с сервером', status: 0, errorCode: 'INTERNAL' };
 }
 
-/** The problem for a read whose silent token refresh got no answer from the token service: a 503 the page can retry (`shouldRetryRead`). */
 export function serviceUnavailableProblem(): ProblemDetails {
   return { title: 'Сервис временно недоступен', status: 503, errorCode: 'INTERNAL' };
 }

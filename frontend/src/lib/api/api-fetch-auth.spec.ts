@@ -69,7 +69,6 @@ describe('apiFetch authorization wiring', () => {
   });
 
   it('should hand back the bytes when the answer is asked for as a blob', async () => {
-    // jsdom's Response has no blob(): a minimal stand-in carries the bytes.
     const answer = { ok: true, status: 200, blob: () => Promise.resolve(new Blob(['%PDF'], { type: 'application/pdf' })) } as unknown as Response;
     jest.spyOn(global, 'fetch').mockResolvedValueOnce(answer);
 

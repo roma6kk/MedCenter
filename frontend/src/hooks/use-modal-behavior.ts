@@ -5,7 +5,6 @@ import { DIALOG_CLOSE_ATTRIBUTE } from './use-dialog-focus';
 
 const FOCUSABLE = `a[href], button:not([disabled]):not([${DIALOG_CLOSE_ATTRIBUTE}]), textarea, input, select, [tabindex]:not([tabindex="-1"])`;
 
-/** While a modal is open the page behind it does not scroll: a wheel over the dialog on a phone would move the page under it. */
 export function useScrollLock(): void {
   useEffect(() => {
     const previous: string = document.body.style.overflow;
@@ -16,10 +15,6 @@ export function useScrollLock(): void {
   }, []);
 }
 
-/**
- * Keeps the keyboard focus in a dialog whose content is still loading (the schedule editor waits for its pickers): the panel
- * itself takes the focus, and the first control takes it over once one appears. After that the focus is the user's.
- */
 export function useFocusWhenReady(panel: RefObject<HTMLElement | null>): void {
   const isSettled = useRef(false);
   useEffect(() => {
@@ -35,22 +30,16 @@ export function useFocusWhenReady(panel: RefObject<HTMLElement | null>): void {
   });
 }
 
-/** Everything a modal does around its content: locks the page behind it, holds the focus, and never drops it on `body` when it closes. */
 export function useModalBehavior(panel: RefObject<HTMLElement | null>): void {
   useScrollLock();
   useFocusWhenReady(panel);
   useFocusFallbackOnClose();
 }
 
-/**
- * When a dialog closes after its action succeeded, the control that opened it may be gone (a deleted row, a «Деактивировать»
- * that became «Активировать»); the focus would fall to `body` (WCAG 2.4.3). It then goes to the heading of the page.
- */
 export function useFocusFallbackOnClose(): void {
   useEffect(
     () => () => {
-      // One tick later: a screen that knows a better target (a tab panel, a list heading) hands the focus there in its own
-      // effect right after the dialog unmounts, and this generic fallback must not get in front of it.
+      // One tick later: a screen that knows a better focus target hands it over in its own effect right after unmount.
       setTimeout(() => {
         const active: Element | null = document.activeElement;
         if (active !== null && active !== document.body) return;

@@ -3,7 +3,6 @@ import { join } from 'node:path';
 
 const SRC: string = join(__dirname, '..');
 
-/** Every non-spec source file under `src/`, as [relative path, text]. */
 function sources(dir: string = SRC): ReadonlyArray<readonly [string, string]> {
   return readdirSync(dir).flatMap((name): ReadonlyArray<readonly [string, string]> => {
     const path: string = join(dir, name);
@@ -12,7 +11,6 @@ function sources(dir: string = SRC): ReadonlyArray<readonly [string, string]> {
   });
 }
 
-/** Files whose text matches `pattern`, so a failure names the offender. */
 function offenders(pattern: RegExp): ReadonlyArray<string> {
   return sources().filter(([, text]) => pattern.test(text)).map(([path]) => path);
 }

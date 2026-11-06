@@ -1,12 +1,4 @@
-/**
- * jwt — unverified JWT payload decoding for the token-broker route handlers.
- *
- * The access token is issued and verified by `auth-service` (RS256, JWKS).
- * The Next.js server never needs to verify the signature — it only needs the
- * claims to shape the session response and the UI. Decoding is therefore
- * deliberately best-effort and MUST NOT be treated as a trust boundary:
- * every BFF still validates the token cryptographically.
- */
+// Unverified decode for the UI only, never a trust boundary: every BFF validates the token itself.
 
 export interface JwtClaims {
   readonly sub?: string;

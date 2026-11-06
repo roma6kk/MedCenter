@@ -1,11 +1,3 @@
-/**
- * query-client — the app-wide TanStack Query configuration.
- *
- * - retries only transient failures of idempotent reads (offline, 502/503/504), with exponential back-off
- *   (frontend-design-spec §8); a 4xx is final and a mutation is never retried (it could double-submit);
- * - applies the central errorCode side effects (`error-effects.ts`): the "rate limited" and "slot taken" toasts and
- *   the refetch of data a conflict just proved stale.
- */
 import { MutationCache, QueryCache, QueryClient } from '@tanstack/react-query';
 import { isApiError } from './api-fetch';
 import { effectsFor, type ErrorSource } from './error-effects';

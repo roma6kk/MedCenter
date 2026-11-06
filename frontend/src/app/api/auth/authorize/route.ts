@@ -11,7 +11,6 @@ export const dynamic = 'force-dynamic';
 
 const SCOPE = 'launch patient/*.read patient/*.write user/*.read user/*.write';
 
-/** Starts the SMART authorization-code + PKCE flow: 302 to auth-service, verifier kept in an httpOnly cookie. */
 export async function GET(request: NextRequest): Promise<NextResponse> {
   const requested: string | null = request.nextUrl.searchParams.get('returnTo');
   const sanitized: string = requested === null ? '' : sanitizeReturnTo(requested, '');

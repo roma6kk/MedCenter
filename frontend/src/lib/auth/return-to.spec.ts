@@ -57,7 +57,6 @@ describe('sanitizeReturnTo', () => {
   });
 
   it('should reject double-encoded protocol-relative payloads', () => {
-    // `%252F` decodes once to `%2F`, which still starts with `%` — not `/`.
     expect(sanitizeReturnTo('%252F%252Fevil.example.com')).toBe('/booking');
   });
 });

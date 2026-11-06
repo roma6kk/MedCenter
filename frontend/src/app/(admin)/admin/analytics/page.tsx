@@ -6,7 +6,6 @@ import { AnalyticsPanel } from '@/components/admin/analytics/analytics-panel';
 export const metadata: Metadata = pageMetadata('admin.analytics.title');
 
 export default function AdminAnalyticsPage(): React.JSX.Element {
-  // `useSearchParams` (the period in the address) needs a Suspense boundary above it for the static shell to build.
   return (
     <Suspense fallback={null}>
       <AnalyticsPanel />

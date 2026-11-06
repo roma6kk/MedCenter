@@ -11,11 +11,9 @@ export const dynamic = 'force-dynamic';
 
 const FALLBACK_LANDING = ROLE_LANDING.PATIENT;
 
-/** The OAuth error codes `/login` knows (login-error.ts): a refused sign-in, and a service that could not answer. */
 const DENIED = 'access_denied';
 const UNAVAILABLE = 'temporarily_unavailable';
 
-/** `returnTo` is only passed for a callback that passed state verification, so the visitor's retry still lands where they were going. */
 function failure(code: string = DENIED, returnTo: string | null = null): NextResponse {
   const suffix: string = returnTo === null ? '' : `&returnTo=${encodeURIComponent(returnTo)}`;
   const response: NextResponse = NextResponse.redirect(publicUrl(`/login?error=${code}${suffix}`));
@@ -29,11 +27,7 @@ function successTarget(tokens: TokenSet, input: CallbackInput): string {
   return resolvePostLoginPath(role, requested);
 }
 
-/**
- * PKCE callback: verifies state, exchanges the code, stores the refresh token and redirects (public origin only). A failure goes
- * back to `/login`: `access_denied` when the callback is not verifiable or the code was refused, `temporarily_unavailable` when
- * auth-service could not answer (unreachable, 429, 5xx).
- */
+// A failure goes back to /login: access_denied when unverifiable or refused, temporarily_unavailable when auth-service could not answer.
 export async function GET(request: NextRequest): Promise<NextResponse> {
   const input: CallbackInput | null = parseCallback(request.nextUrl.searchParams, request.cookies.get(PKCE_COOKIE)?.value);
   if (input === null) return failure();

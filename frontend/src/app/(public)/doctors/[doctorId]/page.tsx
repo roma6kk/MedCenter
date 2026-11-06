@@ -10,7 +10,6 @@ export const metadata: Metadata = pageMetadata('catalog.profile');
 
 export const dynamic = 'force-dynamic';
 
-/** An id the API refuses (400) or does not know (404) is "no such doctor"; any other failure is a banner, not a "not found". */
 const MISSING_STATUSES: ReadonlyArray<number> = [400, 404];
 
 export default async function DoctorProfilePage({ params }: { readonly params: Promise<{ doctorId: string }> }): Promise<React.JSX.Element> {

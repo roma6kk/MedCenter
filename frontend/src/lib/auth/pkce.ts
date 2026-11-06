@@ -1,10 +1,3 @@
-/**
- * pkce — RFC 7636 verifier / S256 challenge generation for the token broker.
- *
- * Runs in the Node runtime of the route handlers; uses only Web Crypto so it is
- * also testable under Jest.
- */
-
 const VERIFIER_BYTES = 32;
 const STATE_BYTES = 16;
 

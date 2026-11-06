@@ -71,7 +71,6 @@ describe('apiFetch silent refresh / revoke', () => {
     });
 
     await expect(apiFetch('/api/v1/appointments')).rejects.toBeInstanceOf(ApiError);
-    // initial call + exactly one retry; the retried request must not trigger a second refresh
     expect(businessCalls).toBe(2);
     expect(refreshCalls).toBe(1);
   });

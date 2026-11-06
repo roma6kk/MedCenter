@@ -1,10 +1,3 @@
-/**
- * translate — provider-free access to the `messages/{ru,en}.json` catalogues (next-intl ICU messages).
- *
- * Components use `useT` (this module under a hook), plain code (API error effects, toasts raised outside React) uses
- * `translate`. Both read the locale from `useUiStore`, so they never throw for a missing `NextIntlClientProvider`
- * and unit tests need no wrapper.
- */
 import { createTranslator, type AbstractIntlMessages } from 'next-intl';
 import en from '@/messages/en.json';
 import ru from '@/messages/ru.json';
@@ -18,12 +11,8 @@ export const MESSAGES: Readonly<Record<Locale, AbstractIntlMessages>> = { ru, en
 
 const cache = new Map<string, Translate>();
 
-/**
- * A missing key renders as its path (`getMessageFallback`) instead of throwing or logging on every render; the catalogue
- * parity spec (`translate.spec.ts`) is what keeps the real keys complete.
- */
+// A missing key renders as its path; the catalogue parity spec keeps the real keys complete.
 function ignoreMissingMessage(): void {
-  // Intentionally silent: see the comment above.
 }
 
 export function createTranslate(locale: Locale, namespace?: string): Translate {
@@ -43,7 +32,6 @@ export function createTranslate(locale: Locale, namespace?: string): Translate {
   return translate;
 }
 
-/** Translates with the locale currently selected in the UI store. */
 export function translate(key: string, values?: TranslateValues): string {
   return createTranslate(useUiStore.getState().locale)(key, values);
 }
