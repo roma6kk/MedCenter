@@ -1,13 +1,5 @@
 import { cva, type VariantProps } from 'class-variance-authority';
 
-/**
- * Look of every surface of the redesign, kept out of the component file so a `Link` or a `button` can wear it too
- * (`<Link className={cardVariants({ tone: 'interactive' })}>`) and so Fast Refresh keeps `card.tsx` components-only.
- *
- * `tone` tells the eye what the card does: `static` only holds content, `interactive` is clickable as a whole (hover lifts it
- * 2 px onto a deeper shadow, a press puts it back down, the pointer and a focus ring say so), `selected` is the chosen one of a group. Only the
- * properties that change are transitioned (never `all`); the global reduced-motion rule makes the lift instant.
- */
 export const cardVariants = cva('relative border bg-card shadow-elev-1', {
   variants: {
     radius: { card: 'rounded-card', panel: 'rounded-panel' },
@@ -24,8 +16,5 @@ export const cardVariants = cva('relative border bg-card shadow-elev-1', {
 
 export type CardVariantProps = VariantProps<typeof cardVariants>;
 
-/**
- * Makes the one link of an interactive card cover the whole card (`after` pseudo-element over the nearest `relative`
- * ancestor, which `Card` is): a single tab stop and a single accessible name, and no nested interactive markup.
- */
+// Stretches the card link over the whole card via ::after on the nearest relative ancestor: one tab stop, no nested interactive markup.
 export const STRETCHED_LINK_CLASS = "after:absolute after:inset-0 after:content-['']";

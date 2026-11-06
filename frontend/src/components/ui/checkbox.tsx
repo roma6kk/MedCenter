@@ -4,9 +4,7 @@ import { Check } from 'lucide-react';
 import { cn } from '@/lib/ui/cn';
 
 export interface CheckboxProps extends Omit<InputHTMLAttributes<HTMLInputElement>, 'type' | 'size'> {
-  /** The text beside the box. The whole row (box and text) is one label and one 44 px target. */
   readonly children?: ReactNode;
-  /** Classes of the row (or of the bare box when there is no text). */
   readonly wrapperClassName?: string;
 }
 
@@ -19,11 +17,6 @@ const BOX_CLASS = [
   'disabled:cursor-not-allowed disabled:opacity-60',
 ].join(' ');
 
-/**
- * A themed native checkbox (VF1): the input keeps its semantics (`register()`, `checked`, labels, `getByRole('checkbox')`),
- * only its look is drawn: a rounded box and a check mark from the icon set. With `children` it renders the whole labelled
- * row, so the label text is clickable and the target is at least 44 px high (WCAG 2.5.8).
- */
 export const Checkbox = forwardRef<HTMLInputElement, CheckboxProps>(function Checkbox({ children, wrapperClassName, className, ...rest }, ref): ReactNode {
   const box: ReactNode = (
     <span className={cn('relative inline-flex size-[22px] shrink-0', children === undefined && wrapperClassName)}>

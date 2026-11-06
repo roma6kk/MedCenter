@@ -10,12 +10,10 @@ import { showToast } from '@/lib/ui/toast';
 import { useToastStore, type Toast, type ToastTone } from '@/store/use-toast-store';
 
 const AUTO_DISMISS_MS: Readonly<Record<ToastTone, number>> = { info: 6_000, success: 6_000, error: 10_000 };
-/** A toast with a button gives the user time to reach it (WCAG 2.2.1). */
 const ACTION_DISMISS_MS = 10_000;
 
 interface ToneLook {
   readonly icon: LucideIcon;
-  /** Colour of the icon; the toast itself stays on the card ground so the text keeps its contrast. */
   readonly iconClass: string;
 }
 
@@ -66,11 +64,6 @@ function ToastItem({ toast, dismissLabel }: { readonly toast: Toast; readonly di
   );
 }
 
-/**
- * Toast region (WCAG 4.1.3). Both live regions are always in the DOM so assistive technology registers them before the
- * first message: errors go to the assertive `alert` region, everything else to the polite `status` region. Toasts slide in
- * from the bottom; the tone is an icon plus the words, never a colour alone.
- */
 export function Toaster(): ReactNode {
   const t = useT('feedback');
   const toasts = useToastStore((state) => state.toasts);

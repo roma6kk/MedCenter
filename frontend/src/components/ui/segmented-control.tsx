@@ -9,20 +9,14 @@ export interface SegmentOption<TValue extends string> {
   readonly label: string;
 }
 
-/**
- * `tabs`: the WAI-ARIA tabs pattern (the segments switch one panel; roving tabindex, arrow keys, automatic activation).
- * `toggle`: a group of pressed-state buttons (a setting such as the language; every segment stays in the Tab order).
- */
 export type SegmentedKind = 'tabs' | 'toggle';
 
 interface SegmentedControlProps<TValue extends string> {
-  /** Accessible name of the tab list or the group. */
   readonly label: string;
   readonly options: ReadonlyArray<SegmentOption<TValue>>;
   readonly value: TValue;
   readonly onChange: (value: TValue) => void;
   readonly kind?: SegmentedKind;
-  /** Makes the tab and panel ids unique on the page (`tabs` only). */
   readonly idPrefix?: string;
   readonly size?: 'md' | 'sm';
   readonly className?: string;
@@ -32,7 +26,6 @@ export function tabId(idPrefix: string, value: string): string {
   return `${idPrefix}-tab-${value}`;
 }
 
-/** Arrow keys wrap around, Home/End jump to the ends; any other key is not ours. */
 function targetIndex(key: string, index: number, count: number): number | null {
   if (key === 'ArrowRight') return (index + 1) % count;
   if (key === 'ArrowLeft') return (index - 1 + count) % count;
@@ -48,11 +41,6 @@ interface Box {
   readonly height: number;
 }
 
-/**
- * Where the sliding indicator must be: the box of the selected segment inside the control. Measured after layout (and again
- * when the control resizes, e.g. a web font arrives), so the indicator follows wrapped segments too. `null` until measured:
- * the first paint has no indicator, and the slide is only switched on afterwards (no slide from the corner on load).
- */
 function useIndicator(selected: string, segments: React.MutableRefObject<Map<string, HTMLButtonElement>>): { readonly box: Box | null; readonly ref: (node: HTMLDivElement | null) => void; readonly animate: boolean } {
   const [box, setBox] = useState<Box | null>(null);
   const [animate, setAnimate] = useState(false);
@@ -86,10 +74,6 @@ const SIZE_CLASS: Readonly<Record<NonNullable<SegmentedControlProps<string>['siz
   sm: 'min-h-[44px] min-w-[44px] px-2 text-xs uppercase',
 };
 
-/**
- * Segmented control with a sliding indicator (VF3): the active segment's pill glides to the new one in `duration-base`
- * (reduced motion: it jumps). Tabs or a toggle group, see `SegmentedKind`.
- */
 export function SegmentedControl<TValue extends string>({ label, options, value, onChange, kind = 'tabs', idPrefix = 'seg', size = 'md', className }: SegmentedControlProps<TValue>): ReactNode {
   const segments = useRef<Map<string, HTMLButtonElement>>(new Map());
   const { box, ref, animate } = useIndicator(value, segments);

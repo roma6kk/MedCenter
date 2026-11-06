@@ -5,15 +5,9 @@ const OUTER_ANGLES: readonly number[] = [0, 30, 60, 90, 120, 150, 180, 210, 240,
 const INNER_ANGLES: readonly number[] = OUTER_ANGLES.map((angle) => angle + 15);
 
 interface BrandMarkProps {
-  /** Side of the square the mark is drawn in, px. */
   readonly size?: number;
 }
 
-/**
- * The Lifeline rosette: a ring of twelve leaves with a lighter ring between them and a sprout in the middle. One mark for every
- * header (public, patient, staff, sign-in), painted from the theme tokens so the dark theme recolours it. Decorative, the word next
- * to it names the clinic.
- */
 export function BrandMark({ size = 36 }: BrandMarkProps): ReactNode {
   return (
     <svg aria-hidden="true" focusable="false" width={size} height={size} viewBox="0 0 640 640" className="shrink-0">

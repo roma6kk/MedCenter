@@ -128,7 +128,6 @@ describe('ProblemBanner', () => {
   });
 
   describe('when the server failed with an unhandled error', () => {
-    // The fixed sentence of the server's catch-all filter: Russian whatever the interface language.
     const UNHANDLED: ProblemDetails = { title: 'Internal Server Error', status: 500, errorCode: 'INTERNAL', detail: 'Внутренняя ошибка сервера', requestId: 'req-500' };
 
     it('should show the headline and not repeat the server sentence under it', () => {

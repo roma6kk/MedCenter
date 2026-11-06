@@ -14,7 +14,6 @@ interface StateProps {
 }
 
 interface EmptyStateProps extends StateProps {
-  /** A line icon drawn on two soft discs: an empty list of the cabinet says what is missing before it says anything else. */
   readonly icon?: LucideIcon;
 }
 
@@ -59,10 +58,6 @@ export function EmptyState({ title, description, action, icon: Icon }: EmptyStat
   );
 }
 
-/**
- * Rows of a table while it loads: each row has the rhythm of real content (a short key, a long name, a badge); the admin tables use it.
- * Like `ContentSkeleton` it is the `role="status"` region only when it is the first skeleton of its screen (`useLeadSkeleton`).
- */
 export function TableSkeleton(): ReactNode {
   const t = useT('common');
   const { ref, isLead } = useLeadSkeleton<HTMLDivElement>();

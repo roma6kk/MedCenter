@@ -11,10 +11,6 @@ export interface FloatingPosition {
 
 export type FloatingAlign = 'start' | 'end';
 
-/**
- * Where a fixed popover goes: under its anchor (above it when there is no room below), aligned to the anchor's left (`start`)
- * or right (`end`) edge, never past the viewport edges. Shared by the actions menu and the calendar popover.
- */
 export function placeFloating(anchor: HTMLElement, size: { readonly width: number; readonly height: number }, align: FloatingAlign): FloatingPosition {
   const rect: DOMRect = anchor.getBoundingClientRect();
   const fitsBelow: boolean = rect.bottom + GAP_PX + size.height <= window.innerHeight || rect.top - GAP_PX - size.height < 0;
@@ -28,17 +24,11 @@ interface FloatingOptions {
   readonly anchor: HTMLElement | null;
   readonly panel: RefObject<HTMLElement>;
   readonly align: FloatingAlign;
-  /** Width the panel is drawn with (px). */
   readonly width: number;
-  /** Called on a pointer press outside the panel and the anchor. */
   readonly onOutsidePress: () => void;
 }
 
-/**
- * Position of a portal panel next to `anchor`. Scroll and resize move the panel with its anchor instead of closing it: a
- * scroll event queued by the very gesture that opened the panel (a tap right after a scroll) must not dismiss it.
- * `null` until the first measurement, so the caller can keep the panel invisible for that frame.
- */
+// Scroll and resize move the panel with its anchor instead of closing it: a scroll queued by the opening gesture must not dismiss it.
 export function useFloatingPosition({ anchor, panel, align, width, onOutsidePress }: FloatingOptions): FloatingPosition | null {
   const [position, setPosition] = useState<FloatingPosition | null>(null);
   const outsidePress = useRef(onOutsidePress);

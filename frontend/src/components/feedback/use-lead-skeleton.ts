@@ -8,7 +8,6 @@ interface MountedSkeleton {
   readonly element: HTMLElement;
 }
 
-/** The skeletons on screen now, the earliest first. */
 let mounted: readonly MountedSkeleton[] = [];
 const listeners = new Set<() => void>();
 
@@ -24,12 +23,11 @@ function setMounted(next: readonly MountedSkeleton[]): void {
   listeners.forEach((listener) => listener());
 }
 
-/** A modal is a screen of its own: what is behind it is out of reach of a screen reader, so a skeleton inside it cannot lean on one outside. */
+// A modal is a screen of its own: a skeleton inside it cannot lean on one outside.
 function scopeOf(element: HTMLElement): Element | null {
   return element.closest('[aria-modal="true"]');
 }
 
-/** A skeleton that has not registered yet (the first render, the server) is its own lead: a lone skeleton must never be mute. */
 function isLead(id: string): boolean {
   const own: MountedSkeleton | undefined = mounted.find((entry) => entry.id === id);
   if (own === undefined) return true;
@@ -38,18 +36,11 @@ function isLead(id: string): boolean {
 }
 
 interface LeadSkeleton<T extends HTMLElement> {
-  /** Goes on the root element of the skeleton: its place in the page tells which modal, if any, it belongs to. */
   readonly ref: RefObject<T>;
-  /** Only the lead skeleton of a screen is the `role="status"` region and shows the slow-loading note; the others are decoration. */
   readonly isLead: boolean;
 }
 
-/**
- * Several reads in flight at once (the doctor's patient card loads the header, the history and the orders side by side) draw
- * several skeletons, and each of them used to be a live region of its own: a screen reader said «Загрузка…» three times and
- * the eye saw three «Загружаем…» after three seconds. The skeleton that mounted first is the lead one (the region and the
- * note); when it goes away, the next one takes over, so the wait of the screen is announced once for as long as it lasts.
- */
+// One live region per screen: several skeletons at once would make a screen reader say Загрузка… repeatedly.
 export function useLeadSkeleton<T extends HTMLElement>(): LeadSkeleton<T> {
   const id: string = useId();
   const ref = useRef<T>(null);

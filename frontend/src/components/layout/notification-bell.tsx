@@ -31,12 +31,6 @@ function UnreadBadge({ count, isPulsing }: { readonly count: number; readonly is
   );
 }
 
-/**
- * The patient's entry to the notifications (patient only): a bell with the unread count that opens a dropdown of the latest
- * five, with «Отметить все прочитанными» and the link to the whole list. The count is polled every 30 s (ADR-015) through
- * `useUnreadCount`, and its badge pulses softly when a new one arrives. Renders nothing for doctors and administrators, who
- * have no notification endpoints.
- */
 export function NotificationBell(): ReactNode {
   const t = useT('layout.notifications');
   const role = useSessionStore((state) => state.role);
@@ -50,7 +44,6 @@ export function NotificationBell(): ReactNode {
     setIsOpen(false);
     if (restoreFocus) trigger.current?.focus();
   }, []);
-  // Tabbing past the last control of the dropdown leaves it: it closes instead of hanging open over the page.
   const onBlur = (event: FocusEvent<HTMLElement>): void => {
     if (event.relatedTarget instanceof Node && !event.currentTarget.contains(event.relatedTarget)) setIsOpen(false);
   };

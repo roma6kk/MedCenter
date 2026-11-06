@@ -9,15 +9,10 @@ import { NavLink } from './nav-link';
 
 export interface StaffLink {
   readonly href: string;
-  /** Key under `layout.doctor` / `layout.admin` in the messages catalogue. */
   readonly labelKey: string;
   readonly icon?: LucideIcon;
 }
 
-/**
- * The pill of a navigation item. The current one sits on `primary-soft` with a filled bar on its left edge (the global
- * underline of `NavLink` is switched off for it), so the section is told by shape and fill, not by the colour alone.
- */
 const NAV_PILL = cn(
   'relative gap-3 rounded-control px-3 text-base font-medium text-foreground transition-colors duration-fast ease-out hover:bg-secondary',
   'aria-[current=page]:bg-primary-soft aria-[current=page]:font-semibold aria-[current=page]:text-primary-soft-foreground aria-[current=page]:no-underline',

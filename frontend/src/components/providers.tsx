@@ -21,7 +21,7 @@ function SessionHydrator(): null {
   return null;
 }
 
-/** Restores the viewer's saved locale after hydration (reading storage during render would mismatch the server HTML). */
+// Reading storage during render would mismatch the server HTML, so the saved locale is restored after hydration.
 function LocaleSync(): null {
   const locale = useUiStore((state) => state.locale);
   useEffect(() => {
@@ -34,13 +34,7 @@ function LocaleSync(): null {
   return null;
 }
 
-/**
- * Keeps the locale cookie, which the server components read to ask the API for names and specialties in the viewer's
- * language, in step with the locale. When the language is switched the page data rendered on the server is in the old
- * one, so the route is refreshed (the cookie is written first, the refresh re-runs the server components with it).
- * The first run is skipped: the default locale it sees is not a choice, and the saved one arrives with the next render.
- * The router is read from its context rather than `useRouter`, which throws where no App Router is mounted (the specs).
- */
+// The server components read this cookie to ask the API for names in the viewer language; keep it in step with the locale.
 function LocaleDataSync(): null {
   const locale = useUiStore((state) => state.locale);
   const router = useContext(AppRouterContext);

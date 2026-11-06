@@ -19,7 +19,6 @@ const TILE_TONE: Record<Tone, string> = {
   destructive: 'bg-destructive-soft text-destructive',
 };
 
-/** The frame of a message screen (404, 403, a crashed page, a session that could not be loaded): one skip link and the `<main>` it targets. */
 export function MessageFrame({ children }: { readonly children: ReactNode }): ReactNode {
   return (
     <>
@@ -48,7 +47,6 @@ interface MessageProps {
   readonly children?: ReactNode;
 }
 
-/** Calm centred message: icon tile, a clear title, one sentence and the way out. */
 function Message({ testId, icon, tone, title, description, children }: MessageProps): ReactNode {
   return (
     <div data-testid={testId} className="w-full rounded-panel border border-border bg-card p-8 text-center sm:p-10">
@@ -65,7 +63,6 @@ function HomeLink({ variant }: { readonly variant: 'primary' | 'secondary' }): R
   return <Link href="/" className={buttonVariants({ variant, size: 'lg' })}>{t('backHome')}</Link>;
 }
 
-/** `app/not-found.tsx`: a URL no route answers to. */
 export function NotFoundPage(): ReactNode {
   const t = useT('feedback');
   useDocumentTitle(t('notFoundPage'));
@@ -78,7 +75,6 @@ export function NotFoundPage(): ReactNode {
   );
 }
 
-/** `app/403/page.tsx`: where the role guard sends a signed-in user who opened another role's section. */
 export function ForbiddenPage(): ReactNode {
   const t = useT('feedback');
   useDocumentTitle(t('forbiddenTitle'));
@@ -96,7 +92,6 @@ interface RouteErrorPageProps {
   readonly reset: () => void;
 }
 
-/** `app/error.tsx`: a page crashed while rendering. The error text is for support, not a translation: it is shown as it came. */
 export function RouteErrorPage({ error, reset }: RouteErrorPageProps): ReactNode {
   const t = useT('feedback');
   const tCommon = useT('common');

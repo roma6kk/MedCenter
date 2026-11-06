@@ -12,7 +12,6 @@ export function LocaleSwitcher(): ReactNode {
   const t = useT('layout');
   const locale = useUiStore((state) => state.locale);
   const setLocale = useUiStore((state) => state.setLocale);
-  // Two short codes always fit in one row: without `shrink-0 flex-nowrap` a crowded header squeezes the group until RU and EN
-  // wrap into a column, and the switch changes shape between locales (the Russian labels around it are longer).
+  // shrink-0 flex-nowrap: without it a crowded header wraps RU/EN into a column and the switch changes shape between locales.
   return <SegmentedControl kind="toggle" size="sm" label={t('language')} options={OPTIONS} value={locale} onChange={setLocale} className="shrink-0 flex-nowrap" />;
 }

@@ -21,16 +21,10 @@ interface PatientMobileMenuProps {
   readonly activeLinkClassName: string;
 }
 
-/** A click on a link inside the drawer is a navigation: the drawer has done its job. */
 function closeOnLink(event: MouseEvent<HTMLElement>, close: () => void): void {
   if ((event.target as HTMLElement).closest('a') !== null) close();
 }
 
-/**
- * The cabinet's navigation on a phone (T9): the three sections, the language, the theme and the sign-out live behind a burger
- * on the left of the header, in a drawer that grows out of the same side. Without it the header wrapped into three rows and
- * took a quarter of the screen before the content started. From `md` the header carries all of it again and this is hidden.
- */
 export function PatientMobileMenu({ links, linkClassName, activeLinkClassName }: PatientMobileMenuProps): ReactNode {
   const t = useT('layout');
   const tPatient = useT('layout.patient');

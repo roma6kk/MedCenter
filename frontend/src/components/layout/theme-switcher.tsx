@@ -15,11 +15,6 @@ function nextMode(mode: ThemeMode): ThemeMode {
   return THEME_MODES[(THEME_MODES.indexOf(mode) + 1) % THEME_MODES.length] ?? 'system';
 }
 
-/**
- * Switch of the colour theme: system, light, dark. Icon-only, so every button is named by its `aria-label`.
- * `compact` collapses the three segments into one button that cycles the modes: the public and patient headers have no
- * room for three more 44 px targets without wrapping onto a second row.
- */
 export function ThemeSwitcher({ compact = false }: { readonly compact?: boolean }): ReactNode {
   const t = useT('layout.theme');
   const mode = useUiStore((state) => state.themeMode);

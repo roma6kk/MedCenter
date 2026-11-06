@@ -26,14 +26,10 @@ import { useFloatingPosition } from './floating';
 import { Select } from './select';
 
 export interface DatePickerProps extends Omit<InputHTMLAttributes<HTMLInputElement>, 'value' | 'onChange' | 'type' | 'min' | 'max' | 'defaultValue' | 'size'> {
-  /** ISO day `YYYY-MM-DD`, or `''` while there is no day. The form value stays ISO whatever the field shows. */
   readonly value: string;
-  /** Called with a real ISO day, or `''` when the text is cleared or is not (yet) a day. */
   readonly onChange: (value: string) => void;
-  /** Earliest and latest day the field accepts (ISO): the calendar offers no other, and a typed day outside them is refused (the form holds `''`) and explained. */
   readonly min?: string;
   readonly max?: string;
-  /** Classes of the box around the field (its width): a date is a short value, so it is narrow by default. */
   readonly wrapperClassName?: string;
 }
 
@@ -44,7 +40,6 @@ const YEARS_AFTER = 10;
 const DAY_BASE =
   'inline-flex size-11 items-center justify-center rounded-control text-sm tabular-nums transition-[background-color,color,box-shadow] duration-fast ease-out focus-visible:outline-none focus-visible:shadow-focus';
 
-/** Selected: solid primary; today: a primary ring; outside the month: muted; outside min/max: struck out and inert. */
 function dayClass(isSelected: boolean, isToday: boolean, inMonth: boolean): string {
   return cn(
     DAY_BASE,
@@ -64,7 +59,6 @@ interface CalendarPopoverProps {
   readonly onClose: (restoreFocus: boolean) => void;
 }
 
-/** A month that lies wholly before `min` or after `max` cannot be picked. */
 function isMonthOutside(year: number, month: number, min: string | undefined, max: string | undefined): boolean {
   const first: string = keyOf({ year, month, day: 1 });
   const last: string = keyOf({ year, month, day: daysInMonth(year, month) });
@@ -73,7 +67,6 @@ function isMonthOutside(year: number, month: number, min: string | undefined, ma
 
 const inRange = (key: string, min: string | undefined, max: string | undefined): boolean => clampKey(key, min, max) === key;
 
-/** Where the keyboard moves the focused day, per the WAI-ARIA date picker grid (arrows, Home/End of the week, PageUp/PageDown by month, Shift for a year). */
 function moveTarget(key: string, cursor: string): string | null {
   const keyMove: Readonly<Record<string, string>> = {
     ArrowLeft: shiftDateKey(cursor, -1),
@@ -94,7 +87,6 @@ function CalendarPopover({ anchor, value, min, max, onSelect, onClose }: Calenda
   const panel = useRef<HTMLDivElement>(null);
   const today: string = clinicDateKey();
   const [cursor, setCursor] = useState<string>(() => clampKey(isDateKey(value) ? value : today, min, max));
-  // The grid takes the focus on open and after a keyboard move; a click in the header keeps the focus where it is.
   const focusGrid = useRef<boolean>(true);
   const position = useFloatingPosition({ anchor, panel, align: 'start', width: POPOVER_WIDTH_PX, onOutsidePress: () => onClose(false) });
   const months: ReadonlyArray<string> = monthNames(locale);
@@ -126,7 +118,7 @@ function CalendarPopover({ anchor, value, min, max, onSelect, onClose }: Calenda
     moveCursor(shifted, true);
   };
 
-  /** Escape closes only the calendar (the dialog behind it must stay); Tab cycles inside it because the portal sits at the end of `body`. */
+  // Escape closes only the calendar (the dialog behind stays); Tab cycles inside because the portal sits at the end of body.
   const handlePanelKey = (event: KeyboardEvent<HTMLDivElement>): void => {
     if (event.key === 'Escape') {
       event.preventDefault();
@@ -253,18 +245,6 @@ function CalendarPopover({ anchor, value, min, max, onSelect, onClose }: Calenda
   );
 }
 
-/**
- * A date field with a calendar popover (VF1). The field is plain text the visitor can type into (`27.10.2026`, an ISO day is
- * read too), the button opens a month grid (WAI-ARIA grid: arrows, Home/End, PageUp/PageDown, Enter, Esc), month and year
- * are two selects so a birth date is not forty clicks away. What the form holds is always ISO `YYYY-MM-DD` (`''` when empty
- * or unreadable), so schemas and API calls do not change. Month and weekday names come from `Intl` in the UI language.
- *
- * Controlled (`value` + `onChange(iso)`); with react-hook-form wrap it in `Controller`. The text being typed is kept
- * while the visitor is in the field, even when the form already holds an older day, and is shown as `дд.мм.гггг` after blur.
- * A text that is not a day turns the border red as it is typed; once the visitor is done with it (leaves the field, presses
- * Enter) a line under the field says what is wrong and which form is read (WCAG 3.3.1, 1.4.1), and it stays until the text is
- * a day or empty again. It is not shown earlier: every half-typed date is «not a day» and the form below would jump.
- */
 export const DatePicker = forwardRef<HTMLInputElement, DatePickerProps>(function DatePicker(
   { value, onChange, onBlur, min, max, wrapperClassName, className, disabled, ...rest },
   ref,
@@ -283,9 +263,8 @@ export const DatePicker = forwardRef<HTMLInputElement, DatePickerProps>(function
   const popoverId: string = useId();
   const [draft, setDraft] = useState<string>(() => formatTypedDate(value));
   const [isOpen, setIsOpen] = useState<boolean>(false);
-  // The visitor is done with a text that is not a day (left the field, pressed Enter): only then is it explained, not while it is typed.
   const [isJudged, setIsJudged] = useState<boolean>(false);
-  // The last value this field reported: a different `value` prop is a change from outside (reset, period moved by buttons) and replaces the text.
+  // Last value reported: a different `value` prop is an outside change (reset) and replaces the text.
   const reported = useRef<string>(value);
   useEffect(() => {
     if (value === reported.current) return;
@@ -309,12 +288,10 @@ export const DatePicker = forwardRef<HTMLInputElement, DatePickerProps>(function
     const parsed: string | null = parseTypedDate(text);
     const day: string | null = parsed !== null && inRange(parsed, min, max) ? parsed : null;
     setDraft(text);
-    // The explanation stays while the text is corrected (no flicker per keystroke) and goes once it is a usable day, or nothing, again.
     if (day !== null || text.trim() === '') setIsJudged(false);
     report(day ?? '');
   };
   const handleBlur = (event: FocusEvent<HTMLInputElement>): void => {
-    // A readable day is shown in the standard form; text that is not a day stays (and the field is marked and explained) so the visitor sees what was refused.
     const day: string | null = parseTypedDate(draft);
     if (draft.trim() === '' || day !== null) setDraft(formatTypedDate(day ?? ''));
     setIsJudged(isRefused);
@@ -341,7 +318,6 @@ export const DatePicker = forwardRef<HTMLInputElement, DatePickerProps>(function
   const describedBy: string = [rest['aria-describedby'], hasProblem ? problemId : undefined].filter(Boolean).join(' ');
   return (
     <div className={cn('w-full', FIELD_NARROW_CLASS, wrapperClassName)}>
-      {/* The input and the button share their own positioned box, so the line under the field does not pull the button down. */}
       <div ref={box} className="relative">
         <input
           {...rest}

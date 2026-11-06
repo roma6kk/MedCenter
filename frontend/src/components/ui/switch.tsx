@@ -3,16 +3,10 @@ import type { InputHTMLAttributes, ReactNode } from 'react';
 import { cn } from '@/lib/ui/cn';
 
 export interface SwitchProps extends Omit<InputHTMLAttributes<HTMLInputElement>, 'type' | 'size' | 'role'> {
-  /** The text beside the switch; the whole row is one label and one 44 px target. */
   readonly children: ReactNode;
   readonly wrapperClassName?: string;
 }
 
-/**
- * An on/off switch (VF1) on a native checkbox with `role="switch"`: the state is announced as «on/off», `register()` and
- * `checked` work as for any checkbox, Space toggles. The thumb slides with the motion tokens; reduced motion stops it
- * globally. The track is the primary colour when on and the field border colour when off (>= 3:1 on the card).
- */
 export const Switch = forwardRef<HTMLInputElement, SwitchProps>(function Switch({ children, wrapperClassName, className, ...rest }, ref): ReactNode {
   return (
     <label className={cn('flex min-h-[44px] cursor-pointer items-center gap-3 py-1 has-[:disabled]:cursor-not-allowed has-[:disabled]:opacity-60', wrapperClassName)}>

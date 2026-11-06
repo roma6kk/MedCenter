@@ -30,11 +30,9 @@ export type { StaffLink };
 interface StaffShellProps {
   readonly children: ReactNode;
   readonly links: ReadonlyArray<StaffLink>;
-  /** Accepted for the existing pages; the navigation landmark is named after the signed-in role instead. */
   readonly title?: string;
 }
 
-/** Empty box under the navigation that a page may fill (through a portal) with something that belongs to the sidebar, e.g. a legend. */
 export const STAFF_ASIDE_SLOT_ID = 'staff-aside-slot';
 
 export const DOCTOR_LINKS: ReadonlyArray<StaffLink> = [
@@ -57,11 +55,6 @@ interface PartsProps {
   readonly prefix: 'doctor' | 'admin';
 }
 
-/**
- * From 1024 px: the sidebar. Its grid cell carries the material (a translucent surface under a backdrop blur) and stretches
- * to the full height of the page, while the panel inside sticks to the viewport: the background no longer ends where the
- * first screen does on a long page.
- */
 function StaffSidebar({ links, prefix }: PartsProps): ReactNode {
   return (
     <div className="border-r border-border bg-glass backdrop-blur-md">
@@ -78,19 +71,14 @@ function StaffSidebar({ links, prefix }: PartsProps): ReactNode {
   );
 }
 
-/** A click on a link inside the drawer is a navigation: the drawer has done its job. */
 function closeOnLink(event: MouseEvent<HTMLElement>, close: () => void): void {
   if ((event.target as HTMLElement).closest('a') !== null) close();
 }
 
-/**
- * Below 1024 px (D7): a top bar with a burger, the brand and the profile button instead of a block of links stacked above
- * the content. The burger opens the navigation in the same drawer the rest of the app uses.
- */
 function StaffTopBar({ links, prefix }: PartsProps): ReactNode {
   const t = useT('layout');
   const [isOpen, setIsOpen] = useState(false);
-  // The drawer is a sibling of the bar, not its child: `backdrop-filter` makes the bar the containing block of fixed descendants.
+  // The drawer is a sibling of the bar: backdrop-filter makes the bar the containing block of fixed descendants.
   return (
     <>
       <header className="sticky top-0 z-30 flex items-center gap-2 border-b border-border bg-glass px-3 py-2 backdrop-blur-md">
@@ -132,7 +120,6 @@ function StaffTopBar({ links, prefix }: PartsProps): ReactNode {
   );
 }
 
-/** Doctors and administrators have no notification endpoints, so this shell carries no bell. */
 export function StaffShell({ children, links }: StaffShellProps): ReactNode {
   const role = useSessionStore((state) => state.role);
   const isDesktop: boolean = useMediaQuery(DESKTOP_QUERY);

@@ -8,11 +8,7 @@ import { resolveRoleAccess } from '@/lib/auth/role-access';
 import { currentReturnTo } from '@/lib/auth/session-client';
 import { useSessionStore, type UserRole } from '@/store/use-session-store';
 
-/**
- * Renders a route group only for its role. Children are not mounted until access is
- * decided, so a wrong-role user never fires the group's API queries. When auth-service did not answer, nothing is known
- * about the visitor: a retry is shown, not the sign-in page.
- */
+// Children are not mounted until access is decided, so a wrong-role user never fires the group queries.
 export function RoleGuard({ required, children }: { readonly required: UserRole; readonly children: ReactNode }): ReactNode {
   const router = useRouter();
   const hydrated = useSessionStore((state) => state.hydrated);
@@ -22,7 +18,7 @@ export function RoleGuard({ required, children }: { readonly required: UserRole;
 
   useEffect(() => {
     if (access === 'forbidden') router.replace('/403');
-    // The address bar, not `usePathname()`: that has no query, and a doctor's chosen day or an analytics period lives there.
+    // The address bar, not usePathname(): that has no query, and a chosen day or analytics period lives there.
     if (access === 'login') router.replace(`/login?returnTo=${encodeURIComponent(currentReturnTo())}`);
   }, [access, router]);
 

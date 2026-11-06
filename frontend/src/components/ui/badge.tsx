@@ -3,11 +3,6 @@ import type { LucideIcon } from 'lucide-react';
 import { cva, type VariantProps } from 'class-variance-authority';
 import { cn } from '@/lib/ui/cn';
 
-/**
- * Semantic tones of the redesign (VA1): a soft ground with a coloured text, every pair checked for contrast in
- * `globals-contrast.spec.ts`. The tone is the urgency scale: neutral < info < success / warning < critical; `primary` and
- * `warm` are brand accents (a state that belongs to the clinic's own flow, a highlight for the patient side).
- */
 export const badgeVariants = cva('inline-flex flex-none items-center gap-1 whitespace-nowrap text-xs font-semibold', {
   variants: {
     tone: {
@@ -27,15 +22,10 @@ export const badgeVariants = cva('inline-flex flex-none items-center gap-1 white
 export type BadgeTone = NonNullable<VariantProps<typeof badgeVariants>['tone']>;
 
 interface BadgeProps extends HTMLAttributes<HTMLSpanElement>, VariantProps<typeof badgeVariants> {
-  /** A lucide icon drawn before the label; it is decoration (the label always says the same in words), so it is hidden from assistive technology. */
   readonly icon?: LucideIcon;
   readonly children: ReactNode;
 }
 
-/**
- * Status or category label. Meaning never rests on colour alone: the label is always spelled out and the optional icon
- * repeats the tone's shape (WCAG 1.4.1).
- */
 export function Badge({ tone, shape, icon: Icon, className, children, ...rest }: BadgeProps): ReactNode {
   return (
     <span className={cn(badgeVariants({ tone, shape }), className)} {...rest}>

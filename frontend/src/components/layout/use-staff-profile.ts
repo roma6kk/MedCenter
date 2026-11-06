@@ -9,18 +9,11 @@ import { roleIdOf } from '@/lib/practitioner-role-id';
 import { useSessionStore } from '@/store/use-session-store';
 
 export interface StaffProfile {
-  /** Full name as the account shows it; the role word until the account is read. */
   readonly name: string;
-  /** The doctor's specialty, else the role word. */
   readonly subtitle: string;
   readonly initials: string;
 }
 
-/**
- * Who is signed in, for the profile button of the staff shell. The name comes from the account (`GET /me`); a doctor's
- * specialty from the public catalog, found by the `PractitionerRole` the token names (the catalog lists the roles of each
- * doctor). Both reads are cached and both degrade to the role word, so the shell never waits for them.
- */
 export function useStaffProfile(): StaffProfile {
   const t = useT('layout');
   const role = useSessionStore((state) => state.role);

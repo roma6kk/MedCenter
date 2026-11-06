@@ -10,11 +10,6 @@ import { useLeadSkeleton } from './use-lead-skeleton';
 export type ContentSkeletonShape = 'list' | 'tiles' | 'timeline' | 'cards' | 'detail';
 
 interface ContentSkeletonProps {
-  /**
-   * What the real content looks like (E4): `list` is rows in one card (appointments), `tiles` rows with an icon tile and a
-   * button (notifications), `timeline` a dated rail with cards (visit history, the doctor's day), `cards` a grid of cards
-   * (prescriptions, recommendations) and `detail` a heading with a key-value grid and a paragraph (a record, a profile).
-   */
   readonly shape: ContentSkeletonShape;
   readonly rows?: number;
   readonly className?: string;
@@ -111,12 +106,6 @@ function Detail(): ReactNode {
   );
 }
 
-/**
- * Placeholder of a read in flight, drawn in the shape of what is coming (E4), with the shimmer of `Skeleton`. The whole
- * block is one `role="status"` region that says «Загрузка…» once; after three seconds it adds «Загружаем…» (`LoadingNote`).
- * When a screen shows several skeletons at once only the first of them is the region and carries the note
- * (`useLeadSkeleton`); the rest are decoration.
- */
 export function ContentSkeleton({ shape, rows = 3, className }: ContentSkeletonProps): ReactNode {
   const t = useT('common');
   const { ref, isLead } = useLeadSkeleton<HTMLDivElement>();

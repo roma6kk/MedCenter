@@ -13,11 +13,9 @@ export type DialogVariant = 'dialog' | 'drawer' | 'drawer-left';
 
 interface DialogProps {
   readonly title: string;
-  /** Text under the title that says what the dialog is about; it also becomes the accessible description. */
   readonly description?: ReactNode;
   readonly onClose: () => void;
   readonly children?: ReactNode;
-  /** Buttons row below the scrolling body (kept in view on a long form). */
   readonly footer?: ReactNode;
   readonly size?: DialogSize;
   readonly variant?: DialogVariant;
@@ -25,11 +23,6 @@ interface DialogProps {
 
 const SIZE_CLASS: Readonly<Record<DialogSize, string>> = { sm: 'sm:max-w-md', md: 'sm:max-w-xl', lg: 'sm:max-w-4xl' };
 
-/**
- * `dialog`: a centred window from 640 px up, a bottom sheet below it (thumb reach, the keyboard pushes it up instead of
- * covering the title). `drawer`: a panel on the right edge at every width; `drawer-left`: the same on the left edge, for a menu
- * whose burger button sits on the left (the panel grows out of the button that opened it).
- */
 const OVERLAY_CLASS: Readonly<Record<DialogVariant, string>> = {
   dialog: 'items-end justify-center sm:items-center sm:p-4',
   drawer: 'items-stretch justify-end',
@@ -42,7 +35,7 @@ const PANEL_CLASS: Readonly<Record<DialogVariant, string>> = {
   'drawer-left': 'h-full w-full max-w-sm border-r animate-drawer-left-in',
 };
 
-/** The latest `onClose`, behind a callback that never changes: the focus trap must not restart when the parent re-renders. */
+// Latest onClose behind a stable callback: the focus trap must not restart on parent re-render.
 function useStableClose(onClose: () => void): () => void {
   const latest = useRef(onClose);
   useEffect(() => {
@@ -51,16 +44,6 @@ function useStableClose(onClose: () => void): () => void {
   return useCallback(() => latest.current(), []);
 }
 
-/**
- * The one modal window of the app (VE2): a scrim with a light blur, a raised panel (`shadow-elev-3`), a title, a close
- * button, a scrolling body and an optional footer. It enters with a fade and a scale from .96 (a slide from the bottom as a
- * sheet); reduced motion turns that off globally.
- *
- * Behaviour: labelled by its title, traps focus, closes on Escape, returns focus to the opener, locks the page behind it.
- * The close button sits last in the DOM (and in the Tab order) on purpose: the first control of the body takes the initial
- * focus, not the cross. Mount it only while it is open (`{open ? <Dialog …/> : null}`). A caller that must not be
- * dismissed while a request runs hands in an `onClose` that ignores the call.
- */
 export function Dialog({ title, description, onClose, children, footer, size = 'md', variant = 'dialog' }: DialogProps): ReactNode {
   const t = useT('common');
   const titleId = useId();

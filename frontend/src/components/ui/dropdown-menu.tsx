@@ -12,33 +12,20 @@ export interface MenuItem {
   readonly key: string;
   readonly label: string;
   readonly icon?: LucideIcon;
-  /** A destructive item: red text and its icon (never the colour alone), and it is the one the eye finds last. */
   readonly destructive?: boolean;
-  /** Runs after the menu has closed and the focus is back on the trigger, so a dialog opened here remembers the trigger. */
   readonly onSelect?: () => void;
-  /** A link item (`role="menuitem"` on the anchor) instead of an action. */
   readonly href?: string;
-  /** Accessible name when the visible label is not enough (the same «Изменить» in every row). */
   readonly ariaLabel?: string;
-  /** Makes the item a choice of a group (`menuitemradio`): the one that is `true` is ticked. A group is a run of such items. */
   readonly checked?: boolean;
-  /** Small caption drawn above this item (the name of the group that starts here), separated from the items before it. */
   readonly heading?: string;
 }
 
 interface DropdownMenuProps {
-  /** Accessible name of the «⋯» button: say whose row it is (`Действия: Иванов Иван`). */
   readonly label: string;
   readonly items: ReadonlyArray<MenuItem>;
   readonly className?: string;
-  /**
-   * What the button shows instead of «⋯» (the profile button of the shell: avatar, name). The button then sizes itself
-   * to this content, so give it its own `className`.
-   */
   readonly trigger?: ReactNode;
-  /** Which edge of the button the menu lines up with; `end` (the right edge) by default. */
   readonly align?: FloatingAlign;
-  /** Width of the menu in px. */
   readonly width?: number;
 }
 
@@ -54,7 +41,6 @@ function focusAt(items: ReadonlyArray<HTMLElement>, index: number): void {
   items[(index + items.length) % items.length]?.focus();
 }
 
-/** Arrow keys wrap, Home/End jump to the ends; Tab closes the menu and returns to the button (WAI-ARIA menu button pattern). */
 function handleMenuKey(event: KeyboardEvent<HTMLElement>, menu: HTMLElement | null, close: (restoreFocus: boolean) => void): void {
   const items: ReadonlyArray<HTMLElement> = itemsOf(menu);
   const index: number = items.findIndex((item) => item === document.activeElement);
@@ -68,7 +54,7 @@ function handleMenuKey(event: KeyboardEvent<HTMLElement>, menu: HTMLElement | nu
     event.stopPropagation();
     close(true);
   } else if (event.key === 'Tab') {
-    // The menu lives at the end of `body`: a native Tab would leave the page, so it hands the focus back to the button.
+    // The menu lives at the end of body: native Tab would leave the page, so focus goes back to the button.
     event.preventDefault();
     close(true);
   }
@@ -149,12 +135,6 @@ function MenuPanel({ id, triggerId, trigger, items, onClose, onSelect, align, wi
   );
 }
 
-/**
- * The «⋯» actions menu of a row or a block (WAI-ARIA menu button): the button opens a menu of actions, the first item takes
- * the focus, arrow keys move between items, Escape closes and returns the focus to the button, a click outside closes.
- * The menu is drawn in a portal with fixed position, so a table with horizontal scroll cannot clip it.
- * Destructive items are red with an icon and come last; they should open a confirmation dialog (or an undo toast).
- */
 export function DropdownMenu({ label, items, className, trigger: triggerContent, align = 'end', width = DEFAULT_MENU_WIDTH_PX }: DropdownMenuProps): ReactNode {
   const menuId = useId();
   const triggerId = useId();

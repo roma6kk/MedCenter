@@ -9,22 +9,17 @@ import { useUiStore } from '@/store/use-ui-store';
 import { buttonVariants } from './button-variants';
 
 export interface FileDropProps {
-  /** Id of the hidden native file input: the field label's `htmlFor` points at it. */
   readonly id: string;
   readonly value: File | null;
-  /** Called with the accepted file, or `null` when it is removed. A refused file is not passed on: the zone shows why. */
   readonly onChange: (file: File | null) => void;
-  /** Accepted content types (`application/pdf`): they go to `accept` of the picker and are checked again for a dropped file. */
   readonly accept: ReadonlyArray<string>;
   readonly maxBytes: number;
   readonly disabled?: boolean;
-  /** Set by the form (a server or schema message is shown by the field around it). */
   readonly 'aria-invalid'?: boolean;
   readonly 'aria-describedby'?: string | undefined;
   readonly 'aria-required'?: boolean;
 }
 
-/** `PDF`, `JPEG`: the subtype of a content type, as the short name people use for it. */
 function typeName(contentType: string): string {
   return (contentType.split('/')[1] ?? contentType).toUpperCase();
 }
@@ -36,7 +31,6 @@ function iconFor(contentType: string): typeof FileIcon {
 
 type Translate = ReturnType<typeof useT>;
 
-/** `124 КБ`, `1,5 МБ`: one decimal at most, in the language of the UI. */
 export function formatFileSize(bytes: number, t: Translate, locale: string): string {
   const format = (value: number): string => value.toLocaleString(locale, { maximumFractionDigits: 1 });
   if (bytes >= 1024 * 1024) return t('megabytes', { n: format(bytes / (1024 * 1024)) });
@@ -44,12 +38,6 @@ export function formatFileSize(bytes: number, t: Translate, locale: string): str
   return t('bytes', { n: format(bytes) });
 }
 
-/**
- * A drop zone for one file (VF1): drag a file onto it or press «Выбрать файл». The real control is a hidden native
- * `<input type="file">` (it keeps the picker, the keyboard and the label), the button is a label for it. A chosen file shows
- * its name, size and a type icon with a remove button. The type and the size are checked on pick and on drop (a drop skips
- * `accept`), and the message appears in the zone.
- */
 export const FileDrop = forwardRef<HTMLInputElement, FileDropProps>(function FileDrop(
   { id, value, onChange, accept, maxBytes, disabled = false, ...aria },
   forwardedRef,
@@ -61,7 +49,7 @@ export const FileDrop = forwardRef<HTMLInputElement, FileDropProps>(function Fil
   const [problem, setProblem] = useState<string | null>(null);
   const hintId: string = useId();
   const problemId: string = useId();
-  // The browser keeps the old file name in the input after the form was reset or the file removed: clear it, or choosing the same file again would not fire `change`.
+  // The browser keeps the old file name in the input after reset or removal; clear it or the same file fires no change.
   useEffect(() => {
     if (value === null && input.current !== null) input.current.value = '';
   }, [value]);
@@ -79,7 +67,6 @@ export const FileDrop = forwardRef<HTMLInputElement, FileDropProps>(function Fil
   };
   const handlePick = (event: ChangeEvent<HTMLInputElement>): void => {
     take(event.target.files?.[0]);
-    // The file lives in the form state, not in the native input: clearing it lets the same file be chosen again after a refusal or a removal.
     event.target.value = '';
   };
   const handleDrop = (event: DragEvent<HTMLDivElement>): void => {

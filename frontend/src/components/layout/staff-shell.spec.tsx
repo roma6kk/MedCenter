@@ -225,7 +225,6 @@ describe('StaffShell on a phone', () => {
 
     expect(drawer.getAllByRole('link')).toHaveLength(ADMIN_LINKS.length);
     expect(drawer.getByRole('link', { name: 'Пользователи' })).toHaveAttribute('aria-current', 'page');
-    // jsdom cannot navigate: the link is followed in spirit only, after the shell's own handler has seen the click.
     const stopNavigation = (event: Event): void => event.preventDefault();
     document.addEventListener('click', stopNavigation);
     await userEvent.click(drawer.getByRole('link', { name: 'Аудит' }));

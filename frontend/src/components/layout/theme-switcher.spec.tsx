@@ -7,7 +7,6 @@ import { ThemeSync } from './theme-sync';
 
 type Listener = () => void;
 
-/** A controllable `matchMedia`: `setSystemDark` flips the scheme and notifies the `change` listeners like the OS does. */
 function installSystemScheme(initialDark: boolean): { setSystemDark: (dark: boolean) => void } {
   let dark: boolean = initialDark;
   const listeners = new Set<Listener>();

@@ -35,7 +35,6 @@ describe('Dialog', () => {
       </>,
     );
 
-    // Первая → Последняя → the close cross, which is last in the cycle → back to Первая.
     await userEvent.tab();
     await userEvent.tab();
     await userEvent.tab();

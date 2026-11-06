@@ -17,7 +17,6 @@ import type { NotificationItem } from '@/lib/notifications/notification-api';
 import { useMarkAllNotificationsRead, useMarkNotificationRead, useNotifications } from '@/lib/notifications/use-notifications';
 import { cn } from '@/lib/ui/cn';
 
-/** How many of the latest notifications the dropdown shows; the page «Все уведомления» has the rest. */
 export const PANEL_ITEMS = 5;
 const PANEL_WIDTH_PX = 384;
 const EDGE_PX = 16;
@@ -59,7 +58,6 @@ interface RowProps {
   readonly onOpen: (item: NotificationItem) => void;
 }
 
-/** A notification that leads somewhere is a link (and is read by opening it); one that does not is plain text. */
 function Row({ item, onOpen }: RowProps): ReactNode {
   const action = notificationAction(item);
   return (
@@ -98,11 +96,6 @@ interface PanelProps {
   readonly onClose: (restoreFocus: boolean) => void;
 }
 
-/**
- * The dropdown of the bell: the latest five notifications, «Отметить все прочитанными» and the link to the whole list.
- * A non-modal dialog drawn next to the bell (the shared floating position keeps it on screen); the first control takes the
- * focus, Escape closes it and returns the focus to the bell. It reads the list only while it is open.
- */
 export function NotificationBellPanel({ id, trigger, unreadCount, onClose }: PanelProps): ReactNode {
   const t = useT('layout.notifications');
   const panel = useRef<HTMLDivElement>(null);

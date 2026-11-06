@@ -15,7 +15,6 @@ import { PatientMobileMenu } from './patient-mobile-menu';
 import { MAIN_CONTENT_ID, SkipLink } from './skip-link';
 import { ThemeSwitcher } from './theme-switcher';
 
-/** Three sections (B6): the home, the appointments, the medical record. The notifications are the bell; «Записаться» is the button on the right. */
 const PATIENT_LINKS: ReadonlyArray<{ readonly href: string; readonly key: string }> = [
   { href: '/home', key: 'home' },
   { href: '/appointments', key: 'appointments' },
@@ -25,7 +24,6 @@ const PATIENT_LINKS: ReadonlyArray<{ readonly href: string; readonly key: string
 const LINK_CLASS = 'rounded-control px-3 text-base font-medium text-foreground hover:bg-secondary';
 const ACTIVE_LINK_CLASS = 'bg-primary-soft font-semibold text-primary-soft-foreground hover:bg-primary-soft';
 
-/** Cabinet frame of the redesign: logo mark, pill navigation (the current section on `primary-soft`), bell, language, sign-out. */
 export function PatientShell({ children }: { readonly children: ReactNode }): ReactNode {
   const t = useT('layout.patient');
   const tLayout = useT('layout');
@@ -51,13 +49,11 @@ export function PatientShell({ children }: { readonly children: ReactNode }): Re
             ))}
           </nav>
           <div className="ml-auto flex items-center justify-end gap-2 md:flex-wrap md:gap-2.5">
-            {/* The one primary action of the cabinet, always within reach; it is not a section, so it sits outside the navigation. */}
             <NavLink href="/booking" className={buttonVariants({ variant: 'primary' })} activeClassName="bg-primary-strong">
               <CalendarPlus aria-hidden="true" size={18} strokeWidth={2.2} />
               {t('book')}
             </NavLink>
             <NotificationBell />
-            {/* Language, theme and sign-out sit in the drawer of the burger on a phone. */}
             <div className="hidden items-center gap-2.5 md:flex">
               <LocaleSwitcher />
               <ThemeSwitcher compact />

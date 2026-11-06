@@ -9,12 +9,6 @@ import { Button } from '@/components/ui/button';
 import { loadSession } from '@/lib/auth/session-client';
 import { useT } from '@/lib/i18n/use-t';
 
-/**
- * What a route group shows when the session could not be loaded because auth-service did not answer (a restart, a rate
- * limit, a dropped link). The refresh cookie is probably still good, so the visitor is offered a retry instead of the
- * sign-in page, which would lead to the same unreachable service. A successful retry fills the session store and the guard
- * lets the page through. It stands in for the whole group shell, so it brings the skip link and the `<main>` of a message screen.
- */
 export function SessionUnavailable(): ReactNode {
   const t = useT('auth.login');
   const tCommon = useT('common');

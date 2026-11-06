@@ -13,11 +13,9 @@ import { useUiStore } from '@/store/use-ui-store';
 import { useStaffProfile } from './use-staff-profile';
 
 interface StaffProfileMenuProps {
-  /** `full`: avatar, name and role as the foot of the sidebar; `avatar`: the avatar alone, for the top bar of a phone. */
   readonly variant: 'full' | 'avatar';
 }
 
-/** The language, the colour theme and «Выйти» in one menu: three loose controls at the foot of the sidebar became one button (VD3). */
 function useProfileItems(): ReadonlyArray<MenuItem> {
   const t = useT('layout');
   const locale = useUiStore((state) => state.locale);
@@ -42,7 +40,6 @@ function useProfileItems(): ReadonlyArray<MenuItem> {
   return [...languages, ...themes, signOut];
 }
 
-/** Avatar, full name and the role (a doctor's specialty) of whoever is signed in; opens the menu above (sidebar) or below (top bar). */
 export function StaffProfileMenu({ variant }: StaffProfileMenuProps): ReactNode {
   const t = useT('layout');
   const profile = useStaffProfile();

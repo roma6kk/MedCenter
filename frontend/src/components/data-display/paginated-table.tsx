@@ -17,20 +17,9 @@ export interface TableColumn<TRow> {
   readonly key: string;
   readonly header: string;
   readonly render: (row: TRow) => ReactNode;
-  /** Server `sortBy` value; makes the header a sort button (API §0: `sortBy`, `sortOrder`). */
   readonly sortKey?: string;
-  /**
-   * Keeps the cell to one line (VD5): a max-width class (`max-w-[14rem]`) after which the value is cut with an ellipsis. The
-   * full value is the cell's `title`, so a long id or a request id never makes the row taller than its neighbours.
-   */
   readonly truncate?: string;
-  /** The full text of a truncated cell, as the tooltip; a column whose cell renders plain text gets it from the cell. */
   readonly titleOf?: (row: TRow) => string | undefined;
-  /**
-   * What the column becomes in the card a row turns into on a phone (D7). `title`: the name of the row, bold (the first column
-   * by default); `badge`: a chip next to it (status, role); `actions`: the «⋯» menu in the corner; `hidden`: left out. Every
-   * other column stays a small labelled detail under the title.
-   */
   readonly mobile?: 'title' | 'badge' | 'actions' | 'hidden';
 }
 
@@ -40,7 +29,6 @@ interface PaginatedTableProps<TRow> {
   readonly meta: PageMeta;
   readonly onPage: (page: number) => void;
   readonly rowKey: (row: TRow) => string;
-  /** Accessible name of the table (screen-reader caption). */
   readonly caption?: string;
   readonly sort?: SortState;
   readonly onSort?: (sort: SortState) => void;
@@ -85,7 +73,6 @@ function HeaderCell<TRow>({ column, sort, onSort }: HeaderCellProps<TRow>): Reac
   );
 }
 
-/** Previous / next with a `n / total` status; exported so non-tabular lists (timelines, cards) page the same way. */
 export function Pager({ meta, onPage }: { readonly meta: PageMeta; readonly onPage: (page: number) => void }): ReactNode {
   const t = useT('pagination');
   const { current, total } = pageLabel(meta);
@@ -109,7 +96,6 @@ interface RowsProps<TRow> {
   readonly rowKey: (row: TRow) => string;
 }
 
-/** A cell's content; a `truncate` column keeps it on one line and carries the full text as a tooltip. */
 function CellContent<TRow>({ column, row }: { readonly column: TableColumn<TRow>; readonly row: TRow }): ReactNode {
   const content: ReactNode = column.render(row);
   if (column.truncate === undefined) return content;
@@ -117,10 +103,6 @@ function CellContent<TRow>({ column, row }: { readonly column: TableColumn<TRow>
   return <span title={title} className={cn('block truncate', column.truncate)}>{content}</span>;
 }
 
-/**
- * The table of a long list: rows of one height (a truncated value never wraps), the row under the pointer is tinted, and the
- * header stays in view while the body scrolls inside its own frame (a page of 100 rows is taller than the screen).
- */
 function DesktopTable<TRow>({ columns, rows, rowKey, caption, sort, onSort, enter }: RowsProps<TRow> & Pick<PaginatedTableProps<TRow>, 'caption' | 'sort' | 'onSort'> & { readonly enter: string | undefined }): ReactNode {
   return (
     <div className="max-h-[min(75vh,56rem)] overflow-auto rounded-card border border-border-soft bg-card shadow-elev-1 max-xl:hidden">
@@ -141,17 +123,11 @@ function DesktopTable<TRow>({ columns, rows, rowKey, caption, sort, onSort, ente
   );
 }
 
-/** The card role of each column: an explicit `mobile`, else the first column is the title and the rest are details. */
 function mobileRoleOf<TRow>(column: TableColumn<TRow>, index: number, hasTitle: boolean): NonNullable<TableColumn<TRow>['mobile']> | 'detail' {
   if (column.mobile !== undefined) return column.mobile;
   return index === 0 && !hasTitle ? 'title' : 'detail';
 }
 
-/**
- * A row on a phone (D7): the name and its chips on the left, the «⋯» menu on the right, the remaining columns as one small
- * wrapping line of labelled values. It replaces a stack of «Колонка: значение» lines, so a page of ten rows is a screen and a
- * half, not four. The card is a list item and the details are a description list, so a screen reader still hears every label.
- */
 function MobileCards<TRow>({ columns, rows, rowKey, enter }: RowsProps<TRow> & { readonly enter: string | undefined }): ReactNode {
   const hasTitle: boolean = columns.some((column) => column.mobile === 'title');
   const roles = columns.map((column, index) => ({ column, role: mobileRoleOf(column, index, hasTitle) }));
@@ -164,7 +140,6 @@ function MobileCards<TRow>({ columns, rows, rowKey, enter }: RowsProps<TRow> & {
     <ul data-testid="table-cards" className={cn('grid gap-2.5 xl:hidden', enter)}>
       {rows.map((row) => (
         <li key={rowKey(row)} className="min-w-0 rounded-card border border-border-soft bg-card p-3.5 shadow-elev-1">
-          {/* A wide action (a text button next to the «⋯») drops under the name instead of squeezing it. */}
           <div className="flex flex-wrap items-start gap-x-2 gap-y-1">
             <div className="flex min-w-0 flex-[1_1_9rem] flex-col gap-2">
               {titles.map((column) => <div key={column.key} className="min-w-0 font-semibold [overflow-wrap:anywhere]">{column.render(row)}</div>)}
@@ -188,9 +163,7 @@ function MobileCards<TRow>({ columns, rows, rowKey, enter }: RowsProps<TRow> & {
   );
 }
 
-/** Server-paginated table (`meta` from `PaginatedResponse`); a table on ≥ md, cards below. */
 export function PaginatedTable<TRow>({ meta, onPage, ...table }: PaginatedTableProps<TRow>): React.JSX.Element {
-  // The rows enter once, with the first load; the next page or a re-sort swaps them without motion (`useStaggerOnce`).
   const enter = useStaggerOnce();
   return (
     <div>
