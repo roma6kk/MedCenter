@@ -1,4 +1,3 @@
-/** Latency buckets in seconds (RED duration), from a cached read to a slow HAPI search. */
 const DURATION_BUCKETS: readonly number[] = [0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10];
 const KNOWN_METHODS = new Set(['GET', 'HEAD', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS']);
 
@@ -17,12 +16,6 @@ interface HistogramSeries {
   count: number;
 }
 
-/**
- * The RED metrics of one service (NFR-007) in the Prometheus text format,
- * without a client library: a request counter and a duration histogram per
- * method, route TEMPLATE and status class, plus a few process gauges.
- * Cardinality is bounded on purpose: never a raw path, id or query string.
- */
 export class MetricsRegistry {
   private readonly counters = new Map<string, { labels: Record<string, string>; value: number }>();
   private readonly histograms = new Map<string, { labels: Record<string, string>; series: HistogramSeries }>();
@@ -30,7 +23,6 @@ export class MetricsRegistry {
 
   constructor(private readonly service: string) {}
 
-  /** Records one finished request. `route` is the matched template (`/api/v1/appointments/:id`) or `unmatched`. */
   observeRequest(method: string, route: string, status: number, seconds: number): void {
     const labels = {
       method: KNOWN_METHODS.has(method.toUpperCase()) ? method.toUpperCase() : 'OTHER',
@@ -56,7 +48,6 @@ export class MetricsRegistry {
     this.histograms.set(key, entry);
   }
 
-  /** Prometheus text exposition (version 0.0.4). */
   render(): string {
     const base = { service: this.service };
     const lines: string[] = [

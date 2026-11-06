@@ -2,25 +2,18 @@ import { MEDCENTER_EXT, OUTBOX, type OutboxStatus } from '@medcenter/terminology
 
 import type { FhirResource } from './fhir-client.provider';
 
-/** An event envelope as a service builds it; only the two routing fields are read, the whole object is stored. */
 export interface OutboxEventInput {
   readonly type: string;
   readonly eventId: string;
 }
 
-/** The `POST Basic` entry of a transaction Bundle; assignable to every service's own write type. */
 export interface OutboxWrite {
   readonly method: 'POST';
   readonly url: 'Basic';
   readonly resource: FhirResource;
 }
 
-/**
- * The outbox record of an event (ADR-021): a `Basic` with no `subject` and no
- * references to other resources (HAPI referential integrity would then block
- * deleting them). Written in the same transaction Bundle as the business change,
- * so the event exists if and only if the change committed.
- */
+/** A `Basic` with no references to other resources (they would block deleting it), written in the transaction of the business change. */
 export function buildOutboxBasic(event: OutboxEventInput): FhirResource {
   return {
     resourceType: 'Basic',
@@ -34,22 +27,17 @@ export function buildOutboxBasic(event: OutboxEventInput): FhirResource {
   };
 }
 
-/** The transaction entry that records `event` in the outbox. */
 export function outboxWrite(event: OutboxEventInput): OutboxWrite {
   return { method: 'POST', url: 'Basic', resource: buildOutboxBasic(event) };
 }
 
-/** An outbox record as the relay reads it. */
 export interface OutboxRecord {
   readonly id: string;
-  /** `W/"<versionId>"` as read, for the `If-Match` of the status update. */
   readonly version: string;
   readonly status: OutboxStatus;
   readonly eventType: string;
   readonly eventId: string;
-  /** The event envelope, still JSON text. */
   readonly payload: string;
-  /** `meta.lastUpdated`: the write time while pending, the send time once sent. */
   readonly lastUpdated: Date | undefined;
   readonly resource: FhirResource;
 }
@@ -81,10 +69,6 @@ export function outboxStatusOf(resource: FhirResource): OutboxStatus | undefined
   return codes.includes(OUTBOX.PENDING) ? OUTBOX.PENDING : undefined;
 }
 
-/**
- * Reads an outbox `Basic`; `undefined` when it is not a well-formed outbox
- * record (no id/version/status, type, id or payload). The payload is not parsed.
- */
 export function parseOutboxRecord(resource: FhirResource): OutboxRecord | undefined {
   const meta = resource['meta'] as { versionId?: unknown; lastUpdated?: unknown } | undefined;
   const status = outboxStatusOf(resource);
@@ -114,7 +98,6 @@ export function parseOutboxRecord(resource: FhirResource): OutboxRecord | undefi
   };
 }
 
-/** The same record with its delivery state replaced; every other field is kept. */
 export function withOutboxStatus(resource: FhirResource, status: OutboxStatus): FhirResource {
   const meta = (resource['meta'] ?? {}) as { tag?: ReadonlyArray<{ system?: unknown }> };
   const others = (meta.tag ?? []).filter((tag) => tag.system !== OUTBOX.STATUS_SYSTEM);

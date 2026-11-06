@@ -5,17 +5,7 @@ import Redis, { type RedisOptions } from 'ioredis';
 import { RedisRateLimitStore } from './redis-rate-limit.store';
 import { setRateLimitStore } from './rate-limit.guard';
 
-/**
- * Client options for Redis on the request path (rate-limit counters, cache
- * reads). Callers degrade instead of failing — `RateLimitGuard` to "allow" — so
- * the client must give up fast: without a `commandTimeout`, a Redis that drops
- * packets without refusing the connection holds every request for ioredis'
- * default `connectTimeout` (10 s).
- *
- * - `connectTimeout` / `commandTimeout`: bound a dead and a slow server.
- * - `enableOfflineQueue: false`: while the socket is down a command fails at
- *   once instead of queueing behind the reconnect.
- */
+/** Redis on the request path must give up fast: a server that drops packets would otherwise hold every request for ioredis' 10 s default. */
 export const FAIL_FAST_REDIS_OPTIONS: Readonly<RedisOptions> = {
   maxRetriesPerRequest: 1,
   connectTimeout: 1_000,
@@ -23,14 +13,7 @@ export const FAIL_FAST_REDIS_OPTIONS: Readonly<RedisOptions> = {
   enableOfflineQueue: false,
 };
 
-/**
- * NFR-006: `RateLimitGuard` only counts once a store is set; without one the
- * per-user budget (120 req/min) is silently off. The store lives in Redis so
- * the budget holds across replicas. Redis errors fail open in the guard, so the
- * connection's error listener only logs.
- *
- * Throws when a guard variable is missing, which fails the boot immediately.
- */
+/** Without a store `RateLimitGuard` does not count at all; Redis errors fail open in the guard. */
 export function enableRateLimit(env: NodeJS.ProcessEnv, logger: Logger): void {
   const { REDIS_URL } = parseGuardEnv(env);
   const redis = new Redis(REDIS_URL, FAIL_FAST_REDIS_OPTIONS);

@@ -28,7 +28,6 @@ function readString(resource: FhirResource, key: string): string | undefined {
   return typeof value === 'string' ? value : undefined;
 }
 
-/** Id of the first participant whose actor is of the given resource type (`Patient`, `PractitionerRole`, …). */
 function participantId(appointment: FhirResource, resourceType: string): string {
   const participants = (appointment['participant'] as Participant[] | undefined) ?? [];
   const match = participants.find((p) => {
@@ -38,7 +37,6 @@ function participantId(appointment: FhirResource, resourceType: string): string 
   return idOf(match?.actor?.reference);
 }
 
-/** FHIR `Appointment` -> `AppointmentResponseDto` (ADR-002 mapper pair). */
 export function toAppointmentResponseDto(appointment: FhirResource): AppointmentResponseDto {
   const slots = (appointment['slot'] as Array<{ reference?: unknown }> | undefined) ?? [];
   const reasons = (appointment['reasonCode'] as Array<{ text?: unknown }> | undefined) ?? [];

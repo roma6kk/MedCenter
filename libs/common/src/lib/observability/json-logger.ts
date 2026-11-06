@@ -6,7 +6,6 @@ type Level = 'debug' | 'info' | 'warn' | 'error' | 'fatal';
 
 const SEVERITY: Readonly<Record<Level, number>> = { debug: 10, info: 20, warn: 30, error: 40, fatal: 50 };
 
-/** Field names whose value never reaches a log line (OWASP A09): credentials and session material. */
 const SECRET_KEY = /authorization|cookie|password|passwd|secret|token|api[-_]?key|credential/i;
 const REDACTED = '[redacted]';
 const MAX_DEPTH = 5;
@@ -24,7 +23,6 @@ function flattenError(error: Error, depth: number): Record<string, unknown> {
   return flat;
 }
 
-/** Copies a value into something `JSON.stringify` cannot choke on, masking secret-looking fields. */
 function sanitize(value: unknown, depth = 0): unknown {
   if (value instanceof Error) {
     return flattenError(value, depth);
@@ -57,23 +55,12 @@ function parseLevel(raw: string | undefined): Level {
 }
 
 export interface JsonLoggerOptions {
-  /** Minimum level; the default is `LOG_LEVEL` or `info`. */
   readonly level?: string;
-  /** Human-readable single lines instead of JSON; the default is `NODE_ENV=development`. */
   readonly pretty?: boolean;
-  /** Where a line goes; the default is stdout, and stderr for `error` and `fatal`. */
   readonly write?: (line: string, level: Level) => void;
-  /** Clock, for tests. */
   readonly now?: () => Date;
 }
 
-/**
- * Structured logger (NFR-007): one JSON line per call with `time`, `level`,
- * `service`, `context`, `msg`, the `requestId` of the request being served and
- * the merged fields of the call. It accepts both Nest's `(message, context)` and
- * the pino-style `({ fields }, 'message')` the services already use, so the
- * call sites need no change. Secrets and `Authorization` headers are masked.
- */
 export class JsonLogger implements LoggerService {
   private readonly threshold: number;
   private readonly pretty: boolean;

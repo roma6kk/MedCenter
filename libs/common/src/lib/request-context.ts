@@ -1,10 +1,4 @@
-/**
- * Claims carried by a SMART on FHIR access token (ADR-013).
- *
- * `resolvePatientRef` is the single source of the patient compartment: the
- * `patient` query parameter of a request is never trusted for `patient/*`
- * scopes — it must be ignored by controllers and services alike.
- */
+/** SMART claims. `resolvePatientRef` is the only source of the patient compartment: the `patient` query parameter is never trusted for `patient/*` scopes. */
 export interface JwtClaims {
   readonly sub: string;
   readonly scope: string;
@@ -12,15 +6,9 @@ export interface JwtClaims {
   readonly patient?: string;
   readonly fhirUser?: string;
   readonly jti: string;
-  /**
-   * Session id of the token pair this access token belongs to — the `jti` of the
-   * refresh token issued alongside it. Revoking that refresh token (RFC 7009 /
-   * logout) therefore also denies this access token; see `TokenRevocationChecker`.
-   */
   readonly sid?: string;
 }
 
-/** Any HTTP request that may carry authenticated claims attached by `JwtAuthGuard`. */
 export interface RequestWithClaims {
   user?: JwtClaims;
 }

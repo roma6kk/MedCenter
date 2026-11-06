@@ -1,16 +1,9 @@
-/**
- * Localized values of FHIR primitives (ru is the stored value, en is a translation).
- *
- * The English text lives next to the Russian one, in the standard HL7 FHIR R4 `translation` extension on the primitive
- * (`_name`, `_comment`, `_text`, `_given[i]`, `_family`): sub-extension `lang` (code) and `content` (string). The API
- * picks the language of the answer from `Accept-Language`; the DTO keeps its shape, only the values change.
- */
+/** ru is the stored value; the English text lives in the HL7 `translation` extension on the primitive (`_name`, `_given[i]`, ...). */
 
 export type ContentLanguage = 'ru' | 'en';
 
 export const DEFAULT_CONTENT_LANGUAGE: ContentLanguage = 'ru';
 
-/** Canonical URL of the HL7 FHIR translation extension (R4 core). */
 export const FHIR_TRANSLATION_EXTENSION = 'http://hl7.org/fhir/StructureDefinition/translation';
 
 interface RawExtension {
@@ -20,10 +13,6 @@ interface RawExtension {
   readonly extension?: unknown;
 }
 
-/**
- * `Accept-Language` -> content language: the English tag with the highest weight wins over Russian, anything else
- * (no header, `de`, `*`, junk, `q=0`) is Russian, the language the data is stored in.
- */
 export function resolveContentLanguage(header: string | readonly string[] | undefined): ContentLanguage {
   const value = typeof header === 'string' ? header : header?.[0];
   if (value === undefined) {
@@ -48,7 +37,6 @@ export function resolveContentLanguage(header: string | readonly string[] | unde
   return best?.language ?? DEFAULT_CONTENT_LANGUAGE;
 }
 
-/** The `translation` extension that carries `content` in `lang`; goes into `<element>.extension` of a primitive's `_element`. */
 export function translationExtension(
   lang: ContentLanguage,
   content: string,
@@ -75,10 +63,6 @@ function contentOf(extension: RawExtension, lang: ContentLanguage): string | und
   return content;
 }
 
-/**
- * The value of a primitive in `lang`: `original` is the stored (Russian) value, `element` is its sibling `_x` object
- * (may be absent). Russian, a missing translation or a blank one all give the original.
- */
 export function translated(original: string, element: unknown, lang: ContentLanguage): string {
   if (lang === DEFAULT_CONTENT_LANGUAGE || typeof element !== 'object' || element === null) {
     return original;

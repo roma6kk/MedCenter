@@ -17,13 +17,11 @@ const WINDOW_SECONDS = 60;
 const DEFAULT_LIMIT_PER_MINUTE = 120;
 
 export interface RateLimitStore {
-  /** Returns the number of hits in the current window after incrementing it. */
   increment(key: string, windowSeconds: number): Promise<number>;
 }
 
 let rateLimitStore: RateLimitStore | null = null;
 
-/** Injects the store (Redis in production, a mock in tests). `null` disables limiting. */
 export function setRateLimitStore(store: RateLimitStore | null): void {
   rateLimitStore = store;
 }
@@ -35,21 +33,9 @@ interface RateLimitRequest extends RequestWithClaims {
   readonly body?: Record<string, unknown>;
 }
 
-/** Longest `client_id` copied into a key; the value is unauthenticated input. */
 const MAX_CLIENT_ID_LENGTH = 64;
 
-/**
- * Picks the rate-limit bucket identity.
- *
- * An authenticated principal is bucketed on its `sub`. Without one (e.g. the
- * `@Public()` `POST /oauth/token`), the bucket is `client_id|ip` (M2): two
- * clients behind one NAT get separate budgets, yet the IP always stays in the
- * key. This guard runs before `TokenClientGuard`, so `client_id` is
- * unauthenticated — keying on it alone let one IP rotate `client_id` for fresh
- * buckets and let any IP exhaust a real client's shared bucket. With the IP
- * kept, a rotated `client_id` only buys buckets for ids `TokenClientGuard`
- * rejects (401) before any secret or code is checked.
- */
+/** Authenticated: bucket on `sub`. Otherwise `client_id|ip`: `client_id` is unauthenticated, so the IP must stay in the key or it could be rotated or exhausted. */
 function readBucketIdentity(request: RateLimitRequest): string {
   const sub = request.user?.sub;
   if (typeof sub === 'string' && sub.length > 0) {
@@ -63,14 +49,7 @@ function readBucketIdentity(request: RateLimitRequest): string {
   return `${clientId}|${request.ip ?? 'anonymous'}`;
 }
 
-/**
- * Names the route by its template (`/api/v1/doctors/:id`), never by the URL the
- * caller sent. A bucket per concrete URL would let any caller mint a fresh
- * budget per request just by changing a path parameter or the query string
- * (`/doctors/a`, `/doctors/b`, `?n=1`, ...). Guards run after routing, so Express
- * has set `request.route`; without it (a non-Express adapter) the handler's
- * class and method name still give one bucket per route.
- */
+/** The route template, never the URL: a bucket per concrete URL would let a caller mint a fresh budget by changing a path parameter or query. */
 function readRouteTemplate(request: RateLimitRequest, context: ExecutionContext): string {
   const path = request.route?.path;
   if (typeof path === 'string' && path.length > 0) {
@@ -79,12 +58,7 @@ function readRouteTemplate(request: RateLimitRequest, context: ExecutionContext)
   return `${context.getClass().name}.${context.getHandler().name}`;
 }
 
-/**
- * Token-endpoint identity: `client_id|grant_type|sha256(code or refresh_token)`. Codes and refresh tokens are
- * high-entropy, so the hash does not weaken guessing resistance; a replayed credential hits one small bucket
- * wherever it comes from, while garbage credentials of one visitor cannot drain the budget of other visitors.
- * Without a usable credential there is nothing to key on and the caller falls back to `client_id|ip`.
- */
+/** Token-endpoint identity `client_id|grant_type|sha256(credential)`: one small bucket per credential, so garbage of one visitor cannot drain others. */
 function readCredentialIdentity(request: RateLimitRequest): string | undefined {
   const body = request.body;
   const grant = body?.['grant_type'];
@@ -148,7 +122,6 @@ export class RateLimitGuard implements CanActivate {
     ]);
     const credential = ceiling === undefined ? undefined : readCredentialIdentity(request);
     if (ceiling !== undefined && credential !== undefined) {
-      // Generous per-address ceiling first (flood of ever-new credentials), then the per-credential budget.
       const addressKey = buildRateLimitKey(request, context, `ceiling|${request.ip ?? 'anonymous'}`);
       if (!(await this.withinBudget(store, addressKey, ceiling))) {
         return this.reject(context);
@@ -167,7 +140,6 @@ export class RateLimitGuard implements CanActivate {
     return true;
   }
 
-  /** Counts one hit; an unreachable or hung store counts as within budget (fail open). */
   private async withinBudget(store: RateLimitStore, key: string, limit: number): Promise<boolean> {
     try {
       return (await incrementWithin(store, key, WINDOW_SECONDS)) <= limit;

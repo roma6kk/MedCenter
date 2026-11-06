@@ -25,28 +25,16 @@ interface ExpressApp {
 }
 
 export interface ObservabilityOptions {
-  /** Service name stamped on every log line and metric, e.g. `auth-service`. */
   readonly service: string;
-  /** What `GET /ready` probes; a dependency without its environment variable is skipped. */
   readonly dependencies?: readonly ReadinessDependency[];
-  /** Extra checks of the service itself. */
   readonly checks?: readonly ReadinessCheck[];
 }
 
-/** The matched route TEMPLATE; a request no route matched (404, a scanner) is one bounded label. */
 export function routeTemplate(request: ExpressRequest): string {
   const path = request.route?.path;
   return typeof path === 'string' ? `${request.baseUrl ?? ''}${path}` : 'unmatched';
 }
 
-/**
- * NFR-007 for one service, called from `main.ts` right after the app is created:
- * the structured JSON logger, RED request metrics, `GET /ready` (503 with the
- * failed dependency names when one is unreachable) and `GET /metrics`
- * (Prometheus text). The two routes are raw Express routes, ahead of the guard
- * stack, and Traefik has no rule for them: they are reachable on the internal
- * network only, never from the public edge.
- */
 export function applyObservability(
   app: INestApplication,
   options: ObservabilityOptions,

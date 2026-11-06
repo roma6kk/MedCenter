@@ -14,19 +14,14 @@ import {
 
 import type { FhirResource } from './fhir-client.provider';
 
-/** Everything the paper form says; the service adds only the ids it has verified (ADR-019). */
 export interface BuildConsentParams {
   readonly patientId: string;
-  /** `active` for a signed consent, `rejected` for a written refusal. */
   readonly status: 'active' | 'rejected';
   readonly formNumber: string;
-  /** Moment of signing (`date` or `dateTime`), not the moment of entry. */
   readonly signedAt: string;
-  /** `Patient/{id}` or `RelatedPerson/{id}` — who signed. */
   readonly performerRef: string;
   readonly consenterType: ConsenterType;
   readonly representativeDocument?: string;
-  /** The medical worker who signed the form: `Consent.note.author*`, never an extension. */
   readonly signer: { readonly reference?: string; readonly name?: string };
   readonly scan: {
     readonly binaryId: string;
@@ -60,7 +55,6 @@ function asString(value: unknown): string | undefined {
   return typeof value === 'string' && value.length > 0 ? value : undefined;
 }
 
-/** FHIR R4 `Consent` of a paper consent or refusal (design §2.1). */
 export function buildConsent(params: BuildConsentParams): FhirResource {
   const { signer, scan } = params;
   const extension = [
@@ -126,11 +120,6 @@ export function buildConsent(params: BuildConsentParams): FhirResource {
   };
 }
 
-/**
- * The same `Consent` after a revocation (design §2.2): `inactive`, the period
- * closed at `revokedAt`. The document keeps its form, scan and signer; HAPI's
- * version history keeps the previous state. Nothing is deleted.
- */
 export function revokeConsent(
   consent: FhirResource,
   revocation: { readonly revokedAt: string; readonly applicationNumber?: string },
@@ -179,7 +168,6 @@ function instantOf(value: unknown): number | undefined {
   return Number.isNaN(time) ? undefined : time;
 }
 
-/** A date-only `period.end` is inclusive: the consent holds through that day. */
 function endInstantOf(value: unknown): number | undefined {
   const time = instantOf(value);
   return time !== undefined && DATE_ONLY.test(asString(value) ?? '') ? time + DAY_MS : time;
@@ -193,7 +181,6 @@ function hasCoding(concepts: unknown, system: string, code: string): boolean {
   );
 }
 
-/** `true` for a `Consent` of `patientId` with the `patient-privacy` scope and the `emr-processing` category, whatever its status. */
 export function isEmrConsentOf(resource: FhirResource, patientId: string): boolean {
   if (resource.resourceType !== 'Consent') {
     return false;
@@ -215,12 +202,7 @@ export function isEmrConsentOf(resource: FhirResource, patientId: string): boole
   );
 }
 
-/**
- * Whether `resource` is an `emr-processing` consent of `patientId` that holds
- * at `now`. It re-checks every searched field in process, so a HAPI that
- * silently ignores a search parameter can never widen the answer, and it
- * judges the period itself instead of trusting `status` alone (design §2.3).
- */
+/** Re-checks every searched field and the period in process, so a HAPI that ignores a search parameter cannot widen the answer. */
 export function isConsentInForce(resource: FhirResource, patientId: string, now: Date): boolean {
   if (!isEmrConsentOf(resource, patientId) || resource['status'] !== 'active') {
     return false;
@@ -267,7 +249,6 @@ function scanOf(resource: FhirResource): ConsentResponse['scan'] {
     : undefined;
 }
 
-/** `Consent` → response contract of 3.4/3.7/3.8/3.9 (`performer` falls back to the patient when absent). */
 export function toConsentResponse(resource: FhirResource): ConsentResponse {
   const patient = referenceParts(asObject(resource['patient'])?.['reference']);
   const performer =

@@ -18,7 +18,6 @@ describe('enableRateLimit', () => {
   });
 
   it('should open the limiter connection with fail-fast options so a hung Redis cannot hold requests', () => {
-    // Arrange
     mockRedis.mockReset().mockReturnValue({ on: jest.fn() });
     const env = {
       JWT_JWKS_URI: 'http://auth-service:3001/.well-known/jwks.json',
@@ -26,10 +25,8 @@ describe('enableRateLimit', () => {
       REDIS_URL: 'redis://redis:6379',
     };
 
-    // Act
     enableRateLimit(env, new Logger('test'));
 
-    // Assert
     expect(mockRedis).toHaveBeenCalledWith('redis://redis:6379', FAIL_FAST_REDIS_OPTIONS);
     expect(FAIL_FAST_REDIS_OPTIONS.commandTimeout).toBeGreaterThan(0);
   });

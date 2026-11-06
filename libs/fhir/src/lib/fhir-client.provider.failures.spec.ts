@@ -1,6 +1,5 @@
 import { DEFAULT_FHIR_TIMEOUT_MS, FhirClientError, HttpClient } from './fhir-client.provider';
 
-/** Awaits a promise that must reject and returns the FhirClientError. */
 async function rejectionOf(promise: Promise<unknown>): Promise<FhirClientError> {
   try {
     await promise;
@@ -71,7 +70,6 @@ describe('HttpClient failures and timeouts', () => {
 
     expect(error.getStatus()).toBe(404);
     expect(error.getResponse()).toMatchObject({ errorCode: 'NOT_FOUND' });
-    // The internal HAPI URL never reaches the client-facing payload.
     expect(JSON.stringify(error.getResponse())).not.toContain('hapi:8080');
   });
 
@@ -117,8 +115,6 @@ describe('HttpClient failures and timeouts', () => {
   it.each([400, 422])(
     'should surface a HAPI %i on our own write as 500 INTERNAL, not 502',
     async (upstreamStatus) => {
-      // HAPI rejecting a resource we built is a defect in our mapping: neither
-      // the client's input nor HAPI's availability is at fault.
       global.fetch = jest.fn().mockResolvedValue({
         ok: false,
         status: upstreamStatus,
@@ -156,7 +152,6 @@ describe('HttpClient failures and timeouts', () => {
   it('should surface a timeout while reading a successful body as 504', async () => {
     const timeout = new Error('The operation was aborted due to timeout');
     timeout.name = 'TimeoutError';
-    // Headers arrived (200), then HAPI stalled on the Bundle body.
     global.fetch = jest.fn().mockResolvedValue({
       ok: true,
       status: 200,
@@ -200,7 +195,6 @@ describe('HttpClient failures and timeouts', () => {
 
     const init = fetchMock.mock.calls[0][1] as RequestInit;
     expect(init.signal).toBeInstanceOf(AbortSignal);
-    // A fresh timeout signal of 1234 ms must not be already fired.
     expect((init.signal as AbortSignal).aborted).toBe(false);
   });
 

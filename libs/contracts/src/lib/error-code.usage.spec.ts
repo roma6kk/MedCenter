@@ -35,12 +35,6 @@ function productionCodeLiterals(): ReadonlyMap<string, readonly string[]> {
   return found;
 }
 
-/**
- * `ProblemDetailsFilter` promotes an `errorCode` to the response only when the
- * catalogue lists it; any other value silently becomes the status-derived code
- * (`409` -> `CONFLICT`). These cases keep the code a service throws and the
- * code the client sees the same.
- */
 describe('ERROR_CODES usage across the workspace', () => {
   const literals = productionCodeLiterals();
 
@@ -50,15 +44,12 @@ describe('ERROR_CODES usage across the workspace', () => {
   });
 
   it('should list every errorCode literal production code throws in the catalogue when the sources are scanned', () => {
-    // Arrange
     const catalogued = new Set<string>(ERROR_CODES);
 
-    // Act
     const unknown = [...literals.entries()]
       .filter(([code]) => !catalogued.has(code))
       .map(([code, files]) => `${code} (${files[0]})`);
 
-    // Assert
     expect(unknown).toEqual([]);
   });
 
@@ -77,7 +68,6 @@ describe('ERROR_CODES shape', () => {
   });
 
   it('should keep the generic code first for its status when several codes share it', () => {
-    // Arrange — ProblemDetailsFilter derives the code of a plain exception from the first table entry of its status.
     const firstOfStatus = new Map<number, string>();
     for (const [code, status] of Object.entries(ERROR_CODE_HTTP_STATUS)) {
       if (!firstOfStatus.has(status)) {
@@ -85,7 +75,6 @@ describe('ERROR_CODES shape', () => {
       }
     }
 
-    // Assert
     expect(firstOfStatus.get(400)).toBe('VALIDATION_ERROR');
     expect(firstOfStatus.get(401)).toBe('UNAUTHENTICATED');
     expect(firstOfStatus.get(404)).toBe('NOT_FOUND');

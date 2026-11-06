@@ -49,7 +49,6 @@ export const ERROR_CODE_HTTP_STATUS: Readonly<Record<ErrorCode, number>> = {
   RATE_LIMITED: 429,
   INTERNAL: 500,
 };
-/** Short human title of each code (RFC 9457 `title`); stable per code, unlike the exception class name. */
 export const ERROR_CODE_TITLES: Readonly<Record<ErrorCode, string>> = {
   VALIDATION_ERROR: 'Validation failed',
   UNAUTHENTICATED: 'Unauthenticated',

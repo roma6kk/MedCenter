@@ -17,7 +17,6 @@ describe('createEventPublisherProvider', () => {
 
 describe('AmqpEventPublisher', () => {
   beforeEach(() => {
-    // Each test re-imports the module so its `amqplib` mock takes effect.
     jest.resetModules();
   });
 
@@ -97,7 +96,6 @@ describe('AmqpEventPublisher', () => {
   });
 
   describe('unroutable events', () => {
-    /** A broker whose `publish` is scripted: it may return the message first, then it always confirms. */
     function brokerThatReturns(returned: ReadonlySet<string>) {
       const listeners: Record<string, (message: unknown) => void> = {};
       const connection = {

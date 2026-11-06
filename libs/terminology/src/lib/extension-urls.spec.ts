@@ -8,7 +8,6 @@ describe('MEDCENTER_EXT', () => {
   });
 
   it('should give every extension its own URL', () => {
-    // One URL per meaning and value type — no two extensions may share it.
     expect(new Set(urls).size).toBe(urls.length);
   });
 });

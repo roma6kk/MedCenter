@@ -23,12 +23,7 @@ interface ProblemDetailsRequest {
   readonly headers?: Record<string, string | string[] | undefined>;
 }
 
-/**
- * A failure of the body parser that runs before the request-id middleware
- * (`entity.too.large`, a broken gzip, malformed JSON): `body-parser` raises an
- * http-errors error with a 4xx `status` and `expose: true`. It is the caller's
- * mistake, not a fault of the service.
- */
+/** A body-parser failure (4xx, `expose: true`) happens before the request-id middleware; it is the caller's mistake, not a 500. */
 function readClientParseError(exception: unknown): { readonly tooLarge: boolean } | null {
   if (typeof exception !== 'object' || exception === null) {
     return null;
@@ -45,19 +40,8 @@ function isErrorCode(value: string): value is ErrorCode {
   return (ERROR_CODES as readonly string[]).includes(value);
 }
 
-/**
- * The only errors whose `details[]` reaches the client (API §1): a failed DTO
- * validation, and the two `422` terminology refusals of `POST /encounters/{id}/complete`,
- * which name the offending request field (`diagnoses.0.code`) next to `detail`.
- */
 const FIELD_DETAIL_CODES: ReadonlySet<ErrorCode> = new Set<ErrorCode>(['VALIDATION_ERROR', 'INVALID_ICD10_CODE', 'TERMINOLOGY_NOT_FOUND']);
 
-/**
- * Boundary filter (OWASP A05/A09): every error leaves a service as
- * `application/problem+json` with a catalogued `errorCode`. The 500 branch
- * never echoes `exception.message` — internal detail goes to the log keyed
- * by `requestId`; the client receives only the correlation id.
- */
 @Catch()
 export class ProblemDetailsFilter implements ExceptionFilter {
   private readonly logger = new Logger(ProblemDetailsFilter.name);
@@ -124,7 +108,6 @@ export class ProblemDetailsFilter implements ExceptionFilter {
     return requestId;
   }
 
-  /** RFC 6750 §3: a 401 names the scheme; a presented token that failed is an `invalid_token`. */
   private toChallenge(errorCode: ErrorCode, request: ProblemDetailsRequest): string {
     const presented = request.headers?.['authorization'] !== undefined;
     return errorCode === 'TOKEN_REVOKED' || (errorCode === 'UNAUTHENTICATED' && presented)
@@ -154,7 +137,6 @@ export class ProblemDetailsFilter implements ExceptionFilter {
     };
   }
 
-  /** `details[]` of a validation failure; anything that is not a `{ field, message }` pair is dropped. */
   private readFieldDetails(payload: unknown): FieldErrorDetail[] {
     if (typeof payload !== 'object' || payload === null || !('details' in payload)) {
       return [];

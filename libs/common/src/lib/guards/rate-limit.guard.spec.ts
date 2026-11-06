@@ -95,9 +95,6 @@ describe('RateLimitGuard', () => {
   }
 
   it('should key the token endpoint budget on client_id and ip when no principal exists', async () => {
-    // M2: `POST /oauth/token` is `@Public()`, so `user` is undefined on the
-    // wire. The unauthenticated body `client_id` is combined with the IP, never
-    // substituted for it.
     const key = await keyFor({ user: undefined, body: { client_id: 'medcenter-web' } });
 
     expect(key.startsWith('medcenter-web|127.0.0.1:POST:/oauth/token:')).toBe(true);
@@ -123,7 +120,6 @@ describe('RateLimitGuard', () => {
   });
 
   it('should ignore the body client_id when an authenticated principal exists', async () => {
-    // e.g. `POST /oauth/token/revoke` accepts `client_id` from a signed-in user.
     const first = await keyFor({ body: { client_id: 'x1' } });
     const second = await keyFor({ body: { client_id: 'x2' } });
 
@@ -144,7 +140,6 @@ describe('RateLimitGuard', () => {
   });
 
   it('should share one bucket across query strings on the same route', async () => {
-    // Query strings must not split the budget, or `?n=1`, `?n=2`, … bypass the limit.
     const first = await keyFor({ user: undefined, originalUrl: '/oauth/token?n=1' });
     const second = await keyFor({ user: undefined, originalUrl: '/oauth/token?n=2' });
 
@@ -168,7 +163,6 @@ describe('RateLimitGuard', () => {
   });
 
   it('should share one bucket across values of a path parameter on the same route', async () => {
-    // Express reports the template, so `/doctors/a` and `/doctors/b` are one route.
     const first = await keyFor({ route: { path: '/doctors/:id' }, originalUrl: '/doctors/a' });
     const second = await keyFor({ route: { path: '/doctors/:id' }, originalUrl: '/doctors/b' });
 
@@ -206,7 +200,6 @@ describe('RateLimitGuard', () => {
       });
     }
 
-    /** Counts per key like the real store does. */
     function countingStore(): RateLimitStore {
       const hits = new Map<string, number>();
       return {

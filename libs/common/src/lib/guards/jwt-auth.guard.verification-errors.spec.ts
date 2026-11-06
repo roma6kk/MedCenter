@@ -4,8 +4,6 @@ import * as jose from 'jose';
 import { captureAsyncHttpException, createMockHttpContext } from '../../__tests__/mock-context';
 import { JwtAuthGuard } from './jwt-auth.guard';
 
-// `jose` ships pure ESM and is imported lazily by the guard; mocking it keeps the
-// suite offline and lets each case choose the error `jwtVerify` raises.
 jest.mock('jose', () => ({
   createRemoteJWKSet: jest.fn(() => 'jwks'),
   jwtVerify: jest.fn(),
@@ -19,7 +17,6 @@ class MeController {
   }
 }
 
-/** A `jose` error as the library raises it: a named `Error` with a stable `code`. */
 function joseError(name: string, code: string): Error {
   return Object.assign(new Error(`${name}: ${code}`), { name, code });
 }
@@ -32,11 +29,6 @@ function protectedContext(): ReturnType<typeof createMockHttpContext> {
   });
 }
 
-/**
- * API §1: an expired, forged or otherwise invalid JWT is `401 UNAUTHENTICATED`, so
- * a client can tell that its access token only needs a refresh. Found by the live
- * stack smoke suite (`tools/stack-smoke`): such tokens used to surface as `500 INTERNAL`.
- */
 describe('JwtAuthGuard signature and claim verification errors', () => {
   const guard = new JwtAuthGuard(new Reflector());
 
@@ -56,27 +48,21 @@ describe('JwtAuthGuard signature and claim verification errors', () => {
     ['an algorithm the issuer does not use (alg=none)', joseError('JOSENotSupported', 'ERR_JOSE_NOT_SUPPORTED')],
     ['an algorithm outside the allow-list', joseError('JOSEAlgNotAllowed', 'ERR_JOSE_ALG_NOT_ALLOWED')],
   ])('should reject with 401 UNAUTHENTICATED when jose reports %s', async (_label, failure) => {
-    // Arrange
     verifyMock.mockRejectedValue(failure);
     const { context } = protectedContext();
 
-    // Act
     const error = await captureAsyncHttpException(() => guard.canActivate(context));
 
-    // Assert
     expect(error.getStatus()).toBe(401);
     expect(error.getResponse()).toMatchObject({ errorCode: 'UNAUTHENTICATED' });
   });
 
   it('should let an unreachable JWKS endpoint surface as a server error and never as an accepted token', async () => {
-    // Arrange — the issuer being down is not the caller's fault, so it must not become a 401.
     verifyMock.mockRejectedValue(joseError('JWKSTimeout', 'ERR_JWKS_TIMEOUT'));
     const { context } = protectedContext();
 
-    // Act
     const outcome = guard.canActivate(context);
 
-    // Assert
     await expect(outcome).rejects.toMatchObject({ code: 'ERR_JWKS_TIMEOUT' });
   });
 
@@ -97,14 +83,11 @@ describe('JwtAuthGuard signature and claim verification errors', () => {
   });
 
   it('should attach no claims to the request when verification fails', async () => {
-    // Arrange
     verifyMock.mockRejectedValue(joseError('JWTExpired', 'ERR_JWT_EXPIRED'));
     const { context, request } = protectedContext();
 
-    // Act
     await guard.canActivate(context).catch(() => undefined);
 
-    // Assert
     expect(request['user']).toBeUndefined();
   });
 });

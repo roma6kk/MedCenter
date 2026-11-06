@@ -98,7 +98,6 @@ describe('HttpClient', () => {
     const client = new HttpClient({ baseUrl: 'http://hapi:8080/fhir' });
     await client.search('Slot', { start: ['ge2026-01-01', 'le2026-01-31'] });
 
-    // A comma-joined `start=ge…,le…` would be an OR of the two prefixes.
     expect(fetchMock).toHaveBeenCalledWith(
       'http://hapi:8080/fhir/Slot?start=ge2026-01-01&start=le2026-01-31',
       expect.objectContaining({ method: 'GET' }),
@@ -129,7 +128,6 @@ describe('HttpClient', () => {
     const result = await client.batch(bundle);
 
     expect(result).toEqual(responseBundle);
-    // Batch is a POST to the bare base URL (trailing slash trimmed by request()).
     expect(fetchMock).toHaveBeenCalledWith(
       'http://hapi:8080/fhir/',
       expect.objectContaining({
@@ -189,8 +187,6 @@ describe('createFhirClientProvider', () => {
       useFactory: () => unknown;
     };
 
-    // A silent empty-baseUrl client would only surface on the first request;
-    // misconfiguration must fail at startup instead.
     expect(() => provider.useFactory()).toThrow('FHIR_BASE_URL is not configured');
   });
 
@@ -200,7 +196,6 @@ describe('createFhirClientProvider', () => {
       FHIR_TIMEOUT_MS: 'abc',
     }) as { useFactory: () => unknown };
 
-    // Number('abc') is NaN and AbortSignal.timeout(NaN) throws on every request.
     expect(() => provider.useFactory()).toThrow('FHIR_TIMEOUT_MS must be a positive integer');
   });
 });

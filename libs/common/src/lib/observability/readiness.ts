@@ -1,6 +1,5 @@
 import { connect } from 'node:net';
 
-/** One dependency a service cannot serve without. `run` rejects when it is unreachable. */
 export interface ReadinessCheck {
   readonly name: string;
   readonly run: (signal: AbortSignal) => Promise<void>;
@@ -8,13 +7,11 @@ export interface ReadinessCheck {
 
 export interface ReadinessReport {
   readonly ok: boolean;
-  /** Names of the failed dependencies only: no hosts, no error text (OWASP A05). */
   readonly failed: readonly string[];
 }
 
 export const READINESS_TIMEOUT_MS = 2000;
 
-/** Runs every check in parallel, each with its own timeout; one slow dependency cannot hide another. */
 export async function runReadiness(
   checks: readonly ReadinessCheck[],
   timeoutMs: number = READINESS_TIMEOUT_MS,
@@ -42,7 +39,6 @@ export async function runReadiness(
   return { ok: failed.length === 0, failed };
 }
 
-/** The dependencies a service can declare; each is probed only when its environment is configured. */
 export type ReadinessDependency = 'hapi' | 'redis' | 'rabbitmq' | 'postgres';
 
 function tcpCheck(name: string, host: string, port: number): ReadinessCheck {
@@ -79,12 +75,6 @@ function urlTcpCheck(name: string, raw: string | undefined, defaultPort: number)
   }
 }
 
-/**
- * Checks for the declared dependencies, read from the same variables the
- * service itself uses: HAPI answers `GET {FHIR_BASE_URL}/metadata`, Redis,
- * RabbitMQ and PostgreSQL accept a TCP connection. A dependency whose variable
- * is unset is skipped (unit and e2e runs have none).
- */
 export function readinessChecksFromEnv(
   dependencies: readonly ReadinessDependency[],
   env: NodeJS.ProcessEnv = process.env,

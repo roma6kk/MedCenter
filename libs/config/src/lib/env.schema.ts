@@ -1,21 +1,10 @@
 import { z } from 'zod';
 
-/**
- * An empty variable (`FOO=` in a compose file or `.env`) means "unset", never an
- * empty secret, port or flag. Wrap the *optional* keys only: a required key
- * (`FHIR_BASE_URL`, `JWT_*`, `REDIS_URL`) stays strict so an empty value still
- * fails the boot.
- */
+/** An empty variable means unset. Wrap optional keys only: a required key stays strict so an empty value still fails the boot. */
 export function blankAsUnset<T extends z.ZodType>(schema: T): z.ZodType<z.output<T>, unknown> {
   return z.preprocess((value: unknown) => (value === '' ? undefined : value), schema);
 }
 
-/**
- * Full environment schema for a BFF service. Secrets (`FHIR_CLIENT_SECRET`,
- * `JWT_PRIVATE_KEY`) have no defaults on purpose — a production deployment
- * must provide them. The signing keys are optional here because only the
- * service that mounts the OAuth surface (auth-service) needs them.
- */
 export const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
   PORT: blankAsUnset(z.coerce.number().int().positive().default(3000)),
@@ -30,19 +19,10 @@ export const envSchema = z.object({
   RABBITMQ_URL: z.url(),
   RATE_LIMIT_PER_MINUTE: blankAsUnset(z.coerce.number().int().positive().default(120)),
   TERMINOLOGY_UPSTREAM_URL: blankAsUnset(z.url().optional()),
-  /**
-   * What a missing patient consent does to 7.1/7.3 (ADR-019): `warn` lets the request through,
-   * `block` answers 409 `CONSENT_REQUIRED`. Services that enforce it pick this key.
-   */
   CONSENT_ENFORCEMENT: blankAsUnset(z.enum(['warn', 'block']).default('block')),
-  /**
-   * API §10: serve the Swagger UI (`/api/docs/<service>`) and its OpenAPI JSON. Off by default,
-   * so production exposes no API documentation unless it is switched on explicitly.
-   */
   SWAGGER_ENABLED: blankAsUnset(z.stringbool().default(false)),
 });
 
-/** Only the keys the shared guard stack (`libs/common`) depends on. */
 export const guardEnvSchema = envSchema.pick({
   JWT_JWKS_URI: true,
   JWT_ISSUER: true,
@@ -50,26 +30,19 @@ export const guardEnvSchema = envSchema.pick({
   RATE_LIMIT_PER_MINUTE: true,
 });
 
-/** Only the keys JWT signature verification needs. */
 export const jwtEnvSchema = envSchema.pick({
   JWT_JWKS_URI: true,
   JWT_ISSUER: true,
 });
 
-/** Only the key the Swagger bootstrap (`setupSwagger`) reads. */
 export const swaggerEnvSchema = envSchema.pick({
   SWAGGER_ENABLED: true,
 });
 
-/** Only the key the rate-limit guard reads. */
 export const rateLimitEnvSchema = envSchema.pick({
   RATE_LIMIT_PER_MINUTE: true,
 });
 
-/**
- * The RS256 key pair is mandatory wherever tokens are *signed* (auth-service,
- * API 2.1.3/2.1.5). Verification elsewhere uses the JWKS URI instead.
- */
 export const jwtSigningEnvSchema = envSchema
   .pick({ JWT_PRIVATE_KEY: true, JWT_PUBLIC_KEY: true })
   .required();
@@ -103,7 +76,6 @@ export function parseJwtSigningEnv(source: NodeJS.ProcessEnv): JwtSigningEnv {
 
 let cachedEnv: Env | null = null;
 
-/** Parse once, then reuse: configuration is immutable for the process lifetime. */
 export function loadEnv(source: NodeJS.ProcessEnv = process.env): Env {
   cachedEnv ??= parseEnv(source);
   return cachedEnv;

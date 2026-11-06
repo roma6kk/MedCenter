@@ -9,8 +9,6 @@ import { Public } from '../decorators/public.decorator';
 import { JwtAuthGuard } from './jwt-auth.guard';
 import { revocationKeysOf, type TokenRevocationChecker } from './token-revocation';
 
-// `jose` ships pure ESM and is imported lazily by the guard; mocking it keeps the
-// suite offline while still exercising everything after signature verification.
 jest.mock('jose', () => ({
   createRemoteJWKSet: jest.fn(() => 'jwks'),
   jwtVerify: jest.fn(),

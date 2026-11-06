@@ -7,7 +7,6 @@ function practitioner(name: unknown): FhirResource {
   return { resourceType: 'Practitioner', id: 'p1', name } as FhirResource;
 }
 
-/** The English text of a primitive, in the `translation` extension HAPI keeps next to the Russian one. */
 function inEnglish(content: string): { extension: unknown[] } {
   return { extension: [translationExtension('en', content)] };
 }

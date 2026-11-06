@@ -1,11 +1,6 @@
 import type { FhirResource } from '@medcenter/fhir';
 
-/**
- * Response DTO for `GET /api/v1/doctors/{id}/slots` (API §5.2.8).
- * `status` is `free` or `busy`; `entered-in-error` is a slot retired by a schedule
- * removal (it stays because an Appointment still references it) and only shows up
- * when an admin asks for that status explicitly.
- */
+/** `entered-in-error` is a slot retired by a schedule removal; it shows only when an admin asks for that status. */
 export interface SlotResponseDto {
   readonly id: string;
   readonly scheduleId: string;
@@ -30,7 +25,6 @@ function toSlotStatus(status: unknown): SlotResponseDto['status'] {
   return status === 'busy' ? 'busy' : 'free';
 }
 
-/** FHIR `Slot` -> `SlotResponseDto` (ADR-002 mapper pair). */
 export function toSlotResponseDto(slot: FhirResource): SlotResponseDto {
   return {
     id: slot.id ?? '',

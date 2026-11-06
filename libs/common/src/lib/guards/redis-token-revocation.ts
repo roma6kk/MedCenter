@@ -6,14 +6,8 @@ import {
   type TokenRevocationChecker,
 } from './token-revocation';
 
-/** A denylist read must not hold a request up: the guard fails open past this. */
 const COMMAND_TIMEOUT_MS = 500;
 
-/**
- * Reads the `session:` entries `auth-service` writes on logout / revoke, so a
- * revoked session is refused by every BFF and not only by the issuer. Errors
- * propagate: `JwtAuthGuard` logs them and fails open.
- */
 export class RedisTokenRevocationChecker implements TokenRevocationChecker {
   constructor(private readonly client: Pick<Redis, 'exists'>) {}
 
@@ -25,11 +19,6 @@ export class RedisTokenRevocationChecker implements TokenRevocationChecker {
 
 let sharedChecker: { readonly url: string; readonly checker: TokenRevocationChecker } | null = null;
 
-/**
- * Checker for a service that binds no `TOKEN_REVOCATION` of its own: Redis when
- * `REDIS_URL` is set (compose, production), `null` (no check) otherwise — unit
- * and e2e runs. One connection per process, opened on the first request.
- */
 export function createDefaultRevocationChecker(
   source: NodeJS.ProcessEnv = process.env,
 ): TokenRevocationChecker | null {

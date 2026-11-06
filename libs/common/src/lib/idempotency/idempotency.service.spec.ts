@@ -122,7 +122,6 @@ describe('IdempotencyService', () => {
   });
 });
 
-/** A store with the in-flight mark, like Redis: `setIfAbsent` checks and writes in one synchronous step. */
 function lockingStore(values: Map<string, string>): jest.Mocked<Required<IdempotencyStore>> {
   return {
     get: jest.fn(async (key: string) => values.get(key) ?? null),
@@ -150,7 +149,6 @@ function deferred<T>(): { promise: Promise<T>; resolve: (value: T) => void } {
   return { promise, resolve };
 }
 
-/** Error payload (`{ errorCode, message }`) of a rejected call. */
 async function errorPayloadOf(promise: Promise<unknown>): Promise<unknown> {
   try {
     await promise;
