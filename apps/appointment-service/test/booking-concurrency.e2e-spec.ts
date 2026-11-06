@@ -8,7 +8,7 @@ import { createValidationPipe } from '@medcenter/common';
 
 import { AppModule } from '../src/app/app.module';
 import { applyE2eEnv } from './e2e-env';
-import { startTestIssuer, type TestIssuer, type TestTokenClaims } from './test-tokens';
+import { startTestIssuer, type TestIssuer, type TestTokenClaims } from '@medcenter/testing';
 
 const HAPI_PORT = 8080;
 /** HAPI (Spring Boot) can need minutes on a loaded machine; `E2E_HAPI_STARTUP_MS` extends the budget. */

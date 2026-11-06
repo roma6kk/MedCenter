@@ -6,13 +6,12 @@ import { translationExtension } from '@medcenter/fhir-mappers';
 import request from 'supertest';
 
 import { AppModule } from '../src/app/app.module';
-import { auditedResource, committedAudit, committedEntries, transactionResponder } from '../src/common/__tests__/audited-transactions';
+import { ADMIN_SCOPE, auditedResource, bearer, committedAudit, committedEntries, DOCTOR_SCOPE, transactionResponder } from '@medcenter/testing';
 import { applyE2eEnv } from './e2e-env';
-import { ADMIN_SCOPE, bearer, DOCTOR_SCOPE } from './e2e-tokens';
 
 const IS_ROOM = { physicalType: { coding: [{ system: 'http://terminology.hl7.org/CodeSystem/location-physical-type', code: 'ro' }] } };
 
-jest.mock('jose', () => jest.requireActual<typeof import('./e2e-tokens')>('./e2e-tokens').decodeOnlyJose());
+jest.mock('jose', () => jest.requireActual<typeof import('@medcenter/testing')>('@medcenter/testing').decodeOnlyJose());
 
 const USAGE = '/api/v1/admin/rooms/room-204/usage';
 

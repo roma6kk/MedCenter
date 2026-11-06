@@ -7,7 +7,7 @@ import { AppModule } from '../src/app/app.module';
 import { CONSENT_ENFORCEMENT_MODE, type ConsentEnforcement } from '../src/common/consent/consent-gate';
 import { applyE2eEnv } from './e2e-env';
 import { FakeHapi } from './fake-hapi';
-import { startTestIssuer, type TestIssuer, type TestTokenClaims } from './test-tokens';
+import { startTestIssuer, type TestIssuer, type TestTokenClaims } from '@medcenter/testing';
 
 /** Codes the fake terminology server knows: the seed subset the scenarios use. */
 export const SEEDED_CODES: readonly string[] = ['J06.9', 'I10', 'J01FA10', 'N02BE01', 'Cel', '20006', '10008'];

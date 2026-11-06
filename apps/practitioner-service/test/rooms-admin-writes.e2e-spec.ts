@@ -3,10 +3,10 @@ import { FhirClientError, type FhirClient } from '@medcenter/fhir';
 import { MEDCENTER_EXT } from '@medcenter/terminology';
 import request from 'supertest';
 
-import { auditedResource, committedAudit, committedEntries, transactionResponder } from '../src/common/__tests__/audited-transactions';
+import { auditedResource, committedAudit, committedEntries, transactionResponder } from '@medcenter/testing';
 import { bootWithFhir, createFhirStub, ROOM_PHYSICAL_TYPE_SYSTEM, storedRoom, TOKENS } from './rooms-harness';
 
-jest.mock('jose', () => jest.requireActual<typeof import('./e2e-tokens')>('./e2e-tokens').decodeOnlyJose());
+jest.mock('jose', () => jest.requireActual<typeof import('@medcenter/testing')>('@medcenter/testing').decodeOnlyJose());
 
 const ROOMS = '/api/v1/admin/rooms';
 const ROOM_URL = `${ROOMS}/room-204`;

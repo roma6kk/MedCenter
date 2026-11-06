@@ -8,7 +8,7 @@ import { AppModule } from '../src/app/app.module';
 import { InMemoryCacheStore } from '../src/modules/cache/__tests__/in-memory-cache-store';
 import { CACHE_STORE } from '../src/modules/cache/redis-cache.service';
 import { applyE2eEnv } from './e2e-env';
-import { startTestIssuer, type TestIssuer } from './test-issuer';
+import { startTestIssuer, type TestIssuer } from '@medcenter/testing';
 
 const OWN_SCHEDULE = '/api/v1/doctor/schedule';
 const ADMIN_DELETE = '/api/v1/admin/services/svc-1';

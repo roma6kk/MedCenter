@@ -2,10 +2,10 @@ import { FhirClientError } from '@medcenter/fhir';
 import request from 'supertest';
 
 import { CACHE_KEYS } from '../src/modules/cache/redis-cache.service';
-import { auditedResource, committedAudit, committedEntries, transactionResponder } from '../src/common/__tests__/audited-transactions';
+import { auditedResource, committedAudit, committedEntries, transactionResponder } from '@medcenter/testing';
 import { bootCatalog, TOKENS, type CatalogHarness } from './catalog-harness';
 
-jest.mock('jose', () => jest.requireActual<typeof import('./e2e-tokens')>('./e2e-tokens').decodeOnlyJose());
+jest.mock('jose', () => jest.requireActual<typeof import('@medcenter/testing')>('@medcenter/testing').decodeOnlyJose());
 
 const SERVICES = '/api/v1/admin/services';
 const SERVICE_URL = `${SERVICES}/svc-1`;

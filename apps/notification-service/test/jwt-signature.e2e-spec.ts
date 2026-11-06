@@ -7,7 +7,7 @@ import request from 'supertest';
 import { AppModule } from '../src/app/app.module';
 import { DEDUP_STORE } from '../src/modules/notifications/deduplication.service';
 import { applyE2eEnv } from './e2e-env';
-import { startTestIssuer, type TestIssuer } from './test-issuer';
+import { startTestIssuer, type TestIssuer } from '@medcenter/testing';
 
 const NOTIFICATIONS = '/api/v1/notifications';
 const PATIENT = { role: 'PATIENT', scope: 'patient/*.read patient/*.write launch', patient: 'pat-1', fhirUser: 'Patient/pat-1' } as const;

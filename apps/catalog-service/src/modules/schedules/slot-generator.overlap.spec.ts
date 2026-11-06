@@ -1,7 +1,7 @@
 import { BadRequestException } from '@nestjs/common';
 import type { FhirClient, FhirResource } from '@medcenter/fhir';
 
-import { committedAudit, committedWrites } from '../../common/__tests__/audited-transactions';
+import { committedAudit, committedWrites } from '@medcenter/testing';
 import { RedisCacheService } from '../cache/redis-cache.service';
 import { batchResponseFor } from './__tests__/batch-echo';
 import { PLANNING_HORIZON_EXT, SLOT_DURATION_EXT, WEEKLY_WINDOWS_EXT } from './schedule.constants';

@@ -8,9 +8,9 @@ import { AppModule } from '../src/app/app.module';
 import { InMemoryCacheStore } from '../src/modules/cache/__tests__/in-memory-cache-store';
 import { CACHE_STORE } from '../src/modules/cache/redis-cache.service';
 import { applyE2eEnv } from './e2e-env';
-import { bearer, DOCTOR_SCOPE } from './e2e-tokens';
+import { bearer, DOCTOR_SCOPE } from '@medcenter/testing';
 
-jest.mock('jose', () => jest.requireActual<typeof import('./e2e-tokens')>('./e2e-tokens').decodeOnlyJose());
+jest.mock('jose', () => jest.requireActual<typeof import('@medcenter/testing')>('@medcenter/testing').decodeOnlyJose());
 
 /**
  * Admin schedule reads (API §5.2.2, §5.2.6) through the real validation pipe:

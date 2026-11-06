@@ -6,7 +6,7 @@ import request from 'supertest';
 
 import { AppModule } from '../src/app/app.module';
 import { applyE2eEnv } from './e2e-env';
-import { startTestIssuer, type TestIssuer } from './test-issuer';
+import { startTestIssuer, type TestIssuer } from '@medcenter/testing';
 
 const ROOMS = '/api/v1/rooms';
 const ADMIN_DELETE = '/api/v1/admin/rooms/room-204';

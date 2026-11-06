@@ -5,7 +5,7 @@ import { FHIR_CLIENT, type FhirClient, type FhirResource } from '@medcenter/fhir
 
 import { AppModule } from '../src/app/app.module';
 import { applyE2eEnv } from './e2e-env';
-import { ADMIN_SCOPE, bearer, DOCTOR_SCOPE, PATIENT_SCOPE } from './e2e-tokens';
+import { ADMIN_SCOPE, bearer, DOCTOR_SCOPE, PATIENT_SCOPE } from '@medcenter/testing';
 
 export const ROOM_PHYSICAL_TYPE_SYSTEM = 'http://terminology.hl7.org/CodeSystem/location-physical-type';
 

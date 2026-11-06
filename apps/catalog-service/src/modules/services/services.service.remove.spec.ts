@@ -1,7 +1,7 @@
 import { ConflictException } from '@nestjs/common';
 import { FhirClientError, type FhirClient } from '@medcenter/fhir';
 
-import { committedEntries, transactionResponder } from '../../common/__tests__/audited-transactions';
+import { committedEntries, transactionResponder } from '@medcenter/testing';
 import { RedisCacheService } from '../cache/redis-cache.service';
 import { ServicesService } from './services.service';
 

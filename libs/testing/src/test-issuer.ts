@@ -2,8 +2,7 @@ import { createPublicKey, createSign, generateKeyPairSync, randomUUID } from 'no
 import { createServer, type Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
 
-import { E2E_ISSUER } from './e2e-env';
-
+export const E2E_ISSUER = 'https://api.medcenter.by';
 const KEY_ID = 'e2e-1';
 const TOKEN_TTL_SECONDS = 900;
 
@@ -13,6 +12,7 @@ const TOKEN_TTL_SECONDS = 900;
  * send a role auth-service never issues.
  */
 export interface TestTokenClaims {
+  readonly sub?: string;
   readonly role: string;
   readonly scope: string;
   readonly patient?: string;

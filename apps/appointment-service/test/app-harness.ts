@@ -5,7 +5,7 @@ import { FHIR_CLIENT, type FhirClient, type FhirResource } from '@medcenter/fhir
 
 import { AppModule } from '../src/app/app.module';
 import { applyE2eEnv } from './e2e-env';
-import { startTestIssuer, type TestIssuer } from './test-tokens';
+import { startTestIssuer, type TestIssuer } from '@medcenter/testing';
 
 /** HAPI stand-in: every FHIR call the service makes is observable and scriptable. */
 export type FakeFhir = jest.Mocked<FhirClient>;

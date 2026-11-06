@@ -1,7 +1,7 @@
 import { ConflictException } from '@nestjs/common';
 import { FhirClientError, type FhirClient, type FhirResource } from '@medcenter/fhir';
 
-import { auditedResource, committedAudit, committedEntries, committedWrites, transactionResponder } from '../../common/__tests__/audited-transactions';
+import { auditedResource, committedAudit, committedEntries, committedWrites, transactionResponder } from '@medcenter/testing';
 import { roomIdentifierQuery } from './room-identifier';
 import { RoomsService } from './rooms.service';
 

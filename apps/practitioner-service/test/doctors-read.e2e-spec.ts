@@ -4,7 +4,7 @@ import request from 'supertest';
 
 import { bootWithFhir, createFhirStub, TOKENS } from './rooms-harness';
 
-jest.mock('jose', () => jest.requireActual<typeof import('./e2e-tokens')>('./e2e-tokens').decodeOnlyJose());
+jest.mock('jose', () => jest.requireActual<typeof import('@medcenter/testing')>('@medcenter/testing').decodeOnlyJose());
 
 const DOCTORS = '/api/v1/doctors';
 const SNOMED = 'http://snomed.info/sct';

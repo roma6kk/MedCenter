@@ -3,7 +3,7 @@ import { translationExtension } from '@medcenter/fhir-mappers';
 import { FHIR_BY } from '@medcenter/terminology';
 
 import { InMemoryCacheStore } from '../cache/__tests__/in-memory-cache-store';
-import { committedEntries, transactionResponder } from '../../common/__tests__/audited-transactions';
+import { committedEntries, transactionResponder } from '@medcenter/testing';
 import { RedisCacheService } from '../cache/redis-cache.service';
 import { ServicesService } from './services.service';
 

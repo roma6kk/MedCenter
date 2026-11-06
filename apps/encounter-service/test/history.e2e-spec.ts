@@ -13,7 +13,7 @@ import {
   startAppHarness,
   type AppHarness,
 } from './app-harness';
-import type { TestTokenClaims } from './test-tokens';
+import type { TestTokenClaims } from '@medcenter/testing';
 
 /** A finished encounter of another patient: it must never leak into `Patient/pat-1` listings. */
 const FOREIGN_ENCOUNTER = {

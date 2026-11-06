@@ -3,7 +3,7 @@ import { ERROR_CODES } from '@medcenter/contracts';
 import { FhirClientError, type FhirClient, type FhirResource } from '@medcenter/fhir';
 import { MEDCENTER_EXT } from '@medcenter/terminology';
 
-import { auditedResource, committedAudit, committedEntries, transactionResponder } from '../../common/__tests__/audited-transactions';
+import { auditedResource, committedAudit, committedEntries, transactionResponder } from '@medcenter/testing';
 import { RoomsService } from './rooms.service';
 
 const IS_ROOM = { physicalType: { coding: [{ system: 'http://terminology.hl7.org/CodeSystem/location-physical-type', code: 'ro' }] } };

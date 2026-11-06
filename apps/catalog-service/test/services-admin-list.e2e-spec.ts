@@ -4,7 +4,7 @@ import request from 'supertest';
 
 import { bootCatalog, TOKENS, type CatalogHarness } from './catalog-harness';
 
-jest.mock('jose', () => jest.requireActual<typeof import('./e2e-tokens')>('./e2e-tokens').decodeOnlyJose());
+jest.mock('jose', () => jest.requireActual<typeof import('@medcenter/testing')>('@medcenter/testing').decodeOnlyJose());
 
 const ADMIN_SERVICES = '/api/v1/admin/services';
 

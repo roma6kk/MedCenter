@@ -7,7 +7,7 @@ import { AppModule } from '../src/app/app.module';
 import { InMemoryCacheStore } from '../src/modules/cache/__tests__/in-memory-cache-store';
 import { CACHE_STORE } from '../src/modules/cache/redis-cache.service';
 import { applyE2eEnv } from './e2e-env';
-import { bearer, DOCTOR_SCOPE, PATIENT_SCOPE } from './e2e-tokens';
+import { bearer, DOCTOR_SCOPE, PATIENT_SCOPE } from '@medcenter/testing';
 
 /** Bearer tokens for the three roles, as auth-service issues them (ADR-013). */
 export const TOKENS = {

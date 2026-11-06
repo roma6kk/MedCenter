@@ -1,7 +1,7 @@
 import request from 'supertest';
 
 import { BOOKED_APPOINTMENT, startAppHarness, type AppHarness } from './app-harness';
-import type { TestTokenClaims } from './test-tokens';
+import type { TestTokenClaims } from '@medcenter/testing';
 
 const DOCTOR: TestTokenClaims = { sub: 'doc-1', role: 'DOCTOR', scope: 'user/*.read user/*.write launch', fhirUser: 'PractitionerRole/role-1' };
 const ADMIN: TestTokenClaims = { sub: 'adm-1', role: 'ADMIN', scope: 'user/*.read user/*.write launch' };

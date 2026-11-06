@@ -10,7 +10,7 @@ import { REPORTS_REPOSITORY, type ReportsRepository } from '../src/modules/repor
 import { READ_MODEL_WRITER, type ReadModelWriter } from '../src/modules/worker/read-model.writer';
 import { applyE2eEnv } from './e2e-env';
 import { InMemoryAuditRepository } from './in-memory-audit.repository';
-import { startTestIssuer, type TestIssuer } from './test-tokens';
+import { startTestIssuer, type TestIssuer } from '@medcenter/testing';
 
 /** HAPI stand-in: every FHIR call the service makes is observable and scriptable. */
 export type FakeFhir = jest.Mocked<FhirClient>;

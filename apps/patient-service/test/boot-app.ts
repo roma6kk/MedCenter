@@ -5,7 +5,7 @@ import { FHIR_CLIENT, type FhirClient } from '@medcenter/fhir';
 
 import { AppModule } from '../src/app/app.module';
 import { applyE2eEnv } from './e2e-env';
-import { startTestIssuer, type TestIssuer } from './test-issuer';
+import { startTestIssuer, type TestIssuer } from '@medcenter/testing';
 
 export interface BootedApp {
   readonly app: INestApplication;

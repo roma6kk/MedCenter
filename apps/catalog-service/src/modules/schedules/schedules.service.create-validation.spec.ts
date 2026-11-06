@@ -1,7 +1,7 @@
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import type { FhirClient } from '@medcenter/fhir';
 
-import { transactionResponder } from '../../common/__tests__/audited-transactions';
+import { transactionResponder } from '@medcenter/testing';
 import { RedisCacheService } from '../cache/redis-cache.service';
 import type { CreateScheduleDto } from './dto/create-schedule.dto';
 import { SchedulesService } from './schedules.service';

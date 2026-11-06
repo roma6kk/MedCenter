@@ -2,10 +2,10 @@ import type { INestApplication } from '@nestjs/common';
 import { FhirClientError, type FhirClient } from '@medcenter/fhir';
 import request from 'supertest';
 
-import { bearer } from './e2e-tokens';
+import { bearer } from '@medcenter/testing';
 import { bootWithFhir, createFhirStub, storedRoom, TOKENS } from './rooms-harness';
 
-jest.mock('jose', () => jest.requireActual<typeof import('./e2e-tokens')>('./e2e-tokens').decodeOnlyJose());
+jest.mock('jose', () => jest.requireActual<typeof import('@medcenter/testing')>('@medcenter/testing').decodeOnlyJose());
 
 type Verb = 'get' | 'post' | 'patch' | 'delete';
 

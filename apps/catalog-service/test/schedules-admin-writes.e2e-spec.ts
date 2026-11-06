@@ -7,10 +7,10 @@ import {
   SLOT_DURATION_EXT,
   WEEKLY_WINDOWS_EXT,
 } from '../src/modules/schedules/schedule.constants';
-import { auditedResource, committedAudit, committedEntries, transactionResponder } from '../src/common/__tests__/audited-transactions';
+import { auditedResource, committedAudit, committedEntries, transactionResponder } from '@medcenter/testing';
 import { bootCatalog, TOKENS, type CatalogHarness } from './catalog-harness';
 
-jest.mock('jose', () => jest.requireActual<typeof import('./e2e-tokens')>('./e2e-tokens').decodeOnlyJose());
+jest.mock('jose', () => jest.requireActual<typeof import('@medcenter/testing')>('@medcenter/testing').decodeOnlyJose());
 
 const SCHEDULES = '/api/v1/admin/schedules';
 const ROLE_ID = '0a1b2c3d-0000-4000-8000-000000000001';

@@ -1,6 +1,7 @@
 import { generateKeyPairSync } from 'node:crypto';
+import { E2E_ISSUER } from '@medcenter/testing';
 
-export const E2E_ISSUER = 'https://api.medcenter.by';
+export { E2E_ISSUER };
 export const E2E_FHIR_BASE = 'http://hapi:8080/fhir';
 
 /**

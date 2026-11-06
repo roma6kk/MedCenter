@@ -2,7 +2,7 @@ import type { FhirClient, FhirResource } from '@medcenter/fhir';
 import { translationExtension } from '@medcenter/fhir-mappers';
 import { FHIR_BY } from '@medcenter/terminology';
 
-import { committedEntries, transactionResponder } from '../../common/__tests__/audited-transactions';
+import { committedEntries, transactionResponder } from '@medcenter/testing';
 import { InMemoryCacheStore } from '../cache/__tests__/in-memory-cache-store';
 import { CACHE_KEYS, RedisCacheService } from '../cache/redis-cache.service';
 import { ServicesService } from './services.service';

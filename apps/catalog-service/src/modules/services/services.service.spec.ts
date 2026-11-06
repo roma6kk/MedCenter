@@ -4,7 +4,7 @@ import { FhirClientError, type FhirClient, type FhirResource } from '@medcenter/
 import { FHIR_BY, MEDCENTER_EXT } from '@medcenter/terminology';
 
 import { InMemoryCacheStore } from '../cache/__tests__/in-memory-cache-store';
-import { auditedResource, committedAudit, committedEntries, transactionResponder } from '../../common/__tests__/audited-transactions';
+import { auditedResource, committedAudit, committedEntries, transactionResponder } from '@medcenter/testing';
 import { CACHE_KEYS, RedisCacheService } from '../cache/redis-cache.service';
 import { ServicesService } from './services.service';
 

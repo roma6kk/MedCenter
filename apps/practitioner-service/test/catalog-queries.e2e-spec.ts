@@ -6,9 +6,9 @@ import request from 'supertest';
 
 import { AppModule } from '../src/app/app.module';
 import { applyE2eEnv } from './e2e-env';
-import { ADMIN_SCOPE, bearer } from './e2e-tokens';
+import { ADMIN_SCOPE, bearer } from '@medcenter/testing';
 
-jest.mock('jose', () => jest.requireActual<typeof import('./e2e-tokens')>('./e2e-tokens').decodeOnlyJose());
+jest.mock('jose', () => jest.requireActual<typeof import('@medcenter/testing')>('@medcenter/testing').decodeOnlyJose());
 
 /**
  * Room list (API §4.3) and public doctor catalog (§4.1, §4.2) through the real

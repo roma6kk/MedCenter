@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 
-import { E2E_ISSUER } from './e2e-env';
+import { E2E_ISSUER } from './test-issuer';
 
 /**
  * Bearer tokens for suites that stub `jose` (signature verification is
@@ -46,4 +46,5 @@ export function decodeOnlyJose(): Record<string, unknown> {
 }
 
 export const DOCTOR_SCOPE = 'user/*.read user/*.write launch';
+export const ADMIN_SCOPE = 'user/*.read user/*.write launch';
 export const PATIENT_SCOPE = 'patient/*.read patient/*.write launch';
