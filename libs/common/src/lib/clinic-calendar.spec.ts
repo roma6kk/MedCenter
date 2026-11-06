@@ -7,6 +7,8 @@ import {
   clinicDaysBetween,
   clinicDayStartMs,
   clinicInstantMs,
+  formatClinicDateTime,
+  formatSlotPeriod,
 } from './clinic-calendar';
 
 describe('clinic calendar', () => {
@@ -91,5 +93,33 @@ describe('clinic calendar', () => {
         expect(rendered).toBe('09:00');
       },
     );
+  });
+});
+
+describe('formatSlotPeriod', () => {
+  it('should render a same-day period in clinic time (Europe/Minsk, UTC+3) when both bounds share a day', () => {
+    expect(formatSlotPeriod('2026-11-02T09:00:00.000Z', '2026-11-02T09:30:00.000Z')).toBe('02.11.2026 12:00–12:30');
+  });
+
+  it('should repeat the date on the end bound when the period crosses midnight in clinic time', () => {
+    expect(formatSlotPeriod('2026-11-02T20:30:00.000Z', '2026-11-02T21:30:00.000Z')).toBe('02.11.2026 23:30–03.11.2026 00:30');
+  });
+
+  it('should honour an explicit offset on the stored instant when the slot was written with one', () => {
+    expect(formatSlotPeriod('2026-11-02T12:00:00+03:00', '2026-11-02T12:30:00+03:00')).toBe('02.11.2026 12:00–12:30');
+  });
+
+  it('should fall back to the raw values when a bound is not a parsable instant', () => {
+    expect(formatSlotPeriod('', 'not-a-date')).toBe('–not-a-date');
+  });
+});
+
+describe('formatClinicDateTime', () => {
+  it('should render the instant as DD.MM.YYYY HH:mm in clinic time when the value is an instant', () => {
+    expect(formatClinicDateTime('2026-10-22T09:30:00Z')).toBe('22.10.2026 12:30');
+  });
+
+  it('should return undefined when the value is no instant', () => {
+    expect(formatClinicDateTime('not-a-date')).toBeUndefined();
   });
 });
