@@ -17,11 +17,10 @@ interface EmptyStateProps extends StateProps {
   readonly icon?: LucideIcon;
 }
 
-export function ForbiddenState({ title, description, action }: StateProps): ReactNode {
-  const t = useT('feedback');
+function ScreenState({ testId, heading, title, description, action }: StateProps & { readonly testId: string; readonly heading: string }): ReactNode {
   return (
-    <div data-testid="forbidden-state" className="mx-auto max-w-md p-8 text-center">
-      <h1 className="text-2xl font-semibold">{t('forbiddenTitle')}</h1>
+    <div data-testid={testId} className="mx-auto max-w-md p-8 text-center">
+      <h1 className="text-2xl font-semibold">{heading}</h1>
       <p className="mt-2 text-[var(--muted-foreground)]">{title}</p>
       {description ? <p className="mt-1 text-sm">{description}</p> : null}
       {action}
@@ -29,16 +28,14 @@ export function ForbiddenState({ title, description, action }: StateProps): Reac
   );
 }
 
-export function NotFoundState({ title, description, action }: StateProps): ReactNode {
+export function ForbiddenState(props: StateProps): ReactNode {
   const t = useT('feedback');
-  return (
-    <div data-testid="not-found-state" className="mx-auto max-w-md p-8 text-center">
-      <h1 className="text-2xl font-semibold">{t('notFoundTitle')}</h1>
-      <p className="mt-2 text-[var(--muted-foreground)]">{title}</p>
-      {description ? <p className="mt-1 text-sm">{description}</p> : null}
-      {action}
-    </div>
-  );
+  return <ScreenState testId="forbidden-state" heading={t('forbiddenTitle')} {...props} />;
+}
+
+export function NotFoundState(props: StateProps): ReactNode {
+  const t = useT('feedback');
+  return <ScreenState testId="not-found-state" heading={t('notFoundTitle')} {...props} />;
 }
 
 export function EmptyState({ title, description, action, icon: Icon }: EmptyStateProps): ReactNode {

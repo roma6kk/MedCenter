@@ -6,9 +6,10 @@ import { File as FileIcon, FileImage, FileText, UploadCloud, X } from 'lucide-re
 import { useT } from '@/lib/i18n/use-t';
 import { cn } from '@/lib/ui/cn';
 import { useUiStore } from '@/store/use-ui-store';
+import { assignRef } from './assign-ref';
 import { buttonVariants } from './button-variants';
 
-export interface FileDropProps {
+interface FileDropProps {
   readonly id: string;
   readonly value: File | null;
   readonly onChange: (file: File | null) => void;
@@ -87,8 +88,7 @@ export const FileDrop = forwardRef<HTMLInputElement, FileDropProps>(function Fil
   };
   const setInput = (node: HTMLInputElement | null): void => {
     input.current = node;
-    if (typeof forwardedRef === 'function') forwardedRef(node);
-    else if (forwardedRef !== null) forwardedRef.current = node;
+    assignRef(forwardedRef, node);
   };
   const Icon = value === null ? UploadCloud : iconFor(value.type);
   const describedBy: string = [aria['aria-describedby'], hintId, problem === null ? undefined : problemId].filter(Boolean).join(' ');

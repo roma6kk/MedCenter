@@ -21,11 +21,12 @@ import { clinicDateKey, formatDateKey, isDateKey, shiftDateKey } from '@/lib/cli
 import { useT } from '@/lib/i18n/use-t';
 import { cn } from '@/lib/ui/cn';
 import { useUiStore } from '@/store/use-ui-store';
+import { assignRef } from './assign-ref';
 import { FIELD_CLASS, FIELD_NARROW_CLASS } from './field-styles';
 import { useFloatingPosition } from './floating';
 import { Select } from './select';
 
-export interface DatePickerProps extends Omit<InputHTMLAttributes<HTMLInputElement>, 'value' | 'onChange' | 'type' | 'min' | 'max' | 'defaultValue' | 'size'> {
+interface DatePickerProps extends Omit<InputHTMLAttributes<HTMLInputElement>, 'value' | 'onChange' | 'type' | 'min' | 'max' | 'defaultValue' | 'size'> {
   readonly value: string;
   readonly onChange: (value: string) => void;
   readonly min?: string;
@@ -36,6 +37,8 @@ export interface DatePickerProps extends Omit<InputHTMLAttributes<HTMLInputEleme
 const POPOVER_WIDTH_PX = 326;
 const YEARS_BEFORE = 120;
 const YEARS_AFTER = 10;
+
+const NAV_BUTTON_CLASS = 'inline-flex size-11 shrink-0 items-center justify-center rounded-control text-foreground transition-[background-color] duration-fast ease-out hover:bg-secondary disabled:opacity-40';
 
 const DAY_BASE =
   'inline-flex size-11 items-center justify-center rounded-control text-sm tabular-nums transition-[background-color,color,box-shadow] duration-fast ease-out focus-visible:outline-none focus-visible:shadow-focus';
@@ -159,7 +162,7 @@ function CalendarPopover({ anchor, value, min, max, onSelect, onClose }: Calenda
           aria-label={t('prevMonth')}
           disabled={!canGoPrev}
           onClick={() => moveCursor(addMonths(cursor, -1), false)}
-          className="inline-flex size-11 shrink-0 items-center justify-center rounded-control text-foreground transition-[background-color] duration-fast ease-out hover:bg-secondary disabled:opacity-40"
+          className={NAV_BUTTON_CLASS}
         >
           <ChevronLeft aria-hidden="true" className="size-5" />
         </button>
@@ -185,7 +188,7 @@ function CalendarPopover({ anchor, value, min, max, onSelect, onClose }: Calenda
           aria-label={t('nextMonth')}
           disabled={!canGoNext}
           onClick={() => moveCursor(addMonths(cursor, 1), false)}
-          className="inline-flex size-11 shrink-0 items-center justify-center rounded-control text-foreground transition-[background-color] duration-fast ease-out hover:bg-secondary disabled:opacity-40"
+          className={NAV_BUTTON_CLASS}
         >
           <ChevronRight aria-hidden="true" className="size-5" />
         </button>
@@ -255,8 +258,7 @@ export const DatePicker = forwardRef<HTMLInputElement, DatePickerProps>(function
   const setInput = useCallback(
     (node: HTMLInputElement | null): void => {
       input.current = node;
-      if (typeof ref === 'function') ref(node);
-      else if (ref !== null) ref.current = node;
+      assignRef(ref, node);
     },
     [ref],
   );

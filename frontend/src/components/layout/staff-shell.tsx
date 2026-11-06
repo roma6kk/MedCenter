@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import type { MouseEvent, ReactNode } from 'react';
+import type { ReactNode } from 'react';
 import {
   BarChart3,
   BookText,
@@ -20,6 +20,7 @@ import { Dialog } from '@/components/ui/dialog';
 import { DESKTOP_QUERY, useMediaQuery } from '@/hooks/use-media-query';
 import { useT } from '@/lib/i18n/use-t';
 import { useSessionStore } from '@/store/use-session-store';
+import { closeOnLink } from './nav-link';
 import { StaffBrand, StaffNav, type StaffLink } from './staff-nav';
 import { PageTransition } from './page-transition';
 import { StaffProfileMenu } from './staff-profile-menu';
@@ -69,10 +70,6 @@ function StaffSidebar({ links, prefix }: PartsProps): ReactNode {
       </aside>
     </div>
   );
-}
-
-function closeOnLink(event: MouseEvent<HTMLElement>, close: () => void): void {
-  if ((event.target as HTMLElement).closest('a') !== null) close();
 }
 
 function StaffTopBar({ links, prefix }: PartsProps): ReactNode {

@@ -63,28 +63,26 @@ function HomeLink({ variant }: { readonly variant: 'primary' | 'secondary' }): R
   return <Link href="/" className={buttonVariants({ variant, size: 'lg' })}>{t('backHome')}</Link>;
 }
 
-export function NotFoundPage(): ReactNode {
-  const t = useT('feedback');
-  useDocumentTitle(t('notFoundPage'));
+function HomeMessagePage(props: Omit<MessageProps, 'children'>): ReactNode {
   return (
     <MessageFrame>
-      <Message testId="not-found-state" icon={Compass} tone="primary" title={t('notFoundTitle')} description={t('notFoundPage')}>
+      <Message {...props}>
         <div className="mt-6 flex justify-center"><HomeLink variant="primary" /></div>
       </Message>
     </MessageFrame>
   );
 }
 
+export function NotFoundPage(): ReactNode {
+  const t = useT('feedback');
+  useDocumentTitle(t('notFoundPage'));
+  return <HomeMessagePage testId="not-found-state" icon={Compass} tone="primary" title={t('notFoundTitle')} description={t('notFoundPage')} />;
+}
+
 export function ForbiddenPage(): ReactNode {
   const t = useT('feedback');
   useDocumentTitle(t('forbiddenTitle'));
-  return (
-    <MessageFrame>
-      <Message testId="forbidden-state" icon={ShieldAlert} tone="warning" title={t('forbiddenTitle')} description={t('forbiddenPage')}>
-        <div className="mt-6 flex justify-center"><HomeLink variant="primary" /></div>
-      </Message>
-    </MessageFrame>
-  );
+  return <HomeMessagePage testId="forbidden-state" icon={ShieldAlert} tone="warning" title={t('forbiddenTitle')} description={t('forbiddenPage')} />;
 }
 
 interface RouteErrorPageProps {

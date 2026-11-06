@@ -23,14 +23,10 @@ interface ProblemView {
   readonly retryAfter: number | undefined;
 }
 
-function isOffline(problem: ProblemDetails | undefined): boolean {
-  return problem?.status === 0;
-}
-
 function useProblemView(props: ProblemBannerProps): ProblemView {
   const t = useT();
   const { problem } = props;
-  const offline: boolean = isOffline(problem) && props.errorCode === undefined;
+  const offline: boolean = problem?.status === 0 && props.errorCode === undefined;
   const errorCode: ErrorCode | undefined = offline ? undefined : props.errorCode ?? problem?.errorCode;
   const fallbackHeadline: string = offline ? t('errors.NETWORK') : errorCode === undefined ? problem?.title ?? '' : t(errorMessageKey(errorCode));
   const hasFieldErrors: boolean = (problem?.details?.length ?? 0) > 0;

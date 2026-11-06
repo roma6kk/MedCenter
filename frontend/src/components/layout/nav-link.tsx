@@ -1,6 +1,6 @@
 'use client';
 
-import type { ReactNode } from 'react';
+import type { MouseEvent, ReactNode } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/ui/cn';
@@ -17,6 +17,10 @@ const DEFAULT_ACTIVE_CLASS = 'font-semibold underline underline-offset-4';
 const TARGET_CLASS = 'inline-flex min-h-[44px] items-center';
 
 export const RENAVIGATE_EVENT = 'lifeline:renavigate';
+
+export function closeOnLink(event: MouseEvent<HTMLElement>, close: () => void): void {
+  if ((event.target as HTMLElement).closest('a') !== null) close();
+}
 
 export function NavLink({ href, children, className, label, activeClassName = DEFAULT_ACTIVE_CLASS }: NavLinkProps): ReactNode {
   const pathname: string | null = usePathname();

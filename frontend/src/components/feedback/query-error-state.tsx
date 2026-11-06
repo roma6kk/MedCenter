@@ -23,10 +23,6 @@ interface QueryErrorStateProps {
   readonly onRetry?: () => void;
 }
 
-function problemOf(error: unknown): ProblemDetails | null {
-  return isApiError(error) ? error.problem : null;
-}
-
 function isMissing(error: ApiError, badRequestIsNotFound: boolean): boolean {
   return errorCodeToUx(error.problem.errorCode).kind === 'not-found' || (badRequestIsNotFound && error.status === 400);
 }
@@ -84,14 +80,10 @@ function RetryButton({ problem, isRetrying, onRetry }: RetryButtonProps): ReactN
   );
 }
 
-function MissingBanner({ error, text }: { readonly error: ApiError; readonly text: string | undefined }): ReactNode {
-  const t = useT();
-  return <ProblemBanner title={text ?? t(errorMessageKey('NOT_FOUND'))} errorCode="NOT_FOUND" requestId={error.problem.requestId} />;
-}
-
 function FailureBanner({ error, embedded, notFoundText }: { readonly error: unknown; readonly embedded: boolean; readonly notFoundText: string | undefined }): ReactNode {
+  const t = useT();
   if (!isApiError(error)) return <ProblemBanner errorCode="INTERNAL" />;
-  if (embedded && isMissing(error, false)) return <MissingBanner error={error} text={notFoundText} />;
+  if (embedded && isMissing(error, false)) return <ProblemBanner title={notFoundText ?? t(errorMessageKey('NOT_FOUND'))} errorCode="NOT_FOUND" requestId={error.problem.requestId} />;
   return <ProblemBanner problem={error.problem} />;
 }
 
@@ -107,7 +99,7 @@ export function QueryErrorState(props: QueryErrorStateProps): ReactNode {
   return (
     <div>
       <FailureBanner error={error} embedded={embedded} notFoundText={notFoundText} />
-      {onRetry ? <RetryButton problem={problemOf(error)} isRetrying={isRetrying} onRetry={onRetry} /> : null}
+      {onRetry ? <RetryButton problem={isApiError(error) ? error.problem : null} isRetrying={isRetrying} onRetry={onRetry} /> : null}
     </div>
   );
 }

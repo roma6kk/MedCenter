@@ -1,16 +1,16 @@
 'use client';
 
 import { useState } from 'react';
-import type { MouseEvent, ReactNode } from 'react';
+import type { ReactNode } from 'react';
 import { Menu } from 'lucide-react';
 import { Dialog } from '@/components/ui/dialog';
 import { useT } from '@/lib/i18n/use-t';
 import { LocaleSwitcher } from './locale-switcher';
 import { LogoutButton } from './logout-button';
-import { NavLink } from './nav-link';
+import { closeOnLink, NavLink } from './nav-link';
 import { ThemeSwitcher } from './theme-switcher';
 
-export interface PatientMenuLink {
+interface PatientMenuLink {
   readonly href: string;
   readonly label: string;
 }
@@ -19,10 +19,6 @@ interface PatientMobileMenuProps {
   readonly links: ReadonlyArray<PatientMenuLink>;
   readonly linkClassName: string;
   readonly activeLinkClassName: string;
-}
-
-function closeOnLink(event: MouseEvent<HTMLElement>, close: () => void): void {
-  if ((event.target as HTMLElement).closest('a') !== null) close();
 }
 
 export function PatientMobileMenu({ links, linkClassName, activeLinkClassName }: PatientMobileMenuProps): ReactNode {

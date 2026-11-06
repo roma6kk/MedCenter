@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useLayoutEffect, useRef, useState } from 'react';
-import type { CSSProperties, KeyboardEvent, ReactNode } from 'react';
+import type { CSSProperties, KeyboardEvent, MutableRefObject, ReactNode, RefObject } from 'react';
 import { cn } from '@/lib/ui/cn';
 
 export interface SegmentOption<TValue extends string> {
@@ -9,7 +9,7 @@ export interface SegmentOption<TValue extends string> {
   readonly label: string;
 }
 
-export type SegmentedKind = 'tabs' | 'toggle';
+type SegmentedKind = 'tabs' | 'toggle';
 
 interface SegmentedControlProps<TValue extends string> {
   readonly label: string;
@@ -41,10 +41,10 @@ interface Box {
   readonly height: number;
 }
 
-function useIndicator(selected: string, segments: React.MutableRefObject<Map<string, HTMLButtonElement>>): { readonly box: Box | null; readonly ref: (node: HTMLDivElement | null) => void; readonly animate: boolean } {
+function useIndicator(selected: string, segments: MutableRefObject<Map<string, HTMLButtonElement>>): { readonly box: Box | null; readonly ref: RefObject<HTMLDivElement>; readonly animate: boolean } {
   const [box, setBox] = useState<Box | null>(null);
   const [animate, setAnimate] = useState(false);
-  const container = useRef<HTMLDivElement | null>(null);
+  const container = useRef<HTMLDivElement>(null);
   const measure = useCallback((): void => {
     const node: HTMLButtonElement | undefined = segments.current.get(selected);
     if (node === undefined) return;
@@ -63,10 +63,7 @@ function useIndicator(selected: string, segments: React.MutableRefObject<Map<str
       observer?.disconnect();
     };
   }, [measure]);
-  const ref = useCallback((node: HTMLDivElement | null): void => {
-    container.current = node;
-  }, []);
-  return { box, ref, animate };
+  return { box, ref: container, animate };
 }
 
 const SIZE_CLASS: Readonly<Record<NonNullable<SegmentedControlProps<string>['size']>, string>> = {
