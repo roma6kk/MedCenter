@@ -6,7 +6,7 @@ export const REFRESH_COOKIE = 'mc_rt';
 export const ACCESS_COOKIE = 'mc_at';
 export const SESSION_MARKER_COOKIE = 'mc_session';
 
-export const BROKER_PATH = '/api/auth';
+const BROKER_PATH = '/api/auth';
 
 const REFRESH_MAX_AGE_SECONDS = 14 * 24 * 3600;
 const PKCE_MAX_AGE_SECONDS = 600;

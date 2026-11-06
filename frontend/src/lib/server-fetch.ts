@@ -2,7 +2,7 @@
 
 import { DEFAULT_LOCALE, type Locale } from '@/lib/i18n/locale';
 
-export const API_BASE: string = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8081';
+const API_BASE: string = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8081';
 
 const PUBLIC_FETCH_TIMEOUT_MS = 5000;
 const PUBLIC_REVALIDATE_SECONDS = 300;

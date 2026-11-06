@@ -5,7 +5,7 @@ export const NAME_MAX = 100;
 export const REASON_MIN = 3;
 export const REASON_MAX = 500;
 
-export const ACCOUNT_CONSENT_VERSION_MAX = 64;
+const ACCOUNT_CONSENT_VERSION_MAX = 64;
 
 export const ACCOUNT_CONSENT_VERSION = '2026-10';
 
@@ -31,7 +31,7 @@ export function isCalendarDate(value: string): boolean {
   return !Number.isNaN(parsed.getTime()) && parsed.toISOString().startsWith(value);
 }
 
-export const BELARUS_PHONE_PATTERN = /^\+375\d{9}$/;
+const BELARUS_PHONE_PATTERN = /^\+375\d{9}$/;
 
 export function normaliseBelarusPhone(input: string): string | null {
   const compact = input.replace(/[\s\-()]/g, '');
@@ -60,9 +60,9 @@ export type CancelAppointmentForm = z.infer<typeof cancelAppointmentSchema>;
 export const ICD10_PATTERN = /^[A-Z][0-9]{2}(\.[0-9]{1,2})?$/;
 export const ATC_PATTERN = /^[A-Z][0-9]{2}[A-Z]{2}([0-9]{2})?$/;
 
-export const SUMMARY_MIN = 3;
-export const SUMMARY_MAX = 4000;
-export const RECOMMENDATIONS_MIN = 3;
+const SUMMARY_MIN = 3;
+const SUMMARY_MAX = 4000;
+const RECOMMENDATIONS_MIN = 3;
 export const RECOMMENDATIONS_MAX = 2000;
 export const DIAGNOSES_MAX = 20;
 export const OBSERVATIONS_MAX = 50;

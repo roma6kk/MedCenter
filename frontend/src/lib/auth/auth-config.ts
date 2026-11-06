@@ -3,7 +3,7 @@
 export const DEFAULT_PUBLIC_ORIGIN = 'http://localhost:3000';
 export const DEFAULT_AUTH_BACKEND_URL = 'http://medcenter.localhost:8081';
 export const DEFAULT_OAUTH_CLIENT_ID = 'medcenter-web';
-export const CALLBACK_PATH = '/api/auth/callback';
+const CALLBACK_PATH = '/api/auth/callback';
 
 export type EnvSource = Readonly<Record<string, string | undefined>>;
 

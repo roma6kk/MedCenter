@@ -37,7 +37,7 @@ interface GraceEntry {
 
 const recentRotations = new Map<string, GraceEntry>();
 
-export function payloadFromAccessToken(accessToken: string, expiresAt: string): SessionPayload {
+function payloadFromAccessToken(accessToken: string, expiresAt: string): SessionPayload {
   const claims: JwtClaims = decodeJwtPayload(accessToken) ?? {};
   return {
     accessToken,

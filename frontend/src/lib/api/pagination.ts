@@ -19,8 +19,8 @@ export interface PageParams {
   readonly sortOrder?: SortOrder;
 }
 
-export const DEFAULT_PAGE = 1;
-export const DEFAULT_PAGE_SIZE = 20;
+const DEFAULT_PAGE = 1;
+const DEFAULT_PAGE_SIZE = 20;
 export const MAX_PAGE_SIZE = 100;
 
 function isRecord(value: unknown): value is Readonly<Record<string, unknown>> {

@@ -27,7 +27,7 @@ function signOutLocally(): void {
 
 function applySession(data: SessionResponse): ExchangeOutcome {
   if (data.accessToken === undefined) return 'ok';
-  const token: string | null = typeof data.accessToken === 'string' ? data.accessToken : null;
+  const token = typeof data.accessToken === 'string' ? data.accessToken : null;
   setAccessToken(token);
   useSessionStore.getState().setSession({
     accessToken: token,
@@ -40,10 +40,6 @@ function applySession(data: SessionResponse): ExchangeOutcome {
   return token === null ? 'ended' : 'ok';
 }
 
-function isTemporaryFailure(status: number): boolean {
-  return status === 429 || status >= 500;
-}
-
 function markUnavailable(): ExchangeOutcome {
   useSessionStore.getState().markUnavailable();
   return 'unavailable';
@@ -51,8 +47,8 @@ function markUnavailable(): ExchangeOutcome {
 
 async function runExchange(url: string, init: RequestInit): Promise<ExchangeOutcome> {
   try {
-    const response: Response = await fetch(url, { ...init, credentials: 'same-origin' });
-    if (isTemporaryFailure(response.status)) return markUnavailable();
+    const response = await fetch(url, { ...init, credentials: 'same-origin' });
+    if (response.status === 429 || response.status >= 500) return markUnavailable();
     if (!response.ok) {
       signOutLocally();
       return 'ended';
@@ -66,7 +62,7 @@ async function runExchange(url: string, init: RequestInit): Promise<ExchangeOutc
 
 function exchange(url: string, init: RequestInit): Promise<ExchangeOutcome> {
   if (exchangeInFlight !== null) return exchangeInFlight;
-  const attempt: Promise<ExchangeOutcome> = runExchange(url, init).finally(() => {
+  const attempt = runExchange(url, init).finally(() => {
     exchangeInFlight = null;
   });
   exchangeInFlight = attempt;
@@ -91,7 +87,7 @@ export function refreshSession(): Promise<ExchangeOutcome> {
 }
 
 export async function endSession(): Promise<void> {
-  const token: string | null = getAccessToken();
+  const token = getAccessToken();
   try {
     await fetch('/api/auth/logout', {
       method: 'POST',

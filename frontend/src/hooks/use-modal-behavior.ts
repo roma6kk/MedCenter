@@ -5,7 +5,7 @@ import { DIALOG_CLOSE_ATTRIBUTE } from './use-dialog-focus';
 
 const FOCUSABLE = `a[href], button:not([disabled]):not([${DIALOG_CLOSE_ATTRIBUTE}]), textarea, input, select, [tabindex]:not([tabindex="-1"])`;
 
-export function useScrollLock(): void {
+function useScrollLock(): void {
   useEffect(() => {
     const previous = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
@@ -15,7 +15,7 @@ export function useScrollLock(): void {
   }, []);
 }
 
-export function useFocusWhenReady(panel: RefObject<HTMLElement | null>): void {
+function useFocusWhenReady(panel: RefObject<HTMLElement | null>): void {
   const isSettled = useRef(false);
   useEffect(() => {
     const element: HTMLElement | null = panel.current;
@@ -36,7 +36,7 @@ export function useModalBehavior(panel: RefObject<HTMLElement | null>): void {
   useFocusFallbackOnClose();
 }
 
-export function useFocusFallbackOnClose(): void {
+function useFocusFallbackOnClose(): void {
   useEffect(
     () => () => {
       // One tick later: a screen that knows a better focus target hands it over in its own effect right after unmount.

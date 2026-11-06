@@ -14,7 +14,7 @@ export function base64Url(bytes: Uint8Array): string {
   return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 }
 
-export function randomToken(byteLength: number): string {
+function randomToken(byteLength: number): string {
   return base64Url(crypto.getRandomValues(new Uint8Array(byteLength)));
 }
 

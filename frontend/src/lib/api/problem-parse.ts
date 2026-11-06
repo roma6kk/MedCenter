@@ -26,26 +26,27 @@ export function isErrorCode(value: unknown): value is ErrorCode {
   return typeof value === 'string' && (ERROR_CODES as ReadonlyArray<string>).includes(value);
 }
 
+const STATUS_ERROR_CODES: Readonly<Record<number, ErrorCode>> = {
+  400: 'VALIDATION_ERROR',
+  401: 'UNAUTHENTICATED',
+  403: 'FORBIDDEN_ROLE',
+  404: 'NOT_FOUND',
+  405: 'METHOD_NOT_ALLOWED',
+  409: 'CONFLICT',
+  422: 'VALIDATION_ERROR',
+  429: 'RATE_LIMITED',
+};
+
 export function statusToErrorCode(status: number): ErrorCode {
-  if (status === 400) return 'VALIDATION_ERROR';
-  if (status === 401) return 'UNAUTHENTICATED';
-  if (status === 403) return 'FORBIDDEN_ROLE';
-  if (status === 404) return 'NOT_FOUND';
-  if (status === 405) return 'METHOD_NOT_ALLOWED';
-  if (status === 409) return 'CONFLICT';
-  if (status === 422) return 'VALIDATION_ERROR';
-  if (status === 429) return 'RATE_LIMITED';
-  return 'INTERNAL';
+  return STATUS_ERROR_CODES[status] ?? 'INTERNAL';
 }
 
 function parseDetails(value: unknown): ReadonlyArray<FieldErrorDetail> | undefined {
   if (!Array.isArray(value)) return undefined;
-  const details: FieldErrorDetail[] = [];
-  value.forEach((entry: unknown) => {
-    if (!isRecord(entry)) return;
-    const field: string | undefined = asString(entry['field']);
-    const message: string | undefined = asString(entry['message']);
-    if (field !== undefined && message !== undefined) details.push({ field, message });
+  const details = value.flatMap((entry: unknown): FieldErrorDetail[] => {
+    const field = isRecord(entry) ? asString(entry['field']) : undefined;
+    const message = isRecord(entry) ? asString(entry['message']) : undefined;
+    return field !== undefined && message !== undefined ? [{ field, message }] : [];
   });
   return details.length > 0 ? details : undefined;
 }
@@ -62,22 +63,21 @@ export function parseRetryAfter(raw: string | null | undefined, now: number = Da
 }
 
 function detailOf(record: UnknownRecord): string | undefined {
-  const detail: string | undefined = asString(record['detail']);
+  const detail = asString(record['detail']);
   if (detail !== undefined) return detail;
-  const message: unknown = record['message'];
+  const message = record['message'];
   if (Array.isArray(message)) return message.filter((m): m is string => typeof m === 'string').join('; ') || undefined;
   return asString(message);
 }
 
-export function readHeader(response: Pick<Response, 'headers'>, name: string): string | null {
-  const headers: Headers | undefined = response.headers;
-  return headers?.get(name) ?? null;
+function readHeader(response: Pick<Response, 'headers'>, name: string): string | null {
+  return (response.headers as Headers | undefined)?.get(name) ?? null;
 }
 
 export function parseProblem(response: Pick<Response, 'status' | 'headers'>, body: unknown): ProblemDetails {
-  const record: UnknownRecord = isRecord(body) ? body : {};
-  const errorCode: ErrorCode = isErrorCode(record['errorCode']) ? record['errorCode'] : statusToErrorCode(response.status);
-  const retryAfter: number | undefined = parseRetryAfter(readHeader(response, 'retry-after'));
+  const record = isRecord(body) ? body : {};
+  const errorCode = isErrorCode(record['errorCode']) ? record['errorCode'] : statusToErrorCode(response.status);
+  const retryAfter = parseRetryAfter(readHeader(response, 'retry-after'));
   return {
     type: asString(record['type']),
     title: asString(record['title']) ?? STATUS_TITLES[response.status] ?? 'Внутренняя ошибка',

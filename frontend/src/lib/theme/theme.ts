@@ -4,7 +4,7 @@ export const DEFAULT_THEME_MODE: ThemeMode = 'system';
 export const THEME_STORAGE_KEY = 'mc-theme';
 export const DARK_SCHEME_QUERY = '(prefers-color-scheme: dark)';
 
-export function isThemeMode(value: unknown): value is ThemeMode {
+function isThemeMode(value: unknown): value is ThemeMode {
   return value === 'system' || value === 'light' || value === 'dark';
 }
 
@@ -25,7 +25,7 @@ export function storeThemeMode(mode: ThemeMode): void {
   }
 }
 
-export function systemPrefersDark(): boolean {
+function systemPrefersDark(): boolean {
   return typeof window.matchMedia === 'function' && window.matchMedia(DARK_SCHEME_QUERY).matches;
 }
 
