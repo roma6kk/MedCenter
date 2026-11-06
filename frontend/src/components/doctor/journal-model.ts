@@ -1,4 +1,5 @@
 import { CLINIC_TIME_ZONE, isDateKey, shiftDateKey } from '@/lib/clinic-time';
+import { weekdayIndex } from '@/lib/calendar-grid';
 import type { Locale } from '@/lib/i18n/locale';
 import type { AppointmentState, JournalAppointment } from './doctor-types';
 
@@ -32,6 +33,10 @@ export interface NowEntry {
 }
 
 export type TimelineEntry = VisitEntry | GapEntry | NowEntry;
+
+export function patientNameOf(visit: JournalAppointment, t: (key: string, values?: Record<string, string | number>) => string): string {
+  return visit.patientName ?? t('unknownPatient', { id: visit.patientId });
+}
 
 export function visitMinutes(visit: JournalAppointment): number {
   return Math.max(0, Math.round((Date.parse(visit.end) - Date.parse(visit.start)) / MS_PER_MINUTE));
@@ -90,17 +95,12 @@ export function initialsOf(fullName: string): string {
     .join('');
 }
 
-function weekdayIndex(dateKey: string): number {
-  return new Date(`${dateKey}T12:00:00Z`).getUTCDay();
-}
-
 export function workingDays(from: string, count: number = WEEK_DAYS): ReadonlyArray<string> {
   if (!isDateKey(from)) return [];
   const days: string[] = [];
   let cursor: string = from;
   while (days.length < count) {
-    const weekday: number = weekdayIndex(cursor);
-    if (weekday !== 0 && weekday !== 6) days.push(cursor);
+    if (weekdayIndex(cursor) < WEEK_DAYS) days.push(cursor);
     cursor = shiftDateKey(cursor, 1);
   }
   return days;

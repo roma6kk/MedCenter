@@ -6,34 +6,10 @@ import { MEDICATION_REQUESTS_MAX, type CompleteEncounterForm } from '@/lib/contr
 import { useT } from '@/lib/i18n/use-t';
 import { AtcCodeField } from './atc-code-field';
 import { EMPTY_MEDICATION } from './encounter-form-defaults';
-import { a11yOf, errorAt, INPUT_CLASS, ROW_CLASS } from './encounter-form-helpers';
-import { AddRowButton, EmptyListLine, FieldRow, RemoveRowButton } from './encounter-form-fields';
+import { errorAt, ROW_CLASS } from './encounter-form-helpers';
+import { AddRowButton, EmptyListLine, RemoveRowButton, TextRowField } from './encounter-form-fields';
 import { FormSection } from './encounter-form-section';
 import { useRemoveRowFocus } from './use-remove-row-focus';
-
-function MedicationTextFields({ index }: { readonly index: number }): ReactNode {
-  const t = useT('doctor.medications');
-  const { control, register } = useFormContext<CompleteEncounterForm>();
-  const { errors } = useFormState({ control, name: [`medicationRequests.${index}.dosageText`, `medicationRequests.${index}.note`] });
-  const dosageId = `medication-dosage-${index}`;
-  const noteId = `medication-note-${index}`;
-  const dosageError = errorAt(errors, `medicationRequests.${index}.dosageText`);
-  const noteError = errorAt(errors, `medicationRequests.${index}.note`);
-  return (
-    <>
-      <div className="mt-2">
-        <FieldRow id={dosageId} label={t('dosage', { n: index + 1 })} error={dosageError}>
-          <input id={dosageId} {...register(`medicationRequests.${index}.dosageText`)} {...a11yOf(dosageId, dosageError)} className={INPUT_CLASS} placeholder={t('dosagePlaceholder')} autoComplete="off" />
-        </FieldRow>
-      </div>
-      <div className="mt-2">
-        <FieldRow id={noteId} label={t('note', { n: index + 1 })} error={noteError}>
-          <input id={noteId} {...register(`medicationRequests.${index}.note`)} {...a11yOf(noteId, noteError)} className={INPUT_CLASS} autoComplete="off" />
-        </FieldRow>
-      </div>
-    </>
-  );
-}
 
 function MedicationRow({ index, onRemove }: { readonly index: number; readonly onRemove: () => void }): ReactNode {
   const t = useT('doctor.medications');
@@ -56,7 +32,8 @@ function MedicationRow({ index, onRemove }: { readonly index: number; readonly o
           />
         )}
       />
-      <MedicationTextFields index={index} />
+      <TextRowField name={`medicationRequests.${index}.dosageText`} id={`medication-dosage-${index}`} label={t('dosage', { n: index + 1 })} placeholder={t('dosagePlaceholder')} />
+      <TextRowField name={`medicationRequests.${index}.note`} id={`medication-note-${index}`} label={t('note', { n: index + 1 })} />
       <RemoveRowButton onClick={onRemove} label={t('remove')} ariaLabel={t('removeN', { n: index + 1 })} />
     </div>
   );

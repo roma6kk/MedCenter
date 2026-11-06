@@ -18,9 +18,10 @@ import {
   fetchPatientHistory,
   fetchPatientPrescriptions,
   fetchRelatedPersons,
+  JOURNAL_MAX_PAGE_SIZE,
   type JournalRange,
-  type JournalScan,
 } from './doctor-api';
+import { findNextVisit } from './journal-model';
 import { patientsOf, type PatientHit } from './patient-search-model';
 import type {
   DoctorJournalPage,
@@ -42,27 +43,25 @@ function journalFrom(query: { readonly queryKey: ReadonlyArray<unknown> } | unde
   return typeof params === 'object' && params !== null && 'from' in params ? (params as { from: unknown }).from : undefined;
 }
 
-export function useDoctorJournal(dateKey: string, page: number): UseQueryResult<DoctorJournalPage> {
+function dayJournalQuery(dateKey: string, page: number) {
   const range: JournalRange = clinicDayBounds(dateKey);
-  return useQuery({
+  return {
     queryKey: queryKeys.doctorAppointments({ ...range, page, pageSize: JOURNAL_PAGE_SIZE }),
-    queryFn: ({ signal }) => fetchDoctorJournal(range, { page, pageSize: JOURNAL_PAGE_SIZE }, signal),
+    queryFn: ({ signal }: { readonly signal: AbortSignal }) => fetchDoctorJournal(range, { page, pageSize: JOURNAL_PAGE_SIZE }, signal),
     staleTime: STALE_TIME_MS.appointments,
-    placeholderData: (previous, previousQuery) => (journalFrom(previousQuery) === range.from ? previous : undefined),
+  };
+}
+
+export function useDoctorJournal(dateKey: string, page: number): UseQueryResult<DoctorJournalPage> {
+  const from: string = clinicDayBounds(dateKey).from;
+  return useQuery({
+    ...dayJournalQuery(dateKey, page),
+    placeholderData: (previous, previousQuery) => (journalFrom(previousQuery) === from ? previous : undefined),
   });
 }
 
 export function useDoctorWeekJournal(dateKeys: ReadonlyArray<string>): ReadonlyArray<UseQueryResult<DoctorJournalPage>> {
-  return useQueries({
-    queries: dateKeys.map((dateKey) => {
-      const range: JournalRange = clinicDayBounds(dateKey);
-      return {
-        queryKey: queryKeys.doctorAppointments({ ...range, page: 1, pageSize: JOURNAL_PAGE_SIZE }),
-        queryFn: ({ signal }: { readonly signal: AbortSignal }) => fetchDoctorJournal(range, { page: 1, pageSize: JOURNAL_PAGE_SIZE }, signal),
-        staleTime: STALE_TIME_MS.appointments,
-      };
-    }),
-  });
+  return useQueries({ queries: dateKeys.map((dateKey) => dayJournalQuery(dateKey, 1)) });
 }
 
 export function useDoctorSchedule(range: JournalRange): UseQueryResult<DoctorScheduleResponse> {
@@ -76,8 +75,8 @@ export function useDoctorSchedule(range: JournalRange): UseQueryResult<DoctorSch
 export function useDoctorWeekAppointments(weekStart: string): UseQueryResult<DoctorJournalPage> {
   const range: JournalRange = { from: clinicDayBounds(weekStart).from, to: clinicDayBounds(shiftDateKey(weekStart, 6)).to };
   return useQuery({
-    queryKey: queryKeys.doctorAppointments({ ...range, page: 1, pageSize: 100 }),
-    queryFn: ({ signal }) => fetchDoctorJournal(range, { page: 1, pageSize: 100 }, signal),
+    queryKey: queryKeys.doctorAppointments({ ...range, page: 1, pageSize: JOURNAL_MAX_PAGE_SIZE }),
+    queryFn: ({ signal }) => fetchDoctorJournal(range, { page: 1, pageSize: JOURNAL_MAX_PAGE_SIZE }, signal),
     staleTime: STALE_TIME_MS.appointments,
   });
 }
@@ -175,7 +174,6 @@ export async function lookupTerm(client: QueryClient, valueSet: string, code: st
 
 const PATIENT_SEARCH_BACK_DAYS = 90;
 const PATIENT_SEARCH_AHEAD_DAYS = 30;
-const JOURNAL_MAX_PAGE_SIZE = 100;
 
 interface DoctorPatients {
   readonly patients: ReadonlyArray<PatientHit>;
@@ -190,7 +188,7 @@ export function useDoctorPatients(enabled: boolean): UseQueryResult<DoctorPatien
   };
   return useQuery({
     queryKey: queryKeys.doctorAppointments({ ...range, scan: 'patients', sortOrder: 'desc' }),
-    queryFn: async ({ signal }): Promise<JournalScan> => fetchJournalScan(range, { sortOrder: 'desc' }, signal),
+    queryFn: ({ signal }) => fetchJournalScan(range, { sortOrder: 'desc' }, signal),
     staleTime: STALE_TIME_MS.appointments,
     enabled,
     select: (scan): DoctorPatients => ({ patients: patientsOf(scan.items), truncated: scan.truncated }),
@@ -207,6 +205,6 @@ export function useNextBookedVisit(afterDay: string, today: string, enabled: boo
     queryFn: ({ signal }) => fetchDoctorJournal(range, { page: 1, pageSize: JOURNAL_MAX_PAGE_SIZE }, signal),
     staleTime: STALE_TIME_MS.appointments,
     enabled,
-    select: (page) => [...page.items].filter((visit) => visit.status === 'booked').sort((a, b) => Date.parse(a.start) - Date.parse(b.start))[0] ?? null,
+    select: (page) => findNextVisit(page.items) ?? null,
   });
 }

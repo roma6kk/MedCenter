@@ -7,10 +7,8 @@ import { DatePicker } from '@/components/ui/date-picker';
 import { formatDayShort, isDateKey, shiftDateKey } from '@/lib/clinic-time';
 import { useT } from '@/lib/i18n/use-t';
 import { useUiStore } from '@/store/use-ui-store';
+import { STEP_BUTTON } from './journal-controls';
 import { WEEK_LENGTH } from './schedule-week-model';
-
-const STEP_BUTTON =
-  'inline-flex size-11 items-center justify-center rounded-control border border-border bg-card text-foreground transition-[background-color,transform] duration-fast ease-out hover:bg-secondary active:scale-[0.97]';
 
 interface WeekControlsProps {
   readonly weekStart: string;

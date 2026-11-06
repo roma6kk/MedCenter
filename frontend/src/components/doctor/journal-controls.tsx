@@ -27,7 +27,7 @@ interface JournalControlsProps {
   readonly onStatusChange: (status: StatusFilter) => void;
 }
 
-const STEP_BUTTON =
+export const STEP_BUTTON =
   'inline-flex size-11 items-center justify-center rounded-control border border-border bg-card text-foreground transition-[background-color,transform] duration-fast ease-out hover:bg-secondary active:scale-[0.97]';
 
 function PeriodPicker({ dateKey, view, onDateChange }: Pick<JournalControlsProps, 'dateKey' | 'view' | 'onDateChange'>): ReactNode {

@@ -39,6 +39,10 @@ interface JournalState {
   readonly changeDate: (dateKey: string) => void;
 }
 
+function passesFilter(item: JournalAppointment, status: StatusFilter): boolean {
+  return status === 'all' || item.status === status;
+}
+
 function useSelectedDay(): readonly [string | null, (day: string | null) => void] {
   const urlDay: string | null = dayFromUrl(useSearchParams().get('date'));
   const [selected, setSelected] = useState<string | null>(urlDay);
@@ -62,14 +66,10 @@ function useJournalState(): JournalState {
   const page: number = pageOf.day === dateKey ? pageOf.page : 1;
   const [status, setStatus] = useState<StatusFilter>('all');
   const journal = useDoctorJournal(dateKey, page);
-  const rows: ReadonlyArray<JournalAppointment> = (journal.data?.items ?? []).filter((item) => status === 'all' || item.status === status);
+  const rows: ReadonlyArray<JournalAppointment> = (journal.data?.items ?? []).filter((item) => passesFilter(item, status));
   const changeDate = (next: string): void => choose(next === today ? null : next);
   const setPage = (next: number): void => setPageOf({ day: dateKey, page: next });
   return { dateKey, today, status, journal, rows, setPage, setStatus, changeDate };
-}
-
-function passesFilter(item: JournalAppointment, status: StatusFilter): boolean {
-  return status === 'all' || item.status === status;
 }
 
 function useWeekColumns(dateKey: string, status: StatusFilter, enabled: boolean): ReadonlyArray<DayColumn> {

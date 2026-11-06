@@ -51,6 +51,7 @@ export function fetchDoctorJournal(range: JournalRange, request: JournalPageRequ
 }
 
 export const JOURNAL_SCAN_MAX_PAGES = 10;
+export const JOURNAL_MAX_PAGE_SIZE = 100;
 
 export interface JournalScan {
   readonly items: ReadonlyArray<JournalAppointment>;
@@ -64,7 +65,7 @@ export async function fetchJournalScan(
 ): Promise<JournalScan> {
   const items: JournalAppointment[] = [];
   for (let page = 1; page <= JOURNAL_SCAN_MAX_PAGES; page += 1) {
-    const result: DoctorJournalPage = await fetchDoctorJournal(range, { page, pageSize: 100, sortOrder: options.sortOrder }, signal);
+    const result: DoctorJournalPage = await fetchDoctorJournal(range, { page, pageSize: JOURNAL_MAX_PAGE_SIZE, sortOrder: options.sortOrder }, signal);
     items.push(...result.items);
     if (options.until?.(result.items) === true) return { items, truncated: false };
     if (page >= result.meta.totalPages) return { items, truncated: false };

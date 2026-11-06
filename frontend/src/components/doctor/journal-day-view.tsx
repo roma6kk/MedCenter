@@ -13,12 +13,10 @@ import { useT } from '@/lib/i18n/use-t';
 import { useStaggerOnce } from '@/hooks/use-stagger-once';
 import { cn } from '@/lib/ui/cn';
 import type { DoctorJournalPage, JournalAppointment } from './doctor-types';
-import { buildTimeline, canOpenPatientCard, countByStatus, findNextVisit, initialsOf, visitMinutes, withNowLine, type GapEntry, type NowEntry, type StatusCounts, type TimelineEntry } from './journal-model';
+import { buildTimeline, canOpenPatientCard, countByStatus, findNextVisit, initialsOf, patientNameOf, visitMinutes, withNowLine, type GapEntry, type NowEntry, type StatusCounts, type TimelineEntry } from './journal-model';
 import { NoshowMenu } from './noshow-menu';
 import { OpenEncounterButton } from './open-encounter-button';
 import { useNow } from './use-now';
-
-type Translate = (key: string, values?: Record<string, string | number>) => string;
 
 function useDuration(): (minutes: number) => string {
   const t = useT('doctor.journal');
@@ -28,10 +26,6 @@ function useDuration(): (minutes: number) => string {
     if (hours === 0) return t('minutes', { count: rest });
     return rest === 0 ? t('hoursOnly', { hours }) : t('hoursMinutes', { hours, minutes: rest });
   };
-}
-
-function patientNameOf(visit: JournalAppointment, t: Translate): string {
-  return visit.patientName ?? t('unknownPatient', { id: visit.patientId });
 }
 
 function PatientLink({ visit, className }: { readonly visit: JournalAppointment; readonly className?: string }): ReactNode {
@@ -90,30 +84,12 @@ function VisitCard({ visit }: { readonly visit: JournalAppointment }): ReactNode
       </div>
     );
   }
-  const base = 'flex flex-wrap items-center gap-x-3.5 gap-y-1 px-4 py-3';
-  const detail: ReactNode = visit.serviceName ? <span className="text-sm text-muted-foreground">{visit.serviceName}</span> : null;
-  if (status === 'noshow') {
-    return (
-      <div className={cn(base, 'rounded-card bg-warning-soft')}>
-        <span className="font-semibold"><PatientLink visit={visit} /></span>
-        {detail}
-        <StatusChip status={status} />
-      </div>
-    );
-  }
-  if (status === 'cancelled') {
-    return (
-      <div className={cn(base, 'rounded-card border border-dashed border-border text-muted-foreground')}>
-        <span className="font-medium line-through"><PatientLink visit={visit} /></span>
-        {detail}
-        <StatusChip status={status} />
-      </div>
-    );
-  }
+  const cardClass: string =
+    status === 'noshow' ? 'rounded-card bg-warning-soft' : status === 'cancelled' ? 'rounded-card border border-dashed border-border text-muted-foreground' : 'rounded-card border border-border bg-card';
   return (
-    <div className={cn(base, 'rounded-card border border-border bg-card')}>
-      <span className="font-semibold"><PatientLink visit={visit} /></span>
-      {detail}
+    <div className={cn('flex flex-wrap items-center gap-x-3.5 gap-y-1 px-4 py-3', cardClass)}>
+      <span className={status === 'cancelled' ? 'font-medium line-through' : 'font-semibold'}><PatientLink visit={visit} /></span>
+      {visit.serviceName ? <span className="text-sm text-muted-foreground">{visit.serviceName}</span> : null}
       <StatusChip status={status} />
     </div>
   );

@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import type { ReactNode } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Controller, useFieldArray, useFormContext, useFormState, useWatch } from 'react-hook-form';
@@ -179,12 +179,10 @@ function useDiagnosisShortcuts(patientId: string): ReadonlyArray<Term> {
   const { control } = useFormContext<CompleteEncounterForm>();
   const history = usePatientHistory(patientId, 1);
   const chosen: ReadonlyArray<{ readonly code?: string } | undefined> = useWatch({ control, name: 'diagnoses' });
-  return useMemo(() => {
-    const taken = new Set((chosen ?? []).map((row) => row?.code ?? ''));
-    return buildRecentDiagnoses(history.data?.items ?? [])
-      .filter((diagnosis) => !taken.has(diagnosis.code))
-      .map((diagnosis) => ({ system: ICD10_SYSTEM, code: diagnosis.code, display: diagnosis.display }));
-  }, [history.data, chosen]);
+  const taken = new Set((chosen ?? []).map((row) => row?.code ?? ''));
+  return buildRecentDiagnoses(history.data?.items ?? [])
+    .filter((diagnosis) => !taken.has(diagnosis.code))
+    .map((diagnosis) => ({ system: ICD10_SYSTEM, code: diagnosis.code, display: diagnosis.display }));
 }
 
 export function DiagnosesEditor({ patientId }: { readonly patientId: string }): ReactNode {

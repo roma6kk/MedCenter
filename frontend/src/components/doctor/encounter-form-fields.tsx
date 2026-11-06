@@ -2,7 +2,10 @@
 
 import type { ReactNode } from 'react';
 import { Plus, Trash2 } from 'lucide-react';
+import { useFormContext, useFormState, type FieldPath } from 'react-hook-form';
 import { Button } from '@/components/ui/button';
+import type { CompleteEncounterForm } from '@/lib/contracts';
+import { a11yOf, errorAt, INPUT_CLASS } from './encounter-form-helpers';
 
 interface FieldRowProps {
   readonly id: string;
@@ -17,6 +20,26 @@ export function FieldRow({ id, label, error, children }: FieldRowProps): ReactNo
       <label htmlFor={id} className="form-label block">{label}</label>
       {children}
       {error ? <p id={`${id}-error`} role="alert" className="mt-1 text-sm text-destructive">{error}</p> : null}
+    </div>
+  );
+}
+
+interface TextRowFieldProps {
+  readonly name: FieldPath<CompleteEncounterForm>;
+  readonly id: string;
+  readonly label: string;
+  readonly placeholder?: string;
+}
+
+export function TextRowField({ name, id, label, placeholder }: TextRowFieldProps): ReactNode {
+  const { control, register } = useFormContext<CompleteEncounterForm>();
+  const { errors } = useFormState({ control, name });
+  const error: string | undefined = errorAt(errors, name);
+  return (
+    <div className="mt-2">
+      <FieldRow id={id} label={label} error={error}>
+        <input id={id} {...register(name)} {...a11yOf(id, error)} className={INPUT_CLASS} placeholder={placeholder} autoComplete="off" />
+      </FieldRow>
     </div>
   );
 }
