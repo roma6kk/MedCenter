@@ -1,11 +1,10 @@
 import type { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
-import { setRateLimitStore, type RateLimitStore, type TrustProxySetting } from '@medcenter/common';
+import { configureApp, setRateLimitStore, type RateLimitStore, type TrustProxySetting } from '@medcenter/common';
 import { FHIR_CLIENT, type FhirClient } from '@medcenter/fhir';
 import request from 'supertest';
 
 import { AppModule } from '../src/app/app.module';
-import { configureApp } from '../src/bootstrap';
 import { applyE2eEnv } from './e2e-env';
 
 const LIMIT = 5;
