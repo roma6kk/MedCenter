@@ -8,8 +8,8 @@ import { useModalBehavior } from '@/hooks/use-modal-behavior';
 import { useT } from '@/lib/i18n/use-t';
 import { cn } from '@/lib/ui/cn';
 
-export type DialogSize = 'sm' | 'md' | 'lg';
-export type DialogVariant = 'dialog' | 'drawer' | 'drawer-left';
+type DialogSize = 'sm' | 'md' | 'lg';
+type DialogVariant = 'dialog' | 'drawer' | 'drawer-left';
 
 interface DialogProps {
   readonly title: string;

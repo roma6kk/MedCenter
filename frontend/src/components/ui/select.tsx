@@ -4,7 +4,7 @@ import { ChevronDown } from 'lucide-react';
 import { cn } from '@/lib/ui/cn';
 import { FIELD_CLASS } from './field-styles';
 
-export interface SelectProps extends SelectHTMLAttributes<HTMLSelectElement> {
+interface SelectProps extends SelectHTMLAttributes<HTMLSelectElement> {
   readonly wrapperClassName?: string;
 }
 

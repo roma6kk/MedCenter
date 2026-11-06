@@ -8,7 +8,7 @@ import { useT } from '@/lib/i18n/use-t';
 import { roleIdOf } from '@/lib/practitioner-role-id';
 import { useSessionStore } from '@/store/use-session-store';
 
-export interface StaffProfile {
+interface StaffProfile {
   readonly name: string;
   readonly subtitle: string;
   readonly initials: string;

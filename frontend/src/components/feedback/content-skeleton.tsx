@@ -7,7 +7,7 @@ import { cn } from '@/lib/ui/cn';
 import { LoadingNote } from './loading-note';
 import { useLeadSkeleton } from './use-lead-skeleton';
 
-export type ContentSkeletonShape = 'list' | 'tiles' | 'timeline' | 'cards' | 'detail';
+type ContentSkeletonShape = 'list' | 'tiles' | 'timeline' | 'cards' | 'detail';
 
 interface ContentSkeletonProps {
   readonly shape: ContentSkeletonShape;

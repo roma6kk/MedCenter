@@ -3,7 +3,7 @@ import type { InputHTMLAttributes, ReactNode } from 'react';
 import { Check } from 'lucide-react';
 import { cn } from '@/lib/ui/cn';
 
-export interface CheckboxProps extends Omit<InputHTMLAttributes<HTMLInputElement>, 'type' | 'size'> {
+interface CheckboxProps extends Omit<InputHTMLAttributes<HTMLInputElement>, 'type' | 'size'> {
   readonly children?: ReactNode;
   readonly wrapperClassName?: string;
 }

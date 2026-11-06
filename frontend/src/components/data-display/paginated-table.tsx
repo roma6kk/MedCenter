@@ -8,7 +8,7 @@ import { cn } from '@/lib/ui/cn';
 
 export type { PageMeta };
 
-export interface SortState {
+interface SortState {
   readonly sortBy: string;
   readonly sortOrder: SortOrder;
 }

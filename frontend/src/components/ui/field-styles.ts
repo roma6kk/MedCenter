@@ -9,5 +9,3 @@ export const FIELD_CLASS = [
 ].join(' ');
 
 export const FIELD_NARROW_CLASS = 'max-w-[12rem]';
-
-export const FIELD_MEDIUM_CLASS = 'max-w-md';
