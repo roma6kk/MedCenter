@@ -18,9 +18,9 @@ function useScrollLock(): void {
 function useFocusWhenReady(panel: RefObject<HTMLElement | null>): void {
   const isSettled = useRef(false);
   useEffect(() => {
-    const element: HTMLElement | null = panel.current;
+    const element = panel.current;
     if (element === null || isSettled.current) return;
-    const first: HTMLElement | null = element.querySelector<HTMLElement>(FOCUSABLE);
+    const first = element.querySelector<HTMLElement>(FOCUSABLE);
     if (first === null) {
       element.focus();
       return;
@@ -41,9 +41,9 @@ function useFocusFallbackOnClose(): void {
     () => () => {
       // One tick later: a screen that knows a better focus target hands it over in its own effect right after unmount.
       setTimeout(() => {
-        const active: Element | null = document.activeElement;
+        const active = document.activeElement;
         if (active !== null && active !== document.body) return;
-        const heading: HTMLElement | null = document.querySelector<HTMLElement>('main h1') ?? document.querySelector<HTMLElement>('h1');
+        const heading = document.querySelector<HTMLElement>('main h1') ?? document.querySelector<HTMLElement>('h1');
         if (heading === null) return;
         heading.setAttribute('tabindex', '-1');
         heading.focus();

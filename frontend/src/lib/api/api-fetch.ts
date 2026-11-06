@@ -42,7 +42,7 @@ function buildHeaders(init: RequestInit): Headers {
   const hasBody = init.body !== undefined && init.body !== null;
   if (hasBody && !(init.body instanceof FormData) && !headers.has('Content-Type')) headers.set('Content-Type', 'application/json');
   if (!headers.has('Accept-Language')) headers.set('Accept-Language', useUiStore.getState().locale);
-  const token: string | null = getAccessToken();
+  const token = getAccessToken();
   if (token !== null && !headers.has('Authorization')) headers.set('Authorization', `Bearer ${token}`);
   return headers;
 }
@@ -74,19 +74,19 @@ async function recoverFromUnauthorized<T>(path: string, init: ApiFetchOptions, p
 
 async function execute<T>(path: string, init: ApiFetchOptions, canRefresh: boolean): Promise<T> {
   const { retry: _retry, responseAs, ...requestInit } = init;
-  const response: Response = await send(path, requestInit);
+  const response = await send(path, requestInit);
   if (response.ok) {
     if (response.status === 204) return undefined as T;
     if (responseAs === 'blob') return (await response.blob()) as T;
     return (await readJson(response)) as T;
   }
 
-  const problem: ProblemDetails = parseProblem(response, await readJson(response));
+  const problem = parseProblem(response, await readJson(response));
   if (response.status === 401) return recoverFromUnauthorized<T>(path, init, problem, canRefresh);
   throw new ApiError(problem);
 }
 
-export async function apiFetch<T>(path: string, options: ApiFetchOptions = {}): Promise<T> {
+export function apiFetch<T>(path: string, options: ApiFetchOptions = {}): Promise<T> {
   return execute<T>(path, options, true);
 }
 

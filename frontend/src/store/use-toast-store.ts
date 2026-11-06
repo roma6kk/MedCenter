@@ -7,17 +7,14 @@ export interface ToastAction {
   readonly onAction: () => void;
 }
 
-export interface Toast {
-  readonly id: number;
+export interface ToastInput {
   readonly tone: ToastTone;
   readonly message: string;
   readonly action?: ToastAction;
 }
 
-export interface ToastInput {
-  readonly tone: ToastTone;
-  readonly message: string;
-  readonly action?: ToastAction;
+export interface Toast extends ToastInput {
+  readonly id: number;
 }
 
 interface ToastState {
