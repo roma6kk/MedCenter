@@ -7,7 +7,7 @@ const FOCUSABLE = `a[href], button:not([disabled]):not([${DIALOG_CLOSE_ATTRIBUTE
 
 export function useScrollLock(): void {
   useEffect(() => {
-    const previous: string = document.body.style.overflow;
+    const previous = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
     return () => {
       document.body.style.overflow = previous;

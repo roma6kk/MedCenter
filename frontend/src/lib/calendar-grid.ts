@@ -1,5 +1,5 @@
 import type { Locale } from '@/lib/i18n/locale';
-import { INTL_LOCALE, isDateKey, shiftDateKey } from './clinic-time';
+import { INTL_LOCALE, formatDateKey, isDateKey, shiftDateKey } from './clinic-time';
 
 export interface DayCell {
   readonly key: string;
@@ -31,23 +31,23 @@ export function daysInMonth(year: number, month: number): number {
 }
 
 export function formatTypedDate(key: string): string {
-  return isDateKey(key) ? key.split('-').reverse().join('.') : key;
+  return formatDateKey(key, 'numeric');
 }
 
 export function parseTypedDate(text: string): string | null {
-  const trimmed: string = text.trim();
+  const trimmed = text.trim();
   if (isDateKey(trimmed)) return trimmed;
   const match = TYPED_DATE.exec(trimmed);
   if (match === null) return null;
-  const key: string = `${match[3]}-${pad(Number(match[2]), 2)}-${pad(Number(match[1]), 2)}`;
+  const key = `${match[3]}-${pad(Number(match[2]), 2)}-${pad(Number(match[1]), 2)}`;
   return isDateKey(key) ? key : null;
 }
 
 export function addMonths(key: string, months: number): string {
   const { year, month, day } = partsOf(key);
-  const index: number = year * 12 + (month - 1) + months;
-  const nextYear: number = Math.floor(index / 12);
-  const nextMonth: number = (index % 12) + 1;
+  const index = year * 12 + (month - 1) + months;
+  const nextYear = Math.floor(index / 12);
+  const nextMonth = (index % 12) + 1;
   return keyOf({ year: nextYear, month: nextMonth, day: Math.min(day, daysInMonth(nextYear, nextMonth)) });
 }
 
@@ -63,11 +63,11 @@ export function clampKey(key: string, min?: string, max?: string): string {
 
 export function monthGrid(key: string): ReadonlyArray<ReadonlyArray<DayCell>> {
   const { year, month } = partsOf(key);
-  const first: string = keyOf({ year, month, day: 1 });
-  const start: string = shiftDateKey(first, -weekdayIndex(first));
+  const first = keyOf({ year, month, day: 1 });
+  const start = shiftDateKey(first, -weekdayIndex(first));
   return Array.from({ length: GRID_WEEKS }, (_, week) =>
     Array.from({ length: WEEK_DAYS }, (_, day): DayCell => {
-      const cell: string = shiftDateKey(start, week * WEEK_DAYS + day);
+      const cell = shiftDateKey(start, week * WEEK_DAYS + day);
       return { key: cell, inMonth: cell.startsWith(first.slice(0, 7)) };
     }),
   );
@@ -76,13 +76,13 @@ export function monthGrid(key: string): ReadonlyArray<ReadonlyArray<DayCell>> {
 const nameCache = new Map<string, ReadonlyArray<string>>();
 
 function names(kind: 'month' | 'weekdayShort' | 'weekdayLong', locale: Locale): ReadonlyArray<string> {
-  const cacheKey: string = `${kind}:${locale}`;
-  const cached: ReadonlyArray<string> | undefined = nameCache.get(cacheKey);
+  const cacheKey = `${kind}:${locale}`;
+  const cached = nameCache.get(cacheKey);
   if (cached !== undefined) return cached;
   const options: Intl.DateTimeFormatOptions =
     kind === 'month' ? { month: 'long', timeZone: 'UTC' } : { weekday: kind === 'weekdayShort' ? 'short' : 'long', timeZone: 'UTC' };
   const format = new Intl.DateTimeFormat(INTL_LOCALE[locale], options);
-  const created: ReadonlyArray<string> =
+  const created =
     kind === 'month'
       ? Array.from({ length: 12 }, (_, index) => format.format(new Date(Date.UTC(2024, index, 1, 12))))
       : Array.from({ length: WEEK_DAYS }, (_, index) => format.format(new Date(Date.UTC(2024, 0, 1 + index, 12))));

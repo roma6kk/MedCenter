@@ -10,7 +10,7 @@ export function buildQueryString(params: QueryParams = {}): string {
     if (value === undefined || value === null || value === '') return;
     search.set(key, String(value));
   });
-  const encoded: string = search.toString();
+  const encoded = search.toString();
   return encoded === '' ? '' : `?${encoded}`;
 }
 

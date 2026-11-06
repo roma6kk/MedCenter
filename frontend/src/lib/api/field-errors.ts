@@ -26,7 +26,7 @@ export function localizeFieldMessage(message: string): string {
 export function groupFieldErrors(details: ReadonlyArray<FieldErrorDetail> | undefined): Readonly<Record<string, ReadonlyArray<string>>> {
   const grouped: Record<string, string[]> = {};
   (details ?? []).forEach(({ field, message }) => {
-    const path: string = field.replace(/\[(\d+)\]/g, '.$1');
+    const path = field.replace(/\[(\d+)\]/g, '.$1');
     (grouped[path] ??= []).push(localizeFieldMessage(message));
   });
   return grouped;

@@ -52,11 +52,11 @@ export function emptyPage<TItem>(pageSize: number = DEFAULT_PAGE_SIZE): Paginate
 export function toPaginated<TItem>(value: PaginatedResponse<TItem> | ReadonlyArray<TItem>): PaginatedResponse<TItem> {
   if (!Array.isArray(value)) return value as PaginatedResponse<TItem>;
   const items = value as ReadonlyArray<TItem>;
-  const pageSize: number = Math.max(items.length, 1);
+  const pageSize = Math.max(items.length, 1);
   return { items, meta: { page: DEFAULT_PAGE, pageSize, totalItems: items.length, totalPages: items.length === 0 ? 0 : 1 } };
 }
 
 export function pageLabel(meta: PageMeta): { readonly current: number; readonly total: number } {
-  const total: number = Math.max(meta.totalPages, 1);
+  const total = Math.max(meta.totalPages, 1);
   return { current: Math.min(Math.max(meta.page, 1), total), total };
 }

@@ -14,7 +14,7 @@ interface LoginPageProps {
 
 export default async function LoginPage({ searchParams }: LoginPageProps): Promise<React.JSX.Element> {
   const { returnTo, error, reason } = (await searchParams) ?? {};
-  const safeReturnTo: string = sanitizeReturnTo(typeof returnTo === 'string' ? returnTo : returnTo?.[0], '');
+  const safeReturnTo = sanitizeReturnTo(typeof returnTo === 'string' ? returnTo : returnTo?.[0], '');
   const kind = parseLoginError(error);
   if (kind === null && !isSessionEnded(reason)) redirect(authorizeHref(safeReturnTo));
   return <LoginEntry returnTo={safeReturnTo} error={kind} />;

@@ -13,9 +13,9 @@ const SCOPE = 'launch patient/*.read patient/*.write user/*.read user/*.write';
 
 export async function GET(request: NextRequest): Promise<NextResponse> {
   const requested: string | null = request.nextUrl.searchParams.get('returnTo');
-  const sanitized: string = requested === null ? '' : sanitizeReturnTo(requested, '');
+  const sanitized = requested === null ? '' : sanitizeReturnTo(requested, '');
   const { verifier, challenge } = await createPkcePair();
-  const state: string = createState();
+  const state = createState();
 
   const url = new URL(`${resolveAuthBackendUrl()}/oauth/authorize`);
   url.searchParams.set('client_id', resolveOauthClientId());

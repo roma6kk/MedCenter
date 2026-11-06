@@ -17,6 +17,7 @@ export function rememberPatientNames(entries: ReadonlyArray<{ readonly patientId
     for (const entry of entries) all[entry.patientId] = entry.name;
     window.sessionStorage.setItem(STORAGE_KEY, JSON.stringify(all));
   } catch {
+    // storage blocked or full
   }
 }
 

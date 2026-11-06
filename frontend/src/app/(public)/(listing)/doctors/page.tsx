@@ -16,7 +16,7 @@ interface DoctorsPageProps {
 export default async function DoctorsPage({ searchParams }: DoctorsPageProps): Promise<React.JSX.Element> {
   const params: DirectoryParams = parseDirectoryParams((await searchParams) ?? {});
   const [first, options, services] = await Promise.all([loadDoctorPage(doctorQueryOf(params)), loadDoctors(optionQueryOf(params)), loadServices()]);
-  const lastPage: number = first.ok ? first.data.meta.totalPages : 0;
+  const lastPage = first.ok ? first.data.meta.totalPages : 0;
   const doctors = first.ok && params.page > lastPage && lastPage > 0 ? await loadDoctorPage(doctorQueryOf({ ...params, page: lastPage })) : first;
   return (
     <DoctorCatalog

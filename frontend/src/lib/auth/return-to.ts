@@ -8,7 +8,7 @@ function isUnsafePath(decoded: string): boolean {
   if (!decoded.startsWith('/')) return true;
   if (decoded.startsWith('//') || decoded.includes('\\') || decoded.includes('://')) return true;
   if (SCHEME_PATTERN.test(decoded.replace(/^\/+/, '')) || SCHEME_PATTERN.test(decoded)) return true;
-  const lower: string = decoded.toLowerCase();
+  const lower = decoded.toLowerCase();
   if (lower.startsWith('javascript:') || lower.startsWith('data:') || lower.startsWith('vbscript:')) return true;
   // eslint-disable-next-line no-control-regex
   if (/[\u0000-\u001F\u007F<>"'\s]/.test(decoded.split('?')[0].split('#')[0])) return true;
@@ -17,10 +17,10 @@ function isUnsafePath(decoded: string): boolean {
 
 export function sanitizeReturnTo(raw: unknown, fallback: string = FALLBACK): string {
   if (typeof raw !== 'string') return fallback;
-  const trimmed: string = raw.trim();
+  const trimmed = raw.trim();
   if (trimmed.length === 0) return fallback;
 
-  let decoded: string = trimmed;
+  let decoded = trimmed;
   try {
     decoded = decodeURIComponent(trimmed);
   } catch {

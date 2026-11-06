@@ -35,7 +35,7 @@ function sanitize(raw: unknown): CompleteEncounterForm | null {
   if (typeof raw !== 'object' || raw === null) return null;
   const source = raw as Row;
   const diagnoses = rowsOf(source['diagnoses']).map((row) => {
-    const status: string = text(row['verificationStatus']);
+    const status = text(row['verificationStatus']);
     return {
       code: text(row['code']),
       display: text(row['display']),
@@ -109,8 +109,8 @@ export function readDraft(encounterId: string, now: number = Date.now()): Encoun
     if (raw === null) return null;
     const parsed: unknown = JSON.parse(raw);
     if (typeof parsed !== 'object' || parsed === null) return null;
-    const savedAt: string = text((parsed as Row)['savedAt']);
-    const age: number = now - Date.parse(savedAt);
+    const savedAt = text((parsed as Row)['savedAt']);
+    const age = now - Date.parse(savedAt);
     const values: CompleteEncounterForm | null = sanitize((parsed as Row)['values']);
     if (values === null || Number.isNaN(age) || age > DRAFT_MAX_AGE_MS || isBlankForm(values)) {
       window.localStorage.removeItem(keyOf(encounterId));
@@ -133,8 +133,8 @@ export function writeDraft(encounterId: string, values: CompleteEncounterForm, n
       window.localStorage.removeItem(keyOf(encounterId));
       return { kind: 'blank' };
     }
-    const savedAt: string = now.toISOString();
-    const payload: string = JSON.stringify({ v: 1, savedAt, values: sanitize(values) });
+    const savedAt = now.toISOString();
+    const payload = JSON.stringify({ v: 1, savedAt, values: sanitize(values) });
     if (payload.length > MAX_BYTES) return { kind: 'failed' };
     window.localStorage.setItem(keyOf(encounterId), payload);
     prune(window.localStorage, now.getTime(), keyOf(encounterId));
@@ -148,6 +148,7 @@ export function clearDraft(encounterId: string): void {
   try {
     window.localStorage.removeItem(keyOf(encounterId));
   } catch {
+    // storage unavailable
   }
 }
 
@@ -156,5 +157,6 @@ export function clearAllDrafts(): void {
   try {
     storedEntries(window.localStorage).forEach((entry) => window.localStorage.removeItem(entry.key));
   } catch {
+    // storage unavailable
   }
 }

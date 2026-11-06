@@ -39,7 +39,7 @@ async function readJson(response: Response): Promise<unknown> {
 
 function buildHeaders(init: RequestInit): Headers {
   const headers = new Headers(init.headers);
-  const hasBody: boolean = init.body !== undefined && init.body !== null;
+  const hasBody = init.body !== undefined && init.body !== null;
   if (hasBody && !(init.body instanceof FormData) && !headers.has('Content-Type')) headers.set('Content-Type', 'application/json');
   if (!headers.has('Accept-Language')) headers.set('Accept-Language', useUiStore.getState().locale);
   const token: string | null = getAccessToken();

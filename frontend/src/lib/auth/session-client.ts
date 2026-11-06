@@ -81,7 +81,7 @@ const SESSION_REUSE_MARGIN_MS = 60_000;
 
 export async function ensureSession(now: number = Date.now()): Promise<void> {
   const { hydrated, accessToken, expiresAt } = useSessionStore.getState();
-  const isLive: boolean = accessToken !== null && expiresAt !== null && Date.parse(expiresAt) - now > SESSION_REUSE_MARGIN_MS;
+  const isLive = accessToken !== null && expiresAt !== null && Date.parse(expiresAt) - now > SESSION_REUSE_MARGIN_MS;
   if (hydrated && isLive) return;
   await loadSession();
 }

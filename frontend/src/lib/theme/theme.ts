@@ -21,6 +21,7 @@ export function storeThemeMode(mode: ThemeMode): void {
   try {
     window.localStorage.setItem(THEME_STORAGE_KEY, mode);
   } catch {
+    // storage blocked or full
   }
 }
 

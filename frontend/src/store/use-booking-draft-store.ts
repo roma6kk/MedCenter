@@ -41,7 +41,7 @@ function changesIntent(state: BookingDraft, patch: Partial<BookingDraft>): boole
 }
 
 function withIntentReset(state: BookingDraft, patch: Partial<BookingDraft>): Partial<BookingDraft> {
-  const resetsKey: boolean = changesIntent(state, patch) && !('idempotencyKey' in patch);
+  const resetsKey = changesIntent(state, patch) && !('idempotencyKey' in patch);
   return resetsKey ? { ...patch, idempotencyKey: null } : patch;
 }
 
@@ -68,7 +68,7 @@ export const useBookingDraftStore = create<BookingDraftStore>()(
       ensureIdempotencyKey: () => {
         const existing: string | null = get().idempotencyKey;
         if (existing !== null) return existing;
-        const created: string = crypto.randomUUID();
+        const created = crypto.randomUUID();
         set({ idempotencyKey: created });
         return created;
       },

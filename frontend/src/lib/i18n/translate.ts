@@ -13,6 +13,7 @@ const cache = new Map<string, Translate>();
 
 // A missing key renders as its path; the catalogue parity spec keeps the real keys complete.
 function ignoreMissingMessage(): void {
+  // intentionally silent
 }
 
 export function createTranslate(locale: Locale, namespace?: string): Translate {

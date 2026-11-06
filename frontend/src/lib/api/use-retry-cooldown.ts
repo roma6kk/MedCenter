@@ -8,7 +8,7 @@ export const DEFAULT_COOLDOWN_SECONDS = 5;
 
 export function cooldownSeconds(problem: ProblemDetails | null): number {
   if (problem === null || problem.errorCode !== 'RATE_LIMITED') return 0;
-  const asked: number = problem.retryAfter ?? DEFAULT_COOLDOWN_SECONDS;
+  const asked = problem.retryAfter ?? DEFAULT_COOLDOWN_SECONDS;
   return Number.isFinite(asked) && asked > 0 ? Math.min(Math.ceil(asked), MAX_COOLDOWN_SECONDS) : 0;
 }
 
@@ -19,7 +19,7 @@ interface Clock {
 }
 
 function armClock(problem: ProblemDetails | null): Clock {
-  const now: number = Date.now();
+  const now = Date.now();
   return { problem, now, until: now + cooldownSeconds(problem) * 1000 };
 }
 

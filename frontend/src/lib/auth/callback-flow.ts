@@ -17,13 +17,13 @@ export function buildState(state: string, returnTo: string | null): string {
 }
 
 function splitState(stateParam: string): { readonly state: string; readonly encodedReturnTo: string } {
-  const index: number = stateParam.indexOf(STATE_SEPARATOR);
+  const index = stateParam.indexOf(STATE_SEPARATOR);
   if (index === -1) return { state: stateParam, encodedReturnTo: '' };
   return { state: stateParam.slice(0, index), encodedReturnTo: stateParam.slice(index + 1) };
 }
 
 function returnToFrom(encodedReturnTo: string): string | null {
-  const sanitized: string = sanitizeReturnTo(encodedReturnTo, '');
+  const sanitized = sanitizeReturnTo(encodedReturnTo, '');
   return sanitized === '' ? null : sanitized;
 }
 

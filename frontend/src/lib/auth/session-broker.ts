@@ -59,7 +59,7 @@ export function readCachedSession(accessToken: string | undefined, now: number =
   if (accessToken === undefined || accessToken.length === 0) return null;
   const claims: JwtClaims | null = decodeJwtPayload(accessToken);
   if (claims === null || typeof claims.exp !== 'number') return null;
-  const expiresAtMs: number = claims.exp * 1000;
+  const expiresAtMs = claims.exp * 1000;
   if (expiresAtMs - now <= CACHED_TOKEN_MARGIN_MS) return null;
   const payload: SessionPayload = payloadFromAccessToken(accessToken, new Date(expiresAtMs).toISOString());
   return payload.role === null ? null : payload;
@@ -99,9 +99,9 @@ function purgeExpired(now: number): void {
 }
 
 export function rotateRefreshToken(refreshToken: string, env: EnvSource = process.env): Promise<RotationResult> {
-  const now: number = Date.now();
+  const now = Date.now();
   purgeExpired(now);
-  const key: string = createHash('sha256').update(refreshToken).digest('hex');
+  const key = createHash('sha256').update(refreshToken).digest('hex');
   const shared: GraceEntry | undefined = recentRotations.get(key);
   if (shared !== undefined) return shared.result;
 

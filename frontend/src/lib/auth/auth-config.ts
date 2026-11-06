@@ -27,7 +27,7 @@ function parseHttpOrigin(raw: string, variable: string): string {
 export function resolvePublicOrigin(env: EnvSource = process.env): string {
   const configured: string | undefined = firstNonEmpty(env['APP_PUBLIC_URL'], env['NEXT_PUBLIC_APP_URL']);
   if (configured === undefined) return DEFAULT_PUBLIC_ORIGIN;
-  const variable: string = firstNonEmpty(env['APP_PUBLIC_URL']) !== undefined ? 'APP_PUBLIC_URL' : 'NEXT_PUBLIC_APP_URL';
+  const variable = firstNonEmpty(env['APP_PUBLIC_URL']) !== undefined ? 'APP_PUBLIC_URL' : 'NEXT_PUBLIC_APP_URL';
   return parseHttpOrigin(configured, variable);
 }
 

@@ -34,7 +34,7 @@ export function isCalendarDate(value: string): boolean {
 export const BELARUS_PHONE_PATTERN = /^\+375\d{9}$/;
 
 export function normaliseBelarusPhone(input: string): string | null {
-  const compact: string = input.replace(/[\s\-()]/g, '');
+  const compact = input.replace(/[\s\-()]/g, '');
   return BELARUS_PHONE_PATTERN.test(compact) ? compact : null;
 }
 
@@ -92,7 +92,7 @@ export const completeEncounterSchema = z.object({
     .superRefine((diagnoses, context) => {
       const seen = new Set<string>();
       diagnoses.forEach((diagnosis, index) => {
-        const code: string = diagnosis.code.trim().toUpperCase();
+        const code = diagnosis.code.trim().toUpperCase();
         if (seen.has(code)) context.addIssue({ code: z.ZodIssueCode.custom, path: [index, 'code'] });
         seen.add(code);
       });

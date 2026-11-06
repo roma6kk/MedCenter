@@ -34,7 +34,7 @@ function runsOf(indexes: ReadonlyArray<number>): ReadonlyArray<readonly [number,
 export function describeWindows(windows: ReadonlyArray<WeeklyWindow>, dayLabel: (day: WeekDay) => string): ReadonlyArray<WindowGroup> {
   const byTimes = new Map<string, number[]>();
   WEEK_ORDER.forEach((day, index) => {
-    const times: string = timesOf(day, windows);
+    const times = timesOf(day, windows);
     if (times === '') return;
     byTimes.set(times, [...(byTimes.get(times) ?? []), index]);
   });
@@ -42,9 +42,9 @@ export function describeWindows(windows: ReadonlyArray<WeeklyWindow>, dayLabel: 
     .sort(([, a], [, b]) => (a[0] ?? 0) - (b[0] ?? 0))
     .map(([times, indexes]) => {
       const parts: ReadonlyArray<string> = runsOf(indexes).flatMap(([from, to]): ReadonlyArray<string> => {
-        const first: string = dayLabel(WEEK_ORDER[from] as WeekDay);
+        const first = dayLabel(WEEK_ORDER[from] as WeekDay);
         if (from === to) return [first];
-        const last: string = dayLabel(WEEK_ORDER[to] as WeekDay);
+        const last = dayLabel(WEEK_ORDER[to] as WeekDay);
         return to - from === 1 ? [first, last] : [`${first}–${last}`];
       });
       return { days: parts.join(', '), times };

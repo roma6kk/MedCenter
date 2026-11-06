@@ -15,7 +15,7 @@ const DENIED = 'access_denied';
 const UNAVAILABLE = 'temporarily_unavailable';
 
 function failure(code: string = DENIED, returnTo: string | null = null): NextResponse {
-  const suffix: string = returnTo === null ? '' : `&returnTo=${encodeURIComponent(returnTo)}`;
+  const suffix = returnTo === null ? '' : `&returnTo=${encodeURIComponent(returnTo)}`;
   const response: NextResponse = NextResponse.redirect(publicUrl(`/login?error=${code}${suffix}`));
   clearPkceCookie(response);
   return response;
@@ -23,7 +23,7 @@ function failure(code: string = DENIED, returnTo: string | null = null): NextRes
 
 function successTarget(tokens: TokenSet, input: CallbackInput): string {
   const { role } = buildSessionPayload(tokens);
-  const requested: string = input.returnTo ?? (role === null ? FALLBACK_LANDING : ROLE_LANDING[role]);
+  const requested = input.returnTo ?? (role === null ? FALLBACK_LANDING : ROLE_LANDING[role]);
   return resolvePostLoginPath(role, requested);
 }
 

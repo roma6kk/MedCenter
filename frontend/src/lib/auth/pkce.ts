@@ -24,7 +24,7 @@ export async function challengeFor(verifier: string): Promise<string> {
 }
 
 export async function createPkcePair(): Promise<PkcePair> {
-  const verifier: string = randomToken(VERIFIER_BYTES);
+  const verifier = randomToken(VERIFIER_BYTES);
   return { verifier, challenge: await challengeFor(verifier) };
 }
 

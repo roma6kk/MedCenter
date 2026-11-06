@@ -20,7 +20,7 @@ function escapeText(value: string): string {
 }
 
 function utf8Length(char: string): number {
-  const code: number = char.codePointAt(0) ?? 0;
+  const code = char.codePointAt(0) ?? 0;
   if (code < 0x80) return 1;
   if (code < 0x800) return 2;
   return code < 0x10000 ? 3 : 4;
@@ -31,8 +31,8 @@ function fold(line: string): string {
   let current = '';
   let octets = 0;
   for (const char of line) {
-    const size: number = utf8Length(char);
-    const limit: number = parts.length === 0 ? MAX_LINE_OCTETS : MAX_LINE_OCTETS - 1;
+    const size = utf8Length(char);
+    const limit = parts.length === 0 ? MAX_LINE_OCTETS : MAX_LINE_OCTETS - 1;
     if (octets + size > limit) {
       parts.push(current);
       current = '';
@@ -74,7 +74,7 @@ export function buildIcs(event: IcsEvent): string {
 }
 
 export function downloadIcs(fileName: string, content: string): void {
-  const url: string = URL.createObjectURL(new Blob([content], { type: 'text/calendar;charset=utf-8' }));
+  const url = URL.createObjectURL(new Blob([content], { type: 'text/calendar;charset=utf-8' }));
   const link: HTMLAnchorElement = document.createElement('a');
   link.href = url;
   link.download = fileName;

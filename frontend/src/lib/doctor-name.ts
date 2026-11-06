@@ -15,6 +15,6 @@ export function formatDoctorName({ lastName, firstName, middleName }: DoctorName
 }
 
 export function doctorLabel(doctor: DoctorNameParts & { readonly name: string }): string {
-  const fromParts: string = formatDoctorName(doctor);
+  const fromParts = formatDoctorName(doctor);
   return fromParts === '' ? normalizeDoctorName(doctor.name) : fromParts;
 }

@@ -30,7 +30,7 @@ const formatters = new Map<string, Intl.DateTimeFormat>();
 
 function formatterFor(kind: FormatKind, locale: Locale): Intl.DateTimeFormat {
   const cacheKey = `${kind}:${locale}`;
-  const cached: Intl.DateTimeFormat | undefined = formatters.get(cacheKey);
+  const cached = formatters.get(cacheKey);
   if (cached !== undefined) return cached;
   const created = new Intl.DateTimeFormat(INTL_LOCALE[locale], FORMAT_OPTIONS[kind]);
   formatters.set(cacheKey, created);
@@ -46,7 +46,7 @@ const numberFormatters = new Map<Locale, Intl.NumberFormat>();
 // No digit grouping: a clinical value must not become «1 234,5».
 export function formatNumber(value: number, locale: Locale = currentLocale()): string {
   if (!Number.isFinite(value)) return String(value);
-  let formatter: Intl.NumberFormat | undefined = numberFormatters.get(locale);
+  let formatter = numberFormatters.get(locale);
   if (formatter === undefined) {
     formatter = new Intl.NumberFormat(INTL_LOCALE[locale], { maximumFractionDigits: 6, useGrouping: false });
     numberFormatters.set(locale, formatter);
@@ -123,8 +123,8 @@ export function ageInYears(birthDate: string, today: string = clinicDateKey()): 
   if (!isDateKey(birthDate) || !isDateKey(today)) return null;
   const [birthYear, birthMonth, birthDay] = birthDate.split('-').map(Number) as [number, number, number];
   const [year, month, day] = today.split('-').map(Number) as [number, number, number];
-  const hadBirthday: boolean = month > birthMonth || (month === birthMonth && day >= birthDay);
-  const age: number = year - birthYear - (hadBirthday ? 0 : 1);
+  const hadBirthday = month > birthMonth || (month === birthMonth && day >= birthDay);
+  const age = year - birthYear - (hadBirthday ? 0 : 1);
   return age >= 0 ? age : null;
 }
 
@@ -187,14 +187,10 @@ export interface SlotDay<TSlot> {
 
 export function groupSlotsByDay<TSlot extends { readonly start: string }>(slots: ReadonlyArray<TSlot>): ReadonlyArray<SlotDay<TSlot>> {
   const byDay = new Map<string, TSlot[]>();
-  slots
-    .map((slot) => ({ slot, startMs: Date.parse(slot.start) }))
-    .sort((a, b) => a.startMs - b.startMs)
-    .forEach(({ slot, startMs }) => {
-      const day: string = clinicDateKey(new Date(startMs));
-      const bucket: TSlot[] | undefined = byDay.get(day);
-      if (bucket === undefined) byDay.set(day, [slot]);
-      else bucket.push(slot);
-    });
+  const sorted = slots.map((slot) => ({ slot, startMs: Date.parse(slot.start) })).sort((a, b) => a.startMs - b.startMs);
+  for (const { slot, startMs } of sorted) {
+    const day = clinicDateKey(new Date(startMs));
+    byDay.set(day, [...(byDay.get(day) ?? []), slot]);
+  }
   return [...byDay.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([day, daySlots]) => ({ day, slots: daySlots }));
 }

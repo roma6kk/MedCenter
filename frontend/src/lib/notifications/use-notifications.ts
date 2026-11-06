@@ -22,7 +22,7 @@ function useIsPatientSession(): boolean {
 }
 
 export function useUnreadCount(): UseQueryResult<number> {
-  const enabled: boolean = useIsPatientSession();
+  const enabled = useIsPatientSession();
   return useQuery({
     queryKey: queryKeys.unreadCount,
     queryFn: () => fetchUnreadCount(),
@@ -35,7 +35,7 @@ export function useUnreadCount(): UseQueryResult<number> {
 }
 
 export function useNotifications(params: NotificationListParams = {}): UseQueryResult<PaginatedResponse<NotificationItem>> {
-  const enabled: boolean = useIsPatientSession();
+  const enabled = useIsPatientSession();
   return useQuery({
     queryKey: queryKeys.notifications({ ...params }),
     queryFn: () => fetchNotifications(params),

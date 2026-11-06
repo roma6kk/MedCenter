@@ -8,6 +8,7 @@ export function setFlash(kind: FlashKind): void {
   try {
     window.sessionStorage.setItem(FLASH_KEY, kind);
   } catch {
+    // storage blocked or full
   }
 }
 

@@ -20,6 +20,7 @@ export function storeLocale(locale: Locale): void {
   try {
     window.localStorage.setItem(LOCALE_STORAGE_KEY, locale);
   } catch {
+    // storage blocked or full
   }
 }
 

@@ -51,13 +51,13 @@ function parseDetails(value: unknown): ReadonlyArray<FieldErrorDetail> | undefin
 }
 
 export function parseRetryAfter(raw: string | null | undefined, now: number = Date.now()): number | undefined {
-  const value: string = raw?.trim() ?? '';
+  const value = raw?.trim() ?? '';
   if (value === '') return undefined;
   if (/^-?\d+(\.\d+)?$/.test(value)) {
     const seconds = Number(value);
     return seconds >= 0 ? Math.ceil(seconds) : undefined;
   }
-  const date: number = Date.parse(value);
+  const date = Date.parse(value);
   return Number.isNaN(date) ? undefined : Math.max(0, Math.ceil((date - now) / 1000));
 }
 

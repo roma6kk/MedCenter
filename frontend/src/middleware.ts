@@ -6,7 +6,7 @@ import { SESSION_MARKER_COOKIE } from '@/lib/auth/session-cookies';
 
 // Redirects to the configured PUBLIC origin: behind a container request.nextUrl carries 0.0.0.0. Role gating is client-side, BFF guards are the authority.
 export function middleware(request: NextRequest): NextResponse {
-  const hasSession: boolean = request.cookies.has(SESSION_MARKER_COOKIE);
+  const hasSession = request.cookies.has(SESSION_MARKER_COOKIE);
   const { pathname, search } = request.nextUrl;
   if (!shouldRedirectToLogin(pathname, hasSession)) return NextResponse.next();
 
