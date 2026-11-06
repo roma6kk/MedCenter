@@ -252,8 +252,13 @@ function toApiStatus(upstreamStatus: number | undefined, timedOut: boolean): Htt
   return HttpStatus.BAD_GATEWAY;
 }
 
+const ERROR_CODE_BY_STATUS: Partial<Record<HttpStatus, ErrorCode>> = {
+  [HttpStatus.NOT_FOUND]: 'NOT_FOUND',
+  [HttpStatus.CONFLICT]: 'CONFLICT',
+};
+
 function toErrorCode(status: HttpStatus): ErrorCode {
-  return status === HttpStatus.NOT_FOUND ? 'NOT_FOUND' : status === HttpStatus.CONFLICT ? 'CONFLICT' : 'INTERNAL';
+  return ERROR_CODE_BY_STATUS[status] ?? 'INTERNAL';
 }
 
 const CLIENT_MESSAGES: Partial<Record<HttpStatus, string>> = {
