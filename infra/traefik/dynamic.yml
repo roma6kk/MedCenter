@@ -1,21 +1,4 @@
-# Traefik edge routing (file provider) — ADR-009: Traefik performs NO token
-# validation; it terminates TLS, applies security headers and passes the
-# `x-request-id` header through. Every BFF validates JWT/scopes/RBAC itself.
-#
-# Service ports: auth 3001, practitioner 3002, catalog 3003, patient 3004,
-# appointment 3005, notification 3006, encounter 3007, analytics 3008.
-# Every backend is the docker-compose container of the same name on the `backend`
-# network (`http://<service>:<port>`); a router whose container is not running
-# answers 502. The web app (Next.js) is NOT routed here: it is published on
-# host port 3000 and proxies `/api/v1/*` to this edge (see docker-compose.yml).
-# Every `/api/v1/**` controller route of the 8 services must map to exactly one
-# router below; the mapping was audited route by route (tasks/TASK-001/coder-stack-fixes-report.md).
-#
-# HAPI FHIR has NO authentication and is not a BFF, so ADR-009 does not cover it:
-# the edge publishes exactly one HAPI endpoint, `GET /fhir/metadata`
-# (CapabilityStatement, NFR-010; specs/api-designer-spec.md). Every other
-# `/fhir/**` path and method gets Traefik's own 404. BFFs reach HAPI directly at
-# http://hapi:8080/fhir on the compose network.
+# HAPI has no authentication: the edge publishes only GET /fhir/metadata, every other /fhir/** path gets a 404.
 
 http:
   middlewares:
@@ -25,30 +8,23 @@ http:
         stsIncludeSubdomains: true
         contentTypeNosniff: true
         frameDeny: true
-        # No `browserXssFilter`: it emits the deprecated `X-XSS-Protection: 1; mode=block`
-        # (OWASP: omit it or send 0), and modern browsers ignore the header anyway.
+        # No `browserXssFilter`: it emits the deprecated `X-XSS-Protection: 1; mode=block`.
         referrerPolicy: strict-origin-when-cross-origin
-        # Only framing is restricted: the auth-service login page (HTML) must keep
-        # working, so no `default-src` here. The web client sets its own full CSP.
+        # Framing only: the auth-service login page must keep working; the web client sets its own full CSP.
         contentSecurityPolicy: "frame-ancestors 'none'"
         permissionsPolicy: camera=(), microphone=(), geolocation=(), payment=()
-        # An empty value deletes the header: hides the `X-Powered-By: Express`
-        # fingerprint the BFFs send.
+        # An empty value deletes the header (hides `X-Powered-By: Express`).
         customResponseHeaders:
           X-Powered-By: ''
 
-    # The one public route to HAPI has no BFF rate limiter in front of it: about 60 requests a
-    # minute per client address (the address Traefik sees; browsers and tools reach it directly).
-    # `npm run stack:wait` polls every 2.5 s (24 a minute), well under it; a 429 only makes it poll on.
+    # The public HAPI route has no BFF rate limiter in front of it.
     fhir-metadata-limit:
       rateLimit:
         average: 60
         period: 1m
         burst: 20
 
-    # An empty request header is removed: a client's `Cache-Control: no-cache` must not make
-    # HAPI rebuild its large CapabilityStatement on every call; the public route always gets
-    # HAPI's own cached answer.
+    # Dropping the client's cache headers keeps HAPI from rebuilding its large CapabilityStatement per call.
     fhir-metadata-cache:
       headers:
         customRequestHeaders:
@@ -160,9 +136,6 @@ http:
       service: notification-service
       middlewares: [security-headers]
 
-    # API §10: Swagger UI `/api/docs/<service>` and its `<service>-json`/`-yaml` documents, one
-    # router per BFF. They answer 404 from the service itself unless SWAGGER_ENABLED=true there.
-    # Only these exact prefixes are routed; `/fhir/**` stays closed.
     docs-auth:
       rule: PathPrefix(`/api/docs/auth`)
       priority: 70

@@ -1,20 +1,6 @@
 #!/bin/sh
-# One-off migration of the data in the ANONYMOUS volumes of an older stack into
-# the NAMED volumes (pgdata, redisdata, rabbitmqdata) that docker-compose.yml now
-# declares. Without it the first `docker compose up` after the change creates
-# empty named volumes and the old data (users, HAPI clinical store, read-model)
-# stays orphaned in the old anonymous volumes.
-#
-#   docker compose stop postgres redis rabbitmq      # NOT `down`: keeps the containers
-#   sh infra/docker/migrate-anonymous-volumes.sh     # copies old volume -> <project>_<volume>
-#   docker compose up -d --build                     # the new stack now finds the data
-#
-# The project name defaults to `medcenter` (the directory name); pass another one
-# as the first argument or via COMPOSE_PROJECT_NAME. The script
-#   - refuses to copy from a container that is still running (inconsistent copy),
-#   - never overwrites a named volume that already holds data,
-#   - only reads the old volume (mounted read-only) and removes nothing.
-# The old anonymous volumes stay until you `docker volume rm` them yourself.
+# One-off copy of an older stack's anonymous volumes into the named volumes of docker-compose.yml.
+# Usage: docker compose stop postgres redis rabbitmq (not `down`), then: sh infra/docker/migrate-anonymous-volumes.sh [project]
 set -eu
 
 PROJECT="${1:-${COMPOSE_PROJECT_NAME:-medcenter}}"
@@ -52,8 +38,7 @@ migrate_volume() {
       return 0
     fi
   else
-    # Same labels compose puts on a volume it creates itself; without them compose
-    # warns that the volume "was not created by Docker Compose".
+    # The labels compose puts on its own volumes; without them compose warns the volume was not created by it.
     docker volume create \
       --label "com.docker.compose.project=${PROJECT}" \
       --label "com.docker.compose.volume=${volume}" \

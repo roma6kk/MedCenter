@@ -1,9 +1,4 @@
-# Build context for the NestJS images (context = repository root,
-# infra/docker/nest-service.Dockerfile). Allowlist: only the Nx workspace
-# sources reach the daemon, so docs, PDFs/DOCX, labs/, tmp/, logs/, .worktrees/,
-# .git, .nx, dist/, frontend/ and every .env file stay out by construction.
-# The web image uses its own context (frontend/) and ignore file
-# (infra/docker/web.Dockerfile.dockerignore).
+# Allowlist for the NestJS images: only the Nx workspace sources reach the daemon.
 *
 !package.json
 !package-lock.json
@@ -12,7 +7,6 @@
 !apps/
 !libs/
 
-# Never send nested artefacts or secrets, even from inside the allowlisted dirs.
 **/node_modules
 **/dist
 **/.nx
