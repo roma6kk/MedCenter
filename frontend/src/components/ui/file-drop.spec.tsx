@@ -34,8 +34,9 @@ function Harness({ onChange }: { readonly onChange?: (file: File | null) => void
 }
 
 const input = (): HTMLInputElement => screen.getByLabelText('Скан', { selector: 'input' }) as HTMLInputElement;
+const zone = (): Element => screen.getByText('Перетащите файл сюда или').closest('div[class*="border-dashed"]')!;
 const drop = (file: File): void => {
-  fireEvent.drop(screen.getByText('Перетащите файл сюда или').closest('div[class*="border-dashed"]')!, { dataTransfer: { files: [file] } });
+  fireEvent.drop(zone(), { dataTransfer: { files: [file] } });
 };
 
 describe('FileDrop', () => {
@@ -109,14 +110,14 @@ describe('FileDrop', () => {
 
   it('should mark the zone while a file is dragged over it', () => {
     render(<Harness />);
-    const zone = screen.getByText('Перетащите файл сюда или').closest('div[class*="border-dashed"]')!;
+    const dropZone = zone();
 
-    fireEvent.dragOver(zone);
-    expect(zone).toHaveAttribute('data-dragging', 'true');
+    fireEvent.dragOver(dropZone);
+    expect(dropZone).toHaveAttribute('data-dragging', 'true');
     expect(screen.getByText('Отпустите файл, чтобы приложить')).toBeInTheDocument();
 
-    fireEvent.dragLeave(zone);
-    expect(zone).not.toHaveAttribute('data-dragging');
+    fireEvent.dragLeave(dropZone);
+    expect(dropZone).not.toHaveAttribute('data-dragging');
   });
 });
 
