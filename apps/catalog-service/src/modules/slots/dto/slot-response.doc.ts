@@ -10,7 +10,6 @@ import type {
 } from './doctor-schedule-response.dto';
 import type { DoctorSlotsResponseDto } from './doctor-slots-response.dto';
 
-/** Documentation class of `SlotResponseDto` (API §5.2.8). */
 export class SlotResponseDoc implements SlotResponseDto {
   @ApiProperty({ description: 'Slot id (deterministic sha256)', example: '3f2a9c0d' })
   id!: string;
@@ -34,7 +33,6 @@ export class SlotResponseDoc implements SlotResponseDto {
   serviceId?: string;
 }
 
-/** Documentation class of `WeeklyWindowView`: one weekly window in clinic time. */
 export class WeeklyWindowViewDoc implements WeeklyWindowView {
   @ApiProperty({ enum: ['MO', 'TU', 'WE', 'TH', 'FR', 'SA', 'SU'] })
   dayOfWeek!: 'MO' | 'TU' | 'WE' | 'TH' | 'FR' | 'SA' | 'SU';
@@ -46,7 +44,6 @@ export class WeeklyWindowViewDoc implements WeeklyWindowView {
   endTime!: string;
 }
 
-/** Documentation class of `ScheduleSummaryDto`. */
 export class ScheduleSummaryDoc implements ScheduleSummaryDto {
   @ApiProperty({ description: 'Schedule id (FHIR id)', example: '2001' })
   id!: string;
@@ -79,7 +76,6 @@ export class ScheduleSummaryDoc implements ScheduleSummaryDto {
   comment?: string;
 }
 
-/** `PaginatedResponseDto<ScheduleSummaryDto>` (API §0, §5.2.2). */
 export class SchedulePageDoc {
   @ApiProperty({ type: [ScheduleSummaryDoc] })
   items!: ScheduleSummaryDoc[];
@@ -88,7 +84,6 @@ export class SchedulePageDoc {
   meta!: PageMetaDoc;
 }
 
-/** Documentation class of `DoctorScheduleSlotDto`: a slot plus a clinic-time label. */
 export class DoctorScheduleSlotDoc extends SlotResponseDoc implements DoctorScheduleSlotDto {
   @ApiProperty({
     description: 'Ready-to-render clinic-time label',
@@ -97,7 +92,6 @@ export class DoctorScheduleSlotDoc extends SlotResponseDoc implements DoctorSche
   label!: string;
 }
 
-/** Documentation class of `DoctorScheduleResponseDto` (API §5.2.7). */
 export class DoctorScheduleResponseDoc implements DoctorScheduleResponseDto {
   @ApiProperty({ description: 'PractitionerRole id of the signed-in doctor', example: '1042' })
   practitionerRoleId!: string;
@@ -125,7 +119,6 @@ export class DoctorScheduleResponseDoc implements DoctorScheduleResponseDto {
   truncated?: true;
 }
 
-/** Documentation class of `DoctorSlotsResponseDto` (API §5.2.8). */
 export class DoctorSlotsResponseDoc implements DoctorSlotsResponseDto {
   @ApiProperty({ description: 'Practitioner id', example: '1042' })
   doctorId!: string;

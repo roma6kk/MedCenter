@@ -23,7 +23,6 @@ function findExtension(schedule: FhirResource, url: string): Extension | undefin
   return (extensions as readonly Extension[]).find((extension) => extension['url'] === url);
 }
 
-/** Id of the first `actor` reference of the given type, e.g. `Location/room-1` → `room-1`. */
 function actorId(schedule: FhirResource, resourceType: string): string | undefined {
   const actors = Array.isArray(schedule['actor']) ? (schedule['actor'] as readonly Extension[]) : [];
   const prefix = `${resourceType}/`;
@@ -49,7 +48,6 @@ function isWeeklyWindow(value: unknown): value is WeeklyWindowView {
   );
 }
 
-/** Weekly windows are a JSON array inside a valueString; anything unreadable yields no windows. */
 function readWindows(schedule: FhirResource): WeeklyWindowView[] {
   const raw = findExtension(schedule, WEEKLY_WINDOWS_EXT)?.['valueString'];
   if (typeof raw !== 'string') {
@@ -59,8 +57,6 @@ function readWindows(schedule: FhirResource): WeeklyWindowView[] {
   try {
     parsed = JSON.parse(raw);
   } catch (error: unknown) {
-    // A malformed stored value must not fail the whole schedule view, but the
-    // doctor would see a schedule without windows, so leave a trace to find it.
     logger.warn(
       { scheduleId: schedule.id, err: error instanceof Error ? error.message : String(error) },
       'Weekly windows of the schedule are not valid JSON; showing none',
@@ -81,7 +77,6 @@ function stringField<K extends string>(key: K, value: unknown): Partial<Record<K
   return typeof value === 'string' && value !== '' ? ({ [key]: value } as Record<K, string>) : {};
 }
 
-/** FHIR `Schedule` (with Lifeline extensions) → the doctor-facing summary of API §5.2.7. */
 export function toScheduleSummaryDto(schedule: FhirResource): ScheduleSummaryDto {
   const horizon = readHorizon(schedule);
   const duration = findExtension(schedule, SLOT_DURATION_EXT)?.['valueInteger'];

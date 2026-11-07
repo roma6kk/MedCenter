@@ -1,9 +1,5 @@
 import type { CacheStore } from '../redis-cache.service';
 
-/**
- * Test-only `CacheStore` (unit and e2e suites). TTLs are ignored: every test
- * builds its own store, so nothing outlives the case that wrote it.
- */
 export class InMemoryCacheStore implements CacheStore {
   readonly entries = new Map<string, string>();
 

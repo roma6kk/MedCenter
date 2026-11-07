@@ -42,7 +42,6 @@ describe('SlotGeneratorService', () => {
   });
 
   it('should not duplicate slots that already exist', async () => {
-    // All six planned starts of Monday 2026-11-02 (09:00-12:00 Minsk = 06:00Z-09:00Z, 30 min) already exist.
     const existingStarts = [0, 1, 2, 3, 4, 5].map(
       (i) => new Date(Date.parse('2026-11-02T06:00:00.000Z') + i * 30 * 60_000).toISOString(),
     );
@@ -89,7 +88,6 @@ describe('SlotGeneratorService', () => {
     const starts = (bundle['entry'] as Array<{ resource: { start: string } }>).map(
       (entry) => entry.resource.start,
     );
-    // 60-minute window / 20-minute slots = 3 slots at :00 :20 :40 (09:40 Minsk = 06:40Z).
     expect(starts).toHaveLength(3);
     expect(starts[2]).toBe('2026-11-02T06:40:00.000Z');
   });
@@ -125,12 +123,10 @@ describe('SlotGeneratorService', () => {
   it('should generate free slots for an in-range weekly window', async () => {
     fhirClient.search.mockResolvedValue({ entry: [] });
 
-    // 2026-11-02 is a Monday.
     const result = await generator.generate(scheduleId, { from: '2026-11-02', to: '2026-11-02' }, ACTOR);
 
     expect(result.generated).toBe(6);
     expect(result.skipped).toBe(0);
-    // One batch of slots, then the AuditEvent transaction.
     expect(fhirClient.batch).toHaveBeenCalledTimes(2);
     const bundle = fhirClient.batch.mock.calls[0][0];
     expect(bundle['type']).toBe('batch');
@@ -174,7 +170,6 @@ describe('SlotGeneratorService', () => {
   });
 
   it('should partially regenerate: skip existing slots, batch only new days', async () => {
-    // Monday 2026-11-02 fully generated (06:00Z..08:30Z); the range now reaches Monday 2026-11-09.
     const existingStarts = [0, 1, 2, 3, 4, 5].map(
       (i) => new Date(Date.parse('2026-11-02T06:00:00.000Z') + i * 30 * 60_000).toISOString(),
     );

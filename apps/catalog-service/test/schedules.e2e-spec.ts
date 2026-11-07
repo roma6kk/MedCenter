@@ -5,11 +5,6 @@ import request from 'supertest';
 import { AppModule } from '../src/app/app.module';
 import { applyE2eEnv } from './e2e-env';
 
-/**
- * Admin schedule flow (API §5.2). Exercises routing + RBAC without a live HAPI:
- * an unauthenticated call and a non-admin call must be rejected before the
- * FHIR client is ever touched.
- */
 describe('Schedules (e2e)', () => {
   let app: INestApplication;
 

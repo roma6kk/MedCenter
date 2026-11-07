@@ -10,7 +10,6 @@ import { ServicesService } from './services.service';
 const ACTOR = { sub: 'admin-1', requestId: 'req-1' };
 const LOOKUP = { resourceType: 'Parameters', parameter: [{ name: 'display', valueString: 'Консультация' }] };
 
-/** FHIR JSON forbids an empty string, so no written element may be one. */
 function emptyStrings(value: unknown): string[] {
   if (value === '') {
     return [''];

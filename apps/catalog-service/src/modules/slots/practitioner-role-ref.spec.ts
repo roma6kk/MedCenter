@@ -27,10 +27,8 @@ function errorCodeOf(claims: JwtClaims): unknown {
 
 describe('requirePractitionerRoleId', () => {
   it('should return the PractitionerRole id when fhirUser is a PractitionerRole reference', () => {
-    // Act
     const roleId = requirePractitionerRoleId(doctorClaims('PractitionerRole/role-7'));
 
-    // Assert
     expect(roleId).toBe('role-7');
   });
 
@@ -43,7 +41,6 @@ describe('requirePractitionerRoleId', () => {
   });
 
   it('should fail closed with COMPARTMENT_VIOLATION when fhirUser smuggles extra references', () => {
-    // A comma would turn the FHIR `actor` search into an OR over other roles.
     expect(errorCodeOf(doctorClaims('PractitionerRole/role-7,PractitionerRole/role-8'))).toBe(
       'COMPARTMENT_VIOLATION',
     );
@@ -54,7 +51,6 @@ describe('requirePractitionerRoleId', () => {
   });
 
   it('should fail closed with COMPARTMENT_VIOLATION when the id is only dots', () => {
-    // `PractitionerRole/..` would widen the `actor` search to an unrelated path.
     expect(errorCodeOf(doctorClaims('PractitionerRole/..'))).toBe('COMPARTMENT_VIOLATION');
   });
 });

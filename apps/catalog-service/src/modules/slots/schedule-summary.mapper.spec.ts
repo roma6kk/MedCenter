@@ -9,7 +9,6 @@ import { toScheduleSummaryDto } from './schedule-summary.mapper';
 
 describe('toScheduleSummaryDto', () => {
   it('should map actors, horizon, duration and weekly windows when every extension is present', () => {
-    // Arrange
     const schedule = {
       resourceType: 'Schedule',
       id: 'sched-1',
@@ -27,10 +26,8 @@ describe('toScheduleSummaryDto', () => {
       ],
     };
 
-    // Act
     const dto = toScheduleSummaryDto(schedule);
 
-    // Assert
     expect(dto).toEqual({
       id: 'sched-1',
       isActive: true,
@@ -46,22 +43,18 @@ describe('toScheduleSummaryDto', () => {
   });
 
   it('should fall back to empty windows and omit unknown fields when the extensions are missing or malformed', () => {
-    // Arrange
     const schedule = {
       resourceType: 'Schedule',
       id: 'sched-2',
       extension: [{ url: WEEKLY_WINDOWS_EXT, valueString: '{not json' }],
     };
 
-    // Act
     const dto = toScheduleSummaryDto(schedule);
 
-    // Assert
     expect(dto).toEqual({ id: 'sched-2', isActive: true, windows: [] });
   });
 
   it('should log a warning with the schedule id when the stored windows are not valid JSON', () => {
-    // Arrange
     const warn = jest.spyOn(Logger.prototype, 'warn').mockImplementation();
     const schedule = {
       resourceType: 'Schedule',
@@ -69,16 +62,13 @@ describe('toScheduleSummaryDto', () => {
       extension: [{ url: WEEKLY_WINDOWS_EXT, valueString: '{not json' }],
     };
 
-    // Act
     toScheduleSummaryDto(schedule);
 
-    // Assert — the doctor sees a schedule without windows; the log is the only trace.
     expect(warn).toHaveBeenCalledWith(expect.objectContaining({ scheduleId: 'sched-2' }), expect.any(String));
     warn.mockRestore();
   });
 
   it('should drop window entries that are not well-formed weekly windows', () => {
-    // Arrange
     const schedule = {
       resourceType: 'Schedule',
       id: 'sched-3',
@@ -91,10 +81,8 @@ describe('toScheduleSummaryDto', () => {
       ],
     };
 
-    // Act
     const dto = toScheduleSummaryDto(schedule);
 
-    // Assert
     expect(dto.isActive).toBe(false);
     expect(dto.windows).toEqual([{ dayOfWeek: 'TU', startTime: '10:00', endTime: '11:00' }]);
   });

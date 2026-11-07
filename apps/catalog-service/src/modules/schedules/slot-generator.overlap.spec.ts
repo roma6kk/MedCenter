@@ -29,7 +29,6 @@ function slot(start: string, minutes: number, status = 'free'): { resource: Fhir
   };
 }
 
-/** Slots of the first (slot) batch, as started instants. */
 function writtenStarts(fhirClient: jest.Mocked<FhirClient>): string[] {
   const bundle = fhirClient.batch.mock.calls[0]?.[0] as unknown as { entry: Array<{ resource: { start: string } }> };
   return bundle.entry.map((entry) => entry.resource.start);
@@ -50,7 +49,6 @@ describe('SlotGeneratorService', () => {
 
   describe('a planned slot that overlaps a slot the schedule already has', () => {
     it('should be skipped when the duration was changed from 30 to 20 minutes, so no time is offered twice', async () => {
-      // The old 30-minute grid of 09:00-12:00 Minsk (06:00Z-09:00Z).
       fhirClient.search.mockResolvedValue({
         entry: [0, 1, 2, 3, 4, 5].map((i) => slot(new Date(Date.parse('2026-11-02T06:00:00Z') + i * 30 * 60_000).toISOString(), 30)),
       });
@@ -58,7 +56,6 @@ describe('SlotGeneratorService', () => {
 
       const result = await generator.generate(SCHEDULE_ID, MONDAY, ACTOR);
 
-      // 9 planned 20-minute slots; every one of them lies inside an old slot or crosses one.
       expect(result.generated).toBe(0);
       expect(result.skipped).toBe(9);
       expect(fhirClient.batch).not.toHaveBeenCalled();
@@ -69,12 +66,10 @@ describe('SlotGeneratorService', () => {
 
       const result = await generator.generate(SCHEDULE_ID, MONDAY, ACTOR);
 
-      // 06:00Z..09:00Z planned; the old slot starts at 09:00Z, which touches 08:30-09:00 but does not overlap it.
       expect(result.generated).toBe(6);
     });
 
     it('should not be written when it crosses the end of an old slot', async () => {
-      // Old slot 08:40Z-09:10Z overlaps the planned 08:30Z-09:00Z only.
       fhirClient.search.mockResolvedValue({ entry: [slot('2026-11-02T08:40:00.000Z', 30)] });
 
       const result = await generator.generate(SCHEDULE_ID, MONDAY, ACTOR);
@@ -123,7 +118,6 @@ describe('SlotGeneratorService', () => {
     });
 
     it('should accept a range exactly on the bounds', async () => {
-      // 2026-11-16 is the only Monday inside 2026-11-10..2026-11-20.
       const result = await generator.generate(SCHEDULE_ID, { from: '2026-11-10', to: '2026-11-20' }, ACTOR);
 
       expect(result.generated).toBe(6);
@@ -146,7 +140,6 @@ describe('SlotGeneratorService', () => {
     it('should write one AuditEvent naming the schedule, the counts and the range', async () => {
       await generator.generate(SCHEDULE_ID, MONDAY, ACTOR);
 
-      // Call 0 is the batch of slots, call 1 the audit transaction.
       expect(fhirClient.batch).toHaveBeenCalledTimes(2);
       expect(committedWrites(fhirClient, 1)).toEqual(['POST AuditEvent']);
       const audit = committedAudit(fhirClient, 1);

@@ -81,31 +81,25 @@ describe('MemoryIdempotencyStore', () => {
 
 describe('MemoryIdempotencyStore in-flight mark', () => {
   it('should hand the key to the first of two concurrent callers only, and again after delete', async () => {
-    // Arrange
     const store = new MemoryIdempotencyStore();
 
-    // Act
     const concurrent = await Promise.all([store.setIfAbsent('lock', '1', 30), store.setIfAbsent('lock', '1', 30)]);
     await store.delete('lock');
     const afterDelete = await store.setIfAbsent('lock', '1', 30);
 
-    // Assert
     expect(concurrent).toEqual([true, false]);
     expect(afterDelete).toBe(true);
   });
 
   it('should hand the key out again when the mark has expired', async () => {
-    // Arrange
     jest.useFakeTimers();
     const store = new MemoryIdempotencyStore();
     await store.setIfAbsent('lock', '1', 30);
 
-    // Act
     jest.setSystemTime(Date.now() + 31_000);
     const again = await store.setIfAbsent('lock', '1', 30);
     jest.useRealTimers();
 
-    // Assert
     expect(again).toBe(true);
   });
 });

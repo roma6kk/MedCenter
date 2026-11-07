@@ -32,7 +32,6 @@ import { ServicePageDoc, ServiceResponseDoc } from './dto/service-response.doc';
 import type { ServiceResponseDto } from './dto/service-response.dto';
 import { ServicesService, type ServicePage } from './services.service';
 
-/** API §5.1. Public reads; admin writes carry `ADMIN` (BR-007). */
 @ApiTags('catalog')
 @Controller('api/v1')
 export class ServicesController {

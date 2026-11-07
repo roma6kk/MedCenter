@@ -2,12 +2,7 @@ import { ApiProperty } from '@nestjs/swagger';
 import { Matches } from 'class-validator';
 import { FHIR_ID_PATTERN } from '@medcenter/common';
 
-/**
- * `{id}` of a path that goes into a FHIR read or reference search (services,
- * schedules). Restricted to the FHIR id grammar: a comma would turn a
- * reference search into an OR over other resources, and a dots-only id would
- * collapse the FHIR read URL (`Schedule/..`).
- */
+/** FHIR id grammar only: a comma would turn a reference search into an OR over other resources, a dots-only id would collapse the read URL. */
 export class FhirIdParamDto {
   @ApiProperty({
     description: 'FHIR resource id of the path resource',

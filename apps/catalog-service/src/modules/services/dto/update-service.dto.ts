@@ -12,10 +12,6 @@ import {
   Min,
 } from 'class-validator';
 
-/**
- * API §5.1.4 `UpdateServiceDto` — every field optional. Written explicitly
- * because `@nestjs/mapped-types` is not a workspace dependency.
- */
 export class UpdateServiceDto {
   @ApiPropertyOptional({ maxLength: 200, example: 'Консультация терапевта' })
   @IsOptional()
@@ -64,21 +60,18 @@ export class UpdateServiceDto {
   @MaxLength(2000)
   description?: string;
 
-  /** English name: stored as the HL7 `translation` extension of `HealthcareService.name`; a blank string removes it. */
   @ApiPropertyOptional({ maxLength: 200, example: 'Therapist consultation' })
   @IsOptional()
   @IsString()
   @MaxLength(200)
   nameEn?: string;
 
-  /** English description: the `translation` extension of `HealthcareService.comment`; a blank string removes it. */
   @ApiPropertyOptional({ maxLength: 2000 })
   @IsOptional()
   @IsString()
   @MaxLength(2000)
   descriptionEn?: string;
 
-  /** `false` takes the service off the public catalogue without deleting it; absent means active on create, unchanged on update. */
   @ApiPropertyOptional({ description: 'false hides the service from the public catalogue' })
   @IsOptional()
   @IsBoolean()

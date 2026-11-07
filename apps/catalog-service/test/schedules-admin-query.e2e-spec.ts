@@ -12,11 +12,6 @@ import { bearer, DOCTOR_SCOPE } from '@medcenter/testing';
 
 jest.mock('jose', () => jest.requireActual<typeof import('@medcenter/testing')>('@medcenter/testing').decodeOnlyJose());
 
-/**
- * Admin schedule reads (API §5.2.2, §5.2.6) through the real validation pipe:
- * the query is the only free text on these routes and it feeds HAPI searches
- * and, for slots, the cache key.
- */
 describe('Admin schedule queries (e2e)', () => {
   let app: INestApplication;
   let fhir: jest.Mocked<FhirClient>;
@@ -41,13 +36,11 @@ describe('Admin schedule queries (e2e)', () => {
   });
 
   it('should search the schedules of one role when the doctorId is a FHIR id', async () => {
-    // Act
     await request(app.getHttpServer())
       .get('/api/v1/admin/schedules?doctorId=role-7&active=true')
       .set('Authorization', admin)
       .expect(200);
 
-    // Assert
     expect(fhir.search).toHaveBeenCalledWith('Schedule', {
       actor: 'PractitionerRole/role-7',
       active: 'true',
@@ -59,13 +52,10 @@ describe('Admin schedule queries (e2e)', () => {
   });
 
   it('should answer the schedule list in the paginated envelope with ScheduleSummaryDto items when the admin lists schedules', async () => {
-    // Arrange
     fhir.search.mockResolvedValue({ total: 1, entry: [{ resource: { resourceType: 'Schedule', id: 's-1', active: true } }] });
 
-    // Act
     const response = await request(app.getHttpServer()).get('/api/v1/admin/schedules?page=1&pageSize=5').set('Authorization', admin).expect(200);
 
-    // Assert
     expect(response.body).toEqual({
       items: [{ id: 's-1', isActive: true, windows: [] }],
       meta: { page: 1, pageSize: 5, totalItems: 1, totalPages: 1 },
@@ -78,25 +68,21 @@ describe('Admin schedule queries (e2e)', () => {
     ['a page below 1', 'page=0'],
     ['a pageSize above 100', 'pageSize=101'],
   ])('should answer 400 VALIDATION_ERROR before HAPI is called when the schedule list has %s', async (_label, query) => {
-    // Act
     const response = await request(app.getHttpServer())
       .get(`/api/v1/admin/schedules?${query}`)
       .set('Authorization', admin)
       .expect(400);
 
-    // Assert — a comma would have become an OR over other practitioners' roles.
     expect(response.body).toMatchObject({ errorCode: 'VALIDATION_ERROR' });
     expect(fhir.search).not.toHaveBeenCalled();
   });
 
   it('should search the slots between the given bounds when the query is valid', async () => {
-    // Act
     await request(app.getHttpServer())
       .get('/api/v1/admin/schedules/sched-1/slots?from=2026-11-01&to=2026-11-30&status=free,busy')
       .set('Authorization', admin)
       .expect(200);
 
-    // Assert
     expect(fhir.read).toHaveBeenCalledWith('Schedule', 'sched-1');
     expect(fhir.search).toHaveBeenCalledWith('Slot', {
       schedule: 'Schedule/sched-1',
@@ -113,13 +99,11 @@ describe('Admin schedule queries (e2e)', () => {
     ['a bound that is not a date', '?from=abc&to=2026-11-30'],
     ['a status outside the Slot value set', '?from=2026-11-01&to=2026-11-30&status=open'],
   ])('should answer 400 VALIDATION_ERROR before HAPI is called when the slot query has %s', async (_label, query) => {
-    // Act
     const response = await request(app.getHttpServer())
       .get(`/api/v1/admin/schedules/sched-1/slots${query}`)
       .set('Authorization', admin)
       .expect(400);
 
-    // Assert
     expect(response.body).toMatchObject({ errorCode: 'VALIDATION_ERROR' });
     expect(fhir.search).not.toHaveBeenCalled();
   });

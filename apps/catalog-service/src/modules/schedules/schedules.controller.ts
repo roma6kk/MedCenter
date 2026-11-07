@@ -44,7 +44,6 @@ import type { GenerateSlotsResult } from './slot-generator.service';
 import { SlotGeneratorService } from './slot-generator.service';
 import { SchedulesService, type SchedulePage } from './schedules.service';
 
-/** API §5.2 — schedules are admin-only (BR-007). */
 @ApiTags('catalog')
 @ApiBearerAuth()
 @Controller('api/v1/admin/schedules')
@@ -141,7 +140,6 @@ export class SchedulesController {
     @Param() params: FhirIdParamDto,
     @Body() dto: GenerateSlotsDto,
   ): Promise<GenerateSlotsResult> {
-    // API §0: a replayed `Idempotency-Key` is answered from the cache (24 h), per caller and schedule.
     const scope = `generate:${claimsOf(request).sub}:${params.id}`;
     return this.idempotency.run(scope, idempotencyKey, dto, () =>
       this.slotGenerator.generate(params.id, dto, auditActorOf(request)),

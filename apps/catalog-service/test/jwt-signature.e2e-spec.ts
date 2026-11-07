@@ -14,7 +14,6 @@ const OWN_SCHEDULE = '/api/v1/doctor/schedule';
 const ADMIN_DELETE = '/api/v1/admin/services/svc-1';
 const DOCTOR = { role: 'DOCTOR', scope: 'user/*.read launch', fhirUser: 'PractitionerRole/role-7' } as const;
 
-/** Re-signs nothing: swaps the payload of a valid token and keeps the original signature. */
 function withPayload(token: string, claims: Record<string, unknown>): string {
   const [header, payload, signature] = token.split('.');
   const original = JSON.parse(Buffer.from(payload ?? '', 'base64url').toString('utf8')) as Record<string, unknown>;
@@ -22,11 +21,6 @@ function withPayload(token: string, claims: Record<string, unknown>): string {
   return `${header}.${tampered}.${signature}`;
 }
 
-/**
- * The perimeter with real RS256 verification (ADR-009): the guard stack checks
- * every token against the issuer's JWKS, exactly as in the stack. A refused call
- * must never reach HAPI.
- */
 describe('JWT signature verification (e2e)', () => {
   let issuer: TestIssuer;
   let other: TestIssuer;
@@ -78,61 +72,47 @@ describe('JWT signature verification (e2e)', () => {
   }
 
   it('should reach the handler when the token is signed by the trusted issuer and carries the doctor identity', async () => {
-    // Act
     await request(app.getHttpServer()).get(OWN_SCHEDULE).set('Authorization', `Bearer ${issuer.sign(DOCTOR)}`).expect(200);
 
-    // Assert
     expect(fhir.search).toHaveBeenCalledTimes(1);
   });
 
   it('should refuse the call before HAPI when the token is signed by a key the issuer does not publish', async () => {
-    // Act
     const response = await request(app.getHttpServer()).get(OWN_SCHEDULE).set('Authorization', `Bearer ${other.sign(DOCTOR)}`);
 
-    // Assert
     expectRefusedBeforeFhir(response);
   });
 
   it('should refuse the call before HAPI when the token has expired', async () => {
-    // Act
     const response = await request(app.getHttpServer())
       .get(OWN_SCHEDULE)
       .set('Authorization', `Bearer ${issuer.sign(DOCTOR, { expiresInSeconds: -60 })}`);
 
-    // Assert
     expectRefusedBeforeFhir(response);
   });
 
   it('should refuse the call before HAPI when the token names another issuer', async () => {
-    // Act
     const response = await request(app.getHttpServer())
       .get(OWN_SCHEDULE)
       .set('Authorization', `Bearer ${issuer.sign(DOCTOR, { issuer: 'https://evil.example' })}`);
 
-    // Assert
     expectRefusedBeforeFhir(response);
   });
 
   it('should refuse the admin service delete before HAPI when a doctor token is edited to claim the ADMIN role', async () => {
-    // Arrange
     const escalated = withPayload(issuer.sign(DOCTOR), { role: 'ADMIN' });
 
-    // Act
     const response = await request(app.getHttpServer()).delete(ADMIN_DELETE).set('Authorization', `Bearer ${escalated}`);
 
-    // Assert
     expectRefusedBeforeFhir(response);
   });
 
   it('should refuse the call before HAPI when the token is unsigned (alg none)', async () => {
-    // Arrange
     const header = Buffer.from(JSON.stringify({ alg: 'none', typ: 'JWT' })).toString('base64url');
     const payload = Buffer.from(JSON.stringify({ ...DOCTOR, sub: 'u1', jti: 'j1', iss: 'https://api.medcenter.by', exp: 4102444800 })).toString('base64url');
 
-    // Act
     const response = await request(app.getHttpServer()).delete(ADMIN_DELETE).set('Authorization', `Bearer ${header}.${payload}.`);
 
-    // Assert
     expectRefusedBeforeFhir(response);
   });
 });

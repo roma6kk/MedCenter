@@ -8,14 +8,6 @@ import type { DoctorSlotsResponseDto } from './dto/doctor-slots-response.dto';
 import type { SlotRange } from './slot-range';
 import { idsOf, searchActiveSchedules, searchScheduleSlots, withServiceIds, type ServiceSlotDto } from './slot-search';
 
-/**
- * Public free-slot search of one doctor (API §5.2.8, FR-003, NFR-005).
- *
- * The doctor is a `Practitioner` (the id the catalog of API §4.1/§4.2 hands
- * out). Slots hang off `Schedule`s whose actor is one of the practitioner's
- * `PractitionerRole`s — or the practitioner itself — so the lookup walks
- * Practitioner → PractitionerRole → Schedule → Slot(status=free).
- */
 @Injectable()
 export class DoctorSlotsService {
   constructor(
@@ -23,20 +15,9 @@ export class DoctorSlotsService {
     private readonly cache: RedisCacheService,
   ) {}
 
-  /**
-   * The route is public, so the cache key must not depend on how a client spells
-   * its window (`Z` vs `+00:00`, `.001` vs `.002`, date vs date-time): the cache
-   * holds one 15 s page per (doctor, clinic day), and the exact window is applied
-   * in memory. Slots that already started are dropped on every read, so a cached
-   * page never offers the past; a stale `free` slot is safe because booking
-   * re-checks it with `If-Match` (ADR-012).
-   *
-   * `truncated: true` marks an answer cut by the slot page cap (see
-   * `SLOT_SEARCH_MAX_PAGES`): later days may be missing, and they were not cached.
-   */
+  /** The route is public: the cache key must not depend on how a client spells its window, or the key space is unbounded. */
   async listFree(practitionerId: string, range: SlotRange): Promise<DoctorSlotsResponseDto> {
     const nowMs = Date.now();
-    // Nothing that started is ever offered, so the first day worth reading is today.
     const days = clinicDaysBetween(Math.max(range.fromMs, nowMs), range.toMs);
     const { pages, truncated } = await this.readDayPages(practitionerId, days);
     const items = pages.flat().filter((slot) => {
@@ -46,7 +27,6 @@ export class DoctorSlotsService {
     return { doctorId: practitionerId, from: range.from, to: range.to, items, ...(truncated ? { truncated } : {}) };
   }
 
-  /** One page per day, in day order; the days missing from the cache load in a single search. */
   private async readDayPages(practitionerId: string, days: readonly string[]): Promise<DayPages> {
     const cached = await Promise.all(
       days.map((day) => this.cache.getJson<ServiceSlotDto[]>(CACHE_KEYS.DOCTOR_SLOTS_DAY(practitionerId, day))),
@@ -57,8 +37,7 @@ export class DoctorSlotsService {
     }
     const { slots, truncated } = await this.loadFreeSlots(practitionerId, missing);
     const loaded = groupByClinicDay(slots);
-    // A cut-off search knows nothing about the days after its last slot, and the
-    // day of that slot may be half read: caching them as empty would hide real slots.
+    // A cut-off search says nothing about days after its last slot: caching them as empty would hide real slots.
     await Promise.all(
       (truncated ? daysBeforeLastSlot(missing, slots) : missing).map((day) =>
         this.cache.setJson(CACHE_KEYS.DOCTOR_SLOTS_DAY(practitionerId, day), loaded.get(day) ?? [], CACHE_TTLS.SLOTS_SECONDS),
@@ -67,15 +46,10 @@ export class DoctorSlotsService {
     return { pages: days.map((day, index) => cached[index] ?? loaded.get(day) ?? []), truncated };
   }
 
-  /**
-   * Free slots from the first to the last of `days` (whole clinic days, ascending).
-   * The practitioner is read first and on its own: an unknown id (the public route
-   * accepts any) costs HAPI one read that ends in 404, not a read plus a role search.
-   */
+  /** The practitioner is read first: an unknown id (the route is public) costs one read, not a slot search. */
   private async loadFreeSlots(practitionerId: string, days: readonly string[]): Promise<FreeSlots> {
     const first = days[0] ?? '';
     const last = days[days.length - 1] ?? first;
-    // The read turns an unknown doctor into 404 NOT_FOUND instead of an empty list.
     await this.fhirClient.read('Practitioner', practitionerId);
     const roles = await searchAllPages(this.fhirClient, 'PractitionerRole', {
       practitioner: `Practitioner/${practitionerId}`,
@@ -106,7 +80,6 @@ interface DayPages {
   readonly truncated: boolean;
 }
 
-/** The days of `days` that end before the clinic day of the last slot read (nothing is safe without one). */
 function daysBeforeLastSlot(days: readonly string[], slots: readonly ServiceSlotDto[]): string[] {
   const lastSlot = slots[slots.length - 1];
   if (lastSlot === undefined) {
@@ -116,7 +89,6 @@ function daysBeforeLastSlot(days: readonly string[], slots: readonly ServiceSlot
   return days.filter((day) => day < lastDay);
 }
 
-/** Splits slots (already ordered by start) into per-clinic-day pages. */
 function groupByClinicDay(slots: readonly ServiceSlotDto[]): Map<string, ServiceSlotDto[]> {
   const pages = new Map<string, ServiceSlotDto[]>();
   for (const slot of slots) {

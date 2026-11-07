@@ -3,7 +3,6 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { PageMetaDoc } from '../../../common/page-meta.doc';
 import type { ServiceResponseDto } from './service-response.dto';
 
-/** Documentation class of `ServiceResponseDto` (API §5.1): the interface cannot be reflected by Swagger. */
 export class ServiceResponseDoc implements ServiceResponseDto {
   @ApiProperty({ description: 'HealthcareService id (FHIR id)', example: '1044' })
   id!: string;
@@ -42,7 +41,6 @@ export class ServiceResponseDoc implements ServiceResponseDto {
   isActive!: boolean;
 }
 
-/** `PaginatedResponseDto<ServiceResponseDto>` (API §0, §5.1.1). */
 export class ServicePageDoc {
   @ApiProperty({ type: [ServiceResponseDoc] })
   items!: ServiceResponseDoc[];

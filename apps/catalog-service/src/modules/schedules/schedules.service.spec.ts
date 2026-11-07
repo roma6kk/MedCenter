@@ -155,8 +155,6 @@ describe('SchedulesService', () => {
     }, ACTOR);
 
     const created = (committedEntries(fhirClient)[0]?.resource ?? {}) as FhirResource;
-    // `slotDurationMin` is not a valid FHIR R4 Schedule element: a strict HAPI
-    // would reject the whole create. It must live in an extension.
     expect(created['slotDurationMin']).toBeUndefined();
     expect(created['extension']).toContainEqual({ url: SLOT_DURATION_EXT, valueInteger: 45 });
   });
@@ -165,7 +163,7 @@ describe('SchedulesService', () => {
     fhirClient.read.mockResolvedValue({
       resourceType: 'Schedule',
       id: 'sched-1',
-      slotDurationMin: 30, // legacy top-level write from an older version
+      slotDurationMin: 30,
       extension: [
         {
           url: WEEKLY_WINDOWS_EXT,
@@ -179,7 +177,6 @@ describe('SchedulesService', () => {
     const merged = (committedEntries(fhirClient)[0]?.resource ?? {}) as FhirResource;
     expect(merged['slotDurationMin']).toBeUndefined();
     expect(merged['extension']).toContainEqual({ url: SLOT_DURATION_EXT, valueInteger: 45 });
-    // The stored weekly windows survive the duration merge.
     expect(merged['extension']).toContainEqual(
       expect.objectContaining({ valueString: expect.any(String) }),
     );
@@ -204,7 +201,6 @@ describe('SchedulesService', () => {
     }, ACTOR);
 
     const merged = (committedEntries(fhirClient)[0]?.resource ?? {}) as FhirResource;
-    // Replacing the windows must not drop the stored duration extension.
     expect(merged['extension']).toContainEqual({ url: SLOT_DURATION_EXT, valueInteger: 45 });
     expect(merged['extension']).toContainEqual(
       expect.objectContaining({ valueString: expect.any(String) }),
@@ -220,8 +216,6 @@ describe('SchedulesService', () => {
     await schedulesService.listSlots('sched-1', '2026-11-02', '2026-11-03');
 
     const keys = getOrLoad.mock.calls.map((call) => call[0] as string);
-    // The two queries must land on distinct keys: a filtered query must never
-    // serve (nor populate) the cache entry of the unfiltered one.
     expect(keys[0]).toBe('slots:sched-1:2026-11-02:2026-11-03:free');
     expect(keys[1]).toBe('slots:sched-1:2026-11-02:2026-11-03:all');
     expect(keys[0]).not.toBe(keys[1]);
@@ -244,7 +238,6 @@ describe('SchedulesService', () => {
     const extensions = merged['extension'] as Array<Record<string, unknown>>;
     const period = extensions.find((ext) => ext['url'] === PLANNING_HORIZON_EXT);
     expect(period).toMatchObject({ valuePeriod: { start: '2026-01-01', end: '2026-03-31' } });
-    // Windows valueString extension must survive.
     expect(extensions.some((ext) => 'valueString' in ext)).toBe(true);
   });
 
@@ -265,7 +258,6 @@ describe('SchedulesService', () => {
       ],
     });
 
-    // Only horizonTo is supplied: the span is measured from the stored start.
     await expect(
       schedulesService.update('sched-1', { horizonTo: '2027-12-31' }, ACTOR),
     ).rejects.toBeInstanceOf(BadRequestException);

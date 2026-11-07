@@ -1,16 +1,9 @@
 import { ForbiddenException } from '@nestjs/common';
 import { FHIR_ID_SOURCE, type JwtClaims } from '@medcenter/common';
 
-/** `PractitionerRole/{id}` with a FHIR id (see `FHIR_ID_SOURCE`) and nothing else. */
 const PRACTITIONER_ROLE_REF = new RegExp(`^PractitionerRole/(${FHIR_ID_SOURCE})$`);
 
-/**
- * Doctor identity (API §5.2.7, ADR-013): the PractitionerRole comes from the
- * token's `fhirUser` claim only — never from a request parameter. Fails closed:
- * a missing claim, a non-PractitionerRole reference or anything that is not a
- * single well-formed reference is refused, so a gap in the token never widens
- * what a doctor can see.
- */
+/** The PractitionerRole comes from the token's `fhirUser` claim only, never from a parameter. Fails closed. */
 export function requirePractitionerRoleId(claims: JwtClaims): string {
   const roleId = PRACTITIONER_ROLE_REF.exec(claims.fhirUser ?? '')?.[1];
   if (roleId === undefined) {

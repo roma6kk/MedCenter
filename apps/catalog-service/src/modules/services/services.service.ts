@@ -26,20 +26,12 @@ import { CreateServiceDto } from './dto/create-service.dto';
 import { UpdateServiceDto } from './dto/update-service.dto';
 import type { ServiceResponseDto } from './dto/service-response.dto';
 
-/** One page of the services catalog in the API §0 envelope. */
 export type ServicePage = PaginatedResponseDto<ServiceResponseDto>;
 
-/** `AuditEvent.source` of the writes of this service. */
 const AUDIT_SOURCE = 'catalog-service';
 
-/** HAPI answers `$lookup` of an unknown code (or system) with one of these. */
 const LOOKUP_NOT_FOUND_STATUSES: ReadonlySet<number> = new Set([400, 404, 422]);
 
-/**
- * Services catalog (API §5.1, FR-003). `typeCode` must exist in the seeded
- * НСИ ЦИСЗ ValueSet (`FHIR_BY.SERVICE_CODE_SYSTEM`) or the request is rejected
- * with `422 TERMINOLOGY_NOT_FOUND` (ADR-002).
- */
 @Injectable()
 export class ServicesService {
   constructor(
@@ -47,13 +39,7 @@ export class ServicesService {
     private readonly cache: RedisCacheService,
   ) {}
 
-  /**
-   * Public listing (API §5.1.1). Only the plain, search-free listing is cached,
-   * one entry per validated (page, pageSize) — a key per free-text term would
-   * let an anonymous caller fill the shared Redis with arbitrary strings, so a
-   * search always goes to HAPI (a cheap `name` match, over the stored Russian name). The cached page holds the
-   * localized names, so there is one entry per language as well.
-   */
+  /** Only the search-free listing is cached: a key per free-text term would let an anonymous caller fill the shared Redis. */
   async list(page = 1, pageSize = 20, search?: string, lang: ContentLanguage = DEFAULT_CONTENT_LANGUAGE): Promise<ServicePage> {
     const term = search?.trim() ?? '';
     const load = (): Promise<ServicePage> => this.loadPage(page, pageSize, term, lang, false);
@@ -63,19 +49,10 @@ export class ServicesService {
     return this.cache.getOrLoad(CACHE_KEYS.SERVICES_PAGE(page, pageSize, lang), CACHE_TTLS.SERVICES_SECONDS, load, (page) => page.items.length > 0);
   }
 
-  /**
-   * Administrator's listing (API §5.1.6): the same page as the public one, deactivated services included. Not cached:
-   * the administrator must see a switch at once, and the public pages are cleared by the same writes anyway.
-   */
   async listAll(page = 1, pageSize = 20, search?: string, lang: ContentLanguage = DEFAULT_CONTENT_LANGUAGE): Promise<ServicePage> {
     return this.loadPage(page, pageSize, search?.trim() ?? '', lang, true);
   }
 
-  /**
-   * `_total=accurate` asks HAPI for the count; without one the total is known
-   * only up to this page, which is the honest lower bound. The public page hides a deactivated service
-   * (`:not` also matches a service without `active`, the element is optional in FHIR), so the total counts what is shown.
-   */
   private async loadPage(page: number, pageSize: number, term: string, lang: ContentLanguage, includeInactive: boolean): Promise<ServicePage> {
     const result = await this.fhirClient.search('HealthcareService', {
       ...(term === '' ? {} : { name: term }),
@@ -94,7 +71,7 @@ export class ServicesService {
     });
   }
 
-  /** `404` also for a deactivated service, as HAPI's own 404 for an unknown id: the public cannot tell a hidden service from a missing one. */
+  /** 404 also for a deactivated service: the public cannot tell a hidden service from a missing one. */
   async findById(id: string, lang: ContentLanguage = DEFAULT_CONTENT_LANGUAGE): Promise<ServiceResponseDto> {
     const resource = await this.fhirClient.read('HealthcareService', id);
     if (resource['active'] === false) {
@@ -103,7 +80,6 @@ export class ServicesService {
     return this.toResponseDto(resource, lang);
   }
 
-  /** Admin writes carry their `AuditEvent` in the same transaction (FR-021, ADR-014). */
   private auditOf(actor: WriteActor): AuditContext {
     return { actor, source: AUDIT_SOURCE };
   }
@@ -120,8 +96,7 @@ export class ServicesService {
   }
 
   async update(id: string, dto: UpdateServiceDto, actor: WriteActor): Promise<ServiceResponseDto> {
-    // A system without a code would rebuild the coding with no code at all
-    // and skip the terminology check — the pair is only valid together.
+    // A system without a code would skip the terminology check: the pair is only valid together.
     if (dto.typeSystem !== undefined && dto.typeCode === undefined) {
       throw new BadRequestException({
         errorCode: 'VALIDATION_ERROR',
@@ -135,8 +110,7 @@ export class ServicesService {
     const existing = await this.fhirClient.read('HealthcareService', id);
     const merged = this.mergeDefined(existing, this.toHealthcareService(dto));
     this.mergeTranslations(merged, dto);
-    // A partial type update (e.g. only typeCode) must replace the whole type
-    // coding — mixing a new code with the old system would be incoherent.
+    // A partial type update replaces the whole coding: a new code with the old system would be incoherent.
     if (dto.typeCode !== undefined) {
       const typeCoding = this.toHealthcareService(
         {
@@ -152,12 +126,6 @@ export class ServicesService {
     return this.toResponseDto(updated);
   }
 
-  /**
-   * The English text rides on `_name` / `_comment`. `mergeDefined` already keeps the stored one when the PATCH leaves
-   * the English field out; a blank string removes it (e.g. the Russian name changed and the old translation no longer fits).
-   * A blank `description` clears the description: FHIR JSON forbids `"comment": ""`, so the element is removed, and its
-   * English text with it unless the same PATCH brings a new one.
-   */
   private mergeTranslations(merged: FhirResource, dto: UpdateServiceDto): void {
     const target = merged as Record<string, unknown>;
     if (dto.description !== undefined && dto.description.trim() === '') {
@@ -174,8 +142,6 @@ export class ServicesService {
     }
   }
 
-  /** Spread-merge that skips undefined values so a partial DTO never blanks
-   *  existing fields (the previous `{ ...existing, ...patch }` did). */
   private mergeDefined(base: FhirResource, patch: FhirResource): FhirResource {
     const merged: Record<string, unknown> = { ...base };
     for (const [key, value] of Object.entries(patch)) {
@@ -186,19 +152,8 @@ export class ServicesService {
     return merged as FhirResource;
   }
 
-  /**
-   * API §5.1.5. The service is a `Schedule.actor` and `actor` is the R4 search
-   * parameter over it — R4 `Schedule` has no `service` parameter (HAPI answers
-   * 400). No `active` filter: HAPI keeps referential integrity on delete, so a
-   * deactivated schedule pins the service too (same rule as `ROOM_IN_USE`). A doctor role that lists the service
-   * (`PractitionerRole.service`) pins it as well, and so does any other resource HAPI refuses the delete for.
-   *
-   * `SERVICE_IN_USE` is catalogued in `ERROR_CODES` (libs/contracts), so
-   * `ProblemDetailsFilter` promotes it to the response `errorCode`; the same
-   * label stays at the start of `detail` for logs and older clients.
-   */
+  /** `actor` is the R4 search parameter over the service: R4 `Schedule` has no `service` parameter (HAPI answers 400). */
   async remove(id: string, actor: WriteActor): Promise<void> {
-    // An unknown id is a 404 from HAPI; the delete's AuditEvent needs a stored resource to point at.
     await this.fhirClient.read('HealthcareService', id);
     const schedules = await this.fhirClient.search('Schedule', {
       actor: `HealthcareService/${id}`,
@@ -207,7 +162,6 @@ export class ServicesService {
     if ((schedules.entry ?? []).length > 0) {
       throw this.serviceInUse(`service ${id} is referenced by a schedule`);
     }
-    // A doctor role that lists the service (`PractitionerRole.healthcareService`, written by the demo seed) pins it as well.
     const roles = await this.fhirClient.search('PractitionerRole', { service: `HealthcareService/${id}`, _count: 1 });
     if ((roles.entry ?? []).length > 0) {
       throw this.serviceInUse(`service ${id} is referenced by a doctor role`);
@@ -229,20 +183,11 @@ export class ServicesService {
   }
 
   private async invalidate(): Promise<void> {
-    // The service list is cached under `services:<search>:<page>:<pageSize>`;
-    // the trailing colon makes RedisCacheService expand the prefix and clear
-    // every cached page regardless of the search/page combination.
+    // The trailing colon makes RedisCacheService clear every cached page of the prefix.
     await this.cache.invalidate([`${CACHE_KEYS.SERVICES}:`]);
   }
 
-  /**
-   * BR-004/ADR-002: the code must exist in the seeded НСИ CodeSystem. The check
-   * is a `CodeSystem/$lookup` against HAPI (`code` is not a CodeSystem search
-   * parameter). HAPI answers a known concept with `200 Parameters` and an
-   * unknown one with a 4xx OperationOutcome — that 4xx becomes the 422 here;
-   * any other failure (5xx, timeout) propagates as the client's 502/504. Returns the `display` of the concept (what
-   * `typeDisplay` of the response reads back), `undefined` when the answer carries none.
-   */
+  /** `code` is not a CodeSystem search parameter, so the check is a `CodeSystem/$lookup` against HAPI. */
   private async assertTerminology(typeSystem: string, typeCode: string): Promise<string | undefined> {
     if (typeSystem !== FHIR_BY.SERVICE_CODE_SYSTEM) {
       throw this.terminologyNotFound(`unsupported type system ${typeSystem}`);
@@ -293,8 +238,6 @@ export class ServicesService {
             ],
           }),
     };
-    // `type` is emitted only when the DTO carries a code, otherwise a partial
-    // PATCH (e.g. name-only) would merge a code-less coding over the stored one.
     if (dto.typeCode !== undefined) {
       resource['type'] = [
         {
@@ -311,7 +254,6 @@ export class ServicesService {
     return resource as FhirResource;
   }
 
-  /** `_name` / `_comment` with the English text of the DTO; nothing for an absent or blank one. */
   private translationElements(dto: Partial<CreateServiceDto>): Record<string, unknown> {
     const elements: Record<string, unknown> = {};
     if (dto.nameEn !== undefined && dto.nameEn.trim() !== '') {
@@ -323,7 +265,6 @@ export class ServicesService {
     return elements;
   }
 
-  /** The stored English text of a primitive (`_name`, `_comment`), whatever language the request asked for. */
   private englishOf(resource: FhirResource, field: 'name' | 'comment'): string | undefined {
     const original = resource[field];
     if (typeof original !== 'string') {

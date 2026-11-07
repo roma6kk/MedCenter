@@ -9,7 +9,6 @@ import { ServicesService } from './services.service';
 
 const ACTOR = { sub: 'admin-1', requestId: 'req-1' };
 
-/** The HealthcareService the service put into the committed transaction. */
 function written(fhir: jest.Mocked<FhirClient>): Record<string, unknown> {
   const entry = committedEntries(fhir).find((candidate) => candidate.resource?.resourceType === 'HealthcareService');
   return (entry?.resource ?? {}) as unknown as Record<string, unknown>;

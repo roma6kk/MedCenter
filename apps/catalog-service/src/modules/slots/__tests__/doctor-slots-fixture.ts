@@ -20,7 +20,6 @@ export interface Fixture {
   readonly slots?: ReadonlyArray<Record<string, unknown>>;
 }
 
-/** One role, one schedule and two free slots (09:00 and 09:30Z) on 2 Nov. */
 export const SCHEDULED: Fixture = {
   roles: [{ id: 'role-1' }],
   schedules: [{ id: 'sched-1' }],

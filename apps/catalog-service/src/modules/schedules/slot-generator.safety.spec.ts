@@ -10,7 +10,6 @@ import { EXISTING_SLOT_MAX_PAGES, SlotGeneratorService } from './slot-generator.
 const ACTOR = { sub: 'admin-1', requestId: 'req-1' };
 
 const SCHEDULE_ID = 'sched-9';
-/** Monday 2026-11-02, 09:00-10:00 in Minsk = 06:00Z-07:00Z, two 30-minute slots. */
 const WINDOWS = [{ dayOfWeek: 'MO', startTime: '09:00', endTime: '10:00' }];
 const ONE_DAY = { from: '2026-11-02', to: '2026-11-02' };
 
@@ -46,17 +45,14 @@ describe('SlotGeneratorService when HAPI cannot confirm every slot', () => {
   });
 
   it('should answer 502 and log the reasons when HAPI rejects some entries of the batch', async () => {
-    // Arrange
     const fhirClient = createFhirClientMock();
     fhirClient.batch.mockImplementation(async (bundle) =>
       batchResponseFor(bundle, (index) => (index === 0 ? '201 Created' : '400 Bad Request')),
     );
     const generator = new SlotGeneratorService(fhirClient, new RedisCacheService());
 
-    // Act
     const outcome = generator.generate(SCHEDULE_ID, ONE_DAY, ACTOR);
 
-    // Assert — one slot written, one not: the admin must not read that as "skipped".
     await expect(outcome).rejects.toBeInstanceOf(BadGatewayException);
     await expect(outcome).rejects.toMatchObject({
       response: { errorCode: 'INTERNAL', message: expect.stringContaining('1 slots were not written (1 were)') },
@@ -68,7 +64,6 @@ describe('SlotGeneratorService when HAPI cannot confirm every slot', () => {
   });
 
   it('should drop the cached slot pages before answering 502 when some slots were written', async () => {
-    // Arrange
     const fhirClient = createFhirClientMock();
     fhirClient.batch.mockImplementation(async (bundle) =>
       batchResponseFor(bundle, (index) => (index === 0 ? '201 Created' : '500 Internal Server Error')),
@@ -77,42 +72,34 @@ describe('SlotGeneratorService when HAPI cannot confirm every slot', () => {
     const invalidate = jest.spyOn(cache, 'invalidate').mockResolvedValue();
     const generator = new SlotGeneratorService(fhirClient, cache);
 
-    // Act
     await generator.generate(SCHEDULE_ID, ONE_DAY, ACTOR).catch(() => undefined);
 
-    // Assert — the written slot is visible at once, not after the 15 s TTL.
     expect(invalidate).toHaveBeenCalledWith([CACHE_KEYS.SCHEDULE_SLOTS(SCHEDULE_ID), CACHE_KEYS.ALL_DOCTOR_SLOTS]);
   });
 
   it('should count a slot as not written when the batch answer is shorter than the request', async () => {
-    // Arrange
     const fhirClient = createFhirClientMock();
     fhirClient.batch.mockResolvedValue({ resourceType: 'Bundle', type: 'batch-response', entry: [] });
     const generator = new SlotGeneratorService(fhirClient, new RedisCacheService());
 
-    // Act / Assert
     await expect(generator.generate(SCHEDULE_ID, ONE_DAY, ACTOR)).rejects.toMatchObject({
       response: { message: expect.stringContaining('2 slots were not written (0 were)') },
     });
   });
 
   it('should report skipped existing slots and no error when every written slot is confirmed', async () => {
-    // Arrange
     const fhirClient = createFhirClientMock();
     fhirClient.search.mockResolvedValue({ entry: [slotAt('2026-11-02T06:00:00.000Z')] });
     const generator = new SlotGeneratorService(fhirClient, new RedisCacheService());
 
-    // Act
     const result = await generator.generate(SCHEDULE_ID, ONE_DAY, ACTOR);
 
-    // Assert
     expect(result).toEqual({ generated: 1, skipped: 1 });
   });
 });
 
 describe('SlotGeneratorService when the schedule already has many slots', () => {
   it('should write nothing and ask for a shorter range when the existing-slot search hits the page cap', async () => {
-    // Arrange — a cut-off list could hide a booked slot, and the PUT would turn it back into `free`.
     const warn = jest.spyOn(Logger.prototype, 'warn').mockImplementation();
     const fhirClient = createFhirClientMock();
     fhirClient.search.mockImplementation(async (_type, params) => {
@@ -125,10 +112,8 @@ describe('SlotGeneratorService when the schedule already has many slots', () => 
     });
     const generator = new SlotGeneratorService(fhirClient, new RedisCacheService());
 
-    // Act
     const outcome = generator.generate(SCHEDULE_ID, ONE_DAY, ACTOR);
 
-    // Assert
     await expect(outcome).rejects.toBeInstanceOf(BadRequestException);
     await expect(outcome).rejects.toMatchObject({ response: { errorCode: 'VALIDATION_ERROR' } });
     expect(fhirClient.search).toHaveBeenCalledTimes(EXISTING_SLOT_MAX_PAGES);
@@ -137,7 +122,6 @@ describe('SlotGeneratorService when the schedule already has many slots', () => 
   });
 
   it('should read past the old 10 000 row limit when a long range holds many slots', async () => {
-    // Arrange — 90 days of 5-minute slots is 25 920 rows (130 pages); the old cap was 50.
     const warn = jest.spyOn(Logger.prototype, 'warn').mockImplementation();
     const fhirClient = createFhirClientMock();
     const rows = 25_920;
@@ -148,10 +132,8 @@ describe('SlotGeneratorService when the schedule already has many slots', () => 
     });
     const generator = new SlotGeneratorService(fhirClient, new RedisCacheService());
 
-    // Act
     const result = await generator.generate(SCHEDULE_ID, ONE_DAY, ACTOR);
 
-    // Assert
     expect(fhirClient.search).toHaveBeenCalledTimes(Math.ceil(rows / FHIR_PAGE_SIZE));
     expect(result.generated).toBe(2);
     warn.mockRestore();

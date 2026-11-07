@@ -36,11 +36,6 @@ function upstream(status: number | undefined): FhirClientError {
   return new FhirClientError('GET', 'http://hapi:8080/fhir/CodeSystem/$lookup', status, 'HAPI-9999 detail');
 }
 
-/**
- * Admin service writes (API §5.1.3 create, §5.1.4 update, §5.1.5 delete) through
- * the real guard stack, validation pipe and problem filter, with the terminology
- * lookup, the HAPI interactions and the cache invalidation all observable.
- */
 describe('Services admin writes (e2e)', () => {
   let harness: CatalogHarness;
 
@@ -62,10 +57,8 @@ describe('Services admin writes (e2e)', () => {
     }
 
     it('should verify the code, create the HealthcareService and answer 201 when an admin posts a valid body', async () => {
-      // Act
       const response = await post(VALID_BODY).expect(201);
 
-      // Assert
       expect(harness.fhir.operation).toHaveBeenCalledWith('CodeSystem', '$lookup', {
         system: FHIR_BY.SERVICE_CODE_SYSTEM,
         code: 'A01.001',
@@ -90,45 +83,35 @@ describe('Services admin writes (e2e)', () => {
     });
 
     it('should clear the cached listing and leave unrelated cache entries when a service is created', async () => {
-      // Act
       await post(VALID_BODY).expect(201);
 
-      // Assert
       expect(harness.store.entries.has(SERVICE_PAGE_KEY)).toBe(false);
       expect(harness.store.entries.has(SLOT_KEY)).toBe(true);
     });
 
     it('should answer 422 TERMINOLOGY_NOT_FOUND and create nothing when HAPI does not know the code', async () => {
-      // Arrange
       harness.fhir.operation.mockRejectedValue(upstream(404));
 
-      // Act
       const response = await post(VALID_BODY).expect(422);
 
-      // Assert
       expect(response.body).toMatchObject({ status: 422, errorCode: 'TERMINOLOGY_NOT_FOUND' });
       expect(harness.fhir.batch).not.toHaveBeenCalled();
       expect(harness.store.entries.has(SERVICE_PAGE_KEY)).toBe(true);
     });
 
     it('should answer 422 TERMINOLOGY_NOT_FOUND before the lookup when the code system is not the НСИ services system', async () => {
-      // Act
       const response = await post({ ...VALID_BODY, typeSystem: 'http://snomed.info/sct' }).expect(422);
 
-      // Assert
       expect(response.body).toMatchObject({ errorCode: 'TERMINOLOGY_NOT_FOUND' });
       expect(harness.fhir.operation).not.toHaveBeenCalled();
       expect(harness.fhir.batch).not.toHaveBeenCalled();
     });
 
     it('should answer 502 INTERNAL without the HAPI detail and create nothing when the lookup itself fails', async () => {
-      // Arrange
       harness.fhir.operation.mockRejectedValue(upstream(503));
 
-      // Act
       const response = await post(VALID_BODY).expect(502);
 
-      // Assert
       expect(response.body).toMatchObject({ status: 502, errorCode: 'INTERNAL' });
       expect(JSON.stringify(response.body)).not.toMatch(/HAPI-9999|hapi:8080/);
       expect(harness.fhir.batch).not.toHaveBeenCalled();
@@ -145,10 +128,8 @@ describe('Services admin writes (e2e)', () => {
       ['a description above 2000 characters', { ...VALID_BODY, description: 'x'.repeat(2001) }],
       ['specialtyCodes that are not strings', { ...VALID_BODY, specialtyCodes: [1, 2] }],
     ])('should answer 400 VALIDATION_ERROR before the lookup when the body has %s', async (_label, body) => {
-      // Act
       const response = await post(body).expect(400);
 
-      // Assert
       expect(response.body).toMatchObject({ status: 400, errorCode: 'VALIDATION_ERROR' });
       expect(harness.fhir.operation).not.toHaveBeenCalled();
       expect(harness.fhir.batch).not.toHaveBeenCalled();
@@ -165,10 +146,8 @@ describe('Services admin writes (e2e)', () => {
     }
 
     it('should merge only the patched name and clear the cached listing when an admin renames the service', async () => {
-      // Act
       const response = await patch({ name: 'Приём терапевта (повторный)' }).expect(200);
 
-      // Assert
       expect(harness.fhir.operation).not.toHaveBeenCalled();
       const [service] = committedEntries(harness.fhir);
       const merged = service?.resource;
@@ -180,10 +159,8 @@ describe('Services admin writes (e2e)', () => {
     });
 
     it('should verify the new code and replace the whole type coding when the typeCode is patched', async () => {
-      // Act
       await patch({ typeCode: 'A01.002' }).expect(200);
 
-      // Assert
       expect(harness.fhir.operation).toHaveBeenCalledWith('CodeSystem', '$lookup', {
         system: FHIR_BY.SERVICE_CODE_SYSTEM,
         code: 'A01.002',
@@ -193,10 +170,8 @@ describe('Services admin writes (e2e)', () => {
     });
 
     it('should answer 400 VALIDATION_ERROR and touch nothing when typeSystem is patched without a typeCode', async () => {
-      // Act
       const response = await patch({ typeSystem: FHIR_BY.SERVICE_CODE_SYSTEM }).expect(400);
 
-      // Assert
       expect(response.body).toMatchObject({ errorCode: 'VALIDATION_ERROR' });
       expect(harness.fhir.read).not.toHaveBeenCalled();
       expect(harness.fhir.batch).not.toHaveBeenCalled();
@@ -207,34 +182,26 @@ describe('Services admin writes (e2e)', () => {
       ['a duration of 241 minutes', { defaultDurationMin: 241 }],
       ['a typeCode above 50 characters', { typeCode: 'x'.repeat(51) }],
     ])('should answer 400 VALIDATION_ERROR before HAPI is called when the patch has %s', async (_label, body) => {
-      // Act
       const response = await patch(body).expect(400);
 
-      // Assert
       expect(response.body).toMatchObject({ errorCode: 'VALIDATION_ERROR' });
       expect(harness.fhir.read).not.toHaveBeenCalled();
     });
 
     it('should answer 422 TERMINOLOGY_NOT_FOUND and write nothing when the patched code is unknown', async () => {
-      // Arrange
       harness.fhir.operation.mockRejectedValue(upstream(422));
 
-      // Act
       const response = await patch({ typeCode: 'ZZZ' }).expect(422);
 
-      // Assert
       expect(response.body).toMatchObject({ errorCode: 'TERMINOLOGY_NOT_FOUND' });
       expect(harness.fhir.batch).not.toHaveBeenCalled();
     });
 
     it('should answer 404 NOT_FOUND and keep the cache when the service does not exist', async () => {
-      // Arrange
       harness.fhir.read.mockRejectedValue(new FhirClientError('GET', 'http://hapi:8080/fhir/HealthcareService/ghost', 404, '{}'));
 
-      // Act
       const response = await patch({ name: 'Новое имя' }, 'ghost').expect(404);
 
-      // Assert
       expect(response.body).toMatchObject({ status: 404, errorCode: 'NOT_FOUND' });
       expect(harness.store.entries.has(SERVICE_PAGE_KEY)).toBe(true);
     });

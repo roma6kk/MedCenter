@@ -21,11 +21,7 @@ import { DoctorScheduleResponseDoc, DoctorSlotsResponseDoc } from './dto/slot-re
 import { requirePractitionerRoleId } from './practitioner-role-ref';
 import { resolveSlotRange } from './slot-range';
 
-/**
- * API §5.2.7 (doctor's own schedule) and §5.2.8 (public free slots). Traefik
- * routes `/api/v1/doctor/schedule` and `^/api/v1/doctors/[^/]+/slots$` here;
- * the rest of `/api/v1/doctors` belongs to practitioner-service.
- */
+/** Traefik routes `/api/v1/doctor/schedule` and `^/api/v1/doctors/[^/]+/slots$` here; the rest of `/doctors` belongs to practitioner-service. */
 @ApiTags('catalog')
 @Controller('api/v1')
 export class SlotsController {
@@ -67,9 +63,7 @@ export class SlotsController {
     @Req() request: RequestWithClaims,
     @Query() query: SlotRangeQueryDto,
   ): Promise<DoctorScheduleResponseDto> {
-    // Identity before the cross-field range rules (limits, defaults): a token without a
-    // PractitionerRole learns nothing about them. A malformed date is caught earlier, by
-    // the validation pipe, before this method runs.
+    // Identity before range rules: a token without a PractitionerRole learns nothing about the limits.
     const practitionerRoleId = requirePractitionerRoleId(claimsOf(request));
     return this.doctorSchedule.forRole(practitionerRoleId, resolveSlotRange(query));
   }

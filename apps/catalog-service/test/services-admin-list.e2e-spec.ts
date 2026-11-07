@@ -20,7 +20,6 @@ function stored(id: string, extra: Record<string, unknown> = {}): { readonly res
   };
 }
 
-/** API §5.1.6 and the hiding of a deactivated service from the public catalogue (§5.1.1, §5.1.2). */
 describe('Services deactivation (e2e)', () => {
   let harness: CatalogHarness;
 

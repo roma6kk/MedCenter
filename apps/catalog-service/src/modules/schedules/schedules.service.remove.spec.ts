@@ -9,7 +9,6 @@ const SCHEDULE_ID = 'sched-1';
 const ACTOR = { sub: 'admin-1', requestId: 'req-1' };
 const TRANSACTION_DONE = { resourceType: 'Bundle', type: 'transaction-response', entry: [{ response: { status: '200 OK' } }, { response: { status: '201 Created' } }] };
 
-/** Methods and URLs of the last transaction (the schedule's own change and its AuditEvent). */
 function entriesOf(fhir: jest.Mocked<FhirClient>): Array<{ method: string; url: string }> {
   const bundle = fhir.batch.mock.calls.at(-1)?.[0] as unknown as { entry: Array<{ request: { method: string; url: string } }> };
   return bundle.entry.map((entry) => ({ method: entry.request.method, url: entry.request.url }));

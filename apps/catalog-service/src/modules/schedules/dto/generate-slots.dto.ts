@@ -3,7 +3,6 @@ import { IsDateString, Matches } from 'class-validator';
 
 import { CALENDAR_DATE } from '../../../common/zoned-date';
 
-/** API §5.2.5 `GenerateSlotsDto` — `to - from` must stay within 90 days. */
 export class GenerateSlotsDto {
   @ApiProperty({
     format: 'date',

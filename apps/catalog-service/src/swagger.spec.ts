@@ -10,7 +10,6 @@ import { AppModule } from './app/app.module';
 
 const HTTP_METHODS = ['get', 'put', 'post', 'delete', 'patch'] as const;
 
-/** Every `METHOD /path` of the document with its operation. */
 function operationsOf(
   document: OpenAPIObject,
 ): Array<{ label: string; path: string; operation: Record<string, unknown> }> {

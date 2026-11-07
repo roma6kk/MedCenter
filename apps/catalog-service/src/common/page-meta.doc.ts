@@ -1,7 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 import type { PageMetaDto } from '@medcenter/contracts';
 
-/** Documentation class of the pagination envelope `meta` (API §0). */
 export class PageMetaDoc implements PageMetaDto {
   @ApiProperty({ minimum: 1, example: 1 })
   page!: number;

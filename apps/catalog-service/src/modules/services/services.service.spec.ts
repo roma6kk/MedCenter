@@ -14,7 +14,6 @@ describe('ServicesService', () => {
   let servicesService: ServicesService;
   let fhirClient: jest.Mocked<FhirClient>;
   const serviceId = 'svc-1';
-  // HAPI `CodeSystem/$lookup`: a known concept -> 200 Parameters ...
   const lookupFound = {
     resourceType: 'Parameters',
     parameter: [
@@ -22,7 +21,6 @@ describe('ServicesService', () => {
       { name: 'display', valueString: 'Консультация терапевта' },
     ],
   };
-  // ... an unknown code -> 4xx OperationOutcome, never an empty Parameters.
   const lookupFailure = (status: number): FhirClientError =>
     new FhirClientError(
       'GET',
@@ -73,13 +71,11 @@ describe('ServicesService', () => {
 
       const merged = (committedEntries(fhirClient)[0]?.resource ?? {}) as FhirResource;
       expect(merged['name']).toBe('Renamed');
-      // Untouched DTO fields must keep their stored values.
       expect(merged['comment']).toBe('Existing description');
       expect(merged['active']).toBe(true);
       expect(merged['extension']).toEqual([
         { url: MEDCENTER_EXT.SERVICE_DEFAULT_DURATION, valueInteger: 30 },
       ]);
-      // typeCode was absent -> the existing coding survives as-is.
       expect(merged['type']).toEqual(existing['type']);
     });
 
@@ -89,20 +85,15 @@ describe('ServicesService', () => {
 
       await servicesService.update(serviceId, { typeCode: '02' }, ACTOR);
 
-      // The validation must hit CodeSystem/$lookup, not a CodeSystem search
-      // (`code` is not a search parameter there — the old request never matched).
       expect(fhirClient.operation).toHaveBeenCalledWith('CodeSystem', '$lookup', {
         system: FHIR_BY.SERVICE_CODE_SYSTEM,
         code: '02',
       });
 
       const merged = (committedEntries(fhirClient)[0]?.resource ?? {}) as FhirResource;
-      // Mixing the new code with the old system would be incoherent: the
-      // whole coding is rebuilt with the default НСИ system.
       expect(merged['type']).toEqual([
         { coding: [{ system: FHIR_BY.SERVICE_CODE_SYSTEM, code: '02', display: 'Консультация терапевта' }] },
       ]);
-      // ...while unrelated fields survive the partial merge.
       expect(merged['comment']).toBe('Existing description');
     });
 
@@ -168,7 +159,6 @@ describe('ServicesService', () => {
     });
 
     it('keeps stored defaults when only the description changes', async () => {
-      // Sanity: SERVICE_IN_USE belongs to remove(); ensure update stays open.
       fhirClient.operation.mockResolvedValue(lookupFound);
       fhirClient.read.mockResolvedValue(existing);
 
@@ -182,31 +172,25 @@ describe('ServicesService', () => {
     const catalogBundle = { entry: [{ resource: { resourceType: 'HealthcareService', id: serviceId, name: 'Therapy' } }] };
 
     it('should cache the plain listing under one key per page when no search term is given', async () => {
-      // Arrange
       const store = new InMemoryCacheStore();
       servicesService = new ServicesService(fhirClient, new RedisCacheService(store));
       fhirClient.search.mockResolvedValue(catalogBundle);
 
-      // Act
       await servicesService.list(2, 20);
       await servicesService.list(2, 20);
 
-      // Assert
       expect(fhirClient.search).toHaveBeenCalledTimes(1);
       expect([...store.entries.keys()]).toEqual([CACHE_KEYS.SERVICES_PAGE(2, 20)]);
     });
 
     it('should not cache anything when a search term is given', async () => {
-      // Arrange — a key per free-text term would let an anonymous caller fill the shared Redis.
       const store = new InMemoryCacheStore();
       servicesService = new ServicesService(fhirClient, new RedisCacheService(store));
       fhirClient.search.mockResolvedValue(catalogBundle);
 
-      // Act
       await servicesService.list(1, 20, 'терапевт');
       await servicesService.list(1, 20, 'терапевт');
 
-      // Assert
       expect(fhirClient.search).toHaveBeenCalledTimes(2);
       expect(store.entries.size).toBe(0);
       expect(fhirClient.search).toHaveBeenCalledWith('HealthcareService', {
@@ -219,21 +203,17 @@ describe('ServicesService', () => {
     });
 
     it('should treat a blank search term as the plain listing when only whitespace is sent', async () => {
-      // Arrange
       const store = new InMemoryCacheStore();
       servicesService = new ServicesService(fhirClient, new RedisCacheService(store));
       fhirClient.search.mockResolvedValue(catalogBundle);
 
-      // Act
       await servicesService.list(1, 20, '   ');
 
-      // Assert
       expect([...store.entries.keys()]).toEqual([CACHE_KEYS.SERVICES_PAGE(1, 20)]);
       expect(fhirClient.search).toHaveBeenCalledWith('HealthcareService', { 'active:not': 'false', _count: 20, _offset: 0, _total: 'accurate' });
     });
 
     it('should clear every cached page when a service is created', async () => {
-      // Arrange
       const store = new InMemoryCacheStore();
       servicesService = new ServicesService(fhirClient, new RedisCacheService(store));
       fhirClient.search.mockResolvedValue(catalogBundle);
@@ -241,7 +221,6 @@ describe('ServicesService', () => {
       await servicesService.list(1, 20);
       await servicesService.list(2, 20);
 
-      // Act
       await servicesService.create({
         name: 'New',
         typeSystem: FHIR_BY.SERVICE_CODE_SYSTEM,
@@ -249,7 +228,6 @@ describe('ServicesService', () => {
         defaultDurationMin: 30,
       }, ACTOR);
 
-      // Assert
       expect(store.entries.size).toBe(0);
     });
   });
@@ -264,30 +242,23 @@ describe('ServicesService', () => {
     });
 
     it('should throw the catalogued SERVICE_IN_USE error code when a schedule references the service', async () => {
-      // Arrange
       fhirClient.search.mockResolvedValue({ entry: [{ resource: { resourceType: 'Schedule' } }] });
 
-      // Act
       const error = await servicesService.remove(serviceId, ACTOR).then(
         () => undefined,
         (e: unknown) => e as ConflictException,
       );
 
-      // Assert — ProblemDetailsFilter promotes only catalogued codes; an unknown one would degrade to CONFLICT.
       const { errorCode } = error?.getResponse() as { errorCode: string };
       expect(errorCode).toBe('SERVICE_IN_USE');
       expect(ERROR_CODES).toContain(errorCode);
     });
 
     it('should look up referencing schedules through Schedule.actor when the delete is checked', async () => {
-      // Arrange
       fhirClient.search.mockResolvedValue({ entry: [] });
 
-      // Act
       await servicesService.remove(serviceId, ACTOR);
 
-      // Assert — R4 `Schedule` has no `service` search parameter (HAPI answers
-      // 400 → 500 INTERNAL); the service is one of the schedule's actors.
       expect(fhirClient.search).toHaveBeenCalledWith('Schedule', {
         actor: `HealthcareService/${serviceId}`,
         _count: 1,
