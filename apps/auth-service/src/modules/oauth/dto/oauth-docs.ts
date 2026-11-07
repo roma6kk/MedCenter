@@ -1,4 +1,3 @@
-import { applyDecorators } from '@nestjs/common';
 import { ApiResponse, getSchemaPath } from '@nestjs/swagger';
 
 import { OAuthErrorDoc } from './oauth-response.doc';
@@ -17,11 +16,9 @@ export function ApiOAuthBadRequest(description: string): MethodDecorator & Class
 }
 
 export function ApiOAuthInvalidClient(description: string): MethodDecorator & ClassDecorator {
-  return applyDecorators(
-    ApiResponse({
-      status: 401,
-      description,
-      content: { 'application/json': { schema: { $ref: getSchemaPath(OAuthErrorDoc) } } },
-    }),
-  );
+  return ApiResponse({
+    status: 401,
+    description,
+    content: { 'application/json': { schema: { $ref: getSchemaPath(OAuthErrorDoc) } } },
+  });
 }
