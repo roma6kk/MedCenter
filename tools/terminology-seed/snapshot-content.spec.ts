@@ -1,13 +1,6 @@
 import atcSnapshot from './snapshot/atc.json';
 import icd10Snapshot from './snapshot/icd-10.json';
 
-/**
- * The snapshot is medical reference data: a wrong display silently misidentifies
- * a drug or a diagnosis, because `$validate-code` only checks that the code
- * exists. These tests pin the structure and the pairs a review has already
- * corrected, so they cannot regress.
- */
-
 interface Concept {
   readonly code: string;
   readonly display: string;

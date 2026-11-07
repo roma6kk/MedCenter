@@ -1,4 +1,3 @@
-/** Hosts a developer stack lives on: loopback and the reserved development names (`*.localhost`, `*.test`). */
 const LOOPBACK_V4 = /^127(?:\.\d{1,3}){3}$/;
 const LOCAL_SUFFIXES: readonly string[] = ['.localhost', '.test'];
 
@@ -15,12 +14,7 @@ function hostnameOf(variable: string, rawUrl: string): string {
   }
 }
 
-/**
- * The seed and smoke tools create accounts, write reference data and delete test data. They aim at the local
- * compose stack, so another host is refused unless `allowVariable` is `true` in the environment: a stray
- * `SEED_AUTH_BASE_URL` or `SMOKE_BASE_URL` must not leave a privileged account or test users on a shared stand.
- * The message names the host, never the full URL.
- */
+// Remote hosts are refused unless allowed: a stray env URL must not leave privileged accounts or test data on a shared stand.
 export function assertLocalTarget(variable: string, rawUrl: string, allowVariable: string, env: NodeJS.ProcessEnv = process.env): void {
   const hostname = hostnameOf(variable, rawUrl);
   if (isLocalHost(hostname)) {

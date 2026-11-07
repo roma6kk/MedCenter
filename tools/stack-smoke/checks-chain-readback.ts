@@ -29,7 +29,6 @@ function ownRecordSteps(suite: Suite): SmokeStep[] {
   ];
 }
 
-/** ADR-018: the medical record is read by the owner and the treating doctor; the admin is refused. */
 function sharedRecordStep(suite: Suite, readers: readonly Reader[]): SmokeStep {
   const { api, chain, sessions } = suite;
   return {
@@ -68,7 +67,6 @@ function patientCardStep(suite: Suite, readers: readonly Reader[]): SmokeStep {
   };
 }
 
-/** API §3.12: the patient writes their phone back unchanged (or a fixed demo number when the card has none), so the demo card keeps its data. */
 async function rewriteOwnPhone(suite: Suite, card: JsonObject): Promise<void> {
   const telecom = Array.isArray(card['telecom']) ? (card['telecom'] as JsonObject[]) : [];
   const current = telecom.find((point) => point['system'] === 'phone')?.['value'];
@@ -78,13 +76,11 @@ async function rewriteOwnPhone(suite: Suite, card: JsonObject): Promise<void> {
   expectStatus(updated, 200);
 }
 
-/** The patient's own appointments with a `status` filter, newest first so a long demo history cannot push the new one off the page. */
 async function listByStatus(suite: Suite, status: string, upcoming = false): Promise<readonly JsonObject[]> {
   const query = { status, sortOrder: 'desc', pageSize: 100, ...(upcoming ? { upcoming: true } : {}) };
   return expectPage(await suite.api.get('/api/v1/appointments', { session: suite.sessions.patient, query }), APPOINTMENT_VIEW_SHAPE);
 }
 
-/** API §6.2 `status` filter against the appointment the chain just fulfilled. */
 function statusFilterStep(suite: Suite): SmokeStep {
   const { api, sessions, chain } = suite;
   return {
@@ -106,7 +102,6 @@ function statusFilterStep(suite: Suite): SmokeStep {
   };
 }
 
-/** Steps 15-17: what the finished encounter left in the patient's record, read by each party that may read it. */
 export function readbackSteps(suite: Suite): SmokeStep[] {
   const { sessions } = suite;
   const cardReaders: readonly Reader[] = [['patient', sessions.patient], ['doctor', sessions.doctor], ['admin', sessions.admin]];

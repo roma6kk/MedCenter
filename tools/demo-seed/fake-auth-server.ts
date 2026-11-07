@@ -4,24 +4,12 @@ import { authorizeLocation, sanitizeAuthorizeQuery } from '../../apps/auth-servi
 import { renderLoginPage } from '../../apps/auth-service/src/modules/oauth/login/login-page';
 import type { FetchLike } from '../shared/fhir-http';
 
-/**
- * Test double of auth-service's authorization endpoints for the users-step
- * tests. It answers in the shapes of `apps/auth-service/src/modules/oauth`
- * (cookies, CSRF double submit, single-use login session, redirect targets) and
- * renders the REAL login page (`renderLoginPage`), so a change to the markup or
- * the form fields breaks the seed's tests instead of its first live run.
- */
-
 export interface FakeAuthOptions {
   readonly clientId: string;
   readonly redirectUri: string;
-  /** email -> password of the accounts that may log in. */
   readonly accounts: Readonly<Record<string, string>>;
-  /** Answer every login POST with this status instead of processing it (e.g. 429). */
   readonly loginStatus?: number;
-  /** Scope the token response reports (a real server reports what it granted); omitted when unset. */
   readonly grantedScope?: string;
-  /** Redirect the final authorize hop to this URL instead of the registered `redirect_uri`. */
   readonly redirectOverride?: string;
 }
 

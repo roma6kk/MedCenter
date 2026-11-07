@@ -22,7 +22,6 @@ function label(entry: ProtectedRoute): string {
   return `${entry.method} ${entry.path.split('?')[0]}`;
 }
 
-/** No token (and a garbage token) -> 401 UNAUTHENTICATED on every protected route. */
 async function unauthenticatedChecks(suite: Suite): Promise<void> {
   const { runner, api } = suite;
   await runner.check(GROUP, `no token -> 401 UNAUTHENTICATED on all ${PROTECTED_ROUTES.length} protected routes`, async () => {
@@ -43,12 +42,10 @@ async function unauthenticatedChecks(suite: Suite): Promise<void> {
   });
 }
 
-/** Every (route, wrong role) pair the matrix defines, split by what the refusal must prove. */
 function probesOf(expected: ExpectedRefusal): Probe[] {
   return PROTECTED_ROUTES.flatMap((entry) => roleProbesFor(entry).filter((probe) => probe.expected === expected).map((probe) => ({ ...probe, entry })));
 }
 
-/** Calls each probe with the token of its role; the answer must be 403 with one of the accepted codes. */
 async function refusalFailures(suite: Suite, probes: readonly Probe[]): Promise<string[]> {
   const failures: string[] = [];
   for (const { entry, role, expected } of probes) {
@@ -61,10 +58,6 @@ async function refusalFailures(suite: Suite, probes: readonly Probe[]): Promise<
   return failures;
 }
 
-/**
- * Wrong role -> 403. The first check isolates RoleGuard (the probe holds the route's scopes, so the answer
- * must be exactly FORBIDDEN_ROLE); the second covers the roles that lack the scopes as well.
- */
 export async function wrongRoleChecks(suite: Suite): Promise<void> {
   const isolating = probesOf('FORBIDDEN_ROLE');
   await suite.runner.check(GROUP, `RoleGuard alone: a role that holds the route's scopes -> exactly 403 FORBIDDEN_ROLE (${isolating.length} probes: DOCTOR on admin routes, ADMIN on doctor routes)`, async () => {

@@ -23,17 +23,6 @@ import { SmokeRunner, exitCodeOf, formatTable } from './smoke-runner';
 import type { JsonObject } from './smoke-types';
 import type { Suite } from './suite';
 
-/**
- * Live smoke suite of the whole stack, through the Traefik edge only:
- *
- *   npm run smoke:stack
- *
- * Needs the stack up (`npm run stack:up`) and the demo data seeded
- * (`npm run seed:terminology`, `npm run seed:demo`, then `npm run seed:demo -- --users --consents`).
- * Accounts come from `tools/demo-seed/output/demo-manifest.json`; no password is
- * ever printed. Exit code 0 only when every check passed.
- */
-
 const APPS_DIRECTORY = join(__dirname, '..', '..', 'apps');
 
 async function prepareSlots(suite: Suite): Promise<readonly JsonObject[] | undefined> {

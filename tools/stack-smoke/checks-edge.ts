@@ -5,7 +5,6 @@ import type { SmokeRunner } from './smoke-runner';
 const GROUP = 'edge';
 const SMART_SCOPES = ['launch', 'patient/*.read', 'patient/*.write', 'user/*.read', 'user/*.write'];
 
-/** HAPI is published through the edge for exactly one read: the CapabilityStatement (NFR-010). */
 async function fhirChecks(runner: SmokeRunner, api: ApiClient): Promise<void> {
   await runner.check(GROUP, 'GET /fhir/metadata -> 200 CapabilityStatement, fhirVersion 4.0.1', async () => {
     const response = await api.get('/fhir/metadata');
@@ -23,7 +22,6 @@ async function fhirChecks(runner: SmokeRunner, api: ApiClient): Promise<void> {
   });
 }
 
-/** The public auth documents every client and every BFF reads. */
 async function authDocumentChecks(runner: SmokeRunner, api: ApiClient): Promise<void> {
   await runner.check(GROUP, 'GET /.well-known/jwks.json -> 200 with an RS256-capable RSA key', async () => {
     const response = await api.get('/.well-known/jwks.json');
@@ -42,7 +40,6 @@ async function authDocumentChecks(runner: SmokeRunner, api: ApiClient): Promise<
   });
 }
 
-/** Traefik and the public documents; none of this needs a token. */
 export async function edgeChecks(runner: SmokeRunner, api: ApiClient): Promise<void> {
   await fhirChecks(runner, api);
   await authDocumentChecks(runner, api);

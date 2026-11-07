@@ -112,7 +112,6 @@ describe('seedTerminology', () => {
   });
 
   describe('$expand answering a server error right after a ValueSet PUT', () => {
-    /** Fails the first `failures` $expand calls with `status`, then answers like the server. */
     function flaky(
       server: InMemoryFhirServer,
       failures: number,
@@ -213,7 +212,6 @@ describe('seedTerminology', () => {
   });
 
   it('should recreate a stale ValueSet under the server id it adopted and not leave a second copy', async () => {
-    // Arrange
     const server = new InMemoryFhirServer();
     server.preload({ resourceType: 'ValueSet', id: '1004', url: TERMINOLOGY_URLS.ATC_VALUE_SET, status: 'draft' });
     const deleted: string[] = [];
@@ -231,17 +229,14 @@ describe('seedTerminology', () => {
       return new Response(JSON.stringify({ ...body, expansion: { contains: body.expansion.contains.slice(1) } }));
     };
 
-    // Act
     await seedTerminology(new FhirHttp('http://fhir.test/fhir', staleOnce), NO_WAIT);
 
-    // Assert
     expect(deleted).toEqual(['http://fhir.test/fhir/ValueSet/1004']);
     const atc = server.all('ValueSet').filter((valueSet) => valueSet['url'] === TERMINOLOGY_URLS.ATC_VALUE_SET);
     expect(atc.map((valueSet) => valueSet.id)).toEqual(['1004']);
   });
 
   it('should write nothing when a CodeSystem it would have to delete is not recognisably its own copy', async () => {
-    // Arrange
     const server = new InMemoryFhirServer();
     server.preload({
       resourceType: 'CodeSystem',
@@ -251,10 +246,8 @@ describe('seedTerminology', () => {
       concept: Array.from({ length: 500 }, (_, index) => ({ code: `X${index}`, display: `Real concept ${index}` })),
     });
 
-    // Act
     const attempt = seedTerminology(new FhirHttp('http://fhir.test/fhir', server.fetch), NO_WAIT);
 
-    // Assert
     await expect(attempt).rejects.toThrow(/refuses to delete/);
     expect(server.requests.filter((request) => request.method !== 'GET')).toEqual([]);
     expect(server.all('CodeSystem').map((system) => system.id)).toEqual(['real-icd10']);

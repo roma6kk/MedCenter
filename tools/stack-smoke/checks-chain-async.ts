@@ -28,7 +28,6 @@ function popularityOf(report: JsonObject): Record<string, number> {
   return Object.fromEntries(entries.map((group) => [String(group['code']), Number(group['count'])]));
 }
 
-/** The admin reports as they stand now (taken before the chain, compared after it). */
 export async function takeBaseline(suite: Suite): Promise<ReportBaseline> {
   const appointments = await readCount(suite, '/api/v1/admin/analytics/appointments');
   const encounters = await readCount(suite, '/api/v1/admin/analytics/encounters');
@@ -36,7 +35,6 @@ export async function takeBaseline(suite: Suite): Promise<ReportBaseline> {
   return { appointments: Number(appointments['total']), encounters: Number(encounters['total']), popularity: popularityOf(popularity) };
 }
 
-/** Step 18: notification-service consumed the events and created a Communication for the patient. */
 function arrivalStep(suite: Suite, found: { notificationId: string }): SmokeStep {
   const { api, sessions, chain, config } = suite;
   return {
@@ -54,7 +52,6 @@ function arrivalStep(suite: Suite, found: { notificationId: string }): SmokeStep
   };
 }
 
-/** Step 19: the unread counter and the read flag. */
 function readFlagSteps(suite: Suite, found: { notificationId: string }): SmokeStep[] {
   const { api, sessions } = suite;
   const session = sessions.patient;
@@ -81,7 +78,6 @@ function readFlagSteps(suite: Suite, found: { notificationId: string }): SmokeSt
   ];
 }
 
-/** API §8.4: read-all marks the caller's remaining unread notifications and the counter drops to zero. */
 function readAllStep(suite: Suite): SmokeStep {
   const { api, sessions } = suite;
   const session = sessions.patient;
@@ -177,12 +173,10 @@ function patientReadAuditStep(suite: Suite): SmokeStep {
   );
 }
 
-/** Step 20-21: the admin reports and the audit journal show the activity (the audit is synced on an interval). */
 export function reportSteps(suite: Suite): SmokeStep[] {
   return [analyticsStep(suite), ...auditSteps(suite)];
 }
 
-/** The journal rows of `entity` with `action`, once at least one is synced (the journal follows HAPI on an interval). */
 export async function auditOf(suite: Suite, entity: string, action: string): Promise<readonly JsonObject[]> {
   const { api, sessions, config } = suite;
   return pollUntil(config, `the ${action} audit event of ${entity}`, async () => {

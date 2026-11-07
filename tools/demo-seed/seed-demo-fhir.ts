@@ -14,20 +14,9 @@ import {
 } from './demo-resources';
 import { buildSlot, expandSlotIntervals } from './demo-slots';
 
-/**
- * FHIR part of the demo seed. Reference data is written with `PUT <type>/<id>`
- * on deterministic ids inside `transaction` Bundles, in dependency order (HAPI
- * enforces referential integrity on write). Slots are *create-if-absent*: a
- * slot that exists is never rewritten, so re-running the seed cannot free a
- * slot a patient has booked in the meantime.
- */
-
 export interface DemoSeedOptions {
-  /** First clinic calendar day (Europe/Minsk) of the slot horizon, `YYYY-MM-DD`. */
   readonly fromDay: string;
-  /** Number of days to cover, starting at `fromDay`. */
   readonly days: number;
-  /** Slots that already started are not created. */
   readonly now: Date;
 }
 
@@ -47,13 +36,11 @@ export interface DemoFhirSummary {
   readonly horizon: Horizon;
   readonly writes: Readonly<Record<string, WriteStats>>;
   readonly slots: readonly ScheduleSlotStats[];
-  /** Server-side counts of the seeded (tagged) resources per type. */
   readonly seededCounts: Readonly<Record<string, number>>;
 }
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const TRANSACTION_CHUNK = 100;
-/** Types that carry the demo tag. `Slot` is written exactly as catalog-service writes it, so it is counted via its schedules. */
 const TAGGED_TYPES = [
   'Organization',
   'Location',
@@ -79,7 +66,6 @@ function chunked<T>(items: readonly T[], size: number): T[][] {
   return chunks;
 }
 
-/** Adds the per-entry outcomes of a transaction response to `stats`; anything but 200/201 is an error. */
 function tally(response: Bundle, expected: number, stats: { created: number; updated: number }): void {
   const entries = response.entry ?? [];
   if (entries.length !== expected) {
@@ -97,7 +83,6 @@ function tally(response: Bundle, expected: number, stats: { created: number; upd
   }
 }
 
-/** `PUT`s the resources (each carries its deterministic id) in transaction Bundles of at most 100 entries. */
 export async function writeResources(http: FhirHttp, resources: readonly FhirResource[]): Promise<WriteStats> {
   const stats = { created: 0, updated: 0 };
   for (const chunk of chunked(resources, TRANSACTION_CHUNK)) {
@@ -115,7 +100,6 @@ async function existingSlotIds(http: FhirHttp, scheduleId: string): Promise<Read
   return new Set(slots.map((slot) => slot.id ?? ''));
 }
 
-/** Slots the schedule should have over the horizon and has not started yet. */
 export function plannedSlots(scheduleKey: string, horizon: Horizon, now: Date): FhirResource[] {
   const schedule = SCHEDULES.find((candidate) => candidate.key === scheduleKey);
   if (schedule === undefined) {
@@ -150,11 +134,6 @@ async function countSeeded(http: FhirHttp): Promise<Record<string, number>> {
   return counts;
 }
 
-/**
- * Writes the reference data and the slots; every step is idempotent. The
- * property order below is the dependency order: Organization, then what
- * references it (rooms, doctors, services), then roles, then schedules.
- */
 export async function seedDemoFhir(http: FhirHttp, options: DemoSeedOptions): Promise<DemoFhirSummary> {
   const horizon = horizonOf(options);
   const writes: Record<string, WriteStats> = {

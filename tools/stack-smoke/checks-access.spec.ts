@@ -10,7 +10,6 @@ function refusal(code: string): ApiResponse {
   return { status: 403, contentType: 'application/problem+json', text: '', body: { errorCode: code } };
 }
 
-/** A stack whose guards refuse every wrong role with `code`, except where `answer` says otherwise. */
 function suiteAnswering(answer: (method: string, path: string, role: SmokeRole) => ApiResponse | undefined, code: string): Suite {
   const request = jest.fn(async (method: string, path: string, options?: { session?: Session }) => {
     const role = options?.session?.role ?? 'PATIENT';

@@ -1,18 +1,14 @@
 import type { ApiResponse, Session } from './smoke-types';
 
 export interface RequestOptions {
-  /** Signed-in caller; omitted for a public call or a deliberate "no token" probe. */
   readonly session?: Session;
-  /** A raw `Authorization` value for malformed-token probes. */
   readonly authorization?: string;
   readonly body?: unknown;
-  /** A `multipart/form-data` body (a file upload); mutually exclusive with `body`. `fetch` sets the content type and boundary. */
   readonly multipart?: FormData;
   readonly headers?: Readonly<Record<string, string>>;
   readonly query?: Readonly<Record<string, string | number | boolean | undefined>>;
 }
 
-/** Called for every answer: the route-coverage tracker listens here. */
 export type ResponseListener = (method: string, path: string, status: number) => void;
 
 function withQuery(path: string, query: RequestOptions['query']): string {
@@ -48,17 +44,13 @@ function bodyOf(options: RequestOptions): { body?: string | FormData } {
   return options.body === undefined ? {} : { body: JSON.stringify(options.body) };
 }
 
-/** A hung answer must fail one check, not hang the suite: no request waits longer than this unless configured. */
 export const DEFAULT_REQUEST_TIMEOUT_MS = 60_000;
 
-/** Whether `fetch` gave up because the `AbortSignal.timeout` fired. */
 function isTimeout(error: unknown): boolean {
-  // By name, not `instanceof`: the DOMException of `fetch` is not an `Error` of every realm (jest's, for one).
   const name = typeof error === 'object' && error !== null ? (error as { name?: unknown }).name : undefined;
   return name === 'TimeoutError' || name === 'AbortError';
 }
 
-/** Thin `fetch` wrapper: one origin (the edge), JSON in and out, nothing printed; every request has a timeout. */
 export class ApiClient {
   constructor(
     readonly baseUrl: string,
@@ -72,7 +64,6 @@ export class ApiClient {
     return { status, contentType, text, body: parseJson(text) };
   }
 
-  /** The whole answer, body included, under one timeout: a stalled body hangs the suite as surely as a stalled header. */
   private async exchange(method: string, path: string, options: RequestOptions): Promise<Pick<ApiResponse, 'status' | 'contentType' | 'text'>> {
     try {
       const response = await this.fetchWithTimeout(method, path, options);

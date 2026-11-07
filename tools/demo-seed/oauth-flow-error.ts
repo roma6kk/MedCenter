@@ -1,6 +1,5 @@
 export type OAuthStep = 'authorize' | 'login' | 'token';
 
-/** A failed step of the programmatic login; the message never carries a credential. */
 export class OAuthFlowError extends Error {
   constructor(
     readonly step: OAuthStep,

@@ -15,17 +15,12 @@ const REASON = 'Жалобы на кашель (smoke)';
 const EMERGENCY_REASON = 'Пациент без сознания, согласие дать не может (smoke)';
 const FIRST_SLOT = 3;
 
-/**
- * What the steps hand to each other. The patient is a throwaway one that smoke registers, so the demo
- * patients' consent (and the deliberate absence of it) is never touched.
- */
 interface Run {
   readonly tag: string;
   readonly email: string;
   patient?: Session;
   patientId: string;
   mode: EnforcementMode;
-  /** Appointment ids by scenario: `first` (consent given), `second` (consent revoked), `third` (emergency). */
   readonly appointment: { first: string; second: string; third: string };
   encounterId: string;
 }
@@ -46,7 +41,6 @@ function registerStep(suite: Suite, run: Run): SmokeStep {
   };
 }
 
-/** API 6.1: a free-text reason without consent. This booking also tells which mode the stack runs. */
 function reasonWithoutConsentStep(suite: Suite, run: Run, slotId: string): SmokeStep {
   return {
     name: '6.1 with a free-text reason and no consent: block -> 409 CONSENT_REQUIRED, warn -> booked without the reason',
@@ -78,7 +72,6 @@ function openEncounter(suite: Suite, run: Run, key: keyof Run['appointment'], ex
   return suite.api.post('/api/v1/encounters', { session: suite.sessions.doctor, body: { appointmentId: run.appointment[key], ...extra } });
 }
 
-/** `block` refuses before the write; `warn` lets the first open through (and the later ones replay it). */
 function gatedOpenStep(suite: Suite, run: Run, key: keyof Run['appointment'], name: string): SmokeStep {
   return {
     name: `${name}: block -> 409 CONSENT_REQUIRED (nothing written), warn -> 201`,
@@ -134,7 +127,6 @@ function recordSteps(suite: Suite, run: Run): SmokeStep[] {
   ];
 }
 
-/** With a consent in force 7.1 and 7.3 pass in both modes (`warn` has already opened it, so this is a replay). */
 function withConsentSteps(suite: Suite, run: Run): SmokeStep[] {
   return [
     {
@@ -170,7 +162,6 @@ function revokeByPatientStep(suite: Suite, run: Run): SmokeStep {
   };
 }
 
-/** The journal (9.4, ADR-019) shows the bypass as `emergency-bypass` of the patient, with the doctor and the reason; the audit is synced on an interval. */
 async function bypassEventOf(suite: Suite, run: Run): Promise<JsonObject> {
   return pollUntil(suite.config, 'the emergency-bypass audit event of the patient', async () => {
     const response = await suite.api.get('/api/v1/admin/audit', { session: suite.sessions.admin, query: { entity: `Patient/${run.patientId}`, pageSize: 100 } });
@@ -202,7 +193,6 @@ function emergencySteps(suite: Suite, run: Run): SmokeStep[] {
   ];
 }
 
-/** The revoked-consent appointment: `block` never opened it (cancel frees the slot); `warn` did (the doctor finishes it). */
 function tidySecondStep(suite: Suite, run: Run): SmokeStep {
   return {
     name: 'tidy up the second appointment (block: the patient cancels it; warn: the doctor completes the encounter warn opened)',
@@ -250,12 +240,6 @@ function stepsOf(suite: Suite, run: Run, slots: readonly JsonObject[]): SmokeSte
   ];
 }
 
-/**
- * The consent rules end to end (ADR-019, API 3.4-3.11, 6.1, 7.1, 7.3), on a throwaway patient. The steps
- * assert the mode the stack runs (`CONSENT_ENFORCEMENT`, detected by the first booking or named in
- * `SMOKE_CONSENT_ENFORCEMENT`): `block` refuses with 409 CONSENT_REQUIRED, `warn` lets the same calls through.
- * Needs 3 free slots after the first three that the other chains use.
- */
 export async function consentChecks(suite: Suite, slots: readonly JsonObject[]): Promise<void> {
   const tag = runTag();
   const run: Run = { tag, email: `smoke.consent.${tag}@medcenter.test`, patientId: '', mode: 'block', appointment: { first: '', second: '', third: '' }, encounterId: '' };

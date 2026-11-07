@@ -13,7 +13,6 @@ const EXPECTED_SCOPES: Readonly<Record<SmokeRole, { readonly has: readonly strin
   PATIENT: { has: ['launch', 'patient/*.read', 'patient/*.write'], lacks: ['user/*.read', 'user/*.write'] },
 };
 
-/** The token says what the role may do (API §0 scope matrix) and carries the right identity claims. */
 function assertGrant(session: Session, account: SmokeAccount): void {
   const granted = session.grantedScope.split(' ');
   const expected = EXPECTED_SCOPES[account.role];
@@ -44,7 +43,6 @@ async function login(runner: SmokeRunner, config: SmokeConfig, label: string, ac
   return session;
 }
 
-/** The three roles log in through the real browser flow; one wrong password proves the form refuses it. */
 export async function loginAll(runner: SmokeRunner, config: SmokeConfig, accounts: SmokeAccounts): Promise<SmokeSessions | undefined> {
   const admin = await login(runner, config, 'admin', accounts.admin);
   const doctor = await login(runner, config, 'doctor', accounts.doctor);

@@ -1,16 +1,9 @@
 import type { FhirHttp, FhirResource } from '../shared/fhir-http';
 import { PATIENTS, patientPhotoUrl, type PatientDef } from './demo-catalog';
 
-/**
- * auth-service creates the FHIR `Patient` of a self-registered account, so the
- * portrait cannot ride along with the reference data: once the accounts exist,
- * each demo patient is found by name and birth date and gets `photo[0]`.
- */
-
 export interface PatientPhotoSummary {
   readonly updated: readonly string[];
   readonly unchanged: readonly string[];
-  /** Demo patients with no `Patient` on the server (account not registered yet). */
   readonly missing: readonly string[];
 }
 

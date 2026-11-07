@@ -1,18 +1,3 @@
-/**
- * Minimal FHIR R4 REST client for the workspace seed tools (`tools/*`).
- *
- * The services use `@medcenter/fhir` (a NestJS provider bound to the service
- * env schema); the seeds are plain scripts and only need a handful of
- * interactions, so they talk to HAPI through `fetch` directly. Every non-2xx
- * answer becomes a `FhirHttpError` carrying the status and an excerpt of the
- * `OperationOutcome` — errors are never swallowed.
- *
- * Every request carries `Cache-Control: no-cache`: HAPI reuses an identical
- * search result for a minute by default, and a seed that decides "is this slot
- * already there?" (so as never to overwrite a booked one) must see the live
- * state, not a minute-old page.
- */
-
 export interface FhirResource {
   readonly resourceType: string;
   readonly id?: string;
@@ -41,7 +26,6 @@ export interface BundleRequestEntry {
   readonly method: 'PUT' | 'POST' | 'DELETE';
   readonly url: string;
   readonly resource?: FhirResource;
-  /** `Bundle.entry.request.ifMatch`: the write only succeeds on this version (`W/"3"`), else `412`. */
   readonly ifMatch?: string;
 }
 
@@ -73,7 +57,6 @@ export class FhirHttp {
     private readonly fetchImpl: FetchLike = (url, init) => fetch(url, init),
   ) {}
 
-  /** Search with paging: follows `link[relation=next]` until the result set is exhausted. */
   async search(resourceType: string, params: SearchParams = {}): Promise<FhirResource[]> {
     const resources: FhirResource[] = [];
     let nextUrl: string | undefined = this.url(resourceType, params);
@@ -92,7 +75,6 @@ export class FhirHttp {
     return resources;
   }
 
-  /** `_summary=count` — the server-side total, without transferring resources. */
   async count(resourceType: string, params: SearchParams = {}): Promise<number> {
     const bundle = (await this.request(this.url(resourceType, { ...params, _summary: 'count' }), {
       method: 'GET',
@@ -100,7 +82,6 @@ export class FhirHttp {
     return bundle.total ?? 0;
   }
 
-  /** Update-or-create on a client-assigned id (FHIR `PUT <type>/<id>`). */
   async put(resource: FhirResource): Promise<FhirResource> {
     if (resource.id === undefined || resource.id.length === 0) {
       throw new Error(`FHIR PUT ${resource.resourceType} requires a client-assigned id`);
@@ -115,7 +96,6 @@ export class FhirHttp {
     await this.request(this.url(`${resourceType}/${id}`), { method: 'DELETE' });
   }
 
-  /** Posts a `batch` (per-entry outcome) or `transaction` (all-or-nothing) Bundle. */
   async bundle(type: 'batch' | 'transaction', entries: readonly BundleRequestEntry[]): Promise<Bundle> {
     const body = {
       resourceType: 'Bundle',
@@ -128,7 +108,6 @@ export class FhirHttp {
     return (await this.request(this.baseUrl, { method: 'POST', body: JSON.stringify(body) })) as Bundle;
   }
 
-  /** Type-level operation invoked with GET, e.g. `ValueSet/$expand`. */
   async operation(path: string, params: SearchParams = {}): Promise<FhirResource> {
     return this.request(this.url(path, params), { method: 'GET' });
   }

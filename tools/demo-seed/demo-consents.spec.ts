@@ -135,7 +135,6 @@ describe('selectConsentPatients', () => {
   });
 });
 
-/** HAPI double: patients by family name, consents by `patient` reference, plain PUT. */
 function fakeHttp(patients: ReadonlyArray<FhirResource>, existing: FhirResource[] = []): { http: FhirHttp; puts: FhirResource[] } {
   const puts: FhirResource[] = [];
   const consents = [...existing];

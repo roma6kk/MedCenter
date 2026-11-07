@@ -4,22 +4,16 @@ import { DEFAULT_SLOT_DAYS } from './demo-catalog';
 import type { DemoUsersSection } from './demo-manifest';
 import type { UsersSeedConfig } from './seed-demo-users';
 
-/** The service caps one planning horizon at 90 days (API §5.2.5), so the seed never exceeds it. */
 export const MAX_SLOT_DAYS = 90;
 
 export interface CliOptions {
   readonly runFhir: boolean;
   readonly runUsers: boolean;
-  /** `--repair`: fix the data earlier checks left behind (see `demo-repair.ts`). */
   readonly runRepair: boolean;
-  /** `--consents`: the EMR consent of the demo patients (see `demo-consents.ts`). */
   readonly runConsents: boolean;
-  /** `--consent-except=<account|none>`: the demo patient left without consent; unset means the default (`patient.novikov`). */
   readonly consentExcept?: string;
-  /** `--with-admin`: also create the demo ADMIN (the stack smoke suite signs in as it). Never by default. */
   readonly withAdmin: boolean;
   readonly days: number;
-  /** First slot day (clinic calendar, Europe/Minsk), `YYYY-MM-DD`; today in Minsk when omitted. */
   readonly from?: string;
 }
 
@@ -51,15 +45,6 @@ function parseFrom(raw: string): string {
   return raw;
 }
 
-/**
- * `seed:demo` alone runs the FHIR part. `--users` runs the user part only;
- * `--fhir --users` runs both, FHIR first. `--users --with-admin` also creates the
- * demo ADMIN: a persistent privileged account is opt-in, an earlier one stays in the
- * manifest without the flag. `--days=N` / `--from=YYYY-MM-DD` shape the slot horizon
- * (default: 14 days from today). `--repair` puts stale demo data right (alone it runs nothing else).
- * `--consents` gives the demo patients their EMR consent (alone it runs nothing else, after `--users` it follows it);
- * `--consent-except=<account>` picks the one patient left without it, `none` leaves nobody out.
- */
 export function parseCliArgs(argv: readonly string[]): CliOptions {
   const flags = new Set<string>();
   const values = new Map<string, string>();
@@ -111,12 +96,6 @@ export const DEFAULT_OAUTH_REDIRECT_URI = 'http://localhost:3000/api/auth/callba
 export const DEFAULT_DEMO_EMAIL_DOMAIN = 'medcenter.test';
 export const ADMIN_SCOPE = 'launch user/*.read user/*.write';
 
-/**
- * Settings of the user step from the environment. The admin credentials are
- * the bootstrap account's (`BOOTSTRAP_ADMIN_EMAIL` / `BOOTSTRAP_ADMIN_PASSWORD`);
- * nothing here has a default for a secret. The step logs in as that admin and creates
- * accounts, so `SEED_AUTH_BASE_URL` must be a local host unless `SEED_ALLOW_REMOTE=true`.
- */
 export function readUsersConfig(
   env: NodeJS.ProcessEnv,
   previous: DemoUsersSection | undefined,

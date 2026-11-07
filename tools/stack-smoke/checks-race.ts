@@ -10,7 +10,6 @@ const GROUP = 'BR-001 race + cancel';
 const NOSHOW_GROUP = 'no-show';
 
 function book(suite: Suite, session: Session, slotId: string): Promise<ApiResponse> {
-  // No free-text reason: the third demo patient has no consent on purpose, and without one `block` refuses a reason (ADR-019).
   const body = { slotId };
   return suite.api.post('/api/v1/appointments', { session, body, headers: { 'Idempotency-Key': newKey() } });
 }
@@ -19,13 +18,11 @@ function cancel(suite: Suite, session: Session, appointmentId: string): Promise<
   return suite.api.post(`/api/v1/appointments/${appointmentId}/cancel`, { session, body: { reason: 'Отмена в рамках smoke-проверки' } });
 }
 
-/** Whether the doctor's public slot list offers `slotId` as free right now (the list is cached for seconds). */
 async function isOffered(suite: Suite, slotId: string): Promise<boolean> {
   const response = await suite.api.get(`/api/v1/doctors/${suite.accounts.doctorId}/slots`, { query: { from: isoDay(1), to: isoDay(14) } });
   return asArray(bodyObject(response)['items'], 'items').some((item) => (item as JsonObject)['id'] === slotId);
 }
 
-/** The race and its winner, shared by the steps of one chain. */
 interface Race {
   readonly slotId: string;
   winner: string;
@@ -110,12 +107,6 @@ function rebookSteps(suite: Suite, race: Race): SmokeStep[] {
   ];
 }
 
-/**
- * BR-008 and API §6.6: an encounter can be opened for a fresh appointment, but a no-show cannot be marked before the
- * appointment starts, so the two requests sent together always end the same way: the opening wins, the no-show is
- * refused and the appointment stays `booked`. The interleaving of the two writes (`If-Match` on the Appointment) is
- * covered by the unit specs: over the API alone no appointment can be booked once its slot has started.
- */
 function openVersusNoShowStep(suite: Suite, race: Race): SmokeStep {
   const { api, sessions } = suite;
   return {
@@ -137,16 +128,11 @@ function openVersusNoShowStep(suite: Suite, race: Race): SmokeStep {
   };
 }
 
-/** BR-001: two patients, one free slot, fired at the same time -> exactly one 201 and one 409 SLOT_CONFLICT. */
 export async function raceChecks(suite: Suite, slots: readonly JsonObject[]): Promise<void> {
   const race: Race = { slotId: String((slots[1] as JsonObject)['id']), winner: '', winnerSession: suite.sessions.otherPatient };
   await suite.runner.chain(GROUP, [raceStep(suite, race), ...cancelSteps(suite, race), ...rebookSteps(suite, race), openVersusNoShowStep(suite, race)]);
 }
 
-/**
- * FR-006 and API §6.6: a no-show is recorded once the appointment has started, so over the API alone (a started slot
- * cannot be booked) only the refusal can be checked here: it changes nothing and the owner can still cancel.
- */
 export async function noShowChecks(suite: Suite, slots: readonly JsonObject[]): Promise<void> {
   const { runner, api, sessions } = suite;
   const slotId = String((slots[2] as JsonObject)['id']);

@@ -12,7 +12,6 @@ const SATURDAY = [{ dayOfWeek: 'SA', startTime: '09:00', endTime: '12:00' }];
 const HORIZON = { horizonFrom: isoDay(60), horizonTo: isoDay(74) };
 const API_PREFIX = '/api/v1/admin';
 
-/** API §4.4/4.5: `Location.identifier` of a room is unique -> 409 CONFLICT on create and on rename. */
 function duplicateRoomStep(suite: Suite, ids: Ids, tag: string): SmokeStep {
   const { api, sessions } = suite;
   const session = sessions.admin;
@@ -35,7 +34,6 @@ function duplicateRoomStep(suite: Suite, ids: Ids, tag: string): SmokeStep {
   };
 }
 
-/** API §4.5: an empty description and a null floor remove the elements; the room form sends the empty text on every edit, and HAPI refuses an empty string in FHIR JSON. */
 function clearedRoomStep(suite: Suite, ids: Ids): SmokeStep {
   const { api, sessions } = suite;
   const session = sessions.admin;
@@ -94,14 +92,12 @@ function serviceStep(suite: Suite, ids: Ids, tag: string): SmokeStep {
       const patched = await api.patch(`${API_PREFIX}/services/${ids.service}`, { session, body: { defaultDurationMin: 25 } });
       expectStatus(patched, 200);
       expectEqual(bodyObject(patched)['defaultDurationMin'], 25, 'defaultDurationMin');
-      // 5.1.6: the administrator's list (deactivated services included) finds the new service by name.
       const listed = expectPage(await api.get(`${API_PREFIX}/services`, { session, query: { search: `Smoke ${tag}`, pageSize: 100 } }), SERVICE_SHAPE);
       expectTrue(listed.some((service) => service['id'] === ids.service), 'GET /admin/services does not list the created service');
     },
   };
 }
 
-/** The schedule of the new room and service, in a horizon no demo schedule uses. */
 function scheduleBody(suite: Suite, ids: Ids, horizon: { horizonFrom: string; horizonTo: string } = HORIZON): object {
   return { practitionerRoleId: suite.accounts.doctorRoleId, roomId: ids.room, serviceId: ids.service, ...horizon, windows: SATURDAY, slotDurationMin: 30 };
 }
@@ -167,7 +163,6 @@ function slotSteps(suite: Suite, ids: Ids): SmokeStep[] {
   ];
 }
 
-/** BR-007: the horizon decides whether the same weekday window overlaps. */
 function overlapSteps(suite: Suite, ids: Ids): SmokeStep[] {
   const { api, sessions } = suite;
   const session = sessions.admin;
@@ -226,7 +221,6 @@ function deleteScheduleSteps(suite: Suite, ids: Ids): SmokeStep[] {
         expectEqual(bodyObject(removed)['deactivated'], false, 'deactivated');
         ids.removed.schedule = scheduleId;
         ids.schedule = '';
-        // 5.2.6 answers 404 for a schedule that no longer exists rather than an empty list (c76a22b).
         const slots = await api.get(`${API_PREFIX}/schedules/${scheduleId}/slots`, { session, query: { from: HORIZON.horizonFrom, to: HORIZON.horizonTo } });
         expectProblem(slots, 404, 'NOT_FOUND');
       },
@@ -261,7 +255,6 @@ function deleteCatalogStep(suite: Suite, ids: Ids): SmokeStep {
   };
 }
 
-/** Janitor for a chain that stopped half way: removes what the steps left behind, so a failed run leaves no test data. */
 async function removeLeftovers(suite: Suite, ids: Ids): Promise<void> {
   const leftovers: Array<[string, string, unknown?]> = [
     [`${API_PREFIX}/schedules/${ids.schedule}`, ids.schedule, { cascade: true }],
@@ -279,7 +272,6 @@ async function removeLeftovers(suite: Suite, ids: Ids): Promise<void> {
   }
 }
 
-/** The admin's catalog lifecycle in one chain: every step needs what the previous one made. */
 export async function adminCatalogChecks(suite: Suite): Promise<void> {
   const ids: Ids = { room: '', otherRoom: '', service: '', schedule: '', futureSchedule: '', raceRoom: '', removed: { room: '', service: '', schedule: '' } };
   await suite.runner.chain(GROUP, [

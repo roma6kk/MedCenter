@@ -3,7 +3,7 @@ import { pollUntil } from './polling';
 import { readSmokeConfig } from './smoke-config';
 import type { SmokeConfig } from './smoke-types';
 
-/** A 200 answer from HAPI is only ready when its body is the server's CapabilityStatement (not a Traefik error page or an OperationOutcome). */
+// A 200 is ready only with a CapabilityStatement body (not a Traefik error page or OperationOutcome).
 async function isCapabilityStatement(response: Response): Promise<boolean> {
   if (response.status !== 200) {
     return false;
@@ -18,11 +18,6 @@ async function isCapabilityStatement(response: Response): Promise<boolean> {
 
 const isOk = async (response: Response): Promise<boolean> => response.status === 200;
 
-/**
- * Waits until the stack answers through the edge: HAPI (`GET /fhir/metadata` through Traefik, the slowest
- * container: a minute or more after `docker compose up --wait`, which has no healthcheck to wait for; ready
- * means a 200 with a CapabilityStatement body) and auth-service (the JWKS every other service verifies tokens with).
- */
 export async function waitForStack(config: Pick<SmokeConfig, 'baseUrl' | 'pollTimeoutMs' | 'pollIntervalMs'>): Promise<void> {
   const probes: ReadonlyArray<readonly [string, (response: Response) => Promise<boolean>]> = [
     ['/fhir/metadata', isCapabilityStatement],
@@ -36,7 +31,6 @@ export async function waitForStack(config: Pick<SmokeConfig, 'baseUrl' | 'pollTi
   }
 }
 
-/** `npm run stack:wait` — run it between `npm run stack:up` and the seeds. */
 if (require.main === module) {
   runMain(async () => {
     const config = readSmokeConfig();

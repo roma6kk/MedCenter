@@ -11,9 +11,7 @@ const answer = (status: number, body: unknown): ApiResponse => ({ status, conten
 const card = (id: string): Record<string, unknown> => ({ id, email: 'a@b', firstName: 'A', lastName: 'B', roles: [], isActive: true, externalLinks: [] });
 
 interface FakeOptions {
-  /** HTTP status of PATCH /admin/users/{id}; anything but 200 stops the admin chain right after the account was created. */
   readonly patchStatus: number;
-  /** Ids whose DELETE answers 500. */
   readonly undeletable?: readonly string[];
 }
 

@@ -8,7 +8,7 @@ import type { SmokeConfig } from './smoke-types';
 
 export const DEFAULT_MANIFEST_PATH = join(__dirname, '..', 'demo-seed', 'output', 'demo-manifest.json');
 const DEFAULT_POLL_TIMEOUT_MS = 120_000;
-/** 24 probes a minute: under the edge's rate limit of the public `/fhir/metadata` route (infra/traefik/dynamic.yml, 60 a minute). */
+// 24 probes a minute: under the edge rate limit of /fhir/metadata (infra/traefik/dynamic.yml, 60 a minute).
 const DEFAULT_POLL_INTERVAL_MS = 2_500;
 
 function positiveNumber(raw: string | undefined, fallback: number, name: string): number {
@@ -32,15 +32,6 @@ function consentEnforcementOf(raw: string | undefined): SmokeConfig['consentEnfo
   return raw;
 }
 
-/**
- * Settings from the environment (names only, no secret is read): `SMOKE_BASE_URL`
- * (the Traefik edge, default `http://localhost:8081`), `SMOKE_MANIFEST_PATH`,
- * `SMOKE_OAUTH_CLIENT_ID`, `SMOKE_OAUTH_REDIRECT_URI`, `SMOKE_POLL_TIMEOUT_MS`,
- * `SMOKE_POLL_INTERVAL_MS`, `SMOKE_REQUEST_TIMEOUT_MS`, `SMOKE_CONSENT_ENFORCEMENT` (`warn`|`block`: the stack's
- * `CONSENT_ENFORCEMENT`; detected when unset). Credentials come from the seed manifest, never from here.
- * The suite registers users, creates and deletes catalog data and imports terminology, so a
- * `SMOKE_BASE_URL` that is not a local host is refused unless `SMOKE_ALLOW_REMOTE=true`.
- */
 export function readSmokeConfig(env: NodeJS.ProcessEnv = process.env): SmokeConfig {
   const baseUrl = (readOptionalEnv(env, 'SMOKE_BASE_URL') ?? DEFAULT_AUTH_BASE_URL).replace(/\/+$/, '');
   assertLocalTarget('SMOKE_BASE_URL', baseUrl, 'SMOKE_ALLOW_REMOTE', env);
