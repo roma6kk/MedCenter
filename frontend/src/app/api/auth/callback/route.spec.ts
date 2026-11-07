@@ -116,28 +116,14 @@ describe('GET /api/auth/callback', () => {
     ['ADMIN', '/booking', 'http://localhost:3000/admin/analytics'],
     ['PATIENT', '/admin/users', 'http://localhost:3000/home'],
     ['DOCTOR', '/doctor/schedule', 'http://localhost:3000/doctor/schedule'],
-  ])('should send a %s who asked for %s to %s', async (role, requested, expected) => {
+    ['ADMIN', null, 'http://localhost:3000/admin/analytics'],
+    ['PATIENT', 'https://evil.example.com/phish', 'http://localhost:3000/home'],
+  ])('should send a %s who asked for %s to %s (no returnTo or an off-site one lands on the role page)', async (role, requested, expected) => {
     fetchSpy.mockResolvedValueOnce(jsonResponse(tokenEndpointBody({ access_token: fakeAccessToken({ role }) })));
 
     const response = await callback(validQuery(requested));
 
     expect(response.headers.get('location')).toBe(expected);
-  });
-
-  it('should land on the role page when no returnTo was requested', async () => {
-    fetchSpy.mockResolvedValueOnce(jsonResponse(tokenEndpointBody({ access_token: fakeAccessToken({ role: 'ADMIN' }) })));
-
-    const response = await callback(validQuery(null));
-
-    expect(response.headers.get('location')).toBe('http://localhost:3000/admin/analytics');
-  });
-
-  it('should ignore an off-site returnTo and land on the role page', async () => {
-    fetchSpy.mockResolvedValueOnce(jsonResponse(tokenEndpointBody()));
-
-    const response = await callback(validQuery('https://evil.example.com/phish'));
-
-    expect(response.headers.get('location')).toBe('http://localhost:3000/home');
   });
 
   it.each([
@@ -153,21 +139,16 @@ describe('GET /api/auth/callback', () => {
     expect(setCookies(response).find((header) => header.startsWith('mc_rt='))).toBeUndefined();
   });
 
-  it('should return to the login page with the returnTo when auth-service rejects the code', async () => {
+  it.each([
+    ['/appointments', 'http://localhost:3000/login?error=access_denied&returnTo=%2Fappointments'],
+    [null, 'http://localhost:3000/login?error=access_denied'],
+  ])('should return to the login page when auth-service rejects the code and the visitor asked for %p', async (returnTo, expected) => {
     fetchSpy.mockResolvedValueOnce(jsonResponse({ error: 'invalid_grant' }, 400));
 
-    const response = await callback(validQuery());
+    const response = await callback(validQuery(returnTo));
 
-    expect(response.headers.get('location')).toBe('http://localhost:3000/login?error=access_denied&returnTo=%2Fappointments');
+    expect(response.headers.get('location')).toBe(expected);
     expect(setCookies(response).find((header) => header.startsWith('mc_rt='))).toBeUndefined();
-  });
-
-  it('should add no returnTo to the login redirect when the visitor asked for none', async () => {
-    fetchSpy.mockResolvedValueOnce(jsonResponse({ error: 'invalid_grant' }, 400));
-
-    const response = await callback(validQuery(null));
-
-    expect(response.headers.get('location')).toBe('http://localhost:3000/login?error=access_denied');
   });
 
   it('should keep a returnTo with a query intact on the login redirect', async () => {

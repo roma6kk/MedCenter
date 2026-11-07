@@ -15,6 +15,14 @@ function calls(spy: jest.SpyInstance): ReadonlyArray<{ readonly url: string; rea
   return (spy.mock.calls as Array<[string, RequestInit]>).map(([url, init]) => ({ url, init }));
 }
 
+type Call = { readonly url: string; readonly init: RequestInit } | undefined;
+
+function expectRevoke(call: Call, bearer: string, refreshToken?: string): void {
+  expect(call?.url).toBe('http://auth.test:3000/oauth/token/revoke');
+  expect((call?.init.headers as Record<string, string>)['Authorization']).toBe(`Bearer ${bearer}`);
+  if (refreshToken !== undefined) expect(JSON.parse(String(call?.init.body))).toMatchObject({ refreshToken });
+}
+
 describe('POST /api/auth/logout', () => {
   const originalEnv = { ...process.env };
   let fetchSpy: jest.SpyInstance;
@@ -37,9 +45,7 @@ describe('POST /api/auth/logout', () => {
     await logout('mc_rt=refresh-1', 'access-1');
 
     const [revoke] = calls(fetchSpy);
-    expect(revoke?.url).toBe('http://auth.test:3000/oauth/token/revoke');
-    expect((revoke?.init.headers as Record<string, string>)['Authorization']).toBe('Bearer access-1');
-    expect(JSON.parse(String(revoke?.init.body))).toMatchObject({ refreshToken: 'refresh-1' });
+    expectRevoke(revoke, 'access-1', 'refresh-1');
   });
 
   it('should use the cached access-token cookie as the Bearer when the client sent none, without minting a new pair', async () => {
@@ -49,9 +55,7 @@ describe('POST /api/auth/logout', () => {
 
     expect(fetchSpy).toHaveBeenCalledTimes(1);
     const [revoke] = calls(fetchSpy);
-    expect(revoke?.url).toBe('http://auth.test:3000/oauth/token/revoke');
-    expect((revoke?.init.headers as Record<string, string>)['Authorization']).toBe('Bearer cached-access');
-    expect(JSON.parse(String(revoke?.init.body))).toMatchObject({ refreshToken: 'refresh-1' });
+    expectRevoke(revoke, 'cached-access', 'refresh-1');
   });
 
   it('should mint a Bearer from the refresh cookie when there is neither a client nor a cached one and revoke the NEW pair', async () => {
@@ -64,9 +68,7 @@ describe('POST /api/auth/logout', () => {
 
     const [rotate, revoke] = calls(fetchSpy);
     expect(rotate?.url).toBe('http://auth.test:3000/oauth/token');
-    expect(revoke?.url).toBe('http://auth.test:3000/oauth/token/revoke');
-    expect((revoke?.init.headers as Record<string, string>)['Authorization']).toBe(`Bearer ${minted}`);
-    expect(JSON.parse(String(revoke?.init.body))).toMatchObject({ refreshToken: 'refresh-2' });
+    expectRevoke(revoke, minted, 'refresh-2');
   });
 
   it('should clear both session cookies and answer 200', async () => {
@@ -99,12 +101,9 @@ describe('POST /api/auth/logout', () => {
 
     const [stale, rotate, revoke] = calls(fetchSpy);
     expect(fetchSpy).toHaveBeenCalledTimes(3);
-    expect(stale?.url).toBe('http://auth.test:3000/oauth/token/revoke');
-    expect((stale?.init.headers as Record<string, string>)['Authorization']).toBe('Bearer expired-access');
+    expectRevoke(stale, 'expired-access');
     expect(rotate?.url).toBe('http://auth.test:3000/oauth/token');
-    expect(revoke?.url).toBe('http://auth.test:3000/oauth/token/revoke');
-    expect((revoke?.init.headers as Record<string, string>)['Authorization']).toBe(`Bearer ${minted}`);
-    expect(JSON.parse(String(revoke?.init.body))).toMatchObject({ refreshToken: 'refresh-2' });
+    expectRevoke(revoke, minted, 'refresh-2');
     expect(response.status).toBe(200);
   });
 

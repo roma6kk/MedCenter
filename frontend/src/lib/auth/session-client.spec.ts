@@ -30,19 +30,19 @@ const LIVE_SESSION = {
   fhirUser: null,
 };
 
+beforeEach(() => {
+  jest.restoreAllMocks();
+  clearAccessToken();
+  resetStore();
+});
+
+afterEach(() => {
+  jest.restoreAllMocks();
+  clearAccessToken();
+  resetStore();
+});
+
 describe('loadSession', () => {
-  beforeEach(() => {
-    jest.restoreAllMocks();
-    clearAccessToken();
-    resetStore();
-  });
-
-  afterEach(() => {
-    jest.restoreAllMocks();
-    clearAccessToken();
-    resetStore();
-  });
-
   it('should hydrate the store and the token holder from the broker', async () => {
     jest.spyOn(global, 'fetch').mockResolvedValueOnce(
       jsonResponse(
@@ -146,12 +146,6 @@ describe('loadSession', () => {
 });
 
 describe('session exchange single flight', () => {
-  beforeEach(() => {
-    jest.restoreAllMocks();
-    clearAccessToken();
-    resetStore();
-  });
-
   it('should share one request between a mount-time load and a StrictMode double load', async () => {
     const fetchSpy = jest.spyOn(global, 'fetch').mockResolvedValue(jsonResponse(LIVE_SESSION, 200));
 
@@ -180,12 +174,6 @@ describe('session exchange single flight', () => {
 });
 
 describe('refreshSession', () => {
-  beforeEach(() => {
-    jest.restoreAllMocks();
-    clearAccessToken();
-    resetStore();
-  });
-
   it('should POST to the refresh endpoint and update the token and the store', async () => {
     const fetchSpy = jest.spyOn(global, 'fetch').mockResolvedValueOnce(jsonResponse(LIVE_SESSION, 200));
 
@@ -251,12 +239,6 @@ describe('refreshSession', () => {
 describe('ensureSession', () => {
   const NOW = Date.parse('2026-10-16T10:00:00Z');
 
-  beforeEach(() => {
-    jest.restoreAllMocks();
-    clearAccessToken();
-    resetStore();
-  });
-
   it('should hydrate the store when it is empty', async () => {
     const fetchSpy = jest.spyOn(global, 'fetch').mockResolvedValueOnce(jsonResponse(LIVE_SESSION, 200));
 
@@ -289,10 +271,7 @@ describe('endSession and logout', () => {
   const assignSpy = jest.fn();
 
   beforeEach(() => {
-    jest.restoreAllMocks();
     assignSpy.mockReset();
-    clearAccessToken();
-    resetStore();
     useBookingDraftStore.getState().clearDraft();
     Object.defineProperty(window, 'location', { value: { pathname: '/appointments', search: '', assign: assignSpy }, writable: true });
   });
