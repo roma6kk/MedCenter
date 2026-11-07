@@ -24,11 +24,17 @@ export function configureApp(app: INestApplication, trustProxy: TrustProxySettin
   app.useGlobalPipes(createValidationPipe());
 }
 
-/** `TRUST_PROXY` and the rate-limit store come first, so a bad value or a missing `REDIS_URL` fails the boot immediately. */
-export async function createApp(module: Type<unknown>, env: NodeJS.ProcessEnv, logger: Logger): Promise<INestApplication> {
+/** `prepare` runs before the edge so `/metrics` and `/ready` stay ahead of the no-store middleware; bad env fails the boot first. */
+export async function createApp(
+  module: Type<unknown>,
+  env: NodeJS.ProcessEnv,
+  logger: Logger,
+  prepare?: (app: INestApplication) => void,
+): Promise<INestApplication> {
   const trustProxy = parseTrustProxy(env['TRUST_PROXY']);
   enableRateLimit(env, logger);
   const app = await NestFactory.create(module);
+  prepare?.(app);
   configureApp(app, trustProxy);
   return app;
 }
@@ -37,8 +43,9 @@ async function bootstrap(options: ServiceOptions): Promise<void> {
   const serviceName = `${options.name}-service`;
   const logger = new Logger('Bootstrap');
   const parsed = options.parseEnv?.(process.env);
-  const app = await createApp(options.module, process.env, logger);
-  applyObservability(app, { service: serviceName, dependencies: options.dependencies });
+  const app = await createApp(options.module, process.env, logger, (created) =>
+    applyObservability(created, { service: serviceName, dependencies: options.dependencies }),
+  );
   setupSwagger(app, { service: options.name, enabled: parseSwaggerEnv(process.env).SWAGGER_ENABLED });
   app.enableShutdownHooks();
   const port = parsed?.PORT ?? process.env['PORT'] ?? options.defaultPort;
