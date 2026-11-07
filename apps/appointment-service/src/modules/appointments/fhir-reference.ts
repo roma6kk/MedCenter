@@ -4,7 +4,7 @@ import { FHIR_ID_PATTERN, type JwtClaims, requirePatientRef } from '@medcenter/c
 const REFERENCE_PATTERN =
   /(?:^|\/)([A-Z][A-Za-z]+)\/((?!\.+(?:\/|$))[A-Za-z0-9\-.]{1,64})(?:\/_history\/[A-Za-z0-9\-.]{1,64})?$/;
 
-export interface ParsedReference {
+interface ParsedReference {
   readonly type: string;
   readonly id: string;
 }
@@ -17,6 +17,10 @@ export function parseReference(reference: unknown): ParsedReference | undefined 
   const type = match?.[1];
   const id = match?.[2];
   return type === undefined || id === undefined ? undefined : { type, id };
+}
+
+export function referenceId(reference: unknown): string {
+  return parseReference(reference)?.id ?? '';
 }
 
 export function canonicalReference(reference: unknown, type: string): string | undefined {

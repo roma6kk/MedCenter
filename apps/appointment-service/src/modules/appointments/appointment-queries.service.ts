@@ -15,12 +15,12 @@ export interface PageQuery {
   readonly sortOrder: 'asc' | 'desc';
 }
 
-export interface PatientListQuery extends PageQuery {
+interface PatientListQuery extends PageQuery {
   readonly upcoming: boolean;
   readonly status?: readonly string[];
 }
 
-export interface DoctorListQuery extends PageQuery {
+interface DoctorListQuery extends PageQuery {
   readonly from?: string;
   readonly to?: string;
   readonly status?: readonly string[];

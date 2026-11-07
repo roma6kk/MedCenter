@@ -29,8 +29,7 @@ import { CONSENT_ENFORCEMENT_MODE, type ConsentEnforcement } from './consent-enf
 import { assertDoctorParticipates, assertPatientOwns, patientRefOf, requireDoctorRoleRef, slotIdOf } from './compartment';
 import { CancelAppointmentDto } from './dto/cancel-appointment.dto';
 import { CreateAppointmentDto } from './dto/create-appointment.dto';
-import { requirePatientReference } from './fhir-reference';
-import { referenceId } from './fhir-transaction';
+import { referenceId, requirePatientReference } from './fhir-reference';
 
 interface OccupiedSlot {
   readonly slotId: string;

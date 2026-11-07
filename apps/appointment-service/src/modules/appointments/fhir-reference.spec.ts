@@ -1,7 +1,7 @@
 import { ForbiddenException } from '@nestjs/common';
 import { FHIR_ID_PATTERN, type JwtClaims } from '@medcenter/common';
 
-import { parseReference, requirePatientReference, toPatientReference } from './fhir-reference';
+import { parseReference, referenceId, requirePatientReference, toPatientReference } from './fhir-reference';
 
 const patient: JwtClaims = { sub: 'user-1', scope: 'patient/*.read', role: 'PATIENT', patient: '9f2c', jti: 'jti-1' };
 
@@ -101,5 +101,31 @@ describe('requirePatientReference', () => {
     const act = (): string => requirePatientReference(claims);
 
     expect(act).toThrow(ForbiddenException);
+  });
+});
+
+describe('referenceId', () => {
+  it('should return the logical id when the reference is relative', () => {
+    const reference = 'Slot/slot-1';
+
+    const id = referenceId(reference);
+
+    expect(id).toBe('slot-1');
+  });
+
+  it('should return the logical id, not the version, when the reference is versioned', () => {
+    const reference = 'Slot/slot-1/_history/4';
+
+    const id = referenceId(reference);
+
+    expect(id).toBe('slot-1');
+  });
+
+  it('should return an empty id when the value is not a reference', () => {
+    const values: readonly unknown[] = [undefined, 42, '', 'not a reference'];
+
+    const ids = values.map(referenceId);
+
+    expect(ids).toEqual(['', '', '', '']);
   });
 });

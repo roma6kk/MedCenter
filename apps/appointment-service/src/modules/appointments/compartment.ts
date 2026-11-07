@@ -3,10 +3,9 @@ import type { JwtClaims } from '@medcenter/common';
 import { Role } from '@medcenter/contracts';
 import type { FhirResource } from '@medcenter/fhir';
 
-import { canonicalReference, requirePatientReference } from './fhir-reference';
-import { referenceId } from './fhir-transaction';
+import { canonicalReference, referenceId, requirePatientReference } from './fhir-reference';
 
-export type AppointmentViewer =
+type AppointmentViewer =
   | { readonly kind: 'patient'; readonly reference: string }
   | { readonly kind: 'doctor'; readonly reference: string }
   | { readonly kind: 'admin' };
@@ -26,7 +25,7 @@ export function patientRefOf(appointment: FhirResource): string | undefined {
   return participantRefOf(appointment, 'Patient');
 }
 
-export function practitionerRoleRefOf(appointment: FhirResource): string | undefined {
+function practitionerRoleRefOf(appointment: FhirResource): string | undefined {
   return participantRefOf(appointment, 'PractitionerRole');
 }
 

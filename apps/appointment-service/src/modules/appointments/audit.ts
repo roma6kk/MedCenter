@@ -3,7 +3,7 @@ import type { FhirResource, TransactionWrite } from '@medcenter/fhir';
 
 export type AuditedRequest = RequestWithClaims & Pick<RequestWithRequestId, 'requestId'>;
 
-export interface AuditParams {
+interface AuditParams {
   readonly interaction: 'create' | 'update';
   readonly actorSub: string;
   readonly entityRef: string;

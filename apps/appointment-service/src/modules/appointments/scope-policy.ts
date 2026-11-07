@@ -2,7 +2,7 @@ import { ForbiddenException } from '@nestjs/common';
 import { hasScope, type JwtClaims } from '@medcenter/common';
 import { Role, SMART_SCOPES } from '@medcenter/contracts';
 
-export type ScopeAccess = 'read' | 'write';
+type ScopeAccess = 'read' | 'write';
 
 const SCOPE_BY_ROLE: Partial<Readonly<Record<string, Readonly<Record<ScopeAccess, string>>>>> = {
   [Role.PATIENT]: { read: SMART_SCOPES.PATIENT_READ, write: SMART_SCOPES.PATIENT_WRITE },
