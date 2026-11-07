@@ -1,12 +1,3 @@
-/**
- * E2E — the token-broker flow in a real browser against the live stack (TASK-001, frontend CORE).
- *
- * authorize → auth-service login form → callback → session → refresh → logout, with the seeded demo users. Skipped when the
- * seed manifest is absent (run `npm run seed:demo -- --users --with-admin` first). Credentials never leave the fixtures.
- *
- * auth-service throttles `POST /oauth/login` per IP and per account (brute-force protection), so every describe signs in
- * ONCE in `beforeAll` and its serial tests share that session; mutating cases (token rotation, sign-out) own a separate account.
- */
 import { expect, test, type Browser, type BrowserContext, type Page } from '@playwright/test';
 import { returnToOfAuthorizeUrl, signInThroughLoginForm } from './fixtures/auth';
 import { hasDemoManifest, loadDemoAccount, ROLE_LANDING, type DemoRole } from './fixtures/demo-accounts';
@@ -44,7 +35,6 @@ test.describe('anonymous visitor', () => {
     await expect(page.getByRole('link', { name: /На сайт/ })).toHaveAttribute('href', `${new URL(baseURL ?? DEFAULT_ORIGIN).origin}/`);
     const password = page.locator('input[name="password"]');
     await expect(password).toHaveAttribute('type', 'password');
-    // ARIA toggle button pattern (d9bd4e8): the name stays «Показать пароль», aria-pressed carries the state.
     const toggle = page.getByRole('button', { name: 'Показать пароль' });
     await expect(toggle).toHaveAttribute('aria-pressed', 'false');
     await toggle.click();
@@ -120,7 +110,7 @@ test.describe('patient session with returnTo, rotation and sign-out', () => {
   test('should rotate the single-use refresh token and stay signed in when the cached access token is gone', async () => {
     const refreshBefore = (await session.context.cookies()).find((cookie) => cookie.name === 'mc_rt')?.value;
 
-    // The access-token cookie expires after 15 minutes; dropping it forces the next page load through the rotation path.
+    // The access-token cookie expires after 15 minutes; dropping it forces the rotation path.
     await session.context.clearCookies({ name: 'mc_at' });
     await session.page.reload();
     await session.page.waitForLoadState('load');
@@ -160,7 +150,6 @@ for (const role of ['DOCTOR', 'ADMIN'] as const) {
     });
 
     test('should show no notification bell because staff have no notification endpoints', async () => {
-      // The staff shell (050fb31) keeps «Выйти» in the profile menu at the foot of the sidebar.
       const profileMenu = session.page.getByRole('button', { name: /^Меню профиля: / }).first();
       await profileMenu.click();
       await expect(session.page.getByRole('menuitem', { name: 'Выйти' })).toBeVisible();

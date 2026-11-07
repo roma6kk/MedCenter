@@ -1,14 +1,3 @@
-/**
- * E2E — security checks of the frontend design spec §6 and ADR-013 (patient compartment), against the live stack:
- *
- * - the UI never sends a `patient` query parameter while a patient reads through the `patient/*` scopes (`/me/*` family);
- * - the compartment holds at the API too: a patient token cannot read the chart of another patient;
- * - role guards: a patient has no way into the doctor and admin routes, a doctor none into the admin and patient ones;
- * - an anonymous visitor is sent to `/login?returnTo=<path+query>` from every protected route, never from a public one.
- *
- * Role gating in the UI is UX only (the BFF guards are the authority, ADR-009), so the guards are asserted on the visible
- * 403 page AND on the API answer where a route has one. The sessions are the saved states of `auth.setup.ts`.
- */
 import { expect, test, type BrowserContext, type Page, type Request } from '@playwright/test';
 import { returnToOfAuthorizeUrl } from './fixtures/auth';
 import { accessTokenOf } from './fixtures/booking-api';
@@ -61,7 +50,6 @@ test.describe('patient compartment (ADR-013)', () => {
     expect(sent.length, 'the patient pages read the API').toBeGreaterThan(0);
     const withPatient = sent.filter((request) => new URL(request.url()).searchParams.has('patient')).map((request) => new URL(request.url()).pathname);
     expect(withPatient, 'requests that carry a `patient` parameter').toEqual([]);
-    // The reads of the patient go through the `/me/*` family (API §3.1, §7.6, §7.7), never through `/patients/{id}`.
     const chartReads = sent.filter((request) => /^\/api\/v1\/patients\//.test(new URL(request.url()).pathname)).map((request) => new URL(request.url()).pathname);
     expect(chartReads, 'reads of a chart by id from a patient page').toEqual([]);
   });
@@ -131,7 +119,6 @@ test.describe('anonymous visitor', () => {
       const redirect = await request.get(route, { maxRedirects: 0 });
       expect(redirect.headers()['location']).toMatch(new RegExp(`/login\\?returnTo=${encodeURIComponent(route).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`));
 
-      // `/login` hands the visitor on to the auth-service form with the same returnTo inside `state`.
       await page.goto(route);
       await expect(page.locator('input[name="email"]')).toBeVisible();
       expect(returnToOfAuthorizeUrl(page.url())).toBe(route);

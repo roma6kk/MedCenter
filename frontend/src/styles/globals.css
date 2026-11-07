@@ -2,11 +2,7 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Design tokens of the redesign (design canvas «Токены и компоненты»), token foundation v2.
-   Colours are OKLCH, so lightness is perceptual: the brand teal keeps hue 186, the soft grounds share one lightness band
-   and every pair below was checked for contrast by `globals-contrast.spec.ts`. The dark set lives under one selector,
-   `:root[data-theme='dark']`: the theme switcher and the no-flash script in `app/layout.tsx` write that attribute
-   («system» resolves to light/dark through `prefers-color-scheme` there), so the CSS never needs a media query for it. */
+/* The dark set lives under `:root[data-theme='dark']`: the theme switcher and the no-flash script in `app/layout.tsx` write that attribute. */
 :root {
   color-scheme: light;
   --font-sans: 'Onest Variable', system-ui, sans-serif;
@@ -16,7 +12,7 @@
   --card: oklch(100% 0 0);
   --foreground: oklch(25% 0.026 221);
   --muted-foreground: oklch(47% 0.026 222);
-  /* Brand teal: base, hover, pressed. Hover and pressed are real colours, not `opacity-90`, so text keeps its contrast. */
+  /* Hover and pressed are real colours, not `opacity-90`, so text keeps its contrast. */
   --primary: oklch(51% 0.088 186);
   --primary-hover: oklch(45% 0.078 186);
   --primary-strong: oklch(39% 0.068 186);
@@ -26,8 +22,6 @@
   --primary-soft-foreground: oklch(42% 0.071 185);
   --secondary: oklch(95.7% 0.005 197);
   --accent: oklch(95.7% 0.005 197);
-  /* Urgency scale of statuses: critical (= destructive) > warning > info > success; neutral is --secondary/--muted-foreground.
-     `*-foreground` is the text on the solid colour (badges, counters), `*-soft` the tinted ground with the solid colour as text. */
   --destructive: oklch(50% 0.178 29);
   --destructive-hover: oklch(44% 0.17 29);
   --destructive-foreground: oklch(100% 0 0);
@@ -41,58 +35,42 @@
   --success: oklch(47.9% 0.078 161);
   --success-foreground: oklch(100% 0 0);
   --success-soft: oklch(94.5% 0.018 161);
-  /* Warm accent (coral/peach) for patient-facing highlights. `--warm` is a decorative fill or icon colour (>= 3:1 on --card,
-     not for text); text on `--warm-soft` is `--warm-foreground`. */
+  /* `--warm` is a decorative fill or icon colour (>= 3:1 on --card), never for text. */
   --warm: oklch(68% 0.15 40);
   --warm-soft: oklch(94.5% 0.032 55);
   --warm-foreground: oklch(45% 0.12 38);
   --border: oklch(91.3% 0.009 206);
-  /* Hairline of a card that already has a shadow: lighter than --border, so elevation, not a line, separates it. */
   --border-soft: oklch(95% 0.006 206);
-  /* Border of input/select/textarea: >= 3:1 against --card, --background and --secondary, WCAG 1.4.11.
-     The hairline --border stays for cards and dividers: fields have no other visual edge. */
+  /* >= 3:1 against --card, --background and --secondary (WCAG 1.4.11): fields have no other visual edge. */
   --input: oklch(62% 0.02 219);
   --ring: oklch(51% 0.088 186);
-  /* Soft halo of a focused field (`shadow-focus`): the ring colour at low alpha, drawn around the primary border. */
   --focus-ring: oklch(51% 0.088 186 / 0.28);
   --focus-ring-danger: oklch(50% 0.178 29 / 0.28);
-  /* Ground behind a modal dialog. */
   --scrim: oklch(25% 0.026 221 / 0.4);
-  /* Translucent «material» of the control layer (staff sidebar, top bar, mobile booking bar): the card colour at 80%, so the
-     tinted ground of the page shows through under a backdrop blur. At 72% a saturated fill scrolling under it (a chart bar, a
-     red button) pulled `--muted-foreground` below 4.5:1 (4.18:1 light, 3.84:1 dark); `globals-contrast.spec.ts` holds 80%. */
+  /* 80%, not 72%: under a saturated fill `--muted-foreground` fell below 4.5:1; `globals-contrast.spec.ts` holds 80%. */
   --glass: oklch(100% 0 0 / 0.8);
-  /* A dark band on a light page (audiences block): its own ground, text, hairline and link colour. */
   --inverse: oklch(25% 0.026 221);
   --inverse-foreground: oklch(100% 0 0);
   --inverse-muted: oklch(86.7% 0.014 208);
   --inverse-border: oklch(37% 0.029 213);
   --inverse-accent: oklch(84.4% 0.078 186);
 
-  /* Radii. Pills and avatars use `rounded-full`. Nesting rule: inner radius = outer radius - the padding between them
-     (a 16 px card with 6 px padding holds a 10 px control), otherwise the corners drift apart optically. */
-  --radius-sm: 6px; /* badges, chips, code tags; plain `rounded` */
-  --radius-control: 10px; /* buttons, inputs, nav links, small tiles */
+  --radius-sm: 6px;
+  --radius-control: 10px;
   --radius-card: 16px;
   --radius-panel: 20px;
 
-  /* Elevation: two layers (a tight contact shadow and a soft ambient one), tinted with the foreground hue instead of grey.
-     1 = resting card, 2 = popover/dropdown/raised card, 3 = dialog. */
   --shadow-1: 0 1px 2px oklch(25% 0.03 221 / 0.06), 0 2px 8px oklch(25% 0.03 221 / 0.05);
   --shadow-2: 0 2px 4px oklch(25% 0.03 221 / 0.06), 0 8px 24px oklch(25% 0.03 221 / 0.1);
   --shadow-3: 0 4px 8px oklch(25% 0.03 221 / 0.08), 0 24px 56px oklch(25% 0.03 221 / 0.18);
 
-  /* Motion. Ease-out for things that react to the user (enter, hover, press), ease-in-out for movement on screen. */
   --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
   --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
   --duration-fast: 120ms;
   --duration-base: 200ms;
   --duration-slow: 300ms;
 
-  /* Fluid type scale (Utopia method): 15 px / ratio 1.2 at a 360 px viewport to 16 px / ratio 1.25 at 1280 px, in rem so the
-     reader's font size setting still applies. Steps below the base use a gentler ratio (1.1 / 1.125): with 1.2 the
-     small step would fall to 12.5 px and the 181 `text-sm` body texts of the app would become hard to read.
-     Tailwind keys: xs = -2, sm = -1, base = 0, lg = 1, xl = 2, 2xl = 3, 3xl = 4, 4xl = 5, 5xl = 6. */
+  /* Steps below the base use a gentler ratio: with 1.2 `text-sm` would fall to 12.5 px. Tailwind keys: xs = -2 ... 5xl = 6. */
   --step--2: clamp(0.7748rem, 0.7688rem + 0.0267vw, 0.7901rem);
   --step--1: clamp(0.8523rem, 0.8379rem + 0.0637vw, 0.8889rem);
   --step-0: clamp(0.9375rem, 0.913rem + 0.1087vw, 1rem);
@@ -136,7 +114,6 @@
   --warm-soft: oklch(29% 0.05 45);
   --warm-foreground: oklch(84% 0.09 50);
   --border: oklch(33% 0.027 215);
-  /* On a dark ground a shadow barely reads, so a card keeps its full hairline. */
   --border-soft: oklch(33% 0.027 215);
   --input: oklch(60.3% 0.029 212);
   --ring: oklch(69.6% 0.11 184);
@@ -161,17 +138,12 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-/* Ground of the staff cabinets: the page colour with a faint brand tint in the top left corner, so the translucent sidebar
-   has something to blur and the control layer reads as a layer above the content. */
 .staff-ambient {
   background-color: var(--background);
   background-image: radial-gradient(60rem 36rem at 0% 0%, var(--primary-soft), transparent 70%);
   background-attachment: fixed;
 }
 
-/* Ground of the patient-facing pages (landing, catalog, patient cabinet; VA4): the page colour with a warm peach glow in the
-   top right and a teal one in the bottom left, so the public side feels warmer than the staff cabinets (`.staff-ambient`,
-   a cool single tint). Two soft shapes at most; the colours are tokens, so the dark theme recolours them. */
 .warm-ambient {
   background-color: var(--background);
   background-image:
@@ -182,7 +154,6 @@ body {
 h1, h2, h3, .serif {
   font-family: var(--font-sans);
   letter-spacing: -0.015em;
-  /* Balanced lines: a heading never ends on a lonely word (VC4). Prose gets `pretty`, which only avoids a single-word last line. */
   text-wrap: balance;
 }
 
@@ -190,13 +161,10 @@ p {
   text-wrap: pretty;
 }
 
-/* Monospace is for codes only (ICD-10, NSI, ATC, ids). Times, dates, durations and counters use the sans font with
-   `tabular-nums` (Tailwind utility), so digits line up without the «technical» look of a mono face. */
 .mono {
   font-family: var(--font-mono);
 }
 
-/* Field label: normal case, 14 px, semibold, full-contrast text (VC3). Uppercase stays for the rare overline only. */
 .form-label {
   font-size: var(--step--1);
   font-weight: 600;
@@ -226,10 +194,6 @@ p {
   padding: 0.5rem 1rem;
 }
 
-/*
- * Skeleton: a placeholder shaped like the content it stands for, with a light band sweeping over it (instead of pulsing the
- * whole block). The band is a gradient of two tokens, so it follows the theme; reduced motion freezes it (rule below).
- */
 .skeleton {
   background-color: var(--secondary);
   background-image: linear-gradient(100deg, transparent 30%, var(--border) 50%, transparent 70%);
@@ -238,12 +202,7 @@ p {
   animation: skeleton-shimmer 1.6s ease-in-out infinite;
 }
 
-/*
- * Base feedback of every link and button (VE6): colours, borders and shadows ease over the fast duration instead of
- * snapping, so even a control that brings no transition of its own (a plain text link, an icon button) answers a hover.
- * A utility such as `transition-[transform,…]` on the element wins over this rule; `transform` is left out on purpose,
- * it belongs to the controls that press (`active:scale`). The reduced-motion rule below switches it off.
- */
+/* `transform` is left out on purpose: it belongs to the controls that press (`active:scale`). */
 @layer base {
   a,
   button,
@@ -257,11 +216,7 @@ p {
   }
 }
 
-/*
- * While the theme is switched (`applyTheme` sets `data-theme-switching` on <html> for an instant) nothing eases: the base rule
- * above gives links and buttons 120 ms of colour transition while the page, the cards and the text change at once, so for that
- * long buttons would show in the colours of the other theme. `!important` so that it also beats a utility such as `transition-colors`.
- */
+/* `!important` so that it also beats a utility such as `transition-colors`. */
 :root[data-theme-switching] *,
 :root[data-theme-switching] *::before,
 :root[data-theme-switching] *::after {
@@ -273,12 +228,7 @@ p {
   to { background-position: -50% 0; }
 }
 
-/*
- * Entrance of a list (VE1): the children of `.stagger-children` fade in and rise 6 px, 35 ms after the one before; the delay
- * stops growing at the ninth child, so the whole list is in place in about half a second. `useStaggerOnce` puts the class on
- * the list for the first load only. `backwards` (not `both`): once the animation is over the item's own `transform` (the
- * hover lift of an interactive card) is in charge again.
- */
+/* `backwards` (not `both`): after the animation the item's own `transform` (hover lift) is in charge again. */
 @keyframes stagger-in {
   from { opacity: 0; transform: translateY(6px); }
 }
@@ -296,11 +246,7 @@ p {
 .stagger-children > :nth-child(8) { animation-delay: 245ms; }
 .stagger-children > :nth-child(n + 9) { animation-delay: 280ms; }
 
-/*
- * Landing sections appear as they scroll into view (VE5), with CSS scroll-driven animation: no script, runs off the main
- * thread. It is progressive enhancement: a browser without `animation-timeline` never matches the rule and shows the
- * section as it is. A section that is already on screen at load has passed its `entry` range, so it is not hidden either.
- */
+/* Progressive enhancement: a browser without `animation-timeline` never matches and shows the section as is. */
 @keyframes reveal-in {
   from { opacity: 0; transform: translateY(1.25rem); }
 }
@@ -313,8 +259,6 @@ p {
   }
 }
 
-/* One switch for every CSS motion (entrances, transitions, scroll-driven reveals, the drawn lines): the end state is the
-   element's normal style, so nothing stays hidden. Motion driven from script asks `motionSafeScrollBehavior` instead. */
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

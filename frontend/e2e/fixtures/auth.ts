@@ -1,8 +1,3 @@
-/**
- * auth — Playwright helpers that sign in through the REAL browser flow: `/login` (which redirects at once) → `/api/auth/authorize`
- * → the auth-service login form → `/api/auth/callback`. Nothing is faked, so a regression of the redirect_uri, the PKCE cookie or the token broker
- * fails here first.
- */
 import { test as base, expect, type Browser, type Page } from '@playwright/test';
 import { loadDemoAccount, type DemoAccount, type DemoRole } from './demo-accounts';
 
@@ -10,23 +5,16 @@ const SIGN_IN_TIMEOUT_MS = 20_000;
 const DEFAULT_WEB_ORIGIN = 'http://localhost:3000';
 
 export interface SignInOptions {
-  /** Origin of the web app (`baseURL`); the login form lives on the auth origin, so it cannot be read from `page.url()`. */
   readonly webOrigin?: string;
-  /** Path the user asked for before being sent to the login screen. */
   readonly returnTo?: string;
 }
 
-/**
- * The page the visitor wanted, as the authorize redirect carries it: `state` is `<random>.<encodeURIComponent(returnTo)>`
- * (`buildState`); `null` when the sign-in was started without one.
- */
 export function returnToOfAuthorizeUrl(url: string): string | null {
   const state = new URL(url).searchParams.get('state') ?? '';
   const separator = state.indexOf('.');
   return separator === -1 ? null : decodeURIComponent(state.slice(separator + 1));
 }
 
-/** On the auth-service form (`/login` and the header «Войти» redirect straight to it): fills the fields by name and waits until the browser is back on the web app. */
 export async function fillAuthServiceForm(page: Page, account: DemoAccount, webOrigin: string): Promise<void> {
   await page.locator('input[name="email"]').fill(account.email);
   await page.locator('input[name="password"]').fill(account.password());
@@ -37,7 +25,6 @@ export async function fillAuthServiceForm(page: Page, account: DemoAccount, webO
   await page.waitForLoadState('networkidle');
 }
 
-/** Fills the auth-service login form (addressed by field name) and waits until the browser is back on the web app. */
 export async function signInThroughLoginForm(page: Page, account: DemoAccount, options: SignInOptions = {}): Promise<void> {
   const webOrigin = new URL(options.webOrigin ?? DEFAULT_WEB_ORIGIN).origin;
   const entry = options.returnTo === undefined ? '/login' : `/login?returnTo=${encodeURIComponent(options.returnTo)}`;
@@ -58,7 +45,6 @@ interface SignedInFixtures {
   readonly adminPage: Page;
 }
 
-/** `test('…', async ({ patientPage }) => …)` — a page that is already signed in as a seeded demo user. */
 export const test = base.extend<SignedInFixtures>({
   patientPage: async ({ browser, baseURL }, use) => {
     const page = await openSignedInPage(browser, 'PATIENT', baseURL);

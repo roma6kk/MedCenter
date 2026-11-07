@@ -1,10 +1,4 @@
-/**
- * demo-accounts — the demo users of `npm run seed:demo` for end-to-end runs.
- *
- * Credentials are read at runtime from the git-ignored seed manifest and are never written anywhere: the account object
- * keeps the password behind a method and leaves it out of `toJSON`, so a stray `console.log(account)` or a trace attachment
- * cannot leak it. Point `DEMO_MANIFEST_PATH` at another manifest to run against a different stack.
- */
+// The password sits behind a method and is left out of toJSON, so logs and traces never leak it.
 import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
@@ -37,7 +31,6 @@ export class DemoAccount {
     readonly practitionerRoleId?: string,
   ) {}
 
-  /** The only way to read the password; use it for the login form and nothing else. */
   password(): string {
     return this.secret;
   }
@@ -60,7 +53,6 @@ function readAccounts(): ReadonlyArray<ManifestAccount> {
   return manifest.users?.accounts ?? [];
 }
 
-/** The `index`-th seeded account of the role that has a known password (the bootstrap admin has none in the manifest). */
 export function loadDemoAccount(role: DemoRole, index = 0): DemoAccount {
   const candidates = readAccounts().filter((account) => account.role === role && typeof account.password === 'string');
   const found = candidates[index];

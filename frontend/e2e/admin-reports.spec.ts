@@ -1,11 +1,3 @@
-/**
- * E2E — scenario F of the frontend design spec §6 (FR-019, FR-021, API 9.1–9.4): the administrator reads the analytics
- * report of a period and finds an audit event with the journal filters.
- *
- * The audit events are made at run time: the test creates a room and deletes it through the API (both write an
- * AuditEvent of resource `Location/<id>`, asynchronously), then finds them by resource, actor and period. Nothing here
- * asserts absolute counts of other data: the report is compared with what the API itself answered for the same period.
- */
 import { randomUUID } from 'node:crypto';
 import { expect, test, type BrowserContext, type Page, type Response } from '@playwright/test';
 import { accessTokenOf, bookAnyFreeSlotAs, cancelAppointmentAs } from './fixtures/booking-api';
@@ -30,11 +22,9 @@ const isReport = (kind: string, period?: { readonly from: string; readonly to: s
   const matchesPeriod = period === undefined || (url.searchParams.get('from') === period.from && url.searchParams.get('to') === period.to);
   return url.pathname === `/api/v1/admin/analytics/${kind}` && response.request().method() === 'GET' && matchesPeriod;
 };
-/** The page asks for one report per chart column and for the previous period too: the whole period is told apart by its bounds. */
 const THIS_YEAR = { from: `${new Date().getFullYear()}-01-01`, to: `${new Date().getFullYear()}-12-31` };
 const isAudit = (response: Response): boolean => new URL(response.url()).pathname === '/api/v1/admin/audit' && response.request().method() === 'GET';
 
-/** The `sub` of the page's access token: the `userId` the journal records for the account. */
 async function subjectOf(page: Page): Promise<string> {
   const payload = (await accessTokenOf(page)).split('.')[1] ?? '';
   return (JSON.parse(Buffer.from(payload, 'base64url').toString('utf8')) as { sub: string }).sub;
@@ -91,8 +81,7 @@ test.describe('admin analytics', () => {
       await patient.context.close();
     }
 
-    // The read model is filled by a worker from the events, so the page is reloaded (a fresh read: applying the same period
-    // again would be answered from the client cache) until the cancellation is in.
+    // The read model is filled by a worker: reload (a fresh read, not the client cache) until the cancellation is in.
     await expect(async () => {
       const again = page.waitForResponse(isReport('appointments', THIS_YEAR));
       await page.reload();
@@ -110,7 +99,6 @@ test.describe('admin analytics', () => {
     await expect(page.getByRole('table', { name: 'Топ-5 услуг по записям' })).toBeVisible();
 
     await page.getByRole('button', { name: 'Свой период' }).click();
-    // The first date alone makes a period of more than 366 days: it is refused, nothing is sent until the second one completes it.
     await page.getByLabel('С', { exact: true }).fill('2020-01-01');
     const empty = page.waitForResponse(isReport('appointments', { from: '2020-01-01', to: '2020-01-31' }));
     await page.getByLabel('По', { exact: true }).fill('2020-01-31');
@@ -159,7 +147,6 @@ test.describe('admin audit journal', () => {
     return (await response.json()) as { items: ReadonlyArray<{ action: string }> };
   }
 
-  /** The filters apply themselves once typing pauses: the answer to the request they make is awaited, matched by its parameters. */
   async function applyFilters(filters: { readonly entity?: string; readonly userId?: string; readonly from?: string; readonly to?: string }): Promise<Response> {
     const answered = page.waitForResponse((response) => {
       if (!isAudit(response)) return false;
@@ -183,7 +170,6 @@ test.describe('admin audit journal', () => {
     roomId = ((await created.json()) as { id: string }).id;
     const removed = await page.request.delete(`/api/v1/admin/rooms/${roomId}`, { headers });
     expect(removed.status(), 'the admin deletes the room again').toBe(204);
-    // The AuditEvents are written by a worker: wait until both are in the journal before the UI is asked for them.
     await expect
       .poll(async () => (await adminApi(`/api/v1/admin/audit?entity=${encodeURIComponent(`Location/${roomId}`)}`)).items.map((item) => item.action).sort(), { timeout: AUDIT_WRITE_TIMEOUT_MS, intervals: [2_000] })
       .toEqual(['create', 'delete']);
@@ -229,7 +215,7 @@ test.describe('admin audit journal', () => {
   });
 
   test('should filter by period: today holds the events, a past day does not', async () => {
-    // A date-only `from`/`to` is a clinic (Minsk) day, so «today» is the Minsk day key, not the UTC date.
+    // A date-only `from`/`to` is a Minsk clinic day, so «today» is the Minsk day key, not the UTC date.
     const dayKey = (date: Date): string => new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Minsk', year: 'numeric', month: '2-digit', day: '2-digit' }).format(date);
     const today = dayKey(new Date());
     const yesterdayOf = (day: string): string => dayKey(new Date(Date.parse(`${day}T12:00:00+03:00`) - 24 * 60 * 60 * 1000));

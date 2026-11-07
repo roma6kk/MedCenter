@@ -1,12 +1,3 @@
-/**
- * E2E — scenario E of the frontend design spec §6 (FR-008, API 8.1–8.4): the bell polls the unread counter, one
- * notification is marked read, then all of them.
- *
- * Notifications are produced at run time: a booking that is cancelled right away (the slot is free again, so the data
- * cleans itself) makes the notification service write an in-app notification asynchronously (RabbitMQ). Other specs
- * create notifications for the same demo patients, so nothing here asserts absolute counts: every check follows the
- * notification of this run, found by the link to its appointment (the text carries no reason).
- */
 import { expect, test, type BrowserContext, type Locator, type Page } from '@playwright/test';
 import { bookAnyFreeSlotAs, cancelAppointmentAs } from './fixtures/booking-api';
 import { hasDemoManifest } from './fixtures/demo-accounts';
@@ -14,7 +5,6 @@ import { openStoredSession } from './fixtures/session-state';
 
 test.skip(!hasDemoManifest(), 'demo seed manifest not found');
 
-/** The unread counter is polled every 30 s (ADR-015) and the notification arrives through the broker: allow both. */
 const POLL_TIMEOUT_MS = 100_000;
 const BELL = /Уведомления, непрочитанных: (\d+)/;
 
@@ -23,7 +13,6 @@ test.describe('patient notifications', () => {
   let context: BrowserContext;
   let page: Page;
 
-  /** Books a free slot and cancels it; resolves with the appointment id. */
   async function bookAndCancel(): Promise<{ readonly appointmentId: string }> {
     const { id: appointmentId } = await bookAnyFreeSlotAs(page);
     await cancelAppointmentAs(page, appointmentId);
@@ -37,7 +26,6 @@ test.describe('patient notifications', () => {
       .filter({ has: page.locator(`a[href="/appointments/${appointmentId}"]`), hasText: 'Запись на приём отменена.' });
   }
 
-  /** Re-reads the list until the notification of the cancellation has arrived. */
   async function openUntilArrived(appointmentId: string): Promise<Locator> {
     const row = rowOf(appointmentId);
     await expect(async () => {
@@ -63,7 +51,7 @@ test.describe('patient notifications', () => {
 
     await bookAndCancel();
 
-    // No reload and no navigation: only the 30 s refetch of `GET /api/v1/notifications/unread-count` can change the bell.
+    // No reload: only the 30 s refetch of the unread counter can change the bell.
     await expect
       .poll(async () => Number(BELL.exec((await bell.getAttribute('aria-label')) ?? '')?.[1]), { timeout: POLL_TIMEOUT_MS, intervals: [5_000] })
       .toBeGreaterThan(before);
@@ -82,7 +70,6 @@ test.describe('patient notifications', () => {
     await expect(page.getByText('Уведомление отмечено прочитанным')).toBeVisible();
     await expect(row.getByText('Новое', { exact: true })).toHaveCount(0);
     await expect(row.getByRole('button', { name: 'Отметить прочитанным' })).toHaveCount(0);
-    // The unread filter (API 8.1 `unread=true`) no longer lists it.
     await page.getByRole('tab', { name: 'Непрочитанные' }).click();
     await expect(rowOf(appointmentId)).toHaveCount(0);
   });

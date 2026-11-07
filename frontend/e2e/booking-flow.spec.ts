@@ -1,9 +1,3 @@
-/**
- * E2E — scenario A of the frontend design spec §6 (FR-003/004): a guest finds a doctor and a free slot, presses
- * «Записаться», signs in through the real PKCE flow, gets the booking draft back on the confirmation step and confirms.
- *
- * The doctor and the slot are found at run time from the public catalog; the booking is cancelled afterwards.
- */
 import { expect, test } from '@playwright/test';
 import { fillAuthServiceForm, returnToOfAuthorizeUrl } from './fixtures/auth';
 import { cancelAppointmentAs, findFreeSlots, revealSlotOnDoctorPage, type FreeSlot } from './fixtures/booking-api';
@@ -56,7 +50,6 @@ test('should book an appointment through the login with the draft restored when 
   });
 
   try {
-    // The wizard ends on its own success screen (0ac4f99), which links the new appointment.
     await expect(page.getByRole('heading', { name: 'Вы записаны на приём' })).toBeVisible();
     await expect(page.getByRole('main')).toContainText(target.doctorName);
     await expect(page.getByRole('link', { name: 'Отменить запись' })).toHaveAttribute('href', `/appointments/${created.id}`);

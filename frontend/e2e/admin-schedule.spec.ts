@@ -1,12 +1,3 @@
-/**
- * E2E — scenario D of the frontend design spec §6 (API 5.2.1–5.2.6, FR-020, BR-007): the admin creates a schedule, the overlap
- * control refuses a crossing one, the slots are generated, and they show up for the doctor and for the patient.
- *
- * Isolation: the schedule is made for one seeded doctor on three days chosen at random 40…300 days ahead — far beyond the
- * demo schedules (`--days 14`) and the other runs — with a single window on the weekday of the first day. The whole period
- * is the horizon, so «overlap» can be provoked by a second schedule that starts on the last day. Cleanup deletes the schedule
- * together with its free slots. Each role signs in once per run.
- */
 import { randomInt } from 'node:crypto';
 import { expect, test, type Browser, type BrowserContext, type Locator, type Page, type Response } from '@playwright/test';
 import { accessTokenOf, clinicDay } from './fixtures/booking-api';
@@ -28,7 +19,6 @@ function addDays(day: string, days: number): string {
   return shifted.toISOString().slice(0, 10);
 }
 
-/** `2027-03-05` → `05.03.2027` as the admin table prints a horizon day. */
 function numericDay(day: string): string {
   const [year, month, date] = day.split('-');
   return `${date}.${month}.${year}`;
@@ -48,7 +38,6 @@ test.describe('admin creates a schedule and generates slots', () => {
   let firstDay: string;
   let lastDay: string;
   let scheduleId: string | undefined;
-  /** Every schedule a test of this run managed to create: all are deleted afterwards, whatever the verdict. */
   const createdIds: string[] = [];
   let generated = 0;
 
@@ -58,10 +47,6 @@ test.describe('admin creates a schedule and generates slots', () => {
     return page;
   }
 
-  /**
-   * The row of the schedule under test in the admin table: found by its unique horizon, printed as the table does
-   * (050fb31): `28.12 – 30.12.2026` when both ends share a year, `30.12.2026 – 01.01.2027` otherwise.
-   */
   function scheduleRow(): Locator {
     const from = numericDay(firstDay);
     const to = numericDay(addDays(firstDay, HORIZON_DAYS - 1));
@@ -70,13 +55,11 @@ test.describe('admin creates a schedule and generates slots', () => {
   }
 
   test.beforeAll(async ({ browser, baseURL }) => {
-    // The fourth demo doctor: the other e2e specs use the first one.
     const doctor = loadDemoAccount('DOCTOR', 3);
     expect(doctor.practitionerRoleId, 'the seeded doctor account is linked to a PractitionerRole').toBeDefined();
     doctorRoleId = doctor.practitionerRoleId as string;
     adminPage = await signedInPage(browser, baseURL, 'ADMIN');
-    // An active schedule of this doctor left on the stand (an earlier run, a manual test) must not share the horizon:
-    // the rows are found by it, and the overlap test adds a schedule that reaches HORIZON_DAYS past the last day.
+    // A leftover active schedule of this doctor must not share the horizon: rows are found by it.
     const listed = await adminPage.request.get(`/api/v1/admin/schedules?doctorId=${doctorRoleId}&active=true&pageSize=100`, {
       headers: { Authorization: `Bearer ${await accessTokenOf(adminPage)}` },
     });
@@ -104,7 +87,6 @@ test.describe('admin creates a schedule and generates slots', () => {
     for (const id of createdIds) {
       const token = await accessTokenOf(adminPage);
       const removed = await adminPage.request.delete(`/api/v1/admin/schedules/${id}`, { headers: { Authorization: `Bearer ${token}` }, data: { cascade: true } });
-      // A failed cleanup must not fail the run (the schedule lies months ahead, no other run meets it) but must not stay unseen.
       if (!removed.ok()) console.warn(`cleanup: DELETE /api/v1/admin/schedules/${id} answered ${removed.status()}`);
     }
     await Promise.all(contexts.map((context) => context.close()));
@@ -122,7 +104,6 @@ test.describe('admin creates a schedule and generates slots', () => {
     await dialog.getByLabel('Горизонт с').fill(firstDay);
     await dialog.getByLabel('Горизонт по').fill(lastDay);
 
-    // Two windows of one weekday that cross: both rows are marked at once, the submit sends nothing.
     const weekday = WEEKDAY_CODES[new Date(`${firstDay}T12:00:00Z`).getUTCDay()] as string;
     await dialog.getByLabel('День недели, окно 1').selectOption(weekday);
     await dialog.getByLabel('Начало, окно 1').fill(WINDOW_START);
@@ -178,7 +159,6 @@ test.describe('admin creates a schedule and generates slots', () => {
     await dialog.getByLabel('Врач').selectOption(doctorRoleId);
     await dialog.getByLabel('Кабинет').selectOption({ index: 1 });
     await dialog.getByLabel('Услуга').selectOption({ index: 1 });
-    // BR-007: the horizons meet and the weekly windows of the same weekday cross (09:30–10:30 against 09:00–10:00).
     await dialog.getByLabel('Горизонт с').fill(lastDay);
     await dialog.getByLabel('Горизонт по').fill(addDays(lastDay, 7));
     const weekday = WEEKDAY_CODES[new Date(`${firstDay}T12:00:00Z`).getUTCDay()] as string;
@@ -214,10 +194,8 @@ test.describe('admin creates a schedule and generates slots', () => {
     generated = Number(/Создано слотов: (\d+)/.exec((await result.textContent()) ?? '')?.[1]);
     expect(generated, 'the hour of the window is cut into slots').toBeGreaterThan(0);
 
-    // The same period again creates nothing new: every slot is skipped.
     await dialog.getByRole('button', { name: 'Сгенерировать', exact: true }).click();
     await expect(result).toContainText(`Создано слотов: 0, пропущено (уже были): ${generated}`);
-    // The footer button; the corner cross of the dialog carries the same name.
     await dialog.locator('button:not([data-dialog-close])', { hasText: 'Закрыть' }).click();
     await expect(dialog).toBeHidden();
   });
@@ -225,8 +203,6 @@ test.describe('admin creates a schedule and generates slots', () => {
   test('should show the generated slots to the doctor in their schedule', async () => {
     const page = doctorPage;
     await page.goto('/doctor/schedule');
-    // The schedule is a week calendar (050fb31): the date field jumps to the week of the day, a column per day whose
-    // header carries «занято N из M», a row per start time. Only the first day of the horizon is on the window's weekday.
     await page.getByLabel('Дата', { exact: true }).fill(firstDay);
     await page.getByLabel('Дата', { exact: true }).press('Enter');
     const grid = page.getByRole('table', { name: 'Слоты недели: дни в столбцах, время в строках' });

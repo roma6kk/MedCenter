@@ -1,8 +1,6 @@
 import '@testing-library/jest-dom';
 
-// next/jest uses jsdom, which hides Node's WHATWG fetch globals.
-// Install minimal shims so apiFetch specs can `jest.spyOn(global, 'fetch')`
-// and construct `new Response(...)`. Tests replace fetch with mocks per case.
+// next/jest uses jsdom, which hides Node's fetch globals; shim them.
 const nodeGlobals = globalThis as unknown as Record<string, unknown>;
 
 class ResponseShim {

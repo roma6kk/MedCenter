@@ -1,10 +1,3 @@
-/**
- * E2E — scenario A2 of the frontend design spec §6 (BR-001): two patients go for one slot at the same time, one wins,
- * the other gets 409 SLOT_CONFLICT and the wizard puts them back on the slot step with the refused slot shown as taken.
- *
- * Two seeded patients open their saved sessions (`auth.setup.ts`; the login is rate limited); the slots are found at run time and every
- * booking that was made is cancelled afterwards.
- */
 import { expect, test, type Browser, type BrowserContext, type Page } from '@playwright/test';
 import { bookSlotAs, cancelAppointmentAs, findFreeSlots, revealSlotOnDoctorPage } from './fixtures/booking-api';
 import { hasDemoManifest } from './fixtures/demo-accounts';
@@ -63,7 +56,6 @@ test.describe('two patients, one slot', () => {
     await page.getByRole('button', { name: /^Записаться на / }).click();
     await expect(page.getByRole('heading', { name: 'Проверьте данные записи' })).toBeVisible();
 
-    // The other patient takes the slot while this one is still reading the confirmation.
     const rival = await bookSlotAs(second.page, target.slotId);
     expect(rival.status).toBe(201);
     booked.push({ owner: second.page, id: String(rival.body['id']) });

@@ -1,16 +1,3 @@
-/**
- * E2E — scenarios C and C2 of the frontend design spec §6 (FR-011…FR-014; BR-003/004/005/008/009).
- *
- * C: the doctor opens a booked appointment from the journal and completes the encounter with one atomic submit
- * (diagnosis J06.9, temperature 36.6 Cel, drug J01FA10): the appointment becomes «fulfilled» and the encounter «finished».
- * C2: a second completion of the same encounter is refused with 409 `ENCOUNTER_STATE_INVALID`, and the form turns read-only.
- *
- * Data: a patient WITH an EMR consent (the seeded `patient.novikov` has none on purpose) books two free slots of the seeded
- * doctor through the API at run time. The domain lets a doctor open any `booked` appointment (BR-008 has no «today» rule),
- * so a slot a day or two ahead is enough and the journal is opened on that day (`?date=`). A completed visit cannot be
- * reverted: every run uses up two slots of the doctor (`npm run seed:demo`, without `--users`, adds slots again).
- * Each side signs in once per run.
- */
 import { expect, test, type APIResponse, type BrowserContext, type Page, type Response } from '@playwright/test';
 import { accessTokenOf, bookSlotAs, cancelAppointmentAs, clinicDay, findFreeSlots, type FreeSlot } from './fixtures/booking-api';
 import { hasDemoManifest, loadDemoAccount } from './fixtures/demo-accounts';
@@ -77,7 +64,6 @@ test.describe('doctor completes an encounter', () => {
   });
 
   test.afterAll(async () => {
-    // A completed visit stays; a visit the test never reached is cancelled so that its slot is free again.
     for (const visit of [first, second]) if (visit !== undefined) await cancelAppointmentAs(patientPage, visit.appointmentId);
     await patientContext.close();
     await doctorContext.close();
@@ -91,9 +77,7 @@ test.describe('doctor completes an encounter', () => {
     const row = page.getByTestId(`journal-visit-${first.appointmentId}`);
     await expect(row).toBeVisible();
     const opened = page.waitForResponse((response) => response.url().endsWith('/api/v1/encounters') && response.request().method() === 'POST');
-    // The next visit of the day also has its call to action in the side panel, hence `.first()`.
     await page.getByRole('button', { name: new RegExp(`^Открыть приём: .*${time}$`) }).first().click();
-    // The slot lies at least 36 h ahead (findFreeSlots), so the journal asks before a visit of another day is started (bc90cb7).
     const notToday = page.getByRole('dialog').filter({ has: page.getByRole('heading', { name: 'Приём не на сегодня' }) });
     await notToday.getByRole('button', { name: 'Начать сейчас' }).click();
     expect((await opened).status()).toBe(201);
@@ -102,12 +86,10 @@ test.describe('doctor completes an encounter', () => {
 
     await page.getByLabel('Заключение', { exact: true }).fill(SUMMARY);
 
-    // Diagnosis: one field for the code or the name; pick from the suggestions, the field then reads «код — название».
     await page.getByRole('combobox', { name: /^Диагноз 1:/ }).fill(DIAGNOSIS_CODE);
     await page.getByRole('option', { name: new RegExp(`^${DIAGNOSIS_CODE.replace('.', '\\.')}`) }).first().click();
     await expect(page.getByRole('combobox', { name: /^Диагноз 1:/ })).toHaveValue(/ — .+/);
 
-    // Observation: the body temperature from the closed НСИ list, the value and the UCUM unit.
     await page.getByRole('button', { name: 'Добавить наблюдение' }).click();
     const indicator = page.getByLabel('Показатель 1');
     const temperature = indicator.locator('option', { hasText: /температур/i }).first();
@@ -118,7 +100,6 @@ test.describe('doctor completes an encounter', () => {
     await expect(unit.locator(`option[value="${TEMPERATURE_UNIT}"]`)).toBeAttached();
     await unit.selectOption(TEMPERATURE_UNIT);
 
-    // Drug: the АТХ code picked from the suggestions and its dosage.
     await page.getByRole('button', { name: 'Добавить лекарство' }).click();
     await page.getByRole('combobox', { name: /^Код АТХ/ }).fill(DRUG_CODE);
     await page.getByRole('option', { name: new RegExp(`^${DRUG_CODE}`) }).first().click();
@@ -130,7 +111,6 @@ test.describe('doctor completes an encounter', () => {
     await page.getByRole('button', { name: 'Завершить приём' }).click();
     expect((await completed).status()).toBe(200);
 
-    // The form gives way to the read-only record with everything that was sent.
     const banner = page.getByTestId('encounter-readonly');
     await expect(banner).toBeVisible();
     await expect(banner).toContainText('Приём завершён');
@@ -138,12 +118,10 @@ test.describe('doctor completes an encounter', () => {
     const record = page.getByTestId('encounter-record');
     await expect(record).toContainText(SUMMARY);
     await expect(record).toContainText(DIAGNOSIS_CODE);
-    // The record prints the value by locale and the unit by its symbol (b40af95, i18n-04): «36,6 °C».
     await expect(record).toContainText(`${TEMPERATURE_VALUE.replace('.', ',')} °C`);
     await expect(record).toContainText(DRUG_CODE);
     await expect(record).toContainText(DOSAGE);
 
-    // The service state behind it: the encounter is finished with all three records (7.3 is atomic), the appointment fulfilled.
     const encounter = (await (await doctorApi(`/api/v1/encounters/${encounterId}`, 'GET')).json()) as EncounterRecord;
     expect(encounter.status).toBe('finished');
     expect(encounter.diagnoses.map((diagnosis) => diagnosis.code)).toEqual([DIAGNOSIS_CODE]);
@@ -153,7 +131,6 @@ test.describe('doctor completes an encounter', () => {
     const appointment = await patientPage.request.get(`/api/v1/appointments/${first.appointmentId}`, { headers: { Authorization: `Bearer ${patientToken}` } });
     expect(((await appointment.json()) as { status: string }).status).toBe('fulfilled');
 
-    // …and the journal says so.
     await page.goto(`/doctor/appointments?date=${clinicDay(new Date(first.slot.start))}`);
     await expect(page.getByTestId(`journal-visit-${first.appointmentId}`).getByTestId('stamp-fulfilled')).toBeVisible();
   });
@@ -164,7 +141,6 @@ test.describe('doctor completes an encounter', () => {
     expect(opened.status()).toBe(201);
     const encounterId = ((await opened.json()) as { id: string }).id;
 
-    // The form of the in-progress visit is on screen and filled in…
     await page.goto(`/encounters/${encounterId}`);
     await page.getByLabel('Заключение', { exact: true }).fill(SUMMARY);
     await page.getByRole('combobox', { name: /^Диагноз 1:/ }).fill(DIAGNOSIS_CODE);
@@ -172,7 +148,6 @@ test.describe('doctor completes an encounter', () => {
     await expect(page.getByRole('combobox', { name: /^Диагноз 1:/ })).toHaveValue(/ — .+/);
     await page.getByLabel('Рекомендации', { exact: true }).fill(RECOMMENDATIONS);
 
-    // …while the visit is completed elsewhere (a second tab, a colleague, a retried request).
     const elsewhere = await doctorApi(`/api/v1/encounters/${encounterId}/complete`, 'POST', {
       summary: DOCTOR_SUMMARY,
       diagnoses: [{ code: DIAGNOSIS_CODE, display: 'Острая респираторная инфекция' }],
@@ -189,7 +164,6 @@ test.describe('doctor completes an encounter', () => {
     expect(refused.status()).toBe(409);
     expect(((await refused.json()) as { errorCode: string }).errorCode).toBe('ENCOUNTER_STATE_INVALID');
 
-    // The encounter is re-read and shown as the finished record: the form and its submit are gone, nothing was overwritten.
     await expect(page.getByTestId('encounter-readonly')).toBeVisible();
     await expect(page.getByRole('button', { name: 'Завершить приём' })).toHaveCount(0);
     await expect(page.getByLabel('Заключение', { exact: true })).toHaveCount(0);

@@ -1,10 +1,3 @@
-/**
- * E2E — scenario B of the frontend design spec §6 (FR-005/006, BR-002): the patient cancels an appointment with a reason,
- * the status becomes «cancelled» (StampBadge) and a notification about it shows up in the notification center.
- *
- * The appointment is created through the API at run time on a free slot (the cancelled slot is free again, so the data
- * cleans itself); the patient signs in once per run.
- */
 import { expect, test, type BrowserContext, type Page } from '@playwright/test';
 import { bookSlotAs, cancelAppointmentAs, findFreeSlots } from './fixtures/booking-api';
 import { hasDemoManifest } from './fixtures/demo-accounts';
@@ -31,7 +24,6 @@ test.describe('patient cancels an appointment', () => {
   });
 
   test.afterAll(async () => {
-    // Idempotent: a no-op when the test already cancelled it.
     await cancelAppointmentAs(page, appointmentId);
     await context.close();
   });
@@ -55,7 +47,7 @@ test.describe('patient cancels an appointment', () => {
   });
 
   test('should show a notification about the cancellation in the notification center', async () => {
-    // The notification text carries no reason (owner decision). It is produced asynchronously (RabbitMQ → notification-service), so the list is re-read until it arrives.
+    // The notification is produced asynchronously (RabbitMQ → notification-service): re-read the list until it arrives.
     const row = page
       .getByRole('group', { name: 'Список уведомлений' })
       .getByRole('listitem')
