@@ -11,7 +11,7 @@ import { useUiStore } from '@/store/use-ui-store';
 import { QueryState } from '../shared/query-state';
 import type { ReportRange } from '../shared/report-range';
 import { AnalyticsFilters } from './analytics-filters';
-import { defaultScope, presetRange, previousRange, scopeFromParams, scopeToQuery, withToday, type AnalyticsScope, type PeriodPreset } from './analytics-period';
+import { presetRange, previousRange, scopeFromParams, scopeToQuery, withToday, type AnalyticsScope, type PeriodPreset } from './analytics-period';
 import { bucketsOf } from './analytics-series';
 import { AppointmentsChart } from './appointments-chart';
 import { AppointmentsKpis } from './appointments-kpis';

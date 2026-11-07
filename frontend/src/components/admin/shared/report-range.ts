@@ -12,11 +12,6 @@ const MAX_REPORT_DAYS = 366;
 
 export const DEFAULT_AUDIT_DAYS = 30;
 
-export function currentYearRange(today: string = clinicDateKey()): ReportRange {
-  const year: string = today.slice(0, 4);
-  return { from: `${year}-01-01`, to: `${year}-12-31` };
-}
-
 export function lastDaysRange(days: number, today: string = clinicDateKey()): ReportRange {
   return { from: shiftDateKey(today, -(days - 1)), to: today };
 }

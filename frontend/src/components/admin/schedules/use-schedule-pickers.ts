@@ -7,7 +7,7 @@ import { roomLabel } from '../rooms/room-label';
 import { useAdminRooms } from '../rooms/use-admin-rooms';
 import { useAdminServices } from '../services/use-admin-services';
 import { useAdminUsers } from '../users/use-admin-users';
-import { referenceId, type AdminUser } from '../users/user-types';
+import { referenceId } from '../users/user-types';
 
 interface PickerOption {
   readonly value: string;
@@ -39,17 +39,13 @@ function isMissing(page: PaginatedResponse<unknown> | undefined): boolean {
   return page !== undefined && page.meta.totalItems > page.items.length;
 }
 
-function linkedDoctors(users: ReadonlyArray<AdminUser>): ReadonlyArray<AdminUser> {
-  return users.filter((user) => user.practitionerRoleRef !== null);
-}
-
 // A schedule's actor is a `PractitionerRole`, not a `Practitioner` (`GET /doctors` hands out practitioner ids), so doctors come from the DOCTOR accounts.
 export function useSchedulePickers(): SchedulePickers {
   const t = useT('admin.schedules');
   const users = useAdminUsers({ page: 1, role: 'DOCTOR', search: '', pageSize: ALL_PAGE_SIZE });
   const rooms = useAdminRooms(1, ALL_PAGE_SIZE);
   const services = useAdminServices({ page: 1, search: '', pageSize: ALL_PAGE_SIZE });
-  const linked = useMemo(() => linkedDoctors(users.data?.items ?? []), [users.data]);
+  const linked = useMemo(() => (users.data?.items ?? []).filter((user) => user.practitionerRoleRef !== null), [users.data]);
   const doctors = useMemo(() => linked.filter((user) => user.isActive).map((user) => ({ value: referenceId(user.practitionerRoleRef), label: user.name })), [linked]);
   const allDoctors = useMemo(
     () => linked.map((user) => ({ value: referenceId(user.practitionerRoleRef), label: user.isActive ? user.name : t('doctorInactive', { name: user.name }) })),

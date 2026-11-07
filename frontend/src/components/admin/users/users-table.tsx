@@ -13,7 +13,7 @@ import { USER_ROLES } from './user-types';
 import { ActiveStatusBadge } from '../shared/active-status-badge';
 import { RowActionsMenu } from '../shared/row-actions-menu';
 
-export interface UserRow {
+interface UserRow {
   readonly id: string;
   readonly name: string;
   readonly email?: string;

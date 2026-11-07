@@ -1,6 +1,5 @@
 import type { ReactNode } from 'react';
 import type { UseFormRegisterReturn } from 'react-hook-form';
-import { CONTROL_CLASS } from './admin-styles';
 import { controlProps, Field } from './form-field';
 import { Select } from '@/components/ui/select';
 
