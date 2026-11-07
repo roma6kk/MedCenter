@@ -41,7 +41,7 @@ const databaseEnvSchema = z.object({
   POSTGRES_DB: optionalText,
 });
 
-export interface DatabaseConnectionEnv {
+interface DatabaseConnectionEnv {
   readonly host: string;
   readonly port: number;
   readonly username: string;

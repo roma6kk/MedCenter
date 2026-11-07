@@ -36,7 +36,7 @@ export class UserResponseDoc implements UserResponseDto {
   role!: Role | null;
 }
 
-export class ExternalLinkDoc implements ExternalLinkDto {
+class ExternalLinkDoc implements ExternalLinkDto {
   @ApiProperty({ enum: ['Patient', 'PractitionerRole'] })
   resourceType!: 'Patient' | 'PractitionerRole';
 

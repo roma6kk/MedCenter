@@ -14,7 +14,7 @@ export const AUTH_SCHEMA = 'auth';
 
 export const authEntities = [User, Role, UserRole, ExternalLink, OAuthClient, OAuthToken];
 
-export const authMigrations = [Init1700000000000, RolesAndLinks1700000000001, AccountConsent1700000000002];
+const authMigrations = [Init1700000000000, RolesAndLinks1700000000001, AccountConsent1700000000002];
 
 export interface PostgresConnectionOptions {
   host: string;

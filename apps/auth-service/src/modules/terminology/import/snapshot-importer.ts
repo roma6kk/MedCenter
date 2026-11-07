@@ -5,7 +5,7 @@ import { upsertCanonical, type UpsertResult } from './canonical-upsert';
 import { SNAPSHOT_VERSION, buildCodeSystems, buildValueSets } from './snapshot-resources';
 import { DEFAULT_VERIFY_OPTIONS, verifySnapshot, type ExpansionReport, type VerifyOptions } from './snapshot-verifier';
 
-export const IMPORT_VERIFY_OPTIONS = Symbol('IMPORT_VERIFY_OPTIONS');
+const IMPORT_VERIFY_OPTIONS = Symbol('IMPORT_VERIFY_OPTIONS');
 
 export interface ImportSummary {
   readonly snapshotVersion: string;

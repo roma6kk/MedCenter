@@ -3,7 +3,7 @@ import { Role } from '@medcenter/contracts';
 import { invalidUserInput, selfLockout } from './user-errors';
 import type { UserRecord } from './store/user-store';
 
-export interface AccountShape {
+interface AccountShape {
   readonly roles: ReadonlyArray<Role>;
   readonly birthDate?: string;
   readonly practitionerRoleId?: string;
@@ -22,7 +22,7 @@ function assertPractitionerRoleFits(roles: ReadonlyArray<Role>, practitionerRole
   }
 }
 
-export interface AccountUpdate {
+interface AccountUpdate {
   readonly roles?: ReadonlyArray<Role>;
   readonly isActive?: boolean;
   readonly practitionerRoleId?: string | null;

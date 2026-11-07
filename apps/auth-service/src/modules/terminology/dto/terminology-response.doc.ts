@@ -8,7 +8,7 @@ import type {
   ValueSetSummaryDto,
 } from './terminology-response.dto';
 
-export class ValueSetSummaryDoc implements ValueSetSummaryDto {
+class ValueSetSummaryDoc implements ValueSetSummaryDto {
   @ApiProperty({ example: 'https://fhir.by/ValueSet/atc', description: 'Canonical https://fhir.by/ValueSet/...' })
   url!: string;
 
@@ -33,7 +33,7 @@ export class ValueSetPageDoc {
   meta!: PageMetaDoc;
 }
 
-export class ConceptDoc implements ConceptDto {
+class ConceptDoc implements ConceptDto {
   @ApiProperty({ example: 'https://fhir.by/CodeSystem/InternClassificDiseases10' })
   system!: string;
 

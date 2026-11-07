@@ -4,7 +4,7 @@ export const AUTH_USER_IDENTIFIER_SYSTEM = 'https://api.medcenter.by/sid/auth-us
 
 export const SYSTEM_ACTOR = 'system:auth-service';
 
-export type UserAuditAction = 'create' | 'update';
+type UserAuditAction = 'create' | 'update';
 
 export interface AuditActor {
   readonly sub: string;

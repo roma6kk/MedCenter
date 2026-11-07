@@ -9,12 +9,12 @@ import ucumSnapshot from './snapshot/ucum.json';
 
 export const SNAPSHOT_VERSION = '1.4.463';
 
-export interface SnapshotConcept {
+interface SnapshotConcept {
   readonly code: string;
   readonly display: string;
 }
 
-export interface SnapshotCodeSystem extends FhirResource {
+interface SnapshotCodeSystem extends FhirResource {
   readonly resourceType: 'CodeSystem';
   readonly id: string;
   readonly url: string;
@@ -28,7 +28,7 @@ export interface SnapshotCodeSystem extends FhirResource {
   readonly concept: readonly SnapshotConcept[];
 }
 
-export interface SnapshotValueSetInclude {
+interface SnapshotValueSetInclude {
   readonly system: string;
   readonly concept?: readonly SnapshotConcept[];
 }

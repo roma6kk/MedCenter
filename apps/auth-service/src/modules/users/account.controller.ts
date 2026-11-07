@@ -11,7 +11,7 @@ import { RegistrationService } from './registration.service';
 import type { AuthenticatedRequest } from './request-actor';
 import { UsersService } from './users.service';
 
-export const REGISTER_RATE_LIMIT = 10;
+const REGISTER_RATE_LIMIT = 10;
 
 @ApiTags('auth')
 @Controller('api/v1')

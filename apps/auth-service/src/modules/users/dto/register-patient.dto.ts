@@ -32,7 +32,7 @@ import {
   PASSWORD_MAX_LENGTH,
 } from './validation-patterns';
 
-export class AccountConsentDto {
+class AccountConsentDto {
   @ApiProperty({ type: Boolean, enum: [true], example: true, description: 'Only true is accepted' })
   @Equals(true, { message: 'accepted must be true' })
   accepted!: true;

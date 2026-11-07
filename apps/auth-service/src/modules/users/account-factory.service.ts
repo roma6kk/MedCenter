@@ -9,17 +9,11 @@ import { assertCreatable } from './account-rules';
 import { PasswordHasher } from './password-hasher';
 import { registeredEvent, RegistrationOutbox } from './patient-events';
 import { PatientProvisioner, type PatientGender } from './patient-provisioner';
-import { emailTaken, invalidUserInput, practitionerRoleTaken } from './user-errors';
+import { conflictOf, emailTaken, invalidUserInput } from './user-errors';
 import { linkedRefs } from './user-links';
-import {
-  DuplicateEmailError,
-  ResourceAlreadyLinkedError,
-  USER_STORE,
-  type UserRecord,
-  type UserStore,
-} from './store/user-store';
+import { USER_STORE, type UserRecord, type UserStore } from './store/user-store';
 
-export interface NewAccount {
+interface NewAccount {
   readonly email: string;
   readonly password: string;
   readonly firstName: string;
@@ -32,7 +26,7 @@ export interface NewAccount {
   readonly accountConsentVersion?: string;
 }
 
-export interface AccountContext {
+interface AccountContext {
   readonly event: string;
   readonly actor?: AuditActor;
   readonly requestId?: string;
@@ -126,7 +120,7 @@ export class AccountFactory {
           : {}),
       });
     } catch (error: unknown) {
-      throw error instanceof DuplicateEmailError ? emailTaken() : error;
+      throw conflictOf(error);
     }
   }
 
@@ -141,7 +135,7 @@ export class AccountFactory {
       }
     } catch (error: unknown) {
       await this.compensate(user.id, patientId, isOutcomeUnknown(error));
-      throw error instanceof ResourceAlreadyLinkedError ? practitionerRoleTaken() : error;
+      throw conflictOf(error);
     }
     return {
       ...user,

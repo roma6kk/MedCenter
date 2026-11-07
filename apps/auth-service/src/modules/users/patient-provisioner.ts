@@ -6,7 +6,7 @@ import { updateIfUnchanged } from '../fhir/versioned-update';
 
 export type PatientGender = 'male' | 'female';
 
-export interface PatientDemographics {
+interface PatientDemographics {
   readonly userId: string;
   readonly email: string;
   readonly firstName: string;

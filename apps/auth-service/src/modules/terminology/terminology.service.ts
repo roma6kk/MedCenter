@@ -13,7 +13,7 @@ import { FHIR_BY_VALUE_SET_PREFIX, hasValidCodeShape, seededValueSetOf } from '.
 import { TERMINOLOGY_CACHE, type TerminologyCache } from './terminology-cache';
 import { toConcepts, toValidation, toValueSetSummaries } from './value-set-parser';
 
-export const EXPANSION_TTL_SECONDS = 3600;
+const EXPANSION_TTL_SECONDS = 3600;
 
 export const EXPANSION_CACHE_PREFIX = 'terminology:expand';
 

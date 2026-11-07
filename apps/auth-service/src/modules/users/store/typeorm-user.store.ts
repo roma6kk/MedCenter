@@ -26,7 +26,7 @@ interface DriverErrorShape {
   readonly constraint?: unknown;
 }
 
-export function uniqueViolationOf(error: unknown): string | null {
+function uniqueViolationOf(error: unknown): string | null {
   if (typeof error !== 'object' || error === null) {
     return null;
   }
@@ -37,7 +37,7 @@ export function uniqueViolationOf(error: unknown): string | null {
   return typeof driver.constraint === 'string' ? driver.constraint : '';
 }
 
-export function escapeLike(term: string): string {
+function escapeLike(term: string): string {
   return term.replace(/[\\%_]/g, (character) => `\\${character}`);
 }
 

@@ -1,15 +1,13 @@
 import { Injectable } from '@nestjs/common';
 import { randomBytes, scrypt, timingSafeEqual, type ScryptOptions } from 'node:crypto';
 
-export interface ScryptParams {
+interface ScryptParams {
   readonly N: number;
   readonly r: number;
   readonly p: number;
 }
 
-export const DEFAULT_SCRYPT_PARAMS: ScryptParams = { N: 2 ** 15, r: 8, p: 1 };
-
-export const PASSWORD_HASHER_PARAMS = 'PASSWORD_HASHER_PARAMS';
+const DEFAULT_SCRYPT_PARAMS: ScryptParams = { N: 2 ** 15, r: 8, p: 1 };
 
 const SCHEME = 'scrypt';
 const KEY_LENGTH = 64;

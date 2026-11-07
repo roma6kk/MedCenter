@@ -6,7 +6,7 @@ import { buildDataSource, type PostgresConnectionOptions } from './typeorm.confi
 
 export const AUTH_DATA_SOURCE = Symbol('AUTH_DATA_SOURCE');
 
-export async function openAuthDataSource(connection: PostgresConnectionOptions): Promise<DataSource> {
+async function openAuthDataSource(connection: PostgresConnectionOptions): Promise<DataSource> {
   const dataSource = await buildDataSource(connection).initialize();
   try {
     await dataSource.query('CREATE SCHEMA IF NOT EXISTS "auth"');

@@ -4,7 +4,7 @@ import { SYSTEM_OBJECT, requestIdEntities, type AuditActor } from './audit-event
 
 export const TERMINOLOGY_SNAPSHOT_IDENTIFIER_SYSTEM = 'https://api.medcenter.by/sid/terminology-snapshot';
 
-export type TerminologyImportStage = 'started' | 'completed' | 'failed';
+type TerminologyImportStage = 'started' | 'completed' | 'failed';
 
 export interface TerminologyImportAuditParams {
   readonly stage: TerminologyImportStage;

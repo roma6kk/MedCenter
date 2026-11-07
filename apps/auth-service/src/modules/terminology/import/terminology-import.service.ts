@@ -14,7 +14,7 @@ import { SnapshotImporter } from './snapshot-importer';
 import { SNAPSHOT_VERSION } from './snapshot-resources';
 import { SnapshotVerificationError } from './snapshot-verifier';
 
-export const IMPORT_LOCK_TTL_SECONDS = 1800;
+const IMPORT_LOCK_TTL_SECONDS = 1800;
 
 const UNKNOWN_FAILURE = 'import failed; see the service log';
 

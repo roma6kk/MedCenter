@@ -29,9 +29,9 @@ export function trimmed({ value }: { readonly value: unknown }): unknown {
 export const NO_CONTROL_CHARS = /^[^\u0000-\u001F\u007F]*$/;
 export const NO_CONTROL_CHARS_MESSAGE = '$property must not contain control characters';
 
-export const MIN_BIRTH_DATE = '1900-01-01';
+const MIN_BIRTH_DATE = '1900-01-01';
 
-export function todayInClinicZone(now: Date = new Date()): string {
+function todayInClinicZone(now: Date = new Date()): string {
   return new Intl.DateTimeFormat('sv-SE', { timeZone: 'Europe/Minsk' }).format(now);
 }
 

@@ -1,5 +1,7 @@
 import { BadRequestException, ConflictException, NotFoundException } from '@nestjs/common';
 
+import { DuplicateEmailError, ResourceAlreadyLinkedError } from './store/user-store';
+
 export function emailTaken(): ConflictException {
   return new ConflictException({ errorCode: 'CONFLICT', message: 'EMAIL_TAKEN: a user with this email already exists' });
 }
@@ -24,4 +26,11 @@ export function userNotFound(): NotFoundException {
 
 export function invalidUserInput(message: string): BadRequestException {
   return new BadRequestException({ errorCode: 'VALIDATION_ERROR', message });
+}
+
+export function conflictOf(error: unknown): unknown {
+  if (error instanceof DuplicateEmailError) {
+    return emailTaken();
+  }
+  return error instanceof ResourceAlreadyLinkedError ? practitionerRoleTaken() : error;
 }

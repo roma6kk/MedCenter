@@ -17,25 +17,11 @@ import type { MeResponseDto } from './dto/me-response.dto';
 import type { UpdateUserDto } from './dto/update-user.dto';
 import type { UserDetailsResponseDto, UserResponseDto } from './dto/user-response.dto';
 import { PatientProvisioner, type PatientDemographicsChange } from './patient-provisioner';
-import {
-  DuplicateEmailError,
-  ResourceAlreadyLinkedError,
-  USER_STORE,
-  type UserChanges,
-  type UserRecord,
-  type UserStore,
-} from './store/user-store';
+import { USER_STORE, type UserChanges, type UserRecord, type UserStore } from './store/user-store';
 import { changesOf, demographicsOf, effectiveChangesOf, effectiveDemographicsOf, inverseOf } from './user-changes';
-import { emailTaken, practitionerRoleTaken, selfLockout, userNotFound } from './user-errors';
+import { conflictOf, emailTaken, selfLockout, userNotFound } from './user-errors';
 import { linkedRefs } from './user-links';
 import { toUserDetails, toUserResponse } from './user-view.mapper';
-
-function conflictOf(error: unknown): unknown {
-  if (error instanceof DuplicateEmailError) {
-    return emailTaken();
-  }
-  return error instanceof ResourceAlreadyLinkedError ? practitionerRoleTaken() : error;
-}
 
 @Injectable()
 export class UsersService {

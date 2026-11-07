@@ -5,7 +5,7 @@ import { IsInt, IsOptional, IsString, Matches, Max, MaxLength, Min } from 'class
 import { VALUE_SET_URL_PATTERN } from '../seeded-value-sets';
 
 export const DEFAULT_EXPAND_COUNT = 20;
-export const MAX_EXPAND_COUNT = 100;
+const MAX_EXPAND_COUNT = 100;
 const MAX_EXPAND_OFFSET = 100_000;
 const URL_MESSAGE = '$property must be a ValueSet canonical under https://fhir.by/ValueSet/';
 
