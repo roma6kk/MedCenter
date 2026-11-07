@@ -5,7 +5,6 @@ import { diagnosisCountOf, type AnalyticsEvent } from './analytics-event';
 import { READ_MODEL_WRITER, type ApplyOutcome, type EventMeta, type ReadModelWriter } from './read-model.writer';
 import { SpecialtyResolver, UNKNOWN_SPECIALTY, type Specialty } from './specialty.resolver';
 
-/** Widths of `encounter_fact.specialty_code` / `specialty_system` and `specialty_display`. */
 const SPECIALTY_CODE_MAX = 128;
 const SPECIALTY_DISPLAY_MAX = 255;
 
@@ -13,9 +12,7 @@ function clip(value: string, max: number): string {
   return value.length > max ? value.slice(0, max) : value;
 }
 
-/** What the caller knows about this delivery that changes how a failure is handled. */
 export interface IngestOptions {
-  /** True on the delivery after which a failure dead-letters the event (no retry follows). */
   readonly isLastAttempt?: boolean;
 }
 
@@ -23,10 +20,6 @@ function metaOf(event: AnalyticsEvent): EventMeta {
   return { eventId: event.eventId, eventType: event.type, occurredAt: new Date(event.occurredAt) };
 }
 
-/**
- * Turns a validated domain event into read-model facts (FR-019). Analytics
- * never writes to HAPI: it only reads `PractitionerRole` to label encounters.
- */
 @Injectable()
 export class IngestionService {
   private readonly logger = new Logger(IngestionService.name);
@@ -68,10 +61,7 @@ export class IngestionService {
     });
   }
 
-  /**
-   * The ledger pre-check spares HAPI a lookup for a redelivery; the
-   * transactional claim in the writer still decides, so a race stays safe.
-   */
+  // The pre-check only spares HAPI a lookup; the transactional claim in the writer still decides.
   private async ingestCompleted(event: EncounterCompletedEvent, isLastAttempt: boolean): Promise<ApplyOutcome> {
     if (await this.writer.isProcessed(event.eventId)) {
       return 'duplicate';
@@ -89,12 +79,7 @@ export class IngestionService {
     });
   }
 
-  /**
-   * The specialty is a label, the encounter is the fact (§9.2 totals). While
-   * retries remain a HAPI failure propagates, so the label is right; on the last
-   * attempt the encounter is filed under `unknown` instead of being dead-lettered,
-   * so an outage longer than the retry budget cannot silently drop it from the report.
-   */
+  // On the last attempt a HAPI failure files the encounter under unknown instead of dead-lettering it, so an outage cannot drop it from the report.
   private async specialtyOf(event: EncounterCompletedEvent, isLastAttempt: boolean): Promise<Specialty> {
     try {
       return await this.specialties.resolve(event.practitionerRef);

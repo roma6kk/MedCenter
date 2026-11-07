@@ -23,10 +23,6 @@ function sumOf(groups: ReadonlyArray<MeasureGroupDto>): number {
   return groups.reduce((sum, group) => sum + group.count, 0);
 }
 
-/**
- * API §9.1–9.3 (FR-019). The read-model answers every count it owns; HAPI adds
- * what no event carries: which appointments are no-shows, and current service names.
- */
 @Injectable()
 export class ReportsService {
   constructor(
@@ -35,13 +31,6 @@ export class ReportsService {
     @Inject(CLOCK) private readonly clock: Clock,
   ) {}
 
-  /**
-   * `booked`, `fulfilled`, `cancelled` and `noshow` partition the appointments the read-model
-   * knows. A no-show and an attended visit are former `booked` appointments that only HAPI knows
-   * about, so HAPI lists their ids and the read-model reclassifies the ones
-   * it holds as `booked` — in one statement. An appointment the read-model never
-   * heard of (booked before the worker ran) is in none of the three counts.
-   */
   async appointmentsSummary(query: DateRangeInput): Promise<AppointmentsSummaryDto> {
     const range = this.rangeOf(query);
     const [noShowIds, fulfilledIds] = await Promise.all([

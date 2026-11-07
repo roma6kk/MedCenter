@@ -38,7 +38,6 @@ const delivery = (headers: Record<string, unknown> = {}) => ({
   properties: { headers, messageId: 'evt-1' },
 });
 
-/** Lets pending promise chains run (also under fake timers). */
 const flush = (): Promise<void> => jest.advanceTimersByTimeAsync(0);
 
 function consumerOf(connection: ReturnType<typeof fakeConnection>, queue: string): ConsumeCallback {

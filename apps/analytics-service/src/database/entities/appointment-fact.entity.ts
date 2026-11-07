@@ -2,15 +2,9 @@ import { Column, Entity, PrimaryColumn } from 'typeorm';
 
 import { ANALYTICS_SCHEMA } from '../analytics-schema';
 
-/** Status kept by the read-model; `noshow` has no event and is counted from HAPI. */
 export type AppointmentFactStatus = 'booked' | 'cancelled';
 
-/**
- * One row per appointment, fed by `appointment.booked.v1` and
- * `appointment.cancelled.v1`. The two events travel on separate queues, so a
- * cancellation may arrive first: it creates the row with `start_at` unset and
- * the later booking fills the booking columns without reviving the status.
- */
+// Booked and cancelled travel on separate queues, so a cancellation may arrive first: it creates the row without start_at; the booking fills it without reviving the status.
 @Entity({ name: 'appointment_fact', schema: ANALYTICS_SCHEMA })
 export class AppointmentFactEntity {
   @PrimaryColumn({ name: 'appointment_id', type: 'varchar', length: 64 })
@@ -31,7 +25,6 @@ export class AppointmentFactEntity {
   @Column({ name: 'slot_ref', type: 'varchar', length: 128, nullable: true })
   slotRef!: string | null;
 
-  /** `Appointment.start` — the period dimension of API §9.1 and §9.3. */
   @Column({ name: 'start_at', type: 'timestamptz', nullable: true })
   startAt!: Date | null;
 

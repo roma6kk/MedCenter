@@ -6,7 +6,6 @@ import { AppointmentFactEntity } from '../../database/entities/appointment-fact.
 import { EncounterFactEntity } from '../../database/entities/encounter-fact.entity';
 import type { DateRange } from '../shared/date-range';
 
-/** PostgreSQL returns `COUNT(*)` as a string (bigint); the service normalises it. */
 export type SqlCount = string | number;
 
 export interface StatusCountRow {
@@ -26,14 +25,7 @@ export interface ServiceCountRow {
   readonly count: SqlCount;
 }
 
-/** Read side of the analytics read-model (API §9.1–9.3). */
 export interface ReportsRepository {
-  /**
-   * Appointments starting in the period, by status. `noShowIds` / `fulfilledIds` are the HAPI
-   * `Appointment`s with status `noshow` / `fulfilled`: those the read-model still holds as
-   * `booked` are reported as `noshow` / `fulfilled` instead, in the same statement, so the
-   * counts describe one population and always partition it.
-   */
   countAppointmentsByStatus(
     range: DateRange,
     noShowIds: ReadonlyArray<string>,
@@ -45,12 +37,7 @@ export interface ReportsRepository {
 
 export const REPORTS_REPOSITORY = Symbol('REPORTS_REPOSITORY');
 
-/**
- * `noshow` and `fulfilled` exist only in HAPI (no domain event with an appointment id announces them), so
- * the status is derived here: a still-`booked` fact whose id HAPI lists as no-show (`$3`) or fulfilled
- * (`$4`). The two HAPI sets are disjoint. Each is one array parameter, not an `IN (...)` list, so the
- * count of ids is unbounded.
- */
+// noshow/fulfilled exist only in HAPI: a still-booked fact listed there is reclassified. Ids are one array parameter, not an IN list.
 const COUNT_APPOINTMENTS_BY_STATUS = `SELECT
     CASE
       WHEN "status" = 'booked' AND "appointment_id" = ANY($3::varchar[]) THEN 'noshow'
@@ -62,7 +49,6 @@ const COUNT_APPOINTMENTS_BY_STATUS = `SELECT
   WHERE "start_at" >= $1 AND "start_at" < $2
   GROUP BY 1`;
 
-/** Parameterised aggregates over the `analytics` schema. */
 @Injectable()
 export class TypeOrmReportsRepository implements ReportsRepository {
   constructor(@Inject(ANALYTICS_DATA_SOURCE) private readonly dataSource: DataSource) {}

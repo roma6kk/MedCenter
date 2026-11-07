@@ -22,10 +22,6 @@ function booking(appointmentId: string, serviceId: string, start: string): Booke
   };
 }
 
-/**
- * The read-model against a real PostgreSQL 16 (Testcontainers), through the
- * production migration — the SQL the unit suites mock is executed here.
- */
 describeWithDocker('analytics read-model (PostgreSQL, Testcontainers)', () => {
   let database: ReadModelDatabase;
   let dataSource: DataSource;

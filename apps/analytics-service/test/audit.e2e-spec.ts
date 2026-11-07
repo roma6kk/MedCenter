@@ -6,7 +6,6 @@ import { startAppHarness, type AppHarness } from './app-harness';
 
 const DAY_MS = 86_400_000;
 
-/** Exactly the shape appointment-service / encounter-service write (ADR-014), after HAPI assigned ids. */
 function auditEvent(params: {
   readonly id: string;
   readonly recorded: string;
@@ -62,7 +61,6 @@ const OCTOBER = 'from=2026-10-01&to=2026-10-31';
 describe('GET /api/v1/admin/audit (API §9.4, FR-021) over a mocked HAPI', () => {
   let harness: AppHarness;
 
-  /** `token: null` sends no Authorization header (an explicit `undefined` would pick the default). */
   function get(path: string, token: string | null = harness.adminToken()): request.Test {
     const call = request(harness.app.getHttpServer()).get(path);
     return token === null ? call : call.set('Authorization', `Bearer ${token}`);

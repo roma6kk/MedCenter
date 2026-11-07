@@ -8,7 +8,6 @@ import { AuditPageDoc } from './dto/audit-event.doc';
 import type { AuditEventDto } from './dto/audit-event.dto';
 import { AuditQueryDto } from './dto/audit-query.dto';
 
-/** API §9.4 (FR-021, ADR-014) — the audit journal, administrators only (BR-007). */
 @ApiTags('analytics')
 @ApiBearerAuth()
 @Controller('api/v1/admin/audit')

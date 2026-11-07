@@ -23,7 +23,6 @@ function auditRow(id: string, occurredAt: string, userId: string, resource: stri
   };
 }
 
-/** An `AuditEvent` as HAPI returns it; `overrides` is where a test makes it hostile. */
 function auditEvent(id: string, recorded: string, overrides: Record<string, unknown> = {}): FhirResource {
   return {
     resourceType: 'AuditEvent',
@@ -45,10 +44,6 @@ function hapiReturning(resources: ReadonlyArray<FhirResource>): FhirClient {
   } as unknown as FhirClient;
 }
 
-/**
- * The journal read-model and its HAPI sync against a real PostgreSQL 16
- * (Testcontainers): the column widths and error codes the unit suites can only assume.
- */
 describeWithDocker('audit journal (PostgreSQL, Testcontainers)', () => {
   let database: ReadModelDatabase;
   let dataSource: DataSource;

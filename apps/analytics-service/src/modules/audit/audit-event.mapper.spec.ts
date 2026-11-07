@@ -2,7 +2,6 @@ import { buildWriteAuditEvent, type FhirResource } from '@medcenter/fhir';
 
 import { toAuditEventRow } from './audit-event.mapper';
 
-/** Exactly what `apps/appointment-service/.../audit.ts` writes, after HAPI assigned ids. */
 function appointmentServiceAudit(overrides: Record<string, unknown> = {}): FhirResource {
   return {
     resourceType: 'AuditEvent',
@@ -107,7 +106,6 @@ describe('toAuditEventRow', () => {
   });
 
   describe('emergency consent bypass (ADR-019)', () => {
-    /** What `buildEmergencyBypassAuditEvent` writes for 7.1/7.3 with `emergencyReason` and no consent. */
     const bypassAudit = (overrides: Record<string, unknown> = {}): FhirResource => ({
       resourceType: 'AuditEvent',
       id: 'ae-bypass',

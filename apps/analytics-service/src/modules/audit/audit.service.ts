@@ -11,7 +11,6 @@ import { resolveDateRange } from '../shared/date-range';
 import { AUDIT_REPOSITORY, type AuditEventRow, type AuditRepository } from './audit.repository';
 import type { AuditEventDto } from './dto/audit-event.dto';
 
-/** Same shape as `AuditQueryDto`, decoupled from the HTTP layer. */
 export interface AuditQuery {
   readonly from?: string;
   readonly to?: string;
@@ -42,7 +41,6 @@ function entityFilter(entity: string | undefined): { resourceType?: string; reso
   return { resourceType, resourceId };
 }
 
-/** API §9.4 (FR-021, ADR-014): the audit journal, newest first, from the read-model. */
 @Injectable()
 export class AuditService {
   constructor(

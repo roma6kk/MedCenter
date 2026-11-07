@@ -11,14 +11,12 @@ import type { EncountersSummaryDto } from './dto/encounters-summary.dto';
 import { ServicesPopularityQueryDto, type ServicesPopularityDto } from './dto/services-popularity.dto';
 import { ReportsService } from './reports.service';
 
-/** API §9.1–9.3 (FR-019) — administrator dashboards only (BR-007). */
 @ApiTags('analytics')
 @ApiBearerAuth()
 @Controller('api/v1/admin/analytics')
 export class ReportsController {
   constructor(private readonly reportsService: ReportsService) {}
 
-  /** §9.1 — booked / fulfilled / cancelled / no-show in the period (by `Appointment.start`). */
   @Get('appointments')
   @ApiOperation({ summary: '9.1 Appointments summary by status' })
   @ApiResponse({ status: 200, description: 'booked / fulfilled / cancelled / no-show counts', type: AppointmentsSummaryDoc })
@@ -29,7 +27,6 @@ export class ReportsController {
     return this.reportsService.appointmentsSummary(query);
   }
 
-  /** §9.2 — completed encounters by the practitioner's specialty. */
   @Get('encounters')
   @ApiOperation({ summary: '9.2 Completed encounters by specialty' })
   @ApiResponse({ status: 200, description: 'Counts per practitioner specialty', type: EncountersSummaryDoc })
@@ -40,7 +37,6 @@ export class ReportsController {
     return this.reportsService.encountersSummary(query);
   }
 
-  /** §9.3 — the `top` most booked services (default 10). */
   @Get('services-popularity')
   @ApiOperation({ summary: '9.3 Most booked services; the name follows Accept-Language: en, else ru' })
   @ApiResponse({ status: 200, description: 'Top services, most popular first', type: ServicesPopularityDoc })

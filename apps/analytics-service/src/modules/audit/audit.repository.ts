@@ -15,7 +15,6 @@ export interface AuditEventRow {
   readonly resourceId: string | null;
   readonly requestId: string | null;
   readonly source: string | null;
-  /** `emergency-bypass` only: the reason the doctor gave. */
   readonly reason: string | null;
 }
 
@@ -36,16 +35,8 @@ export interface AuditPage {
   readonly total: number;
 }
 
-/**
- * Journal read-model (API §9.4) plus the sync high-water mark. The table is a
- * copy of HAPI's `AuditEvent`s and keeps every row it ever received: HAPI has
- * no AuditEvent retention job in this deployment, so there is nothing to
- * mirror (ADR-014 "retention follows HAPI"). When HAPI gains one, the copy
- * needs a matching purge — see `coder-m5-analytics-report.md`, "Fixes".
- */
 export interface AuditRepository {
   findPage(filter: AuditFilter, window: PageWindow): Promise<AuditPage>;
-  /** Insert-or-ignore by `AuditEvent.id`: AuditEvents are immutable, a re-read changes nothing. */
   insertMany(rows: ReadonlyArray<AuditEventRow>): Promise<void>;
   readCursor(name: string): Promise<Date | null>;
   /** Moves the cursor forward only (`GREATEST`), so concurrent replicas never rewind it. */
@@ -54,16 +45,9 @@ export interface AuditRepository {
 
 export const AUDIT_REPOSITORY = Symbol('AUDIT_REPOSITORY');
 
-/** PostgreSQL SQLSTATE of a data (class 22) or constraint (class 23) violation: the row is bad, not the database. */
 const ROW_REJECTION_SQLSTATE = /^(22|23)[0-9A-Z]{3}$/;
 
-/**
- * True when PostgreSQL refused the *data* of an insert — a value too long for
- * its column (`22001`), a NUL byte (`22021`), a timestamp out of range
- * (`22008`), a CHECK violation (`23514`) — as opposed to an outage (connection
- * refused, deadlock, shutdown), which a retry can cure. TypeORM's
- * `QueryFailedError` copies the driver's `code` onto itself.
- */
+// True when PostgreSQL refused the data of an insert (22001, 22021, 22008, 23514), not an outage a retry can cure.
 export function isRowRejection(error: unknown): boolean {
   if (typeof error !== 'object' || error === null) {
     return false;

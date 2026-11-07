@@ -4,14 +4,7 @@ import { E2E_ISSUER } from '@medcenter/testing';
 export { E2E_ISSUER };
 export const E2E_FHIR_BASE = 'http://hapi:8080/fhir';
 
-/**
- * The guard stack (`JwtAuthGuard`) resolves its verifier configuration eagerly,
- * so a suite that boots `AppModule` must declare the environment *before*
- * `Test.createTestingModule(...).compile()`.
- *
- * The background loops stay off: no RabbitMQ worker (`CONSUMER_ENABLED`) and
- * no HAPI pull (`AUDIT_SYNC_ENABLED`); suites drive the sync explicitly.
- */
+// Declare the environment before Test.createTestingModule(...).compile(): the guard stack resolves its verifier config eagerly.
 export function applyE2eEnv(): void {
   const { publicKey } = generateKeyPairSync('rsa', {
     modulusLength: 2048,

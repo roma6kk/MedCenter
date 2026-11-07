@@ -1,12 +1,6 @@
 import { blankAsUnset } from '@medcenter/config';
 import { z } from 'zod';
 
-/**
- * Environment of the analytics-specific infrastructure: the `analytics`
- * read-model connection, the RabbitMQ worker and the HAPI `AuditEvent` sync.
- * Secrets have no defaults and are only ever read from the environment.
- */
-
 const optionalText = blankAsUnset(z.string().min(1).optional());
 const optionalPort = blankAsUnset(z.coerce.number().int().min(1).max(65535).optional());
 const optionalFlag = blankAsUnset(z.enum(['true', 'false', '1', '0']).optional());
@@ -31,11 +25,7 @@ export interface DatabaseConnection {
   readonly database: string;
 }
 
-/**
- * `DB_*` (docker-compose `x-db-env`) wins; the compose-level `POSTGRES_*` keys
- * are the fallback so a host-run service (`nx serve`) works with the stack's
- * own environment.
- */
+// DB_* wins; POSTGRES_* is the fallback so a host-run service works with the stack environment.
 export function parseDatabaseEnv(source: NodeJS.ProcessEnv): DatabaseConnection {
   const env = databaseEnvSchema.parse(source);
   const password = env.DB_PASSWORD ?? env.POSTGRES_PASSWORD;
@@ -67,7 +57,6 @@ const workerEnvSchema = z.object({
   RABBITMQ_URL: blankAsUnset(z.url().optional()),
 });
 
-/** `CONSUMER_ENABLED=false` switches the RabbitMQ worker off (e2e suites, read-only replicas). */
 export function parseWorkerEnv(source: NodeJS.ProcessEnv): WorkerConfig {
   const env = workerEnvSchema.parse(source);
   const enabled = isOn(env.CONSUMER_ENABLED);
@@ -84,7 +73,6 @@ export interface AuditSyncConfig {
 
 export const AUDIT_SYNC_CONFIG = Symbol('AUDIT_SYNC_CONFIG');
 
-/** How often the journal read-model pulls new `AuditEvent`s from HAPI. */
 export const DEFAULT_AUDIT_SYNC_INTERVAL_MS = 15_000;
 
 const auditSyncEnvSchema = z.object({

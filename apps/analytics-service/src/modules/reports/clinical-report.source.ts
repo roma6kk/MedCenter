@@ -4,48 +4,27 @@ import { DEFAULT_CONTENT_LANGUAGE, translated, type ContentLanguage } from '@med
 
 import type { DateRange } from '../shared/date-range';
 
-/** Report inputs that only the clinical store (HAPI) knows. */
 export interface ClinicalReportSource {
-  /** Ids of `Appointment?status=noshow` starting in the period — no domain event exists for a no-show. */
   noShowAppointmentIds(range: DateRange): Promise<ReadonlyArray<string>>;
-  /**
-   * Ids of `Appointment?status=fulfilled` starting in the period. `encounter.completed.v1` carries no
-   * `appointmentId`, so the attended visits are known to HAPI only (BR-008 sets the status).
-   */
+  // encounter.completed.v1 carries no appointmentId, so attended visits are known to HAPI only.
   fulfilledAppointmentIds(range: DateRange): Promise<ReadonlyArray<string>>;
-  /** Current `HealthcareService.name` per id in the content language (English translation, else Russian); unknown ids are absent. */
   serviceNames(serviceIds: ReadonlyArray<string>, lang?: ContentLanguage): Promise<ReadonlyMap<string, string>>;
 }
 
 export const CLINICAL_REPORT_SOURCE = Symbol('CLINICAL_REPORT_SOURCE');
 
-/** `_count` of one no-show page; HAPI may cap it lower, which only costs an extra page. */
 export const NO_SHOW_PAGE_SIZE = 200;
 
-/**
- * Safety valve of the no-show listing: 100 pages (20 000 no-shows in a period of
- * at most 366 days) is far beyond one clinic. Past it the report fails loudly
- * rather than undercount; raise the limit when a deployment really needs it.
- */
+// Safety valve: past 100 pages the report fails loudly rather than undercount.
 export const NO_SHOW_MAX_PAGES = 100;
 
-/**
- * HAPI-backed {@link ClinicalReportSource}. `Appointment`'s `date` search
- * parameter is `Appointment.start`, the same dimension the read-model filters
- * on, so both halves of API §9.1 describe one period. Only ids are fetched
- * (`_elements=id`): the read-model decides which of them it knows.
- */
 @Injectable()
 export class FhirClinicalReportSource implements ClinicalReportSource {
   private readonly logger = new Logger(FhirClinicalReportSource.name);
 
   constructor(@Inject(FHIR_CLIENT) private readonly fhir: FhirClient) {}
 
-  /**
-   * Pages by `_offset` until a page comes back empty (or `Bundle.total` is
-   * reached), not until a page is "short": HAPI may serve fewer than `_count`,
-   * so the offset advances by what was actually received.
-   */
+  // Pages until an empty page or Bundle.total; HAPI may serve fewer than _count, so the offset advances by what was received.
   noShowAppointmentIds(range: DateRange): Promise<ReadonlyArray<string>> {
     return this.appointmentIdsByStatus('noshow', range);
   }
@@ -80,10 +59,6 @@ export class FhirClinicalReportSource implements ClinicalReportSource {
     throw new Error(`more than ${NO_SHOW_MAX_PAGES * NO_SHOW_PAGE_SIZE} ${status === 'noshow' ? 'no-show' : status} appointments in one period; raise NO_SHOW_MAX_PAGES`);
   }
 
-  /**
-   * Names are display sugar: when HAPI cannot answer, the report is still
-   * correct without them, so the failure is logged and the ids are shown bare.
-   */
   async serviceNames(
     serviceIds: ReadonlyArray<string>,
     lang: ContentLanguage = DEFAULT_CONTENT_LANGUAGE,
@@ -94,7 +69,6 @@ export class FhirClinicalReportSource implements ClinicalReportSource {
     try {
       const result = await this.fhir.search('HealthcareService', {
         _id: serviceIds.join(','),
-        // The translation lives in the `_name` sibling: ask for whole resources (at most `top`) when it is needed.
         ...(lang === DEFAULT_CONTENT_LANGUAGE ? { _elements: 'name' } : {}),
         _count: serviceIds.length,
       });

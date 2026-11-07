@@ -4,29 +4,17 @@ import { attemptOf as attemptOfDelivery } from '@medcenter/messaging';
 import { parseAnalyticsEvent } from './analytics-event';
 import { IngestionService } from './ingestion.service';
 
-/**
- * - `ack`: committed (or a known duplicate) — remove from the queue.
- * - `retry`: transient failure — re-publish to `<queue>.retry` (5 s delay) and ack.
- * - `dead-letter`: malformed, or the attempt budget is spent — `nack` to `<queue>.dlq`.
- */
 export type Disposition = 'ack' | 'retry' | 'dead-letter';
 
-/** Header the worker stamps on a re-published delivery. */
 export const ATTEMPT_HEADER = 'x-analytics-attempt';
 
-/** First delivery plus four delayed retries (~20 s), then the DLQ. */
 export const MAX_DELIVERY_ATTEMPTS = 5;
 
-/** Attempt number of a delivery, from the header the worker stamped (1 when absent or invalid). */
 export function attemptOf(headers: Readonly<Record<string, unknown>> | undefined): number {
   return attemptOfDelivery(headers, ATTEMPT_HEADER);
 }
 
-/**
- * Decides the fate of one broker delivery. Acking happens only after the
- * read-model transaction committed, so a crash in between redelivers the
- * message and the `eventId` ledger absorbs the duplicate.
- */
+// Acked only after the read-model transaction committed: a crash in between redelivers and the eventId ledger absorbs the duplicate.
 @Injectable()
 export class DeliveryProcessor {
   private readonly logger = new Logger(DeliveryProcessor.name);
