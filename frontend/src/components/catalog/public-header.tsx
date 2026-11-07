@@ -26,11 +26,11 @@ function SignInLink({ className }: { readonly className: string }): ReactNode {
   return <a href={AUTHORIZE_PATH} className={className}>{t('login')}</a>;
 }
 
-function BookLink({ className, onNavigate }: { readonly className: string; readonly onNavigate?: () => void }): ReactNode {
+function BookLink({ className }: { readonly className: string }): ReactNode {
   const t = useT('public');
   const canBook = useCanBook();
   if (!canBook) return null;
-  return <Link href="/booking" onClick={onNavigate} className={className}>{t('book')}</Link>;
+  return <Link href="/booking" className={className}>{t('book')}</Link>;
 }
 
 function AccountLinks(): ReactNode {
