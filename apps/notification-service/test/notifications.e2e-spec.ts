@@ -31,6 +31,9 @@ describe('Notifications (e2e)', () => {
   let app: INestApplication;
   let fhir: jest.Mocked<FhirClient>;
 
+  const asGet = (path: string): request.Test => request(app.getHttpServer()).get(path).set('Authorization', patient);
+  const asPost = (path: string): request.Test => request(app.getHttpServer()).post(path).set('Authorization', patient);
+
   beforeEach(async () => {
     applyE2eEnv();
     fhir = {
@@ -57,7 +60,7 @@ describe('Notifications (e2e)', () => {
     it('should list the own notifications newest first and map them to the view when a patient asks', async () => {
       fhir.search.mockResolvedValue({ entry: [{ resource: communication('c-1', 'Patient/pat-1') }] });
 
-      const response = await request(app.getHttpServer()).get(NOTIFICATIONS).set('Authorization', patient).expect(200);
+      const response = await asGet(NOTIFICATIONS).expect(200);
 
       expect(fhir.search).toHaveBeenCalledWith('Communication', {
         recipient: 'Patient/pat-1',
@@ -73,7 +76,7 @@ describe('Notifications (e2e)', () => {
     });
 
     it('should filter on the unread status and page the HAPI offset when unread, page and pageSize are given', async () => {
-      await request(app.getHttpServer()).get(`${NOTIFICATIONS}?unread=true&page=3&pageSize=5`).set('Authorization', patient).expect(200);
+      await asGet(`${NOTIFICATIONS}?unread=true&page=3&pageSize=5`).expect(200);
 
       expect(fhir.search).toHaveBeenCalledWith('Communication', {
         recipient: 'Patient/pat-1',
@@ -86,13 +89,13 @@ describe('Notifications (e2e)', () => {
     });
 
     it.each(['unread=false', 'unread='])('should list every notification, read or not, when the query has %s', async (query) => {
-      await request(app.getHttpServer()).get(`${NOTIFICATIONS}?${query}`).set('Authorization', patient).expect(200);
+      await asGet(`${NOTIFICATIONS}?${query}`).expect(200);
 
       expect(fhir.search).toHaveBeenCalledWith('Communication', expect.not.objectContaining({ status: expect.anything() }));
     });
 
     it('should ignore a patient query parameter when the token names the compartment', async () => {
-      await request(app.getHttpServer()).get(`${NOTIFICATIONS}?patient=pat-2&recipient=Patient/pat-2`).set('Authorization', patient).expect(200);
+      await asGet(`${NOTIFICATIONS}?patient=pat-2&recipient=Patient/pat-2`).expect(200);
 
       expect(fhir.search).toHaveBeenCalledWith('Communication', expect.objectContaining({ recipient: 'Patient/pat-1' }));
     });
@@ -100,25 +103,25 @@ describe('Notifications (e2e)', () => {
     it('should mark a completed Communication as read when it is listed', async () => {
       fhir.search.mockResolvedValue({ entry: [{ resource: communication('c-1', 'Patient/pat-1', 'completed') }] });
 
-      const response = await request(app.getHttpServer()).get(NOTIFICATIONS).set('Authorization', patient).expect(200);
+      const response = await asGet(NOTIFICATIONS).expect(200);
 
       expect(response.body.items[0]).toMatchObject({ id: 'c-1', read: true });
     });
 
     it.each([
-      ['page=0', 'page=0'],
-      ['page=abc', 'page=abc'],
-      ['page=1001', 'page=1001'],
-      ['pageSize=0', 'pageSize=0'],
-      ['pageSize=101', 'pageSize=101'],
-      ['pageSize=1.5', 'pageSize=1.5'],
-      ['unread=1', 'unread=1'],
-      ['unread=yes', 'unread=yes'],
-      ['unread=TRUE', 'unread=TRUE'],
-      ['unread=ture (a typo)', 'unread=ture'],
-      ['unread given twice', 'unread=true&unread=true'],
-    ])('should answer 400 VALIDATION_ERROR before HAPI is called when the query has %s', async (_label, query) => {
-      const response = await request(app.getHttpServer()).get(`${NOTIFICATIONS}?${query}`).set('Authorization', patient).expect(400);
+      'page=0',
+      'page=abc',
+      'page=1001',
+      'pageSize=0',
+      'pageSize=101',
+      'pageSize=1.5',
+      'unread=1',
+      'unread=yes',
+      'unread=TRUE',
+      'unread=ture',
+      'unread=true&unread=true',
+    ])('should answer 400 VALIDATION_ERROR before HAPI is called when the query has %s', async (query) => {
+      const response = await asGet(`${NOTIFICATIONS}?${query}`).expect(400);
 
       expect(response.headers['content-type']).toContain('application/problem+json');
       expect(response.body).toMatchObject({ status: 400, errorCode: 'VALIDATION_ERROR' });
@@ -128,7 +131,7 @@ describe('Notifications (e2e)', () => {
     it('should answer 502 INTERNAL without the HAPI address when the FHIR server is down', async () => {
       fhir.search.mockRejectedValue(new FhirClientError('GET', 'http://hapi:8080/fhir/Communication', 503, 'detail'));
 
-      const response = await request(app.getHttpServer()).get(NOTIFICATIONS).set('Authorization', patient).expect(502);
+      const response = await asGet(NOTIFICATIONS).expect(502);
 
       expect(response.body).toMatchObject({ status: 502, errorCode: 'INTERNAL' });
       expect(JSON.stringify(response.body)).not.toContain('hapi:8080');
@@ -139,14 +142,14 @@ describe('Notifications (e2e)', () => {
     it('should count the unread notifications of the own compartment when a patient polls', async () => {
       fhir.search.mockResolvedValue({ total: 4 });
 
-      const response = await request(app.getHttpServer()).get(`${NOTIFICATIONS}/unread-count`).set('Authorization', patient).expect(200);
+      const response = await asGet(`${NOTIFICATIONS}/unread-count`).expect(200);
 
       expect(fhir.search).toHaveBeenCalledWith('Communication', { recipient: 'Patient/pat-1', status: 'in-progress', _summary: 'count' });
       expect(response.body).toEqual({ count: 4 });
     });
 
     it('should answer zero when HAPI reports no total', async () => {
-      const response = await request(app.getHttpServer()).get(`${NOTIFICATIONS}/unread-count`).set('Authorization', patient).expect(200);
+      const response = await asGet(`${NOTIFICATIONS}/unread-count`).expect(200);
 
       expect(response.body).toEqual({ count: 0 });
     });
@@ -156,7 +159,7 @@ describe('Notifications (e2e)', () => {
     it('should set the Communication to completed and answer 204 when the recipient marks it read', async () => {
       fhir.read.mockResolvedValue(communication('c-1', 'Patient/pat-1'));
 
-      await request(app.getHttpServer()).post(`${NOTIFICATIONS}/c-1/read`).set('Authorization', patient).expect(204);
+      await asPost(`${NOTIFICATIONS}/c-1/read`).expect(204);
 
       expect(fhir.read).toHaveBeenCalledWith('Communication', 'c-1');
       expect(fhir.update).toHaveBeenCalledWith('Communication', 'c-1', {
@@ -168,7 +171,7 @@ describe('Notifications (e2e)', () => {
     it('should answer 403 COMPARTMENT_VIOLATION and write nothing when the notification belongs to another patient', async () => {
       fhir.read.mockResolvedValue(communication('c-9', 'Patient/pat-2'));
 
-      const response = await request(app.getHttpServer()).post(`${NOTIFICATIONS}/c-9/read`).set('Authorization', patient).expect(403);
+      const response = await asPost(`${NOTIFICATIONS}/c-9/read`).expect(403);
 
       expect(response.body).toMatchObject({ status: 403, errorCode: 'COMPARTMENT_VIOLATION' });
       expect(fhir.update).not.toHaveBeenCalled();
@@ -177,7 +180,7 @@ describe('Notifications (e2e)', () => {
     it('should answer 404 NOT_FOUND and write nothing when the notification does not exist', async () => {
       fhir.read.mockRejectedValue(new FhirClientError('GET', 'http://hapi:8080/fhir/Communication/ghost', 404, '{}'));
 
-      const response = await request(app.getHttpServer()).post(`${NOTIFICATIONS}/ghost/read`).set('Authorization', patient).expect(404);
+      const response = await asPost(`${NOTIFICATIONS}/ghost/read`).expect(404);
 
       expect(response.body).toMatchObject({ status: 404, errorCode: 'NOT_FOUND' });
       expect(fhir.update).not.toHaveBeenCalled();
@@ -188,10 +191,7 @@ describe('Notifications (e2e)', () => {
       ['a dot-only id', '..'],
       ['an id above 64 characters', 'x'.repeat(65)],
     ])('should answer 400 VALIDATION_ERROR before HAPI is called when the id is %s', async (_label, id) => {
-      const response = await request(app.getHttpServer())
-        .post(`${NOTIFICATIONS}/${encodeURIComponent(id)}/read`)
-        .set('Authorization', patient)
-        .expect(400);
+      const response = await asPost(`${NOTIFICATIONS}/${encodeURIComponent(id)}/read`).expect(400);
 
       expect(response.body).toMatchObject({ errorCode: 'VALIDATION_ERROR' });
       expect(fhir.read).not.toHaveBeenCalled();
@@ -202,7 +202,7 @@ describe('Notifications (e2e)', () => {
       fhir.read.mockResolvedValue(communication('c-1', 'Patient/pat-1'));
       fhir.update.mockRejectedValue(new FhirClientError('PUT', 'http://hapi:8080/fhir/Communication/c-1', 412, '{}'));
 
-      const response = await request(app.getHttpServer()).post(`${NOTIFICATIONS}/c-1/read`).set('Authorization', patient).expect(409);
+      const response = await asPost(`${NOTIFICATIONS}/c-1/read`).expect(409);
 
       expect(response.body).toMatchObject({ status: 409, errorCode: 'CONFLICT' });
     });

@@ -35,11 +35,11 @@ describe('GET /api/v1/me/patient (e2e)', () => {
     return booted.issuer.sign({ role: 'PATIENT', scope, patient: patientClaim, fhirUser: `Patient/${patientClaim}` });
   }
 
+  const get = (path: string, token: string): request.Test =>
+    request(booted.app.getHttpServer()).get(path).set('Authorization', `Bearer ${token}`);
+
   it('should return the token patient profile when a patient calls with patient/*.read', async () => {
-    const response = await request(booted.app.getHttpServer())
-      .get(ME_PATIENT)
-      .set('Authorization', `Bearer ${patientToken()}`)
-      .expect(200);
+    const response = await get(ME_PATIENT, patientToken()).expect(200);
 
     expect(response.body).toEqual({
       id: '9f2c',
@@ -57,20 +57,14 @@ describe('GET /api/v1/me/patient (e2e)', () => {
   });
 
   it('should ignore a patient query parameter when a patient-scoped token is used', async () => {
-    await request(booted.app.getHttpServer())
-      .get(`${ME_PATIENT}?patient=someone-else`)
-      .set('Authorization', `Bearer ${patientToken()}`)
-      .expect(200);
+    await get(`${ME_PATIENT}?patient=someone-else`, patientToken()).expect(200);
 
     expect(booted.fhir.read).toHaveBeenCalledWith('Patient', '9f2c');
     expect(booted.fhir.read).not.toHaveBeenCalledWith('Patient', 'someone-else');
   });
 
   it('should answer 403 FORBIDDEN_SCOPE when the token lacks patient/*.read', async () => {
-    const response = await request(booted.app.getHttpServer())
-      .get(ME_PATIENT)
-      .set('Authorization', `Bearer ${patientToken('9f2c', 'patient/*.write')}`)
-      .expect(403);
+    const response = await get(ME_PATIENT, patientToken('9f2c', 'patient/*.write')).expect(403);
 
     expect(response.body).toMatchObject({ errorCode: 'FORBIDDEN_SCOPE' });
   });
@@ -78,10 +72,7 @@ describe('GET /api/v1/me/patient (e2e)', () => {
   it('should answer 403 FORBIDDEN_ROLE when a doctor calls the patient-only endpoint', async () => {
     const token = booted.issuer.sign({ role: 'DOCTOR', scope: 'user/*.read patient/*.read', fhirUser: 'PractitionerRole/role-1' });
 
-    const response = await request(booted.app.getHttpServer())
-      .get(ME_PATIENT)
-      .set('Authorization', `Bearer ${token}`)
-      .expect(403);
+    const response = await get(ME_PATIENT, token).expect(403);
 
     expect(response.body).toMatchObject({ errorCode: 'FORBIDDEN_ROLE' });
   });
@@ -89,10 +80,7 @@ describe('GET /api/v1/me/patient (e2e)', () => {
   it('should answer 403 COMPARTMENT_VIOLATION when the patient token carries no patient claim', async () => {
     const token = booted.issuer.sign({ role: 'PATIENT', scope: 'patient/*.read' });
 
-    const response = await request(booted.app.getHttpServer())
-      .get(ME_PATIENT)
-      .set('Authorization', `Bearer ${token}`)
-      .expect(403);
+    const response = await get(ME_PATIENT, token).expect(403);
 
     expect(response.body).toMatchObject({ errorCode: 'COMPARTMENT_VIOLATION' });
     expect(booted.fhir.read).not.toHaveBeenCalled();
@@ -101,10 +89,7 @@ describe('GET /api/v1/me/patient (e2e)', () => {
   it('should answer 404 NOT_FOUND problem+json when HAPI has no such Patient', async () => {
     booted.fhir.read.mockRejectedValue(new FhirClientError('GET', 'http://hapi:8080/fhir/Patient/9f2c', 404));
 
-    const response = await request(booted.app.getHttpServer())
-      .get(ME_PATIENT)
-      .set('Authorization', `Bearer ${patientToken()}`)
-      .expect(404);
+    const response = await get(ME_PATIENT, patientToken()).expect(404);
 
     expect(response.headers['content-type']).toContain('application/problem+json');
     expect(response.body).toMatchObject({ status: 404, errorCode: 'NOT_FOUND' });
@@ -115,9 +100,7 @@ describe('GET /api/v1/me/patient (e2e)', () => {
     const [header, payload] = patientToken().split('.');
     const forged = `${header}.${payload}.${Buffer.from('forged').toString('base64url')}`;
 
-    const response = await request(booted.app.getHttpServer())
-      .get(ME_PATIENT)
-      .set('Authorization', `Bearer ${forged}`);
+    const response = await get(ME_PATIENT, forged);
 
     expect(response.status).toBe(401);
     expect(response.headers['content-type']).toContain('application/problem+json');
