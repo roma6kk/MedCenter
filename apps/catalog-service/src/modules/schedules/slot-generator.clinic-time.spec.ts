@@ -3,39 +3,8 @@ import type { FhirClient, FhirResource } from '@medcenter/fhir';
 
 import { slotLabel } from '../slots/clinic-time';
 import { RedisCacheService } from '../cache/redis-cache.service';
-import { SLOT_DURATION_EXT, WEEKLY_WINDOWS_EXT } from './schedule.constants';
-import { batchResponseFor } from './__tests__/batch-echo';
+import { ACTOR, MONDAY_09_10, SCHEDULE_ID, generatorFhirMock, scheduleOf } from './__tests__/schedule-fixture';
 import { SlotGeneratorService } from './slot-generator.service';
-
-const ACTOR = { sub: 'admin-1', requestId: 'req-1' };
-
-const SCHEDULE_ID = 'sched-9';
-
-interface Window {
-  readonly dayOfWeek: string;
-  readonly startTime: string;
-  readonly endTime: string;
-}
-
-function scheduleOf(windows: readonly Window[], durationMin = 30): FhirResource {
-  return {
-    resourceType: 'Schedule',
-    id: SCHEDULE_ID,
-    extension: [
-      { url: SLOT_DURATION_EXT, valueInteger: durationMin },
-      { url: WEEKLY_WINDOWS_EXT, valueString: JSON.stringify(windows) },
-    ],
-  };
-}
-
-function createFhirClientMock(schedule: FhirResource): jest.Mocked<FhirClient> {
-  const fhirClient = {
-    read: jest.fn().mockResolvedValue(schedule),
-    search: jest.fn().mockResolvedValue({ entry: [] }),
-    batch: jest.fn().mockImplementation(async (bundle: FhirResource) => batchResponseFor(bundle)),
-  } as unknown as jest.Mocked<FhirClient>;
-  return fhirClient;
-}
 
 function generatedSlots(fhirClient: jest.Mocked<FhirClient>): Array<{ start: string; end: string }> {
   return fhirClient.batch.mock.calls.flatMap(([bundle]) =>
@@ -45,7 +14,7 @@ function generatedSlots(fhirClient: jest.Mocked<FhirClient>): Array<{ start: str
 
 describe('SlotGeneratorService clinic time', () => {
   it('should place a 09:00 window at 06:00Z when the slots are generated', async () => {
-    const fhirClient = createFhirClientMock(scheduleOf([{ dayOfWeek: 'MO', startTime: '09:00', endTime: '10:00' }]));
+    const fhirClient = generatorFhirMock(scheduleOf(MONDAY_09_10));
     const generator = new SlotGeneratorService(fhirClient, new RedisCacheService());
 
     await generator.generate(SCHEDULE_ID, { from: '2026-11-02', to: '2026-11-02' }, ACTOR);
@@ -57,7 +26,7 @@ describe('SlotGeneratorService clinic time', () => {
   });
 
   it('should label the first generated slot with the window start when the doctor schedule renders it', async () => {
-    const fhirClient = createFhirClientMock(scheduleOf([{ dayOfWeek: 'MO', startTime: '09:00', endTime: '10:00' }]));
+    const fhirClient = generatorFhirMock(scheduleOf(MONDAY_09_10));
     const generator = new SlotGeneratorService(fhirClient, new RedisCacheService());
 
     await generator.generate(SCHEDULE_ID, { from: '2026-11-02', to: '2026-11-02' }, ACTOR);
@@ -69,7 +38,7 @@ describe('SlotGeneratorService clinic time', () => {
   });
 
   it('should use the clinic weekday when a window starts just after local midnight', async () => {
-    const fhirClient = createFhirClientMock(scheduleOf([{ dayOfWeek: 'MO', startTime: '00:30', endTime: '01:00' }]));
+    const fhirClient = generatorFhirMock(scheduleOf([{ dayOfWeek: 'MO', startTime: '00:30', endTime: '01:00' }]));
     const generator = new SlotGeneratorService(fhirClient, new RedisCacheService());
 
     await generator.generate(SCHEDULE_ID, { from: '2026-11-02', to: '2026-11-02' }, ACTOR);
@@ -78,7 +47,7 @@ describe('SlotGeneratorService clinic time', () => {
   });
 
   it('should keep a late window on its clinic day when it ends after 21:00Z', async () => {
-    const fhirClient = createFhirClientMock(scheduleOf([{ dayOfWeek: 'MO', startTime: '23:00', endTime: '23:30' }]));
+    const fhirClient = generatorFhirMock(scheduleOf([{ dayOfWeek: 'MO', startTime: '23:00', endTime: '23:30' }]));
     const generator = new SlotGeneratorService(fhirClient, new RedisCacheService());
 
     await generator.generate(SCHEDULE_ID, { from: '2026-11-02', to: '2026-11-02' }, ACTOR);
@@ -87,7 +56,7 @@ describe('SlotGeneratorService clinic time', () => {
   });
 
   it('should not shift the window in summer when the clinic has no daylight saving', async () => {
-    const fhirClient = createFhirClientMock(scheduleOf([{ dayOfWeek: 'MO', startTime: '09:00', endTime: '09:30' }]));
+    const fhirClient = generatorFhirMock(scheduleOf([{ dayOfWeek: 'MO', startTime: '09:00', endTime: '09:30' }]));
     const generator = new SlotGeneratorService(fhirClient, new RedisCacheService());
 
     await generator.generate(SCHEDULE_ID, { from: '2026-07-06', to: '2026-07-06' }, ACTOR);
@@ -96,7 +65,7 @@ describe('SlotGeneratorService clinic time', () => {
   });
 
   it('should search for existing slots between the clinic-day instants when the range is dates', async () => {
-    const fhirClient = createFhirClientMock(scheduleOf([{ dayOfWeek: 'MO', startTime: '09:00', endTime: '10:00' }]));
+    const fhirClient = generatorFhirMock(scheduleOf(MONDAY_09_10));
     const generator = new SlotGeneratorService(fhirClient, new RedisCacheService());
 
     await generator.generate(SCHEDULE_ID, { from: '2026-11-02', to: '2026-11-09' }, ACTOR);
@@ -111,7 +80,7 @@ describe('SlotGeneratorService clinic time', () => {
   });
 
   it('should skip a booked slot when its start already exists inside the range', async () => {
-    const fhirClient = createFhirClientMock(scheduleOf([{ dayOfWeek: 'MO', startTime: '09:00', endTime: '10:00' }]));
+    const fhirClient = generatorFhirMock(scheduleOf(MONDAY_09_10));
     fhirClient.search.mockResolvedValue({
       entry: [{ resource: { resourceType: 'Slot', id: 'busy-1', status: 'busy', start: '2026-11-02T09:00:00+03:00' } }],
     });
@@ -123,7 +92,7 @@ describe('SlotGeneratorService clinic time', () => {
   });
 
   it('should generate nothing when the stored slot duration is not positive', async () => {
-    const fhirClient = createFhirClientMock(scheduleOf([{ dayOfWeek: 'MO', startTime: '09:00', endTime: '10:00' }], 0));
+    const fhirClient = generatorFhirMock(scheduleOf(MONDAY_09_10, 0));
     const generator = new SlotGeneratorService(fhirClient, new RedisCacheService());
 
     const result = await generator.generate(SCHEDULE_ID, { from: '2026-11-02', to: '2026-11-02' }, ACTOR);
@@ -151,7 +120,7 @@ describe('SlotGeneratorService and the demo seed', () => {
   const SEEDED_WINDOWS = ['MO', 'TU', 'WE', 'TH', 'FR'].map((dayOfWeek) => ({ dayOfWeek, startTime: '09:00', endTime: '13:00' }));
 
   it('should skip every slot the seed stored when the schedule windows are in clinic time', async () => {
-    const fhirClient = createFhirClientMock(scheduleOf(SEEDED_WINDOWS));
+    const fhirClient = generatorFhirMock(scheduleOf(SEEDED_WINDOWS));
     fhirClient.search.mockResolvedValue(existingSlots('2026-10-19T06:00:00.000Z', 8));
     const warn = jest.spyOn(Logger.prototype, 'warn').mockImplementation();
     const generator = new SlotGeneratorService(fhirClient, new RedisCacheService());
@@ -166,7 +135,7 @@ describe('SlotGeneratorService and the demo seed', () => {
 
   it('should warn about the slots its windows do not plan when stored windows still read as UTC', async () => {
     const legacyWindows = SEEDED_WINDOWS.map((window) => ({ ...window, startTime: '06:00', endTime: '10:00' }));
-    const fhirClient = createFhirClientMock(scheduleOf(legacyWindows));
+    const fhirClient = generatorFhirMock(scheduleOf(legacyWindows));
     fhirClient.search.mockResolvedValue(existingSlots('2026-10-19T06:00:00.000Z', 8));
     const warn = jest.spyOn(Logger.prototype, 'warn').mockImplementation();
     const generator = new SlotGeneratorService(fhirClient, new RedisCacheService());

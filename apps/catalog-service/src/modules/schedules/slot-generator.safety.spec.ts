@@ -1,33 +1,11 @@
 import { BadGatewayException, BadRequestException, Logger } from '@nestjs/common';
-import type { FhirClient, FhirResource } from '@medcenter/fhir';
+import type { FhirResource } from '@medcenter/fhir';
 
 import { FHIR_PAGE_SIZE } from '../../common/fhir-search';
 import { CACHE_KEYS, RedisCacheService } from '../cache/redis-cache.service';
 import { batchResponseFor } from './__tests__/batch-echo';
-import { SLOT_DURATION_EXT, WEEKLY_WINDOWS_EXT } from './schedule.constants';
+import { ACTOR, MONDAY_09_10, ONE_DAY, SCHEDULE_ID, generatorFhirMock, scheduleOf } from './__tests__/schedule-fixture';
 import { EXISTING_SLOT_MAX_PAGES, SlotGeneratorService } from './slot-generator.service';
-
-const ACTOR = { sub: 'admin-1', requestId: 'req-1' };
-
-const SCHEDULE_ID = 'sched-9';
-const WINDOWS = [{ dayOfWeek: 'MO', startTime: '09:00', endTime: '10:00' }];
-const ONE_DAY = { from: '2026-11-02', to: '2026-11-02' };
-
-function createFhirClientMock(): jest.Mocked<FhirClient> {
-  const fhirClient = {
-    read: jest.fn().mockResolvedValue({
-      resourceType: 'Schedule',
-      id: SCHEDULE_ID,
-      extension: [
-        { url: SLOT_DURATION_EXT, valueInteger: 30 },
-        { url: WEEKLY_WINDOWS_EXT, valueString: JSON.stringify(WINDOWS) },
-      ],
-    }),
-    search: jest.fn().mockResolvedValue({ entry: [] }),
-    batch: jest.fn().mockImplementation(async (bundle: FhirResource) => batchResponseFor(bundle)),
-  } as unknown as jest.Mocked<FhirClient>;
-  return fhirClient;
-}
 
 function slotAt(start: string, status = 'free'): { resource: FhirResource } {
   return { resource: { resourceType: 'Slot', id: `slot-${start}`, status, start } };
@@ -45,7 +23,7 @@ describe('SlotGeneratorService when HAPI cannot confirm every slot', () => {
   });
 
   it('should answer 502 and log the reasons when HAPI rejects some entries of the batch', async () => {
-    const fhirClient = createFhirClientMock();
+    const fhirClient = generatorFhirMock(scheduleOf(MONDAY_09_10));
     fhirClient.batch.mockImplementation(async (bundle) =>
       batchResponseFor(bundle, (index) => (index === 0 ? '201 Created' : '400 Bad Request')),
     );
@@ -64,7 +42,7 @@ describe('SlotGeneratorService when HAPI cannot confirm every slot', () => {
   });
 
   it('should drop the cached slot pages before answering 502 when some slots were written', async () => {
-    const fhirClient = createFhirClientMock();
+    const fhirClient = generatorFhirMock(scheduleOf(MONDAY_09_10));
     fhirClient.batch.mockImplementation(async (bundle) =>
       batchResponseFor(bundle, (index) => (index === 0 ? '201 Created' : '500 Internal Server Error')),
     );
@@ -78,7 +56,7 @@ describe('SlotGeneratorService when HAPI cannot confirm every slot', () => {
   });
 
   it('should count a slot as not written when the batch answer is shorter than the request', async () => {
-    const fhirClient = createFhirClientMock();
+    const fhirClient = generatorFhirMock(scheduleOf(MONDAY_09_10));
     fhirClient.batch.mockResolvedValue({ resourceType: 'Bundle', type: 'batch-response', entry: [] });
     const generator = new SlotGeneratorService(fhirClient, new RedisCacheService());
 
@@ -88,7 +66,7 @@ describe('SlotGeneratorService when HAPI cannot confirm every slot', () => {
   });
 
   it('should report skipped existing slots and no error when every written slot is confirmed', async () => {
-    const fhirClient = createFhirClientMock();
+    const fhirClient = generatorFhirMock(scheduleOf(MONDAY_09_10));
     fhirClient.search.mockResolvedValue({ entry: [slotAt('2026-11-02T06:00:00.000Z')] });
     const generator = new SlotGeneratorService(fhirClient, new RedisCacheService());
 
@@ -101,7 +79,7 @@ describe('SlotGeneratorService when HAPI cannot confirm every slot', () => {
 describe('SlotGeneratorService when the schedule already has many slots', () => {
   it('should write nothing and ask for a shorter range when the existing-slot search hits the page cap', async () => {
     const warn = jest.spyOn(Logger.prototype, 'warn').mockImplementation();
-    const fhirClient = createFhirClientMock();
+    const fhirClient = generatorFhirMock(scheduleOf(MONDAY_09_10));
     fhirClient.search.mockImplementation(async (_type, params) => {
       const offset = Number((params ?? {})['_offset']);
       return {
@@ -123,7 +101,7 @@ describe('SlotGeneratorService when the schedule already has many slots', () => 
 
   it('should read past the old 10 000 row limit when a long range holds many slots', async () => {
     const warn = jest.spyOn(Logger.prototype, 'warn').mockImplementation();
-    const fhirClient = createFhirClientMock();
+    const fhirClient = generatorFhirMock(scheduleOf(MONDAY_09_10));
     const rows = 25_920;
     fhirClient.search.mockImplementation(async (_type, params) => {
       const offset = Number((params ?? {})['_offset']);

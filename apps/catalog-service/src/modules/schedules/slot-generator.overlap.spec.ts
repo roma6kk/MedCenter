@@ -3,25 +3,8 @@ import type { FhirClient, FhirResource } from '@medcenter/fhir';
 
 import { committedAudit, committedWrites } from '@medcenter/testing';
 import { RedisCacheService } from '../cache/redis-cache.service';
-import { batchResponseFor } from './__tests__/batch-echo';
-import { PLANNING_HORIZON_EXT, SLOT_DURATION_EXT, WEEKLY_WINDOWS_EXT } from './schedule.constants';
+import { ACTOR, ONE_DAY, SCHEDULE_ID, generatorFhirMock, scheduleOf } from './__tests__/schedule-fixture';
 import { SlotGeneratorService } from './slot-generator.service';
-
-const ACTOR = { sub: 'admin-1', requestId: 'req-1' };
-const SCHEDULE_ID = 'sched-9';
-const MONDAY = { from: '2026-11-02', to: '2026-11-02' };
-
-function schedule(durationMin: number, horizon?: { start?: string; end?: string }): FhirResource {
-  return {
-    resourceType: 'Schedule',
-    id: SCHEDULE_ID,
-    extension: [
-      { url: SLOT_DURATION_EXT, valueInteger: durationMin },
-      { url: WEEKLY_WINDOWS_EXT, valueString: JSON.stringify([{ dayOfWeek: 'MO', startTime: '09:00', endTime: '12:00' }]) },
-      ...(horizon === undefined ? [] : [{ url: PLANNING_HORIZON_EXT, valuePeriod: horizon }]),
-    ],
-  };
-}
 
 function slot(start: string, minutes: number, status = 'free'): { resource: FhirResource } {
   return {
@@ -39,11 +22,7 @@ describe('SlotGeneratorService', () => {
   let fhirClient: jest.Mocked<FhirClient>;
 
   beforeEach(() => {
-    fhirClient = {
-      read: jest.fn().mockResolvedValue(schedule(30)),
-      search: jest.fn().mockResolvedValue({ entry: [] }),
-      batch: jest.fn().mockImplementation(async (bundle: FhirResource) => batchResponseFor(bundle)),
-    } as unknown as jest.Mocked<FhirClient>;
+    fhirClient = generatorFhirMock();
     generator = new SlotGeneratorService(fhirClient, new RedisCacheService());
   });
 
@@ -52,9 +31,9 @@ describe('SlotGeneratorService', () => {
       fhirClient.search.mockResolvedValue({
         entry: [0, 1, 2, 3, 4, 5].map((i) => slot(new Date(Date.parse('2026-11-02T06:00:00Z') + i * 30 * 60_000).toISOString(), 30)),
       });
-      fhirClient.read.mockResolvedValue(schedule(20));
+      fhirClient.read.mockResolvedValue(scheduleOf(undefined, 20));
 
-      const result = await generator.generate(SCHEDULE_ID, MONDAY, ACTOR);
+      const result = await generator.generate(SCHEDULE_ID, ONE_DAY, ACTOR);
 
       expect(result.generated).toBe(0);
       expect(result.skipped).toBe(9);
@@ -64,7 +43,7 @@ describe('SlotGeneratorService', () => {
     it('should be skipped when the slots come from the UTC-reading generator (09:00Z instead of 06:00Z)', async () => {
       fhirClient.search.mockResolvedValue({ entry: [slot('2026-11-02T09:00:00.000Z', 30)] });
 
-      const result = await generator.generate(SCHEDULE_ID, MONDAY, ACTOR);
+      const result = await generator.generate(SCHEDULE_ID, ONE_DAY, ACTOR);
 
       expect(result.generated).toBe(6);
     });
@@ -72,7 +51,7 @@ describe('SlotGeneratorService', () => {
     it('should not be written when it crosses the end of an old slot', async () => {
       fhirClient.search.mockResolvedValue({ entry: [slot('2026-11-02T08:40:00.000Z', 30)] });
 
-      const result = await generator.generate(SCHEDULE_ID, MONDAY, ACTOR);
+      const result = await generator.generate(SCHEDULE_ID, ONE_DAY, ACTOR);
 
       expect(result.generated).toBe(5);
       expect(result.skipped).toBe(1);
@@ -82,7 +61,7 @@ describe('SlotGeneratorService', () => {
     it('should not block a slot that only touches the old one', async () => {
       fhirClient.search.mockResolvedValue({ entry: [slot('2026-11-02T06:00:00.000Z', 30)] });
 
-      const result = await generator.generate(SCHEDULE_ID, MONDAY, ACTOR);
+      const result = await generator.generate(SCHEDULE_ID, ONE_DAY, ACTOR);
 
       expect(result).toEqual({ generated: 5, skipped: 1 });
     });
@@ -92,7 +71,7 @@ describe('SlotGeneratorService', () => {
         entry: [slot('2026-11-02T06:00:00.000Z', 30, 'entered-in-error'), slot('2026-11-02T06:40:00.000Z', 30, 'entered-in-error')],
       });
 
-      const result = await generator.generate(SCHEDULE_ID, MONDAY, ACTOR);
+      const result = await generator.generate(SCHEDULE_ID, ONE_DAY, ACTOR);
 
       expect(result).toEqual({ generated: 5, skipped: 1 });
       expect(writtenStarts(fhirClient)).toContain('2026-11-02T06:30:00.000Z');
@@ -103,7 +82,7 @@ describe('SlotGeneratorService', () => {
     const horizon = { start: '2026-11-10', end: '2026-11-20' };
 
     beforeEach(() => {
-      fhirClient.read.mockResolvedValue(schedule(30, horizon));
+      fhirClient.read.mockResolvedValue(scheduleOf(undefined, 30, horizon));
     });
 
     it.each([
@@ -124,21 +103,21 @@ describe('SlotGeneratorService', () => {
     });
 
     it('should leave a schedule without a horizon open-ended', async () => {
-      fhirClient.read.mockResolvedValue(schedule(30));
+      fhirClient.read.mockResolvedValue(scheduleOf());
 
-      await expect(generator.generate(SCHEDULE_ID, MONDAY, ACTOR)).resolves.toMatchObject({ generated: 6 });
+      await expect(generator.generate(SCHEDULE_ID, ONE_DAY, ACTOR)).resolves.toMatchObject({ generated: 6 });
     });
 
     it('should leave a missing bound open', async () => {
-      fhirClient.read.mockResolvedValue(schedule(30, { start: '2026-11-01' }));
+      fhirClient.read.mockResolvedValue(scheduleOf(undefined, 30, { start: '2026-11-01' }));
 
-      await expect(generator.generate(SCHEDULE_ID, MONDAY, ACTOR)).resolves.toMatchObject({ generated: 6 });
+      await expect(generator.generate(SCHEDULE_ID, ONE_DAY, ACTOR)).resolves.toMatchObject({ generated: 6 });
     });
   });
 
   describe('the journal (FR-021)', () => {
     it('should write one AuditEvent naming the schedule, the counts and the range', async () => {
-      await generator.generate(SCHEDULE_ID, MONDAY, ACTOR);
+      await generator.generate(SCHEDULE_ID, ONE_DAY, ACTOR);
 
       expect(fhirClient.batch).toHaveBeenCalledTimes(2);
       expect(committedWrites(fhirClient, 1)).toEqual(['POST AuditEvent']);
@@ -156,7 +135,7 @@ describe('SlotGeneratorService', () => {
         entry: [0, 1, 2, 3, 4, 5].map((i) => slot(new Date(Date.parse('2026-11-02T06:00:00Z') + i * 30 * 60_000).toISOString(), 30)),
       });
 
-      await generator.generate(SCHEDULE_ID, MONDAY, ACTOR);
+      await generator.generate(SCHEDULE_ID, ONE_DAY, ACTOR);
 
       expect(fhirClient.batch).not.toHaveBeenCalled();
     });
