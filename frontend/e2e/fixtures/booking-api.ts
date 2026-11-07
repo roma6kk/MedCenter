@@ -94,7 +94,9 @@ export async function authHeaders(page: Page): Promise<{ readonly Authorization:
 }
 
 export async function findFreeSlot(request: APIRequestContext): Promise<FreeSlot> {
-  return (await findFreeSlots(request, 1))[0] as FreeSlot;
+  const [slot] = await findFreeSlots(request, 1);
+  if (slot === undefined) throw new Error('no free slot');
+  return slot;
 }
 
 export async function bookSlotAs(page: Page, slotId: string): Promise<{ readonly status: number; readonly body: Record<string, unknown> }> {
