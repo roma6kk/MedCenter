@@ -13,7 +13,7 @@ import type { ProblemDetails } from '@/lib/api/problem';
 import { useBookingDraftStore } from '@/store/use-booking-draft-store';
 import { useToastStore } from '@/store/use-toast-store';
 import type { Slot } from '@/components/catalog/catalog-types';
-import { DAY, SLOT_30, apiFetchMock, postKeys, problem, reachConfirmation, renderWizard, serveOutcomes } from './booking-test-utils';
+import { DAY, SLOT_30, apiFetchMock, postKeys, problem, renderConfirmation, serveOutcomes } from './booking-test-utils';
 
 const LATER_SLOT: Slot = { id: 'slot-31', start: `${DAY}T10:00:00.000Z`, end: `${DAY}T10:30:00.000Z`, status: 'free' };
 
@@ -41,8 +41,7 @@ describe('BookingWizard slot conflict', () => {
 
   it('should stay on the slot step, say the slot was taken and refetch the slots when the server answers SLOT_CONFLICT', async () => {
     serveConflict(problem({ status: 409, errorCode: 'SLOT_CONFLICT' }));
-    renderWizard();
-    await reachConfirmation();
+    await renderConfirmation();
     const slotSearches = (): number => apiFetchMock.mock.calls.filter(([path]) => path.includes('/slots')).length;
     const before: number = slotSearches();
 
@@ -55,8 +54,7 @@ describe('BookingWizard slot conflict', () => {
 
   it('should raise the "slot taken" toast through the central error effects when the booking is refused with SLOT_CONFLICT', async () => {
     serveConflict(problem({ status: 409, errorCode: 'SLOT_CONFLICT' }));
-    renderWizard();
-    await reachConfirmation();
+    await renderConfirmation();
 
     await userEvent.click(screen.getByRole('button', { name: 'Подтвердить запись' }));
 
@@ -65,8 +63,7 @@ describe('BookingWizard slot conflict', () => {
 
   it('should draw the refused slot as taken and keep the other choices when the booking is refused', async () => {
     serveConflict(problem({ status: 409, errorCode: 'SLOT_CONFLICT' }));
-    renderWizard();
-    await reachConfirmation();
+    await renderConfirmation();
 
     await userEvent.click(screen.getByRole('button', { name: 'Подтвердить запись' }));
 
@@ -77,8 +74,7 @@ describe('BookingWizard slot conflict', () => {
 
   it('should drop the idempotency key of the intent when its slot is refused', async () => {
     serveConflict(problem({ status: 409, errorCode: 'SLOT_CONFLICT' }));
-    renderWizard();
-    await reachConfirmation();
+    await renderConfirmation();
 
     await userEvent.click(screen.getByRole('button', { name: 'Подтвердить запись' }));
     await screen.findByTestId('slot-conflict-notice');
@@ -89,8 +85,7 @@ describe('BookingWizard slot conflict', () => {
 
   it('should put focus on the refusal alert when a booking is refused, so a keyboard visitor keeps their place', async () => {
     serveConflict(problem({ status: 409, errorCode: 'SLOT_CONFLICT' }));
-    renderWizard();
-    await reachConfirmation();
+    await renderConfirmation();
 
     await userEvent.click(screen.getByRole('button', { name: 'Подтвердить запись' }));
     const notice: HTMLElement = await screen.findByTestId('slot-conflict-notice');
@@ -105,8 +100,7 @@ describe('BookingWizard slot conflict', () => {
     ['the slot no longer exists', problem({ status: 404, errorCode: 'NOT_FOUND' })],
   ])('should put focus on the refusal alert when %s', async (_name, refusal) => {
     serveConflict(refusal);
-    renderWizard();
-    await reachConfirmation();
+    await renderConfirmation();
 
     await userEvent.click(screen.getByRole('button', { name: 'Подтвердить запись' }));
 
@@ -115,8 +109,7 @@ describe('BookingWizard slot conflict', () => {
 
   it('should move focus to the heading of the next step when the visitor picks another slot after a refusal', async () => {
     serveConflict(problem({ status: 409, errorCode: 'SLOT_CONFLICT' }));
-    renderWizard();
-    await reachConfirmation();
+    await renderConfirmation();
     offerLaterSlot();
     await userEvent.click(screen.getByRole('button', { name: 'Подтвердить запись' }));
     await screen.findByTestId('slot-conflict-notice');
@@ -129,8 +122,7 @@ describe('BookingWizard slot conflict', () => {
 
   it('should send the visitor back to the slot step when the slot belongs to another service', async () => {
     serveConflict(problem({ status: 400, detail: 'serviceId does not match the schedule of this slot' }));
-    renderWizard();
-    await reachConfirmation();
+    await renderConfirmation();
 
     await userEvent.click(screen.getByRole('button', { name: 'Подтвердить запись' }));
 
@@ -139,8 +131,7 @@ describe('BookingWizard slot conflict', () => {
 
   it('should send the visitor back to the slot step when the slot no longer exists', async () => {
     serveConflict(problem({ status: 404, errorCode: 'NOT_FOUND' }));
-    renderWizard();
-    await reachConfirmation();
+    await renderConfirmation();
 
     await userEvent.click(screen.getByRole('button', { name: 'Подтвердить запись' }));
 

@@ -10,7 +10,7 @@ jest.mock('@/lib/ics', () => ({ ...jest.requireActual('@/lib/ics'), downloadIcs:
 
 import { downloadIcs } from '@/lib/ics';
 import { useBookingDraftStore } from '@/store/use-booking-draft-store';
-import { apiFetchMock, postBodies, reachConfirmation, renderWizard, serveApi } from './booking-test-utils';
+import { apiFetchMock, postBodies, renderConfirmation, renderWizard, serveApi } from './booking-test-utils';
 
 const downloadMock = downloadIcs as jest.MockedFunction<typeof downloadIcs>;
 
@@ -80,8 +80,7 @@ describe('BookingWizard confirmation (B9)', () => {
   });
 
   it('should keep the panel "Ваша запись" with the confirm button, the address and the cancellation hint on the confirmation step', async () => {
-    renderWizard();
-    await reachConfirmation();
+    await renderConfirmation();
 
     const panel = screen.getByTestId('booking-draft-summary');
     expect(within(panel).getByRole('button', { name: 'Подтвердить запись' })).toBeInTheDocument();
@@ -94,8 +93,7 @@ describe('BookingWizard confirmation (B9)', () => {
     ['summary-edit-2', /Врачи для услуги/],
     ['summary-edit-3', 'Выберите время'],
   ])('should go back to the step that made the choice when %s is pressed', async (testId, heading) => {
-    renderWizard();
-    await reachConfirmation();
+    await renderConfirmation();
 
     await userEvent.click(screen.getByTestId(testId));
 
@@ -119,8 +117,7 @@ describe('BookingWizard success screen (B1)', () => {
   });
 
   it('should show when, with whom, what and where after the booking is confirmed', async () => {
-    renderWizard();
-    await reachConfirmation();
+    await renderConfirmation();
     await userEvent.click(screen.getByRole('button', { name: 'Подтвердить запись' }));
 
     const details = await screen.findByTestId('success-details');
@@ -133,8 +130,7 @@ describe('BookingWizard success screen (B1)', () => {
   });
 
   it('should hand a calendar file of the visit to the browser when «Добавить в календарь» is pressed', async () => {
-    renderWizard();
-    await reachConfirmation();
+    await renderConfirmation();
     await userEvent.click(screen.getByRole('button', { name: 'Подтвердить запись' }));
 
     await userEvent.click(await screen.findByRole('button', { name: 'Добавить в календарь' }));
@@ -150,8 +146,7 @@ describe('BookingWizard success screen (B1)', () => {
   });
 
   it('should move focus to the heading of the success screen and offer cancellation only as a text link', async () => {
-    renderWizard();
-    await reachConfirmation();
+    await renderConfirmation();
     await userEvent.click(screen.getByRole('button', { name: 'Подтвердить запись' }));
 
     const heading = await screen.findByRole('heading', { name: 'Вы записаны на приём' });

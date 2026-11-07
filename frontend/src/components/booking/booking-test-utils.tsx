@@ -77,6 +77,11 @@ export async function chooseSlotStep(): Promise<void> {
   await userEvent.click(await screen.findByTestId('doctor-doc-1'));
 }
 
+export async function renderConfirmation(): Promise<void> {
+  renderWizard();
+  await reachConfirmation();
+}
+
 export async function reachConfirmation(): Promise<void> {
   await chooseSlotStep();
   await userEvent.click(await screen.findByTestId('slot-slot-30'));
