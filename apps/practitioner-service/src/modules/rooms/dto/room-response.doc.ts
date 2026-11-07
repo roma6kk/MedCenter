@@ -4,7 +4,6 @@ import { PageMetaDoc } from '../../../common/page-meta.doc';
 import type { RoomResponseDto } from './room-response.dto';
 import type { RoomUsageReferenceDto, RoomUsageResponseDto } from './room-usage-response.dto';
 
-/** Swagger projection of `RoomResponseDto` (API §4.3-4.5). */
 export class RoomResponseDoc implements RoomResponseDto {
   @ApiProperty({ description: 'Location id (FHIR id)' })
   readonly id!: string;
@@ -25,7 +24,6 @@ export class RoomResponseDoc implements RoomResponseDto {
   readonly isActive!: boolean;
 }
 
-/** `{ items, meta }` envelope of the room listing. */
 export class RoomPageDoc {
   @ApiProperty({ type: [RoomResponseDoc] })
   readonly items!: RoomResponseDoc[];
@@ -34,7 +32,6 @@ export class RoomPageDoc {
   readonly meta!: PageMetaDoc;
 }
 
-/** Swagger projection of `RoomUsageReferenceDto` (API §4.7). */
 export class RoomUsageReferenceDoc implements RoomUsageReferenceDto {
   @ApiProperty({ enum: ['Schedule', 'PractitionerRole', 'HealthcareService', 'Slot'] })
   readonly resourceType!: 'Schedule' | 'PractitionerRole' | 'HealthcareService' | 'Slot';
@@ -63,7 +60,6 @@ export class RoomUsageReferenceDoc implements RoomUsageReferenceDto {
   readonly end?: string;
 }
 
-/** Swagger projection of `RoomUsageResponseDto` (API §4.7). */
 export class RoomUsageResponseDoc implements RoomUsageResponseDto {
   @ApiProperty()
   readonly roomId!: string;

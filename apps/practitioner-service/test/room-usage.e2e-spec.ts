@@ -35,10 +35,8 @@ const BOOKED = {
   schedule: { reference: 'Schedule/sched-1' },
 };
 
-/** A doctor role and a service that list the room in `location`, as the demo seed writes them. */
 const ROLE = { resourceType: 'PractitionerRole', id: 'role-7', practitioner: { reference: 'Practitioner/prac-1' } };
 
-/** The English text of a primitive, in the `translation` extension HAPI keeps next to the Russian one. */
 function inEnglish(content: string): Record<string, unknown> {
   return { extension: [translationExtension('en', content)] };
 }
@@ -73,10 +71,6 @@ function createFhirStub(schedules: ReadonlyArray<Record<string, unknown>>, { rol
   return stub;
 }
 
-/**
- * API §4.7 (room usage) and the §4.6 `ROOM_IN_USE` guard it mirrors, through
- * the real guard stack, validation pipe and problem filter. HAPI is stubbed.
- */
 describe('Room usage (e2e)', () => {
   const admin = bearer({ role: 'ADMIN', scope: ADMIN_SCOPE });
   let app: INestApplication;
@@ -104,41 +98,31 @@ describe('Room usage (e2e)', () => {
     });
 
     it('should reject the call with 401 UNAUTHENTICATED when there is no token', async () => {
-      // Act
       const response = await request(app.getHttpServer()).get(USAGE).expect(401);
 
-      // Assert
       expect(response.body).toMatchObject({ errorCode: 'UNAUTHENTICATED' });
     });
 
     it('should reject the call with 403 FORBIDDEN_ROLE when the token belongs to a doctor', async () => {
-      // Arrange
       const token = bearer({ role: 'DOCTOR', scope: DOCTOR_SCOPE, fhirUser: 'PractitionerRole/role-7' });
 
-      // Act
       const response = await request(app.getHttpServer()).get(USAGE).set('Authorization', token).expect(403);
 
-      // Assert
       expect(response.body).toMatchObject({ errorCode: 'FORBIDDEN_ROLE' });
       expect(fhir.read).not.toHaveBeenCalled();
     });
 
     it('should reject the call with 403 FORBIDDEN_SCOPE when the admin token lacks user/*.read', async () => {
-      // Arrange
       const token = bearer({ role: 'ADMIN', scope: 'user/*.write' });
 
-      // Act
       const response = await request(app.getHttpServer()).get(USAGE).set('Authorization', token).expect(403);
 
-      // Assert
       expect(response.body).toMatchObject({ errorCode: 'FORBIDDEN_SCOPE' });
     });
 
     it('should list the referencing schedule and its upcoming booking when an admin asks', async () => {
-      // Act
       const response = await request(app.getHttpServer()).get(USAGE).set('Authorization', admin).expect(200);
 
-      // Assert
       expect(response.body).toMatchObject({ roomId: 'room-204', inUse: true, truncated: false });
       expect(response.body.items).toEqual([
         { resourceType: 'Schedule', id: 'sched-1', isActive: true, display: 'PractitionerRole/role-7' },
@@ -154,15 +138,12 @@ describe('Room usage (e2e)', () => {
     });
 
     it('should word the lines in English when the admin UI asks for it with Accept-Language', async () => {
-      // Arrange — a room that only a doctor role and a service list, as in the demo seed.
       await app.close();
       await boot([], { roles: [ROLE, DOCTOR], services: [SERVICE] });
 
-      // Act
       const english = await request(app.getHttpServer()).get(USAGE).set('Authorization', admin).set('Accept-Language', 'en').expect(200);
       const russian = await request(app.getHttpServer()).get(USAGE).set('Authorization', admin).expect(200);
 
-      // Assert
       expect(english.body).toMatchObject({ inUse: true, truncated: false });
       expect(english.body.items).toEqual([
         { resourceType: 'PractitionerRole', id: 'role-7', isActive: true, display: 'Ivanov Ivan' },
@@ -172,44 +153,36 @@ describe('Room usage (e2e)', () => {
     });
 
     it('should reject the call with 400 VALIDATION_ERROR when the id is not a FHIR id', async () => {
-      // Act
       const response = await request(app.getHttpServer())
         .get('/api/v1/admin/rooms/a,b/usage')
         .set('Authorization', admin)
         .expect(400);
 
-      // Assert
       expect(response.body).toMatchObject({ errorCode: 'VALIDATION_ERROR' });
       expect(fhir.read).not.toHaveBeenCalled();
     });
 
     it('should answer 404 NOT_FOUND when the room does not exist', async () => {
-      // Arrange
       fhir.read.mockRejectedValue(new FhirClientError('GET', 'http://hapi:8080/fhir/Location/ghost', 404, '{}'));
 
-      // Act
       const response = await request(app.getHttpServer())
         .get('/api/v1/admin/rooms/ghost/usage')
         .set('Authorization', admin)
         .expect(404);
 
-      // Assert
       expect(response.body).toMatchObject({ errorCode: 'NOT_FOUND' });
     });
   });
 
   describe('DELETE /api/v1/admin/rooms/{id} (the rule usage mirrors)', () => {
     it('should refuse with 409 when the usage view reports the room in use', async () => {
-      // Arrange
       await boot([SCHEDULE]);
 
-      // Act
       const response = await request(app.getHttpServer())
         .delete('/api/v1/admin/rooms/room-204')
         .set('Authorization', admin)
         .expect(409);
 
-      // Assert — `ROOM_IN_USE` is catalogued in `ERROR_CODES` (API §4.6), so the filter promotes it.
       expect(response.body).toMatchObject({ status: 409, errorCode: 'ROOM_IN_USE' });
       expect(response.body.detail).toContain('ROOM_IN_USE');
       expect(fhir.search).toHaveBeenCalledWith('Schedule', { actor: 'Location/room-204', _count: 1 });
@@ -220,30 +193,24 @@ describe('Room usage (e2e)', () => {
       ['a doctor role', { roles: [ROLE] }],
       ['a service', { services: [SERVICE] }],
     ])('should refuse with 409 ROOM_IN_USE when only %s lists the room, as the usage view reports', async (_label, referrers) => {
-      // Arrange — no schedule: the demo seed still lists the room in `PractitionerRole.location` and `HealthcareService.location`.
       await boot([], referrers);
 
-      // Act
       const usage = await request(app.getHttpServer()).get(USAGE).set('Authorization', admin).expect(200);
       const response = await request(app.getHttpServer())
         .delete('/api/v1/admin/rooms/room-204')
         .set('Authorization', admin)
         .expect(409);
 
-      // Assert
       expect(usage.body.inUse).toBe(true);
       expect(response.body).toMatchObject({ status: 409, errorCode: 'ROOM_IN_USE' });
       expect(fhir.batch).not.toHaveBeenCalled();
     });
 
     it('should delete with 204 when the usage view reports the room free', async () => {
-      // Arrange
       await boot([]);
 
-      // Act
       await request(app.getHttpServer()).delete('/api/v1/admin/rooms/room-204').set('Authorization', admin).expect(204);
 
-      // Assert
       expect(committedEntries(fhir).map((entry) => `${entry.request.method} ${entry.request.url}`)).toEqual(['DELETE Location/room-204', 'POST AuditEvent']);
       expect(committedAudit(fhir)).toMatchObject({ action: 'D', entity: [auditedResource('Location', 'room-204'), expect.anything()] });
     });
@@ -255,13 +222,11 @@ describe('Room usage (e2e)', () => {
     });
 
     it('should reject a delete with 400 VALIDATION_ERROR before HAPI is called when the id carries a comma', async () => {
-      // Act — `actor=Location/a,b` would be an OR over another room.
       const response = await request(app.getHttpServer())
         .delete('/api/v1/admin/rooms/a,b')
         .set('Authorization', admin)
         .expect(400);
 
-      // Assert
       expect(response.body).toMatchObject({ errorCode: 'VALIDATION_ERROR' });
       expect(fhir.read).not.toHaveBeenCalled();
       expect(fhir.search).not.toHaveBeenCalled();
@@ -269,14 +234,12 @@ describe('Room usage (e2e)', () => {
     });
 
     it('should reject a patch with 400 VALIDATION_ERROR before HAPI is called when the id is only dots', async () => {
-      // Act — `Location/..` collapses to the FHIR base URL inside fetch.
       const response = await request(app.getHttpServer())
         .patch('/api/v1/admin/rooms/..')
         .set('Authorization', admin)
         .send({ name: 'Кабинет 205' })
         .expect(400);
 
-      // Assert
       expect(response.body).toMatchObject({ errorCode: 'VALIDATION_ERROR' });
       expect(fhir.read).not.toHaveBeenCalled();
     });

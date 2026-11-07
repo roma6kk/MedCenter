@@ -5,11 +5,6 @@ import request from 'supertest';
 import { AppModule } from '../src/app/app.module';
 import { applyE2eEnv } from './e2e-env';
 
-/**
- * Spec-only probe controller: it never ships with the application; it exists
- * to prove the globally mounted guard stack (ADR-009) protects any route that
- * is not explicitly marked `@Public()`. Every service carries this file.
- */
 @Controller()
 class PerimeterProbeController {
   @Get('internal/perimeter-probe')

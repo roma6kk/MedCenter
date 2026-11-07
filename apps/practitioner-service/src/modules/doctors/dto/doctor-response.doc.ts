@@ -3,7 +3,6 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { PageMetaDoc } from '../../../common/page-meta.doc';
 import type { DoctorResponseDto } from './doctor-response.dto';
 
-/** Swagger projection of `DoctorResponseDto` (API §4.1/4.2). */
 export class DoctorResponseDoc implements DoctorResponseDto {
   @ApiProperty({ description: 'Practitioner id (FHIR id)', example: '1234' })
   readonly id!: string;
@@ -36,7 +35,6 @@ export class DoctorResponseDoc implements DoctorResponseDto {
   readonly practitionerRoleIds!: readonly string[];
 }
 
-/** `{ items, meta }` envelope of the doctor catalog. */
 export class DoctorPageDoc {
   @ApiProperty({ type: [DoctorResponseDoc] })
   readonly items!: DoctorResponseDoc[];

@@ -107,7 +107,6 @@ describe('RoomsService identifier uniqueness (API §4.4, §4.5)', () => {
     });
 
     it('should answer 409 CONFLICT naming the identifier when HAPI refused the transaction because a room was created in between', async () => {
-      // HAPI-2279: the conditional create matched a stored room under another id (400); the read check now sees it.
       let reads = 0;
       fhir.search.mockImplementation(async () => ({ entry: reads++ === 0 ? [] : [{ resource: room('room-winner', '305') }] }));
       fhir.batch.mockRejectedValue(new FhirClientError('POST', 'http://hapi/fhir', 400, 'HAPI-2279'));

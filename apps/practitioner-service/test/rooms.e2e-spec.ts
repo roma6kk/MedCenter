@@ -5,11 +5,6 @@ import request from 'supertest';
 import { AppModule } from '../src/app/app.module';
 import { applyE2eEnv } from './e2e-env';
 
-/**
- * Admin room flow (API §4.3–4.6). The FHIR backend is stubbed through the
- * `FHIR_CLIENT` provider so the suite exercises routing, RBAC and the
- * `ROOM_IN_USE` guard without a live HAPI.
- */
 describe('Rooms (e2e)', () => {
   let app: INestApplication;
 

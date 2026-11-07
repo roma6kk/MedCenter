@@ -14,10 +14,8 @@ import {
 import { roomReferrerQuery } from './room-references';
 import { readRoom } from './room-search';
 
-/** HAPI's default `max_page_size`; a room is never shared by more schedules, roles or services. */
 export const MAX_ROOM_SCHEDULES = 200;
 
-/** Upcoming bookings listed per room; one more is fetched to detect truncation. */
 export const MAX_USAGE_SLOTS = 50;
 
 function resourcesOf(result: FhirSearchResult, resourceType?: string): FhirResource[] {
@@ -25,16 +23,6 @@ function resourcesOf(result: FhirSearchResult, resourceType?: string): FhirResou
   return resourceType === undefined ? resources : resources.filter((resource) => resource.resourceType === resourceType);
 }
 
-/**
- * Room occupancy (API §4.7, FR-017): the `Schedule`s, doctor roles
- * (`PractitionerRole`) and services (`HealthcareService`) that reference the
- * room, and the upcoming booked `Slot`s of those schedules — exactly what
- * makes `DELETE` answer `409 ROOM_IN_USE` (API §4.6), computed by the same
- * queries (`roomReferrerQuery`). Read-only, so no AuditEvent (ADR-014 audits
- * writes).
- *
- * `lang` picks the language of the names and of the one word of a booking line.
- */
 @Injectable()
 export class RoomUsageService {
   constructor(@Inject(FHIR_CLIENT) private readonly fhirClient: FhirClient) {}
@@ -44,10 +32,7 @@ export class RoomUsageService {
     lang: ContentLanguage = DEFAULT_CONTENT_LANGUAGE,
     nowMs: number = Date.now(),
   ): Promise<RoomUsageResponseDto> {
-    // An unknown id, and a Location that is not a room, surface as 404 NOT_FOUND.
     await readRoom(this.fhirClient, roomId);
-    // `_include`s bring the role → practitioner and the service, so every
-    // schedule and role line names its doctor and service without extra round trips.
     const [scheduleResult, roleResult, serviceResult] = await Promise.all([
       this.fhirClient.search('Schedule', {
         ...roomReferrerQuery('Schedule', roomId),
@@ -84,7 +69,6 @@ export class RoomUsageService {
     };
   }
 
-  /** Booked slots starting from now, earliest first; `limit + 1` rows reveal truncation. */
   private async upcomingBookedSlots(schedules: readonly FhirResource[], nowMs: number): Promise<FhirResource[]> {
     const references = schedules
       .map((schedule) => schedule.id)

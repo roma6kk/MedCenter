@@ -23,43 +23,28 @@ import { identifierValuesOf, roomIdentifierQuery, roomUsingIdentifier } from './
 import { firstRoomReferrer, type RoomReferrerType } from './room-references';
 import { findAllRooms, LOCATION_PHYSICAL_TYPE_SYSTEM, readRoom, ROOM_PHYSICAL_TYPE_CODE } from './room-search';
 
-/** One page of the room list in the API §0 envelope. */
 export type RoomPage = PaginatedResponseDto<RoomResponseDto>;
 
 const HTTP_BAD_REQUEST = 400;
 
-/** `AuditEvent.source` of the writes of this service. */
 const AUDIT_SOURCE = 'practitioner-service';
 
-/** FHIR R4 `Location` has no native floor element — it lives in an extension. */
 const FLOOR_EXT = MEDCENTER_EXT.ROOM_FLOOR;
 
-/** `true` for an absent text, `null` and a text of whitespace only: nothing to store in `Location.description`. */
 function isBlank(value: string | null | undefined): boolean {
   return value === undefined || value === null || value.trim() === '';
 }
 
-/** What names the referencing resource in the `ROOM_IN_USE` detail. */
 const REFERRER_TEXT: Readonly<Record<RoomReferrerType, string>> = {
   Schedule: 'a schedule',
   PractitionerRole: 'a doctor role',
   HealthcareService: 'a service',
 };
 
-/**
- * Admin CRUD over `Location` resources whose `physicalType` is `room`
- * (API §4.3–4.7, FR-017).
- *
- * The delete path protects busy slots: a room referenced by any `Schedule`
- * is never removed (BR-001), and neither is one a doctor role or a service
- * lists — the caller gets `409 ROOM_IN_USE`, and
- * `GET /admin/rooms/{id}/usage` (API §4.7) lists exactly those resources.
- */
 @Injectable()
 export class RoomsService {
   constructor(@Inject(FHIR_CLIENT) private readonly fhirClient: FhirClient) {}
 
-  /** The page is cut from the room list itself, so the total counts rooms only (see {@link findAllRooms}). */
   async list(page = 1, pageSize = 20): Promise<RoomPage> {
     const rooms = await findAllRooms(this.fhirClient);
     const offset = (page - 1) * pageSize;
@@ -71,7 +56,6 @@ export class RoomsService {
     return this.toResponseDto(await readRoom(this.fhirClient, id));
   }
 
-  /** Admin writes carry their `AuditEvent` in the same transaction (FR-021, ADR-014). */
   private auditOf(actor: WriteActor): AuditContext {
     return { actor, source: AUDIT_SOURCE };
   }
@@ -99,7 +83,7 @@ export class RoomsService {
       await this.assertIdentifierFree(dto.identifier, id);
     }
     const merged = this.applyPatch(existing, dto);
-    // A patch that changes nothing (`{}`, or the stored values sent again) writes no version and no AuditEvent (FR-021).
+    // A patch that changes nothing writes no version and no AuditEvent.
     if (isDeepStrictEqual(merged, existing)) {
       return this.toResponseDto(existing);
     }
@@ -107,14 +91,7 @@ export class RoomsService {
     return this.toResponseDto(updated);
   }
 
-  /**
-   * The stored room with the fields of the patch applied. A field the patch omits keeps its stored value;
-   * an optional element the patch empties (a blank `description`, a `null` description or floor) is removed,
-   * because FHIR JSON allows neither an empty string nor an empty array and HAPI refuses both.
-   *
-   * `floor` lives inside an extension, so it is merged entry by entry (the whole `extension` array of the
-   * patch would overwrite unrelated stored extensions): a supplied floor replaces just its entry.
-   */
+  // Emptied optional elements are removed (FHIR JSON allows no empty string); `floor` is merged entry by entry so other extensions survive.
   private applyPatch(existing: FhirResource, dto: UpdateRoomDto): Record<string, unknown> {
     const merged: Record<string, unknown> = { ...existing };
     // The stored entry stays as it is while the value is the same: a seeded room carries a `system` the patch does not know.
@@ -146,20 +123,8 @@ export class RoomsService {
     return merged;
   }
 
-  /**
-   * Refuses to delete a room referenced by any schedule, doctor role or service
-   * (active or not — HAPI keeps referential integrity on delete, so a
-   * deactivated one pins the room too). Busy slots are protected (BR-001); the
-   * contract is 409 `ROOM_IN_USE` (API §4.6).
-   *
-   * `ROOM_IN_USE` is catalogued in `ERROR_CODES` (libs/contracts), so
-   * `ProblemDetailsFilter` promotes it to the response `errorCode`; the same
-   * label stays at the start of `detail` for logs and older clients.
-   */
   async remove(id: string, actor: WriteActor): Promise<void> {
-    // An unknown id, and a Location that is not a room, surface as 404 NOT_FOUND.
     await readRoom(this.fhirClient, id);
-    // Same probes as the usage view (API §4.7), so both always agree.
     const referrer = await firstRoomReferrer(this.fhirClient, id);
     if (referrer !== undefined) {
       throw this.roomInUse(id, REFERRER_TEXT[referrer]);
@@ -167,9 +132,7 @@ export class RoomsService {
     try {
       await deleteAudited(this.fhirClient, 'Location', id, this.auditOf(actor));
     } catch (error) {
-      // A delete carries no `If-Match`, so the 409 of its transaction is HAPI keeping a reference intact: a resource the probes
-      // above did not see (created since, or of a type they do not know) points at the room. That is a room in use, not a
-      // concurrent edit, which is what the generic `CONFLICT` of `commitTransaction` would tell the admin.
+      // A delete carries no `If-Match`, so its 409 is HAPI keeping a reference: a resource the probes missed points at the room, not a concurrent edit.
       if (error instanceof ConflictException) {
         throw this.roomInUse(id, 'another resource');
       }
@@ -184,12 +147,7 @@ export class RoomsService {
     });
   }
 
-  /**
-   * `409 CONFLICT` when another room already has `identifier` (API §4.4/4.5, compared trimmed and
-   * case-insensitively). HAPI has no unique constraint over `Location.identifier`, so the rooms are
-   * read and compared here; two admins creating the same identifier in the same instant is the one
-   * case this check cannot see; `create` closes it with a conditional create (`roomIdentifierQuery`).
-   */
+  // HAPI has no unique constraint over `Location.identifier`; `create` closes the concurrent case with a conditional create.
   private async assertIdentifierFree(identifier: string, roomId?: string): Promise<void> {
     const taken = roomUsingIdentifier(await findAllRooms(this.fhirClient), identifier, roomId);
     if (taken !== undefined) {
@@ -204,7 +162,6 @@ export class RoomsService {
     });
   }
 
-  /** The `Location` of a new room; an optional element without a value (absent, `null`, blank) is left out. */
   private toLocation(dto: CreateRoomDto): FhirResource {
     return {
       resourceType: 'Location',

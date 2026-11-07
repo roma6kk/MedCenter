@@ -17,7 +17,6 @@ const EXPECTED_PATHS: readonly string[] = [
   '/api/v1/admin/rooms/{id}/usage',
 ];
 
-/** API §10: the OpenAPI document of practitioner-service, built from the real controllers. */
 describe('practitioner-service OpenAPI document', () => {
   let document: OpenAPIObject;
 

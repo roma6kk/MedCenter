@@ -1,11 +1,6 @@
 import { buildPaginatedResponse, type PaginatedResponseDto } from '@medcenter/contracts';
 
-/**
- * Wraps one page in the API §0 `{ items, meta }` envelope.
- *
- * `totalItems` is the match count HAPI reported (`Bundle.total`) or, when the
- * store gave none, the count known up to this page — the honest lower bound.
- */
+// `totalItems` is `Bundle.total`, or the count known up to this page when HAPI gave none.
 export function toPage<TItem>(
   items: TItem[],
   page: number,

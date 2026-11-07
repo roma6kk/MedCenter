@@ -10,10 +10,6 @@ import { applyE2eEnv } from './e2e-env';
 const LIMIT = 5;
 const DOCTORS_URL = '/api/v1/doctors';
 
-/**
- * In-memory store. The trailing `:<minute>` segment is dropped from the key so a
- * suite that straddles a minute boundary cannot split one bucket in two.
- */
 class MemoryRateLimitStore implements RateLimitStore {
   private readonly hits = new Map<string, number>();
 
@@ -32,7 +28,6 @@ async function bootApp(trustProxy: TrustProxySetting): Promise<INestApplication>
     .useValue(fhir)
     .compile();
   const app = moduleRef.createNestApplication();
-  // The same pipeline `main.ts` ships: trust proxy and the validation pipe.
   configureApp(app, trustProxy);
   await app.init();
   return app;
@@ -49,12 +44,6 @@ async function exhaust(app: INestApplication, forwardedFor: string): Promise<voi
   }
 }
 
-/**
- * The public doctor catalog has no token, so the bucket is `ip + path`.
- * `main.ts` installs the store (`enableRateLimit`) and tells Express to read the
- * client from `X-Forwarded-For` (`TRUST_PROXY=1` behind Traefik); these suites
- * run the guard stack with the same two settings.
- */
 describe('Public doctor catalog rate limit (e2e)', () => {
   beforeAll(() => {
     applyE2eEnv();
@@ -81,35 +70,27 @@ describe('Public doctor catalog rate limit (e2e)', () => {
     });
 
     it('should answer 429 RATE_LIMITED with Retry-After when one client passes the limit', async () => {
-      // Arrange
       await exhaust(app, '203.0.113.10');
 
-      // Act
       const response = await doctorsCall(app, '203.0.113.10');
 
-      // Assert
       expect(response.status).toBe(429);
       expect(response.headers['retry-after']).toBe('60');
       expect(response.body).toMatchObject({ errorCode: 'RATE_LIMITED' });
     });
 
     it('should not advertise the framework when a request is answered', async () => {
-      // Act
       const response = await doctorsCall(app, '203.0.113.12');
 
-      // Assert
       expect(response.headers['x-powered-by']).toBeUndefined();
     });
 
     it('should keep another patient on their own budget when a busy client is limited', async () => {
-      // Arrange
       await exhaust(app, '203.0.113.10');
       await doctorsCall(app, '203.0.113.10').expect(429);
 
-      // Act
       const other = await doctorsCall(app, '203.0.113.11');
 
-      // Assert
       expect(other.status).toBe(200);
     });
   });
@@ -126,13 +107,10 @@ describe('Public doctor catalog rate limit (e2e)', () => {
     });
 
     it('should put every caller in the proxy bucket when X-Forwarded-For is ignored', async () => {
-      // Arrange — the failure `TRUST_PROXY` prevents: one busy client answers 429 to everybody.
       await exhaust(app, '203.0.113.10');
 
-      // Act
       const other = await doctorsCall(app, '198.51.100.99');
 
-      // Assert
       expect(other.status).toBe(429);
     });
   });
@@ -149,10 +127,8 @@ describe('Public doctor catalog rate limit (e2e)', () => {
     });
 
     it('should never limit when the store is missing, which is why main.ts must install one', async () => {
-      // Arrange
       setRateLimitStore(null);
 
-      // Act / Assert
       for (let i = 0; i < LIMIT + 3; i += 1) {
         const response = await doctorsCall(app, '203.0.113.10');
         expect(response.status).toBe(200);

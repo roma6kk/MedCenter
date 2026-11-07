@@ -5,7 +5,6 @@ import { matchesName } from './doctor-name-match';
 
 const EN = (text: string): { extension: unknown[] } => ({ extension: [translationExtension('en', text)] });
 
-/** «Иванова Мария Сергеевна» as the demo seed stores her: Russian text, English in the `translation` extension. */
 const IVANOVA: FhirResource = {
   resourceType: 'Practitioner',
   id: '1',

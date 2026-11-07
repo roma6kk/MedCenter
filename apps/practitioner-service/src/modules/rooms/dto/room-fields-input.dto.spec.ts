@@ -4,7 +4,6 @@ import { validate } from 'class-validator';
 import { CreateRoomDto } from './create-room.dto';
 import { UpdateRoomDto } from './update-room.dto';
 
-/** The body as the validation pipe sees it: transformed first, validated second. */
 async function check<T extends object>(dtoClass: new () => T, body: Record<string, unknown>): Promise<{ dto: T; fields: string[] }> {
   const dto = plainToInstance(dtoClass, body);
   return { dto, fields: (await validate(dto)).map((error) => error.property) };

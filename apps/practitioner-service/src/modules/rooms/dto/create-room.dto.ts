@@ -4,10 +4,6 @@ import { IsInt, IsNotEmpty, IsOptional, IsString, Max, MaxLength, Min } from 'cl
 
 import { trimString } from './trim-string';
 
-/**
- * API §4.4 `CreateRoomDto` — maps to a FHIR `Location` with `physicalType=room`.
- * An optional element that is `null` or a blank text is the same as one that is absent.
- */
 export class CreateRoomDto {
   @ApiProperty({ description: 'Unique room identifier (Location.identifier)', maxLength: 50, example: '204-Х' })
   @Transform(trimString)

@@ -1,15 +1,12 @@
 import { HttpStatus } from '@nestjs/common';
 import { FhirClientError, type FhirClient, type FhirResource } from '@medcenter/fhir';
 
-/** `Location.physicalType` code system and the code that marks a room. */
 export const LOCATION_PHYSICAL_TYPE_SYSTEM = 'http://terminology.hl7.org/CodeSystem/location-physical-type';
 export const ROOM_PHYSICAL_TYPE_CODE = 'ro';
 
-/** HAPI page size of one scan step, and the most Locations a single listing reads. */
 export const LOCATION_SCAN_CHUNK = 100;
 export const LOCATION_SCAN_LIMIT = 1_000;
 
-/** `true` when a `Location` carries the `ro` (room) coding of the HL7 physical-type system. */
 export function isRoom(location: FhirResource): boolean {
   const { physicalType } = location as { physicalType?: { coding?: unknown } };
   const codings: readonly unknown[] = Array.isArray(physicalType?.coding) ? physicalType.coding : [];
@@ -19,10 +16,7 @@ export function isRoom(location: FhirResource): boolean {
   });
 }
 
-/**
- * `Location/{id}` when it is a room. Another Location (a building, a ward) is answered as HAPI answers an id it does not
- * know — `404 NOT_FOUND` — because the room list leaves it out and an admin write must not turn it into a room or delete it.
- */
+// Another Location (building, ward) is 404 NOT_FOUND: an admin write must not turn it into a room or delete it.
 export async function readRoom(fhirClient: FhirClient, id: string): Promise<FhirResource> {
   const location = await fhirClient.read('Location', id);
   if (!isRoom(location)) {
@@ -31,17 +25,7 @@ export async function readRoom(fhirClient: FhirClient, id: string): Promise<Fhir
   return location;
 }
 
-/**
- * Every room, in HAPI order.
- *
- * R4 defines no `Location` search parameter over `physicalType` (HAPI answers
- * `Location?physical-type=` with 400 HAPI-0524), so the rooms are told apart
- * from other Locations here. Paging and the §0 total must count rooms, not all
- * Locations (a building in between would shorten a page and inflate the total),
- * so the Locations are read in chunks until HAPI runs out. The read is bounded
- * by {@link LOCATION_SCAN_LIMIT}: a clinic has far fewer Locations, and the
- * bound keeps a request from walking an unexpectedly large store.
- */
+// R4 has no Location search over `physicalType` (HAPI-0524), so rooms are filtered here, read in chunks up to LOCATION_SCAN_LIMIT.
 export async function findAllRooms(fhirClient: FhirClient): Promise<FhirResource[]> {
   const rooms: FhirResource[] = [];
   for (let scanned = 0; scanned < LOCATION_SCAN_LIMIT; scanned += LOCATION_SCAN_CHUNK) {

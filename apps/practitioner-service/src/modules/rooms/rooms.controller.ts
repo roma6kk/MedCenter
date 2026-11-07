@@ -27,7 +27,6 @@ import { UpdateRoomDto } from './dto/update-room.dto';
 import { RoomUsageService } from './room-usage.service';
 import { RoomsService, type RoomPage } from './rooms.service';
 
-/** API §4.3–4.7. Read routes need `user/*.read`; admin routes carry `ADMIN` (BR-007). */
 @ApiTags('practitioner')
 @ApiBearerAuth()
 @Controller('api/v1')
@@ -68,11 +67,6 @@ export class RoomsController {
     return this.roomsService.update(params.id, dto, auditActorOf(request));
   }
 
-  /**
-   * API §4.7 — schedules, doctor roles, services and upcoming bookings that use
-   * the room; `inUse` mirrors the `ROOM_IN_USE` rule of §4.6. The lines follow
-   * `Accept-Language`. Read-only, hence `user/*.read`.
-   */
   @Get('admin/rooms/:id/usage')
   @RequiresRoles(Role.ADMIN)
   @RequiresScopes(SMART_SCOPES.USER_READ)

@@ -5,19 +5,7 @@ import { IsInt, IsNotEmpty, IsOptional, IsString, Max, MaxLength, Min, ValidateI
 import { isPresent } from './is-present';
 import { trimString } from './trim-string';
 
-/**
- * API §4.5 `UpdateRoomDto` — every field optional.
- *
- * Written out by hand instead of `PartialType(...)`: `@nestjs/mapped-types`
- * (and its Swagger re-export) is not a dependency of this workspace, and the
- * contract is small enough that an explicit DTO is clearer than a new package.
- *
- * A field that is absent keeps its stored value. `identifier` and `name` are
- * required elements of a room: `null` or a blank text is a 400, not a removal.
- * `floor` and `description` are the optional ones, so `null` (and, for the text,
- * an empty or blank string) removes them — FHIR JSON has no empty strings, so the
- * service never sends one to HAPI.
- */
+// Written by hand: `@nestjs/mapped-types` is not a dependency. `null` on identifier/name is 400; on floor/description it removes them.
 export class UpdateRoomDto {
   @ApiPropertyOptional({ description: 'Unique room identifier; the room own value is allowed', maxLength: 50, example: '204-Х' })
   @ValidateIf(isPresent)

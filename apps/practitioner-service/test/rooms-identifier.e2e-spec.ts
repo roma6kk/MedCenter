@@ -9,7 +9,6 @@ jest.mock('jose', () => jest.requireActual<typeof import('@medcenter/testing')>(
 
 const ROOMS = '/api/v1/admin/rooms';
 
-/** Unique `Location.identifier` of a room (API §4.4, §4.5) over HTTP: a taken identifier is `409 CONFLICT`. */
 describe('Room identifier uniqueness (e2e)', () => {
   let app: INestApplication;
   let fhir: jest.Mocked<FhirClient>;
@@ -60,7 +59,6 @@ describe('Room identifier uniqueness (e2e)', () => {
   });
 
   it('should answer one 201 and one 409 CONFLICT when two creates of a free identifier race past the read check', async () => {
-    // Both requests read "free" at the same moment (a barrier on the first two scans); only then does the store commit one create.
     const waiting: Array<() => void> = [];
     let committed = false;
     fhir.search.mockImplementation(async () => {
@@ -75,7 +73,6 @@ describe('Room identifier uniqueness (e2e)', () => {
       }
       return { entry: [{ resource: storedRoom() }, { resource: storedRoom({ id: 'room-winner', identifier: [{ value: '305' }] }) }] };
     });
-    // The store applies the conditional create once and refuses the other (HAPI-2279, 400).
     fhir.batch.mockImplementation(async (bundle) => {
       const [room] = bundle['entry'] as Array<{ request: { url: string } }>;
       if (committed && room?.request.url.startsWith('Location?') === true) {

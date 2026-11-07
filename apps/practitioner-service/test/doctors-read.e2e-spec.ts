@@ -22,10 +22,6 @@ function role(id: string, practitionerId: string): FhirResource {
   return { resourceType: 'PractitionerRole', id, practitioner: { reference: `Practitioner/${practitionerId}` } };
 }
 
-/**
- * Public doctor catalog (API §4.1, §4.2) over HTTP: the R4-valid HAPI queries,
- * the page envelope built from the Bundle, and how a failing HAPI is reported.
- */
 describe('Doctors read side (e2e)', () => {
   let app: INestApplication;
   let fhir: jest.Mocked<FhirClient>;
@@ -41,13 +37,10 @@ describe('Doctors read side (e2e)', () => {
 
   describe('GET /api/v1/doctors/{id}', () => {
     it('should answer the doctor card with the display name and specialty when no token is sent', async () => {
-      // Arrange
       fhir.read.mockResolvedValue(practitioner('doc-1', 'Иванова', 'Мария', 'Терапевт'));
 
-      // Act
       const response = await request(app.getHttpServer()).get(`${DOCTORS}/doc-1`).expect(200);
 
-      // Assert
       expect(fhir.read).toHaveBeenCalledWith('Practitioner', 'doc-1');
       expect(response.body).toMatchObject({
         id: 'doc-1',
@@ -59,60 +52,47 @@ describe('Doctors read side (e2e)', () => {
     });
 
     it('should answer 200 when a patient token is attached to the public route', async () => {
-      // Arrange
       fhir.read.mockResolvedValue(practitioner('doc-1', 'Иванова', 'Мария'));
 
-      // Act
       await request(app.getHttpServer()).get(`${DOCTORS}/doc-1`).set('Authorization', TOKENS.patient).expect(200);
 
-      // Assert
       expect(fhir.read).toHaveBeenCalledTimes(1);
     });
 
     it('should answer 404 NOT_FOUND as problem+json when the doctor does not exist', async () => {
-      // Arrange
       fhir.read.mockRejectedValue(new FhirClientError('GET', 'http://hapi:8080/fhir/Practitioner/ghost', 404, '{}'));
 
-      // Act
       const response = await request(app.getHttpServer()).get(`${DOCTORS}/ghost`).expect(404);
 
-      // Assert
       expect(response.headers['content-type']).toContain('application/problem+json');
       expect(response.body).toMatchObject({ status: 404, errorCode: 'NOT_FOUND', instance: `${DOCTORS}/ghost` });
       expect(response.body.requestId).toBeDefined();
     });
 
     it('should answer the same 404 NOT_FOUND for a deactivated doctor as for an unknown one', async () => {
-      // Arrange
       fhir.read.mockRejectedValueOnce(new FhirClientError('GET', 'http://hapi:8080/fhir/Practitioner/ghost', 404, '{}'));
       fhir.read.mockResolvedValueOnce({ ...practitioner('doc-1', 'Иванова', 'Мария'), active: false });
       const withoutRequestIds = (body: Record<string, unknown>): Record<string, unknown> => ({ ...body, instance: undefined, requestId: undefined });
 
-      // Act
       const unknown = await request(app.getHttpServer()).get(`${DOCTORS}/ghost`).expect(404);
       const hidden = await request(app.getHttpServer()).get(`${DOCTORS}/doc-1`).expect(404);
 
-      // Assert — the public cannot tell a hidden doctor from a missing one.
       expect(hidden.headers['content-type']).toContain('application/problem+json');
       expect(withoutRequestIds(hidden.body)).toEqual(withoutRequestIds(unknown.body));
       expect(fhir.search).not.toHaveBeenCalled();
     });
 
     it('should answer 504 INTERNAL when HAPI times out', async () => {
-      // Arrange
       fhir.read.mockRejectedValue(new FhirClientError('GET', 'http://hapi:8080/fhir/Practitioner/doc-1', undefined, undefined, { timedOut: true }));
 
-      // Act
       const response = await request(app.getHttpServer()).get(`${DOCTORS}/doc-1`).expect(504);
 
-      // Assert
       expect(response.body).toMatchObject({ status: 504, errorCode: 'INTERNAL' });
     });
   });
 
   describe('GET /api/v1/doctors with a role filter', () => {
     it('should page the doctors behind the matching roles and report their total when a specialty is given', async () => {
-      // Arrange — the id-only role scan, the practitioners of those ids, then the roles of the page.
       fhir.search.mockImplementation((resourceType) =>
         Promise.resolve(
           resourceType === 'PractitionerRole'
@@ -129,10 +109,8 @@ describe('Doctors read side (e2e)', () => {
         ),
       );
 
-      // Act
       const response = await request(app.getHttpServer()).get(`${DOCTORS}?specialty=419192003&page=2&pageSize=2`).expect(200);
 
-      // Assert
       expect(fhir.search).toHaveBeenNthCalledWith(1, 'PractitionerRole', {
         specialty: '419192003',
         'active:not': 'false',
@@ -145,7 +123,6 @@ describe('Doctors read side (e2e)', () => {
     });
 
     it('should list a practitioner once when two roles on the page belong to the same doctor', async () => {
-      // Arrange
       fhir.search.mockResolvedValue({
         total: 2,
         entry: [
@@ -156,36 +133,28 @@ describe('Doctors read side (e2e)', () => {
         ],
       });
 
-      // Act
       const response = await request(app.getHttpServer()).get(`${DOCTORS}?serviceId=svc-1`).expect(200);
 
-      // Assert
       expect(response.body.items).toHaveLength(1);
       expect(fhir.search).toHaveBeenNthCalledWith(1, 'Schedule', expect.objectContaining({ actor: 'HealthcareService/svc-1' }));
       expect(fhir.search).toHaveBeenNthCalledWith(2, 'PractitionerRole', expect.objectContaining({ _id: 'role-1,role-2' }));
     });
 
     it('should answer an empty page when no role matches', async () => {
-      // Act
       const response = await request(app.getHttpServer()).get(`${DOCTORS}?specialty=none`).expect(200);
 
-      // Assert
       expect(response.body).toEqual({ items: [], meta: { page: 1, pageSize: 20, totalItems: 0, totalPages: 0 } });
     });
 
     it('should fall back to the plain Practitioner search when the specialty is blank', async () => {
-      // Act
       await request(app.getHttpServer()).get(`${DOCTORS}?specialty=%20%20`).expect(200);
 
-      // Assert
       expect(fhir.search).toHaveBeenCalledWith('Practitioner', { 'active:not': 'false', _count: 20, _offset: 0, _total: 'accurate' });
     });
 
     it('should never ask HAPI for a parameter R4 does not define when every filter is combined', async () => {
-      // Act
       await request(app.getHttpServer()).get(`${DOCTORS}?specialty=419192003&serviceId=svc-1&search=Иван`).expect(200);
 
-      // Assert
       const sent = fhir.search.mock.calls.flatMap(([, params]) => Object.keys(params ?? {}));
       expect(sent).not.toContain('qualification-code');
       expect(sent).toEqual(expect.arrayContaining(['actor']));
@@ -195,7 +164,6 @@ describe('Doctors read side (e2e)', () => {
 
   describe('GET /api/v1/doctors with the specialty token and the role ids', () => {
     it('should list the specialty token and the role ids of each doctor when the plain catalog is read', async () => {
-      // Arrange
       fhir.search
         .mockResolvedValueOnce({
           total: 2,
@@ -206,10 +174,8 @@ describe('Doctors read side (e2e)', () => {
         })
         .mockResolvedValueOnce({ entry: [{ resource: role('role-b', 'doc-1') }, { resource: role('role-a', 'doc-1') }] });
 
-      // Act
       const response = await request(app.getHttpServer()).get(`${DOCTORS}?page=1&pageSize=2`).expect(200);
 
-      // Assert
       expect(fhir.search).toHaveBeenNthCalledWith(2, 'PractitionerRole', { practitioner: 'Practitioner/doc-1,Practitioner/doc-2', _count: 200 });
       expect(response.body.items).toEqual([
         {
@@ -227,51 +193,39 @@ describe('Doctors read side (e2e)', () => {
     });
 
     it('should add the role ids to the doctor card when the doctor is read by id', async () => {
-      // Arrange
       fhir.read.mockResolvedValue(practitioner('doc-1', 'Иванова', 'Мария', 'Терапия'));
       fhir.search.mockResolvedValue({ entry: [{ resource: role('role-1', 'doc-1') }] });
 
-      // Act
       const response = await request(app.getHttpServer()).get(`${DOCTORS}/doc-1`).expect(200);
 
-      // Assert
       expect(response.body).toMatchObject({ id: 'doc-1', specialtyCode: '419192003', specialtySystem: SNOMED, practitionerRoleIds: ['role-1'] });
     });
   });
 
   describe('GET /api/v1/doctors when HAPI fails', () => {
     it('should answer 502 INTERNAL without the HAPI address when the FHIR server is down', async () => {
-      // Arrange
       fhir.search.mockRejectedValue(new FhirClientError('GET', 'http://hapi:8080/fhir/Practitioner', 503, 'upstream detail'));
 
-      // Act
       const response = await request(app.getHttpServer()).get(DOCTORS).expect(502);
 
-      // Assert
       expect(response.body).toMatchObject({ status: 502, errorCode: 'INTERNAL' });
       expect(JSON.stringify(response.body)).not.toMatch(/hapi:8080|upstream detail/);
     });
 
     it('should answer 500 INTERNAL without the OperationOutcome when HAPI rejects a search this service built', async () => {
-      // Arrange
       fhir.search.mockRejectedValue(new FhirClientError('GET', 'http://hapi:8080/fhir/Practitioner', 400, 'HAPI-0524 unknown parameter'));
 
-      // Act
       const response = await request(app.getHttpServer()).get(DOCTORS).expect(500);
 
-      // Assert
       expect(response.body).toMatchObject({ status: 500, errorCode: 'INTERNAL' });
       expect(JSON.stringify(response.body)).not.toContain('HAPI-0524');
     });
 
     it('should answer 500 INTERNAL when the FHIR client throws something that is not an HTTP error', async () => {
-      // Arrange
       fhir.search.mockRejectedValue(new TypeError('Cannot read properties of undefined'));
 
-      // Act
       const response = await request(app.getHttpServer()).get(DOCTORS).expect(500);
 
-      // Assert
       expect(response.body).toMatchObject({ status: 500, errorCode: 'INTERNAL', detail: 'Внутренняя ошибка сервера' });
       expect(JSON.stringify(response.body)).not.toContain('undefined');
     });

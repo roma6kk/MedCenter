@@ -10,7 +10,6 @@ import { DoctorPageDoc, DoctorResponseDoc } from './dto/doctor-response.doc';
 import type { DoctorResponseDto } from './dto/doctor-response.dto';
 import { ListDoctorsQueryDto } from './dto/list-doctors-query.dto';
 
-/** API §4.1–4.2 — public doctor catalog (see API §0 for the public-route list). */
 @ApiTags('practitioner')
 @Controller('api/v1')
 export class DoctorsController {

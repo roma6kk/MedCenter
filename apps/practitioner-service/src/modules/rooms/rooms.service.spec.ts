@@ -81,7 +81,6 @@ describe('RoomsService', () => {
       (e: unknown) => e as ConflictException,
     );
 
-    // ProblemDetailsFilter only promotes catalogued codes; an unknown one degrades to CONFLICT.
     const { errorCode } = error?.getResponse() as { errorCode: string };
     expect(ERROR_CODES).toContain(errorCode);
   });
@@ -117,15 +116,11 @@ describe('RoomsService', () => {
   });
 
   it('should look up referencing schedules through Schedule.actor when the delete is checked', async () => {
-    // Arrange
     fhirClient.read.mockResolvedValue({ resourceType: 'Location', ...IS_ROOM, id: roomId });
     fhirClient.search.mockResolvedValue({ entry: [] });
 
-    // Act
     await roomsService.remove(roomId, ACTOR);
 
-    // Assert — R4 `Schedule` has no `location` search parameter (HAPI answers
-    // 400 → 500 INTERNAL); the room is one of the schedule's actors.
     expect(fhirClient.search).toHaveBeenCalledWith('Schedule', {
       actor: `Location/${roomId}`,
       _count: 1,
@@ -133,7 +128,6 @@ describe('RoomsService', () => {
   });
 
   describe('what pins a room', () => {
-    /** HAPI finds one resource of `type` that references the room, and nothing of the other types. */
     function referencedOnlyBy(type: string): void {
       fhirClient.search.mockImplementation(async (resourceType) => ({
         entry: resourceType === type ? [{ resource: { resourceType: type, id: 'ref-1' } }] : [],
@@ -157,8 +151,6 @@ describe('RoomsService', () => {
       expect(fhirClient.batch).not.toHaveBeenCalled();
     });
 
-    // `Schedule.actor` is the room of a schedule; the role and the service list it in `location`. No `active` filter: HAPI keeps
-    // referential integrity for a deactivated one too.
     it('should probe the three referrers with the search parameter each type has, one hit being enough', async () => {
       fhirClient.search.mockResolvedValue({ entry: [] });
 
@@ -183,7 +175,6 @@ describe('RoomsService', () => {
       expect(fhirClient.batch).toHaveBeenCalledTimes(1);
     });
 
-    // A delete carries no If-Match, so its 409 is HAPI keeping a reference intact — a resource the probes did not see.
     it('should answer ROOM_IN_USE, not the generic CONFLICT, when HAPI refuses the delete on a reference', async () => {
       fhirClient.search.mockResolvedValue({ entry: [] });
       fhirClient.batch.mockRejectedValue(new FhirClientError('POST', 'http://hapi/fhir', 409, '{}'));
@@ -241,7 +232,6 @@ describe('RoomsService', () => {
       expect(merged['name']).toBe('Cabinet 204');
     });
 
-    // The room form sends `description: ''` on every edit; FHIR JSON has no empty string, HAPI answers 400.
     it('writes no description when the PATCH empties the text of a room that has one', async () => {
       fhirClient.read.mockResolvedValue(existing);
 
@@ -399,7 +389,6 @@ describe('RoomsService', () => {
       expect(merged['extension']).toEqual([{ url: FLOOR, valueInteger: 2 }]);
     });
 
-    // The form omitted the cleared floor, so a floor once set could not be taken away.
     it('removes only the floor entry when the PATCH carries a null floor', async () => {
       fhirClient.read.mockResolvedValue({
         resourceType: 'Location', ...IS_ROOM,
