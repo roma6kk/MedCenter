@@ -65,46 +65,15 @@ describe('InMemoryClientRegistry', () => {
   });
 
   describe('verifySecret', () => {
-    it('should accept any secret for a public client', () => {
-      const registry = new InMemoryClientRegistry();
-      const client = createTestClient({ isPublic: true });
-
-      expect(registry.verifySecret(client, undefined)).toBe(true);
-    });
-
-    it('should accept the configured secret for a confidential client', () => {
-      const registry = new InMemoryClientRegistry();
-      const client = createTestClient({ isPublic: false, clientSecret: 'shhh-secret' });
-
-      expect(registry.verifySecret(client, 'shhh-secret')).toBe(true);
-    });
-
-    it('should reject a wrong secret for a confidential client', () => {
-      const registry = new InMemoryClientRegistry();
-      const client = createTestClient({ isPublic: false, clientSecret: 'shhh-secret' });
-
-      expect(registry.verifySecret(client, 'guessed')).toBe(false);
-    });
-
-    it('should reject a secret of a different length without throwing', () => {
-      const registry = new InMemoryClientRegistry();
-      const client = createTestClient({ isPublic: false, clientSecret: 'shhh-secret' });
-
-      expect(registry.verifySecret(client, 's')).toBe(false);
-    });
-
-    it('should fail closed when a confidential client has no configured secret', () => {
-      const registry = new InMemoryClientRegistry();
-      const client = createTestClient({ isPublic: false });
-
-      expect(registry.verifySecret(client, 'anything')).toBe(false);
-    });
-
-    it('should reject an absent secret for a confidential client', () => {
-      const registry = new InMemoryClientRegistry();
-      const client = createTestClient({ isPublic: false, clientSecret: 'shhh-secret' });
-
-      expect(registry.verifySecret(client, undefined)).toBe(false);
+    it.each([
+      ['accept any secret for a public client', { isPublic: true }, undefined, true],
+      ['accept the configured secret for a confidential client', { isPublic: false, clientSecret: 'shhh-secret' }, 'shhh-secret', true],
+      ['reject a wrong secret for a confidential client', { isPublic: false, clientSecret: 'shhh-secret' }, 'guessed', false],
+      ['reject a secret of a different length without throwing', { isPublic: false, clientSecret: 'shhh-secret' }, 's', false],
+      ['fail closed when a confidential client has no configured secret', { isPublic: false }, 'anything', false],
+      ['reject an absent secret for a confidential client', { isPublic: false, clientSecret: 'shhh-secret' }, undefined, false],
+    ])('should %s', (_label, overrides, secret, expected) => {
+      expect(new InMemoryClientRegistry().verifySecret(createTestClient(overrides), secret)).toBe(expected);
     });
   });
 });
@@ -160,22 +129,11 @@ describe('ClientGuard', () => {
     await expect(guard.canActivate(createContext(request))).resolves.toBe(true);
   });
 
-  it('should answer invalid_client when the client_id is absent', async () => {
-    const guard = new ClientGuard(registry);
-
-    const error = await activateAndCaptureError(guard, createContext({ query: {} }));
-
-    expect(error.getStatus()).toBe(401);
-    expect(error.getResponse()).toMatchObject({ error: 'invalid_client' });
-  });
-
-  it('should answer invalid_client when the client_id is unknown', async () => {
-    const guard = new ClientGuard(registry);
-
-    const error = await activateAndCaptureError(
-      guard,
-      createContext({ query: { client_id: 'not-registered' } }),
-    );
+  it.each([
+    ['absent', {}],
+    ['unknown', { client_id: 'not-registered' }],
+  ])('should answer invalid_client when the client_id is %s', async (_label, query) => {
+    const error = await activateAndCaptureError(new ClientGuard(registry), createContext({ query }));
 
     expect(error.getStatus()).toBe(401);
     expect(error.getResponse()).toMatchObject({ error: 'invalid_client' });

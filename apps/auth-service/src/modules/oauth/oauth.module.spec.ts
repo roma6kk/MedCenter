@@ -31,33 +31,14 @@ describe('loadSigningKeys', () => {
     expect(loadSigningKeys({ ...SIGNING_ENV, JWT_KEY_ID: 'auth-2026-10' }).kid).toBe('auth-2026-10');
   });
 
-  it('should throw when the private key is missing', () => {
-    const withoutPrivateKey = {
-      JWT_PUBLIC_KEY: SIGNING_ENV.JWT_PUBLIC_KEY,
-      JWT_ISSUER: SIGNING_ENV.JWT_ISSUER,
-    };
+  it.each([
+    ['private key', 'JWT_PRIVATE_KEY'],
+    ['public key', 'JWT_PUBLIC_KEY'],
+    ['issuer', 'JWT_ISSUER'],
+  ])('should throw when the %s is missing', (_label, variable) => {
+    const without = Object.fromEntries(Object.entries(SIGNING_ENV).filter(([key]) => key !== variable));
 
-    expect(() => loadSigningKeys(withoutPrivateKey)).toThrow(
-      /JWT_PRIVATE_KEY, JWT_PUBLIC_KEY and JWT_ISSUER/,
-    );
-  });
-
-  it('should throw when the public key is missing', () => {
-    const withoutPublicKey = {
-      JWT_PRIVATE_KEY: SIGNING_ENV.JWT_PRIVATE_KEY,
-      JWT_ISSUER: SIGNING_ENV.JWT_ISSUER,
-    };
-
-    expect(() => loadSigningKeys(withoutPublicKey)).toThrow();
-  });
-
-  it('should throw when the issuer is missing', () => {
-    const withoutIssuer = {
-      JWT_PRIVATE_KEY: SIGNING_ENV.JWT_PRIVATE_KEY,
-      JWT_PUBLIC_KEY: SIGNING_ENV.JWT_PUBLIC_KEY,
-    };
-
-    expect(() => loadSigningKeys(withoutIssuer)).toThrow();
+    expect(() => loadSigningKeys(without)).toThrow(/JWT_PRIVATE_KEY, JWT_PUBLIC_KEY and JWT_ISSUER/);
   });
 
   it('should read a literal backslash-n in the PEM as a line break', () => {
@@ -70,16 +51,11 @@ describe('loadSigningKeys', () => {
     expect(loadSigningKeys(flattened).privateKeyPem).toContain('\n');
   });
 
-  it('should throw a clear error when the private key is not a PEM', () => {
-    expect(() => loadSigningKeys({ ...SIGNING_ENV, JWT_PRIVATE_KEY: 'not a key' })).toThrow(
-      'JWT_PRIVATE_KEY is not a valid PEM private key',
-    );
-  });
-
-  it('should throw a clear error when the public key is not a PEM', () => {
-    expect(() => loadSigningKeys({ ...SIGNING_ENV, JWT_PUBLIC_KEY: 'not a key' })).toThrow(
-      'JWT_PUBLIC_KEY is not a valid PEM public key',
-    );
+  it.each([
+    ['private', 'JWT_PRIVATE_KEY'],
+    ['public', 'JWT_PUBLIC_KEY'],
+  ])('should throw a clear error when the %s key is not a PEM', (kind, variable) => {
+    expect(() => loadSigningKeys({ ...SIGNING_ENV, [variable]: 'not a key' })).toThrow(`${variable} is not a valid PEM ${kind} key`);
   });
 
   it('should throw when the public key belongs to another private key', () => {
@@ -118,54 +94,45 @@ describe('OAuthModule wiring', () => {
     }
   });
 
-  it('should bind TOKEN_REVOCATION to the issuer denylist so the guard layer can see revocations', async () => {
+  async function withWiredTokens(
+    run: (checker: TokenRevocationChecker, tokens: TokenService, jti: string) => Promise<void>,
+  ): Promise<void> {
     const moduleRef = await withInfrastructureFakes(Test.createTestingModule({ imports: [OAuthModule] })).compile();
 
     try {
-      const checker = moduleRef.get<TokenRevocationChecker>(TOKEN_REVOCATION);
       const tokens = moduleRef.get(TokenService);
-      const issued = await tokens.issue({
-        userId: 'u1',
-        clientId: 'medcenter-web',
-        scope: 'launch',
-        kind: 'refresh',
-        ttlSeconds: 60,
-      });
+      const issued = await tokens.issue({ userId: 'u1', clientId: 'medcenter-web', scope: 'launch', kind: 'refresh', ttlSeconds: 60 });
 
-      await expect(checker.isRevoked(issued.jti)).resolves.toBe(false);
-
-      await tokens.revoke(issued.jti);
-
-      await expect(checker.isRevoked(issued.jti)).resolves.toBe(true);
+      await run(moduleRef.get<TokenRevocationChecker>(TOKEN_REVOCATION), tokens, issued.jti);
     } finally {
       await moduleRef.close();
     }
-  });
+  }
 
-  it('should resolve the guard-layer checker to the same revocation state as the token service', async () => {
-    const moduleRef = await withInfrastructureFakes(Test.createTestingModule({ imports: [OAuthModule] })).compile();
+  it('should bind TOKEN_REVOCATION to the issuer denylist so the guard layer can see revocations', () =>
+    withWiredTokens(async (checker, tokens, jti) => {
+      await expect(checker.isRevoked(jti)).resolves.toBe(false);
 
-    try {
-      const checker = moduleRef.get<TokenRevocationChecker>(TOKEN_REVOCATION);
-      const tokens = moduleRef.get(TokenService);
-      const issued = await tokens.issue({
-        userId: 'u1',
-        clientId: 'medcenter-web',
-        scope: 'launch',
-        kind: 'refresh',
-        ttlSeconds: 60,
-      });
+      await tokens.revoke(jti);
 
-      await tokens.consume(issued.jti, 'refresh');
+      await expect(checker.isRevoked(jti)).resolves.toBe(true);
+    }));
 
-      await expect(checker.isRevoked(issued.jti)).resolves.toBe(false);
-    } finally {
-      await moduleRef.close();
-    }
-  });
+  it('should resolve the guard-layer checker to the same revocation state as the token service', () =>
+    withWiredTokens(async (checker, tokens, jti) => {
+      await tokens.consume(jti, 'refresh');
+
+      await expect(checker.isRevoked(jti)).resolves.toBe(false);
+    }));
 });
 
 describe('loadRegisteredClients', () => {
+  const clientsEnv = (overrides: Record<string, unknown>): { OAUTH_CLIENTS_JSON: string } => ({
+    OAUTH_CLIENTS_JSON: JSON.stringify([
+      { clientId: 'medcenter-web', redirectUris: ['https://app.medcenter.by/api/auth/callback'], scopes: ['launch', 'patient/*.read'], isPublic: true, ...overrides },
+    ]),
+  });
+
   it('should return an empty registry when OAUTH_CLIENTS_JSON is unset', () => {
     expect(loadRegisteredClients({})).toEqual([]);
   });
@@ -175,16 +142,7 @@ describe('loadRegisteredClients', () => {
   });
 
   it('should parse the client array when OAUTH_CLIENTS_JSON is valid', () => {
-    const clients = loadRegisteredClients({
-      OAUTH_CLIENTS_JSON: JSON.stringify([
-        {
-          clientId: 'medcenter-web',
-          redirectUris: ['https://app.medcenter.by/api/auth/callback'],
-          scopes: ['launch', 'patient/*.read'],
-          isPublic: true,
-        },
-      ]),
-    });
+    const clients = loadRegisteredClients(clientsEnv({}));
 
     expect(clients).toHaveLength(1);
     expect(clients[0]).toMatchObject({ clientId: 'medcenter-web', isPublic: true });
@@ -196,24 +154,15 @@ describe('loadRegisteredClients', () => {
     );
   });
 
-  it('should throw at boot when the payload is not an array', () => {
-    expect(() =>
-      loadRegisteredClients({ OAUTH_CLIENTS_JSON: '{"clientId":"medcenter-web"}' }),
-    ).toThrow();
-  });
-
-  it('should throw at boot when the payload is a json null', () => {
-    expect(() => loadRegisteredClients({ OAUTH_CLIENTS_JSON: 'null' })).toThrow();
+  it.each([
+    ['the payload is not an array', '{"clientId":"medcenter-web"}'],
+    ['the payload is a json null', 'null'],
+  ])('should throw at boot when %s', (_label, json) => {
+    expect(() => loadRegisteredClients({ OAUTH_CLIENTS_JSON: json })).toThrow();
   });
 
   it('should throw at boot when an entry is missing redirectUris', () => {
-    expect(() =>
-      loadRegisteredClients({
-        OAUTH_CLIENTS_JSON: JSON.stringify([
-          { clientId: 'broken', scopes: ['launch'], isPublic: true },
-        ]),
-      }),
-    ).toThrow();
+    expect(() => loadRegisteredClients(clientsEnv({ redirectUris: undefined }))).toThrow();
   });
 
   it.each([
@@ -223,37 +172,20 @@ describe('loadRegisteredClients', () => {
     ['a URI with a fragment', 'https://app.medcenter.by/callback#frag'],
     ['an empty fragment', 'https://app.medcenter.by/callback#'],
   ])('should throw at boot when a redirect URI is %s', (_label, redirectUri) => {
-    expect(() =>
-      loadRegisteredClients({
-        OAUTH_CLIENTS_JSON: JSON.stringify([
-          { clientId: 'broken', redirectUris: [redirectUri], scopes: ['launch'], isPublic: true },
-        ]),
-      }),
-    ).toThrow(/absolute http\(s\) URL without a fragment/);
+    expect(() => loadRegisteredClients(clientsEnv({ clientId: 'broken', redirectUris: [redirectUri] }))).toThrow(
+      /absolute http\(s\) URL without a fragment/,
+    );
   });
 
   it('should accept an http redirect URI on localhost', () => {
-    const clients = loadRegisteredClients({
-      OAUTH_CLIENTS_JSON: JSON.stringify([
-        { clientId: 'dev', redirectUris: ['http://localhost:3000/api/auth/callback'], scopes: ['launch'], isPublic: true },
-      ]),
-    });
+    const clients = loadRegisteredClients(
+      clientsEnv({ clientId: 'dev', redirectUris: ['http://localhost:3000/api/auth/callback'], scopes: ['launch'] }),
+    );
 
     expect(clients).toHaveLength(1);
   });
 
   it('should throw at boot when an entry has an empty clientId', () => {
-    expect(() =>
-      loadRegisteredClients({
-        OAUTH_CLIENTS_JSON: JSON.stringify([
-          {
-            clientId: '',
-            redirectUris: ['https://app.medcenter.by/api/auth/callback'],
-            scopes: ['launch'],
-            isPublic: true,
-          },
-        ]),
-      }),
-    ).toThrow();
+    expect(() => loadRegisteredClients(clientsEnv({ clientId: '', scopes: ['launch'] }))).toThrow();
   });
 });
