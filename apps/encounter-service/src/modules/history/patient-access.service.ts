@@ -7,14 +7,10 @@ import { patientRefFromClaims, practitionerRoleRefFromClaims } from '../../commo
 import { referenceField } from '../../common/fhir/fhir-read';
 import { canonicalReference } from '../../common/fhir/fhir-reference';
 import { resourcesOfType } from '../../common/fhir/fhir-search';
-import { appointmentParties, encounterPractitionerRoleRefs } from '../encounters/encounter-access';
+import { appointmentParties, compartmentViolation, encounterPractitionerRoleRefs } from '../encounters/encounter-access';
 
 const CARE_ENCOUNTER_STATUSES = ['planned', 'arrived', 'triaged', 'in-progress', 'onleave', 'finished'];
 const CARE_APPOINTMENT_STATUSES = ['booked', 'arrived', 'checked-in', 'fulfilled'];
-
-function compartmentViolation(message: string): ForbiddenException {
-  return new ForbiddenException({ errorCode: 'COMPARTMENT_VIOLATION', message: `COMPARTMENT_VIOLATION: ${message}` });
-}
 
 function isCareEncounter(encounter: FhirResource, patientRef: string, roleRef: string): boolean {
   return (

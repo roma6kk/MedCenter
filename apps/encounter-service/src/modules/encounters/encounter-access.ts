@@ -7,18 +7,13 @@ import { practitionerRoleRefFromClaims } from '../../common/access/claims-identi
 import { arrayField, referenceField } from '../../common/fhir/fhir-read';
 import { canonicalReference } from '../../common/fhir/fhir-reference';
 
-export interface EncounterViewer {
-  readonly kind: 'doctor';
-  readonly roleRef: string;
-}
-
-export interface AppointmentParties {
+interface AppointmentParties {
   readonly patientRef?: string;
   readonly practitionerRoleRefs: readonly string[];
   readonly serviceRef?: string;
 }
 
-function compartmentViolation(message: string): ForbiddenException {
+export function compartmentViolation(message: string): ForbiddenException {
   return new ForbiddenException({ errorCode: 'COMPARTMENT_VIOLATION', message: `COMPARTMENT_VIOLATION: ${message}` });
 }
 
@@ -41,9 +36,9 @@ export function appointmentParties(appointment: FhirResource): AppointmentPartie
 }
 
 // Resolves the caller before any FHIR call, so an incomplete doctor token fails closed.
-export function resolveEncounterViewer(claims: JwtClaims): EncounterViewer {
+export function resolveEncounterReaderRoleRef(claims: JwtClaims): string {
   if (claims.role === Role.DOCTOR) {
-    return { kind: 'doctor', roleRef: practitionerRoleRefFromClaims(claims) };
+    return practitionerRoleRefFromClaims(claims);
   }
   throw new ForbiddenException({ errorCode: 'FORBIDDEN_ROLE', message: `Role ${claims.role} cannot read encounters` });
 }
@@ -53,10 +48,6 @@ export function assertEncounterParticipant(roleRef: string, encounter: FhirResou
   if (!encounterPractitionerRoleRefs(encounter).includes(roleRef)) {
     throw compartmentViolation('encounter is not assigned to this practitioner');
   }
-}
-
-export function assertViewerSeesEncounter(viewer: EncounterViewer, encounter: FhirResource): void {
-  assertEncounterParticipant(viewer.roleRef, encounter);
 }
 
 export function assertAppointmentParticipant(roleRef: string, parties: AppointmentParties): void {

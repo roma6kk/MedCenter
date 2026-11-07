@@ -30,7 +30,7 @@ function isEncounterStatus(value: string | undefined): value is EncounterStatus 
   return value !== undefined && ENCOUNTER_STATUSES.has(value);
 }
 
-export function encounterStatusOf(encounter: FhirResource): EncounterStatus {
+function encounterStatusOf(encounter: FhirResource): EncounterStatus {
   const status = stringField(encounter, 'status');
   return isEncounterStatus(status) ? status : 'unknown';
 }

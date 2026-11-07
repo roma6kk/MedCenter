@@ -1,6 +1,6 @@
 import type { FhirResource } from '@medcenter/fhir';
 
-export interface AuditEventParams {
+interface AuditEventParams {
   readonly action: 'C' | 'U';
   readonly subtype: 'create' | 'update';
   readonly actorSub: string;

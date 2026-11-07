@@ -12,12 +12,12 @@ export interface TransactionWrite {
   readonly ifNoneExist?: string;
 }
 
-export interface TransactionEntryOutcome {
+interface TransactionEntryOutcome {
   readonly status: string;
   readonly location: string;
 }
 
-export type TransactionConflictCode = 'ENCOUNTER_STATE_INVALID' | 'CONFLICT';
+type TransactionConflictCode = 'ENCOUNTER_STATE_INVALID' | 'CONFLICT';
 
 export function idFromLocation(location: string | undefined): string {
   return parseReference(location)?.id ?? '';

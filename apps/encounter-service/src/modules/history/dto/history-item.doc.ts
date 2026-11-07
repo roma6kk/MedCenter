@@ -6,7 +6,7 @@ import { CodingDoc, DiagnosisViewDoc, ENCOUNTER_STATUSES } from '../../encounter
 import type { EncounterStatus } from '../../encounters/dto/encounter-response.dto';
 import type { HistoryItemDto } from './history-item.dto';
 
-export class HistoryItemDoc implements HistoryItemDto {
+class HistoryItemDoc implements HistoryItemDto {
   @ApiProperty({ description: 'Encounter id (FHIR id)' })
   id!: string;
 

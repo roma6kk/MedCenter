@@ -15,10 +15,10 @@ export interface ClinicalContext {
   readonly displays: TerminologyDisplays;
 }
 
-export const VERIFICATION_STATUS_SYSTEM = 'http://terminology.hl7.org/CodeSystem/condition-ver-status';
+const VERIFICATION_STATUS_SYSTEM = 'http://terminology.hl7.org/CodeSystem/condition-ver-status';
 
 // R4 has no `working`; a working diagnosis is R4 `unconfirmed`.
-export const VERIFICATION_TO_R4: Readonly<Record<DiagnosisVerificationStatus, string>> = {
+const VERIFICATION_TO_R4: Readonly<Record<DiagnosisVerificationStatus, string>> = {
   working: 'unconfirmed',
   provisional: 'provisional',
   confirmed: 'confirmed',

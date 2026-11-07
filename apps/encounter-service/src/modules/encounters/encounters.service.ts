@@ -29,11 +29,7 @@ import type {
   EncounterDetailsDto,
   EncounterResponseDto,
 } from './dto/encounter-response.dto';
-import {
-  assertEncounterParticipant,
-  assertViewerSeesEncounter,
-  resolveEncounterViewer,
-} from './encounter-access';
+import { assertEncounterParticipant, resolveEncounterReaderRoleRef } from './encounter-access';
 import {
   buildCompletionPlan,
   icd10RefsOf,
@@ -97,7 +93,7 @@ export class EncountersService {
   ) {}
 
   async findOne(claims: JwtClaims, encounterId: string): Promise<EncounterDetailsDto> {
-    const viewer = resolveEncounterViewer(claims);
+    const roleRef = resolveEncounterReaderRoleRef(claims);
     const result = await this.fhir.search('Encounter', {
       _id: encounterId,
       _revinclude: ENCOUNTER_REVINCLUDES,
@@ -112,7 +108,7 @@ export class EncountersService {
         message: `NOT_FOUND: Encounter ${encounterId} does not exist`,
       });
     }
-    assertViewerSeesEncounter(viewer, encounter);
+    assertEncounterParticipant(roleRef, encounter);
     return toEncounterDetails(encounter, resources);
   }
 

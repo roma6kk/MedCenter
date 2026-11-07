@@ -20,7 +20,7 @@ function optional<TKey extends string, TValue>(key: TKey, value: TValue | undefi
   return value === undefined ? {} : ({ [key]: value } as Partial<Record<TKey, TValue>>);
 }
 
-export function diagnosisView(condition: FhirResource): DiagnosisViewDto | undefined {
+function diagnosisView(condition: FhirResource): DiagnosisViewDto | undefined {
   const coding = firstCoding(condition, 'code');
   if (coding?.code === undefined) {
     return undefined;

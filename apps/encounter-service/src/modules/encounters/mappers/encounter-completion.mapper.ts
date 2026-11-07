@@ -31,7 +31,7 @@ export interface CompletionContext {
   readonly newFullUrl: () => string;
 }
 
-export interface CompletionPlan {
+interface CompletionPlan {
   readonly writes: readonly TransactionWrite[];
   readonly finishedEncounter: FhirResource;
 }

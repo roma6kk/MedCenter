@@ -13,7 +13,7 @@ export const consentEnforcementProvider: Provider = {
   useFactory: (): ConsentEnforcement => consentEnvSchema.parse(process.env).CONSENT_ENFORCEMENT,
 };
 
-export interface ConsentCheck {
+interface ConsentCheck {
   readonly bypass: boolean;
 }
 

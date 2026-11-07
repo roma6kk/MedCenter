@@ -15,7 +15,7 @@ const UCUM_SYNTAX = /^[!-~]{1,20}$/;
 const NOT_FOUND_STATUSES: ReadonlySet<number> = new Set([400, 404, 422]);
 const LOOKUP_CONCURRENCY = 6;
 
-export interface CodeLocation {
+interface CodeLocation {
   readonly field?: string;
 }
 

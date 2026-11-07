@@ -17,8 +17,8 @@ export interface OpeningContext {
 }
 
 // Only makes the opening change the Appointment version, so the If-Match write is a real conflict guard.
-export const APPOINTMENT_FLAGS_SYSTEM = 'https://fhir.by/CodeSystem/medcenter-appointment-flags';
-export const ENCOUNTER_OPENED_FLAG = 'encounter-opened';
+const APPOINTMENT_FLAGS_SYSTEM = 'https://fhir.by/CodeSystem/medcenter-appointment-flags';
+const ENCOUNTER_OPENED_FLAG = 'encounter-opened';
 
 const AMBULATORY = {
   system: 'http://terminology.hl7.org/CodeSystem/v3-ActCode',
@@ -39,7 +39,7 @@ export function encounterOfAppointmentQuery(appointmentId: string): string {
   return `appointment=Appointment/${appointmentId}`;
 }
 
-export function openingAuditName(appointmentId: string): string {
+function openingAuditName(appointmentId: string): string {
   return `encounter-opened:Appointment/${appointmentId}`;
 }
 
@@ -94,7 +94,7 @@ export function buildOpeningWrites(context: OpeningContext): readonly Transactio
   ];
 }
 
-export function flaggedAppointment(appointment: FhirResource): FhirResource {
+function flaggedAppointment(appointment: FhirResource): FhirResource {
   const meta = isRecord(appointment['meta']) ? appointment['meta'] : {};
   const tags = arrayField(meta as FhirResource, 'tag');
   const flagged = tags.some((tag) => isRecord(tag) && tag['system'] === APPOINTMENT_FLAGS_SYSTEM && tag['code'] === ENCOUNTER_OPENED_FLAG);

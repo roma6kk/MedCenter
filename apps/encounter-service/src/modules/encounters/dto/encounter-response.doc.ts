@@ -26,7 +26,7 @@ export const ENCOUNTER_STATUSES: readonly EncounterStatus[] = [
   'unknown',
 ];
 
-export class EncounterPeriodDoc implements EncounterPeriodDto {
+class EncounterPeriodDoc implements EncounterPeriodDto {
   @ApiProperty({ type: String, format: 'date-time', example: '2026-10-20T08:00:00Z' })
   start!: string;
 
@@ -56,7 +56,7 @@ export class DiagnosisViewDoc implements DiagnosisViewDto {
   verificationStatus?: DiagnosisVerificationStatus;
 }
 
-export class ObservationViewDoc implements ObservationViewDto {
+class ObservationViewDoc implements ObservationViewDto {
   @ApiProperty({ example: 'https://fhir.by/CodeSystem/nsi-observations' })
   codeSystem!: string;
 
@@ -73,7 +73,7 @@ export class ObservationViewDoc implements ObservationViewDto {
   unit!: string;
 }
 
-export class ServiceRequestViewDoc implements ServiceRequestViewDto {
+class ServiceRequestViewDoc implements ServiceRequestViewDto {
   @ApiProperty({ example: 'https://fhir.by/CodeSystem/nsi-services' })
   codeSystem!: string;
 
@@ -87,7 +87,7 @@ export class ServiceRequestViewDoc implements ServiceRequestViewDto {
   note?: string;
 }
 
-export class MedicationRequestViewDoc implements MedicationRequestViewDto {
+class MedicationRequestViewDoc implements MedicationRequestViewDto {
   @ApiProperty({ example: 'J01FA10' })
   atcCode!: string;
 
