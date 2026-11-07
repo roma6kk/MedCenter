@@ -1,6 +1,6 @@
 import { isDeepStrictEqual } from 'node:util';
 
-import { ConflictException, Inject, Injectable } from '@nestjs/common';
+import { ConflictException, HttpStatus, Inject, Injectable } from '@nestjs/common';
 import type { PaginatedResponseDto } from '@medcenter/contracts';
 import {
   createAudited,
@@ -24,8 +24,6 @@ import { firstRoomReferrer, type RoomReferrerType } from './room-references';
 import { findAllRooms, LOCATION_PHYSICAL_TYPE_SYSTEM, readRoom, ROOM_PHYSICAL_TYPE_CODE } from './room-search';
 
 export type RoomPage = PaginatedResponseDto<RoomResponseDto>;
-
-const HTTP_BAD_REQUEST = 400;
 
 const AUDIT_SOURCE = 'practitioner-service';
 
@@ -70,7 +68,7 @@ export class RoomsService {
     } catch (error) {
       // Another request stored a room with this identifier between the check above and the write:
       // HAPI refused this transaction (400 when it matched the stored room, 409 when it met a write in flight).
-      if (error instanceof ConflictException || (error instanceof FhirClientError && error.upstreamStatus === HTTP_BAD_REQUEST)) {
+      if (error instanceof ConflictException || (error instanceof FhirClientError && error.upstreamStatus === HttpStatus.BAD_REQUEST)) {
         await this.assertIdentifierFree(dto.identifier);
       }
       throw error;
@@ -178,30 +176,21 @@ export class RoomsService {
   }
 
   private toResponseDto(resource: FhirResource): RoomResponseDto {
-    const identifier = Array.isArray(resource['identifier'])
-      ? (resource['identifier'] as Array<Record<string, unknown>>)[0]
-      : undefined;
+    const { name, description } = resource;
+    const [identifier] = Array.isArray(resource['identifier']) ? resource['identifier'] : [];
     return {
       id: resource.id ?? '',
-      identifier: typeof identifier?.['value'] === 'string' ? (identifier['value'] as string) : '',
-      name: typeof resource['name'] === 'string' ? (resource['name'] as string) : '',
-      description:
-        typeof resource['description'] === 'string' ? (resource['description'] as string) : undefined,
+      identifier: typeof identifier?.value === 'string' ? identifier.value : '',
+      name: typeof name === 'string' ? name : '',
+      description: typeof description === 'string' ? description : undefined,
       floor: this.readFloor(resource),
       isActive: resource['status'] !== 'inactive',
     };
   }
 
   private readFloor(resource: FhirResource): number | undefined {
-    const extensions = resource['extension'];
-    if (!Array.isArray(extensions)) {
-      return undefined;
-    }
-    const floor = (extensions as Array<Record<string, unknown>>).find(
-      (ext) => ext['url'] === FLOOR_EXT,
-    );
-    return typeof floor?.['valueInteger'] === 'number'
-      ? (floor['valueInteger'] as number)
-      : undefined;
+    const extensions: ReadonlyArray<Record<string, unknown>> = Array.isArray(resource['extension']) ? resource['extension'] : [];
+    const floor = extensions.find((ext) => ext['url'] === FLOOR_EXT)?.['valueInteger'];
+    return typeof floor === 'number' ? floor : undefined;
   }
 }

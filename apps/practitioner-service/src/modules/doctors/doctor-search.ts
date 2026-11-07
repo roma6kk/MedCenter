@@ -46,7 +46,7 @@ export function searchTerm(filters: DoctorFilters): string | undefined {
   return nonBlank(filters.search);
 }
 
-export const ROLE_SCAN_LIMIT = 1000;
+const ROLE_SCAN_LIMIT = 1000;
 
 // `PractitionerRole.healthcareService` is not used: only the demo seed writes it, a new service would list no doctor.
 export function serviceScheduleQuery(serviceId: string): Readonly<Record<string, unknown>> {
@@ -96,7 +96,7 @@ export function practitionersByIdQuery(ids: readonly string[]): Readonly<Record<
   return { _id: ids.join(','), ...NOT_DEACTIVATED, _count: ids.length };
 }
 
-export const ROLE_LOOKUP_LIMIT = 200;
+const ROLE_LOOKUP_LIMIT = 200;
 
 export function practitionerRolesQuery(practitionerIds: readonly string[]): Readonly<Record<string, unknown>> {
   return { practitioner: practitionerIds.map((id) => `Practitioner/${id}`).join(','), _count: ROLE_LOOKUP_LIMIT };

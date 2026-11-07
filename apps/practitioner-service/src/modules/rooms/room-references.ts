@@ -2,9 +2,10 @@ import type { FhirClient } from '@medcenter/fhir';
 
 export type RoomReferrerType = 'Schedule' | 'PractitionerRole' | 'HealthcareService';
 
-export const ROOM_REFERRER_TYPES: readonly RoomReferrerType[] = ['Schedule', 'PractitionerRole', 'HealthcareService'];
+const ROOM_REFERRER_TYPES: readonly RoomReferrerType[] = ['Schedule', 'PractitionerRole', 'HealthcareService'];
 
-// Shared by the delete guard and the usage view. R4 Schedule has no `location` param (HAPI 400), so a room is its `actor`. No `active` filter: inactive ones still pin the room.
+// Shared by the delete guard and the usage view. R4 Schedule has no `location` param (HAPI 400), so a room is its `actor`.
+// No `active` filter: inactive ones still pin the room.
 export function roomReferrerQuery(type: RoomReferrerType, roomId: string): Readonly<Record<string, string>> {
   const reference = `Location/${roomId}`;
   return type === 'Schedule' ? { actor: reference } : { location: reference };

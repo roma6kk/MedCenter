@@ -7,7 +7,7 @@ function fold(text: string): string {
   return text.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase();
 }
 
-export function nameWords(text: string): string[] {
+function nameWords(text: string): string[] {
   return fold(text)
     .split(/\s+/)
     .filter((word) => word !== '');

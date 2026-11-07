@@ -41,7 +41,7 @@ function practitionerName(role: FhirResource | undefined, index: ResourceIndex, 
   return name === '' ? undefined : name;
 }
 
-export function scheduleDoctorLabel(schedule: FhirResource, index: ResourceIndex, lang: ContentLanguage): string | undefined {
+function scheduleDoctorLabel(schedule: FhirResource, index: ResourceIndex, lang: ContentLanguage): string | undefined {
   const roleReference = actorReference(schedule, 'PractitionerRole');
   if (roleReference === undefined) {
     return undefined;

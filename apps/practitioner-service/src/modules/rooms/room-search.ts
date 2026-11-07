@@ -4,10 +4,10 @@ import { FhirClientError, type FhirClient, type FhirResource } from '@medcenter/
 export const LOCATION_PHYSICAL_TYPE_SYSTEM = 'http://terminology.hl7.org/CodeSystem/location-physical-type';
 export const ROOM_PHYSICAL_TYPE_CODE = 'ro';
 
-export const LOCATION_SCAN_CHUNK = 100;
-export const LOCATION_SCAN_LIMIT = 1_000;
+const LOCATION_SCAN_CHUNK = 100;
+const LOCATION_SCAN_LIMIT = 1_000;
 
-export function isRoom(location: FhirResource): boolean {
+function isRoom(location: FhirResource): boolean {
   const { physicalType } = location as { physicalType?: { coding?: unknown } };
   const codings: readonly unknown[] = Array.isArray(physicalType?.coding) ? physicalType.coding : [];
   return codings.some((coding) => {

@@ -1,6 +1,6 @@
 import type { FhirResource } from '@medcenter/fhir';
 
-export function identifierKey(value: string): string {
+function identifierKey(value: string): string {
   return value.trim().toLowerCase();
 }
 
