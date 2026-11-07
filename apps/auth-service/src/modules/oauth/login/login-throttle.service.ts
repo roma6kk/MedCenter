@@ -9,7 +9,7 @@ import { LOGIN_ATTEMPT_STORE, type LoginAttemptStore } from './login-attempt-sto
 export const ACCOUNT_ATTEMPT_LIMIT = 10;
 export const ACCOUNT_ATTEMPT_WINDOW_SECONDS = 15 * 60;
 
-export type LoginAdmission = 'admitted' | 'throttled' | 'unavailable';
+type LoginAdmission = 'admitted' | 'throttled' | 'unavailable';
 
 export function throttleKeyOf(email: string): string {
   return createHash('sha256').update(normaliseEmail(email)).digest('hex');

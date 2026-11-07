@@ -19,7 +19,7 @@ import {
   type StoredToken,
 } from './token.service';
 
-export interface AuthorizeParams {
+interface AuthorizeParams {
   readonly client: RegisteredClient;
   readonly redirectUri: string;
   readonly scope: string;
@@ -33,18 +33,18 @@ export interface AuthorizeParams {
   };
 }
 
-export interface ExchangeCodeParams {
+interface ExchangeCodeParams {
   readonly code: string;
   readonly clientId: string;
   readonly codeVerifier: string;
 }
 
-export interface RefreshParams {
+interface RefreshParams {
   readonly refreshToken: string;
   readonly clientId: string;
 }
 
-export interface RevokeParams {
+interface RevokeParams {
   readonly refreshToken: string;
   readonly userId: string;
   readonly clientId?: string;
@@ -168,13 +168,12 @@ export class OAuthService {
 
   async revoke(params: RevokeParams): Promise<boolean> {
     const stored = await this.tokens.find(params.refreshToken);
-    if (stored === null || stored.kind !== 'refresh') {
-      return false;
-    }
-    if (stored.userId !== params.userId) {
-      return false;
-    }
-    if (params.clientId !== undefined && stored.clientId !== params.clientId) {
+    if (
+      stored === null ||
+      stored.kind !== 'refresh' ||
+      stored.userId !== params.userId ||
+      (params.clientId !== undefined && stored.clientId !== params.clientId)
+    ) {
       return false;
     }
     await this.tokens.revoke(params.refreshToken);

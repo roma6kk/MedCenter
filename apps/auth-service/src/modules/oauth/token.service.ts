@@ -4,7 +4,7 @@ import { randomUUID } from 'node:crypto';
 
 import { ACCESS_TOKEN_TTL_SECONDS } from './jwt.service';
 
-export type TokenKind = 'code' | 'refresh';
+type TokenKind = 'code' | 'refresh';
 
 export const AUTHORIZATION_CODE_TTL_SECONDS = 300;
 export const REFRESH_TOKEN_TTL_SECONDS = 14 * 24 * 60 * 60;

@@ -65,11 +65,9 @@ export interface SmartConfiguration {
   readonly fhir_base: string;
 }
 
-// A missing or malformed FHIR_BASE_URL yields '' rather than a half-parsed value.
-const TOKEN_ADDRESS_CEILING = 600;
-
 const fhirBaseUrlSchema = z.object({ FHIR_BASE_URL: z.url() });
 
+// A missing or malformed FHIR_BASE_URL yields '' rather than a half-parsed value.
 export function readFhirBaseUrl(source: NodeJS.ProcessEnv = process.env): string {
   const parsed = fhirBaseUrlSchema.safeParse({ FHIR_BASE_URL: source['FHIR_BASE_URL'] });
   return parsed.success ? parsed.data.FHIR_BASE_URL : '';
@@ -124,7 +122,7 @@ export class OAuthController {
   @Header('Pragma', 'no-cache')
   @Public()
   // Per credential plus a generous per-address ceiling, so clients behind one NAT or BFF do not share a bucket.
-  @RateLimit(20, { perAddressCeiling: TOKEN_ADDRESS_CEILING })
+  @RateLimit(20, { perAddressCeiling: 600 })
   @ApiOperation({ summary: '2.1.3 Exchange an authorization code or refresh token for tokens' })
   @ApiConsumes('application/x-www-form-urlencoded')
   @ApiBody({ type: TokenRequestDto })

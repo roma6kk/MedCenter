@@ -56,7 +56,7 @@ export function assertRegisteredRedirectUri(client: RegisteredClient, redirectUr
   }
 }
 
-export interface RequestWithClientQuery {
+interface RequestWithClientQuery {
   readonly query: Record<string, unknown>;
   client?: RegisteredClient;
 }

@@ -31,7 +31,7 @@ export {
   UNAVAILABLE_MESSAGE,
 } from './login-messages';
 
-export const LOGIN_RATE_LIMIT = 10;
+const LOGIN_RATE_LIMIT = 10;
 
 interface LoginRequest extends CookieRequest {
   readonly ip?: string;

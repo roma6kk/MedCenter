@@ -127,7 +127,7 @@ export const LOGIN_PAGE_CSP = [
   "base-uri 'none'",
 ].join('; ');
 
-export interface LoginPageParams {
+interface LoginPageParams {
   readonly authorizeQuery: string;
   readonly csrfField: string;
   readonly error?: string;

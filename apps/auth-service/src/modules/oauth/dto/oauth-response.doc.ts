@@ -83,7 +83,7 @@ export class SmartConfigurationDoc implements SmartConfiguration {
   fhir_base!: string;
 }
 
-export class JsonWebKeyDoc {
+class JsonWebKeyDoc {
   @ApiProperty({ example: 'RSA' })
   kty!: string;
 

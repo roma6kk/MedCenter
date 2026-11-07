@@ -12,7 +12,7 @@ export interface SigningKeys {
   readonly kid: string;
 }
 
-export interface AccessTokenClaims {
+interface AccessTokenClaims {
   readonly sub: string;
   readonly scope: string;
   readonly role: string;
@@ -21,7 +21,7 @@ export interface AccessTokenClaims {
   readonly sid?: string;
 }
 
-export interface AccessTokenPayload {
+interface AccessTokenPayload {
   readonly sub: string;
   readonly scope: string;
   readonly role: string;

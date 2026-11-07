@@ -6,7 +6,7 @@ const S256_METHOD = 'S256';
 
 const CODE_RESPONSE_TYPE = 'code';
 
-export interface AuthorizeQueryRequest {
+interface AuthorizeQueryRequest {
   readonly query: Record<string, unknown>;
 }
 

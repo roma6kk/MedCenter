@@ -19,12 +19,12 @@ const sessionPayloadSchema = z.object({
   exp: z.number().int(),
 });
 
-export interface LoginSession {
+interface LoginSession {
   readonly userId: string;
   readonly sessionId: string;
 }
 
-export interface CsrfPair {
+interface CsrfPair {
   readonly cookie: string;
   readonly field: string;
 }

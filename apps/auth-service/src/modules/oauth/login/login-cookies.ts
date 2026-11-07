@@ -3,7 +3,7 @@ import type { CookieOptions } from 'express';
 import { isCookieSecureForced } from '../../../config/auth-env';
 import { LOGIN_CSRF_TTL_SECONDS, LOGIN_SESSION_TTL_SECONDS } from './login-session.service';
 
-export const LOGIN_COOKIE_PATH = '/oauth';
+const LOGIN_COOKIE_PATH = '/oauth';
 export const LOGIN_SESSION_COOKIE = 'mc_as_session';
 export const LOGIN_CSRF_COOKIE = 'mc_as_csrf';
 

@@ -21,17 +21,9 @@ export function acceptsHtml(request: { readonly headers?: { readonly accept?: st
   return (request.headers?.accept ?? '').toLowerCase().includes('text/html');
 }
 
-export function registerUrlFor(redirectUri: string): string | undefined {
+function urlOn(path: string, redirectUri: string): string | undefined {
   try {
-    return new URL('/register', redirectUri).toString();
-  } catch {
-    return undefined;
-  }
-}
-
-export function siteUrlFor(redirectUri: string): string | undefined {
-  try {
-    return new URL('/', redirectUri).toString();
+    return new URL(path, redirectUri).toString();
   } catch {
     return undefined;
   }
@@ -60,8 +52,8 @@ export class LoginPageResponder {
 
   sendForm(request: CookieRequest, response: Response, view: LoginFormView): void {
     const csrf = this.sessions.issueCsrf();
-    const registerUrl = registerUrlFor(view.redirectUri);
-    const siteUrl = siteUrlFor(view.redirectUri);
+    const registerUrl = urlOn('/register', view.redirectUri);
+    const siteUrl = urlOn('/', view.redirectUri);
     response.cookie(LOGIN_CSRF_COOKIE, csrf.cookie, csrfCookieOptions(request));
     const html = renderLoginPage({
       authorizeQuery: view.authorizeQuery,
