@@ -25,7 +25,7 @@ export function LoginEntry({ returnTo, error = null }: LoginEntryProps): ReactNo
       {error === null ? null : (
         <p role="alert" data-testid="login-error" className="mt-4 flex items-start gap-2 rounded-control bg-destructive-soft p-3 text-sm text-destructive">
           <CircleAlert aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0" />
-          <span>{t(error === 'unavailable' ? 'unavailable' : 'denied')}</span>
+          <span>{t(error)}</span>
         </p>
       )}
       <a
