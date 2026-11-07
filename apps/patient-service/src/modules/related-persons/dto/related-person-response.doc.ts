@@ -4,7 +4,6 @@ import { ADMINISTRATIVE_GENDER_VALUES, CodingDoc, ContactPointDoc, PageMetaDoc }
 import type { AdministrativeGender } from '../../../shared/fhir-datatypes.mapper';
 import type { RelatedPersonResponseDto } from './related-person-response.dto';
 
-/** Swagger projection of `RelatedPersonResponseDto` (API §3.3). */
 export class RelatedPersonResponseDoc implements RelatedPersonResponseDto {
   @ApiProperty({ description: 'RelatedPerson.id (FHIR id)' })
   readonly id!: string;
@@ -40,7 +39,6 @@ export class RelatedPersonResponseDoc implements RelatedPersonResponseDto {
   readonly middleName?: string;
 }
 
-/** `{ items, meta }` envelope of the related-person listing. */
 export class RelatedPersonPageDoc {
   @ApiProperty({ type: [RelatedPersonResponseDoc] })
   readonly items!: RelatedPersonResponseDoc[];

@@ -55,10 +55,6 @@ function bundleOf(...resources: FhirResource[]): FhirSearchResult {
   return { total: resources.length, entry: resources.map((resource) => ({ resource })) };
 }
 
-/**
- * API §3.4–3.11 end to end: roles, scopes, DTO validation, multipart upload and
- * the download headers through the real guard stack; HAPI is mocked behind `FHIR_CLIENT`.
- */
 describe('patient consent endpoints (e2e)', () => {
   let booted: BootedApp;
   let consents: FhirResource[];

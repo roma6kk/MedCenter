@@ -5,7 +5,6 @@ import { isFhirId, ownPatientId, practitionerRoleIdOf, referencesResource } from
 
 const baseClaims: JwtClaims = { sub: 'user-1', scope: 'patient/*.read', role: 'PATIENT', jti: 'jti-1' };
 
-/** Error payload (`{ errorCode, message }`) of a synchronous throw. */
 function payloadOf(action: () => unknown): unknown {
   try {
     action();
@@ -17,13 +16,10 @@ function payloadOf(action: () => unknown): unknown {
 
 describe('ownPatientId', () => {
   it('should return the bare id when the patient claim is a bare id', () => {
-    // Arrange
     const claims: JwtClaims = { ...baseClaims, patient: '9f2c' };
 
-    // Act
     const id = ownPatientId(claims);
 
-    // Assert
     expect(id).toBe('9f2c');
   });
 

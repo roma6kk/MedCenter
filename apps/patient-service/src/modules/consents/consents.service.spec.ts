@@ -80,7 +80,6 @@ function createdBundle(resourceType: string, id: string): FhirResource {
   };
 }
 
-/** What the single transaction Bundle of a write contained. */
 function writesOf(
   fhir: jest.Mocked<FhirClient>,
 ): ReadonlyArray<{ resource: FhirResource; request: Record<string, string>; fullUrl?: string }> {

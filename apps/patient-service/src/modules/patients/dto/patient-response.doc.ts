@@ -4,7 +4,6 @@ import { ADMINISTRATIVE_GENDER_VALUES, ContactPointDoc, IdentifierDoc } from '..
 import type { AdministrativeGender } from '../../../shared/fhir-datatypes.mapper';
 import type { PatientResponseDto } from './patient-response.dto';
 
-/** Swagger projection of `PatientResponseDto` (API §3.1–3.2, 3.12). */
 export class PatientResponseDoc implements PatientResponseDto {
   @ApiProperty({ description: 'Patient.id (FHIR id)', example: '1234' })
   readonly id!: string;

@@ -10,7 +10,6 @@ import {
 } from '../../../shared/fhir-datatypes.mapper';
 import type { RelatedPersonResponseDto } from '../dto/related-person-response.dto';
 
-/** Bare id of `RelatedPerson.patient.reference` (`Patient/9f2c` or an absolute URL). */
 export function relatedPatientIdOf(relatedPerson: FhirResource): string {
   const reference = (relatedPerson['patient'] as { reference?: unknown } | undefined)?.reference;
   if (typeof reference !== 'string') {
@@ -20,7 +19,6 @@ export function relatedPatientIdOf(relatedPerson: FhirResource): string {
   return match?.[1] ?? '';
 }
 
-/** FHIR R4 `RelatedPerson` → `RelatedPersonResponseDto` (API §3.3). */
 export function toRelatedPersonResponseDto(relatedPerson: FhirResource): RelatedPersonResponseDto {
   const gender = readGender(relatedPerson['gender']);
   const birthDate = readDate(relatedPerson['birthDate']);

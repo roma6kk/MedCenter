@@ -19,10 +19,6 @@ import {
 import { ConsentsService } from './consents.service';
 import { ConsentResponseDoc, PatientConsentResponseDoc } from './dto/consent-response.doc';
 
-/**
- * API §3.4 and §3.6 — the consent of the patient the token belongs to. No path
- * or query parameter names a patient: the compartment comes from the token only (ADR-013).
- */
 @ApiTags('patient')
 @ApiBearerAuth()
 @Controller('api/v1/me/consent')
@@ -39,7 +35,6 @@ export class MeConsentController {
     return this.consents.getMine(claimsOf(request));
   }
 
-  /** Blocks new entries at once; nothing is deleted. */
   @Post('revoke')
   @HttpCode(HttpStatus.OK)
   @RequiresRoles(Role.PATIENT)

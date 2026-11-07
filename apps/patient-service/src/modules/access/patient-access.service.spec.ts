@@ -14,11 +14,6 @@ import {
 } from '../../__tests__/patient-service.fixtures';
 import { CARE_APPOINTMENT_STATUSES, CARE_ENCOUNTER_STATUSES, PatientAccessService } from './patient-access.service';
 
-/**
- * Who may read a patient card (scope per role, PATIENT compartment, ADMIN,
- * fail-closed identities). The doctor ↔ patient care relationship itself is
- * covered in `patient-access-care.spec.ts`.
- */
 describe('PatientAccessService', () => {
   let fhir: jest.Mocked<FhirClient>;
   let service: PatientAccessService;
@@ -68,13 +63,10 @@ describe('PatientAccessService', () => {
 
   describe('doctor tokens', () => {
     it('should search the shared appointment with patient, actor, care statuses and _count=1 when checking care', async () => {
-      // Arrange
       fhir.search.mockImplementation(searchAnswering({ Appointment: bundleOf(sharedAppointment) }));
 
-      // Act
       await service.assertCanRead(doctorClaims, '9f2c');
 
-      // Assert
       expect(fhir.search).toHaveBeenCalledWith('Appointment', {
         patient: 'Patient/9f2c',
         actor: 'PractitionerRole/role-1',

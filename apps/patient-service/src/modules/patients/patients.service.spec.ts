@@ -25,10 +25,8 @@ describe('PatientsService', () => {
 
   describe('getMePatient', () => {
     it('should return the profile of the patient in the JWT context when the token carries a patient claim', async () => {
-      // Act
       const profile = await service.getMePatient(claims);
 
-      // Assert
       expect(profile.id).toBe('9f2c');
       expect(fhir.read).toHaveBeenCalledWith('Patient', '9f2c');
     });
@@ -92,13 +90,10 @@ describe('PatientsService', () => {
     });
 
     it('should read the patient only after the care search when a doctor shares an appointment', async () => {
-      // Arrange
       fhir.search.mockImplementation(searchAnswering({ Appointment: bundleOf(sharedAppointment) }));
 
-      // Act
       const profile = await service.getById('9f2c', doctorClaims);
 
-      // Assert
       expect(profile.id).toBe('9f2c');
       expect(fhir.search.mock.invocationCallOrder[0]).toBeLessThan(fhir.read.mock.invocationCallOrder[0] ?? 0);
     });

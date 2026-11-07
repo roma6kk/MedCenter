@@ -11,7 +11,6 @@ import { IsIn, IsISO8601, IsOptional, IsString, Length, Matches, MaxLength } fro
 
 const NOT_BLANK = /\S/;
 
-/** API §3.8 body: the paper form entered by a clerk or a doctor (ADR-019). */
 export class CreateConsentDto implements CreateConsentRequest {
   @ApiPropertyOptional({ enum: CONSENT_ENTRY_STATUSES, enumName: 'ConsentEntryStatus', default: 'active', description: 'rejected is a written refusal' })
   @IsOptional()

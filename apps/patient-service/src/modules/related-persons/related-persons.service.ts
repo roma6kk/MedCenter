@@ -14,12 +14,6 @@ export interface RelatedPersonsPage {
   readonly pageSize: number;
 }
 
-/**
- * Trusted persons of a patient (API §3.3) — `RelatedPerson` resources whose
- * `patient` is the requested Patient. Same access rules as the card itself
- * (`PatientAccessService`); a read of another patient's list, and any refused
- * read, is journalled (ADR-018).
- */
 @Injectable()
 export class RelatedPersonsService {
   private readonly logger = new Logger(RelatedPersonsService.name);
@@ -70,7 +64,6 @@ export class RelatedPersonsService {
     });
   }
 
-  /** Unknown id → `404 NOT_FOUND` (HAPI 404/410 via `FhirClientError`), checked after the compartment. */
   private async assertPatientExists(patientId: string): Promise<void> {
     const patient = await this.fhir.read('Patient', patientId);
     if (patient.resourceType !== 'Patient') {
@@ -78,10 +71,7 @@ export class RelatedPersonsService {
     }
   }
 
-  /**
-   * Defence in depth: HAPI must only return this patient's RelatedPersons, but
-   * an entry for anyone else is dropped (and logged) rather than disclosed.
-   */
+  // Defence in depth: an entry for any other patient is dropped (and logged), never disclosed.
   private ownedBy(patientId: string, relatedPersons: ReadonlyArray<FhirResource>): ReadonlyArray<FhirResource> {
     return relatedPersons.filter((resource) => {
       const isOwned = relatedPatientIdOf(resource) === patientId;
@@ -93,11 +83,6 @@ export class RelatedPersonsService {
   }
 }
 
-/**
- * `meta.totalItems` (API §0). `Bundle.total` counts every match HAPI found, so
- * foreign entries dropped by `ownedBy` are taken off it — `meta` never
- * promises items the client is not allowed to see.
- */
 function totalItemsOf(total: number | undefined, paging: RelatedPersonsPage, kept: number, dropped: number): number {
   if (total === undefined) {
     return (paging.page - 1) * paging.pageSize + kept;

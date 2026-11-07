@@ -8,13 +8,6 @@ import type { PatientResponseDto } from './dto/patient-response.dto';
 import { PatientResponseDoc } from './dto/patient-response.doc';
 import { PatientsService } from './patients.service';
 
-/**
- * API §3.2 — a patient card. DOCTOR/ADMIN read with `user/*.read`; a PATIENT
- * token is admitted only to be held to its own compartment (403
- * `COMPARTMENT_VIOLATION` for any other id). The per-role scope is enforced in
- * `PatientAccessService`, because `@RequiresScopes` cannot express "either".
- * `/patients/{id}/history|prescriptions` belong to encounter-service.
- */
 @ApiTags('patient')
 @ApiBearerAuth()
 @Controller('api/v1/patients')

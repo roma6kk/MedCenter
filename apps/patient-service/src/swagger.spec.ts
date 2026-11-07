@@ -20,7 +20,6 @@ const EXPECTED_PATHS: readonly string[] = [
   '/api/v1/patients/{id}/consent/scan/{scanId}',
 ];
 
-/** API §10: the OpenAPI document of patient-service, built from the real controllers. */
 describe('patient-service OpenAPI document', () => {
   let document: OpenAPIObject;
 

@@ -1,12 +1,6 @@
 import { blankAsUnset, envSchema } from '@medcenter/config';
 import { z } from 'zod';
 
-/**
- * Environment of patient-service, validated at boot (secrets only via env,
- * architect §6). Derived from the shared BFF schema in `libs/config`, minus
- * what this service does not use (RabbitMQ: it publishes no events). HAPI
- * client credentials are optional, but only as a pair.
- */
 export const patientServiceEnvSchema = envSchema
   .pick({
     NODE_ENV: true,

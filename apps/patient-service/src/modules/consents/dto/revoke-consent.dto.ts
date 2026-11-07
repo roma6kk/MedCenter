@@ -3,7 +3,6 @@ import type { RevokeConsentRequest } from '@medcenter/contracts';
 import { RFC3339_DATE_OR_DATE_TIME } from '@medcenter/common';
 import { IsISO8601, IsOptional, IsString, Length, Matches } from 'class-validator';
 
-/** API §3.9 body: the written application that revoked the consent. */
 export class RevokeConsentDto implements RevokeConsentRequest {
   @ApiProperty({ description: 'Number of the written revocation application', minLength: 1, maxLength: 64 })
   @IsString()

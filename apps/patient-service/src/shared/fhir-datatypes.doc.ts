@@ -4,7 +4,6 @@ import type { AdministrativeGender, CodingDto, ContactPointDto, IdentifierDto } 
 
 export const ADMINISTRATIVE_GENDER_VALUES: readonly AdministrativeGender[] = ['male', 'female', 'other', 'unknown'];
 
-/** Swagger projection of `ContactPointDto` (R4 `ContactPoint`). */
 export class ContactPointDoc implements ContactPointDto {
   @ApiProperty({ description: 'ContactPoint.system', example: 'phone' })
   readonly system!: string;
@@ -16,7 +15,6 @@ export class ContactPointDoc implements ContactPointDto {
   readonly use?: string;
 }
 
-/** Swagger projection of `IdentifierDto` (R4 `Identifier`). */
 export class IdentifierDoc implements IdentifierDto {
   @ApiPropertyOptional({ description: 'Identifier.system', example: 'https://fhir.by/identifier/personal-number' })
   readonly system?: string;
@@ -28,7 +26,6 @@ export class IdentifierDoc implements IdentifierDto {
   readonly use?: string;
 }
 
-/** Swagger projection of `CodingDto` (R4 `Coding`, display always present). */
 export class CodingDoc implements CodingDto {
   @ApiPropertyOptional({ description: 'Coding.system' })
   readonly system?: string;
@@ -40,7 +37,6 @@ export class CodingDoc implements CodingDto {
   readonly display!: string;
 }
 
-/** `{ page, pageSize, totalItems, totalPages }` of the API §0 paging envelope. */
 export class PageMetaDoc {
   @ApiProperty({ minimum: 1, example: 1 })
   readonly page!: number;

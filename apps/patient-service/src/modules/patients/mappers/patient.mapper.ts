@@ -11,7 +11,6 @@ import {
 } from '../../../shared/fhir-datatypes.mapper';
 import type { PatientResponseDto } from '../dto/patient-response.dto';
 
-/** FHIR R4 `Patient` → `PatientResponseDto` (API §3, `FhirToXMapper`). */
 export function toPatientResponseDto(patient: FhirResource): PatientResponseDto {
   const birthDate = readDate(patient['birthDate']);
   const gender = readGender(patient['gender']);

@@ -44,13 +44,10 @@ import { ownPatientId, practitionerRoleIdOf } from '../access/patient-identity';
 import { validateScanUpload, type UploadedScan } from './consent-scan';
 
 const AUDIT_SOURCE = 'patient-service';
-/** Clock skew tolerated on a moment the client supplies (signing, revocation). */
 const FUTURE_TOLERANCE_MS = 5 * 60 * 1000;
 const DATE_ONLY = /^\d{4}-\d{2}-\d{2}$/;
-/** A date-only value is the clinic's local day; UTC+14 is the furthest ahead any local day can be. */
 const MAX_UTC_OFFSET_MS = 14 * 60 * 60 * 1000;
 
-/** The bytes of a stored scan and the type they were stored with. */
 export interface ScanContent {
   readonly contentType: string;
   readonly data: Buffer;
@@ -72,7 +69,6 @@ function notFound(what: string): NotFoundException {
   return new NotFoundException({ errorCode: 'NOT_FOUND', message: `NOT_FOUND: ${what}` });
 }
 
-/** `true` when `moment` (a date or a dateTime) lies beyond what the clock allows for "already happened". */
 function isInTheFuture(moment: string, now: Date): boolean {
   if (DATE_ONLY.test(moment)) {
     return moment > new Date(now.getTime() + MAX_UTC_OFFSET_MS).toISOString().slice(0, 10);
@@ -94,12 +90,6 @@ function belongsToPatient(binary: FhirResource, patientId: string): boolean {
   );
 }
 
-/**
- * Patient consent to the electronic medical record (API §3.4–3.11, ADR-019).
- * `Consent` is written together with its `AuditEvent` in one FHIR transaction
- * (ADR-014); reads of another patient's consent go through `PatientReadAudit`,
- * and a scan download is always journalled, before the bytes leave (fail-closed).
- */
 @Injectable()
 export class ConsentsService {
   private readonly logger = new Logger(ConsentsService.name);
@@ -110,17 +100,14 @@ export class ConsentsService {
     private readonly readAudit: PatientReadAudit,
   ) {}
 
-  /** API §3.4 — the patient comes from the token only (ADR-013); reading one's own consent is not journalled. */
   async getMine(claims: JwtClaims): Promise<PatientConsentResponse> {
     return this.history(ownPatientId(claims));
   }
 
-  /** API §3.6 — the patient revokes their own consent; the written application follows later. */
   async revokeMine(claims: JwtClaims, requestId?: string): Promise<ConsentResponse> {
     return this.closeActive(ownPatientId(claims), claims, {}, requestId);
   }
 
-  /** API §3.7 — a doctor's or administrator's read, and any refused read, is journalled (ADR-018). */
   async getForPatient(
     patientId: string,
     claims: JwtClaims,
@@ -138,7 +125,6 @@ export class ConsentsService {
     );
   }
 
-  /** API §3.8 — a paper consent or a written refusal, with the scan of the form. */
   async create(
     patientId: string,
     dto: CreateConsentRequest,
@@ -185,7 +171,6 @@ export class ConsentsService {
     return toConsentResponse({ ...consent, id: createdId(response, 'Consent') });
   }
 
-  /** API §3.9 — the written revocation, with the number of the application. */
   async revoke(
     patientId: string,
     dto: RevokeConsentRequest,
@@ -197,7 +182,6 @@ export class ConsentsService {
     return this.closeActive(patientId, claims, dto, requestId);
   }
 
-  /** API §3.10 — the scan is stored as a `Binary` tied to the patient; the write is journalled in the same transaction. */
   async uploadScan(
     patientId: string,
     file: UploadedScan | undefined,
@@ -230,11 +214,7 @@ export class ConsentsService {
     };
   }
 
-  /**
-   * API §3.11 — every download is journalled by any user, success or refusal. The
-   * success event is written before the bytes are returned and its failure stops
-   * the answer: a scan carries passport data, so an unjournalled read is not allowed.
-   */
+  // The download is journalled before the bytes are returned and a failed audit stops the answer: a scan carries passport data.
   async readScan(
     patientId: string,
     scanId: string,
@@ -295,7 +275,6 @@ export class ConsentsService {
     };
   }
 
-  /** 3.6 and 3.9: the consent in force is closed in place (`inactive`, period end) with its `update` AuditEvent. */
   private async closeActive(
     patientId: string,
     claims: JwtClaims,
@@ -358,10 +337,6 @@ export class ConsentsService {
     };
   }
 
-  /**
-   * The medical worker who signed the form: a doctor is the token's PractitionerRole (the token carries no
-   * name, so it is read once here and stored next to the reference), an administrator names them.
-   */
   private async signerOf(
     dto: CreateConsentRequest,
     claims: JwtClaims,
@@ -381,7 +356,6 @@ export class ConsentsService {
     return { name };
   }
 
-  /** «Фамилия И. О.» of the Practitioner behind the role, `undefined` when it cannot be read (the reference stays). */
   private async practitionerNameOf(roleId: string): Promise<string | undefined> {
     try {
       const result = await this.fhir.search('PractitionerRole', {
@@ -418,7 +392,6 @@ export class ConsentsService {
     }
   }
 
-  /** `Patient/{id}` for a self-signed form, otherwise the verified `RelatedPerson` of this patient. */
   private async performerOf(patientId: string, dto: CreateConsentRequest): Promise<string> {
     if (dto.consenterType === 'self' || dto.relatedPersonId === undefined) {
       return `Patient/${patientId}`;
@@ -439,7 +412,6 @@ export class ConsentsService {
     return `RelatedPerson/${dto.relatedPersonId}`;
   }
 
-  /** The uploaded scan of this patient, with its hash recomputed from the stored bytes. */
   private async readOwnScan(
     patientId: string,
     scanId: string,
@@ -467,7 +439,6 @@ export class ConsentsService {
     }
   }
 
-  /** A clerk's or doctor's call on an unknown id is a 404, not an empty result. */
   private async assertPatientExists(patientId: string): Promise<void> {
     const patient = await this.fhir.read('Patient', patientId);
     if (patient.resourceType !== 'Patient') {
@@ -476,7 +447,6 @@ export class ConsentsService {
   }
 }
 
-/** Id of the resource a transaction created, from the `location` of its response entry. */
 function createdId(bundle: FhirResource, resourceType: string): string {
   const entries =
     (bundle['entry'] as ReadonlyArray<{ response?: { location?: string } }> | undefined) ?? [];

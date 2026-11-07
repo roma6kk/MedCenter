@@ -17,14 +17,12 @@ import { UpdateMyPatientDto } from './dto/update-my-patient.dto';
 import { versionFromIfMatch } from './if-match';
 import { PatientsService } from './patients.service';
 
-/** API §3.1 and §3.12 — the FHIR profile of the patient the token belongs to (FR-001). */
 @ApiTags('patient')
 @ApiBearerAuth()
 @Controller('api/v1/me/patient')
 export class MePatientController {
   constructor(private readonly patients: PatientsService) {}
 
-  /** No query parameter is read: the patient comes from the token only (ADR-013). */
   @Get()
   @RequiresRoles(Role.PATIENT)
   @RequiresScopes(SMART_SCOPES.PATIENT_READ)
@@ -38,7 +36,6 @@ export class MePatientController {
     return this.patients.getMePatient(claimsOf(request));
   }
 
-  /** The phone is the only editable field; ADMIN and DOCTOR have no write path here. */
   @Patch()
   @RequiresRoles(Role.PATIENT)
   @RequiresScopes(SMART_SCOPES.PATIENT_WRITE)

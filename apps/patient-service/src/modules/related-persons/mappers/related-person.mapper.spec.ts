@@ -43,10 +43,8 @@ describe('relatedPatientIdOf', () => {
 
 describe('toRelatedPersonResponseDto', () => {
   it('should map relationship, name, birthDate, gender and telecom when the RelatedPerson is complete', () => {
-    // Act
     const dto = toRelatedPersonResponseDto(relatedPerson);
 
-    // Assert
     expect(dto).toEqual({
       id: 'rp-1',
       patientId: '9f2c',

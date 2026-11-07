@@ -15,10 +15,6 @@ const patient: FhirResource = {
   telecom: [{ system: 'email', value: 'ivanov@example.by' }],
 };
 
-/**
- * API §3.1 `GET /api/v1/me/patient` end to end: real JWT verification against
- * a JWKS, real guards and filter; only HAPI is mocked (`FHIR_CLIENT`).
- */
 describe('GET /api/v1/me/patient (e2e)', () => {
   let booted: BootedApp;
 
@@ -115,7 +111,6 @@ describe('GET /api/v1/me/patient (e2e)', () => {
     expect(JSON.stringify(response.body)).not.toContain('hapi:8080');
   });
 
-  /** The request must be refused with 401 UNAUTHENTICATED before HAPI is touched. */
   it('should refuse the request without reading FHIR when the token signature is forged', async () => {
     const [header, payload] = patientToken().split('.');
     const forged = `${header}.${payload}.${Buffer.from('forged').toString('base64url')}`;
@@ -132,10 +127,6 @@ describe('GET /api/v1/me/patient (e2e)', () => {
   });
 });
 
-/**
- * API §3.12 `PATCH /api/v1/me/patient` end to end: a patient edits only their own phone,
- * guarded by `If-Match`; the Patient and its AuditEvent go to HAPI in one transaction.
- */
 describe('PATCH /api/v1/me/patient (e2e)', () => {
   let booted: BootedApp;
   const stored: FhirResource = { ...patient, meta: { versionId: '3' } };

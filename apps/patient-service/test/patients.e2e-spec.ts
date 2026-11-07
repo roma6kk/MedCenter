@@ -24,10 +24,6 @@ function bundleOf(...resources: FhirResource[]): FhirSearchResult {
   return { total: resources.length, entry: resources.map((resource) => ({ resource })) };
 }
 
-/**
- * API §3.2–3.3 end to end: role/scope/compartment decisions through the real
- * guard stack and access policy; HAPI is mocked behind `FHIR_CLIENT`.
- */
 describe('GET /api/v1/patients/{id}[/related] (e2e)', () => {
   let booted: BootedApp;
 

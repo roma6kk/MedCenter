@@ -11,12 +11,6 @@ import {
 } from '../../__tests__/patient-service.fixtures';
 import { CARE_APPOINTMENT_STATUSES, CARE_ENCOUNTER_STATUSES, PatientAccessService } from './patient-access.service';
 
-/**
- * Doctor ↔ patient care relationship (API §3.2–3.3, ADR-013). HAPI answers a
- * search, and every resource it returns is re-checked in process (type,
- * status, both participants), so a search parameter HAPI ignores can only
- * ever narrow access. Each test hands HAPI's answer back unfiltered.
- */
 describe('PatientAccessService care relationship', () => {
   let fhir: jest.Mocked<FhirClient>;
   let service: PatientAccessService;
