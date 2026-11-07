@@ -15,7 +15,7 @@ interface Probe extends RoleProbe {
 
 function sessionOf(suite: Suite, role: SmokeRole): Session {
   const { sessions } = suite;
-  return role === 'ADMIN' ? sessions.admin : role === 'DOCTOR' ? sessions.doctor : sessions.patient;
+  return { ADMIN: sessions.admin, DOCTOR: sessions.doctor, PATIENT: sessions.patient }[role];
 }
 
 function label(entry: ProtectedRoute): string {

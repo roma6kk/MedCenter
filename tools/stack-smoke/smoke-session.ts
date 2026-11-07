@@ -54,11 +54,6 @@ async function signInOnce(config: SmokeConfig, account: SmokeAccount): Promise<S
     { authBaseUrl: config.baseUrl, clientId: config.oauthClientId, redirectUri: config.redirectUri, scope: REQUESTED_SCOPE },
     { email: account.email, password: account.password },
   );
-  return {
-    email: account.email,
-    role: account.role,
-    accessToken: grant.accessToken,
-    grantedScope: grant.scope ?? decodeClaims(grant.accessToken).scope ?? '',
-    claims: decodeClaims(grant.accessToken),
-  };
+  const claims = decodeClaims(grant.accessToken);
+  return { email: account.email, role: account.role, accessToken: grant.accessToken, grantedScope: grant.scope ?? claims.scope ?? '', claims };
 }
