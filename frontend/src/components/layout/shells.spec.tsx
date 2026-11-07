@@ -1,4 +1,4 @@
-import { render, screen, within } from '@testing-library/react';
+import { render, screen, within, type RenderResult } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { ReactNode } from 'react';
@@ -20,6 +20,10 @@ function Wrapper({ children }: { readonly children: ReactNode }): ReactNode {
   return <QueryClientProvider client={new QueryClient()}>{children}</QueryClientProvider>;
 }
 
+function renderPatient(content = 'x'): RenderResult {
+  return render(<PatientShell><p>{content}</p></PatientShell>, { wrapper: Wrapper });
+}
+
 describe('PatientShell', () => {
   beforeEach(() => {
     mockPathname.mockReturnValue('/appointments/a1');
@@ -28,7 +32,7 @@ describe('PatientShell', () => {
   });
 
   it('should offer a skip link that targets the main landmark', () => {
-    render(<PatientShell><p>содержимое</p></PatientShell>, { wrapper: Wrapper });
+    renderPatient('содержимое');
 
     const skip = screen.getByRole('link', { name: 'Перейти к содержимому' });
     expect(skip).toHaveAttribute('href', '#main-content');
@@ -36,7 +40,7 @@ describe('PatientShell', () => {
   });
 
   it('should list three sections: the home, the appointments and the medical record', () => {
-    render(<PatientShell><p>x</p></PatientShell>, { wrapper: Wrapper });
+    renderPatient();
 
     const nav = screen.getByRole('navigation', { name: 'Пациент' });
     expect(within(nav).getAllByRole('link').map((link) => [link.textContent, link.getAttribute('href')])).toEqual([
@@ -47,7 +51,7 @@ describe('PatientShell', () => {
   });
 
   it('should offer «Записаться» as the primary button next to the bell, outside the navigation', () => {
-    render(<PatientShell><p>x</p></PatientShell>, { wrapper: Wrapper });
+    renderPatient();
 
     const book = screen.getByRole('link', { name: 'Записаться' });
     expect(book).toHaveAttribute('href', '/booking');
@@ -56,7 +60,7 @@ describe('PatientShell', () => {
   });
 
   it('should not link to the notifications page from the header itself: the bell opens a dropdown', async () => {
-    render(<PatientShell><p>x</p></PatientShell>, { wrapper: Wrapper });
+    renderPatient();
 
     await screen.findByRole('button', { name: /Уведомления, непрочитанных/ });
 
@@ -66,13 +70,13 @@ describe('PatientShell', () => {
   it('should mark the notifications bell as the current page when the patient is on /notifications', async () => {
     mockPathname.mockReturnValue('/notifications');
 
-    render(<PatientShell><p>x</p></PatientShell>, { wrapper: Wrapper });
+    renderPatient();
 
     expect(await screen.findByRole('button', { name: /Уведомления, непрочитанных/ })).toHaveAttribute('aria-current', 'page');
   });
 
   it('should open the sections, the language, the theme and the sign-out in a left drawer from the burger on a phone', async () => {
-    render(<PatientShell><p>x</p></PatientShell>, { wrapper: Wrapper });
+    renderPatient();
 
     const burger = screen.getByRole('button', { name: 'Открыть меню' });
     expect(burger).toHaveAttribute('aria-expanded', 'false');
@@ -86,7 +90,7 @@ describe('PatientShell', () => {
   });
 
   it('should close the drawer when a section is chosen', async () => {
-    render(<PatientShell><p>x</p></PatientShell>, { wrapper: Wrapper });
+    renderPatient();
     await userEvent.click(screen.getByRole('button', { name: 'Открыть меню' }));
     const stopNavigation = (event: Event): void => event.preventDefault();
     document.addEventListener('click', stopNavigation);
@@ -98,20 +102,20 @@ describe('PatientShell', () => {
   });
 
   it('should keep every navigation link at least 44 px tall when the shell is shown', () => {
-    render(<PatientShell><p>x</p></PatientShell>, { wrapper: Wrapper });
+    renderPatient();
 
     within(screen.getByRole('navigation', { name: 'Пациент' })).getAllByRole('link').forEach((link) => expect(link.className).toContain('min-h-[44px]'));
   });
 
   it('should mark the current section with aria-current', () => {
-    render(<PatientShell><p>x</p></PatientShell>, { wrapper: Wrapper });
+    renderPatient();
 
     expect(screen.getByRole('link', { name: 'Мои записи' })).toHaveAttribute('aria-current', 'page');
     expect(screen.getByRole('link', { name: 'Главная' })).not.toHaveAttribute('aria-current');
   });
 
   it('should carry the notification bell, the language switch and the logout button', async () => {
-    render(<PatientShell><p>x</p></PatientShell>, { wrapper: Wrapper });
+    renderPatient();
 
     expect(await screen.findByRole('button', { name: /Уведомления, непрочитанных/ })).toBeInTheDocument();
     expect(screen.getByRole('group', { name: 'Язык' })).toBeInTheDocument();
@@ -119,7 +123,7 @@ describe('PatientShell', () => {
   });
 
   it('should carry the theme switch next to the language switch', () => {
-    render(<PatientShell><p>x</p></PatientShell>, { wrapper: Wrapper });
+    renderPatient();
 
     expect(screen.getByRole('button', { name: /^Тема оформления: / })).toBeInTheDocument();
   });
@@ -127,7 +131,7 @@ describe('PatientShell', () => {
   it('should switch to English labels when the locale changes', () => {
     useUiStore.setState({ locale: 'en' });
 
-    render(<PatientShell><p>x</p></PatientShell>, { wrapper: Wrapper });
+    renderPatient();
 
     expect(screen.getByRole('link', { name: 'My appointments' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Sign out' })).toBeInTheDocument();
@@ -136,7 +140,7 @@ describe('PatientShell', () => {
   it('should tolerate a missing pathname', () => {
     mockPathname.mockReturnValue(null);
 
-    render(<PatientShell><p>x</p></PatientShell>, { wrapper: Wrapper });
+    renderPatient();
 
     expect(screen.getByRole('link', { name: 'Главная' })).not.toHaveAttribute('aria-current');
   });

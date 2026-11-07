@@ -32,15 +32,14 @@ describe('ProblemBanner', () => {
     expect(screen.getByTestId('copy-request-id')).toHaveTextContent('01J9ZK3M8Q');
   });
 
-  it('should render the three in-use codes with their own messages', () => {
-    const { rerender } = render(<ProblemBanner problem={{ ...CONFLICT, errorCode: 'ROOM_IN_USE' }} />);
-    expect(screen.getByRole('alert')).toHaveTextContent('Кабинет используется в расписаниях');
+  it.each([
+    ['ROOM_IN_USE', 'Кабинет используется в расписаниях'],
+    ['SERVICE_IN_USE', 'Услуга используется'],
+    ['SCHEDULE_IN_USE', 'Расписание используется'],
+  ] as const)('should render the in-use code %s with its own message', (errorCode, message) => {
+    render(<ProblemBanner problem={{ ...CONFLICT, errorCode }} />);
 
-    rerender(<ProblemBanner problem={{ ...CONFLICT, errorCode: 'SERVICE_IN_USE' }} />);
-    expect(screen.getByRole('alert')).toHaveTextContent('Услуга используется');
-
-    rerender(<ProblemBanner problem={{ ...CONFLICT, errorCode: 'SCHEDULE_IN_USE' }} />);
-    expect(screen.getByRole('alert')).toHaveTextContent('Расписание используется');
+    expect(screen.getByRole('alert')).toHaveTextContent(message);
   });
 
   it('should keep working with the explicit title/detail props the pages already pass', () => {
