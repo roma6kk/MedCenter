@@ -47,6 +47,13 @@ function requestedPaths(): ReadonlyArray<string> {
   return apiFetchMock.mock.calls.map(([path]) => path).filter((path) => path.startsWith('/api/v1/admin/users'));
 }
 
+function serveUsers(items: ReadonlyArray<AdminUser>, mutate?: (options: RequestInit) => Promise<unknown>): void {
+  apiFetchMock.mockImplementation((path: string, options?: RequestInit) => {
+    if (options?.method && mutate) return mutate(options);
+    return Promise.resolve(usersPage(path.includes('page=2') ? 2 : 1, items));
+  });
+}
+
 describe('AdminUsersPage', () => {
   beforeEach(() => {
     jest.resetAllMocks();
@@ -135,10 +142,7 @@ describe('AdminUsersPage deactivation', () => {
   });
 
   it('should ask for confirmation and send DELETE for the account when the admin confirms', async () => {
-    apiFetchMock.mockImplementation((path: string, options?: RequestInit) => {
-      if (options?.method === 'DELETE') return Promise.resolve({ ...user('u1', 'Пользователь 1'), isActive: false });
-      return Promise.resolve(usersPage(1, [user('u1', 'Пользователь 1')]));
-    });
+    serveUsers([user('u1', 'Пользователь 1')], () => Promise.resolve({ ...user('u1', 'Пользователь 1'), isActive: false }));
     renderPage();
     await chooseRowAction('Пользователь 1', 'Деактивировать');
 
@@ -149,10 +153,9 @@ describe('AdminUsersPage deactivation', () => {
   });
 
   it('should explain SELF_LOCKOUT inside the dialog and keep it open when the admin deactivates themselves', async () => {
-    apiFetchMock.mockImplementation((_path: string, options?: RequestInit) => {
-      if (options?.method === 'DELETE') return Promise.reject(apiProblem({ status: 409, errorCode: 'CONFLICT', detail: 'SELF_LOCKOUT: an administrator cannot deactivate or demote their own account' }));
-      return Promise.resolve(usersPage(1, [user('u1', 'Пользователь 1')]));
-    });
+    serveUsers([user('u1', 'Пользователь 1')], () =>
+      Promise.reject(apiProblem({ status: 409, errorCode: 'CONFLICT', detail: 'SELF_LOCKOUT: an administrator cannot deactivate or demote their own account' })),
+    );
     renderPage();
     await chooseRowAction('Пользователь 1', 'Деактивировать');
 
@@ -162,10 +165,7 @@ describe('AdminUsersPage deactivation', () => {
   });
 
   it('should offer activation for a deactivated account and send isActive true when it is pressed', async () => {
-    apiFetchMock.mockImplementation((_path: string, options?: RequestInit) => {
-      if (options?.method === 'PATCH') return Promise.resolve(user('u1', 'Пользователь 1'));
-      return Promise.resolve(usersPage(1, [user('u1', 'Пользователь 1', { isActive: false })]));
-    });
+    serveUsers([user('u1', 'Пользователь 1', { isActive: false })], () => Promise.resolve(user('u1', 'Пользователь 1')));
     renderPage();
 
     await chooseRowAction('Пользователь 1', 'Активировать');
@@ -174,10 +174,7 @@ describe('AdminUsersPage deactivation', () => {
   });
 
   it('should drop the failure of an activation when the admin turns the page', async () => {
-    apiFetchMock.mockImplementation((path: string, options?: RequestInit) => {
-      if (options?.method === 'PATCH') return Promise.reject(apiProblem({ status: 500, errorCode: 'INTERNAL' }));
-      return Promise.resolve(usersPage(path.includes('page=2') ? 2 : 1, [user('u1', 'Пользователь 1', { isActive: false })]));
-    });
+    serveUsers([user('u1', 'Пользователь 1', { isActive: false })], () => Promise.reject(apiProblem({ status: 500, errorCode: 'INTERNAL' })));
     renderPage();
     await chooseRowAction('Пользователь 1', 'Активировать');
     expect(await screen.findByTestId('problem-banner')).toBeInTheDocument();
@@ -188,9 +185,7 @@ describe('AdminUsersPage deactivation', () => {
   });
 
   it('should send the activation once when the button is pressed again while the request runs', async () => {
-    apiFetchMock.mockImplementation((_path: string, options?: RequestInit) =>
-      options?.method === 'PATCH' ? new Promise(() => undefined) : Promise.resolve(usersPage(1, [user('u1', 'Пользователь 1', { isActive: false })])),
-    );
+    serveUsers([user('u1', 'Пользователь 1', { isActive: false })], () => new Promise(() => undefined));
     renderPage();
 
     await chooseRowAction('Пользователь 1', 'Активировать');

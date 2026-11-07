@@ -19,6 +19,8 @@ import DoctorProfilePage from './page';
 
 const loadDoctorMock = loadDoctor as jest.MockedFunction<typeof loadDoctor>;
 
+const MARIA = { id: 'a', firstName: 'Мария', lastName: 'Иванова', name: 'Мария Иванова', specialty: 'Терапевт' };
+
 async function renderPage(doctorId: string): Promise<void> {
   renderWithCatalog(await DoctorProfilePage({ params: Promise.resolve({ doctorId }) }));
 }
@@ -30,7 +32,7 @@ describe('DoctorProfilePage', () => {
   });
 
   it('should show the doctor and the place to pick a time when the API knows the doctor', async () => {
-    loadDoctorMock.mockResolvedValue({ ok: true, data: { id: 'a', firstName: 'Мария', lastName: 'Иванова', name: 'Мария Иванова', specialty: 'Терапевт' } });
+    loadDoctorMock.mockResolvedValue({ ok: true, data: MARIA });
 
     await renderPage('a');
 
@@ -44,7 +46,7 @@ describe('DoctorProfilePage', () => {
       { id: 'svc-2', name: 'Приём кардиолога', defaultDurationMin: 40, isActive: true },
     ];
     serveCatalog({ services, doctorsByService: { 'svc-1': [{ id: 'a' }] } });
-    loadDoctorMock.mockResolvedValue({ ok: true, data: { id: 'a', firstName: 'Мария', lastName: 'Иванова', name: 'Мария Иванова', specialty: 'Терапевт' } });
+    loadDoctorMock.mockResolvedValue({ ok: true, data: MARIA });
 
     await renderPage('a');
 
@@ -59,7 +61,7 @@ describe('DoctorProfilePage', () => {
   });
 
   it('should say the services are not listed when the doctor gives none', async () => {
-    loadDoctorMock.mockResolvedValue({ ok: true, data: { id: 'a', firstName: 'Мария', lastName: 'Иванова', name: 'Мария Иванова' } });
+    loadDoctorMock.mockResolvedValue({ ok: true, data: { ...MARIA, specialty: undefined } });
 
     await renderPage('a');
 
