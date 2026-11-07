@@ -23,14 +23,6 @@ import { resolveRedirectUri } from './login-redirect';
 import { LoginSessionService } from './login-session.service';
 import { ACCOUNT_ATTEMPT_WINDOW_SECONDS, LoginThrottle } from './login-throttle.service';
 
-export {
-  BROKEN_REQUEST_MESSAGE,
-  INVALID_CREDENTIALS_MESSAGE,
-  STALE_FORM_MESSAGE,
-  THROTTLED_MESSAGE,
-  UNAVAILABLE_MESSAGE,
-} from './login-messages';
-
 const LOGIN_RATE_LIMIT = 10;
 
 interface LoginRequest extends CookieRequest {

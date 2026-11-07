@@ -10,11 +10,11 @@ import { ACCOUNT_ATTEMPT_LIMIT, ACCOUNT_ATTEMPT_WINDOW_SECONDS, LoginThrottle } 
 import {
   BROKEN_REQUEST_MESSAGE,
   INVALID_CREDENTIALS_MESSAGE,
-  LoginController,
   STALE_FORM_MESSAGE,
   THROTTLED_MESSAGE,
   UNAVAILABLE_MESSAGE,
-} from './login.controller';
+} from './login-messages';
+import { LoginController } from './login.controller';
 
 const AUTHORIZE_QUERY = new URLSearchParams({
   response_type: 'code',

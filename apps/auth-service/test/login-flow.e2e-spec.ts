@@ -7,7 +7,7 @@ import {
   INVALID_CREDENTIALS_MESSAGE,
   STALE_FORM_MESSAGE,
   THROTTLED_MESSAGE,
-} from '../src/modules/oauth/login/login.controller';
+} from '../src/modules/oauth/login/login-messages';
 import { startAuthApp, cookiesOf, type AuthApp } from './app-harness';
 import {
   PATIENT_PASSWORD,

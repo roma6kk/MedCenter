@@ -1,5 +1,6 @@
 import { Logger, type OnModuleDestroy } from '@nestjs/common';
-import Redis from 'ioredis';
+
+import { connectRedis } from '../redis-token-stores';
 
 // Fails closed (unlike the shared RateLimitGuard store): an unreachable counter refuses the login attempt.
 export interface LoginAttemptStore {
@@ -88,17 +89,10 @@ export class RedisLoginAttemptStore implements LoginAttemptStore, OnModuleDestro
   }
 }
 
-const COMMAND_TIMEOUT_MS = 2000;
-
 export function createLoginAttemptStore(source: NodeJS.ProcessEnv = process.env): LoginAttemptStore {
   const url = source['REDIS_URL'];
   if (url === undefined || url === '') {
     return new InMemoryLoginAttemptStore();
   }
-  const client = new Redis(url, { maxRetriesPerRequest: 1, commandTimeout: COMMAND_TIMEOUT_MS });
-  client.on('error', (error: Error) => {
-    // Without a listener an idle connection failure would crash the process.
-    new Logger(RedisLoginAttemptStore.name).warn({ err: error }, 'Login attempt store Redis connection error');
-  });
-  return new RedisLoginAttemptStore(client);
+  return new RedisLoginAttemptStore(connectRedis(url, RedisLoginAttemptStore.name, 'Login attempt store'));
 }

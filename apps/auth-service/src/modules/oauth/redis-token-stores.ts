@@ -14,6 +14,15 @@ const TOKEN_KEY_PREFIX = 'oauth:token:';
 
 const COMMAND_TIMEOUT_MS = 2000;
 
+export function connectRedis(url: string, owner: string, label: string): Redis {
+  const client = new Redis(url, { maxRetriesPerRequest: 1, commandTimeout: COMMAND_TIMEOUT_MS });
+  client.on('error', (error: Error) => {
+    // Without a listener an idle connection failure would crash the process.
+    new Logger(owner).warn({ err: error }, `${label} Redis connection error`);
+  });
+  return client;
+}
+
 export interface RedisTokenClient {
   set(key: string, value: string, mode: 'EX', seconds: number): Promise<unknown>;
   get(key: string): Promise<string | null>;
@@ -89,10 +98,6 @@ export function createTokenStores(source: NodeJS.ProcessEnv = process.env): Toke
   if (url === undefined || url === '') {
     return { store: new InMemoryTokenStore(), denylist: new InMemoryTokenDenylist() };
   }
-  const client = new Redis(url, { maxRetriesPerRequest: 1, commandTimeout: COMMAND_TIMEOUT_MS });
-  client.on('error', (error: Error) => {
-    // Without a listener an idle connection failure would crash the process.
-    new Logger(RedisTokenStore.name).warn({ err: error }, 'Token store Redis connection error');
-  });
+  const client = connectRedis(url, RedisTokenStore.name, 'Token store');
   return { store: new RedisTokenStore(client), denylist: new RedisTokenDenylist(client) };
 }
