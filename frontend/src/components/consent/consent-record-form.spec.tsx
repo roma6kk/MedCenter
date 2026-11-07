@@ -32,6 +32,12 @@ async function fillSelf(): Promise<void> {
 
 const submit = (): Promise<void> => userEvent.click(screen.getByRole('button', { name: 'Внести в карту' }));
 
+async function renderAndSubmitSelf(): Promise<void> {
+  renderForm();
+  await fillSelf();
+  await submit();
+}
+
 describe('ConsentRecordForm', () => {
   beforeEach(() => {
     jest.resetAllMocks();
@@ -72,10 +78,7 @@ describe('ConsentRecordForm', () => {
   });
 
   it('should upload the scan, record the consent signed by the patient and clear the form', async () => {
-    renderForm();
-
-    await fillSelf();
-    await submit();
+    await renderAndSubmitSelf();
 
     await waitFor(() => expect(mocked.postPatientConsent).toHaveBeenCalledTimes(1));
     expect(mocked.postConsentScan).toHaveBeenCalledWith('p1', PDF);
@@ -154,10 +157,7 @@ describe('ConsentRecordForm', () => {
 
   it('should say to revoke first when the patient already has an active consent (409 CONSENT_ALREADY_ACTIVE)', async () => {
     mocked.postPatientConsent.mockRejectedValue(apiProblem(409, 'CONSENT_ALREADY_ACTIVE'));
-    renderForm();
-
-    await fillSelf();
-    await submit();
+    await renderAndSubmitSelf();
 
     expect(await screen.findByRole('alert')).toHaveTextContent('У пациента уже есть действующее согласие. Сначала запишите его отзыв');
     expect(screen.queryByTestId('problem-banner')).not.toBeInTheDocument();
@@ -166,10 +166,7 @@ describe('ConsentRecordForm', () => {
 
   it('should put a server field error next to its field', async () => {
     mocked.postPatientConsent.mockRejectedValue(apiProblem(400, 'VALIDATION_ERROR', { details: [{ field: 'formNumber', message: 'formNumber must not be blank' }] }));
-    renderForm();
-
-    await fillSelf();
-    await submit();
+    await renderAndSubmitSelf();
 
     expect(await screen.findByLabelText('Номер формы')).toHaveAttribute('aria-invalid', 'true');
     expect(screen.queryByTestId('problem-banner')).not.toBeInTheDocument();
@@ -177,10 +174,7 @@ describe('ConsentRecordForm', () => {
 
   it('should show the scan refusal of the server on the file field', async () => {
     mocked.postConsentScan.mockRejectedValue(apiProblem(400, 'VALIDATION_ERROR', { details: [{ field: 'file', message: 'File content does not match PDF, JPEG or PNG' }] }));
-    renderForm();
-
-    await fillSelf();
-    await submit();
+    await renderAndSubmitSelf();
 
     await waitFor(() => expect(screen.getByLabelText('Скан подписанной формы')).toHaveAttribute('aria-invalid', 'true'));
     expect(mocked.postPatientConsent).not.toHaveBeenCalled();
@@ -188,10 +182,7 @@ describe('ConsentRecordForm', () => {
 
   it('should show the problem banner for a failure no field explains', async () => {
     mocked.postPatientConsent.mockRejectedValue(apiProblem(403, 'COMPARTMENT_VIOLATION', { requestId: 'req-3' }));
-    renderForm();
-
-    await fillSelf();
-    await submit();
+    await renderAndSubmitSelf();
 
     expect(await screen.findByTestId('problem-banner')).toHaveTextContent('req-3');
   });
@@ -199,10 +190,7 @@ describe('ConsentRecordForm', () => {
   it('should keep the button focusable and send once while the request runs', async () => {
     let finish: (value: typeof ACTIVE_RECORD) => void = () => undefined;
     mocked.postPatientConsent.mockReturnValue(new Promise((done) => { finish = done; }));
-    renderForm();
-
-    await fillSelf();
-    await submit();
+    await renderAndSubmitSelf();
     const busy = await screen.findByRole('button', { name: 'Вносим…' });
     await userEvent.click(busy);
 
