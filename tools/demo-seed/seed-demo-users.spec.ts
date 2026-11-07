@@ -1,7 +1,6 @@
 import type { FetchLike } from '../shared/fhir-http';
-import { readUsersConfig } from './demo-cli-options';
 import { demoIds } from './demo-ids';
-import { ADMIN_EMAIL, ADMIN_PASSWORD, authService } from './fake-auth-api';
+import { ADMIN_PASSWORD, USERS_SEED_NOW, authService, usersConfigOf as configOf } from './fake-auth-api';
 import {
   emailOf,
   planAdminAccounts,
@@ -13,13 +12,7 @@ import {
   type UsersSeedConfig,
 } from './seed-demo-users';
 
-const ADMIN_ENV = { BOOTSTRAP_ADMIN_EMAIL: ADMIN_EMAIL, BOOTSTRAP_ADMIN_PASSWORD: ADMIN_PASSWORD };
-const NOW = new Date('2026-11-02T10:00:00.000Z');
 const API = 'http://localhost:8081';
-
-function configOf(env: NodeJS.ProcessEnv = {}, previous?: UsersSeedConfig['previous']): UsersSeedConfig {
-  return readUsersConfig({ ...ADMIN_ENV, ...env }, previous, NOW, true);
-}
 
 function accountFor(config: UsersSeedConfig, role: 'DOCTOR' | 'PATIENT'): PlannedAccount {
   const [first] = role === 'DOCTOR' ? planDoctorAccounts(config) : planPatientAccounts(config);
@@ -176,7 +169,7 @@ describe('seedDemoUsers', () => {
     ]);
     expect(section.accounts[0]).not.toHaveProperty('password');
     expect(section.authBaseUrl).toBe(API);
-    expect(section.generatedAt).toBe(NOW.toISOString());
+    expect(section.generatedAt).toBe(USERS_SEED_NOW.toISOString());
   });
 
   it('should send the admin Bearer token only to the admin endpoint, not to the public registration', async () => {
@@ -222,7 +215,7 @@ describe('seedDemoUsers', () => {
 
     const printed = JSON.stringify((console.log as jest.Mock).mock.calls);
     expect(printed).not.toContain('D0ctor!Secret12');
-    expect(printed).not.toContain(ADMIN_ENV.BOOTSTRAP_ADMIN_PASSWORD);
+    expect(printed).not.toContain(ADMIN_PASSWORD);
   });
 
   it('should stop before creating anything when the OAuth client narrowed the admin grant below user/*.write', async () => {

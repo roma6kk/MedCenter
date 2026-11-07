@@ -1,13 +1,10 @@
-import { readUsersConfig } from './demo-cli-options';
-import { ADMIN_EMAIL, ADMIN_PASSWORD, authService } from './fake-auth-api';
+import { ADMIN_EMAIL, authService, usersConfigOf } from './fake-auth-api';
 import { seedDemoUsers, type UsersSeedConfig } from './seed-demo-users';
 
-const ENV = { BOOTSTRAP_ADMIN_EMAIL: ADMIN_EMAIL, BOOTSTRAP_ADMIN_PASSWORD: ADMIN_PASSWORD };
-const NOW = new Date('2026-11-02T10:00:00.000Z');
 const DEMO_ADMIN = 'admin.demo@medcenter.test';
 
 function configOf(withAdmin: boolean, previous?: UsersSeedConfig['previous']): UsersSeedConfig {
-  return readUsersConfig(ENV, previous, NOW, withAdmin);
+  return usersConfigOf({}, previous, withAdmin);
 }
 
 describe('seedDemoUsers without --with-admin', () => {

@@ -1,14 +1,12 @@
 import type { FetchLike } from '../shared/fhir-http';
-import { readUsersConfig } from './demo-cli-options';
 import type { DemoUsersSection } from './demo-manifest';
-import { ADMIN_EMAIL, ADMIN_PASSWORD, authService } from './fake-auth-api';
+import { authService, usersConfigOf } from './fake-auth-api';
 import { planDoctorAccounts, seedDemoUsers, toRejectedRecord, toUserRecord, type UsersProgress, type UsersSeedConfig } from './seed-demo-users';
 
-const NOW = new Date('2026-11-02T10:00:00.000Z');
 const PETROV = 'doctor.petrov@medcenter.test';
 
 function configOf(previous?: DemoUsersSection): UsersSeedConfig {
-  return readUsersConfig({ BOOTSTRAP_ADMIN_EMAIL: ADMIN_EMAIL, BOOTSTRAP_ADMIN_PASSWORD: ADMIN_PASSWORD }, previous, NOW, true);
+  return usersConfigOf({}, previous);
 }
 
 function rejectingFor(email: string, inner: FetchLike, afterSend: boolean): FetchLike {
