@@ -7,7 +7,6 @@ import { WRAP_TEXT } from '../wrap-text';
 import { CodeTag } from './code-tag';
 import type { DiagnosisCount } from './history-model';
 
-/** Diagnosis frequency bars of the loaded page; the count is read as text, the bar only repeats it. */
 export function DiagnosisPanel({ frequency }: { readonly frequency: ReadonlyArray<DiagnosisCount> }): ReactNode {
   const t = useT('patientHistory');
   if (frequency.length === 0) return null;
@@ -30,7 +29,6 @@ export function DiagnosisPanel({ frequency }: { readonly frequency: ReadonlyArra
   );
 }
 
-/** The repeat-visit card; no doctor is named because the history carries only a role id. */
 export function RepeatVisitCard(): ReactNode {
   const t = useT('patientHistory');
   return (

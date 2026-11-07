@@ -12,11 +12,7 @@ import { RecommendationCards } from './profile-recommendation-cards';
 import { useHiddenRecommendations } from './use-hidden-recommendations';
 import { activeAppointments, type ProfileData } from './use-profile-data';
 
-/**
- * Recommendations need the history and the appointments; if either fails the block shows that failure with a retry (a list
- * built from half the data would suggest a visit the patient already booked). The card and the prescriptions only add rules:
- * without them those rules are silent.
- */
+// Half the data would suggest a visit already booked, so either failing read fails the block.
 export function ProfileRecommendations({ data, patientId }: { readonly data: ProfileData; readonly patientId: string | undefined }): ReactNode {
   const t = useT('patientProfile.reco');
   const { hidden, hide, restore } = useHiddenRecommendations(patientId);

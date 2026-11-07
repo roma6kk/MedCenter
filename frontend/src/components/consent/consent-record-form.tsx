@@ -24,7 +24,6 @@ function relatedLabel(person: RelatedPerson): string {
   return relationship === undefined ? person.fullName : `${person.fullName} (${relationship})`;
 }
 
-/** Choice of the person who signed for the patient and the document that gives them the right to (art. 18 of the Healthcare Law). */
 function RepresentativeFields({ state, patientId }: { readonly state: ConsentRecordFormState; readonly patientId: string }): ReactNode {
   const t = useT('consent.staff');
   const related = useRelatedPersons(patientId, 1);
@@ -52,7 +51,6 @@ function ScanField({ state }: { readonly state: ConsentRecordFormState }): React
   const t = useT('consent.staff');
   const { setValue, control, formState: { errors } } = state.form;
   const file: File | null = useWatch({ control, name: 'file' });
-  // `FileDrop` clears the native input itself when the form is reset, and shows the accepted types and the size limit.
   return (
     <FormField id="consent-file" label={t('file')} error={errors.file?.message}>
       {(controlProps) => (
@@ -116,15 +114,9 @@ function EntryFields({ state, role, patientId }: { readonly state: ConsentRecord
 
 interface ConsentRecordFormProps {
   readonly patientId: string;
-  /** ADMIN types the name of the clerk who handled the form; for a DOCTOR the server takes it from the token. */
   readonly role: Role;
 }
 
-/**
- * Records a paper consent or a written refusal (API 3.10 + 3.8, ADR-019): form number, signing date, who signed (for a
- * representative: the trusted person and the authority document) and the scan. The consent itself is never given here by
- * the patient; this form only enters what was signed on paper.
- */
 export function ConsentRecordForm({ patientId, role }: ConsentRecordFormProps): ReactNode {
   const t = useT('consent.staff');
   const state: ConsentRecordFormState = useConsentRecordForm(patientId, role);

@@ -14,12 +14,10 @@ import { useNotificationText } from './use-notification-text';
 
 export interface NotificationRowProps {
   readonly item: NotificationItem;
-  /** The id being marked right now, so only its button shows the busy state. */
   readonly markingId: string | null;
   readonly onMarkRead: (id: string) => void;
 }
 
-/** One notification: a soft tile with the type icon, the type label (never colour alone), the time, the text and its actions. */
 export function NotificationRow({ item, markingId, onMarkRead }: NotificationRowProps): ReactNode {
   const t = useT('patient.notifications');
   const tn = useT('patientNotifications');

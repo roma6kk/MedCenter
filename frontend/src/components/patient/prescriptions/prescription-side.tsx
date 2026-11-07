@@ -16,7 +16,6 @@ function Counter({ value, label, tone }: { readonly value: number; readonly labe
   );
 }
 
-/** Counters of the loaded page only (the response carries no per-status total), the help card and the printout note. */
 export function PrescriptionSide({ counts }: { readonly counts: ActiveCounts }): ReactNode {
   const t = useT('patientPrescriptions');
   return (

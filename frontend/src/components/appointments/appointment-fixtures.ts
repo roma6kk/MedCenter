@@ -1,4 +1,3 @@
-/** appointment-fixtures — a realistic `AppointmentViewDto` for the specs of the cabinet (never imported by application code). */
 import type { AppointmentView } from './appointment-types';
 
 export function appointmentFixture(overrides: Partial<AppointmentView> = {}): AppointmentView {

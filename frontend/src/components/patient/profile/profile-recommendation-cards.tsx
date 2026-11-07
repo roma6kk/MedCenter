@@ -20,7 +20,6 @@ interface RecommendationCardsProps {
   readonly hiddenCount: number;
   readonly onHide: (id: string) => void;
   readonly onRestore: () => void;
-  /** The card that can take the phone right here (it needs its `version`); without it «Добавить номер» is a link to the personal data. */
   readonly phoneCard?: PatientProfile & { readonly version: string };
 }
 
@@ -33,7 +32,6 @@ interface CardProps {
 function RecommendationCard({ item, onHide, phoneCard }: CardProps): ReactNode {
   const t = useT('patientProfile');
   const [isEditing, setIsEditing] = useState(false);
-  // B5: «Добавьте номер телефона» asks for the number in the card itself instead of sending the patient looking for the field.
   const takesPhoneHere: boolean = item.id === 'phone' && phoneCard !== undefined;
   const format = useClinicFormat();
   const Icon: LucideIcon = ICONS[item.kind];
@@ -67,7 +65,6 @@ function RecommendationCard({ item, onHide, phoneCard }: CardProps): ReactNode {
   );
 }
 
-/** "Рекомендации для вас": cards with a call to action and «Скрыть»; the dismissed ones come back with «Показать скрытые». */
 export function RecommendationCards({ items, hiddenCount, onHide, onRestore, phoneCard }: RecommendationCardsProps): ReactNode {
   const t = useT('patientProfile.reco');
   return (

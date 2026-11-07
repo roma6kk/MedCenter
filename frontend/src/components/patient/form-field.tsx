@@ -4,7 +4,6 @@ import type { ReactNode } from 'react';
 import { FIELD_CLASS } from '@/components/ui/field-styles';
 import { useT } from '@/lib/i18n/use-t';
 
-/** What an input needs to be announced with its hint and error (WCAG 1.3.1, 3.3.1, 3.3.3). */
 export interface FieldControlProps {
   readonly id: string;
   readonly 'aria-describedby': string | undefined;
@@ -14,7 +13,6 @@ export interface FieldControlProps {
 interface FormFieldProps {
   readonly id: string;
   readonly label: string;
-  /** Validation message: a `validation.*` message key (client schemas) or ready text (server messages). */
   readonly error?: string;
   readonly hint?: string;
   readonly children: (control: FieldControlProps) => ReactNode;
@@ -22,16 +20,13 @@ interface FormFieldProps {
 
 const VALIDATION_KEY_PREFIX = 'validation.';
 
-/** The one shared field look (`ui/field-styles.ts`); `FormField` spaces the control from its label, so no margin here. */
 export const INPUT_CLASS = FIELD_CLASS;
 
-/** Space-separated ids of the elements that describe the control, or `undefined` when there are none. */
 export function describedBy(...ids: ReadonlyArray<string | false | undefined>): string | undefined {
   const present: ReadonlyArray<string> = ids.filter((id): id is string => typeof id === 'string' && id !== '');
   return present.length === 0 ? undefined : present.join(' ');
 }
 
-/** A labelled control with an optional hint and an error message linked through `aria-describedby`. */
 export function FormField({ id, label, error, hint, children }: FormFieldProps): ReactNode {
   const tValidation = useT();
   const hintId = `${id}-hint`;

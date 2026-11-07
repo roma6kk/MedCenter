@@ -6,7 +6,6 @@ const VALID = { email: 'ivan@example.by', firstName: 'Иван', lastName: 'Ив
 function messagesOf(input: Record<string, unknown>): Readonly<Record<string, string>> {
   const result = registerFormSchema.safeParse(input);
   if (result.success) return {};
-  // react-hook-form shows the first issue of a field, so the first one is what the user sees.
   return Object.fromEntries([...result.error.issues].reverse().map((issue) => [String(issue.path[0]), issue.message]));
 }
 

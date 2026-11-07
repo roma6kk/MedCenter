@@ -21,7 +21,7 @@ function isNoCard(patient: ProfileData['patient']): boolean {
   return patient.isError && isApiError(patient.error) && errorCodeToUx(patient.error.problem.errorCode).kind === 'not-found';
 }
 
-/** The completeness is shown once the card is known: loaded, or known to be missing (404). A failed read must not look like an empty profile. */
+// A failed read must not look like an empty profile.
 function completenessOf(data: ProfileData): Completeness | null {
   if (data.patient.data !== undefined) return computeCompleteness(data.patient.data, data.account.data);
   return isNoCard(data.patient) ? computeCompleteness(null, data.account.data) : null;
@@ -32,12 +32,6 @@ function LastVisit({ data }: { readonly data: ProfileData }): ReactNode {
   return <div className="rounded-panel border border-border bg-card p-[22px]"><QueryFailure query={data.history} embedded pending={<ContentSkeleton shape="timeline" rows={2} />} /></div>;
 }
 
-/**
- * The patient's home in the clinic (FR-001, B4/B6): the greeting with the nearest visit, the quick actions, what the clinic
- * recommends, the last visit, then the personal data with the consent line and the documents. The main column is the wide one
- * and carries what changes; the narrow one carries what stays, so neither is left with a hole under it. Each block reads and
- * fails on its own. Personal data stays read-only apart from the phone because the API has no other write.
- */
 export function HomeView(): ReactNode {
   const t = useT('patientHome');
   useDocumentTitle(t('title'));

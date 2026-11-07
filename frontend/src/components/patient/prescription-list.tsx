@@ -79,7 +79,6 @@ function ListBody({ items, filter }: { readonly items: ReadonlyArray<Prescriptio
   );
 }
 
-/** The patient's prescriptions (FR-007, API 7.7): drugs with their ATC code and dosage, and ordered services. */
 export function PrescriptionList({ embedded = false }: { readonly embedded?: boolean }): ReactNode {
   const t = useT('patientPrescriptions');
   const tp = useT('patient.prescriptions');

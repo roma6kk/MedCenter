@@ -6,10 +6,6 @@ import { BrandMark } from '@/components/brand/brand-mark';
 import { LocaleSwitcher } from '@/components/layout/locale-switcher';
 import { useT } from '@/lib/i18n/use-t';
 
-/**
- * Top row above the sign-in and registration card: the brand (the way back to the public site) and the language switch.
- * These are the only screens without a shell header, so a visitor who arrived by mistake would otherwise have no way out (WCAG 3.2.3).
- */
 export function AuthCardHeader(): ReactNode {
   const t = useT('layout');
   return (

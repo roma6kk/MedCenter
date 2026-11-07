@@ -19,7 +19,6 @@ const CHIP_TONE: Readonly<Record<StatusBucket, string>> = {
   other: 'bg-warning-soft text-warning',
 };
 
-/** A soft chip whose words carry the status; the tint only reinforces them. */
 function StatusChip({ status }: { readonly status: string }): ReactNode {
   const t = useT('patient.prescriptions.status');
   const { locale } = useClinicFormat();
@@ -70,7 +69,6 @@ export function MedicationCard({ item }: { readonly item: MedicationPrescription
   );
 }
 
-/** A referral or an ordered service has a national-catalogue code and no ATC code, so it gets no ATC chip. */
 export function ServiceCard({ item }: { readonly item: ServicePrescription }): ReactNode {
   const t = useT('patientPrescriptions');
   return (

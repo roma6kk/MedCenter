@@ -23,7 +23,6 @@ const updateMock = updateMyPhone as jest.MockedFunction<typeof updateMyPhone>;
 const prescriptionsMock = fetchMyPrescriptions as jest.MockedFunction<typeof fetchMyPrescriptions>;
 const appointmentsMock = fetchAppointments as jest.MockedFunction<typeof fetchAppointments>;
 
-/** An old visit (no "repeat" rule), a patient aged 40+ with an ECG long ago is not needed: defaults give a quiet page. */
 function loadAll(overrides: { patient?: Parameters<typeof patientProfileFixture>[0] } = {}): void {
   accountMock.mockResolvedValue(accountFixture());
   patientMock.mockResolvedValue(patientProfileFixture(overrides.patient));

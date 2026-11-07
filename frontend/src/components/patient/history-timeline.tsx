@@ -93,7 +93,6 @@ function Loaded({ items, meta, prescriptions, prescriptionsState, onRetryPrescri
   );
 }
 
-/** The patient's finished visits (FR-006, API 7.6): newest first, by month, each row opens to the doctor's words and the prescriptions of that visit. */
 export function HistoryTimeline({ embedded = false }: { readonly embedded?: boolean }): ReactNode {
   const t = useT('patientHistory');
   const [page, setPage] = useState(1);
@@ -102,7 +101,7 @@ export function HistoryTimeline({ embedded = false }: { readonly embedded?: bool
   useClampedPage(query.data?.meta, page, setPage);
   useDocumentTitle(embedded ? null : t('title'));
   const data = query.data;
-  // A visit without prescriptions is not proof there were none: the lookup may have failed or may not reach the older visits.
+  // A visit without prescriptions is not proof there were none: the lookup may have failed or miss older visits.
   const prescriptionsState: PrescriptionsState = prescriptions.data === undefined ? (prescriptions.isError ? 'failed' : 'ok') : prescriptions.data.meta.totalPages > 1 ? 'partial' : 'ok';
   return (
     <section className="flex flex-col gap-6">

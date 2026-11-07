@@ -128,7 +128,6 @@ describe('CancelAppointmentDialog', () => {
 
     expect(await screen.findByRole('alert')).toHaveTextContent('Эту запись уже нельзя отменить');
     expect(screen.queryByRole('button', { name: 'Подтвердить отмену' })).not.toBeInTheDocument();
-    // Two ways to close are offered: the text button of the message (focused) and the cross of the dialog.
     const [closeButton] = screen.getAllByRole('button', { name: 'Закрыть' });
     expect(closeButton).toHaveFocus();
     await userEvent.click(closeButton!);
@@ -174,7 +173,6 @@ describe('CancelAppointmentDialog', () => {
 
   it('should keep the focus inside the dialog when Tab is pressed on the last control', async () => {
     renderDialog();
-    // The close cross of the dialog is the last control in the cycle.
     screen.getByRole('button', { name: 'Закрыть' }).focus();
 
     await userEvent.tab();

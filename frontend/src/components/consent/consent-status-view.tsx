@@ -15,12 +15,10 @@ const STAMP_OF: Readonly<Record<ConsentRecord['status'], StampStatus>> = {
   'entered-in-error': 'entered-in-error',
 };
 
-/** The record the headline describes: the one in force, else the newest entry that was not a mistake. */
 function headlineRecord(consent: PatientConsent): ConsentRecord | null {
   return consent.active ?? consent.history.find((entry) => entry.status !== 'entered-in-error') ?? null;
 }
 
-/** A signer the server could not name stays a FHIR reference (`PractitionerRole/<id>`): it is not for the reader's eyes. */
 const RAW_REFERENCE = /^PractitionerRole\//;
 
 function EntryFacts({ record }: { readonly record: ConsentRecord }): ReactNode {
@@ -55,16 +53,10 @@ function HistoryEntry({ record, scanOfPatient }: { readonly record: ConsentRecor
 
 interface ConsentStatusViewProps {
   readonly consent: PatientConsent;
-  /** Staff read the scan: give the patient the consent belongs to and each entry offers its download. The patient themselves do not. */
   readonly scanOfPatient?: string;
-  /**
-   * For a caller that already says the state in its own headline (the patient's profile, B3): the state sentence is left out,
-   * and a history that holds nothing but the entry the facts already describe is not repeated.
-   */
   readonly compact?: boolean;
 }
 
-/** Where the patient's consent stands (active, revoked, refused, none) with the facts of the entry in question and the whole history. */
 export function ConsentStatusView({ consent, scanOfPatient, compact = false }: ConsentStatusViewProps): ReactNode {
   const t = useT('consent');
   const state: ConsentState = consentStateOf(consent);

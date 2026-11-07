@@ -26,7 +26,6 @@ function Action({ href, icon: Icon, title, hint }: { readonly href: string; read
   );
 }
 
-/** The three places a patient comes back to (the booking has the header button and the hero, so it is not repeated here). The counts are what the loaded pages hold; `…` while a read runs, `n+` when more pages exist. */
 export function ProfileQuickActions({ upcoming, activePrescriptions }: { readonly upcoming: Count | null; readonly activePrescriptions: Count | null }): ReactNode {
   const t = useT('patientProfile.actions');
   return (

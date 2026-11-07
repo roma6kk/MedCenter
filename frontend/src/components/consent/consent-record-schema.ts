@@ -1,8 +1,3 @@
-/**
- * consent-record-schema — client validation of the clerk's form that records a paper consent or a written refusal
- * (`CreateConsentDto`, api-designer-spec §3.8, and the scan of §3.10). The limits are the server's (`contracts.ts`); the
- * server still checks the scan by its signature. Messages are `validation.*` keys, translated where they are shown.
- */
 import { z } from 'zod';
 import {
   CONSENT_FORM_NUMBER_MAX,
@@ -17,7 +12,6 @@ import type { ConsentEntry, ConsentEntryStatus, ConsenterType } from './consent-
 const REQUIRED = { message: 'validation.required' } as const;
 const TOO_LONG = { message: 'validation.tooLong' } as const;
 
-/** Why a scan cannot be sent, as a `validation.*` key; `null` when it can. */
 export function validateScanFile(file: File | null | undefined): string | null {
   if (file === null || file === undefined) return 'validation.scanRequired';
   if (!CONSENT_SCAN_CONTENT_TYPES.includes(file.type)) return 'validation.scanType';
@@ -29,14 +23,12 @@ export interface ConsentRecordValues {
   readonly signedAt: string;
   readonly status: ConsentEntryStatus;
   readonly consenterType: ConsenterType;
-  /** `''` while no person is chosen. */
   readonly relatedPersonId: string;
   readonly representativeDocument: string;
   readonly signedByName: string;
   readonly file: File | null;
 }
 
-/** `role` decides whether the signer's name is the clerk's to type (ADMIN) or the server's to fill in (DOCTOR). `today` is the clinic's day key. */
 export function consentRecordSchema(role: 'ADMIN' | 'DOCTOR', today: string): z.ZodType<ConsentRecordValues> {
   return z
     .object({
@@ -59,7 +51,6 @@ export function consentRecordSchema(role: 'ADMIN' | 'DOCTOR', today: string): z.
     }) as unknown as z.ZodType<ConsentRecordValues>;
 }
 
-/** The 3.8 body (without the scan id) and the scan: text trimmed, what a self-signed consent does not have left out. */
 export function toConsentEntry(values: ConsentRecordValues): ConsentEntry {
   const signedByName: string = values.signedByName.trim();
   const isSelf: boolean = values.consenterType === 'self';

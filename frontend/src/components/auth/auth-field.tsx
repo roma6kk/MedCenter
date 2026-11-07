@@ -6,23 +6,19 @@ import { describedBy, type FieldControlProps } from '@/components/patient/form-f
 import { FIELD_CLASS } from '@/components/ui/field-styles';
 import { useT } from '@/lib/i18n/use-t';
 
-/** The auth screens use the one shared field look (`ui/field-styles.ts`); `AuthField` spaces the control from its label. */
 export const AUTH_INPUT_CLASS = FIELD_CLASS;
 
 interface AuthFieldProps {
   readonly id: string;
   readonly label: string;
-  /** Validation message: a `validation.*` message key (client schemas) or ready text (server messages). */
   readonly error?: string;
   readonly hint?: string;
-  /** The control draws its own label (a checkbox with the text beside it): only the hint and the error come from here. */
   readonly labelHidden?: boolean;
   readonly children: (control: FieldControlProps) => ReactNode;
 }
 
 const VALIDATION_KEY_PREFIX = 'validation.';
 
-/** A labelled control with a hint and an error (icon + text, never colour alone) linked through `aria-describedby`. */
 export function AuthField({ id, label, error, hint, labelHidden = false, children }: AuthFieldProps): ReactNode {
   const t = useT();
   const hintId = `${id}-hint`;

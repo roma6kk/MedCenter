@@ -41,7 +41,6 @@ interface ListProps {
   readonly onPage: (page: number) => void;
 }
 
-/** The items of the page, one list per clinic day under its own heading, then the pager. */
 function NotificationItems({ items, meta, markingId, listRef, onMarkRead, onPage }: ListProps): ReactNode {
   const t = useT('patient.notifications');
   const format = useClinicFormat();
@@ -63,10 +62,6 @@ function NotificationItems({ items, meta, markingId, listRef, onMarkRead, onPage
   );
 }
 
-/**
- * The "nothing here" notice sits in a live region that is always on the page: when the last unread item is marked read the
- * list disappears under the user, and a region that appears together with its text is not reliably announced.
- */
 function EmptyNotice({ filter, isEmpty }: { readonly filter: NotificationFilter; readonly isEmpty: boolean }): ReactNode {
   const t = useT('patient.notifications');
   const tn = useT('patientNotifications');
@@ -86,7 +81,6 @@ interface MarkReadState {
   readonly clearFailure: () => void;
 }
 
-/** Marks notifications read, one or all of them (API 8.3 / 8.4); the list and the bell counter refresh through the shared invalidation table. */
 function useMarkRead(begin: () => () => void, onRefresh: () => void): MarkReadState {
   const client = useQueryClient();
   const single = useMarkNotificationRead();
@@ -101,12 +95,11 @@ function useMarkRead(begin: () => () => void, onRefresh: () => void): MarkReadSt
     (id: string) => {
       const restoreFocus: () => void = begin();
       mutate(id, {
-        // The button that had the focus is gone with the "unread" state: keep the keyboard user on the page.
+        // The focused button is gone with the "unread" state: keep the keyboard user on the page.
         onSuccess: () => {
           showToast('success', 'patient.notifications.markedRead');
           restoreFocus();
         },
-        // The notification may be gone already (404): show the real list instead of a stale one.
         onError: onRefresh,
       });
     },
@@ -145,19 +138,16 @@ interface CenterState extends MarkReadState {
   readonly setPage: (page: number) => void;
 }
 
-/** Everything the center keeps: the open filter and page, the read, the mark-as-read actions and where the focus goes after them. */
 function useCenterState(): CenterState {
   const [filter, setFilter] = useState<NotificationFilter>('all');
   const [page, setPage] = useState(1);
   const listRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
-  // Only "unread" is a server filter; the type filters narrow the page that was read.
   const query = useNotifications({ page, pageSize: NOTIFICATIONS_PAGE_SIZE, unread: filter === 'unread' });
   const { refetch } = query;
   const begin = useRestoreFocus(query.dataUpdatedAt, listRef, panelRef);
   const mark = useMarkRead(begin, useCallback(() => void refetch(), [refetch]));
   const { clearFailure } = mark;
-  // A banner about a notification that is no longer on screen would only confuse: it goes with the filter or the page.
   useEffect(() => {
     clearFailure();
   }, [filter, page, clearFailure]);
@@ -211,7 +201,6 @@ function CenterHeader({ unreadCount, allMarking, onMarkAll }: HeaderProps): Reac
   );
 }
 
-/** The patient's in-app notifications (FR-008, scenario E): filters, day groups, mark as read, refreshed every 30 s. */
 export function NotificationCenter(): ReactNode {
   const t = useT('patient.notifications');
   const tn = useT('patientNotifications');

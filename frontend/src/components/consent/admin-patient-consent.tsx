@@ -10,13 +10,9 @@ import { useT } from '@/lib/i18n/use-t';
 import { cn } from '@/lib/ui/cn';
 import { StaffConsentPanel } from './staff-consent-panel';
 
-/**
- * `/admin/patients/[patientId]/consent`: what ADMIN sees of a patient (ADR-018): the consent paperwork only. The patient's
- * card, history and prescriptions are medical data and are never read here.
- */
 export function AdminPatientConsent({ patientId }: { readonly patientId: string }): ReactNode {
   const t = useT('consent.admin');
-  // Read after mount: the server render has no sessionStorage. The name is never put in the tab title (privacy).
+  // Read after mount (no sessionStorage on the server). The name is never put in the tab title (privacy).
   const [name, setName] = useState<string | undefined>(undefined);
   useEffect(() => setName(recallPatientName(patientId)), [patientId]);
   return (

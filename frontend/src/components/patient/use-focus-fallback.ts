@@ -3,11 +3,7 @@
 import { useEffect, useRef } from 'react';
 import type { RefObject } from 'react';
 
-/**
- * When a dialog closes, the focus normally goes back to the button that opened it. If that button is gone by then (the
- * action it started removed it, e.g. a cancelled appointment loses its cancel button) the focus would fall to the page
- * body and a keyboard user would start again from the top. This hands it to `fallback` instead.
- */
+// If the opener is gone when the dialog closes, focus would fall to the body: hand it to `fallback`.
 export function useFocusFallback(isDialogOpen: boolean, fallback: RefObject<HTMLElement>): void {
   const wasOpen = useRef(false);
   useEffect(() => {

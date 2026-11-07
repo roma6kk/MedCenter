@@ -25,13 +25,10 @@ type PhoneValues = z.infer<typeof phoneSchema>;
 interface PhoneFormProps {
   readonly patient: PatientProfile & { readonly version: string };
   readonly onClose: () => void;
-  /** Id of the input: the form can sit twice on the page (the recommendation and the personal data), ids must stay unique. */
   readonly fieldId?: string;
-  /** Put the cursor into the field when the form opens (it was opened by a click on a button). */
   readonly autoFocus?: boolean;
 }
 
-/** Edit form of the phone (3.12): the number is normalised before it is sent, the card `version` rides along as `If-Match`. */
 export function PhoneForm({ patient, onClose, fieldId = 'profile-phone', autoFocus = false }: PhoneFormProps): ReactNode {
   const t = useT('patientProfile.data');
   const [problem, setProblem] = useState<ProblemDetails | null>(null);
@@ -75,7 +72,6 @@ export function PhoneForm({ patient, onClose, fieldId = 'profile-phone', autoFoc
   );
 }
 
-/** The phone line of the card: the number (or the "not specified" warning) and the way to change it. */
 export function PhoneValue({ patient }: { readonly patient: PatientProfile }): ReactNode {
   const t = useT('patientProfile.data');
   const [editing, setEditing] = useState(false);

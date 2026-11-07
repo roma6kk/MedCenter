@@ -8,7 +8,6 @@ import { useT } from '@/lib/i18n/use-t';
 import { doctorOf, type AppointmentView } from './appointment-types';
 import { StatusBadge } from './status-badge';
 
-/** Every field of one appointment (API 6.3) as a term list; the optional ones appear only when the server sent them. */
 export function AppointmentDetails({ appointment }: { readonly appointment: AppointmentView }): ReactNode {
   const t = useT('appointments');
   const format = useClinicFormat();

@@ -24,7 +24,6 @@ describe('StaffConsentPanel', () => {
     expect(await within(panel).findByText('Согласие действует')).toBeInTheDocument();
     expect(mocked.fetchPatientConsent).toHaveBeenCalledWith('p1', expect.anything());
     expect(within(panel).getByRole('button', { name: 'Скачать скан формы Ф-12' })).toBeInTheDocument();
-    // Only the act that fits the state is offered (A1): the revocation, as a quiet button, and no recording form.
     expect(within(panel).getByRole('button', { name: 'Записать отзыв' })).toBeInTheDocument();
     expect(within(panel).queryByRole('form', { name: 'Внести бумажное согласие или отказ' })).not.toBeInTheDocument();
     expect(within(panel).queryByText(/медицинских данных пациента этот раздел не показывает/)).not.toBeInTheDocument();

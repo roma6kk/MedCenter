@@ -8,21 +8,15 @@ import { useT } from '@/lib/i18n/use-t';
 import { cn } from '@/lib/ui/cn';
 import { StaffConsentBody } from './staff-consent-panel';
 
-/** The anchor the "record the consent" links of other screens point at (`/patients/{id}#consent`). */
 export const CONSENT_ANCHOR = 'consent';
 
 export interface ConsentManagementState {
   readonly isOpen: boolean;
   readonly toggle: () => void;
-  /** Opens the section and brings it into view, for the buttons of the head of the page. */
   readonly reveal: () => void;
   readonly toggleRef: RefObject<HTMLButtonElement>;
 }
 
-/**
- * State of the collapsed consent management of a patient's page: closed by default (the forms are rare), opened by the
- * buttons of the head or by the `#consent` anchor, on arrival and while the page stays open.
- */
 export function useConsentManagement(): ConsentManagementState {
   const [isOpen, setIsOpen] = useState(false);
   const [revealCount, setRevealCount] = useState(0);
@@ -49,11 +43,6 @@ export function useConsentManagement(): ConsentManagementState {
   return { isOpen, toggle, reveal, toggleRef };
 }
 
-/**
- * «Управление согласием» (A1): the status details, the history with the scans, the written revocation and, when no consent is
- * in force, the form for a paper one. Folded away at the bottom of the card: a doctor needs it rarely, and the head of the page
- * already says where the consent stands.
- */
 export function ConsentManagementSection({ patientId, management }: { readonly patientId: string; readonly management: ConsentManagementState }): ReactNode {
   const t = useT('consent.staff');
   const headingId: string = useId();

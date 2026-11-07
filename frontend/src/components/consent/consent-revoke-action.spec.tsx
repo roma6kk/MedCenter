@@ -9,7 +9,6 @@ import { ConsentRevokeAction } from './consent-revoke-action';
 jest.mock('./consent-api');
 const mocked = jest.mocked(api);
 
-/** The trigger is a quiet button; the form lives in the dialog it opens (E3). */
 const openDialog = async (): Promise<ReturnType<typeof within>> => {
   await userEvent.click(screen.getByRole('button', { name: 'Записать отзыв' }));
   return within(await screen.findByRole('dialog'));

@@ -22,10 +22,6 @@ function Tile({ value, label, scope, soft }: { readonly value: ReactNode; readon
   );
 }
 
-/**
- * Four figures. The visit total is the response's `totalItems`; every other figure is computed from the page that is
- * loaded, so on a multi-page history it is labelled "on this page" (the newest visit needs no label on page 1).
- */
 export function SummaryTiles({ summary, meta }: SummaryTilesProps): ReactNode {
   const t = useT('patientHistory');
   const format = useClinicFormat();

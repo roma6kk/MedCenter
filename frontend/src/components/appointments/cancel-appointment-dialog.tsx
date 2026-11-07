@@ -14,7 +14,7 @@ import { useCancelForm, type CancelFormState } from './use-cancel-form';
 
 interface CancelAppointmentDialogProps {
   readonly appointment: AppointmentView;
-  /** Must keep its identity between renders (`useCallback`): the focus trap restarts when it changes. */
+  // Must keep its identity between renders: the focus trap restarts when it changes.
   readonly onClose: () => void;
   readonly onCancelled: () => void;
 }
@@ -24,7 +24,6 @@ function NotCancellable({ onClose }: { readonly onClose: () => void }): ReactNod
   const t = useT('appointments');
   const tCommon = useT('common');
   const closeButton = useRef<HTMLButtonElement>(null);
-  // The submit button that had the focus is gone: hand the focus to the only action left.
   useEffect(() => closeButton.current?.focus(), []);
   return (
     <div>
@@ -34,7 +33,6 @@ function NotCancellable({ onClose }: { readonly onClose: () => void }): ReactNod
   );
 }
 
-/** Client messages are `appointments.*` keys; whatever the server said about the field is already text. */
 function useReasonError(form: CancelFormState): string | undefined {
   const t = useT();
   const error = form.errors.reason;
@@ -55,11 +53,7 @@ function ReasonForm({ form, formId }: { readonly form: CancelFormState; readonly
   );
 }
 
-/**
- * "Do not cancel" and Escape mean the request was never sent, so they do nothing while it is in flight: the appointment
- * would be cancelled after the user dismissed the dialog, and nobody would be told. The identity of the returned function
- * does not change (the focus trap restarts when it does), the pending state is read through a ref.
- */
+// No-op while the request is in flight: it would cancel after the dialog was dismissed. Identity is stable (focus trap).
 function useCloseUnlessPending(pending: boolean, onClose: () => void): () => void {
   const isPending = useRef(pending);
   useEffect(() => {
@@ -70,11 +64,6 @@ function useCloseUnlessPending(pending: boolean, onClose: () => void): () => voi
   }, [onClose]);
 }
 
-/**
- * The cancellation dialog (FR-005, B2): a real modal over the page (scrim, focus trap, Escape), the reason is mandatory, a
- * 409 explains itself. The solid red button here is the one place where the cancellation is confirmed; the buttons live in
- * the footer and submit the form by its id.
- */
 export function CancelAppointmentDialog({ appointment, onClose, onCancelled }: CancelAppointmentDialogProps): ReactNode {
   const t = useT('appointments');
   const format = useClinicFormat();

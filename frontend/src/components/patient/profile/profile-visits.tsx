@@ -11,7 +11,6 @@ import { cn } from '@/lib/ui/cn';
 import { WRAP_TEXT } from '../wrap-text';
 import type { HistoryEntry } from '../patient-types';
 
-/** The newest finished visit: day, service and doctor, the diagnosis chip and what the doctor advised. */
 export function LastVisitCard({ entry }: { readonly entry: HistoryEntry | undefined }): ReactNode {
   const t = useT('patientProfile.last');
   const format = useClinicFormat();

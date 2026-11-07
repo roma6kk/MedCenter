@@ -23,11 +23,6 @@ const schema = z.object({
 });
 type Values = z.infer<typeof schema>;
 
-/**
- * The form of the written revocation inside its dialog (API 3.9): the application number, and the one solid red button of
- * the screen. The revocation blocks new entries at once and deletes nothing. A 404 means there is no active consent left to
- * revoke (it was revoked elsewhere).
- */
 function RevokeDialog({ patientId, onClose }: { readonly patientId: string; readonly onClose: () => void }): ReactNode {
   const t = useT('consent.staff');
   const formId: string = useId();
@@ -35,7 +30,6 @@ function RevokeDialog({ patientId, onClose }: { readonly patientId: string; read
   const revoke = useRevokePatientConsent(patientId);
   const [isGone, setIsGone] = useState(false);
   const [problem, setProblem] = useState<ProblemDetails | null>(null);
-  // Escape and "Cancel" do nothing while the request is in flight: the consent would be revoked after the dialog was dismissed.
   const isPending = useRef(false);
   useEffect(() => {
     isPending.current = revoke.isPending;
@@ -82,16 +76,11 @@ function RevokeDialog({ patientId, onClose }: { readonly patientId: string; read
   );
 }
 
-/**
- * Revoking a consent is rare and cannot be undone from the screen, so it is a quiet red button at the end of the block
- * (E3): the form with its solid red confirmation opens only after it is pressed.
- */
 export function ConsentRevokeAction({ patientId }: { readonly patientId: string }): ReactNode {
   const t = useT('consent.staff');
   const [isOpen, setIsOpen] = useState(false);
   return (
     <>
-      {/* The negative margin lines the red text up with the text above; the 44 px target stays. */}
       <Button variant="quiet-danger" onClick={() => setIsOpen(true)} className="-ml-4">
         <CircleX aria-hidden="true" className="size-4" />
         {t('revokeOpen')}

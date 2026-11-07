@@ -16,9 +16,7 @@ export interface ConsentRecordFormState {
   readonly form: ConsentRecordForm;
   readonly submit: (event?: React.BaseSyntheticEvent) => Promise<void>;
   readonly isPending: boolean;
-  /** 409 `CONSENT_ALREADY_ACTIVE`: the patient has a consent in force, the revocation comes first. */
   readonly isAlreadyActive: boolean;
-  /** A failure no field explains; a banner shows it. */
   readonly problem: ProblemDetails | null;
 }
 
@@ -33,10 +31,8 @@ const DEFAULTS: ConsentRecordValues = {
   file: null,
 };
 
-/** Fields the server may name; the scan travels under `file` (3.10) and `scanId` (3.8), both shown on the file input. */
 const FIELDS: ReadonlyArray<string> = ['formNumber', 'signedAt', 'status', 'consenterType', 'relatedPersonId', 'representativeDocument', 'signedByName', 'file', 'scanId'];
 
-/** The clerk's form that records a paper consent or refusal (API 3.10 then 3.8): client rules, one send at a time, server answers on the fields. */
 export function useConsentRecordForm(patientId: string, role: 'ADMIN' | 'DOCTOR'): ConsentRecordFormState {
   const schema = useMemo(() => consentRecordSchema(role, clinicDateKey()), [role]);
   const form = useForm<ConsentRecordValues>({ resolver: zodResolver(schema), defaultValues: DEFAULTS });

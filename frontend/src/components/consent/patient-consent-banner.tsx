@@ -10,15 +10,9 @@ const TITLE_KEY: Readonly<Record<Exclude<ConsentState, 'active'>, string>> = { n
 
 interface PatientConsentBannerProps {
   readonly patientId: string;
-  /** Opens the consent management of the page, where the paper consent is recorded. */
   readonly onRecord: () => void;
 }
 
-/**
- * The doctor's warning at the top of a patient's page when there is no active consent (ADR-019): an encounter would be
- * refused, so the way out is shown before the doctor tries, as one button (A1). Silent while loading, when the consent is in
- * force and when it cannot be read (the management section reports a failed read).
- */
 export function PatientConsentBanner({ patientId, onRecord }: PatientConsentBannerProps): ReactNode {
   const t = useT('consent.banner');
   const consent = usePatientConsent(patientId);

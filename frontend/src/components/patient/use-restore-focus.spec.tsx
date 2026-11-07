@@ -6,11 +6,9 @@ import { useRestoreFocus } from './use-restore-focus';
 
 interface HarnessProps {
   readonly withList: boolean;
-  /** Whether the refresh removes the pressed button (an item that leaves the "unread" list) or leaves it in place. */
   readonly removesButton: boolean;
 }
 
-/** The refresh that follows the action bumps the version, and may remove the button that was pressed. */
 function Harness({ withList, removesButton }: HarnessProps): ReactNode {
   const [version, setVersion] = useState(1);
   const [hasButton, setHasButton] = useState(true);

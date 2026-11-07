@@ -76,14 +76,12 @@ interface PanelProps {
   readonly onPage: (page: number) => void;
 }
 
-/** What the list shows for every state of the read: skeleton, error with retry, empty with a way forward, or the cards. */
 function AppointmentsPanel({ tab, query, onCancel, onPage }: PanelProps): ReactNode {
   const page: PaginatedResponse<AppointmentView> | undefined = query.data;
   if (page === undefined) return <QueryFailure query={query} embedded pending={<ContentSkeleton shape="list" rows={3} />} />;
   return page.items.length === 0 ? <EmptyAppointments tab={tab} /> : <AppointmentItems tab={tab} page={page} onCancel={onCancel} onPage={onPage} />;
 }
 
-/** State of the list view: which tab and page are open, and which appointment the cancel dialog is about. */
 function useListState(): {
   readonly tab: AppointmentTab;
   readonly page: number;
@@ -102,7 +100,6 @@ function useListState(): {
   return { tab, page, target, setTab, setPage, setTarget };
 }
 
-/** The patient's appointments (FR-006): upcoming and the whole history, server-paged, with cancellation from the list (FR-005). */
 export function AppointmentList(): ReactNode {
   const t = useT('appointments');
   const { tab, page, target, setTab, setPage, setTarget } = useListState();
@@ -111,7 +108,7 @@ export function AppointmentList(): ReactNode {
   const close = useCallback(() => setTarget(null), [setTarget]);
   const options: ReadonlyArray<TabOption<AppointmentTab>> = [{ value: 'upcoming', label: t('tabUpcoming') }, { value: 'all', label: t('tabAll') }];
   useClampedPage(query.data?.meta, page, setPage);
-  // The card that opened the dialog may lose its cancel button (cancelled, or found not cancellable): keep the focus in the list.
+  // The card that opened the dialog may lose its cancel button: keep the focus in the list.
   useFocusFallback(target !== null, panel);
   useDocumentTitle(t('title'));
   return (

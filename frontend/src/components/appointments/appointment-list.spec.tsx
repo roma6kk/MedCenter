@@ -78,7 +78,6 @@ describe('AppointmentList', () => {
     await userEvent.click(screen.getByRole('tab', { name: 'Все записи' }));
 
     expect(await screen.findByText('Записей пока нет')).toBeInTheDocument();
-    // B11: an icon, one sentence and one primary action.
     expect(screen.getByTestId('empty-state-icon')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Записаться' })).toHaveAttribute('href', '/booking');
   });

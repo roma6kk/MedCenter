@@ -14,11 +14,9 @@ import { StatusBadge } from './status-badge';
 
 interface AppointmentCardProps {
   readonly appointment: AppointmentView;
-  /** Offers the cancel action (only for a cancellable appointment); the dialog itself lives with the list. */
   readonly onCancel?: (appointment: AppointmentView) => void;
 }
 
-/** The "details" link and the quiet red "cancel" action of one appointment; the hero card and the list rows share them. */
 export function AppointmentActions({ appointment, onCancel, hero = false }: AppointmentCardProps & { readonly hero?: boolean }): ReactNode {
   const t = useT('appointments');
   const format = useClinicFormat();
@@ -35,7 +33,6 @@ export function AppointmentActions({ appointment, onCancel, hero = false }: Appo
         {t('open')}
       </Link>
       {onCancel !== undefined && isCancellable(appointment.status) ? (
-        // B2: cancelling is the secondary action of the block: red text and an icon, no filled button next to «Подробнее».
         <Button variant="quiet-danger" size={size} aria-label={t('cancelFor', { when, doctor })} onClick={() => onCancel(appointment)}>
           <CircleX aria-hidden="true" className="size-4" />
           {hero ? t('cancel') : t('cancelShort')}
@@ -45,10 +42,6 @@ export function AppointmentActions({ appointment, onCancel, hero = false }: Appo
   );
 }
 
-/**
- * One appointment as a row of the list: the clock time in tabular figures, what and who, the status as a soft pill, then the
- * actions. The day itself is the heading of the group the row sits in.
- */
 export function AppointmentCard({ appointment, onCancel }: AppointmentCardProps): ReactNode {
   const t = useT('appointments');
   const format = useClinicFormat();

@@ -30,12 +30,10 @@ interface LoadedProps {
 function LoadedAppointment({ appointment, onCancel }: LoadedProps): ReactNode {
   const t = useT('appointments');
   return (
-    // The record fades in where the skeleton stood, instead of replacing it in one frame.
     <div className="animate-fade-in">
       <AppointmentDetails appointment={appointment} />
       {isCancellable(appointment.status) ? (
         <div className="no-print mt-4">
-          {/* B2: the cancel action closes the block as a quiet red text button; the dialog that follows has the solid one. */}
           <Button variant="quiet-danger" size="lg" onClick={onCancel}>
             <CircleX aria-hidden="true" className="size-5" />
             {t('cancel')}
@@ -46,7 +44,6 @@ function LoadedAppointment({ appointment, onCancel }: LoadedProps): ReactNode {
   );
 }
 
-/** The record cannot be shown to this patient: the not-found screen is the whole page (it brings its own heading). */
 function MissingAppointment(): ReactNode {
   const t = useT('appointments');
   return <NotFoundState title={t('notFoundTitle')} description={t('notFoundHint')} action={<BackLink />} />;
@@ -63,17 +60,14 @@ function DetailBody({ query, onCancel }: BodyProps): ReactNode {
   return <QueryFailure query={query} notFoundText={t('notFoundTitle')} badRequestIsNotFound pending={<ContentSkeleton shape="detail" />} />;
 }
 
-/** One appointment with its cancel action (FR-005, FR-006); a foreign or unknown id looks exactly like a missing one (BR-006). */
 export function AppointmentDetailView({ appointmentId }: { readonly appointmentId: string }): ReactNode {
   const t = useT('appointments');
   const query = useAppointment(appointmentId);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const heading = useRef<HTMLHeadingElement>(null);
   const closeDialog = useCallback(() => setIsDialogOpen(false), []);
-  // The cancel button is gone once the status changed: keep the keyboard user at the top of the record.
   useFocusFallback(isDialogOpen, heading);
   const format = useClinicFormat();
-  // «Приём 27 октября, 10:00»: the page says which visit it is, not what kind of page it is (B12); the generic title waits for the read.
   const title: string = query.data === undefined ? t('detailTitle') : t('detailHeading', { when: format.dayTime(query.data.start) });
   useDocumentTitle(title);
   if (query.data === undefined && isMissingError(query.error, true)) return <MissingAppointment />;

@@ -1,10 +1,5 @@
 'use client';
 
-/**
- * use-profile-data — the five reads the profile page needs, composed without a new request: the account and the card, the
- * nearest appointments, the latest visits and the prescriptions. Each stays its own query result so a block can fail or
- * load on its own. Pages and keys are the ones the list pages already use, so a visit to them warms this page's cache.
- */
 import type { UseQueryResult } from '@tanstack/react-query';
 import { useAppointments } from '@/components/appointments/use-appointments';
 import type { AppointmentView } from '@/components/appointments/appointment-types';
@@ -34,7 +29,6 @@ export function useProfileData(): ProfileData {
   };
 }
 
-/** A count of what the loaded page holds; `more` when the list has further pages, so the number is "at least". */
 export interface Count {
   readonly value: number;
   readonly more: boolean;
@@ -44,7 +38,6 @@ export function countOf<TItem>(page: PaginatedResponse<TItem> | undefined, predi
   return page === undefined ? null : { value: page.items.filter(predicate).length, more: page.meta.totalPages > 1 };
 }
 
-/** The booked ones among the upcoming list (the server already filters by `status=booked`; this guards stale caches). */
 export function activeAppointments(page: PaginatedResponse<AppointmentView> | undefined): ReadonlyArray<AppointmentView> {
   return (page?.items ?? []).filter((item) => item.status === 'booked');
 }

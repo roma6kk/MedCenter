@@ -14,7 +14,6 @@ import { WRAP_TEXT } from '../wrap-text';
 import { givenNameOf } from './profile-name';
 import { activeAppointments, type ProfileData } from './use-profile-data';
 
-/** No visit ahead: the hero says so and offers the one thing to do about it. */
 function NoVisit(): ReactNode {
   const t = useT('patientHome.hero');
   return (
@@ -31,10 +30,6 @@ function NoVisit(): ReactNode {
   );
 }
 
-/**
- * The top of the home (B4): the greeting, and under it the nearest visit as the hero (or the invitation to book one). The
- * account and the appointments are read separately, so one failing does not take the other down.
- */
 export function HomeHero({ data }: { readonly data: ProfileData }): ReactNode {
   const t = useT('patientHome');
   const given: string = givenNameOf(data.account.data, data.patient.data ?? null);

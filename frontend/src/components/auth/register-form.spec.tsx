@@ -8,7 +8,6 @@ jest.mock('@/lib/api/api-fetch', () => {
   return { ...actual, apiFetch: jest.fn() };
 });
 
-// next/link prefetches its target; the marker lets a test tell its anchors from a plain `<a>`.
 jest.mock('next/link', () => {
   const { createElement } = jest.requireActual<typeof import('react')>('react');
   return {

@@ -32,7 +32,6 @@ function Row({ label, children }: { readonly label: string; readonly children: R
   );
 }
 
-/** How much of the card is filled, as a slim bar and one line: the ring of the old header, in the one place that owns the data. */
 function CompletenessLine({ completeness }: { readonly completeness: Completeness }): ReactNode {
   const t = useT('patientProfile.completeness');
   const hasOnlyPhoneMissing: boolean = completeness.missing.length === 1 && completeness.missing[0] === 'phone';
@@ -89,11 +88,6 @@ function CardRows({ patient, account }: { readonly patient: PatientProfile; read
   );
 }
 
-/**
- * «Личные данные» (B4): the account and the FHIR card in one block, so the name and the e-mail appear once. Only the phone
- * is editable (3.12); the block says that the front desk changes the rest instead of showing buttons that would do nothing.
- * The account and the card each keep their own loading and failure.
- */
 export function ProfilePersonalData({ completeness }: { readonly completeness: Completeness | null }): ReactNode {
   const t = useT('patientProfile.data');
   const tProfile = useT('patient.profile');
@@ -116,7 +110,6 @@ export function ProfilePersonalData({ completeness }: { readonly completeness: C
   );
 }
 
-/** Only documents that exist: the medical record has the extract and the prescriptions (with print), and the page itself prints. */
 export function ProfileDocuments(): ReactNode {
   const t = useT('patientProfile.documents');
   return (

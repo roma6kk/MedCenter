@@ -16,12 +16,9 @@ type RegisterForm = UseFormReturn<RegisterFormValues>;
 export interface RegisterFormState {
   readonly form: RegisterForm;
   readonly submit: (event?: BaseSyntheticEvent) => Promise<void>;
-  /** A problem that is not a field error (or names a field the form does not have): shown as a banner. */
   readonly problem: ProblemDetails | null;
-  /** The email is already registered: the form offers to sign in instead. */
   readonly isEmailTaken: boolean;
   readonly isPending: boolean;
-  /** Seconds the server asked to wait (429 `Retry-After`) before the form may be sent again; `0` when it may. */
   readonly cooldown: number;
   readonly isSuccess: boolean;
 }
@@ -29,17 +26,14 @@ export interface RegisterFormState {
 interface RegisterProblems {
   readonly problem: ProblemDetails | null;
   readonly isEmailTaken: boolean;
-  /** Sorts a failed registration into a field error, the email hint or the banner. */
   readonly show: (failure: ProblemDetails) => void;
   readonly clear: () => void;
 }
 
-/** Where a registration failure is shown: next to a field (`VALIDATION_ERROR`, `EMAIL_TAKEN`) or in a banner. */
 function useRegisterProblems(form: RegisterForm): RegisterProblems {
   const t = useT('auth.register');
   const [problem, setProblem] = useState<ProblemDetails | null>(null);
   const [isEmailTaken, setIsEmailTaken] = useState(false);
-  // The checkbox is one form field: the server names it by the parts of the nested `accountConsent` object.
   const setFieldError: RegisterForm['setError'] = (name, error) =>
     form.setError(String(name).startsWith('accountConsent') ? 'accountConsent' : name, error);
   const show = (failure: ProblemDetails): void => {
@@ -60,7 +54,6 @@ function useRegisterProblems(form: RegisterForm): RegisterProblems {
   return { problem, isEmailTaken, show, clear };
 }
 
-/** Form state and the `POST /api/v1/auth/register` call of the registration page. */
 export function useRegisterForm(): RegisterFormState {
   const form: RegisterForm = useForm<RegisterFormValues>({
     resolver: zodResolver(registerFormSchema),
@@ -76,7 +69,7 @@ export function useRegisterForm(): RegisterFormState {
     },
   });
   const send = form.handleSubmit((values) => registration.mutate(toRegisterRequest(values)));
-  // The button is `aria-disabled` (it keeps focus), so a press, Enter or a repeated submit must be refused here.
+  // The button is `aria-disabled` (keeps focus), so a press, Enter or repeated submit must be refused here.
   const closed: boolean = registration.isPending || cooldown > 0;
   return {
     form,

@@ -17,7 +17,6 @@ function write(key: string, ids: ReadonlyArray<string>): void {
   try {
     window.localStorage.setItem(key, JSON.stringify(ids));
   } catch {
-    // Private mode or a full quota: the choice then lives until the page is closed, which is still what the button promised.
   }
 }
 
@@ -27,7 +26,7 @@ export interface HiddenRecommendations {
   readonly restore: () => void;
 }
 
-/** The recommendations the patient dismissed, remembered in this browser per patient id (no backend for it). Read after mount, so the server markup matches. */
+// Read after mount, so the server markup matches.
 export function useHiddenRecommendations(patientId: string | undefined): HiddenRecommendations {
   const key: string | undefined = patientId === undefined ? undefined : `${KEY_PREFIX}${patientId}`;
   const [hidden, setHidden] = useState<ReadonlyArray<string>>([]);

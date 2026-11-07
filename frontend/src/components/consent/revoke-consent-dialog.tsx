@@ -10,11 +10,10 @@ import { useT } from '@/lib/i18n/use-t';
 import { useRevokeMyConsent } from './use-consent';
 
 interface RevokeConsentDialogProps {
-  /** Must keep its identity between renders (`useCallback`): the focus trap restarts when it changes. */
+  // Must keep its identity between renders: the focus trap restarts when it changes.
   readonly onClose: () => void;
 }
 
-/** "Keep" and Escape do nothing while the request is in flight: the consent would be revoked after the dialog was dismissed. */
 function useCloseUnlessPending(pending: boolean, onClose: () => void): () => void {
   const isPending = useRef(pending);
   useEffect(() => {
@@ -25,11 +24,6 @@ function useCloseUnlessPending(pending: boolean, onClose: () => void): () => voi
   }, [onClose]);
 }
 
-/**
- * Confirmation of the patient's own revocation (API 3.6, design §3): says what it does (new entries stop, nothing is
- * deleted) and that the clinic needs a written application as well. The status refreshes through the mutation's
- * invalidation; the dialog closes once the answer is in.
- */
 export function RevokeConsentDialog({ onClose }: RevokeConsentDialogProps): ReactNode {
   const t = useT('consent.mine');
   const revoke = useRevokeMyConsent();

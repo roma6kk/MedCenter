@@ -16,7 +16,7 @@ import { primaryCode } from './history-model';
 
 export const ICD10_SYSTEM = 'https://fhir.by/CodeSystem/InternClassificDiseases10';
 
-/** Where the prescriptions of the page came from: `failed` (the request failed) and `partial` (more than one page, the older visits may lack theirs) say a visit without any may not be a visit without any. */
+// `failed`/`partial`: a visit without prescriptions may still have had some.
 export type PrescriptionsState = 'ok' | 'failed' | 'partial';
 
 interface VisitRowProps {
@@ -26,7 +26,6 @@ interface VisitRowProps {
   readonly onRetryPrescriptions?: () => void;
 }
 
-/** The diagnoses of a visit; an old record that has only the primary code still shows it. */
 function diagnosesOf(entry: HistoryEntry): ReadonlyArray<DiagnosisView> {
   if (entry.diagnoses.length > 0) return entry.diagnoses;
   const code = primaryCode(entry);
@@ -114,7 +113,6 @@ function Details({ entry, prescriptions, prescriptionsState = 'ok', onRetryPresc
   );
 }
 
-/** One visit: a toggle with the date tile, service, time and primary diagnosis; the details open below it (and always print). */
 export function VisitRow({ entry, prescriptions, prescriptionsState, onRetryPrescriptions }: VisitRowProps): ReactNode {
   const t = useT('patientHistory');
   const format = useClinicFormat();

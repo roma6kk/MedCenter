@@ -1,7 +1,6 @@
 import type { ReactNode } from 'react';
 import { WRAP_TEXT } from './wrap-text';
 
-/** A bordered term list: label and value side by side when the container is wide enough, stacked when it is narrow (a phone, a side column). */
 export function DefinitionList({ children }: { readonly children: ReactNode }): ReactNode {
   return <dl className="rounded-card border border-border bg-card px-5">{children}</dl>;
 }

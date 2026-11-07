@@ -9,7 +9,6 @@ import { MyConsentSection } from './my-consent-section';
 jest.mock('./consent-api');
 const mocked = jest.mocked(api);
 
-/** The revocation and the history are one disclosure away (B3): open it. */
 async function openDetails(): Promise<void> {
   await userEvent.click(await screen.findByRole('button', { name: 'Подробнее' }));
 }

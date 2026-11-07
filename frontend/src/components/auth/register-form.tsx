@@ -16,7 +16,7 @@ import { clinicDateKey } from '@/lib/clinic-time';
 import { AUTH_INPUT_CLASS, AuthField } from './auth-field';
 import { useRegisterForm, type RegisterFormState } from './use-register-form';
 
-/** Sign-in is a plain `<a>`: the target is a route handler that answers a redirect to another origin, which `next/link` must not prefetch. */
+// Sign-in is a plain `<a>`: the target redirects to another origin, which `next/link` must not prefetch.
 function SignInLink({ className, children }: { readonly className: string; readonly children: ReactNode }): ReactNode {
   return <a href={AUTHORIZE_PATH} className={className}>{children}</a>;
 }
@@ -80,7 +80,6 @@ function PersonalFields({ state }: { readonly state: RegisterFormState }): React
   );
 }
 
-/** Consent to the account data (art. 5, Law 99-Z). It says outright that the record consent is signed on paper at the clinic. */
 function ConsentField({ state }: { readonly state: RegisterFormState }): ReactNode {
   const t = useT('auth.register');
   const { register, formState: { errors } } = state.form;
@@ -100,7 +99,6 @@ function submitLabel(state: RegisterFormState, t: Translate): string {
   return state.cooldown > 0 ? t('retryIn', { seconds: state.cooldown }) : t('submit');
 }
 
-/** Patient self-registration (`POST /api/v1/auth/register`, FR-001). Server field errors land on their fields. */
 export function RegisterForm(): ReactNode {
   const t = useT('auth.register');
   useDocumentTitle(t('title'));

@@ -13,13 +13,10 @@ export interface CancelFormState {
   readonly errors: FieldErrors<CancelReasonForm>;
   readonly submit: () => void;
   readonly pending: boolean;
-  /** BR-002: the server says the appointment can no longer be cancelled (409), the form has nothing left to offer. */
   readonly notCancellable: boolean;
-  /** A failure that no field explains (not found, 5xx, offline); validation problems land on the field instead. */
   readonly problem: ProblemDetails | null;
 }
 
-/** The cancellation form of one appointment: client rule, server field errors and the 409 outcome. */
 export function useCancelForm(appointmentId: string, onCancelled: () => void): CancelFormState {
   const form = useForm<CancelReasonForm>({ resolver: zodResolver(cancelReasonSchema), defaultValues: { reason: '' } });
   const cancel = useCancelAppointment();

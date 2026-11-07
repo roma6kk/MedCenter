@@ -11,7 +11,6 @@ import { usePatientConsent } from './use-consent';
 
 interface ConsentStatusLineProps {
   readonly patientId: string;
-  /** Reveals the consent management of the page; without it the line is the badge alone (the encounter screen). */
   readonly onManage?: () => void;
 }
 
@@ -19,11 +18,6 @@ function numericDate(value: string): string {
   return formatDateKey(consentDayOf(value), 'numeric');
 }
 
-/**
- * The consent of one patient as a single compact line for the head of a page (A1): a badge that says where it stands
- * (and since when, if it is in force) and, when the page can, the way to its management. Quiet while loading and when the
- * consent cannot be read: the management section reports a failed read in full.
- */
 export function ConsentStatusLine({ patientId, onManage }: ConsentStatusLineProps): ReactNode {
   const t = useT('consent.line');
   const consent = usePatientConsent(patientId);

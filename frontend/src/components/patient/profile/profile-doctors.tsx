@@ -13,11 +13,9 @@ import { initialsOf } from './profile-name';
 
 export interface DoctorEntry {
   readonly name: string;
-  /** The nearest booked appointment with this doctor. */
   readonly appointment: AppointmentView;
 }
 
-/** Doctors of the booked appointments, in the order of the list (soonest first), one row per name. The history carries no doctor name, so only these can be named. */
 export function doctorsOf(appointments: ReadonlyArray<AppointmentView>): ReadonlyArray<DoctorEntry> {
   const seen = new Set<string>();
   const result: DoctorEntry[] = [];

@@ -11,11 +11,6 @@ import { SegmentedTabs, tabPanelProps, type TabOption } from './segmented-tabs';
 
 const TABS_ID = 'medcard';
 
-/**
- * «Медкарта» (B6): the visit history and the prescriptions of the patient on one page, as two tabs, instead of two items in the
- * navigation. The open tab is kept in `?tab=` (replaced, not pushed, so «Назад» leaves the page) and the old addresses
- * `/history` and `/prescriptions` redirect here. Each tab keeps its own heading line, print button and failures.
- */
 export function MedicalRecord({ initialTab = 'history' }: { readonly initialTab?: MedcardTab }): ReactNode {
   const t = useT('medcard');
   const [tab, setTab] = useState<MedcardTab>(initialTab);

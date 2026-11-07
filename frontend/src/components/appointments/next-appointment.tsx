@@ -16,9 +16,7 @@ import { StatusBadge } from './status-badge';
 
 interface NextAppointmentProps {
   readonly appointment: AppointmentView;
-  /** The list offers the cancellation; the home does not (it only points to the visit), so the action is absent there. */
   readonly onCancel?: (appointment: AppointmentView) => void;
-  /** How many further booked visits exist: a link to the whole list is added under the actions. */
   readonly more?: number;
 }
 
@@ -31,10 +29,6 @@ function Fact({ icon, children }: { readonly icon: ReactNode; readonly children:
   );
 }
 
-/**
- * Hero card of the nearest upcoming visit (design canvas: date tile, "Ближайший приём", status, time · service, who, how long).
- * Everything comes from the appointment already on the page; the room is not in the API and is left out.
- */
 export function NextAppointment({ appointment, onCancel, more = 0 }: NextAppointmentProps): ReactNode {
   const t = useT('appointments');
   const format = useClinicFormat();

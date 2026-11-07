@@ -17,7 +17,6 @@ import { useMyConsent } from './use-consent';
 
 const HOW_KEY: Readonly<Record<Exclude<ConsentState, 'active'>, string>> = { none: 'noneHow', revoked: 'revokedHow', rejected: 'rejectedHow' };
 
-/** One line that says where the consent stands (B3): the date it has been in force since for an active one, else the state in words. */
 function Summary({ consent, state }: { readonly consent: PatientConsent; readonly state: ConsentState }): ReactNode {
   const t = useT('consent');
   const tMine = useT('consent.mine');
@@ -47,7 +46,6 @@ function Body({ consent }: { readonly consent: PatientConsent }): ReactNode {
     <>
       <Summary consent={consent} state={state} />
       {state === 'active' ? null : <p className="text-sm">{t(HOW_KEY[state])}</p>}
-      {/* Progressive disclosure: the law, the facts of the entry, the history and the rare revocation are one click away. */}
       <button
         ref={opener}
         type="button"
@@ -65,7 +63,6 @@ function Body({ consent }: { readonly consent: PatientConsent }): ReactNode {
           <ConsentStatusView consent={consent} compact />
           {state === 'active' ? (
             <div>
-              {/* The negative margin lines the red text up with the text above; the 44 px target stays. */}
               <Button variant="quiet-danger" onClick={() => setIsOpen(true)} className="-ml-4">
                 <CircleX aria-hidden="true" className="size-4" />
                 {t('revoke')}
@@ -79,11 +76,6 @@ function Body({ consent }: { readonly consent: PatientConsent }): ReactNode {
   );
 }
 
-/**
- * The patient's consent to the electronic record (FR-001, ADR-019) on the profile page, folded to one line (B3): where it
- * stands and, for an active one, since when; «Подробнее» opens the law, the facts, the history and the revocation. Signing is
- * never done here: the consent is a paper form.
- */
 export function MyConsentSection(): ReactNode {
   const t = useT('consent');
   const consent = useMyConsent();

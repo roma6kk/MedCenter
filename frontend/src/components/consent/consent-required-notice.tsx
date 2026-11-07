@@ -11,16 +11,12 @@ import { useT } from '@/lib/i18n/use-t';
 import { cn } from '@/lib/ui/cn';
 
 interface ConsentRequiredNoticeProps {
-  /** What the server refused (409 `CONSENT_REQUIRED`): opening the encounter (7.1) or completing it (7.3). */
   readonly action: 'open' | 'complete';
   readonly patientId: string;
-  /** The emergency request is running: the button is closed but keeps the focus. */
   readonly isPending: boolean;
-  /** Resend the same request with `emergencyReason` (trimmed, 10…500 characters). */
   readonly onEmergency: (reason: string) => void;
 }
 
-/** `validation`-less: the two messages belong to this field (`consent.required.*`), the limits are the server's. */
 function reasonProblem(reason: string): 'reasonTooShort' | 'reasonTooLong' | null {
   if (reason.length < EMERGENCY_REASON_MIN) return 'reasonTooShort';
   return reason.length > EMERGENCY_REASON_MAX ? 'reasonTooLong' : null;
@@ -52,11 +48,6 @@ function EmergencyForm({ action, isPending, onEmergency }: Omit<ConsentRequiredN
   );
 }
 
-/**
- * The answer to 409 `CONSENT_REQUIRED` of 7.1 / 7.3 (ADR-019, design §4): there is no active consent, so the doctor is told
- * to send the patient to the front desk or to record the paper consent on the patient's page, and may instead go on as
- * emergency care with a mandatory reason, which the server logs in a separate audit event.
- */
 export function ConsentRequiredNotice({ action, patientId, isPending, onEmergency }: ConsentRequiredNoticeProps): ReactNode {
   const t = useT('consent.required');
   return (
