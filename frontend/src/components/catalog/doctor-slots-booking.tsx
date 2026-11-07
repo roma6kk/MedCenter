@@ -46,7 +46,6 @@ interface ServiceChipsProps {
   readonly onChoose: (service: CatalogService) => void;
 }
 
-/** The doctor's services as toggle chips (C6): the time below is the time of the chosen one only. */
 function ServiceChips({ services, chosenId, onChoose }: ServiceChipsProps): ReactNode {
   const t = useT('catalog');
   return (
@@ -71,24 +70,16 @@ function ServiceChips({ services, chosenId, onChoose }: ServiceChipsProps): Reac
 
 interface DoctorSlotsBookingProps {
   readonly doctorId: string;
-  /** The services the doctor gives; with some, the visitor picks one first and sees only its time. Empty or absent: every free slot, no service. */
   readonly services?: ReadonlyArray<CatalogService>;
-  /** The doctor's services are still being read: chips are drawn as placeholders and no time is offered yet. */
   readonly servicesPending?: boolean;
 }
 
-/**
- * Service chips, free slots of the doctor and the "book" button (FR-003, scenario A). A guest can pick a slot: the choice
- * (with the service) goes to the draft in `sessionStorage`, the wizard's route sends the guest to the login and brings them
- * back to the confirmation.
- */
 export function DoctorSlotsBooking({ doctorId, services = [], servicesPending = false }: DoctorSlotsBookingProps): ReactNode {
   const t = useT('catalog');
   const router = useRouter();
   const canBook = useCanBook();
   const [selected, setSelected] = useState<Slot | null>(null);
   const [serviceId, setServiceId] = useState<string | null>(null);
-  // Until the visitor picks, the first service is the chosen one: the slot grid never shows times of every service mixed.
   const service: CatalogService | null = services.find((item) => item.id === serviceId) ?? services[0] ?? null;
   const handleBook = (): void => {
     if (selected === null) return;

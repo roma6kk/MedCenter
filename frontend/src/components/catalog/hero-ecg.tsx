@@ -1,10 +1,6 @@
 import type { ReactNode } from 'react';
 
-/**
- * The one living detail of the hero (VE5): an ECG trace that draws itself once, left to right, when the page opens. The
- * path is normalised (`pathLength="1"`), so the dash is one unit long whatever the width; the keyframes (`ecg-draw`) only
- * move the offset, and the global reduced-motion rule drops them, which leaves the finished line. It is decoration.
- */
+/** `pathLength="1"` normalises the dash; the global reduced-motion rule drops the animation. */
 export function HeroEcg(): ReactNode {
   return (
     <svg aria-hidden="true" focusable="false" viewBox="0 0 320 40" className="h-10 w-full max-w-[20rem] text-primary" fill="none">

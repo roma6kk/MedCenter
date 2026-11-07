@@ -12,7 +12,6 @@ describe('PublicShell', () => {
   it('should offer sign-in and registration when nobody is signed in', () => {
     render(<PublicShell><p>content</p></PublicShell>);
 
-    // «Войти» leads straight into the authorization flow: no page with a single button in between (C2).
     expect(screen.getByRole('link', { name: 'Войти' })).toHaveAttribute('href', '/api/auth/authorize');
     expect(screen.getByRole('link', { name: 'Регистрация' })).toHaveAttribute('href', '/register');
   });

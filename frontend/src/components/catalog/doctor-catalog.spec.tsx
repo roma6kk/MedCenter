@@ -25,7 +25,6 @@ function doctor(id: string, specialty?: string): Doctor {
   return { id, firstName: 'Имя', lastName: id, name: `Имя ${id}`, ...(specialty === undefined ? {} : { specialty, specialtyCode: CODES[specialty] }) };
 }
 
-/** The API's page of these doctors (9 per page, as the directory asks). */
 function pageOf(doctors: ReadonlyArray<Doctor>, page: number = 1): PaginatedResponse<Doctor> {
   const totalPages: number = Math.ceil(doctors.length / 9);
   return { items: doctors.slice((page - 1) * 9, page * 9), meta: { page, pageSize: 9, totalItems: doctors.length, totalPages } };
@@ -124,7 +123,6 @@ describe('DoctorCatalog', () => {
     act(() => { jest.advanceTimersByTime(300); });
     expect(replaceMock).toHaveBeenCalledTimes(1);
     await user.type(field, 'о');
-    // The server answers the first request: the address now carries «иван» while the field already says «ивано».
     view.rerender(<DoctorCatalog params={{ page: 1, search: 'иван' }} services={SERVICES} directory={directory} />);
     act(() => { jest.advanceTimersByTime(300); });
 
@@ -157,7 +155,6 @@ describe('DoctorCatalog', () => {
     act(() => { jest.advanceTimersByTime(300); });
     view.rerender(<DoctorCatalog params={{ page: 1, search: 'иван' }} services={SERVICES} directory={directory} />);
     expect(field).toHaveValue('иван');
-    // Back: the address returns to a page without the term.
     view.rerender(<DoctorCatalog params={{ page: 1 }} services={SERVICES} directory={directory} />);
 
     expect(field).toHaveValue('');

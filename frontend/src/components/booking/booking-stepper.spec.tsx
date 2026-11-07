@@ -19,7 +19,6 @@ describe('BookingStepper', () => {
   it('should start the accessible name with the visible number and label when the step can be revisited', () => {
     render(<BookingStepper current={2} onGo={jest.fn()} />);
 
-    // WCAG 2.5.3 (label in name): the words a sighted user reads on the button are inside its accessible name.
     const button: HTMLElement = screen.getByRole('button', { name: /Услуга/ });
     const name: string = button.getAttribute('aria-label') ?? '';
     expect(button.textContent?.trim()).toBe('Услуга');

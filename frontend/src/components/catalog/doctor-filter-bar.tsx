@@ -11,7 +11,6 @@ import { SECONDARY_BUTTON_CLASS } from './catalog-styles';
 import { FIELD_CLASS } from '@/components/ui/field-styles';
 import { Select } from '@/components/ui/select';
 
-/** Pause after the last keystroke before the name filter is applied. */
 export const SEARCH_DEBOUNCE_MS = 300;
 
 interface DoctorFilterBarProps {
@@ -29,7 +28,6 @@ function Field({ label, htmlFor, children }: { readonly label: string; readonly 
   );
 }
 
-/** The filters of `params` with one of them replaced (blank = removed); any change goes back to the first page. */
 function withFilter(params: DirectoryParams, name: 'serviceId' | 'specialty' | 'search', value: string): DirectoryParams {
   const filters: Record<'serviceId' | 'specialty' | 'search', string | undefined> = { serviceId: params.serviceId, specialty: params.specialty, search: params.search };
   filters[name] = value === '' ? undefined : value;
@@ -41,11 +39,6 @@ function withFilter(params: DirectoryParams, name: 'serviceId' | 'specialty' | '
   };
 }
 
-/**
- * Service, specialty and name filters of the catalog (C5). They apply at once: a select on change, the name 300 ms after
- * the last keystroke, each as a `router.replace` to the URL the server renders from (no history entry per keystroke).
- * It stays a `<form method="get">` underneath, so without client JS Enter still submits the same URL.
- */
 export function DoctorFilterBar({ params, services, specialties }: DoctorFilterBarProps): ReactNode {
   const t = useT('catalog');
   const id: string = useId();
@@ -54,14 +47,12 @@ export function DoctorFilterBar({ params, services, specialties }: DoctorFilterB
   const [term, setTerm] = useState<string>(params.search ?? '');
   const latest = useRef<DirectoryParams>(params);
   latest.current = params;
-  // The name this field last put into the URL, or found there. The page for it arrives after a server round trip, long after
-  // the visitor may have typed on: that answer is the field's own navigation catching up, not a change from outside.
+  // The name this field last put into the URL: the server's later answer for it is not a change from outside.
   const pushed = useRef<string | undefined>(params.search);
   const apply = (next: DirectoryParams): void => {
     pushed.current = next.search;
     startTransition(() => router.replace(directoryHref(next), { scroll: false }));
   };
-  // Debounced name filter. A term that already is what the field pushed (the effect also runs after the URL caught up) changes nothing.
   useEffect(() => {
     const wanted: string = term.trim();
     if (wanted === (pushed.current ?? '')) return undefined;
@@ -72,7 +63,6 @@ export function DoctorFilterBar({ params, services, specialties }: DoctorFilterB
     }, SEARCH_DEBOUNCE_MS);
     return () => clearTimeout(timer);
   }, [term, router]);
-  // The URL changed from outside (the reset link, back/forward): the field follows it.
   useEffect(() => {
     if (params.search === pushed.current) return;
     pushed.current = params.search;

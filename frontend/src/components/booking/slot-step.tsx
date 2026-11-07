@@ -15,9 +15,7 @@ interface SlotStepProps {
   readonly serviceId: string | null;
   readonly selectedSlotId: string | null;
   readonly selectedSlotStart: string | null;
-  /** Why the visitor is back on this step after a refused booking. */
   readonly notice: BookingNotice | null;
-  /** The slot the server refused, shown as taken. */
   readonly takenSlot: Slot | null;
   readonly onSelect: (slot: Slot) => void;
 }
@@ -29,10 +27,7 @@ const NOTICE_KEY: Readonly<Record<BookingNotice, string>> = {
   expired: 'expired',
 };
 
-/**
- * Why the visitor is back here. The button they pressed (on the confirmation step) is gone, so focus would fall to the
- * page start: the alert itself takes it (WCAG 2.4.3). It is announced as an alert on insertion; focus keeps the position.
- */
+/** The pressed button on the confirmation step is gone, so focus would fall to the page start: the alert takes it. */
 function RefusedNotice({ notice }: { readonly notice: BookingNotice }): ReactNode {
   const t = useT('booking');
   const box = useRef<HTMLParagraphElement>(null);
@@ -52,7 +47,6 @@ function RefusedNotice({ notice }: { readonly notice: BookingNotice }): ReactNod
   );
 }
 
-/** Step 3: free slots of the chosen doctor, narrowed to the length of the chosen service. */
 export function SlotStep({ doctorId, serviceId, selectedSlotId, selectedSlotStart, notice, takenSlot, onSelect }: SlotStepProps): ReactNode {
   const t = useT('booking');
   const doctor = useDoctor(doctorId);

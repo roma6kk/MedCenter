@@ -5,7 +5,6 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { LoadingNote } from '@/components/feedback/loading-note';
 import { useT } from '@/lib/i18n/use-t';
 
-/** A read in flight: shimmering placeholder rows with a text for screen readers. */
 export function QueryLoading({ rows = 3 }: { readonly rows?: number }): ReactNode {
   const t = useT('common');
   return (

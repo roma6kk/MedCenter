@@ -18,13 +18,9 @@ import { useNearestSlots } from './use-nearest-slots';
 interface DoctorOptionProps {
   readonly doctor: Doctor;
   readonly selected: boolean;
-  /** Length of the chosen service: the nearest times are only those that fit it. */
   readonly durationMin: number | null;
-  /** The chosen service: its own slots are offered when the answer names them. */
   readonly serviceId?: string | null;
-  /** Opens the slot step for this doctor. */
   readonly onSelect: (doctorId: string) => void;
-  /** A nearest-time chip: the doctor and the time at once, the wizard goes straight to the confirmation. */
   readonly onSelectSlot: (doctorId: string, slot: Slot) => void;
 }
 
@@ -70,10 +66,6 @@ function NearestTimes({ doctor, durationMin, serviceId = null, onSelectSlot }: P
   );
 }
 
-/**
- * A doctor of the booking wizard: a large portrait, name, specialty, the nearest free time and up to three nearest times
- * as chips that book in one step; «Выбрать врача» opens the whole calendar of the doctor.
- */
 export function DoctorOption({ doctor, selected, durationMin, serviceId = null, onSelect, onSelectSlot }: DoctorOptionProps): ReactNode {
   const t = useT('booking');
   const catalog = useT('catalog');

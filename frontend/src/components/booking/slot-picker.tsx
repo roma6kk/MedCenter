@@ -21,13 +21,9 @@ export interface SlotPickerProps {
   readonly doctorId: string;
   readonly selectedSlotId: string | null;
   readonly onSelect: (slot: Slot) => void;
-  /** Length of the chosen service: only slots of that length are offered (the slot search knows no service). */
   readonly durationMin?: number | null;
-  /** The chosen service: the slots of its schedules are offered, whatever their length. */
   readonly serviceId?: string | null;
-  /** The slot the server has just refused (SLOT_CONFLICT): shown as taken. */
   readonly takenSlot?: Slot | null;
-  /** First day of the picked period when it is known (a restored draft), else today. */
   readonly initialFrom?: string;
 }
 
@@ -55,7 +51,6 @@ function SlotsEmpty({ hasOtherServices }: { readonly hasOtherServices: boolean }
 
 interface SlotResultsProps extends Pick<SlotPickerProps, 'selectedSlotId' | 'onSelect' | 'durationMin' | 'serviceId' | 'takenSlot'> {
   readonly data: DoctorSlots;
-  /** The period that was asked for: the day strip lists its days (the answer's own echo of it is not relied on). */
   readonly period: SlotWindow;
 }
 
@@ -64,7 +59,6 @@ function dayOfSlot(slots: ReadonlyArray<Slot>, slotId: string | null): string | 
   return found === undefined ? null : clinicDayOf(found.start);
 }
 
-/** The day opened first: the one with the chosen slot, else the one with the refused slot, else the first with free time. */
 function defaultDay(days: ReadonlyArray<StripDay>, slots: ReadonlyArray<Slot>, selectedSlotId: string | null, takenSlotId: string | null): string {
   const withSlots: ReadonlyArray<StripDay> = days.filter((day) => day.hasSlots);
   const wanted: ReadonlyArray<string | null> = [dayOfSlot(slots, selectedSlotId), dayOfSlot(slots, takenSlotId)];
@@ -76,7 +70,6 @@ function SlotResults({ data, period, selectedSlotId, onSelect, durationMin = nul
   const t = useT('booking');
   const locale = useUiStore((state) => state.locale);
   const [chosenDay, setChosenDay] = useState<string | null>(null);
-  // Memoised so the grid below keeps the same `slots` (and its grouping) across the renders a selection causes.
   const visible: ReadonlyArray<Slot> = useMemo(() => withTakenSlot(slotsForService(data.items, durationMin, serviceId), takenSlot), [data.items, durationMin, serviceId, takenSlot]);
   const byDay: ReadonlyMap<string, ReadonlyArray<Slot>> = useMemo(() => new Map(groupSlotsByDay(visible).map(({ day, slots }) => [day, slots])), [visible]);
   const { from, to } = period;
@@ -103,10 +96,7 @@ function SlotResults({ data, period, selectedSlotId, onSelect, durationMin = nul
   );
 }
 
-/**
- * Free slots of one doctor for a period (`GET /doctors/{id}/slots?from=&to=`, API 5.2.8): two weeks from today by
- * default, movable by period or by date. Slots go stale in 15 s and refresh when the tab regains focus (BR-001).
- */
+/** Slots go stale in 15 s and refresh when the tab regains focus. */
 export function SlotPicker({ doctorId, selectedSlotId, onSelect, durationMin = null, serviceId = null, takenSlot = null, initialFrom }: SlotPickerProps): ReactNode {
   const windowState = useSlotWindow(initialFrom);
   const query = useDoctorSlots(doctorId, windowState.window);

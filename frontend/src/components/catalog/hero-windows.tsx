@@ -18,12 +18,10 @@ import { doctorInitials } from './doctor-initials';
 import { useSoonestWindows, type SoonestWindow } from './use-soonest-windows';
 
 const WINDOWS_SHOWN = 3;
-/** Doctors asked for their nearest time: the first four of the landing, the same ones its doctor cards read, so the answers are shared. */
 const DOCTORS_ASKED = 4;
 
 const WINDOW_CHIP_CLASS =
   'inline-flex min-h-[44px] flex-none items-center rounded-control bg-primary-soft px-3 text-sm font-semibold tabular-nums text-primary-soft-foreground transition-[background-color,transform] duration-fast ease-out hover:bg-primary-soft-hover active:scale-[0.97]';
-/** What a doctor or an administrator sees instead of the chip: the time is information for them, not a way into the booking. */
 const WINDOW_TEXT_CLASS = 'flex-none text-sm font-semibold tabular-nums text-muted-foreground';
 
 function WindowRow({ entry, today }: { readonly entry: SoonestWindow; readonly today: string }): ReactNode {
@@ -33,7 +31,6 @@ function WindowRow({ entry, today }: { readonly entry: SoonestWindow; readonly t
   const canBook = useCanBook();
   const { doctor, slot } = entry;
   const when: string = describeWhen(slot.start, today, locale, t);
-  // Same hand-over as the doctor's page: the draft carries the doctor and the slot, the wizard opens on the confirmation.
   const book = (): void => {
     useBookingDraftStore.getState().updateDraft(draftFromSlot(doctor.id, slot));
     router.push('/booking');
@@ -72,10 +69,6 @@ function WindowSkeleton(): ReactNode {
   );
 }
 
-/**
- * «Ближайшие свободные окна»: the earliest free time of up to three doctors, each a button that opens the booking on its
- * confirmation. Real data instead of an illustration (C3); with no doctors there is nothing to offer and nothing is drawn.
- */
 export function HeroWindows({ doctors }: { readonly doctors: ReadonlyArray<Doctor> }): ReactNode {
   const t = useT('home');
   const asked: ReadonlyArray<Doctor> = doctors.slice(0, DOCTORS_ASKED);

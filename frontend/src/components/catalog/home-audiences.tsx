@@ -12,7 +12,6 @@ const AUDIENCE_LINK_CLASS = 'mt-auto inline-flex min-h-[44px] items-center text-
 interface AudienceProps {
   readonly title: string;
   readonly text: string;
-  /** Both or neither: a block without a real destination carries no link. */
   readonly action?: { readonly href: string; readonly label: string };
 }
 
@@ -28,7 +27,6 @@ function Audience({ title, text, action }: AudienceProps): ReactNode {
   );
 }
 
-/** Names as plain wordmarks (C8): no border or ground, so nothing looks like a filter or a button that does not click. */
 function Wordmarks({ label, names }: { readonly label: string; readonly names: ReadonlyArray<string> }): ReactNode {
   return (
     <div className="flex flex-col gap-3">
@@ -42,7 +40,6 @@ function Wordmarks({ label, names }: { readonly label: string; readonly names: R
   );
 }
 
-/** Who the clinic serves — private patients, companies, insured patients — with the companies and insurers it works with. Staff do not book, so the private-patients block carries no booking link for them. */
 export function HomeAudiences(): ReactNode {
   const t = useT('home');
   const canBook = useCanBook();

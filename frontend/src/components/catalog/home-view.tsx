@@ -27,14 +27,11 @@ const HOME_DOCTORS = 4;
 interface HomeViewProps {
   readonly services: ReadonlyArray<CatalogService>;
   readonly doctors: ReadonlyArray<Doctor>;
-  /** The catalog could not be read on the server. */
   readonly isFailed: boolean;
 }
 
-/** Services of the clinic with their length, shown under the departments; each leads to the doctors who give it. */
 function ServicesBlock({ services }: { readonly services: ReadonlyArray<CatalogService> }): ReactNode {
   const t = useT('home');
-  // No services, no block: an «Услуги — каталог пуст» heading over nothing says less than silence (C4).
   if (services.length === 0) return null;
   return (
     <div id={HOME_ANCHORS.services} className="flex scroll-mt-4 flex-col gap-4 border-t border-border pt-8">
@@ -65,16 +62,10 @@ function DoctorsTeaser({ doctors }: { readonly doctors: ReadonlyArray<Doctor> })
   );
 }
 
-/**
- * Landing page of the clinic (redesign canvas "Главная — клиника полного цикла"): what the clinic does and for whom, its
- * departments and services, the patient's way through it, the companies it works with, the doctors and the contacts.
- * Booking is one way in among several, not the centre of the page.
- */
 export function HomeView({ services, doctors, isFailed }: HomeViewProps): ReactNode {
   const t = useT('home');
   useDocumentTitle(t('title'), false);
   const entries = directionEntries(isFailed ? undefined : doctors, services.length > 0);
-  // The live part of the departments section: the retry banner when the catalog is down, the services when there are any, else nothing.
   const live: ReactNode = isFailed ? <CatalogUnavailable namespace="home" retryHref="/" /> : services.length > 0 ? <ServicesBlock services={services} /> : undefined;
   return (
     <>

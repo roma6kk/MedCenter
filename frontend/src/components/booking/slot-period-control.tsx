@@ -10,12 +10,11 @@ import { useUiStore } from '@/store/use-ui-store';
 import { useDateDraft } from './use-date-draft';
 import type { SlotWindowState } from './use-slot-window';
 
-/** A period button at either end of the calendar stays focusable (`aria-disabled`, not `disabled`): pressing it must not drop the keyboard focus. */
+/** `aria-disabled`, not `disabled`: pressing an end button must not drop the keyboard focus. */
 interface PeriodButtonProps {
   readonly label: string;
   readonly enabled: boolean;
   readonly onClick: () => void;
-  /** Id of the text that says why the button is closed. */
   readonly describedBy?: string;
 }
 
@@ -33,7 +32,6 @@ function PeriodButton({ label, enabled, onClick, describedBy }: PeriodButtonProp
   );
 }
 
-/** The date field: shows what is being typed, passes every typed day on (see `useDateDraft`). */
 function JumpToDate({ state }: { readonly state: SlotWindowState }): ReactNode {
   const t = useT('booking');
   const dateId: string = useId();
@@ -46,7 +44,6 @@ function JumpToDate({ state }: { readonly state: SlotWindowState }): ReactNode {
   );
 }
 
-/** Moves the searched period: earlier / later by a whole period, or straight to a typed date. */
 export function SlotPeriodControl({ state }: { readonly state: SlotWindowState }): ReactNode {
   const t = useT('booking');
   const locale = useUiStore((store) => store.locale);

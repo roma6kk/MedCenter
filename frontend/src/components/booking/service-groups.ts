@@ -1,8 +1,3 @@
-/**
- * service-groups — the catalogue has no "direction" on a service, so the booking step groups services by the specialty of
- * the doctors who give them (the doctor catalogue knows `?serviceId=`). A service nobody gives, or whose doctors carry no
- * specialty, goes to the closing "other" group.
- */
 import type { CatalogService, Doctor } from '@/components/catalog/catalog-types';
 
 export interface ServiceSpecialty {
@@ -11,7 +6,6 @@ export interface ServiceSpecialty {
 }
 
 export interface ServiceGroup {
-  /** The specialty code or label; `other` for the closing group. */
   readonly key: string;
   readonly specialty: ServiceSpecialty | null;
   readonly services: ReadonlyArray<CatalogService>;
@@ -19,7 +13,6 @@ export interface ServiceGroup {
 
 export const OTHER_GROUP_KEY = 'other';
 
-/** The specialty a service is filed under: that of its first doctor that has one. */
 export function specialtyOfDoctors(doctors: ReadonlyArray<Doctor> | undefined): ServiceSpecialty | null {
   const doctor: Doctor | undefined = doctors?.find((item) => item.specialtyCode !== undefined || item.specialty !== undefined);
   if (doctor === undefined) return null;
@@ -29,7 +22,6 @@ export function specialtyOfDoctors(doctors: ReadonlyArray<Doctor> | undefined): 
   };
 }
 
-/** Groups keep the order in which the catalogue lists their first service; the "other" group is always last. */
 export function groupServices(services: ReadonlyArray<CatalogService>, specialtyOf: (serviceId: string) => ServiceSpecialty | null): ReadonlyArray<ServiceGroup> {
   const groups = new Map<string, { specialty: ServiceSpecialty | null; services: CatalogService[] }>();
   services.forEach((service) => {

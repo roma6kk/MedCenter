@@ -7,7 +7,6 @@ import { useDocumentTitle } from '@/hooks/use-document-title';
 import { useT } from '@/lib/i18n/use-t';
 import { SECONDARY_BUTTON_CLASS } from './catalog-styles';
 
-/** The requested doctor does not exist (or the id is malformed). */
 export function DoctorNotFound(): ReactNode {
   const t = useT('catalog');
   useDocumentTitle(t('notFoundTitle'));

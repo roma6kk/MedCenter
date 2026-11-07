@@ -21,11 +21,9 @@ const CARD_CLASS = 'flex min-h-[44px] w-full gap-3.5 text-left';
 
 interface ServiceStepProps {
   readonly selectedServiceId: string | null;
-  /** `null` = "I don't know which service I need": every doctor is offered. */
   readonly onSelect: (serviceId: string | null) => void;
 }
 
-/** The check circle of the chosen card, or the empty "radio" ring of the others. */
 function Marker({ selected }: { readonly selected: boolean }): ReactNode {
   return selected ? (
     <span aria-hidden="true" className="inline-flex h-6 w-6 flex-none items-center justify-center rounded-full bg-primary text-primary-foreground">
@@ -72,7 +70,6 @@ function AnyServiceChoice({ onSelect }: { readonly onSelect: () => void }): Reac
   );
 }
 
-/** The heading of a group: the clinic's own name of the direction when the specialty is one of them, else the specialty as the doctors carry it. */
 function useGroupLabel(): (group: ServiceGroup) => string {
   const t = useT('booking');
   const home = useT('home');
@@ -99,7 +96,6 @@ function GroupedServices({ services, selectedServiceId, onSelect }: ServiceStepP
   const { groups, isPending } = useServiceGroups(services);
   const labelOf = useGroupLabel();
   if (isPending) return <QueryLoading />;
-  // One group is no grouping: a lone heading above every service says nothing.
   if (groups.length < 2) return <ServiceGrid services={services} selectedServiceId={selectedServiceId} onSelect={onSelect} />;
   return (
     <div className="flex flex-col gap-6">
@@ -120,7 +116,6 @@ interface ServiceListProps extends ServiceStepProps {
 
 function ServiceList({ services, selectedServiceId, onSelect, onRefresh }: ServiceListProps): ReactNode {
   const t = useT('booking');
-  // Nothing at all (a catalogue just seeded, or not filled yet) is not a "no match": offer to look again and to go on without a service.
   if (services.length === 0) {
     return (
       <EmptyState
@@ -143,7 +138,6 @@ function ServiceList({ services, selectedServiceId, onSelect, onRefresh }: Servi
   );
 }
 
-/** Step 1: the service decides the doctors offered next and the length of the visit. */
 export function ServiceStep({ selectedServiceId, onSelect }: ServiceStepProps): ReactNode {
   const t = useT('booking');
   const query = useServices();

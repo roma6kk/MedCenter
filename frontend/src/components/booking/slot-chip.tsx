@@ -13,11 +13,8 @@ import { slotDurationMin } from './slot-time';
 export interface SlotChipProps {
   readonly slot: Slot;
   readonly selected: boolean;
-  /** The slot the server has just refused: drawn struck out, with a destructive border. */
   readonly taken: boolean;
-  /** Without a chosen service slots differ in length, so the length is part of the chip. */
   readonly showDuration: boolean;
-  /** The one chip of the grid that sits in the tab order (roving tabindex); the arrow keys reach the others. */
   readonly tabStop: boolean;
   readonly onSelect: (slot: Slot) => void;
   readonly onFocusSlot: (slotId: string) => void;
@@ -32,11 +29,6 @@ function chipClass(selected: boolean, taken: boolean, selectable: boolean): stri
   return cn(BASE, 'border-border bg-card hover:border-primary hover:bg-primary-soft active:scale-[0.97]');
 }
 
-/**
- * One slot as a compact chip of fixed width: the time centred in tabular figures, a check mark on the chosen one (so the
- * choice does not rest on colour alone). Memoised: a click changes `selected` of two chips only, so the others do not
- * render again (their props are primitives, the slot objects keep their identity and the handlers are stable).
- */
 export const SlotChip = memo(function SlotChip({ slot, selected, taken, showDuration, tabStop, onSelect, onFocusSlot }: SlotChipProps): ReactNode {
   const t = useT('booking');
   const locale = useUiStore((state) => state.locale);

@@ -1,8 +1,4 @@
-/**
- * catalog-server — the server-side (RSC) readers of the public catalog. Anonymous calls straight to the edge, bounded
- * by a timeout (`publicApiFetch`); a failure is a value, so a page renders a banner instead of throwing. Every read
- * asks in the viewer's language (the locale cookie), so names and specialties arrive already translated.
- */
+/** Server-side (RSC) readers: a failure is a value, so a page renders a banner instead of throwing; every read uses the locale cookie. */
 import { toPaginated, type PaginatedResponse } from '@/lib/api/pagination';
 import { withQuery } from '@/lib/api/query-string';
 import { readServerLocale } from '@/lib/i18n/server-locale';
@@ -24,7 +20,6 @@ export function loadDoctors(query: DoctorQuery = {}): Promise<ListResult<Doctor>
   return loadList<Doctor>(withQuery('/api/v1/doctors', { pageSize: CATALOG_PAGE_SIZE, ...query }));
 }
 
-/** One page of doctors as the API pages it (filters and paging on the server). */
 export async function loadDoctorPage(query: DoctorQuery): Promise<FetchResult<PaginatedResponse<Doctor>>> {
   const result = await publicApiFetch<PaginatedResponse<Doctor> | ReadonlyArray<Doctor>>(withQuery('/api/v1/doctors', { ...query }), await readServerLocale());
   return result.ok ? { ok: true, data: toPaginated(result.data) } : result;

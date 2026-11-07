@@ -2,15 +2,12 @@
 
 import { useRef, type KeyboardEvent, type RefObject } from 'react';
 
-/** The elements of a roving group carry `data-roving`; one with `aria-disabled="true"` is skipped. */
 const ITEM_SELECTOR = '[data-roving]';
 
 type Layout = 'row' | 'grid';
 
 interface RovingOptions {
-  /** `row`: Left/Right only (a day strip); `grid`: Up/Down too, to the nearest item of the row above or below. */
   readonly layout: Layout;
-  /** Radio behaviour: the item that receives focus is chosen at once (the arrows select, like a native radio group). */
   readonly selectOnMove?: boolean;
 }
 
@@ -27,7 +24,6 @@ function centreX(rect: DOMRect): number {
   return rect.left + rect.width / 2;
 }
 
-/** The item of the nearest row above (`-1`) or below (`1`) that lies closest to the current one horizontally; `null` when there is none. */
 function neighbourInColumn(items: ReadonlyArray<HTMLElement>, current: HTMLElement, direction: -1 | 1): HTMLElement | null {
   const from: DOMRect = current.getBoundingClientRect();
   const tops: ReadonlyArray<number> = items
@@ -59,11 +55,6 @@ function targetFor(key: string, items: ReadonlyArray<HTMLElement>, current: HTML
   }
 }
 
-/**
- * Arrow-key movement inside a group of buttons (a day strip, a slot grid) without a tab stop per button: the group's
- * container gets `onKeyDown`, the buttons carry `data-roving` and take turns holding `tabIndex={0}`. Written for the
- * visible order, so it needs no ids and no state in the buttons.
- */
 export function useRovingFocus<T extends HTMLElement>({ layout, selectOnMove = false }: RovingOptions): Roving<T> {
   const ref = useRef<T>(null);
   const onKeyDown = (event: KeyboardEvent<T>): void => {

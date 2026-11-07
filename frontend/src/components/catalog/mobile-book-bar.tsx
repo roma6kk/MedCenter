@@ -6,11 +6,6 @@ import { buttonVariants } from '@/components/ui/button-variants';
 import { useCanBook } from '@/hooks/use-can-book';
 import { useT } from '@/lib/i18n/use-t';
 
-/**
- * The landing's sticky bottom bar on a phone (C9): «Записаться на приём» stays under the thumb however far the visitor has
- * scrolled. From `md` the header carries the same button, so the bar goes. Doctors and administrators do not book. The shell
- * leaves room under the page (`pb-24`) so the bar never covers the footer.
- */
 export function MobileBookBar(): ReactNode {
   const t = useT('home');
   const canBook = useCanBook();

@@ -16,7 +16,6 @@ import type { BookingSubmit } from './use-booking-submit';
 interface ConfirmStepProps {
   readonly draft: Pick<BookingDraft, 'serviceId' | 'doctorId' | 'slotStart' | 'slotEnd' | 'reason'>;
   readonly onReasonChange: (reason: string) => void;
-  /** «Изменить» of a summary row: back to the step that made the choice. */
   readonly onEdit: (step: BookingStep) => void;
   readonly booking: Pick<BookingSubmit, 'submit' | 'isPending' | 'problem' | 'reasonError'> & Partial<Pick<BookingSubmit, 'consentRefused'>>;
 }
@@ -35,7 +34,6 @@ interface ReasonFieldProps {
   readonly inputRef: RefObject<HTMLTextAreaElement>;
   readonly onChange: (reason: string) => void;
   readonly onBlur: () => void;
-  /** No active consent to the electronic record: the free text about health cannot be taken (6.1, ADR-019). */
   readonly disabled: boolean;
 }
 
@@ -52,21 +50,15 @@ function ReasonField({ value, error, inputRef, onChange, onBlur, disabled }: Rea
 
 interface ConfirmButtonProps {
   readonly isPending: boolean;
-  /** Seconds the server asked to wait (429 `Retry-After`); `0` when sending is allowed. */
   readonly cooldown: number;
   readonly onConfirm: () => void;
 }
 
-/**
- * Closed with `aria-disabled`, not `disabled`, while the request runs or a 429 asks to wait: the pressed button keeps the
- * keyboard focus (a `disabled` one drops it in some browsers) and a repeated press does nothing.
- */
+/** `aria-disabled`, not `disabled`: the pressed button keeps keyboard focus (a disabled one drops it in some browsers). */
 function ConfirmButton({ isPending, cooldown, onConfirm }: ConfirmButtonProps): ReactNode {
   const t = useT('booking');
   const closed: boolean = isPending || cooldown > 0;
   return (
-    // A bar fixed to the bottom of a phone screen; from `md` it is an ordinary block inside the summary panel. Nothing above it
-    // is transformed (the step animation lives on the other column), so `fixed` is relative to the viewport.
     <div className="no-print fixed inset-x-0 bottom-0 z-10 border-t border-border bg-card p-4 shadow-elev-3 md:static md:border-0 md:bg-transparent md:p-0 md:shadow-none">
       <Button
         size="lg"
@@ -82,22 +74,15 @@ function ConfirmButton({ isPending, cooldown, onConfirm }: ConfirmButtonProps): 
   );
 }
 
-/**
- * Step 4: an optional reason (3…500) beside the summary panel «Ваша запись» (rows with «Изменить», the clinic's address, the
- * cancellation hint) that holds the button which sends the booking. It returns the two columns of the wizard's row. On a
- * wide screen the place of the error line under the reason is kept free: the line appears when the field loses focus on
- * the mouse press, and a button that moved away in between would miss the click that follows.
- */
 export function ConfirmStep({ draft, onReasonChange, onEdit, booking }: ConfirmStepProps): ReactNode {
   const t = useT('booking');
   const reasonRef = useRef<HTMLTextAreaElement>(null);
   const field = useReasonField(draft.reason, booking.reasonError);
   const cooldown: number = useRetryCooldown(booking.problem);
-  // Only a known "no consent" closes the field; a consent that cannot be read leaves it open and the server decides.
   const consent = useMyConsent();
-  // The server's 409 CONSENT_REQUIRED counts too (the consent was revoked after the read): the next press books without the reason.
+  // The server's 409 CONSENT_REQUIRED counts too (consent revoked after the read): the next press books without the reason.
   const noConsent: boolean = (consent.data !== undefined && consent.data.active === null) || booking.consentRefused === true;
-  // A reason typed before the answer arrived (or kept in the draft) must not go out: the server would refuse or drop it.
+  // A reason typed before the consent answer arrived (or kept in the draft) must not go out.
   useEffect(() => {
     if (noConsent && draft.reason !== '') onReasonChange('');
   }, [noConsent, draft.reason, onReasonChange]);
@@ -115,7 +100,6 @@ export function ConfirmStep({ draft, onReasonChange, onEdit, booking }: ConfirmS
         </div>
         {booking.problem === null ? null : <div className="mt-4"><ProblemBanner problem={booking.problem} /></div>}
       </div>
-      {/* The bar of the confirm button is fixed to the screen bottom on a phone: leave room under the panel so it covers nothing. */}
       <aside className="min-w-0 flex-[1_1_320px] pb-24 md:pb-0">
         <BookingSummary
           draft={{ ...draft, step: 4 }}

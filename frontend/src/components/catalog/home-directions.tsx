@@ -12,7 +12,6 @@ import { directoryHref } from './doctor-directory';
 import { directionGridClass, type DirectionEntry } from './home-directions-model';
 import { HOME_ANCHORS, type DirectionTone } from './home-content';
 
-/** Tile colours of a direction (VB3): the soft ground and its own text colour of one token family, each pair checked for contrast in `globals-contrast.spec.ts`. */
 const TONE_TILE_CLASS: Readonly<Record<DirectionTone, string>> = {
   primary: 'bg-primary-soft text-primary-soft-foreground',
   destructive: 'bg-destructive-soft text-destructive',
@@ -46,10 +45,6 @@ function DirectionCard({ entry }: { readonly entry: DirectionEntry }): ReactNode
   );
 }
 
-/**
- * Departments of the clinic, built from the specialties its doctors really have (`directionEntries`); the catalog of
- * services (live data) is passed in as children and shown under the cards. A section with nothing to show is not drawn.
- */
 export function HomeDirections({ entries, children }: { readonly entries: ReadonlyArray<DirectionEntry>; readonly children?: ReactNode }): ReactNode {
   const t = useT('home');
   if (entries.length === 0 && children === undefined) return null;

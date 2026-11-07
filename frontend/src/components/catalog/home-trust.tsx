@@ -21,7 +21,6 @@ function TrustItem({ icon: Icon, title, text }: { readonly icon: LucideIcon; rea
   );
 }
 
-/** Four facts that make a first-time visitor trust the clinic: licence, diagnostics, health record, corporate care. */
 export function HomeTrust(): ReactNode {
   const t = useT('home');
   return (

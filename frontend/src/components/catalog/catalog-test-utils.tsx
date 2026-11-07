@@ -5,25 +5,20 @@ import { apiFetch } from '@/lib/api/api-fetch';
 import { clinicDateKey, shiftDateKey } from '@/lib/clinic-time';
 import type { Slot } from './catalog-types';
 
-/** Shared fixtures of the public-catalog specs. Each spec mocks `@/lib/api/api-fetch` and `next/navigation` itself (jest hoisting). */
 export const apiFetchMock = apiFetch as jest.MockedFunction<(path: string) => Promise<unknown>>;
 
 export const SLOT_DAY: string = shiftDateKey(clinicDateKey(), 1);
-/** 08:00 UTC is 11:00 in Minsk, tomorrow. */
 export const SLOT: Slot = { id: 'slot-1', start: `${SLOT_DAY}T08:00:00.000Z`, end: `${SLOT_DAY}T08:30:00.000Z`, status: 'free' };
 export const LATER_SLOT: Slot = { id: 'slot-2', start: `${SLOT_DAY}T10:00:00.000Z`, end: `${SLOT_DAY}T10:30:00.000Z`, status: 'free' };
 
 const META = { page: 1, pageSize: 100, totalItems: 0, totalPages: 1 };
 
 export interface CatalogFixture {
-  /** Free slots by doctor id; a doctor not listed has none. */
   readonly slots?: Readonly<Record<string, ReadonlyArray<Slot>>>;
-  /** Doctors by service id for `GET /doctors?serviceId=`. */
   readonly doctorsByService?: Readonly<Record<string, ReadonlyArray<{ readonly id: string }>>>;
   readonly services?: ReadonlyArray<unknown>;
 }
 
-/** The public catalog answers as the live API does: slots per doctor, doctors per service, the service list. */
 export function serveCatalog({ slots = {}, doctorsByService = {}, services = [] }: CatalogFixture = {}): void {
   apiFetchMock.mockImplementation((path) => {
     const slotsOf = /\/api\/v1\/doctors\/([^/]+)\/slots/.exec(path);
@@ -35,7 +30,6 @@ export function serveCatalog({ slots = {}, doctorsByService = {}, services = [] 
   });
 }
 
-/** Renders under a fresh query client that never retries, so a failed read settles at once. */
 export function renderWithCatalog(ui: ReactElement): RenderResult {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   function Wrapper({ children }: { readonly children: ReactNode }): ReactNode {

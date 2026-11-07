@@ -7,7 +7,6 @@ import { useT } from '@/lib/i18n/use-t';
 
 const CARD_COUNT = 6;
 
-/** Placeholder of a catalog page while the server reads the API: a title bar and six cards (frontend-design-spec §C.1). */
 export function CatalogSkeleton(): ReactNode {
   const t = useT('common');
   return (

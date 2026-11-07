@@ -6,7 +6,6 @@ import { useT } from '@/lib/i18n/use-t';
 import { SECTION_CLASS } from './catalog-styles';
 import { HomeActions } from './home-actions';
 
-/** The closing band of the landing (VA4): a warm panel that asks for the one action the page is about. */
 export function HomeCta(): ReactNode {
   const t = useT('home');
   return (

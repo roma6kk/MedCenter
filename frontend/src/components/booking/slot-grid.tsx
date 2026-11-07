@@ -11,7 +11,6 @@ import { useRovingFocus } from './use-roving-focus';
 import { useStableCallback } from './use-stable-callback';
 
 interface SlotGridProps {
-  /** The slots of the one chosen day. */
   readonly slots: ReadonlyArray<Slot>;
   readonly selectedSlotId: string | null;
   readonly takenSlotId: string | null;
@@ -21,7 +20,6 @@ interface SlotGridProps {
 
 const PART_ICON: Readonly<Record<DayPart, LucideIcon>> = { morning: Sunrise, day: Sun, evening: Sunset };
 
-/** The chip that holds the tab stop: the one last focused, else the chosen one, else the first that can be picked. */
 function tabStopId(slots: ReadonlyArray<Slot>, focusedId: string | null, selectedSlotId: string | null): string | null {
   const pickable: ReadonlyArray<Slot> = slots.filter(isSelectable);
   const hasId = (id: string | null): id is string => id !== null && pickable.some((slot) => slot.id === id);
@@ -66,11 +64,6 @@ function PartSection({ part, slots, tabStop, selectedSlotId, takenSlotId, showDu
   );
 }
 
-/**
- * The slots of one day as compact chips, grouped «Утро / День / Вечер» (clinic wall clock; an empty part is not drawn).
- * The arrow keys move between the chips, also across the parts (roving tabindex: the grid is a single stop of the Tab
- * order). The grouping is computed once per list of slots; a selection changes none of it.
- */
 export function SlotGrid({ slots, onSelect, ...rest }: SlotGridProps): ReactNode {
   const [focusedId, setFocusedId] = useState<string | null>(null);
   const roving = useRovingFocus<HTMLDivElement>({ layout: 'grid' });

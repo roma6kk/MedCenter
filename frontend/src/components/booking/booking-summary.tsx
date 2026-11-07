@@ -12,18 +12,14 @@ import { slotDurationMin } from './slot-time';
 
 interface BookingSummaryProps {
   readonly draft: Pick<BookingDraft, 'step' | 'serviceId' | 'doctorId' | 'slotStart' | 'slotEnd'>;
-  /** On the confirmation step: every choice gets «Изменить», which goes back to the step that made it. */
   readonly onEdit?: (step: BookingStep) => void;
-  /** Shows the clinic's address (and, on the confirmation step, the cancellation hint). */
   readonly showPlace?: boolean;
-  /** The confirm button, in the panel on the confirmation step. */
   readonly action?: ReactNode;
 }
 
 interface RowProps {
   readonly label: string;
   readonly children: ReactNode;
-  /** The step this row's choice is made on; with `onEdit` the row offers to go back there. */
   readonly editStep?: BookingStep;
   readonly onEdit?: (step: BookingStep) => void;
 }
@@ -55,11 +51,6 @@ function Row({ label, children, editStep, onEdit }: RowProps): ReactNode {
   );
 }
 
-/**
- * "Ваша запись": what the draft holds so far, beside every step. It reads the draft store and the catalogue queries the
- * steps already run (same keys, so nothing is requested twice). On the confirmation step it also offers «Изменить» for
- * each choice, the clinic's address and the cancellation hint, and carries the confirm button.
- */
 export function BookingSummary({ draft, onEdit, showPlace = false, action }: BookingSummaryProps): ReactNode {
   const t = useT('booking');
   const home = useT('home');

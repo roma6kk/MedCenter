@@ -5,7 +5,6 @@ import { useT } from '@/lib/i18n/use-t';
 import { SECTION_CLASS } from './catalog-styles';
 import { CLINIC_LEGAL, CLINIC_LICENSE } from './home-content';
 
-/** Legal line of the public pages: the operator, the licence, and the note that the details are demonstration data. */
 export function PublicFooter(): ReactNode {
   const t = useT('home');
   return (

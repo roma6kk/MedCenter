@@ -18,12 +18,10 @@ import { DoctorCardActions } from './doctor-profile-link';
 interface DoctorCatalogProps {
   readonly params: DirectoryParams;
   readonly services: ReadonlyArray<CatalogService>;
-  /** `null` when the doctors could not be read on the server. */
   readonly directory: Directory | null;
 }
 
 function DoctorGrid({ doctors }: { readonly doctors: ReadonlyArray<Doctor> }): ReactNode {
-  // The cards enter once, when the catalog opens; a filter or a page just swaps them (the server re-renders this very grid).
   const enter = useStaggerOnce();
   return (
     <ul className={cn('mt-4 grid gap-4 md:grid-cols-2', enter)} data-testid="doctor-list">
@@ -42,7 +40,6 @@ function DoctorResults({ directory, params }: { readonly directory: Directory; r
   const t = useT('catalog');
   const { items, meta } = directory.page;
   if (items.length === 0 && !hasFilters(params)) {
-    // No filter and still nobody: the catalogue itself is empty (just seeded, or not filled yet); "change the filters" would send the visitor nowhere.
     return <EmptyState title={t('emptyAll')} description={t('emptyAllHint')} />;
   }
   if (items.length === 0) {
@@ -57,7 +54,6 @@ function DoctorResults({ directory, params }: { readonly directory: Directory; r
   );
 }
 
-/** `/doctors`: the catalog with filters by service, specialty and name, server-side pagination (frontend-design-spec §3). */
 export function DoctorCatalog({ params, services, directory }: DoctorCatalogProps): ReactNode {
   const t = useT('catalog');
   useDocumentTitle(t('doctorsTitle'));

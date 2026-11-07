@@ -46,7 +46,6 @@ describe('BookingWizard doctor step (B8)', () => {
     await userEvent.click(await screen.findByTestId('nearest-slot-30'));
 
     expect(await screen.findByRole('button', { name: 'Подтвердить запись' })).toBeInTheDocument();
-    // The doctor is named at once from the list the step already holds (no "…" while his own entry loads).
     expect(screen.getByTestId('booking-draft-summary')).toHaveTextContent('Иванова Мария');
     const draft = useBookingDraftStore.getState();
     expect([draft.doctorId, draft.slotId, draft.step]).toEqual(['doc-1', 'slot-30', 4]);

@@ -21,7 +21,6 @@ function ContactRow({ icon: Icon, label, children }: { readonly icon: LucideIcon
   );
 }
 
-/** Practical help for a patient (what to know before and after a visit) and the clinic's contacts. */
 export function HomeContacts(): ReactNode {
   const t = useT('home');
   return (

@@ -17,7 +17,6 @@ import { DAY, SLOT_30, apiFetchMock, postKeys, problem, reachConfirmation, rende
 
 const LATER_SLOT: Slot = { id: 'slot-31', start: `${DAY}T10:00:00.000Z`, end: `${DAY}T10:30:00.000Z`, status: 'free' };
 
-/** From now on the slot search also lists a later slot of the same length: what the refetch after a refusal finds. */
 function offerLaterSlot(): void {
   const serve = apiFetchMock.getMockImplementation();
   apiFetchMock.mockImplementation((path, options) => {

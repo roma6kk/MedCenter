@@ -7,11 +7,6 @@ import { SECTION_CLASS, SECTION_LEAD_CLASS, SECTION_TITLE_CLASS } from './catalo
 
 const STEPS: ReadonlyArray<1 | 2 | 3 | 4> = [1, 2, 3, 4];
 
-/**
- * The patient's way through the clinic: booking is only the first step of four. Four equal cards, joined by one line of
- * progress (C7): a rule runs through the number discs, horizontally from `lg` and vertically below it, so the steps read
- * as a sequence and no card looks chosen.
- */
 export function HomePath(): ReactNode {
   const t = useT('home');
   return (

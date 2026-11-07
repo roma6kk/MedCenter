@@ -1,9 +1,5 @@
 'use client';
 
-/**
- * Catalog hooks — TanStack Query over `catalog-api.ts` with the cache lifetimes of frontend-design-spec §5.1:
- * services and doctors 5 min (the server caches them in Redis), slots 15 s and a refetch on window focus.
- */
 import { useQuery, type Query, type QueryKey, type UseQueryResult } from '@tanstack/react-query';
 import { STALE_TIME_MS } from '@/lib/api/query-config';
 import { queryKeys } from '@/lib/api/query-keys';
@@ -11,10 +7,6 @@ import type { SlotWindow } from '@/components/booking/slot-time';
 import { fetchDoctor, fetchDoctors, fetchDoctorSlots, fetchService, fetchServices } from './catalog-api';
 import type { CatalogService, Doctor, DoctorPage, DoctorQuery, DoctorSlots, ServicePage } from './catalog-types';
 
-/**
- * A catalog list is fresh for five minutes, but an empty one is not trusted at all: right after the catalog is seeded the
- * first read can still be empty, and the visitor must not stare at "nothing here" until the lifetime runs out.
- */
 export function catalogStaleTime<TList extends { readonly items: ReadonlyArray<unknown> }>(query: Query<TList, Error, TList, QueryKey>): number {
   return query.state.data?.items.length === 0 ? 0 : STALE_TIME_MS.catalog;
 }
@@ -32,7 +24,6 @@ export function useService(serviceId: string | null): UseQueryResult<CatalogServ
   });
 }
 
-/** `enabled: false` holds the read back for a caller that only needs the list in some cases (the shell asks for a doctor's specialty only). */
 export function useDoctors(query: DoctorQuery = {}, enabled: boolean = true): UseQueryResult<DoctorPage> {
   return useQuery({ queryKey: queryKeys.doctors({ ...query }), queryFn: () => fetchDoctors(query), staleTime: catalogStaleTime, enabled });
 }
@@ -46,7 +37,6 @@ export function useDoctor(doctorId: string | null): UseQueryResult<Doctor> {
   });
 }
 
-/** Free slots of the doctor inside the window; stale after 15 s and refreshed when the tab regains focus (BR-001). */
 export function useDoctorSlots(doctorId: string | null, window: SlotWindow): UseQueryResult<DoctorSlots> {
   return useQuery({
     queryKey: queryKeys.slots(doctorId ?? '', { from: window.from, to: window.to }),

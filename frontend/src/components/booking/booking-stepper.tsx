@@ -9,14 +9,12 @@ import { BOOKING_STEPS, type StepDefinition } from './booking-steps';
 
 interface BookingStepperProps {
   readonly current: BookingStep;
-  /** Goes back to an earlier step; later steps are reached by making the choice that leads there. */
   readonly onGo: (step: BookingStep) => void;
 }
 
 const ITEM_CLASS = 'flex min-h-[44px] items-center gap-2 text-base';
 const CIRCLE_CLASS = 'tabular-nums inline-flex h-[26px] w-[26px] flex-none items-center justify-center rounded-full text-xs font-semibold transition-[background-color,box-shadow] duration-base ease-out';
 
-/** Passed: a filled disc with a check. Current: an outlined disc with the number and a soft halo. Ahead: a quiet grey disc. */
 function StepMarker({ step, isCurrent, isDone }: { readonly step: number; readonly isCurrent: boolean; readonly isDone: boolean }): ReactNode {
   if (isDone) {
     return (
@@ -45,9 +43,8 @@ function StepItem({ item, current, onGo }: BookingStepperProps & { readonly item
   const content: ReactNode = (
     <>
       <StepMarker step={item.step} isCurrent={isCurrent} isDone={isDone} />
-      {/* A text node between the flex items is not drawn, but it keeps the label apart from the number for assistive technology (WCAG 2.5.3: the visible words stay inside the accessible name). */}
+      {/* A text node between the flex items is not drawn but keeps the label apart from the number for assistive tech (WCAG 2.5.3). */}
       {' '}
-      {/* On a phone four labels do not fit one row: they leave the screen (screen readers keep them) and the current one is written under the line. */}
       <span className="sr-only sm:not-sr-only">{label}</span>
     </>
   );
@@ -64,11 +61,6 @@ function StepItem({ item, current, onGo }: BookingStepperProps & { readonly item
   return <span className={cn(ITEM_CLASS, 'font-medium text-muted-foreground')}>{content}</span>;
 }
 
-/**
- * The four steps under one progress line. The line is filled up to the end of the current step and its width animates when
- * the step changes (the global reduced-motion rule makes it jump). Passed steps carry a check and lead back; the current
- * one is highlighted; the rest are muted.
- */
 export function BookingStepper({ current, onGo }: BookingStepperProps): ReactNode {
   const t = useT('booking');
   return (

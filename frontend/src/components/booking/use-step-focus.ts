@@ -3,11 +3,7 @@
 import { useEffect, useRef, type RefObject } from 'react';
 import type { BookingStep } from '@/store/use-booking-draft-store';
 
-/**
- * When the wizard moves to another step the element the visitor activated is gone, and keyboard focus would fall back to
- * the page start. Moves focus to the heading of the new step instead (WCAG 2.4.3). Not on the first render, and not when
- * `quiet` is set (a refused booking: its alert is announced and must not be interrupted).
- */
+/** Moves focus to the new step's heading (the activated element is gone). Not on first render, not when `quiet` (a refused booking's alert must not be interrupted). */
 export function useStepFocus(step: BookingStep, quiet: boolean): RefObject<HTMLElement> {
   const container = useRef<HTMLElement>(null);
   const shownStep = useRef<BookingStep>(step);

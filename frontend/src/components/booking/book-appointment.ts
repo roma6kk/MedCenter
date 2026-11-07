@@ -1,9 +1,3 @@
-/**
- * book-appointment — the `POST /api/v1/appointments` call (api-designer-spec §6.1) and the reading of its failures.
- *
- * The body is `{ slotId, serviceId?, reason? }`; the patient is never part of it (ADR-013: the server takes it from the
- * token). One `Idempotency-Key` identifies one booking intent and is reused when the same request is sent again.
- */
 import { apiFetch } from '@/lib/api/api-fetch';
 import { groupFieldErrors } from '@/lib/api/field-errors';
 import type { ProblemDetails } from '@/lib/api/problem';
@@ -18,7 +12,6 @@ export interface CreateAppointmentRequest {
   readonly reason?: string;
 }
 
-/** `AppointmentResponseDto` (§6.1): the wizard only needs the id to open the appointment. */
 export interface AppointmentCreated {
   readonly id: string;
   readonly status: string;
@@ -28,7 +21,6 @@ export interface AppointmentCreated {
 
 export type ReasonProblem = 'tooShort' | 'tooLong';
 
-/** The reason is optional; when given it is 3…500 characters after trimming (message keys `booking.reason*`). */
 export function reasonProblem(reason: string): ReasonProblem | null {
   const length: number = reason.trim().length;
   if (length === 0) return null;
@@ -36,7 +28,6 @@ export function reasonProblem(reason: string): ReasonProblem | null {
   return length > REASON_MAX ? 'tooLong' : null;
 }
 
-/** The request body of the draft, or `null` while no slot is chosen. A blank reason and "any service" are left out. */
 export function buildBookingRequest(draft: Pick<BookingDraft, 'slotId' | 'serviceId' | 'reason'>): CreateAppointmentRequest | null {
   if (draft.slotId === null) return null;
   const reason: string = draft.reason.trim();
@@ -55,14 +46,6 @@ export function bookAppointment(request: CreateAppointmentRequest, idempotencyKe
   });
 }
 
-/**
- * - `conflict`: the slot was taken first (409 SLOT_CONFLICT, BR-001);
- * - `gone`: the slot does not exist any more (its schedule was removed);
- * - `mismatch`: the slot belongs to another service of the doctor (400, `serviceId` does not match its schedule);
- * - `reason`: the reason text was refused;
- * - `consent`: no active consent to the electronic record, so the reason cannot be taken (409 CONSENT_REQUIRED; the visit itself can be booked);
- * - `other`: anything else — shown as a banner, the same request can be retried.
- */
 export type BookingFailure = 'conflict' | 'gone' | 'mismatch' | 'reason' | 'consent' | 'other';
 
 function mentions(problem: ProblemDetails, field: string): boolean {
@@ -79,7 +62,6 @@ export function classifyBookingFailure(problem: ProblemDetails): BookingFailure 
   return mentions(problem, 'reason') ? 'reason' : 'other';
 }
 
-/** The server's words about the reason field (already localized where a translation is known), if any. */
 export function serverReasonMessage(problem: ProblemDetails): string | null {
   const messages: ReadonlyArray<string> = groupFieldErrors(problem.details)['reason'] ?? [];
   return messages.length === 0 ? null : messages.join('. ');

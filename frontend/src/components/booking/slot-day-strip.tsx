@@ -10,9 +10,7 @@ import { useRovingFocus } from './use-roving-focus';
 
 export interface StripDay {
   readonly day: string;
-  /** Free slots of the day; the chip is closed at `0` (unless something else is shown for the day, see `hasSlots`). */
   readonly free: number;
-  /** Anything to show for the day, e.g. only a slot another patient has just taken. */
   readonly hasSlots: boolean;
 }
 
@@ -20,7 +18,6 @@ interface SlotDayStripProps {
   readonly days: ReadonlyArray<StripDay>;
   readonly selectedDay: string;
   readonly onSelect: (day: string) => void;
-  /** Messages namespace with `dayStripLabel`, `dayChip`, `dayFree` and `dayNone`; the staff schedule has its own wording for the same strip. */
   readonly messages?: string;
 }
 
@@ -28,7 +25,6 @@ function dayNumber(dateKey: string): string {
   return String(Number.parseInt(dateKey.slice(8, 10), 10));
 }
 
-/** Brings the chosen chip to the middle of a scrolling strip (a phone shows four or five of the fourteen days). */
 function useScrollChosenIntoView(selectedDay: string, containerRef: RefObject<HTMLElement>): void {
   useEffect(() => {
     const container: HTMLElement | null = containerRef.current;
@@ -38,11 +34,6 @@ function useScrollChosenIntoView(selectedDay: string, containerRef: RefObject<HT
   }, [selectedDay, containerRef]);
 }
 
-/**
- * The days of the searched period as chips: weekday, date and the number of free slots. A day without any is closed
- * (`aria-disabled`, skipped by the arrows). A radio group: the arrows choose the neighbouring day at once, Tab leaves the
- * strip. On a phone the strip scrolls sideways, from `sm` it wraps.
- */
 export function SlotDayStrip({ days, selectedDay, onSelect, messages = 'booking' }: SlotDayStripProps): ReactNode {
   const t = useT(messages);
   const locale = useUiStore((state) => state.locale);

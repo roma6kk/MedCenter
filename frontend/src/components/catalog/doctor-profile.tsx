@@ -15,11 +15,6 @@ import { useDoctorServices } from './use-doctor-services';
 
 const SECTION_HEADING_CLASS = 'text-2xl font-bold';
 
-/**
- * «О враче»: what the API gives about the doctor (specialty and the services he gives). It has no biography, experience or
- * education, so none is invented: the block says plainly that the clinic does not publish them yet. The room is not here
- * either: the room list needs a signed-in session.
- */
 function DoctorAbout({ doctor, services, isPending }: { readonly doctor: Doctor; readonly services: ReadonlyArray<CatalogService>; readonly isPending: boolean }): ReactNode {
   const t = useT('catalog');
   return (
@@ -51,7 +46,6 @@ function DoctorAbout({ doctor, services, isPending }: { readonly doctor: Doctor;
   );
 }
 
-/** `/doctors/[doctorId]`: the doctor, what is known about him, his services and the free time to book (frontend-design-spec §3, C6). */
 export function DoctorProfile({ doctor }: { readonly doctor: Doctor }): ReactNode {
   const t = useT('catalog');
   useDocumentTitle(doctorLabel(doctor));

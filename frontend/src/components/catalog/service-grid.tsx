@@ -23,7 +23,6 @@ function ServiceCard({ service }: { readonly service: CatalogService }): ReactNo
   );
 }
 
-/** Services of the clinic; each leads to the doctors who give it. */
 export function ServiceGrid({ services }: { readonly services: ReadonlyArray<CatalogService> }): ReactNode {
   const t = useT('home');
   if (services.length === 0) return <EmptyState title={t('servicesEmpty')} />;

@@ -191,7 +191,6 @@ describe('HomeView', () => {
 
     const trust = screen.getByRole('region', { name: 'Почему нам доверяют' });
     expect(within(trust).getByText(`Специальное разрешение № ${CLINIC_LICENSE.number} от ${CLINIC_LICENSE.date}`)).toBeInTheDocument();
-    // The one note lives in the footer of the shell (`PublicFooter`), so the landing itself carries none (C8).
     expect(screen.queryByText(/Демонстрационные данные/)).not.toBeInTheDocument();
   });
 
@@ -201,7 +200,6 @@ describe('HomeView', () => {
     const audiences = screen.getByRole('region', { name: 'Кому мы помогаем' });
     for (const name of [...CORPORATE_CLIENTS, ...INSURANCE_PARTNERS]) expect(within(audiences).getByText(name)).toBeInTheDocument();
     expect(within(audiences).queryByRole('img')).not.toBeInTheDocument();
-    // Plain wordmarks: no border or ground that would make a name look like a button or a filter.
     expect(within(audiences).getByText(CORPORATE_CLIENTS[0]!).className).not.toMatch(/\bborder\b|rounded|\bbg-/);
   });
 
@@ -221,7 +219,6 @@ describe('HomeView', () => {
 
     const path = screen.getByRole('region', { name: 'Ведём пациента от первого визита до результата' });
     expect(within(path).getAllByRole('listitem')).toHaveLength(4);
-    // Nothing is filled with the primary colour (no step looks chosen), and three connectors join the four steps.
     expect(path.querySelectorAll('.bg-primary')).toHaveLength(0);
     expect(within(path).getAllByTestId('path-line')).toHaveLength(3);
   });

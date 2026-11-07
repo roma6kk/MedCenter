@@ -10,7 +10,6 @@ import { BookingScreen } from './booking-screen';
 import { BookingWizard } from './booking-wizard';
 import { clinicDateKey, shiftDateKey } from '@/lib/clinic-time';
 
-/** Shared fixtures of the wizard specs. Each spec mocks `@/lib/api/api-fetch` and `next/navigation` itself (jest hoisting). */
 type Handler = (path: string, options?: RequestInit) => Promise<unknown>;
 export const apiFetchMock = apiFetch as jest.MockedFunction<Handler>;
 
@@ -37,7 +36,6 @@ export function postKeys(): ReadonlyArray<string | undefined> {
     .map(([, init]) => (init?.headers as Record<string, string> | undefined)?.['Idempotency-Key']);
 }
 
-/** The catalog answers as the live API does; `book` decides what POST /appointments does. */
 export function serveApi(book: () => Promise<unknown> = () => Promise.resolve({ id: 'appt-1' })): void {
   apiFetchMock.mockImplementation((path, options) => {
     if (options?.method === 'POST') return book();
@@ -47,14 +45,12 @@ export function serveApi(book: () => Promise<unknown> = () => Promise.resolve({ 
     if (path.startsWith('/api/v1/doctors/doc-2/slots')) return Promise.resolve({ doctorId: 'doc-2', from: DAY, to: DAY, items: [] });
     if (path.startsWith('/api/v1/doctors/doc-1')) return Promise.resolve(DOCTOR);
     if (path.startsWith('/api/v1/doctors/doc-2')) return Promise.resolve(DOCTOR_2);
-    // The 20-minute service has a single doctor (the wizard skips the doctor step for it); the others have two.
     if (path.startsWith('/api/v1/doctors') && path.includes('serviceId=svc-20')) return Promise.resolve({ items: [DOCTOR], meta: META });
     if (path.startsWith('/api/v1/doctors')) return Promise.resolve({ items: [DOCTOR, DOCTOR_2], meta: META });
     return Promise.reject(new Error(`unexpected ${path}`));
   });
 }
 
-/** POST /appointments answers with the given outcomes one after another. */
 export function serveOutcomes(...outcomes: ReadonlyArray<() => Promise<unknown>>): void {
   const queue: Array<() => Promise<unknown>> = [...outcomes];
   serveApi(() => (queue.shift() ?? (() => Promise.reject(new Error('unexpected extra booking'))))());
@@ -68,7 +64,6 @@ export function renderWizard(presetDoctorId?: string): void {
   render(<BookingWizard {...(presetDoctorId === undefined ? {} : { presetDoctorId })} />, { wrapper: Wrapper });
 }
 
-/** The whole `/booking` page body (title, lead and the wizard), for what only the page decides. */
 export function renderBookingScreen(): void {
   const client = createAppQueryClient();
   function Wrapper({ children }: { readonly children: ReactNode }): ReactNode {

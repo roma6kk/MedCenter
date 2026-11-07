@@ -58,14 +58,9 @@ function StepView({ draft, booking, update, goTo }: StepViewProps): ReactNode {
 
 interface BookingWizardProps {
   readonly presetDoctorId?: string;
-  /** The page title and lead: drawn above the steps, and dropped once the visit is booked (the success screen has its own heading). */
   readonly header?: ReactNode;
 }
 
-/**
- * Booking wizard (FR-003/004): service → doctor → slot → confirmation. The draft lives in `sessionStorage`, so a guest
- * who picked a slot on a doctor page comes back from the login on the confirmation step with everything in place.
- */
 export function BookingWizard({ presetDoctorId, header }: BookingWizardProps): ReactNode {
   const t = useT('booking');
   const draft = useBookingDraftStore();
@@ -73,7 +68,6 @@ export function BookingWizard({ presetDoctorId, header }: BookingWizardProps): R
   const booking = useBookingSubmit();
   const container = useStepFocus(draft.step, booking.notice !== null);
   const { startOver, created } = booking;
-  // A click on a link to /booking while the success screen is open (the header's «Записаться») starts the next booking.
   useEffect(() => {
     if (created === null) return undefined;
     window.addEventListener(RENAVIGATE_EVENT, startOver);
@@ -91,13 +85,11 @@ export function BookingWizard({ presetDoctorId, header }: BookingWizardProps): R
       <section ref={container} aria-label={t('title')} className="flex flex-col gap-7">
         <BookingStepper current={draft.step} onGo={goTo} />
         {isRestored && draft.step === 4 ? <p role="status" className="text-sm text-muted-foreground">{t('draftRestored')}</p> : null}
-        {/* The summary panel «Ваша запись» stays beside every step; on the confirmation step it also holds the confirm button, so that step brings its own. */}
         <div className="flex flex-wrap items-start gap-6">
           {showsConfirm ? (
             <StepView draft={draft} booking={booking} update={draft.updateDraft} goTo={goTo} />
           ) : (
             <>
-              {/* Keyed by step: a new step slides and fades in (CSS only; the global reduced-motion rule drops it). */}
               <div key={draft.step} className="min-w-0 flex-[999_1_560px] animate-step-in">
                 <StepView draft={draft} booking={booking} update={draft.updateDraft} goTo={goTo} />
               </div>

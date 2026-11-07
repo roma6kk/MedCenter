@@ -10,14 +10,9 @@ import { groupServices, specialtyOfDoctors, type ServiceGroup } from './service-
 
 export interface ServiceGroups {
   readonly groups: ReadonlyArray<ServiceGroup>;
-  /** The doctors of some service are still being read: a grouping made now would move services between groups. */
   readonly isPending: boolean;
 }
 
-/**
- * Services grouped by the specialty of their doctors. Each service asks `GET /doctors?serviceId=` under the key the doctor
- * step uses, so the step that follows finds the answer cached. A failed read only files its service under "other".
- */
 export function useServiceGroups(services: ReadonlyArray<CatalogService>): ServiceGroups {
   const results = useQueries({
     queries: services.map((service) => ({
@@ -30,7 +25,6 @@ export function useServiceGroups(services: ReadonlyArray<CatalogService>): Servi
   const doctorsKey: string = results.map((result) => result.dataUpdatedAt).join(',');
   const groups: ReadonlyArray<ServiceGroup> = useMemo(
     () => groupServices(services, (serviceId) => specialtyOfDoctors(results[services.findIndex((service) => service.id === serviceId)]?.data?.items)),
-    // `results` is a new array on every render; the update stamps say when its content really changed.
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [services, doctorsKey],
   );

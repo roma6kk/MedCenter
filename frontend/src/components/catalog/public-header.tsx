@@ -21,13 +21,11 @@ import { CLINIC_CONTACTS, HOME_ANCHORS } from './home-content';
 const LINK_CLASS = 'inline-flex min-h-[44px] items-center rounded-control px-3 text-base font-medium hover:bg-secondary';
 const DRAWER_LINK_CLASS = 'flex min-h-[48px] items-center border-b border-border-soft text-lg font-medium';
 
-/** Sign-in is a plain `<a>`: the target is a route handler that answers a redirect to another origin, which `next/link` must not prefetch. */
 function SignInLink({ className }: { readonly className: string }): ReactNode {
   const t = useT('public');
   return <a href={AUTHORIZE_PATH} className={className}>{t('login')}</a>;
 }
 
-/** The booking button of the header; doctors and administrators do not book, so they never see it. */
 function BookLink({ className, onNavigate }: { readonly className: string; readonly onNavigate?: () => void }): ReactNode {
   const t = useT('public');
   const canBook = useCanBook();
@@ -35,7 +33,6 @@ function BookLink({ className, onNavigate }: { readonly className: string; reado
   return <Link href="/booking" onClick={onNavigate} className={className}>{t('book')}</Link>;
 }
 
-/** Sign-in and registration for a visitor; the way back to the cabinet for someone who is signed in. */
 function AccountLinks(): ReactNode {
   const t = useT('public');
   const role = useSessionStore((state) => state.role);
@@ -57,7 +54,6 @@ function PhoneLink({ className }: { readonly className: string }): ReactNode {
   );
 }
 
-/** The drawer behind the burger: everything the header row has no room for on a phone or a small laptop. */
 function MobileMenu({ onClose }: { readonly onClose: () => void }): ReactNode {
   const t = useT('public');
   const role = useSessionStore((state) => state.role);
@@ -91,11 +87,6 @@ function MobileMenu({ onClose }: { readonly onClose: () => void }): ReactNode {
   );
 }
 
-/**
- * Header of the public pages (C9). From `xl`: brand, section links, phone, «Записаться», sign-in and the switches in one row.
- * Below it, one row of the brand, the phone icon, «Записаться» and a burger (the rest in a drawer), so a phone's header is a
- * single 64 px row instead of three wrapped ones, and the booking and the registry phone are always in reach.
- */
 export function PublicHeader(): ReactNode {
   const tLayout = useT('layout');
   const t = useT('public');

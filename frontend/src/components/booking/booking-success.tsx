@@ -18,7 +18,6 @@ import type { BookedVisit } from './use-booking-submit';
 
 const ICS_FILE_BASE = 'lifeline-visit';
 
-/** The check mark: a disc that pops in and a stroke that draws itself (≤ 400 ms; with reduced motion it is simply there). */
 function AnimatedCheck(): ReactNode {
   return (
     <span aria-hidden="true" data-testid="success-check" className="inline-flex h-16 w-16 animate-check-pop items-center justify-center rounded-full bg-success-soft text-success">
@@ -38,10 +37,6 @@ function Fact({ label, children }: { readonly label: string; readonly children: 
   );
 }
 
-/**
- * Shown after «Подтвердить запись» until the patient chooses where to go. The names come from the catalogue entries the
- * wizard already cached, then from the appointment itself (a visit booked from a doctor's page names no service).
- */
 export function BookingSuccess({ visit, onBookAnother }: { readonly visit: BookedVisit; readonly onBookAnother?: () => void }): ReactNode {
   const t = useT('booking');
   const home = useT('home');
@@ -51,13 +46,12 @@ export function BookingSuccess({ visit, onBookAnother }: { readonly visit: Booke
   const doctor = useDoctor(visit.doctorId);
   const service = useService(visit.serviceId);
   const appointment = useAppointment(visit.id);
-  // The appointment's own spelling («Фамилия Имя Отчество», as «Мои записи» shows it) wins; the catalogue has no patronymic.
   const fromAppointment: string = normalizeDoctorName(appointment.data?.doctorName);
   const doctorName: string | undefined = fromAppointment !== '' ? fromAppointment : doctor.data === undefined ? undefined : doctorLabel(doctor.data);
   const serviceName: string | undefined = service.data?.name ?? appointment.data?.serviceName;
   const address: string = home('contactAddressValue');
   const day: string = clinicDayOf(visit.start);
-  // The wizard's heading was focused by the step change; this screen replaces it, so focus goes to its own heading (WCAG 2.4.3).
+  // The wizard's heading was focused by the step change; this screen replaces it, so focus goes to its own heading.
   useEffect(() => heading.current?.focus(), []);
   const addToCalendar = (): void => {
     const details: ReadonlyArray<string> = [

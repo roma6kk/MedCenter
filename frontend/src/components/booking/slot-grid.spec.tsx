@@ -13,13 +13,11 @@ import { formatClinicTime } from '@/lib/clinic-time';
 
 const formatMock = formatClinicTime as jest.MockedFunction<typeof formatClinicTime>;
 
-/** One clinic day of 16 half-hour slots, 08:00–15:30 Minsk. */
 const SLOTS: ReadonlyArray<Slot> = Array.from({ length: 16 }, (_, index) => {
   const start: number = Date.parse('2026-10-19T05:00:00.000Z') + index * 30 * 60_000;
   return { id: `s-${index}`, start: new Date(start).toISOString(), end: new Date(start + 30 * 60_000).toISOString(), status: 'free' };
 });
 
-/** Holds the selection like the wizard does: `onSelect` is a new closure on every render. */
 function Harness(): ReactNode {
   const [selected, setSelected] = useState<string | null>(null);
   return <SlotGrid slots={SLOTS} selectedSlotId={selected} takenSlotId={null} showDuration={false} onSelect={(slot) => setSelected(slot.id)} />;
@@ -34,7 +32,6 @@ describe('SlotGrid', () => {
     formatMock.mockClear();
 
     await userEvent.click(screen.getByTestId('slot-s-3'));
-    // The chip that became chosen renders again; focus moving to it may re-render the chip that held the tab stop.
     expect(formatMock.mock.calls.length).toBeLessThanOrEqual(3);
 
     formatMock.mockClear();

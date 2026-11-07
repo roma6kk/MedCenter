@@ -15,17 +15,12 @@ import { doctorInitials } from './doctor-initials';
 
 interface DoctorCardProps {
   readonly doctor: Doctor;
-  /** Heading level of the name inside the page outline. */
   readonly headingLevel?: 1 | 2 | 3;
-  /** `interactive` when the card as a whole leads somewhere (give its link `STRETCHED_LINK_CLASS`), `selected` for the chosen doctor of a list. */
   readonly tone?: 'static' | 'interactive' | 'selected';
-  /** Adds «Ближайшее: …» under the specialty (reads the doctor's slots, so the card must sit under the query provider). */
   readonly showNearest?: boolean;
-  /** Links or buttons shown under the specialty. */
   readonly children?: ReactNode;
 }
 
-/** «Ближайшее: завтра, 09:00» from the doctor's earliest free slot; the same two-week answer the booking wizard reads. */
 function NearestLine({ doctorId }: { readonly doctorId: string }): ReactNode {
   const t = useT('booking');
   const locale = useUiStore((state) => state.locale);
@@ -40,7 +35,6 @@ function NearestLine({ doctorId }: { readonly doctorId: string }): ReactNode {
   );
 }
 
-/** Doctor of the catalog: a 96 px portrait (initials on a soft teal tile without one), name, specialty and the nearest free time (frontend-design-spec §C.1, VB4). */
 export function DoctorCard({ doctor, headingLevel = 2, tone, showNearest = false, children }: DoctorCardProps): ReactNode {
   const t = useT('catalog');
   const Heading = `h${headingLevel}` as 'h1' | 'h2' | 'h3';

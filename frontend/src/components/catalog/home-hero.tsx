@@ -10,11 +10,6 @@ import { HeroEcg } from './hero-ecg';
 import { HeroWindows } from './hero-windows';
 import { HomeActions } from './home-actions';
 
-/**
- * The right half of the hero (VB2): the clinic's rosette on a soft ground with a warm disc behind it, and the live
- * «nearest free windows» card in normal flow below. The decoration is clipped to the panel and sits behind the content,
- * so nothing floats outside it at any width.
- */
 function HeroPanel({ doctors }: { readonly doctors: ReadonlyArray<Doctor> }): ReactNode {
   const t = useT('home');
   return (
@@ -34,7 +29,6 @@ function HeroPanel({ doctors }: { readonly doctors: ReadonlyArray<Doctor> }): Re
   );
 }
 
-/** First screen: what the clinic is, the booking as the main way in, and the nearest free time as proof that it works. */
 export function HomeHero({ doctors }: { readonly doctors: ReadonlyArray<Doctor> }): ReactNode {
   const t = useT('home');
   return (

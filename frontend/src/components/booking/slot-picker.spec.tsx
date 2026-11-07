@@ -145,7 +145,6 @@ describe('SlotPicker', () => {
     screen.getByTestId(`slot-day-chip-${TODAY}`).focus();
 
     await userEvent.keyboard('{ArrowRight}');
-    // The day after today has no slots and is skipped, the next chip with free time is the day after tomorrow.
     expect(screen.getByTestId(`slot-day-chip-${DAY_AFTER}`)).toHaveFocus();
     expect(await screen.findByTestId('slot-s-3')).toBeInTheDocument();
     await userEvent.keyboard('{ArrowLeft}');
