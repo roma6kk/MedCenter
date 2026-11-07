@@ -15,30 +15,47 @@ describe('createEventPublisherProvider', () => {
   });
 });
 
+type ChannelListeners = Record<string, (arg?: unknown) => void>;
+
+function mockBroker(onPublish: (messageId: string, listeners: ChannelListeners) => Error | null = () => null): {
+  publish: jest.Mock;
+  connection: { close: jest.Mock };
+  listeners: ChannelListeners;
+} {
+  const listeners: ChannelListeners = {};
+  const publish = jest.fn((_exchange: string, _key: string, _body: Buffer, options: { messageId: string }, callback: (error: unknown) => void) => {
+    callback(onPublish(options.messageId, listeners));
+    return true;
+  });
+  const connection = {
+    on: jest.fn(),
+    createConfirmChannel: jest.fn().mockResolvedValue({
+      on: jest.fn((name: string, listener: (arg?: unknown) => void) => {
+        listeners[name] = listener;
+      }),
+      assertExchange: jest.fn().mockResolvedValue({}),
+      publish,
+    }),
+    close: jest.fn().mockResolvedValue(undefined),
+  };
+  jest.doMock('amqplib', () => ({ connect: jest.fn().mockResolvedValue(connection) }));
+  return { publish, connection, listeners };
+}
+
+async function newPublisher(): Promise<{ publish: (event: DomainEvent) => Promise<void> }> {
+  const { AmqpEventPublisher } = await import('./event-publisher');
+  return new AmqpEventPublisher('amqp://broker');
+}
+
 describe('AmqpEventPublisher', () => {
   beforeEach(() => {
     jest.resetModules();
   });
 
   it('resolves only after the broker confirms the publish to the medical.events exchange', async () => {
-    const publish = jest.fn((_exchange: string, _key: string, _body: Buffer, _options: unknown, callback: (error: unknown) => void) => {
-      callback(null);
-      return true;
-    });
-    const connection = {
-      on: jest.fn(),
-      createConfirmChannel: jest.fn().mockResolvedValue({
-        on: jest.fn(),
-        assertExchange: jest.fn().mockResolvedValue({}),
-        publish,
-      }),
-      close: jest.fn().mockResolvedValue(undefined),
-    };
-    jest.doMock('amqplib', () => ({ connect: jest.fn().mockResolvedValue(connection) }));
+    const { publish } = mockBroker();
 
-    const { AmqpEventPublisher } = await import('./event-publisher');
-    const publisher = new AmqpEventPublisher('amqp://broker');
-    await publisher.publish(event);
+    await (await newPublisher()).publish(event);
 
     expect(publish).toHaveBeenCalledWith(
       'medical.events',
@@ -50,89 +67,41 @@ describe('AmqpEventPublisher', () => {
   });
 
   it('rejects when the broker negatively acknowledges the message', async () => {
-    const connection = {
-      on: jest.fn(),
-      createConfirmChannel: jest.fn().mockResolvedValue({
-        on: jest.fn(),
-        assertExchange: jest.fn().mockResolvedValue({}),
-        publish: (_e: string, _k: string, _b: Buffer, _o: unknown, callback: (error: unknown) => void) => {
-          callback(new Error('nack'));
-          return true;
-        },
-      }),
-      close: jest.fn().mockResolvedValue(undefined),
-    };
-    jest.doMock('amqplib', () => ({ connect: jest.fn().mockResolvedValue(connection) }));
+    mockBroker(() => new Error('nack'));
 
-    const { AmqpEventPublisher } = await import('./event-publisher');
-    const publisher = new AmqpEventPublisher('amqp://broker');
-
-    await expect(publisher.publish(event)).rejects.toThrow('nack');
+    await expect((await newPublisher()).publish(event)).rejects.toThrow('nack');
   });
-  it('closes and drops the connection when the channel errors, so the next publish reconnects', async () => {
-    const channelListeners: Record<string, (error?: unknown) => void> = {};
-    const connection = {
-      on: jest.fn(),
-      createConfirmChannel: jest.fn().mockResolvedValue({
-        on: jest.fn((name: string, listener: (error?: unknown) => void) => {
-          channelListeners[name] = listener;
-        }),
-        assertExchange: jest.fn().mockResolvedValue({}),
-        publish: (_e: string, _k: string, _b: Buffer, _o: unknown, callback: (error: unknown) => void) => {
-          callback(null);
-          return true;
-        },
-      }),
-      close: jest.fn().mockResolvedValue(undefined),
-    };
-    jest.doMock('amqplib', () => ({ connect: jest.fn().mockResolvedValue(connection) }));
 
-    const { AmqpEventPublisher } = await import('./event-publisher');
-    const publisher = new AmqpEventPublisher('amqp://broker');
-    await publisher.publish(event);
-    channelListeners['error']?.(new Error('channel gone'));
+  it('closes and drops the connection when the channel errors, so the next publish reconnects', async () => {
+    const { connection, listeners } = mockBroker();
+
+    await (await newPublisher()).publish(event);
+    listeners['error']?.(new Error('channel gone'));
 
     expect(connection.close).toHaveBeenCalled();
   });
 
   describe('unroutable events', () => {
-    function brokerThatReturns(returned: ReadonlySet<string>) {
-      const listeners: Record<string, (message: unknown) => void> = {};
-      const connection = {
-        on: jest.fn(),
-        createConfirmChannel: jest.fn().mockResolvedValue({
-          on: jest.fn((name: string, listener: (message: unknown) => void) => {
-            listeners[name] = listener;
-          }),
-          assertExchange: jest.fn().mockResolvedValue({}),
-          publish: (_e: string, _k: string, _b: Buffer, options: { messageId: string }, callback: (error: unknown) => void) => {
-            if (returned.has(options.messageId)) {
-              listeners['return']?.({ properties: { messageId: options.messageId } });
-            }
-            callback(null);
-            return true;
-          },
-        }),
-        close: jest.fn().mockResolvedValue(undefined),
-      };
-      jest.doMock('amqplib', () => ({ connect: jest.fn().mockResolvedValue(connection) }));
+    function brokerThatReturns(returned: ReadonlySet<string>): void {
+      mockBroker((messageId, listeners) => {
+        if (returned.has(messageId)) {
+          listeners['return']?.({ properties: { messageId } });
+        }
+        return null;
+      });
     }
 
     it('rejects an event the broker returned as unroutable even though it then confirmed it', async () => {
       brokerThatReturns(new Set(['evt-1']));
 
-      const { AmqpEventPublisher } = await import('./event-publisher');
-      const publisher = new AmqpEventPublisher('amqp://broker');
-
-      await expect(publisher.publish(event)).rejects.toThrow('event evt-1 is unroutable: no queue is bound to appointment.booked.v1');
+      await expect((await newPublisher()).publish(event)).rejects.toThrow('event evt-1 is unroutable: no queue is bound to appointment.booked.v1');
     });
 
     it('resolves the next publish of the same event once a queue exists, and never mixes up events in flight', async () => {
       const returned = new Set(['evt-1']);
       brokerThatReturns(returned);
 
-      const { AmqpEventPublisher } = await import('./event-publisher');
-      const publisher = new AmqpEventPublisher('amqp://broker');
+      const publisher = await newPublisher();
       await expect(publisher.publish(event)).rejects.toThrow('unroutable');
       returned.clear();
 
@@ -143,8 +112,7 @@ describe('AmqpEventPublisher', () => {
     it('rejects only the event that was returned when several are published', async () => {
       brokerThatReturns(new Set(['evt-2']));
 
-      const { AmqpEventPublisher } = await import('./event-publisher');
-      const publisher = new AmqpEventPublisher('amqp://broker');
+      const publisher = await newPublisher();
       const outcomes = await Promise.allSettled([publisher.publish(event), publisher.publish({ ...event, eventId: 'evt-2' })]);
 
       expect(outcomes.map((outcome) => outcome.status)).toEqual(['fulfilled', 'rejected']);

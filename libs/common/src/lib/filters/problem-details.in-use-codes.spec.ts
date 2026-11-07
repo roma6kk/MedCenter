@@ -87,17 +87,10 @@ describe('ProblemDetailsFilter error-code catalogue', () => {
       expect(problem.detail).toBe('ROOM_BUSY_TODAY: nope');
     });
 
-    it('should degrade to the status code when the errorCode is not a string', () => {
-      const exception = new ConflictException({ errorCode: 409, message: 'bad shape' });
-
-      const { problem } = handle(exception);
-
-      expect(problem.errorCode).toBe('CONFLICT');
-    });
-
-    it('should answer plain CONFLICT and never an in-use code when a 409 carries no errorCode', () => {
-      const exception = new ConflictException('version conflict');
-
+    it.each([
+      ['the errorCode is not a string', new ConflictException({ errorCode: 409, message: 'bad shape' })],
+      ['it carries no errorCode (never an in-use code)', new ConflictException('version conflict')],
+    ])('should answer plain CONFLICT when a 409 has no usable code because %s', (_case, exception) => {
       const { problem } = handle(exception);
 
       expect(problem.errorCode).toBe('CONFLICT');

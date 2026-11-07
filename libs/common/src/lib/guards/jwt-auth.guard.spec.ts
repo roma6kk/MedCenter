@@ -54,25 +54,11 @@ function protectedContext(): ReturnType<typeof createMockHttpContext> {
 describe('JwtAuthGuard', () => {
   const guard = new JwtAuthGuard(new Reflector());
 
-  it('should reject with 401 UNAUTHENTICATED when no bearer token is presented to a protected route', async () => {
-    const { context } = createMockHttpContext({
-      handler: MeController.prototype.me,
-      controller: MeController,
-      request: { headers: {} },
-    });
-
-    const error = await captureAsyncHttpException(() => guard.canActivate(context));
-
-    expect(error.getStatus()).toBe(401);
-    expect(error.getResponse()).toMatchObject({ errorCode: 'UNAUTHENTICATED' });
-  });
-
-  it('should reject with 401 when the Authorization header is not a bearer scheme', async () => {
-    const { context } = createMockHttpContext({
-      handler: MeController.prototype.me,
-      controller: MeController,
-      request: { headers: { authorization: 'Basic dXNlcjpwYXNzd29yZA==' } },
-    });
+  it.each([
+    ['no bearer token is presented to a protected route', {}],
+    ['the Authorization header is not a bearer scheme', { authorization: 'Basic dXNlcjpwYXNzd29yZA==' }],
+  ])('should reject with 401 UNAUTHENTICATED when %s', async (_case, headers) => {
+    const { context } = createMockHttpContext({ handler: MeController.prototype.me, controller: MeController, request: { headers } });
 
     const error = await captureAsyncHttpException(() => guard.canActivate(context));
 
@@ -99,19 +85,11 @@ describe('JwtAuthGuard revocation', () => {
     verifyMock.mockResolvedValue({ payload: { ...ACCESS_CLAIMS } });
   });
 
-  it('should reject with 401 TOKEN_REVOKED when the access token jti is revoked', async () => {
-    const checker = createChecker(async (key) => key === 'access-jti');
-    const guard = new JwtAuthGuard(new Reflector(), checker);
-    const { context } = protectedContext();
-
-    const error = await captureAsyncHttpException(() => guard.canActivate(context));
-
-    expect(error.getStatus()).toBe(401);
-    expect(error.getResponse()).toMatchObject({ errorCode: 'TOKEN_REVOKED' });
-  });
-
-  it('should reject with 401 TOKEN_REVOKED when the session sid is revoked', async () => {
-    const checker = createChecker(async (key) => key === 'session-jti');
+  it.each([
+    ['access token jti', 'access-jti'],
+    ['session sid', 'session-jti'],
+  ])('should reject with 401 TOKEN_REVOKED when the %s is revoked', async (_claim, revokedKey) => {
+    const checker = createChecker(async (key) => key === revokedKey);
     const guard = new JwtAuthGuard(new Reflector(), checker);
     const { context } = protectedContext();
 
