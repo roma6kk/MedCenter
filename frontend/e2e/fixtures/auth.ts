@@ -32,7 +32,7 @@ export async function signInThroughLoginForm(page: Page, account: DemoAccount, o
   await fillAuthServiceForm(page, account, webOrigin);
 }
 
-export async function openSignedInPage(browser: Browser, role: DemoRole, baseURL: string | undefined): Promise<Page> {
+async function openSignedInPage(browser: Browser, role: DemoRole, baseURL: string | undefined): Promise<Page> {
   const context = await browser.newContext({ baseURL });
   const page = await context.newPage();
   await signInThroughLoginForm(page, loadDemoAccount(role), { webOrigin: baseURL });
@@ -45,22 +45,18 @@ interface SignedInFixtures {
   readonly adminPage: Page;
 }
 
+const signedInPage =
+  (role: DemoRole) =>
+  async ({ browser, baseURL }: { browser: Browser; baseURL: string | undefined }, use: (page: Page) => Promise<void>): Promise<void> => {
+    const page = await openSignedInPage(browser, role, baseURL);
+    await use(page);
+    await page.context().close();
+  };
+
 export const test = base.extend<SignedInFixtures>({
-  patientPage: async ({ browser, baseURL }, use) => {
-    const page = await openSignedInPage(browser, 'PATIENT', baseURL);
-    await use(page);
-    await page.context().close();
-  },
-  doctorPage: async ({ browser, baseURL }, use) => {
-    const page = await openSignedInPage(browser, 'DOCTOR', baseURL);
-    await use(page);
-    await page.context().close();
-  },
-  adminPage: async ({ browser, baseURL }, use) => {
-    const page = await openSignedInPage(browser, 'ADMIN', baseURL);
-    await use(page);
-    await page.context().close();
-  },
+  patientPage: signedInPage('PATIENT'),
+  doctorPage: signedInPage('DOCTOR'),
+  adminPage: signedInPage('ADMIN'),
 });
 
 export { expect };

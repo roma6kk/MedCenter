@@ -27,11 +27,6 @@ interface SlotItem {
   readonly serviceId?: string;
 }
 
-export interface BookedAppointment {
-  readonly id: string;
-  readonly status: string;
-}
-
 const SLOT_WINDOW_DAYS = 13;
 /** Slots that start sooner than this are skipped: they may fall inside a booking/cancellation lead time. */
 const MIN_LEAD_MS = 36 * 60 * 60 * 1000;
