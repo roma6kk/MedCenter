@@ -9,36 +9,26 @@ import { LoginSessionService } from './login-session.service';
 
 export interface LoginFormView {
   readonly authorizeQuery: string;
-  /** The validated `redirect_uri` of the client; its origin hosts the registration page. */
   readonly redirectUri: string;
   readonly status?: HttpStatus;
   readonly error?: string;
-  /** The error is about the entered credentials, so the fields are marked invalid. */
   readonly fieldError?: boolean;
   readonly email?: string;
-  /** Sent as `Retry-After` with a refusal that tells the browser when to come back. */
   readonly retryAfterSeconds?: number;
 }
 
-/**
- * A browser navigation or form post names `text/html` in `Accept`; an API client that accepts any type or only JSON keeps the
- * JSON contract of the endpoint.
- */
 export function acceptsHtml(request: { readonly headers?: { readonly accept?: string } }): boolean {
   return (request.headers?.accept ?? '').toLowerCase().includes('text/html');
 }
 
-/** The client's own registration page (`frontend/src/app/(auth)/register`), on the `redirect_uri` origin. */
 export function registerUrlFor(redirectUri: string): string | undefined {
   try {
     return new URL('/register', redirectUri).toString();
   } catch {
-    // An unparsable redirect_uri never passed client validation; render without the link.
     return undefined;
   }
 }
 
-/** The client's home page on the `redirect_uri` origin: where «← На сайт» leads. */
 export function siteUrlFor(redirectUri: string): string | undefined {
   try {
     return new URL('/', redirectUri).toString();
@@ -64,11 +54,6 @@ function sendHtml(response: Response, status: HttpStatus, html: string, retryAft
     .send(html);
 }
 
-/**
- * Sends the authorization server's login page (assumption UI-1). Every render
- * mints a fresh CSRF pair: the nonce goes into an httpOnly cookie, its MAC
- * into the form.
- */
 @Injectable()
 export class LoginPageResponder {
   constructor(private readonly sessions: LoginSessionService) {}

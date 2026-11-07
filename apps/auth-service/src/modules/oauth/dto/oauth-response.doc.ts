@@ -4,7 +4,6 @@ import type { OAuthErrorBody, OAuthErrorCode } from '../oauth-error';
 import type { TokenResponse } from '../oauth.service';
 import type { SmartConfiguration } from '../oauth.controller';
 
-/** Successful token response (RFC 6749 §5.1, API 2.1.3). */
 export class TokenResponseDoc implements TokenResponse {
   @ApiProperty({ description: 'RS256 JWT, TTL 15 min' })
   access_token!: string;
@@ -25,7 +24,6 @@ export class TokenResponseDoc implements TokenResponse {
   patient?: string;
 }
 
-/** RFC 6749 §5.2 error envelope of the OAuth surface (not RFC 7807). */
 export class OAuthErrorDoc implements OAuthErrorBody {
   @ApiProperty({ enum: ['invalid_request', 'invalid_client', 'invalid_grant', 'invalid_scope', 'unsupported_grant_type'] })
   error!: OAuthErrorCode;
@@ -37,7 +35,6 @@ export class OAuthErrorDoc implements OAuthErrorBody {
   errorCode?: OAuthErrorBody['errorCode'];
 }
 
-/** Body of `POST /oauth/token/revoke` (API 2.1.4). */
 export class RevokeRequestDoc {
   @ApiProperty({ description: 'The refresh token to revoke' })
   refreshToken!: string;
@@ -51,7 +48,6 @@ export class RevokeResponseDoc {
   revoked!: boolean;
 }
 
-/** SMART discovery document (API 2.1.1). */
 export class SmartConfigurationDoc implements SmartConfiguration {
   @ApiProperty({ format: 'uri' })
   authorization_endpoint!: string;
@@ -87,7 +83,6 @@ export class SmartConfigurationDoc implements SmartConfiguration {
   fhir_base!: string;
 }
 
-/** One RS256 public key as a JWK. */
 export class JsonWebKeyDoc {
   @ApiProperty({ example: 'RSA' })
   kty!: string;
@@ -108,13 +103,11 @@ export class JsonWebKeyDoc {
   e!: string;
 }
 
-/** JWKS document (API 2.1.5). */
 export class JwksDoc {
   @ApiProperty({ type: [JsonWebKeyDoc] })
   keys!: JsonWebKeyDoc[];
 }
 
-/** Liveness answer of `GET /` and `GET /health`. */
 export class ServiceStatusDoc {
   @ApiProperty({ example: 'auth-service' })
   service!: string;

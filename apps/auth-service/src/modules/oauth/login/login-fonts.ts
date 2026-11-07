@@ -1,10 +1,3 @@
-/**
- * Onest Variable (SIL Open Font License 1.1, https://fonts.google.com/specimen/Onest), the two subsets the login page
- * needs, as base64 WOFF2 taken unchanged from the `@fontsource-variable/onest` package the web client uses. They live in
- * source (not in an assets folder) so the `@nx/js:tsc` build and the container image carry them without extra copy steps.
- * The page cannot load them from a CDN: its CSP forbids every foreign origin (see `login-page.ts`).
- */
-
 export const ONEST_CYRILLIC_WOFF2_BASE64: string = [
   'd09GMgABAAAAAD30ABQAAAAAbQgAAD2AAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAGoJBG5g8HC4/SFZBUoJoP01WQVIzBmA/U1RB',
   'VIEeAIJAL34RCAq+ULBwC4FeADDeFAE2AiQDgzgEIAWHZAeIQQwHG+tjFezYI24HoNraee1IhG4HJYrIn0AUVZvPs/8/Jsgh0gKv',

@@ -36,7 +36,6 @@ describe('AuthorizePageGuard', () => {
   });
 
   it('should answer invalid_request when the response_type is absent', () => {
-    // RFC 6749 §4.1.1: `response_type` is REQUIRED (N4).
     const error = activateAndCaptureError(
       guard,
       createContext({ code_challenge_method: 'S256', code_challenge: challenge }),

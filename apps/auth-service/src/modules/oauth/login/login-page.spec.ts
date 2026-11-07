@@ -9,10 +9,8 @@ const BASE = {
 
 describe('renderLoginPage', () => {
   it('should render an accessible Russian form that posts to /oauth/login when no error is given', () => {
-    // Act
     const html = renderLoginPage(BASE);
 
-    // Assert
     expect(html).toContain('<html lang="ru">');
     expect(html).toContain('<form method="post" action="/oauth/login"');
     expect(html).toContain('<label for="email">Электронная почта</label>');

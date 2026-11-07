@@ -29,7 +29,6 @@ function rateLimited(): HttpException {
   return new HttpException({ errorCode: 'RATE_LIMITED', message: 'Rate limit exceeded' }, HttpStatus.TOO_MANY_REQUESTS);
 }
 
-/** What `ProblemDetailsFilter` needs of a response, on top of the login page's own calls. */
 function withProblemSupport(fake: FakeResponse): { readonly type: jest.Mock } {
   const response = fake.response as unknown as { status: jest.Mock; type?: jest.Mock; setHeader?: jest.Mock };
   const type = jest.fn().mockReturnValue(fake.response);

@@ -12,10 +12,8 @@ import {
 
 const TOKEN_KEY_PREFIX = 'oauth:token:';
 
-/** Commands that hang on a dead Redis must fail within a request's patience. */
 const COMMAND_TIMEOUT_MS = 2000;
 
-/** The subset of ioredis the stores use, so tests can pass a fake. */
 export interface RedisTokenClient {
   set(key: string, value: string, mode: 'EX', seconds: number): Promise<unknown>;
   get(key: string): Promise<string | null>;
@@ -25,7 +23,6 @@ export interface RedisTokenClient {
   quit(): Promise<unknown>;
 }
 
-/** A TTL the server accepts: a token that is already past its expiry still gets one second. */
 function ttlSecondsOf(seconds: number): number {
   return Math.max(1, Math.ceil(seconds));
 }
@@ -38,12 +35,7 @@ function parseStored(raw: string | null): StoredToken | null {
   return { ...parsed, expiresAt: new Date(parsed.expiresAt) };
 }
 
-/**
- * Codes and refresh tokens in Redis (`SET … EX`), so they survive a restart and
- * are shared by every replica. `take` is `GETDEL`: of two concurrent spends of
- * one token exactly one gets it. Errors propagate — a store that cannot be
- * reached must not look like "token unknown".
- */
+// take is GETDEL: of two concurrent spends of one token exactly one gets it. Errors propagate: an unreachable store must not look like an unknown token.
 export class RedisTokenStore implements TokenStore, OnModuleDestroy {
   private readonly logger = new Logger(RedisTokenStore.name);
 
@@ -73,10 +65,6 @@ export class RedisTokenStore implements TokenStore, OnModuleDestroy {
   }
 }
 
-/**
- * The denylist in Redis under the prefix every BFF's revocation checker reads
- * (`DENYLIST_KEY_PREFIX`), so a `session:` entry written here is seen by all.
- */
 export class RedisTokenDenylist implements TokenDenylist {
   constructor(private readonly redis: RedisTokenClient) {}
 
@@ -96,7 +84,6 @@ export interface TokenStores {
   readonly denylist: TokenDenylist;
 }
 
-/** Redis when `REDIS_URL` is set (compose, production), per-process maps otherwise (unit and e2e runs). */
 export function createTokenStores(source: NodeJS.ProcessEnv = process.env): TokenStores {
   const url = source['REDIS_URL'];
   if (url === undefined || url === '') {

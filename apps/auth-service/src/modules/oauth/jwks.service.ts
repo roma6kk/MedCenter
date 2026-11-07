@@ -7,10 +7,6 @@ export interface JwksDocument {
   readonly keys: ReadonlyArray<JsonWebKey>;
 }
 
-/**
- * Publishes the RS256 public key at `GET /.well-known/jwks.json` (API 2.1.5)
- * so every BFF service verifies tokens locally through `libs/common`.
- */
 @Injectable()
 export class JwksService {
   constructor(@Inject(SIGNING_KEYS) private readonly keys: SigningKeys) {}

@@ -31,7 +31,6 @@ describe('LoginAssetsController', () => {
     expect(headers['Content-Type']).toBe('font/woff2');
     expect(headers['Cache-Control']).toContain('immutable');
     expect(headers['X-Content-Type-Options']).toBe('nosniff');
-    // WOFF2 magic number: the base64 text decoded to a real font, not to garbage.
     expect(sent[0]?.subarray(0, 4).toString('latin1')).toBe('wOF2');
   });
 

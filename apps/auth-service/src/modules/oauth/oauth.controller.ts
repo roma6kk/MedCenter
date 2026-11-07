@@ -39,7 +39,6 @@ interface RevokeRequestDto {
   readonly clientId?: string;
 }
 
-/** The authenticated caller of a protected route: Bearer claims attached by `JwtAuthGuard`. */
 interface AuthenticatedRequest {
   readonly user?: { readonly sub?: string };
 }
@@ -47,7 +46,6 @@ interface AuthenticatedRequest {
 function readPrincipalId(request: AuthenticatedRequest): string {
   const sub = request.user?.sub;
   if (typeof sub !== 'string' || sub.length === 0) {
-    // The global guard already rejected unauthenticated calls; this is defensive.
     throw OAuthError.invalidClient('Authenticated principal is required');
   }
   return sub;
@@ -67,15 +65,7 @@ export interface SmartConfiguration {
   readonly fhir_base: string;
 }
 
-/**
- * N5: `fhir_base` is validated, not just read. A bare
- * `process.env['FHIR_BASE_URL'] ?? ''` silently advertised an empty string
- * when the variable was missing or malformed; the narrow `zod` parse below
- * returns `''` only when the value is absent or not a URL — never a
- * half-configured string — while staying independent of the full env schema
- * (which requires secrets this surface's unit tests never set).
- */
-/** Per-address ceiling of `POST /oauth/token` per minute; the per-credential budget is the tight one. */
+// A missing or malformed FHIR_BASE_URL yields '' rather than a half-parsed value.
 const TOKEN_ADDRESS_CEILING = 600;
 
 const fhirBaseUrlSchema = z.object({ FHIR_BASE_URL: z.url() });
@@ -85,15 +75,6 @@ export function readFhirBaseUrl(source: NodeJS.ProcessEnv = process.env): string
   return parsed.success ? parsed.data.FHIR_BASE_URL : '';
 }
 
-/**
- * SMART / OAuth2 surface of `auth-service` (API 2.1.1, 2.1.3–2.1.5); the
- * authorize endpoint (2.1.2) lives in `AuthorizeController`.
- *
- * Errors must be legible to a SMART client, so they leave as the RFC 6749
- * §5.2 envelope via `OAuthErrorFilter` — *not* as the RFC 7807 problem
- * document the rest of the API uses. Only `OAuthError` instances are claimed
- * by that filter; anything else still reaches the global `ProblemDetailsFilter`.
- */
 @ApiTags('auth')
 @ApiExtraModels(OAuthErrorDoc)
 @UseFilters(OAuthErrorFilter)
@@ -122,9 +103,6 @@ export class OAuthController {
       response_types_supported: ['code'],
       capabilities: ['launch-standalone', 'client-public', 'context-passthrough'],
       code_challenge_methods_supported: ['S256'],
-      // SMART App Launch: a PKCE-only public client authenticates with `none`,
-      // and the confidential client posts its secret in the token request body —
-      // exactly what `TokenClientGuard` accepts (API 2.1.3).
       token_endpoint_auth_methods_supported: ['client_secret_post', 'none'],
       grant_types_supported: ['authorization_code', 'refresh_token'],
       fhir_base: readFhirBaseUrl(),
@@ -140,17 +118,12 @@ export class OAuthController {
     return this.jwks.getPublicJwks();
   }
 
-  // RFC 6749 §5.1 mandates 200 OK for a successful token response; Nest would
-  // otherwise answer 201 for a POST.
   @HttpCode(HttpStatus.OK)
-  // RFC 6749 §5.1: a successful token response MUST NOT be cached. The error
-  // path sets the same header in `OAuthErrorFilter`; declaring it here closes
-  // M8 so both branches carry it.
+  // RFC 6749 §5.1: a successful token response must not be cached (the error filter sets the same header).
   @Header('Cache-Control', 'no-store')
   @Header('Pragma', 'no-cache')
   @Public()
-  // Per credential (client_id|grant_type|sha256(code or refresh_token)) plus a generous per-address ceiling, so
-  // clients behind one NAT or one BFF address do not share a bucket and garbage codes cannot drain it for others.
+  // Per credential plus a generous per-address ceiling, so clients behind one NAT or BFF do not share a bucket.
   @RateLimit(20, { perAddressCeiling: TOKEN_ADDRESS_CEILING })
   @ApiOperation({ summary: '2.1.3 Exchange an authorization code or refresh token for tokens' })
   @ApiConsumes('application/x-www-form-urlencoded')
@@ -181,7 +154,6 @@ export class OAuthController {
     throw OAuthError.unsupportedGrantType(String(body.grant_type));
   }
 
-  // API 2.1.4 documents 200 for the revocation outcome body.
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: '2.1.4 Revoke a refresh token' })
   @ApiBearerAuth()
@@ -197,9 +169,6 @@ export class OAuthController {
     if (typeof body.refreshToken !== 'string' || body.refreshToken.length === 0) {
       throw OAuthError.invalidRequest('refreshToken is required');
     }
-    // RFC 7009 §2.1: only the principal the token was issued to may revoke it.
-    // `client_id` is optional (a user-driven logout has no client identity); the
-    // service still requires the token to belong to the authenticated user.
     const clientId = body.client_id ?? body.clientId;
     const revoked = await this.oauth.revoke({
       refreshToken: body.refreshToken,

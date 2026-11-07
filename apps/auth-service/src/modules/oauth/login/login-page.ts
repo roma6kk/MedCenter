@@ -2,20 +2,9 @@ import { createHash } from 'node:crypto';
 
 import { DEFAULT_LOGIN_LOCALE, type LoginLocale } from './login-messages';
 
-/** Path under which `LoginAssetsController` serves the two Onest subsets the page declares below. */
 export const LOGIN_FONT_BASE_PATH = '/oauth/assets/fonts';
 export const LOGIN_FONT_FILES = { cyrillic: 'onest-cyrillic.woff2', latin: 'onest-latin.woff2' } as const;
 
-/**
- * Server-rendered login page of the authorization server (assumption UI-1): one inline stylesheet and one inline script
- * (the password visibility toggle), both pinned by hash in the CSP, nothing from a foreign origin. The fonts come from this
- * origin (`font-src 'self'`), so the page uses the same Onest as the web client without a CDN.
- *
- * The look follows the client's design tokens (`frontend/src/styles/globals.css`, OKLCH): the same teal, radii, shadow and
- * type, a warm ground behind the card, and a dark set under `prefers-color-scheme` (the theme the visitor picked on the
- * site lives on another origin, so the OS preference is the only signal this page has). The input border keeps the 3:1
- * non-text contrast of WCAG 1.4.11.
- */
 const LOGIN_PAGE_CSS = [
   '@font-face{font-family:"Onest Variable";font-style:normal;font-display:swap;font-weight:100 900;',
   `src:url(${LOGIN_FONT_BASE_PATH}/${LOGIN_FONT_FILES.cyrillic}) format("woff2-variations");`,
@@ -68,10 +57,6 @@ const LOGIN_PAGE_CSS = [
   '@media (prefers-reduced-motion:reduce){*{transition:none!important}}',
 ].join('');
 
-/**
- * Reveals the toggle only when scripts run (the form works without it). The accessible name of the toggle stays the same
- * and `aria-pressed` carries the state (ARIA toggle button pattern), so the script touches no text.
- */
 const LOGIN_PAGE_SCRIPT = [
   '(function(){var b=document.getElementById("pw-toggle"),i=document.getElementById("password");if(!b||!i){return}',
   'b.hidden=false;b.addEventListener("click",function(){var s=i.type==="password";i.type=s?"text":"password";',
@@ -132,11 +117,7 @@ const LOGIN_TEXT: Readonly<Record<LoginLocale, LoginText>> = {
 
 const sha256 = (value: string): string => createHash('sha256').update(value).digest('base64');
 
-/**
- * `form-action` is deliberately absent: Chromium applies it to the whole
- * redirect chain of the submission (`/oauth/login` → `/oauth/authorize` → the
- * client's `redirect_uri`), so `'self'` would block the final hop to the client.
- */
+// No form-action: Chromium applies it to the whole redirect chain, so 'self' would block the final hop to the client.
 export const LOGIN_PAGE_CSP = [
   "default-src 'none'",
   `style-src 'sha256-${sha256(LOGIN_PAGE_CSS)}'`,
@@ -147,18 +128,13 @@ export const LOGIN_PAGE_CSP = [
 ].join('; ');
 
 export interface LoginPageParams {
-  /** Sanitised authorization request, posted back so the flow resumes where it started. */
   readonly authorizeQuery: string;
   readonly csrfField: string;
   readonly error?: string;
-  /** The error belongs to the credential fields (wrong e-mail or password), not to the form as a whole (limit, stale form, outage). */
   readonly fieldError?: boolean;
   readonly email?: string;
-  /** Language of the page (`ui_locales` of the authorization request); Russian when omitted. */
   readonly locale?: LoginLocale;
-  /** Registration page of the client the user came from. */
   readonly registerUrl?: string;
-  /** Home page of the client the user came from: the «← На сайт» link. */
   readonly siteUrl?: string;
 }
 
@@ -177,7 +153,6 @@ export function escapeHtml(value: string): string {
 const LEAF_PATH = 'M0 -34 C30 -58 34 -118 0 -176 C-34 -118 -30 -58 0 -34 Z';
 const OUTER_ANGLES: ReadonlyArray<number> = [0, 30, 60, 90, 120, 150, 180, 210, 240, 270, 300, 330];
 
-/** The Lifeline rosette of the web client (`components/brand/brand-mark.tsx`), painted from this page's own variables. */
 function brandMark(size: number): string {
   const outer = OUTER_ANGLES.map((angle) => `<path class="leaf" d="${LEAF_PATH}" transform="rotate(${angle}) scale(1.45)"/>`).join('');
   const inner = OUTER_ANGLES.map(
@@ -279,7 +254,6 @@ export function renderLoginPage(params: LoginPageParams): string {
   return layout(text.title, form.join('\n'), params.siteUrl, text);
 }
 
-/** Dead end of a login request that cannot be resumed (e.g. the authorize parameters are gone). */
 export function renderLoginErrorPage(message: string, locale: LoginLocale = DEFAULT_LOGIN_LOCALE): string {
   const text = LOGIN_TEXT[locale];
   return layout(text.errorTitle, `<h1 id="page-title">${text.errorHeading}</h1>\n${errorBlock(message)}`, undefined, text);

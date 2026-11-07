@@ -49,15 +49,12 @@ function submit(setupResult: Setup, form: Partial<LoginFormDto> = {}): { form: L
 
 describe('LoginController', () => {
   it('should set the login session and return to the authorize endpoint when the credentials are valid', async () => {
-    // Arrange
     const context = setup();
     const { form, cookie } = submit(context);
     const fake = createFakeResponse();
 
-    // Act
     await context.controller.login(form, { headers: { cookie } }, fake.response);
 
-    // Assert
     expect(fake.redirect).toHaveBeenCalledWith(302, `/oauth/authorize?${AUTHORIZE_QUERY}`);
     const session = fake.cookies.find((set) => set.name === LOGIN_SESSION_COOKIE);
     expect(session?.options).toMatchObject({ httpOnly: true, sameSite: 'lax', path: '/oauth' });

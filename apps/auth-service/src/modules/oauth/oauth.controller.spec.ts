@@ -50,8 +50,6 @@ describe('OAuthController', () => {
   const savedFhirBaseUrl = process.env['FHIR_BASE_URL'];
 
   afterEach(() => {
-    // N5: the first test in this suite used to mutate `process.env` in place
-    // without restoring it, leaking into every suite sharing the Jest worker.
     if (savedFhirBaseUrl === undefined) {
       delete process.env['FHIR_BASE_URL'];
     } else {
@@ -85,9 +83,6 @@ describe('OAuthController', () => {
 
     const config = controller.smartConfiguration();
 
-    // A PKCE-only public client authenticates with `none`; the confidential client
-    // posts its secret in the request body, which is what `TokenClientGuard`
-    // accepts. Clients discover both through this document.
     expect(config.token_endpoint_auth_methods_supported).toEqual(['client_secret_post', 'none']);
     expect(config.grant_types_supported).toEqual(['authorization_code', 'refresh_token']);
   });

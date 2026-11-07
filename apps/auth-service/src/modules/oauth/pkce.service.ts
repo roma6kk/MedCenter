@@ -6,10 +6,6 @@ export interface PkcePair {
   readonly codeChallenge: string;
 }
 
-/**
- * PKCE (RFC 7636) with the `S256` method only — API 2.1.2 mandates
- * `code_challenge_method=S256`. `plain` is never accepted.
- */
 @Injectable()
 export class PkceService {
   generate(): PkcePair {
@@ -22,10 +18,7 @@ export class PkceService {
     return createHash('sha256').update(codeVerifier).digest('base64url');
   }
 
-  /**
-   * Compares in constant time: a plain `===` would leak the verifier through
-   * timing (CWE-208).
-   */
+  // Constant time: === would leak the verifier through timing (CWE-208).
   verify(storedChallenge: string, codeVerifier: string): boolean {
     const expected = Buffer.from(this.challenge(codeVerifier));
     const actual = Buffer.from(storedChallenge);

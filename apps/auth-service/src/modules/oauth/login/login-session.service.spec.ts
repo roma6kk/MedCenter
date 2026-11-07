@@ -12,14 +12,11 @@ describe('LoginSessionService', () => {
   });
 
   it('should resolve the user when the session cookie it issued is presented', async () => {
-    // Arrange
     const service = createService();
     const cookie = service.issue('user-1');
 
-    // Act
     const session = await service.read(cookie);
 
-    // Assert
     expect(session?.userId).toBe('user-1');
     expect(session?.sessionId).toEqual(expect.any(String));
   });

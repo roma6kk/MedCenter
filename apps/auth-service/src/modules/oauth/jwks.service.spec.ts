@@ -1,9 +1,6 @@
 import { JwksService } from './jwks.service';
 import { createTestKeys } from './__tests__/test-keys';
 
-// A JWKS key entry carries the advertised fields plus the raw JWK parts.
-// We only read the advertised fields (kid, alg, use) and assert that the
-// private key material (d, p, q, dp, dq, qi) is absent.
 interface PublicJwksKey {
   readonly kid: string;
   readonly alg: string;
@@ -18,7 +15,6 @@ interface PublicJwksKey {
   readonly qi?: string;
 }
 
-/** Narrow a JWKS key entry to the fields JwksService advertises. */
 function asPubKey(entry: unknown): PublicJwksKey {
   return entry as PublicJwksKey;
 }

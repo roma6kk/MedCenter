@@ -104,7 +104,6 @@ describe('OAuthModule wiring', () => {
     process.env['JWT_PRIVATE_KEY'] = SIGNING_ENV.JWT_PRIVATE_KEY;
     process.env['JWT_PUBLIC_KEY'] = SIGNING_ENV.JWT_PUBLIC_KEY;
     process.env['JWT_ISSUER'] = SIGNING_ENV.JWT_ISSUER;
-    // The token stores are in-process without REDIS_URL; a runner that sets it must not reach a real Redis.
     delete process.env['REDIS_URL'];
   });
 
@@ -157,8 +156,6 @@ describe('OAuthModule wiring', () => {
         ttlSeconds: 60,
       });
 
-      // Rotation seals the refresh token against reuse and must not end the
-      // session the client is still working in.
       await tokens.consume(issued.jti, 'refresh');
 
       await expect(checker.isRevoked(issued.jti)).resolves.toBe(false);
@@ -210,8 +207,6 @@ describe('loadRegisteredClients', () => {
   });
 
   it('should throw at boot when an entry is missing redirectUris', () => {
-    // M3: this shape used to survive the cast and then throw a `TypeError`
-    // on the public authorize route (`client.redirectUris[0]` → 500).
     expect(() =>
       loadRegisteredClients({
         OAUTH_CLIENTS_JSON: JSON.stringify([

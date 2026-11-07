@@ -27,14 +27,7 @@ function textOf(body: LoginFormRequest['body'], field: string, maxLength: number
   return typeof value === 'string' ? value.slice(0, maxLength) : '';
 }
 
-/**
- * `POST /oauth/login` is a browser form post, so what goes wrong on it must end in the login page, not in a JSON document:
- * - the per-IP `@RateLimit` throws `429` from a guard, before the handler can draw anything: the page with the throttle message;
- * - an unexpected failure (the `auth` database is down while the password is checked) answers a browser with the page and
- *   «temporarily unavailable» (`503`), the error is logged with its request id;
- * - every other `HttpException` (e.g. a validation error), and any failure for a client that does not accept HTML, still
- *   leaves through the shared problem filter.
- */
+// A browser form post must end in the login page (429 throttle / 503 unavailable); other errors go to the shared problem filter.
 @Catch()
 export class LoginRateLimitFilter implements ExceptionFilter {
   private readonly logger = new Logger(LoginRateLimitFilter.name);

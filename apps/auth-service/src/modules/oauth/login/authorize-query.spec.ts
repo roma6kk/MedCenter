@@ -2,7 +2,6 @@ import { authorizeLocation, loginLocaleOf, sanitizeAuthorizeQuery } from './auth
 
 describe('sanitizeAuthorizeQuery', () => {
   it('should keep exactly the authorization request parameters when a parsed query is given', () => {
-    // Arrange
     const query = {
       response_type: 'code',
       client_id: 'medcenter-web',
@@ -14,10 +13,8 @@ describe('sanitizeAuthorizeQuery', () => {
       injected: 'x',
     };
 
-    // Act
     const sanitized = new URLSearchParams(sanitizeAuthorizeQuery(query));
 
-    // Assert
     expect(sanitized.get('client_id')).toBe('medcenter-web');
     expect(sanitized.get('scope')).toBe('launch patient/*.read');
     expect(sanitized.get('state')).toBe('abc.%2Fbooking');

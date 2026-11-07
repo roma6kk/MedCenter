@@ -28,14 +28,9 @@ export interface AuthorizeRequest extends RequestWithLoginSession {
   readonly client?: RegisteredClient;
 }
 
-/**
- * The `error` values RFC 6749 §4.1.2.1 allows on the authorize redirect.
- * `invalid_client`, `invalid_grant` and `unsupported_grant_type` belong to the
- * token endpoint (§5.2) and are reported as `access_denied` instead.
- */
+// RFC 6749 §4.1.2.1 codes only; token-endpoint codes are reported as access_denied.
 type AuthorizeRedirectError = 'access_denied' | 'invalid_request' | 'invalid_scope';
 
-/** M5: forwards the RFC code a SMART client branches on, e.g. `invalid_scope`. */
 function toAuthorizeRedirectError(error: OAuthError): AuthorizeRedirectError {
   const body = error.getResponse();
   const code = typeof body === 'object' && body !== null && 'error' in body ? body.error : undefined;
@@ -51,19 +46,6 @@ function errorRedirect(redirectUri: string, state: string, error: AuthorizeRedir
   return url.toString();
 }
 
-/**
- * `GET /oauth/authorize` (API 2.1.2) — Authorization Code + PKCE.
- *
- * - Without a login session the authorization server renders its own login
- *   form (assumption UI-1); `POST /oauth/login` comes back here afterwards.
- * - With one, the session is consumed (single use) and a code is issued for
- *   the account as it is now. A failure of this surface's domain bounces to
- *   the *registered* `redirect_uri` with its RFC 6749 §4.1.2.1 `error`; an
- *   infrastructure failure is not a consent decision and propagates to
- *   `AuthorizeErrorFilter` (problem+json, or the error page for a browser).
- * - Errors raised before a redirect target is known leave as the RFC 6749
- *   §5.2 envelope via `AuthorizeErrorFilter` (an error page for a browser).
- */
 @ApiTags('auth')
 @ApiExtraModels(OAuthErrorDoc)
 @UseFilters(AuthorizeErrorFilter)
@@ -121,7 +103,6 @@ export class AuthorizeController {
     response.redirect(await this.issueCode(request, client, redirectUri, principal));
   }
 
-  /** The redirect URL: `code` on success, the RFC error for a domain failure of this surface. */
   private async issueCode(
     request: AuthorizeRequest,
     client: RegisteredClient,

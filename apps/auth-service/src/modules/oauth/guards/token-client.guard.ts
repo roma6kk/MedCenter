@@ -13,14 +13,6 @@ function readBodyString(body: Record<string, unknown>, key: string): string | un
   return typeof value === 'string' ? value : undefined;
 }
 
-/**
- * Authenticates the client of a `POST /oauth/token` / `revoke` call (API 2.1.3
- * mandates `401 invalid_client`). `ClientGuard` cannot serve here because the
- * token endpoint carries `client_id` in the form body, not the query string.
- *
- * A public client authenticates with PKCE alone; a confidential one
- * (`isPublic === false`) must also present a verifying `client_secret`.
- */
 @Injectable()
 export class TokenClientGuard implements CanActivate {
   constructor(@Inject(CLIENT_REGISTRY) private readonly registry: ClientRegistry) {}

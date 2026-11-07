@@ -13,7 +13,6 @@ export interface OAuthHarness {
   readonly identities: StubIdentityResolver;
 }
 
-/** A fully in-memory `OAuthService` with a controllable identity lookup. */
 export function createOAuthHarness(): OAuthHarness {
   const tokens = new TokenService(new InMemoryTokenStore(), new InMemoryTokenDenylist());
   const pkce = new PkceService();

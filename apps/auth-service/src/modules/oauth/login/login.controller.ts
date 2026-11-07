@@ -31,7 +31,6 @@ export {
   UNAVAILABLE_MESSAGE,
 } from './login-messages';
 
-/** Login attempts per minute per client IP (NFR-006): a typo budget, not a guessing budget. */
 export const LOGIN_RATE_LIMIT = 10;
 
 interface LoginRequest extends CookieRequest {
@@ -40,16 +39,6 @@ interface LoginRequest extends CookieRequest {
 
 type Refusal = Pick<LoginFormView, 'status' | 'error' | 'email' | 'retryAfterSeconds'>;
 
-/**
- * `POST /oauth/login` — credential step of the authorization-code flow
- * (assumption UI-1). On success it sets the short-lived login session and
- * sends the browser back to `GET /oauth/authorize` with the original request,
- * which then issues the code. Everything stays under `/oauth/**` (Traefik).
- *
- * Two ceilings guard the password: the per-IP `@RateLimit` and a per-account
- * counter (`LoginThrottle`) that fails closed. Both end in the login page with
- * a message, not a JSON problem (`LoginRateLimitFilter` covers the first).
- */
 @ApiTags('auth')
 @Controller('oauth')
 export class LoginController {
@@ -134,11 +123,7 @@ export class LoginController {
     this.resumeAuthorization(request, response, userId, authorizeQuery);
   }
 
-  /**
-   * Why the attempt must not reach the password check, or `null`. A stale form is
-   * refused first (CSRF costs nothing and is not an attempt); the rest is counted
-   * against the account.
-   */
+  // A stale form is refused first (not an attempt); the rest is counted against the account.
   private async refusalOf(form: LoginFormDto, request: LoginRequest, locale: LoginLocale): Promise<Refusal | null> {
     if (!this.sessions.verifyCsrf(readCookie(request, LOGIN_CSRF_COOKIE), form.csrf)) {
       return { status: HttpStatus.FORBIDDEN, error: loginMessage('staleForm', locale), email: '' };

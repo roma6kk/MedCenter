@@ -38,15 +38,7 @@ import {
   type TokenStore,
 } from './token.service';
 
-/**
- * Signing keys come from the environment: `JWT_PRIVATE_KEY` / `JWT_PUBLIC_KEY`
- * (PEM), `JWT_ISSUER` and an optional `JWT_KEY_ID` (default `auth-1`).
- *
- * The factory is eager, so importing this module makes all three variables a
- * hard boot requirement for the whole service — a deployment that forgets them,
- * or ships a PEM that does not parse or a pair that does not match, fails at
- * startup, not on the first token request.
- */
+// Eager factory: missing, unparsable or mismatched keys fail the boot, not the first token request.
 export function loadSigningKeys(source: NodeJS.ProcessEnv = process.env): SigningKeys {
   const privateKeyPem = source['JWT_PRIVATE_KEY'];
   const publicKeyPem = source['JWT_PUBLIC_KEY'];
@@ -66,12 +58,10 @@ export function loadSigningKeys(source: NodeJS.ProcessEnv = process.env): Signin
   return keys;
 }
 
-/** A PEM passed through an env file or compose often carries a literal `\n` instead of line breaks. */
 function normalisePem(pem: string): string {
   return pem.includes('\\n') ? pem.replace(/\\n/g, '\n') : pem;
 }
 
-/** Parses both keys and proves they are a pair, so a bad key fails the boot instead of the first login or every BFF. */
 function assertKeyPair(keys: Pick<SigningKeys, 'privateKeyPem' | 'publicKeyPem'>): void {
   let derivedPublic: Buffer;
   try {
@@ -90,18 +80,6 @@ function assertKeyPair(keys: Pick<SigningKeys, 'privateKeyPem' | 'publicKeyPem'>
   }
 }
 
-/**
- * Dev convenience: seed the client registry from `OAUTH_CLIENTS_JSON`
- * (a JSON array of `{ clientId, redirectUris, scopes, isPublic }`). The
- * `auth.oauth_client`-backed registry replaces this with persistence.
- *
- * M3: the payload is validated with `zod` and rejected loudly at boot. The
- * previous `as` cast let a malformed entry throw a `TypeError` on a public
- * route (`redirectUris[0]`, `allowed.includes(...)` → 500) or, worse, silently
- * degrade to an empty registry where every client gets `401 invalid_client`,
- * indistinguishable from a real auth failure.
- */
-/** RFC 6749 §3.1.2: an absolute http(s) URI without a fragment; `new URL` on a relative one throws on a public route. */
 function isValidRedirectUri(value: string): boolean {
   let url: URL;
   try {
@@ -141,12 +119,6 @@ export function loadRegisteredClients(source: NodeJS.ProcessEnv = process.env): 
   return registeredClientsSchema.parse(parsed);
 }
 
-/**
- * SMART / OAuth2 surface (API 2.1) plus the authorization server's own login
- * step (assumption UI-1). `UsersModule` supplies the two answers it needs from
- * the `auth` schema: credential verification and the identity a token is
- * minted for (`IDENTITY_RESOLVER`).
- */
 @Module({
   imports: [UsersModule],
   controllers: [OAuthController, AuthorizeController, LoginController, LoginAssetsController],
@@ -172,10 +144,7 @@ export function loadRegisteredClients(source: NodeJS.ProcessEnv = process.env): 
     { provide: TOKEN_STORE, useFactory: (stores: TokenStores): TokenStore => stores.store, inject: [TOKEN_STORES] },
     { provide: TOKEN_DENYLIST, useFactory: (stores: TokenStores): TokenDenylist => stores.denylist, inject: [TOKEN_STORES] },
     { provide: CLIENT_REGISTRY, useFactory: (): InMemoryClientRegistry => new InMemoryClientRegistry(loadRegisteredClients()) },
-    // The issuer is the only party that knows what it revoked, so it is also the
-    // one that answers the guard layer's revocation question. `TokenService`
-    // owns the `session:` denylist namespace; exporting the token makes it
-    // visible to `APP_GUARD`'s `JwtAuthGuard` in `AppModule`.
+    // The issuer answers the guard layer's revocation question; exported so APP_GUARD's JwtAuthGuard sees it.
     { provide: TOKEN_REVOCATION, useExisting: TokenService },
   ],
   exports: [OAuthService, TOKEN_REVOCATION],

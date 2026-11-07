@@ -137,9 +137,6 @@ describe('TokenService', () => {
 
       await service.consume(issued.jti, 'refresh');
 
-      // Rotation seals the refresh token against reuse but must leave the access
-      // token the client is still using alone, or every rotation would log its
-      // own caller out (the guard answers 401 TOKEN_REVOKED).
       await expect(service.isRevoked(issued.jti)).resolves.toBe(false);
     });
 
@@ -170,10 +167,6 @@ describe('TokenService', () => {
       const { service, store } = createService();
       const issued = await service.issue({ ...BASE_PARAMS, ttlSeconds: 0 });
 
-      // The denylist entry is deliberately not asserted here: `consume` derives its
-      // TTL from the *remaining* lifetime, which is <= 0 for an expired token, so the
-      // seal is a no-op. The token is unusable either way, because consumption checks
-      // `expiresAt` directly (see the `InMemoryTokenDenylist` ttl case above).
       await expect(service.consume(issued.jti, 'code')).resolves.toBeNull();
       await expect(store.find(issued.jti)).resolves.toBeNull();
     });
@@ -265,8 +258,6 @@ describe('TokenService', () => {
 
         jest.setSystemTime(Date.now() + (ACCESS_TOKEN_TTL_SECONDS + 1) * 1000);
 
-        // The session seal only has to outlive the access tokens minted for it.
-        // The reuse seal is bounded by the refresh token's own 14-day lifetime.
         await expect(service.isRevoked(issued.jti)).resolves.toBe(false);
         await expect(service.isDenied(issued.jti)).resolves.toBe(true);
       } finally {

@@ -6,13 +6,10 @@ describe('signed values', () => {
   const key = randomBytes(32);
 
   it('should return the original payload when the value was signed with the same key', () => {
-    // Arrange
     const signed = signValue({ sub: 'user-1', exp: 10 }, key);
 
-    // Act
     const payload = verifySignedValue(signed, key);
 
-    // Assert
     expect(payload).toEqual({ sub: 'user-1', exp: 10 });
   });
 

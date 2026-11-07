@@ -14,13 +14,6 @@ interface AuthorizeRequest extends CookieRequest {
   readonly requestId?: string;
 }
 
-/**
- * Error surface of `GET /oauth/authorize`, a page the browser navigates to. A client that does not name `text/html` in
- * `Accept` keeps the contract of API 2.1.2: the RFC 6749 §5.2 envelope for an `OAuthError`, problem+json for the rest.
- * A browser gets the login error page instead — a refused request (unknown client, unregistered redirect_uri, bad
- * response_type) with its own status, an unexpected failure (e.g. the `auth` database is down) as «temporarily
- * unavailable» — so the visitor is not left with a bare JSON document.
- */
 @Catch()
 export class AuthorizeErrorFilter implements ExceptionFilter {
   private readonly logger = new Logger(AuthorizeErrorFilter.name);

@@ -28,10 +28,6 @@ describe('OAuthService', () => {
   });
 
   it('should drop scopes the client is not registered for when authorizing', async () => {
-    // M5: the previous version of this test exchanged with a bogus verifier
-    // and asserted only the PKCE failure — it proved nothing about narrowing.
-    // This one goes through the full authorize → exchange flow and asserts the
-    // issued scope is the narrowed one.
     const { service, pkce } = createHarness();
     const { codeVerifier, codeChallenge } = pkce.generate();
 
@@ -53,7 +49,6 @@ describe('OAuthService', () => {
   });
 
   it('should answer invalid_scope when no requested scope is granted to the client', async () => {
-    // M5: a token with an empty scope must never be minted.
     const { service, pkce } = createHarness();
     const { codeChallenge } = pkce.generate();
 
@@ -121,9 +116,6 @@ describe('OAuthService', () => {
     expect(claims['role']).toBe('PATIENT');
     expect(claims['patient']).toBe('1');
     expect(claims['fhirUser']).toBe('Patient/1');
-    // The access token's session id is the paired refresh token's `jti`, which is
-    // what lets the guard layer treat a revocation of that refresh token as a
-    // revocation of the pair (API error catalogue `TOKEN_REVOKED`).
     expect(claims['sid']).toBe(response.refresh_token);
   });
 
@@ -148,8 +140,6 @@ describe('OAuthService', () => {
       service.revoke({ refreshToken: response.refresh_token, userId: 'u1' }),
     ).resolves.toBe(true);
 
-    // `response.refresh_token` is the `sid` of `response.access_token`, so this is
-    // exactly the lookup `JwtAuthGuard` performs for that access token.
     await expect(tokens.isRevoked(response.refresh_token)).resolves.toBe(true);
   });
 
@@ -247,7 +237,6 @@ describe('OAuthService', () => {
     const error = await captureOAuthError(
       service.refresh({ refreshToken: first.refresh_token, clientId: 'medcenter-web' }),
     );
-    // RFC 6749 §5.2 / API 2.1.3: an already-rotated token is a plain 400 invalid_grant.
     expect(error.getStatus()).toBe(400);
     expect(error.getResponse()).toMatchObject({ error: 'invalid_grant' });
     await expect(
@@ -323,7 +312,6 @@ describe('OAuthService', () => {
     await expect(
       service.revoke({ refreshToken: response.refresh_token, userId: 'intruder-2' }),
     ).resolves.toBe(false);
-    // The token is untouched: it is neither denied nor removed.
     await expect(tokens.isDenied(response.refresh_token)).resolves.toBe(false);
     await expect(tokens.find(response.refresh_token)).resolves.not.toBeNull();
   });

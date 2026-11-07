@@ -44,37 +44,21 @@ export interface RefreshParams {
   readonly clientId: string;
 }
 
-/**
- * Revocation is authorized against the token's recorded owner (RFC 7009 §2.1):
- * the refresh token may only be revoked by the principal it was issued to. The
- * caller supplies the authenticated `userId` (from the Bearer access token) and,
- * when known, the `clientId`; the operation is a no-op unless they match the
- * stored token's owner.
- */
 export interface RevokeParams {
   readonly refreshToken: string;
   readonly userId: string;
   readonly clientId?: string;
 }
 
-/** Shape mandated by API 2.1.3 (`access_token`, `expires_in`, `refresh_token`, …). */
 export interface TokenResponse {
   readonly access_token: string;
   readonly token_type: 'Bearer';
   readonly expires_in: number;
   readonly refresh_token: string;
   readonly scope: string;
-  /** SMART launch context: the bare Patient id (PATIENT tokens only). */
   readonly patient?: string;
 }
 
-/**
- * Scopes the client is allowed to request; unknown scopes are dropped (M5).
- * An empty request keeps the client's full grant — that is the "no scope
- * asked" case. When the client *does* ask but nothing it asked for was ever
- * granted, the authorize call must fail with `invalid_scope` (RFC 6749
- * §4.1.2.1) instead of minting a token with an empty scope.
- */
 function narrowScope(requested: string, allowed: ReadonlyArray<string>): string {
   const requestedScopes = requested.split(' ').filter((scope) => scope.length > 0);
   if (requestedScopes.length === 0) {
@@ -87,11 +71,6 @@ function narrowScope(requested: string, allowed: ReadonlyArray<string>): string 
   return narrowed.join(' ');
 }
 
-/**
- * A role never receives another role's SMART scopes (API §0 scope matrix):
- * the browser client asks for every scope at once, so the grant is narrowed to
- * the principal's role as well as to the client registration.
- */
 function narrowScopeToPrincipal(scope: string, role: string | undefined): string {
   if (!isRole(role)) {
     return scope;
@@ -117,7 +96,6 @@ export class OAuthService {
     @Inject(IDENTITY_RESOLVER) private readonly identities: IdentityResolver,
   ) {}
 
-  /** API 2.1.2 — issues a single-use authorization code and returns the redirect URL. */
   async authorize(params: AuthorizeParams): Promise<string> {
     const scope = narrowScopeToPrincipal(
       narrowScope(params.scope, params.client.scopes),
@@ -144,13 +122,7 @@ export class OAuthService {
     return redirect.toString();
   }
 
-  /**
-   * API 2.1.3 — exchanges an authorization code (PKCE-verified) for a token pair.
-   *
-   * The code is only *looked at* until the grant is resolved (the `auth` schema
-   * is queried there): a database hiccup must not burn a code the user can
-   * still use. The single spend is `consume`, which stays atomic.
-   */
+  // The code is only looked at until the grant is resolved: a database hiccup must not burn a usable code. consume is the single atomic spend.
   async exchangeCode(params: ExchangeCodeParams): Promise<TokenResponse> {
     const found = await this.tokens.find(params.code);
     if (found === null || found.kind !== 'code' || found.expiresAt.getTime() <= Date.now()) {
@@ -174,24 +146,11 @@ export class OAuthService {
     return this.issuePair(stored, grant);
   }
 
-  /**
-   * API 2.1.3 — rotates the refresh token: the presented one is consumed, never
-   * reused.
-   *
-   * The denylist is consulted *before* the store lookup so a token that was
-   * revoked or already rotated is rejected consistently. Per RFC 6749 §5.2 and
-   * `specs/api-designer-spec.md` §2.1.3 the outcome is **400 `invalid_grant`**
-   * for every unusable refresh token — the endpoint does not distinguish a
-   * revoked `jti` from an unknown one (`TOKEN_REVOKED`/401 belongs to the guard
-   * layer, on a Bearer access token).
-   */
   async refresh(params: RefreshParams): Promise<TokenResponse> {
     if (await this.tokens.isDenied(params.refreshToken)) {
       throw OAuthError.invalidGrantRevoked();
     }
-    // Look first, spend last: the grant is resolved from the database before the
-    // token is consumed, so a database failure answers 5xx and the client can
-    // retry with the same refresh token instead of losing its session.
+    // Look first, spend last: a database failure answers 5xx and the client can retry with the same refresh token.
     const found = await this.tokens.find(params.refreshToken);
     if (found === null || found.kind !== 'refresh' || found.expiresAt.getTime() <= Date.now()) {
       throw OAuthError.invalidGrant('Refresh token is invalid or expired');
@@ -207,22 +166,6 @@ export class OAuthService {
     return this.issuePair(stored, grant);
   }
 
-  /**
-   * API 2.1.4 — revokes a refresh token so its `jti` lands in the denylist.
-   *
-   * RFC 7009 §2.1 requires that the server validate the token belongs to the
-   * authenticated principal before acting on it, so the stored token's
-   * `userId` (and, when supplied, its `clientId`) is compared with the caller's
-   * before anything is denied. A token that is unknown, already consumed/denied,
-   * or owned by someone else is a **no-op** — never a new denial — so the
-   * endpoint cannot be used to enumerate or to revoke another principal's token.
-   * The method resolves to `true` only when the caller owned the token and it was
-   * denied.
-   *
-   * Because the access token issued alongside it carries this `jti` as its
-   * `sid`, the revocation also ends the session at the guard layer: the Bearer
-   * token that authorized this very call stops being accepted (`TOKEN_REVOKED`).
-   */
   async revoke(params: RevokeParams): Promise<boolean> {
     const stored = await this.tokens.find(params.refreshToken);
     if (stored === null || stored.kind !== 'refresh') {
@@ -238,17 +181,7 @@ export class OAuthService {
     return true;
   }
 
-  /**
-   * The refresh token is minted **first**: its `jti` becomes the `sid` of the
-   * access token, which is what lets `JwtAuthGuard` treat revoking the refresh
-   * token (RFC 7009 / logout) as revoking the pair.
-   *
-   * Role, `patient` and `fhirUser` are resolved from the `auth` schema on every
-   * grant — never copied from the stored token — so a deactivated account
-   * cannot refresh, and a role change or a new `ExternalLink` applies at the
-   * next refresh. The scope is re-narrowed to the current role for the same
-   * reason.
-   */
+  // Refresh token first: its jti is the access token's sid. Role and identity are re-resolved on every grant, so a deactivated account cannot refresh.
   private async issuePair(stored: StoredToken, grant: ResolvedGrant): Promise<TokenResponse> {
     const { scope, claims } = grant;
     const refresh = await this.tokens.issue({

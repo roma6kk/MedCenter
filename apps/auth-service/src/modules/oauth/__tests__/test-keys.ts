@@ -5,7 +5,6 @@ import type { SigningKeys } from '../jwt.service';
 
 export const TEST_ISSUER = 'https://api.medcenter.by';
 
-/** Deterministic-enough RS256 key pair generated once per spec file. */
 export function createTestKeys(): SigningKeys {
   const { privateKey, publicKey } = generateKeyPairSync('rsa', {
     modulusLength: 2048,

@@ -3,12 +3,6 @@ import { IsOptional, IsString, MaxLength } from 'class-validator';
 
 import { EMAIL_MAX_LENGTH, PASSWORD_MAX_LENGTH } from '../../users/dto/validation-patterns';
 
-/**
- * `application/x-www-form-urlencoded` body of `POST /oauth/login`. Every field
- * is optional at the DTO level on purpose: a browser form with a missing or
- * empty field must get the login page back with a message, not a JSON problem
- * document. The bounds still stop oversized input at the pipe.
- */
 export class LoginFormDto {
   @ApiPropertyOptional({ example: 'ivanov@example.by', maxLength: EMAIL_MAX_LENGTH })
   @IsOptional()
@@ -28,7 +22,6 @@ export class LoginFormDto {
   @MaxLength(128)
   csrf?: string;
 
-  /** The sanitised authorization request the form was rendered for. */
   @ApiPropertyOptional({ maxLength: 8192, description: 'The sanitised authorization query string the form was rendered for' })
   @IsOptional()
   @IsString()

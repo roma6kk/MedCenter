@@ -12,7 +12,6 @@ function hostOf(request: Record<string, unknown>, fake: FakeResponse): Arguments
   } as unknown as ArgumentsHost;
 }
 
-/** What the JSON branches need of a response, on top of the login page's own calls. */
 function withJsonSupport(fake: FakeResponse): { readonly type: jest.Mock; readonly setHeader: jest.Mock } {
   const response = fake.response as unknown as Record<string, jest.Mock>;
   const type = jest.fn().mockReturnValue(fake.response);
