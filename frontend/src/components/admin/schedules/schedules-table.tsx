@@ -1,16 +1,17 @@
 'use client';
 
-import { Ban, CalendarPlus, LayoutGrid, Pencil, Trash2 } from 'lucide-react';
+import { CalendarPlus, LayoutGrid, Pencil, Trash2 } from 'lucide-react';
 import { PaginatedTable, type PageMeta, type TableColumn } from '@/components/data-display/paginated-table';
-import { StampBadge } from '@/components/feedback/stamp-badge';
 import { buttonVariants } from '@/components/ui/button-variants';
-import { DropdownMenu, type MenuItem } from '@/components/ui/dropdown-menu';
+import type { MenuItem } from '@/components/ui/dropdown-menu';
 import { useT } from '@/lib/i18n/use-t';
 import { cn } from '@/lib/ui/cn';
 import type { AdminSchedule, WeekDay } from './schedule-types';
 import { formatDateKey } from '@/lib/clinic-time';
 import { describeWindows } from '@/lib/schedule-windows-text';
 import { labelOf, type SchedulePickers } from './use-schedule-pickers';
+import { ActiveStatusBadge } from '../shared/active-status-badge';
+import { RowActionsMenu } from '../shared/row-actions-menu';
 
 export interface ScheduleHandlers {
   readonly onSlots: (schedule: AdminSchedule) => void;
@@ -32,7 +33,6 @@ export function describeSchedule(schedule: AdminSchedule, pickers: SchedulePicke
 
 function ScheduleActions({ schedule, label, onSlots, onGenerate, onEdit, onDelete }: ScheduleHandlers & { readonly schedule: AdminSchedule; readonly label: string }): React.JSX.Element {
   const t = useT('admin.schedules');
-  const tCommon = useT('admin.common');
   const items: MenuItem[] = [];
   if (schedule.isActive) items.push({ key: 'edit', label: t('actions.edit'), icon: Pencil, onSelect: () => onEdit(schedule) });
   items.push({ key: 'slots', label: t('actions.slots'), icon: LayoutGrid, onSelect: () => onSlots(schedule) });
@@ -46,7 +46,7 @@ function ScheduleActions({ schedule, label, onSlots, onGenerate, onEdit, onDelet
           {t('actions.generate')}
         </button>
       ) : null}
-      <DropdownMenu label={tCommon('rowActions', { name: label })} items={items} />
+      <RowActionsMenu name={label} items={items} />
     </span>
   );
 }
@@ -85,7 +85,7 @@ function useScheduleColumns(pickers: SchedulePickers, handlers: ScheduleHandlers
       header: t('columns.windows'),
       render: (row) => <WindowsCell schedule={row} dayLabel={(day) => t(`days.${day}`)} duration={row.slotDurationMin === undefined ? undefined : t('slotOf', { minutes: row.slotDurationMin })} />,
     },
-    { key: 'status', header: t('columns.status'), mobile: 'badge', render: (row) => row.isActive ? <StampBadge status="active">{t('active')}</StampBadge> : <StampBadge status="cancelled" tone="neutral" icon={Ban}>{t('inactive')}</StampBadge> },
+    { key: 'status', header: t('columns.status'), mobile: 'badge', render: (row) => <ActiveStatusBadge isActive={row.isActive} activeLabel={t('active')} inactiveLabel={t('inactive')} /> },
     { key: 'actions', header: t('columns.actions'), mobile: 'actions', render: (row) => <ScheduleActions schedule={row} label={describeSchedule(row, pickers)} {...handlers} /> },
   ];
 }

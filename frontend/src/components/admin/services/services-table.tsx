@@ -1,12 +1,13 @@
 'use client';
 
-import { Ban, Pencil, Trash2 } from 'lucide-react';
+import { Pencil, Trash2 } from 'lucide-react';
 import { PaginatedTable, type PageMeta, type TableColumn } from '@/components/data-display/paginated-table';
 import { CodeChip } from '@/components/feedback/code-chip';
-import { StampBadge } from '@/components/feedback/stamp-badge';
-import { DropdownMenu, type MenuItem } from '@/components/ui/dropdown-menu';
+import type { MenuItem } from '@/components/ui/dropdown-menu';
 import { useT } from '@/lib/i18n/use-t';
 import type { AdminService } from './service-types';
+import { ActiveStatusBadge } from '../shared/active-status-badge';
+import { RowActionsMenu } from '../shared/row-actions-menu';
 
 interface ServicesTableProps {
   readonly rows: ReadonlyArray<AdminService>;
@@ -18,12 +19,11 @@ interface ServicesTableProps {
 
 function ServiceActions({ service, onEdit, onDelete }: Pick<ServicesTableProps, 'onEdit' | 'onDelete'> & { readonly service: AdminService }): React.JSX.Element {
   const t = useT('admin.services');
-  const tCommon = useT('admin.common');
   const items: ReadonlyArray<MenuItem> = [
     { key: 'edit', label: t('edit'), icon: Pencil, onSelect: () => onEdit(service) },
     { key: 'delete', label: t('delete'), icon: Trash2, destructive: true, onSelect: () => onDelete(service) },
   ];
-  return <DropdownMenu label={tCommon('rowActions', { name: service.name })} items={items} />;
+  return <RowActionsMenu name={service.name} items={items} />;
 }
 
 function useServiceColumns(actions: Pick<ServicesTableProps, 'onEdit' | 'onDelete'>): ReadonlyArray<TableColumn<AdminService>> {
@@ -41,7 +41,7 @@ function useServiceColumns(actions: Pick<ServicesTableProps, 'onEdit' | 'onDelet
       ),
     },
     { key: 'duration', header: t('columns.duration'), render: (row) => t('minutes', { count: row.defaultDurationMin }) },
-    { key: 'status', header: t('columns.status'), mobile: 'badge', render: (row) => row.isActive ? <StampBadge status="active">{t('active')}</StampBadge> : <StampBadge status="cancelled" tone="neutral" icon={Ban}>{t('inactive')}</StampBadge> },
+    { key: 'status', header: t('columns.status'), mobile: 'badge', render: (row) => <ActiveStatusBadge isActive={row.isActive} activeLabel={t('active')} inactiveLabel={t('inactive')} /> },
     { key: 'actions', header: t('columns.actions'), mobile: 'actions', render: (row) => <ServiceActions service={row} {...actions} /> },
   ];
 }

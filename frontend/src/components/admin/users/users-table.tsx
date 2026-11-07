@@ -4,13 +4,14 @@ import { useEffect } from 'react';
 import { Ban, FileCheck2, IdCard, Pencil, Stethoscope, UserCheck } from 'lucide-react';
 import { PaginatedTable, type PageMeta, type TableColumn } from '@/components/data-display/paginated-table';
 import { CodeChip } from '@/components/feedback/code-chip';
-import { StampBadge } from '@/components/feedback/stamp-badge';
 import { Badge } from '@/components/ui/badge';
-import { DropdownMenu, type MenuItem } from '@/components/ui/dropdown-menu';
+import type { MenuItem } from '@/components/ui/dropdown-menu';
 import type { Translate } from '@/lib/i18n/translate';
 import { useT } from '@/lib/i18n/use-t';
 import { rememberPatientNames } from '@/lib/admin-patient-names';
 import { USER_ROLES } from './user-types';
+import { ActiveStatusBadge } from '../shared/active-status-badge';
+import { RowActionsMenu } from '../shared/row-actions-menu';
 
 export interface UserRow {
   readonly id: string;
@@ -73,11 +74,6 @@ function LinkChips({ row, practitionerRoles }: { readonly row: UserRow; readonly
   );
 }
 
-function StatusStamp({ row }: { readonly row: UserRow }): React.JSX.Element {
-  const t = useT('admin.users');
-  return row.isActive === false ? <StampBadge status="cancelled" tone="neutral" icon={Ban}>{t('inactive')}</StampBadge> : <StampBadge status="active">{t('active')}</StampBadge>;
-}
-
 function patientIdOf(row: UserRow): string | null {
   const reference: string | null | undefined = row.patientRef;
   return typeof reference === 'string' && reference.startsWith('Patient/') ? reference.slice('Patient/'.length) : null;
@@ -85,7 +81,6 @@ function patientIdOf(row: UserRow): string | null {
 
 function RowActions<TUser extends UserRow>({ row, consentLinks, onEdit, onDeactivate, onActivate }: UserActions<TUser> & { readonly row: TUser; readonly consentLinks: boolean }): React.JSX.Element | null {
   const t = useT('admin.users');
-  const tCommon = useT('admin.common');
   const tConsent = useT('consent.admin');
   const patientId: string | null = patientIdOf(row);
   const items: MenuItem[] = [];
@@ -96,7 +91,7 @@ function RowActions<TUser extends UserRow>({ row, consentLinks, onEdit, onDeacti
   if (row.isActive === false && onActivate) items.push({ key: 'activate', label: t('activate'), icon: UserCheck, onSelect: () => onActivate(row) });
   if (row.isActive !== false && onDeactivate) items.push({ key: 'deactivate', label: t('deactivate'), icon: Ban, destructive: true, onSelect: () => onDeactivate(row) });
   if (items.length === 0) return null;
-  return <DropdownMenu label={tCommon('rowActions', { name: row.name })} items={items} />;
+  return <RowActionsMenu name={row.name} items={items} />;
 }
 
 function NameCell({ row }: { readonly row: UserRow }): React.JSX.Element {
@@ -113,7 +108,7 @@ function useUserColumns<TUser extends UserRow>(actions: UserActions<TUser>, cons
   const columns: TableColumn<TUser>[] = [
     { key: 'name', header: t('columns.name'), render: (row) => <NameCell row={row} /> },
     { key: 'role', header: t('columns.role'), mobile: 'badge', render: (row) => <RoleChips row={row} /> },
-    { key: 'status', header: t('columns.status'), mobile: 'badge', render: (row) => <StatusStamp row={row} /> },
+    { key: 'status', header: t('columns.status'), mobile: 'badge', render: (row) => <ActiveStatusBadge isActive={row.isActive !== false} activeLabel={t('active')} inactiveLabel={t('inactive')} /> },
     { key: 'links', header: t('columns.links'), render: (row) => <LinkChips row={row} practitionerRoles={practitionerRoles} /> },
   ];
   if (actions.onEdit || actions.onDeactivate || actions.onActivate || consentLinks) {

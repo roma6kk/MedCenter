@@ -1,12 +1,13 @@
 'use client';
 
-import { Ban, CalendarRange, Pencil, Trash2 } from 'lucide-react';
+import { CalendarRange, Pencil, Trash2 } from 'lucide-react';
 import { PaginatedTable, type PageMeta, type TableColumn } from '@/components/data-display/paginated-table';
 import { CodeChip } from '@/components/feedback/code-chip';
-import { StampBadge } from '@/components/feedback/stamp-badge';
-import { DropdownMenu, type MenuItem } from '@/components/ui/dropdown-menu';
+import type { MenuItem } from '@/components/ui/dropdown-menu';
 import { useT } from '@/lib/i18n/use-t';
 import type { AdminRoom } from './room-types';
+import { ActiveStatusBadge } from '../shared/active-status-badge';
+import { RowActionsMenu } from '../shared/row-actions-menu';
 
 interface RoomActionHandlers {
   readonly onUsage: (room: AdminRoom) => void;
@@ -22,13 +23,12 @@ interface RoomsTableProps extends RoomActionHandlers {
 
 function RoomActions({ room, onUsage, onEdit, onDelete }: RoomActionHandlers & { readonly room: AdminRoom }): React.JSX.Element {
   const t = useT('admin.rooms');
-  const tCommon = useT('admin.common');
   const items: ReadonlyArray<MenuItem> = [
     { key: 'edit', label: t('edit'), icon: Pencil, onSelect: () => onEdit(room) },
     { key: 'usage', label: t('usage.open'), icon: CalendarRange, onSelect: () => onUsage(room) },
     { key: 'delete', label: t('delete'), icon: Trash2, destructive: true, onSelect: () => onDelete(room) },
   ];
-  return <DropdownMenu label={tCommon('rowActions', { name: room.name })} items={items} />;
+  return <RowActionsMenu name={room.name} items={items} />;
 }
 
 function useRoomColumns(actions: RoomActionHandlers): ReadonlyArray<TableColumn<AdminRoom>> {
@@ -38,7 +38,7 @@ function useRoomColumns(actions: RoomActionHandlers): ReadonlyArray<TableColumn<
     { key: 'name', header: t('columns.name'), mobile: 'title', render: (row) => row.name },
     { key: 'floor', header: t('columns.floor'), render: (row) => row.floor ?? '—' },
     { key: 'description', header: t('columns.description'), render: (row) => row.description ?? '—' },
-    { key: 'status', header: t('columns.status'), mobile: 'badge', render: (row) => row.isActive ? <StampBadge status="active">{t('active')}</StampBadge> : <StampBadge status="cancelled" tone="neutral" icon={Ban}>{t('inactive')}</StampBadge> },
+    { key: 'status', header: t('columns.status'), mobile: 'badge', render: (row) => <ActiveStatusBadge isActive={row.isActive} activeLabel={t('active')} inactiveLabel={t('inactive')} /> },
     { key: 'actions', header: t('columns.actions'), mobile: 'actions', render: (row) => <RoomActions room={row} {...actions} /> },
   ];
 }
