@@ -1,13 +1,10 @@
-import { INestApplication } from '@nestjs/common';
-import { Test } from '@nestjs/testing';
-import { createValidationPipe } from '@medcenter/common';
-import { FHIR_CLIENT, FhirClientError, type FhirClient, type FhirSearchResult } from '@medcenter/fhir';
+import type { INestApplication } from '@nestjs/common';
+import { FhirClientError, type FhirClient, type FhirSearchResult } from '@medcenter/fhir';
 import { translationExtension } from '@medcenter/fhir-mappers';
 import request from 'supertest';
 
-import { AppModule } from '../src/app/app.module';
 import { ADMIN_SCOPE, auditedResource, bearer, committedAudit, committedEntries, DOCTOR_SCOPE, transactionResponder } from '@medcenter/testing';
-import { applyE2eEnv } from './e2e-env';
+import { bootWithFhir } from './rooms-harness';
 
 const IS_ROOM = { physicalType: { coding: [{ system: 'http://terminology.hl7.org/CodeSystem/location-physical-type', code: 'ro' }] } };
 
@@ -77,15 +74,8 @@ describe('Room usage (e2e)', () => {
   let fhir: jest.Mocked<FhirClient>;
 
   async function boot(schedules: ReadonlyArray<Record<string, unknown>>, referrers: Referrers = {}): Promise<void> {
-    applyE2eEnv();
     fhir = createFhirStub(schedules, referrers);
-    const moduleRef = await Test.createTestingModule({ imports: [AppModule] })
-      .overrideProvider(FHIR_CLIENT)
-      .useValue(fhir)
-      .compile();
-    app = moduleRef.createNestApplication();
-    app.useGlobalPipes(createValidationPipe());
-    await app.init();
+    app = await bootWithFhir(fhir);
   }
 
   afterEach(async () => {

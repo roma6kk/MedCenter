@@ -113,6 +113,12 @@ describe('RelayService', () => {
 
   afterEach(() => jest.restoreAllMocks());
 
+  const unreadablePayload = (id: string, ageMs: number): void => {
+    hapi.seed(id, 'pending', ageMs);
+    const bad = hapi.rows.get(id) as unknown as { extension: Array<{ valueString?: string }> };
+    bad.extension[2] = { ...bad.extension[2], valueString: '{not json' };
+  };
+
   it('should publish a pending event with its eventId and mark it sent when a poll finds one', async () => {
     hapi.seed('b1', 'pending', MIN, { v: 1, type: 'appointment.booked.v1', eventId: 'ev-1', appointmentId: 'a-1' });
 
@@ -170,9 +176,7 @@ describe('RelayService', () => {
   });
 
   it('should skip a record with an unreadable payload and still publish the ones behind it', async () => {
-    hapi.seed('b1', 'pending', 3 * MIN);
-    const bad = hapi.rows.get('b1') as unknown as { extension: Array<{ valueString?: string }> };
-    bad.extension[2] = { ...bad.extension[2], valueString: '{not json' };
+    unreadablePayload('b1', 3 * MIN);
     hapi.seed('b2', 'pending', 2 * MIN);
 
     await service.tick(NOW);
@@ -182,11 +186,6 @@ describe('RelayService', () => {
   });
 
   describe('a record that cannot be read', () => {
-    const unreadablePayload = (id: string, ageMs: number): void => {
-      hapi.seed(id, 'pending', ageMs);
-      const bad = hapi.rows.get(id) as unknown as { extension: Array<{ valueString?: string }> };
-      bad.extension[2] = { ...bad.extension[2], valueString: '{not json' };
-    };
     const malformedRecord = (id: string, ageMs: number): void => {
       hapi.rows.set(id, {
         resourceType: 'Basic',

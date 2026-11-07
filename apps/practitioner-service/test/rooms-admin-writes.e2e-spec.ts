@@ -25,16 +25,16 @@ describe('Rooms admin writes (e2e)', () => {
     await app?.close();
   });
 
+  const adminPost = (body: object): request.Test => request(app.getHttpServer()).post(ROOMS).set('Authorization', TOKENS.admin).send(body);
+  const adminPatch = (body: object): request.Test => request(app.getHttpServer()).patch(ROOM_URL).set('Authorization', TOKENS.admin).send(body);
+
   describe('POST /api/v1/admin/rooms', () => {
     beforeEach(() => {
       fhir.batch.mockImplementation(transactionResponder());
     });
 
     it('should create a room Location and answer 201 with the room view when an admin posts a valid body', async () => {
-      const response = await request(app.getHttpServer())
-        .post(ROOMS)
-        .set('Authorization', TOKENS.admin)
-        .send({ identifier: '204-Х', name: 'Кабинет 204', floor: 2, description: 'Окна во двор' })
+      const response = await adminPost({ identifier: '204-Х', name: 'Кабинет 204', floor: 2, description: 'Окна во двор' })
         .expect(201);
 
       const [room] = committedEntries(fhir);
@@ -60,10 +60,7 @@ describe('Rooms admin writes (e2e)', () => {
     });
 
     it('should leave the optional elements out of the Location when only identifier and name are posted', async () => {
-      await request(app.getHttpServer())
-        .post(ROOMS)
-        .set('Authorization', TOKENS.admin)
-        .send({ identifier: '101', name: 'Кабинет 101' })
+      await adminPost({ identifier: '101', name: 'Кабинет 101' })
         .expect(201);
 
       const created = committedEntries(fhir)[0]?.resource;
@@ -74,10 +71,7 @@ describe('Rooms admin writes (e2e)', () => {
     it.each([['an empty description', ''], ['a blank description', '   '], ['a null description', null]])(
       'should leave the description out of the Location when the body carries %s',
       async (_label, description) => {
-        await request(app.getHttpServer())
-          .post(ROOMS)
-          .set('Authorization', TOKENS.admin)
-          .send({ identifier: '101', name: 'Кабинет 101', description, floor: null })
+        await adminPost({ identifier: '101', name: 'Кабинет 101', description, floor: null })
           .expect(201);
 
         const created = committedEntries(fhir)[0]?.resource;
@@ -87,20 +81,14 @@ describe('Rooms admin writes (e2e)', () => {
     );
 
     it('should store the name without its edge spaces', async () => {
-      await request(app.getHttpServer())
-        .post(ROOMS)
-        .set('Authorization', TOKENS.admin)
-        .send({ identifier: '101', name: '  Кабинет 101 ' })
+      await adminPost({ identifier: '101', name: '  Кабинет 101 ' })
         .expect(201);
 
       expect(committedEntries(fhir)[0]?.resource).toMatchObject({ name: 'Кабинет 101' });
     });
 
     it('should drop properties no DTO declares when the body smuggles id, status and meta', async () => {
-      await request(app.getHttpServer())
-        .post(ROOMS)
-        .set('Authorization', TOKENS.admin)
-        .send({ identifier: '101', name: 'Кабинет 101', id: 'hijacked', status: 'inactive', meta: { tag: [] } })
+      await adminPost({ identifier: '101', name: 'Кабинет 101', id: 'hijacked', status: 'inactive', meta: { tag: [] } })
         .expect(201);
 
       const created = committedEntries(fhir)[0]?.resource;
@@ -126,7 +114,7 @@ describe('Rooms admin writes (e2e)', () => {
       ['a floor sent as text', { identifier: '204-Х', name: 'Кабинет 204', floor: 'second' }],
       ['a description above 500 characters', { identifier: '204-Х', name: 'Кабинет 204', description: 'x'.repeat(501) }],
     ])('should answer 400 VALIDATION_ERROR before HAPI is called when the body has %s', async (_label, body) => {
-      const response = await request(app.getHttpServer()).post(ROOMS).set('Authorization', TOKENS.admin).send(body).expect(400);
+      const response = await adminPost(body).expect(400);
 
       expect(response.headers['content-type']).toContain('application/problem+json');
       expect(response.body).toMatchObject({ status: 400, errorCode: 'VALIDATION_ERROR' });
@@ -143,10 +131,7 @@ describe('Rooms admin writes (e2e)', () => {
     it('should answer 409 CONFLICT when HAPI refuses the create as a duplicate', async () => {
       fhir.batch.mockRejectedValue(new FhirClientError('POST', 'http://hapi:8080/fhir', 412, '{}'));
 
-      const response = await request(app.getHttpServer())
-        .post(ROOMS)
-        .set('Authorization', TOKENS.admin)
-        .send({ identifier: '204-Х', name: 'Кабинет 204' })
+      const response = await adminPost({ identifier: '204-Х', name: 'Кабинет 204' })
         .expect(409);
 
       expect(response.body).toMatchObject({ status: 409, errorCode: 'CONFLICT' });
@@ -155,10 +140,7 @@ describe('Rooms admin writes (e2e)', () => {
     it('should answer 502 INTERNAL without the HAPI address when the FHIR server is down', async () => {
       fhir.batch.mockRejectedValue(new FhirClientError('POST', 'http://hapi:8080/fhir', 503, 'secret outcome'));
 
-      const response = await request(app.getHttpServer())
-        .post(ROOMS)
-        .set('Authorization', TOKENS.admin)
-        .send({ identifier: '204-Х', name: 'Кабинет 204' })
+      const response = await adminPost({ identifier: '204-Х', name: 'Кабинет 204' })
         .expect(502);
 
       expect(response.body).toMatchObject({ status: 502, errorCode: 'INTERNAL' });
@@ -198,10 +180,7 @@ describe('Rooms admin writes (e2e)', () => {
     });
 
     it('should read the Location, merge only the patched fields and answer 200 when an admin renames the room', async () => {
-      const response = await request(app.getHttpServer())
-        .patch(ROOM_URL)
-        .set('Authorization', TOKENS.admin)
-        .send({ name: 'Кабинет 204А' })
+      const response = await adminPatch({ name: 'Кабинет 204А' })
         .expect(200);
 
       expect(fhir.read).toHaveBeenCalledWith('Location', 'room-204');
@@ -214,14 +193,14 @@ describe('Rooms admin writes (e2e)', () => {
     });
 
     it('should replace only the floor entry and keep unrelated extensions when the floor is patched', async () => {
-      await request(app.getHttpServer()).patch(ROOM_URL).set('Authorization', TOKENS.admin).send({ floor: 5 }).expect(200);
+      await adminPatch({ floor: 5 }).expect(200);
 
       const merged = committedEntries(fhir)[0]?.resource;
       expect(merged?.['extension']).toEqual([OTHER_EXTENSION, { url: MEDCENTER_EXT.ROOM_FLOOR, valueInteger: 5 }]);
     });
 
     it('should remove only the floor entry when the floor is patched to null', async () => {
-      const response = await request(app.getHttpServer()).patch(ROOM_URL).set('Authorization', TOKENS.admin).send({ floor: null }).expect(200);
+      const response = await adminPatch({ floor: null }).expect(200);
 
       const merged = committedEntries(fhir)[0]?.resource;
       expect(merged?.['extension']).toEqual([OTHER_EXTENSION]);
@@ -231,10 +210,7 @@ describe('Rooms admin writes (e2e)', () => {
     it.each([['an empty description', ''], ['a blank description', '   '], ['a null description', null]])(
       'should write the Location without a description when the patch carries %s',
       async (_label, description) => {
-        const response = await request(app.getHttpServer())
-          .patch(ROOM_URL)
-          .set('Authorization', TOKENS.admin)
-          .send({ identifier: '204-Х', name: 'Кабинет 204А', description })
+        const response = await adminPatch({ identifier: '204-Х', name: 'Кабинет 204А', description })
           .expect(200);
 
         const merged = committedEntries(fhir)[0]?.resource;
@@ -245,7 +221,7 @@ describe('Rooms admin writes (e2e)', () => {
     );
 
     it('should store the name without its edge spaces', async () => {
-      await request(app.getHttpServer()).patch(ROOM_URL).set('Authorization', TOKENS.admin).send({ name: '  Кабинет 204А ' }).expect(200);
+      await adminPatch({ name: '  Кабинет 204А ' }).expect(200);
 
       expect(committedEntries(fhir)[0]?.resource).toMatchObject({ name: 'Кабинет 204А' });
     });
@@ -254,17 +230,14 @@ describe('Rooms admin writes (e2e)', () => {
       ['an empty body', {}],
       ['the stored values', { identifier: '204-Х', name: 'Кабинет 204', description: 'Окна во двор', floor: 2 }],
     ])('should answer 200 with the room and write no version and no AuditEvent when the patch is %s', async (_label, body) => {
-      const response = await request(app.getHttpServer()).patch(ROOM_URL).set('Authorization', TOKENS.admin).send(body).expect(200);
+      const response = await adminPatch(body).expect(200);
 
       expect(fhir.batch).not.toHaveBeenCalled();
       expect(response.body).toEqual({ id: 'room-204', identifier: '204-Х', name: 'Кабинет 204', description: 'Окна во двор', floor: 2, isActive: true });
     });
 
     it('should keep the stored resource identity when the body smuggles id and physicalType', async () => {
-      await request(app.getHttpServer())
-        .patch(ROOM_URL)
-        .set('Authorization', TOKENS.admin)
-        .send({ name: 'Кабинет 204А', id: 'hijacked', physicalType: { coding: [{ code: 'wi' }] } })
+      await adminPatch({ name: 'Кабинет 204А', id: 'hijacked', physicalType: { coding: [{ code: 'wi' }] } })
         .expect(200);
 
       const merged = committedEntries(fhir)[0]?.resource;
@@ -286,7 +259,7 @@ describe('Rooms admin writes (e2e)', () => {
       ['a floor sent as text', { floor: 'second' }],
       ['a description above 500 characters', { description: 'x'.repeat(501) }],
     ])('should answer 400 VALIDATION_ERROR before HAPI is called when the patch has %s', async (_label, body) => {
-      const response = await request(app.getHttpServer()).patch(ROOM_URL).set('Authorization', TOKENS.admin).send(body).expect(400);
+      const response = await adminPatch(body).expect(400);
 
       expect(response.body).toMatchObject({ errorCode: 'VALIDATION_ERROR' });
       expect(fhir.read).not.toHaveBeenCalled();
@@ -296,10 +269,7 @@ describe('Rooms admin writes (e2e)', () => {
     it('should answer 404 NOT_FOUND and write nothing when the room does not exist', async () => {
       fhir.read.mockRejectedValue(new FhirClientError('GET', 'http://hapi:8080/fhir/Location/room-204', 404, '{}'));
 
-      const response = await request(app.getHttpServer())
-        .patch(ROOM_URL)
-        .set('Authorization', TOKENS.admin)
-        .send({ name: 'Кабинет 204А' })
+      const response = await adminPatch({ name: 'Кабинет 204А' })
         .expect(404);
 
       expect(response.body).toMatchObject({ status: 404, errorCode: 'NOT_FOUND' });
@@ -309,10 +279,7 @@ describe('Rooms admin writes (e2e)', () => {
     it('should answer 409 CONFLICT when HAPI rejects the update as a stale version', async () => {
       fhir.batch.mockRejectedValue(new FhirClientError('POST', 'http://hapi:8080/fhir', 412, '{}'));
 
-      const response = await request(app.getHttpServer())
-        .patch(ROOM_URL)
-        .set('Authorization', TOKENS.admin)
-        .send({ name: 'Кабинет 204А' })
+      const response = await adminPatch({ name: 'Кабинет 204А' })
         .expect(409);
 
       expect(response.body).toMatchObject({ errorCode: 'CONFLICT' });
@@ -321,10 +288,7 @@ describe('Rooms admin writes (e2e)', () => {
     it('should answer 500 INTERNAL without the OperationOutcome when HAPI rejects a resource this service built', async () => {
       fhir.batch.mockRejectedValue(new FhirClientError('POST', 'http://hapi:8080/fhir', 422, 'HAPI-1234 details'));
 
-      const response = await request(app.getHttpServer())
-        .patch(ROOM_URL)
-        .set('Authorization', TOKENS.admin)
-        .send({ name: 'Кабинет 204А' })
+      const response = await adminPatch({ name: 'Кабинет 204А' })
         .expect(500);
 
       expect(response.body).toMatchObject({ status: 500, errorCode: 'INTERNAL' });
