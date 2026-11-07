@@ -18,12 +18,17 @@ async function withoutFirstExpansionCode(response: Response): Promise<Response> 
   return new Response(JSON.stringify({ ...body, expansion: { contains: body.expansion.contains.slice(1) } }));
 }
 
-function atcExpansionStaleUntilDelete(server: InMemoryFhirServer, onDelete: (url: string) => void = () => undefined): FetchLike {
+interface StaleOptions {
+  readonly onDelete?: (url: string) => void;
+  readonly refreshesOn?: (url: string) => boolean;
+}
+
+function atcExpansionStaleUntilDelete(server: InMemoryFhirServer, { onDelete, refreshesOn }: StaleOptions = {}): FetchLike {
   let stale = true;
   return async (url, init) => {
     if ((init?.method ?? 'GET') === 'DELETE') {
-      onDelete(url);
-      stale = false;
+      onDelete?.(url);
+      if (refreshesOn?.(url) ?? true) stale = false;
     }
     const response = await server.fetch(url, init);
     return stale && url.includes('$expand') && url.includes('atc') ? withoutFirstExpansionCode(response) : response;
@@ -211,7 +216,7 @@ describe('seedTerminology', () => {
   it('should recreate a ValueSet whose stored expansion is stale and then succeed', async () => {
     const server = new InMemoryFhirServer();
 
-    await seed(atcExpansionStaleUntilDelete(server));
+    await seed(atcExpansionStaleUntilDelete(server, { refreshesOn: (url) => url.includes('/ValueSet/') }));
 
     expect(server.count('ValueSet')).toBe(buildValueSets().length);
   });
@@ -221,7 +226,7 @@ describe('seedTerminology', () => {
     server.preload({ resourceType: 'ValueSet', id: '1004', url: TERMINOLOGY_URLS.ATC_VALUE_SET, status: 'draft' });
     const deleted: string[] = [];
 
-    await seed(atcExpansionStaleUntilDelete(server, (url) => deleted.push(url)));
+    await seed(atcExpansionStaleUntilDelete(server, { onDelete: (url) => deleted.push(url) }));
 
     expect(deleted).toEqual(['http://fhir.test/fhir/ValueSet/1004']);
     const atc = server.all('ValueSet').filter((valueSet) => valueSet['url'] === TERMINOLOGY_URLS.ATC_VALUE_SET);
