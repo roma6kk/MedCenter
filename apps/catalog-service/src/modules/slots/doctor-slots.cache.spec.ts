@@ -14,8 +14,6 @@ import {
 import { resolveSlotRange } from './slot-range';
 
 describe('DoctorSlotsService cache', () => {
-  const scheduled = SCHEDULED;
-
   beforeEach(() => {
     jest.spyOn(Date, 'now').mockReturnValue(NOW);
   });
@@ -27,7 +25,7 @@ describe('DoctorSlotsService cache', () => {
   describe('cache', () => {
     it('should serve a repeated request from the 15 s cache when the days match', async () => {
       const store = new InMemoryCacheStore();
-      const fhirClient = createFhirClientMock(scheduled);
+      const fhirClient = createFhirClientMock(SCHEDULED);
       const service = new DoctorSlotsService(fhirClient, new RedisCacheService(store));
 
       await service.listFree(DOCTOR_ID, RANGE);
@@ -39,7 +37,7 @@ describe('DoctorSlotsService cache', () => {
 
     it('should keep one page per clinic day when the window is cached', async () => {
       const store = new InMemoryCacheStore();
-      const service = new DoctorSlotsService(createFhirClientMock(scheduled), new RedisCacheService(store));
+      const service = new DoctorSlotsService(createFhirClientMock(SCHEDULED), new RedisCacheService(store));
 
       await service.listFree(DOCTOR_ID, RANGE);
 
@@ -53,7 +51,7 @@ describe('DoctorSlotsService cache', () => {
 
     it('should share one set of keys when two spellings describe the same window', async () => {
       const store = new InMemoryCacheStore();
-      const fhirClient = createFhirClientMock(scheduled);
+      const fhirClient = createFhirClientMock(SCHEDULED);
       const service = new DoctorSlotsService(fhirClient, new RedisCacheService(store));
       const zulu = resolveSlotRange({ from: '2026-11-02T00:00:00Z', to: '2026-11-04T12:00:00.000Z' }, NOW);
       const offset = resolveSlotRange({ from: '2026-11-02T03:00:00+03:00', to: '2026-11-04T12:00:00.000+00:00' }, NOW);
@@ -68,7 +66,7 @@ describe('DoctorSlotsService cache', () => {
 
     it('should not grow the key set when a client varies the milliseconds of the same window', async () => {
       const store = new InMemoryCacheStore();
-      const service = new DoctorSlotsService(createFhirClientMock(scheduled), new RedisCacheService(store));
+      const service = new DoctorSlotsService(createFhirClientMock(SCHEDULED), new RedisCacheService(store));
 
       for (let millis = 0; millis < 50; millis += 1) {
         const to = `2026-11-04T12:00:00.${String(millis).padStart(3, '0')}Z`;
@@ -80,7 +78,7 @@ describe('DoctorSlotsService cache', () => {
 
     it('should search only the uncached days when a later window overlaps a cached one', async () => {
       const store = new InMemoryCacheStore();
-      const fhirClient = createFhirClientMock(scheduled);
+      const fhirClient = createFhirClientMock(SCHEDULED);
       const service = new DoctorSlotsService(fhirClient, new RedisCacheService(store));
       await service.listFree(DOCTOR_ID, resolveSlotRange({ from: '2026-11-02', to: '2026-11-04' }, NOW));
 
@@ -95,7 +93,7 @@ describe('DoctorSlotsService cache', () => {
       jest.spyOn(Logger.prototype, 'warn').mockImplementation();
       const store = new InMemoryCacheStore();
       await store.set(CACHE_KEYS.DOCTOR_SLOTS_DAY(DOCTOR_ID, '2026-11-02'), '{"broken":');
-      const fhirClient = createFhirClientMock(scheduled);
+      const fhirClient = createFhirClientMock(SCHEDULED);
       const service = new DoctorSlotsService(fhirClient, new RedisCacheService(store));
 
       const response = await service.listFree(DOCTOR_ID, resolveSlotRange({ from: '2026-11-02', to: '2026-11-02' }, NOW));
@@ -108,7 +106,7 @@ describe('DoctorSlotsService cache', () => {
   describe('past and clamped windows', () => {
     it('should start the search on today when the window begins in the past', async () => {
       jest.spyOn(Date, 'now').mockReturnValue(Date.parse('2026-11-04T10:00:00.000Z'));
-      const fhirClient = createFhirClientMock(scheduled);
+      const fhirClient = createFhirClientMock(SCHEDULED);
       const service = new DoctorSlotsService(fhirClient, new RedisCacheService());
 
       await service.listFree(DOCTOR_ID, RANGE);
@@ -120,7 +118,7 @@ describe('DoctorSlotsService cache', () => {
 
     it('should return an empty list without any HAPI call when the window ended already', async () => {
       jest.spyOn(Date, 'now').mockReturnValue(Date.parse('2026-12-01T10:00:00.000Z'));
-      const fhirClient = createFhirClientMock(scheduled);
+      const fhirClient = createFhirClientMock(SCHEDULED);
       const service = new DoctorSlotsService(fhirClient, new RedisCacheService(new InMemoryCacheStore()));
 
       const response = await service.listFree(DOCTOR_ID, RANGE);

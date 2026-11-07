@@ -70,22 +70,13 @@ describe('resolveSlotRange', () => {
     expect(range.to).toBe('2026-12-02');
   });
 
-  it('should reject with VALIDATION_ERROR when the range is longer than the maximum span', () => {
-    const errorCode = errorCodeOf(() => resolveSlotRange({ from: '2026-11-01', to: '2026-12-03' }, NOW));
-
-    expect(errorCode).toBe('VALIDATION_ERROR');
-  });
-
-  it('should reject with VALIDATION_ERROR when `to` is before `from`', () => {
-    const errorCode = errorCodeOf(() => resolveSlotRange({ from: '2026-11-05', to: '2026-11-04' }, NOW));
-
-    expect(errorCode).toBe('VALIDATION_ERROR');
-  });
-
-  it('should reject with VALIDATION_ERROR when only a `to` in the past is given', () => {
-    const errorCode = errorCodeOf(() => resolveSlotRange({ to: '2026-10-01' }, NOW));
-
-    expect(errorCode).toBe('VALIDATION_ERROR');
+  it.each([
+    ['the range is longer than the maximum span', { from: '2026-11-01', to: '2026-12-03' }],
+    ['`to` is before `from`', { from: '2026-11-05', to: '2026-11-04' }],
+    ['only a `to` in the past is given', { to: '2026-10-01' }],
+    ['`from` is beyond the lookahead limit', { from: '2027-11-04', to: '2027-11-05' }],
+  ])('should reject with VALIDATION_ERROR when %s', (_label, bounds) => {
+    expect(errorCodeOf(() => resolveSlotRange(bounds, NOW))).toBe('VALIDATION_ERROR');
   });
 
   it('should accept a `from` exactly at the lookahead limit when it is a clinic date', () => {
@@ -95,12 +86,6 @@ describe('resolveSlotRange', () => {
 
     expect(MAX_SLOT_LOOKAHEAD_DAYS).toBe(366);
     expect(range.from).toBe(limit);
-  });
-
-  it('should reject with VALIDATION_ERROR when `from` is beyond the lookahead limit', () => {
-    const errorCode = errorCodeOf(() => resolveSlotRange({ from: '2027-11-04', to: '2027-11-05' }, NOW));
-
-    expect(errorCode).toBe('VALIDATION_ERROR');
   });
 
   it('should accept a window that lies entirely in the past when both bounds are valid', () => {

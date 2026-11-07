@@ -14,8 +14,6 @@ import {
 import { resolveSlotRange } from './slot-range';
 
 describe('DoctorSlotsService', () => {
-  const scheduled = SCHEDULED;
-
   beforeEach(() => {
     jest.spyOn(Date, 'now').mockReturnValue(NOW);
   });
@@ -25,7 +23,7 @@ describe('DoctorSlotsService', () => {
   });
 
   it('should return the free slots of the doctor sorted by start when the doctor has a schedule', async () => {
-    const fhirClient = createFhirClientMock(scheduled);
+    const fhirClient = createFhirClientMock(SCHEDULED);
     const service = new DoctorSlotsService(fhirClient, new RedisCacheService());
 
     const response = await service.listFree(DOCTOR_ID, RANGE);
@@ -42,7 +40,7 @@ describe('DoctorSlotsService', () => {
   });
 
   it('should search free slots of the resolved schedules between explicit clinic-day instants when the range is dates', async () => {
-    const fhirClient = createFhirClientMock({ ...scheduled, schedules: [{ id: 'sched-1' }, { id: 'sched-2' }] });
+    const fhirClient = createFhirClientMock({ ...SCHEDULED, schedules: [{ id: 'sched-1' }, { id: 'sched-2' }] });
     const service = new DoctorSlotsService(fhirClient, new RedisCacheService());
 
     await service.listFree(DOCTOR_ID, RANGE);
@@ -56,7 +54,7 @@ describe('DoctorSlotsService', () => {
   });
 
   it('should look up schedules for the practitioner and each of its active roles', async () => {
-    const fhirClient = createFhirClientMock({ ...scheduled, roles: [{ id: 'role-1' }, { id: 'role-2' }] });
+    const fhirClient = createFhirClientMock({ ...SCHEDULED, roles: [{ id: 'role-1' }, { id: 'role-2' }] });
     const service = new DoctorSlotsService(fhirClient, new RedisCacheService());
 
     await service.listFree(DOCTOR_ID, RANGE);
@@ -72,7 +70,7 @@ describe('DoctorSlotsService', () => {
   });
 
   it('should leave truncated out of the answer when the slot search read every slot', async () => {
-    const service = new DoctorSlotsService(createFhirClientMock(scheduled), new RedisCacheService());
+    const service = new DoctorSlotsService(createFhirClientMock(SCHEDULED), new RedisCacheService());
 
     const response = await service.listFree(DOCTOR_ID, RANGE);
 
@@ -91,7 +89,7 @@ describe('DoctorSlotsService', () => {
 
   it('should drop slots that have already started when the response is served', async () => {
     jest.spyOn(Date, 'now').mockReturnValue(Date.parse('2026-11-02T09:15:00.000Z'));
-    const fhirClient = createFhirClientMock(scheduled);
+    const fhirClient = createFhirClientMock(SCHEDULED);
     const service = new DoctorSlotsService(fhirClient, new RedisCacheService());
 
     const response = await service.listFree(DOCTOR_ID, RANGE);
@@ -101,7 +99,7 @@ describe('DoctorSlotsService', () => {
 
   it('should apply the exact window in memory when the bounds are date-times inside a day', async () => {
     const window = resolveSlotRange({ from: '2026-11-02T09:15:00Z', to: '2026-11-02T09:45:00Z' }, NOW);
-    const fhirClient = createFhirClientMock(scheduled);
+    const fhirClient = createFhirClientMock(SCHEDULED);
     const service = new DoctorSlotsService(fhirClient, new RedisCacheService());
 
     const response = await service.listFree(DOCTOR_ID, window);
@@ -110,7 +108,7 @@ describe('DoctorSlotsService', () => {
   });
 
   it('should answer 404 after a single HAPI call when the practitioner does not exist', async () => {
-    const fhirClient = createFhirClientMock(scheduled);
+    const fhirClient = createFhirClientMock(SCHEDULED);
     fhirClient.read.mockRejectedValue(new FhirClientError('GET', 'http://hapi/Practitioner/x', 404, '{}'));
     const store = new InMemoryCacheStore();
     const service = new DoctorSlotsService(fhirClient, new RedisCacheService(store));
