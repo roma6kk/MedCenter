@@ -2,15 +2,12 @@ import { ConflictException } from '@nestjs/common';
 import { FhirClientError, type FhirClient, type FhirResource } from '@medcenter/fhir';
 
 import { auditedResource, committedAudit, committedEntries, committedWrites, transactionResponder } from '@medcenter/testing';
+import { ACTOR, IS_ROOM } from '../../__tests__/fhir-fixture';
 import { roomIdentifierQuery } from './room-identifier';
 import { RoomsService } from './rooms.service';
 
-const ACTOR = { sub: 'admin-1', requestId: 'req-1' };
-
-const ROOM_TYPE = { coding: [{ system: 'http://terminology.hl7.org/CodeSystem/location-physical-type', code: 'ro' }] };
-
 function room(id: string, identifier: string): FhirResource {
-  return { resourceType: 'Location', id, name: `Cabinet ${identifier}`, identifier: [{ value: identifier }], physicalType: ROOM_TYPE };
+  return { resourceType: 'Location', id, name: `Cabinet ${identifier}`, identifier: [{ value: identifier }], ...IS_ROOM };
 }
 
 async function errorPayloadOf(promise: Promise<unknown>): Promise<unknown> {

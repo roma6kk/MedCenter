@@ -1,8 +1,7 @@
 import type { FhirClient, FhirResource } from '@medcenter/fhir';
 
+import { fhirClientMock, PHYSICAL_TYPE_SYSTEM } from '../../__tests__/fhir-fixture';
 import { RoomsService } from './rooms.service';
-
-const PHYSICAL_TYPE_SYSTEM = 'http://terminology.hl7.org/CodeSystem/location-physical-type';
 
 function location(id: string, physicalCode: string | undefined, system = PHYSICAL_TYPE_SYSTEM): FhirResource {
   return {
@@ -26,14 +25,7 @@ describe('RoomsService.list', () => {
   let fhirClient: jest.Mocked<FhirClient>;
 
   beforeEach(() => {
-    fhirClient = {
-      search: jest.fn(),
-      read: jest.fn(),
-      create: jest.fn(),
-      update: jest.fn(),
-      delete: jest.fn(),
-      batch: jest.fn(),
-    } as unknown as jest.Mocked<FhirClient>;
+    fhirClient = fhirClientMock();
     roomsService = new RoomsService(fhirClient);
   });
 

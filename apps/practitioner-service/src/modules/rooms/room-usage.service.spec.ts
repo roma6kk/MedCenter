@@ -2,9 +2,8 @@ import { FhirClientError, type FhirClient, type FhirSearchResult } from '@medcen
 import { translationExtension } from '@medcenter/fhir-mappers';
 import { MEDCENTER_EXT } from '@medcenter/terminology';
 
+import { IS_ROOM } from '../../__tests__/fhir-fixture';
 import { MAX_ROOM_SCHEDULES, MAX_USAGE_SLOTS, RoomUsageService } from './room-usage.service';
-
-const IS_ROOM = { physicalType: { coding: [{ system: 'http://terminology.hl7.org/CodeSystem/location-physical-type', code: 'ro' }] } };
 
 const ROOM_ID = 'room-204';
 const NOW = Date.parse('2026-11-01T06:00:00.000Z');

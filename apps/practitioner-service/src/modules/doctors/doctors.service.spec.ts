@@ -1,6 +1,7 @@
 import { FhirClientError, type FhirClient, type FhirResource } from '@medcenter/fhir';
 import { translationExtension } from '@medcenter/fhir-mappers';
 
+import { bundle, fhirClientMock } from '../../__tests__/fhir-fixture';
 import { DoctorsService } from './doctors.service';
 
 function practitioner(id: string, lastName: string): FhirResource {
@@ -17,10 +18,6 @@ function role(id: string, practitionerRef?: string): FhirResource {
     id,
     ...(practitionerRef === undefined ? {} : { practitioner: { reference: practitionerRef } }),
   };
-}
-
-function bundle(...resources: readonly FhirResource[]): { entry: { resource: FhirResource }[] } {
-  return { entry: resources.map((resource) => ({ resource })) };
 }
 
 function scheduleOf(...roles: readonly FhirResource[]): FhirResource {
@@ -46,14 +43,7 @@ describe('DoctorsService', () => {
   let fhirClient: jest.Mocked<FhirClient>;
 
   beforeEach(() => {
-    fhirClient = {
-      search: jest.fn(),
-      read: jest.fn(),
-      create: jest.fn(),
-      update: jest.fn(),
-      delete: jest.fn(),
-      batch: jest.fn(),
-    } as unknown as jest.Mocked<FhirClient>;
+    fhirClient = fhirClientMock();
     doctorsService = new DoctorsService(fhirClient);
   });
 

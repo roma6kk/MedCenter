@@ -4,13 +4,8 @@ import { FhirClientError, type FhirClient, type FhirResource } from '@medcenter/
 import { MEDCENTER_EXT } from '@medcenter/terminology';
 
 import { auditedResource, committedAudit, committedEntries, transactionResponder } from '@medcenter/testing';
+import { ACTOR, fhirClientMock, IS_ROOM, PHYSICAL_TYPE_SYSTEM } from '../../__tests__/fhir-fixture';
 import { RoomsService } from './rooms.service';
-
-const PHYSICAL_TYPE_SYSTEM = 'http://terminology.hl7.org/CodeSystem/location-physical-type';
-
-const IS_ROOM = { physicalType: { coding: [{ system: PHYSICAL_TYPE_SYSTEM, code: 'ro' }] } };
-
-const ACTOR = { sub: 'admin-1', requestId: 'req-1' };
 
 const FLOOR = MEDCENTER_EXT.ROOM_FLOOR;
 
@@ -33,14 +28,8 @@ describe('RoomsService', () => {
   }
 
   beforeEach(() => {
-    fhirClient = {
-      search: jest.fn(),
-      read: jest.fn(),
-      create: jest.fn(),
-      update: jest.fn(),
-      delete: jest.fn(),
-      batch: jest.fn().mockImplementation(transactionResponder()),
-    } as unknown as jest.Mocked<FhirClient>;
+    fhirClient = fhirClientMock();
+    fhirClient.batch.mockImplementation(transactionResponder());
     roomsService = new RoomsService(fhirClient);
     fhirClient.read.mockResolvedValue({ resourceType: 'Location', ...IS_ROOM, id: roomId });
   });
