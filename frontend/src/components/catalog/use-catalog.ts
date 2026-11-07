@@ -1,13 +1,13 @@
 'use client';
 
-import { useQuery, type Query, type QueryKey, type UseQueryResult } from '@tanstack/react-query';
+import { useQueries, useQuery, type Query, type QueryKey, type UseQueryResult } from '@tanstack/react-query';
 import { STALE_TIME_MS } from '@/lib/api/query-config';
 import { queryKeys } from '@/lib/api/query-keys';
 import type { SlotWindow } from '@/components/booking/slot-time';
 import { fetchDoctor, fetchDoctors, fetchDoctorSlots, fetchService, fetchServices } from './catalog-api';
 import type { CatalogService, Doctor, DoctorPage, DoctorQuery, DoctorSlots, ServicePage } from './catalog-types';
 
-export function catalogStaleTime<TList extends { readonly items: ReadonlyArray<unknown> }>(query: Query<TList, Error, TList, QueryKey>): number {
+function catalogStaleTime<TList extends { readonly items: ReadonlyArray<unknown> }>(query: Query<TList, Error, TList, QueryKey>): number {
   return query.state.data?.items.length === 0 ? 0 : STALE_TIME_MS.catalog;
 }
 
@@ -45,4 +45,21 @@ export function useDoctorSlots(doctorId: string | null, window: SlotWindow): Use
     staleTime: STALE_TIME_MS.slots,
     refetchOnWindowFocus: true,
   });
+}
+
+interface DoctorsByService {
+  readonly results: ReadonlyArray<UseQueryResult<DoctorPage>>;
+  readonly stamp: string;
+  readonly isPending: boolean;
+}
+
+export function useDoctorsByService(services: ReadonlyArray<CatalogService>): DoctorsByService {
+  const results = useQueries({
+    queries: services.map((service) => ({
+      queryKey: queryKeys.doctors({ serviceId: service.id }),
+      queryFn: () => fetchDoctors({ serviceId: service.id }),
+      staleTime: catalogStaleTime,
+    })),
+  });
+  return { results, stamp: results.map((result) => result.dataUpdatedAt).join(','), isPending: results.some((result) => result.isPending) };
 }
