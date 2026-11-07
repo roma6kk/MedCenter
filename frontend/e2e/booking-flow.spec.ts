@@ -1,6 +1,7 @@
 import { expect, test } from '@playwright/test';
 import { fillAuthServiceForm, returnToOfAuthorizeUrl } from './fixtures/auth';
-import { cancelAppointmentAs, findFreeSlots, revealSlotOnDoctorPage, type FreeSlot } from './fixtures/booking-api';
+import { cancelAppointmentAs, findFreeSlot, revealSlotOnDoctorPage } from './fixtures/booking-api';
+import { isPostTo } from './fixtures/network';
 import { hasDemoManifest, loadDemoAccount } from './fixtures/demo-accounts';
 
 test.skip(!hasDemoManifest(), 'demo seed manifest not found');
@@ -13,7 +14,7 @@ test('should render the public doctor catalog shell when the app is served', asy
 });
 
 test('should book an appointment through the login with the draft restored when a guest picks a slot', async ({ page, request, baseURL }) => {
-  const [target] = (await findFreeSlots(request, 1)) as [FreeSlot];
+  const target = await findFreeSlot(request);
   const webOrigin = new URL(baseURL ?? DEFAULT_ORIGIN).origin;
 
   await test.step('guest opens the doctor from the catalog and picks a free slot', async () => {
@@ -41,7 +42,7 @@ test('should book an appointment through the login with the draft restored when 
   });
 
   const created = await test.step('confirming sends one POST with an Idempotency-Key and gets 201', async () => {
-    const posted = page.waitForResponse((response) => response.url().endsWith('/api/v1/appointments') && response.request().method() === 'POST');
+    const posted = page.waitForResponse(isPostTo('/api/v1/appointments'));
     await page.getByTestId('booking-confirm').click();
     const response = await posted;
     expect(response.status()).toBe(201);

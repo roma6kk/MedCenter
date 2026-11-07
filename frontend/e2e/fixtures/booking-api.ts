@@ -89,36 +89,32 @@ export async function accessTokenOf(page: Page): Promise<string> {
   return ((await response.json()) as { accessToken: string }).accessToken;
 }
 
+export async function authHeaders(page: Page): Promise<{ readonly Authorization: string }> {
+  return { Authorization: `Bearer ${await accessTokenOf(page)}` };
+}
+
+export async function findFreeSlot(request: APIRequestContext): Promise<FreeSlot> {
+  return (await findFreeSlots(request, 1))[0] as FreeSlot;
+}
+
 export async function bookSlotAs(page: Page, slotId: string): Promise<{ readonly status: number; readonly body: Record<string, unknown> }> {
-  const token = await accessTokenOf(page);
   const response = await page.request.post('/api/v1/appointments', {
-    headers: { Authorization: `Bearer ${token}`, 'Idempotency-Key': randomUUID() },
+    headers: { ...(await authHeaders(page)), 'Idempotency-Key': randomUUID() },
     data: { slotId },
   });
   return { status: response.status(), body: (await response.json().catch(() => ({}))) as Record<string, unknown> };
 }
 
 export async function cancelAppointmentAs(page: Page, appointmentId: string, reason = 'Очистка после E2E'): Promise<void> {
-  const token = await accessTokenOf(page);
   await page.request.post(`/api/v1/appointments/${encodeURIComponent(appointmentId)}/cancel`, {
-    headers: { Authorization: `Bearer ${token}` },
+    headers: await authHeaders(page),
     data: { reason },
   });
 }
 
-export async function cancelBookedAt(page: Page, starts: ReadonlyArray<string>): Promise<void> {
-  const token = await accessTokenOf(page);
-  const response = await page.request.get('/api/v1/appointments?upcoming=true&status=booked&pageSize=100', { headers: { Authorization: `Bearer ${token}` } });
-  if (!response.ok()) return;
-  const items = ((await response.json()) as { items: ReadonlyArray<{ id: string; start: string }> }).items;
-  const wanted = new Set(starts.map((start) => Date.parse(start)));
-  for (const item of items) if (wanted.has(Date.parse(item.start))) await cancelAppointmentAs(page, item.id);
-}
-
 export async function bookAnyFreeSlotAs(page: Page, attempts = 5): Promise<{ readonly id: string; readonly slot: FreeSlot }> {
   for (let attempt = 1; ; attempt += 1) {
-    const [slot] = await findFreeSlots(page.request, 1);
-    if (slot === undefined) throw new Error('no free slot');
+    const slot = await findFreeSlot(page.request);
     const booked = await bookSlotAs(page, slot.slotId);
     if (booked.status === 201) return { id: String(booked.body['id']), slot };
     if (booked.status !== 409 || attempt >= attempts) throw new Error(`POST /api/v1/appointments answered ${booked.status} for a free slot (attempt ${attempt})`);

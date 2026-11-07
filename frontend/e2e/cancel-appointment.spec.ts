@@ -1,5 +1,6 @@
 import { expect, test, type BrowserContext, type Page } from '@playwright/test';
-import { bookSlotAs, cancelAppointmentAs, findFreeSlots } from './fixtures/booking-api';
+import { bookSlotAs, cancelAppointmentAs, findFreeSlot } from './fixtures/booking-api';
+import { isPostTo } from './fixtures/network';
 import { hasDemoManifest } from './fixtures/demo-accounts';
 import { openStoredSession } from './fixtures/session-state';
 
@@ -16,8 +17,7 @@ test.describe('patient cancels an appointment', () => {
 
   test.beforeAll(async ({ browser, baseURL }) => {
     ({ context, page } = await openStoredSession(browser, baseURL, 'PATIENT', 0));
-    const [target] = await findFreeSlots(page.request, 1);
-    if (target === undefined) throw new Error('no free slot');
+    const target = await findFreeSlot(page.request);
     const booked = await bookSlotAs(page, target.slotId);
     expect(booked.status).toBe(201);
     appointmentId = String(booked.body['id']);
@@ -35,7 +35,7 @@ test.describe('patient cancels an appointment', () => {
     await page.getByRole('button', { name: /^Отменить запись/ }).click();
     const dialog = page.getByRole('dialog', { name: 'Отмена записи' });
     await dialog.getByLabel('Причина отмены').fill(CANCEL_REASON);
-    const cancelled = page.waitForResponse((response) => response.url().endsWith(`/api/v1/appointments/${appointmentId}/cancel`) && response.request().method() === 'POST');
+    const cancelled = page.waitForResponse(isPostTo(`/api/v1/appointments/${appointmentId}/cancel`));
     await dialog.getByRole('button', { name: 'Подтвердить отмену' }).click();
     expect((await cancelled).ok()).toBe(true);
 

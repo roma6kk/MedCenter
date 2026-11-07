@@ -1,6 +1,7 @@
 import { expect, test, type BrowserContext, type Locator, type Page } from '@playwright/test';
 import { bookAnyFreeSlotAs, cancelAppointmentAs } from './fixtures/booking-api';
 import { hasDemoManifest } from './fixtures/demo-accounts';
+import { isPostTo } from './fixtures/network';
 import { openStoredSession } from './fixtures/session-state';
 
 test.skip(!hasDemoManifest(), 'demo seed manifest not found');
@@ -63,7 +64,7 @@ test.describe('patient notifications', () => {
     const row = await openUntilArrived(appointmentId);
     await expect(row.getByText('Новое', { exact: true })).toBeVisible();
 
-    const marked = page.waitForResponse((response) => /\/api\/v1\/notifications\/[^/]+\/read$/.test(response.url()) && response.request().method() === 'POST');
+    const marked = page.waitForResponse(isPostTo(/\/api\/v1\/notifications\/[^/]+\/read$/));
     await row.getByRole('button', { name: 'Отметить прочитанным' }).click();
     expect((await marked).status()).toBe(204);
 
@@ -79,7 +80,7 @@ test.describe('patient notifications', () => {
     const row = await openUntilArrived(appointmentId);
     await expect(row.getByText('Новое', { exact: true })).toBeVisible();
 
-    const markedAll = page.waitForResponse((response) => response.url().endsWith('/api/v1/notifications/read-all') && response.request().method() === 'POST');
+    const markedAll = page.waitForResponse(isPostTo('/api/v1/notifications/read-all'));
     await page.getByRole('button', { name: 'Отметить все прочитанными' }).click();
     const response = await markedAll;
     expect(response.status()).toBe(200);

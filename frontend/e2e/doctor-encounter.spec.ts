@@ -1,5 +1,6 @@
-import { expect, test, type APIResponse, type BrowserContext, type Page, type Response } from '@playwright/test';
+import { expect, test, type APIResponse, type BrowserContext, type Page } from '@playwright/test';
 import { accessTokenOf, bookSlotAs, cancelAppointmentAs, clinicDay, findFreeSlots, type FreeSlot } from './fixtures/booking-api';
+import { isPostTo } from './fixtures/network';
 import { hasDemoManifest, loadDemoAccount } from './fixtures/demo-accounts';
 import { openStoredSession } from './fixtures/session-state';
 
@@ -26,9 +27,7 @@ interface EncounterRecord {
   readonly medicationRequests: ReadonlyArray<{ readonly atcCode: string }>;
 }
 
-function isCompleteCall(response: Response): boolean {
-  return /\/api\/v1\/encounters\/[^/]+\/complete$/.test(response.url()) && response.request().method() === 'POST';
-}
+const isCompleteCall = isPostTo(/\/api\/v1\/encounters\/[^/]+\/complete$/);
 
 test.describe('doctor completes an encounter', () => {
   test.describe.configure({ mode: 'serial' });
@@ -76,7 +75,7 @@ test.describe('doctor completes an encounter', () => {
     await page.goto(`/doctor/appointments?date=${clinicDay(new Date(first.slot.start))}`);
     const row = page.getByTestId(`journal-visit-${first.appointmentId}`);
     await expect(row).toBeVisible();
-    const opened = page.waitForResponse((response) => response.url().endsWith('/api/v1/encounters') && response.request().method() === 'POST');
+    const opened = page.waitForResponse(isPostTo('/api/v1/encounters'));
     await page.getByRole('button', { name: new RegExp(`^Открыть приём: .*${time}$`) }).first().click();
     const notToday = page.getByRole('dialog').filter({ has: page.getByRole('heading', { name: 'Приём не на сегодня' }) });
     await notToday.getByRole('button', { name: 'Начать сейчас' }).click();
