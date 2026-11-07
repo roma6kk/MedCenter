@@ -15,6 +15,7 @@ export function LastVisitCard({ entry }: { readonly entry: HistoryEntry | undefi
   const t = useT('patientProfile.last');
   const format = useClinicFormat();
   const diagnosis = entry?.diagnoses[0];
+  const doctor: string = normalizeDoctorName(entry?.doctorName);
   const advice: string = (entry?.recommendations ?? '').trim();
   return (
     <Card as="section" radius="panel" padding="none" aria-labelledby="profile-last-title" data-testid="profile-last" className="flex flex-col gap-3 p-[22px]">
@@ -28,7 +29,7 @@ export function LastVisitCard({ entry }: { readonly entry: HistoryEntry | undefi
         <>
           <p className={cn('text-sm text-muted-foreground', WRAP_TEXT)}>
             {entry.serviceType?.display ?? t('serviceUnknown')}
-            {normalizeDoctorName(entry.doctorName) === '' ? '' : ` · ${normalizeDoctorName(entry.doctorName)}`}
+            {doctor === '' ? '' : ` · ${doctor}`}
           </p>
           <div className="flex flex-wrap items-center gap-2">
             {entry.diagnosis === '' ? (

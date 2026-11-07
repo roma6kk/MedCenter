@@ -3,10 +3,13 @@
 import type { UseQueryResult } from '@tanstack/react-query';
 import { useAppointments } from '@/components/appointments/use-appointments';
 import type { AppointmentView } from '@/components/appointments/appointment-types';
+import { isApiError } from '@/lib/api/api-fetch';
+import { errorCodeToUx } from '@/lib/api/error-code-map';
 import type { PaginatedResponse } from '@/lib/api/pagination';
 import { HISTORY_PAGE_SIZE } from '../history-timeline';
 import { PRESCRIPTIONS_PAGE_SIZE } from '../prescription-list';
 import type { AccountProfile, HistoryEntry, PatientProfile, Prescription } from '../patient-types';
+import { newestFinishedVisit } from './profile-recommendations';
 import { useAccount, useMyHistory, useMyPrescriptions, usePatientProfile } from '../use-patient-queries';
 
 const UPCOMING_PAGE_SIZE = 10;
@@ -29,6 +32,10 @@ export function useProfileData(): ProfileData {
   };
 }
 
+export function isNoCard(patient: UseQueryResult<PatientProfile>): boolean {
+  return patient.isError && isApiError(patient.error) && errorCodeToUx(patient.error.problem.errorCode).kind === 'not-found';
+}
+
 export interface Count {
   readonly value: number;
   readonly more: boolean;
@@ -43,5 +50,5 @@ export function activeAppointments(page: PaginatedResponse<AppointmentView> | un
 }
 
 export function newestFinished(page: PaginatedResponse<HistoryEntry> | undefined): HistoryEntry | undefined {
-  return [...(page?.items ?? [])].filter((entry) => entry.status === 'finished').sort((a, b) => Date.parse(b.date) - Date.parse(a.date))[0];
+  return newestFinishedVisit(page?.items ?? []);
 }

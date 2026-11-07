@@ -23,7 +23,6 @@ import { useClampedPage } from './use-clamped-page';
 import { useMyHistory, useMyPrescriptions } from './use-patient-queries';
 import type { PageMeta } from '@/lib/api/pagination';
 
-export { ICD10_SYSTEM } from './history/visit-row';
 export const HISTORY_PAGE_SIZE = 10;
 const PRESCRIPTIONS_LOOKUP_SIZE = 100;
 const EMPTY_PRESCRIPTIONS: ReadonlyArray<Prescription> = [];

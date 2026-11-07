@@ -4,8 +4,6 @@ import type { ReactNode } from 'react';
 import { QueryFailure } from '@/components/feedback/query-error-state';
 import { ContentSkeleton } from '@/components/feedback/content-skeleton';
 import { useDocumentTitle } from '@/hooks/use-document-title';
-import { isApiError } from '@/lib/api/api-fetch';
-import { errorCodeToUx } from '@/lib/api/error-code-map';
 import { useT } from '@/lib/i18n/use-t';
 import { MyConsentSection } from '@/components/consent/my-consent-section';
 import { HomeHero } from './profile/home-hero';
@@ -15,11 +13,7 @@ import { ProfileDocuments, ProfilePersonalData } from './profile/profile-persona
 import { ProfileQuickActions } from './profile/profile-quick-actions';
 import { ProfileRecommendations } from './profile/profile-recommendations-block';
 import { LastVisitCard } from './profile/profile-visits';
-import { activeAppointments, countOf, newestFinished, useProfileData, type ProfileData } from './profile/use-profile-data';
-
-function isNoCard(patient: ProfileData['patient']): boolean {
-  return patient.isError && isApiError(patient.error) && errorCodeToUx(patient.error.problem.errorCode).kind === 'not-found';
-}
+import { activeAppointments, countOf, isNoCard, newestFinished, useProfileData, type ProfileData } from './profile/use-profile-data';
 
 // A failed read must not look like an empty profile.
 function completenessOf(data: ProfileData): Completeness | null {

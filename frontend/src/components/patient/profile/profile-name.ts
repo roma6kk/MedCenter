@@ -10,6 +10,5 @@ export function initialsOf(name: string): string {
 }
 
 export function givenNameOf(account: AccountProfile | undefined, patient: PatientProfile | null | undefined): string {
-  const given: string = (patient?.firstName ?? account?.firstName ?? '').trim();
-  return given;
+  return (patient?.firstName ?? account?.firstName ?? '').trim();
 }

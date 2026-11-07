@@ -17,6 +17,7 @@ function write(key: string, ids: ReadonlyArray<string>): void {
   try {
     window.localStorage.setItem(key, JSON.stringify(ids));
   } catch {
+    // Private mode or a full quota: the choice lives until the page is closed.
   }
 }
 

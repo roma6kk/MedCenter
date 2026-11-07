@@ -3,8 +3,6 @@
 import type { ReactNode } from 'react';
 import { SegmentedControl, tabId } from '@/components/ui/segmented-control';
 
-export { tabId };
-
 export interface TabOption<TValue extends string> {
   readonly value: TValue;
   readonly label: string;

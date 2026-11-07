@@ -14,7 +14,7 @@ import { WRAP_TEXT } from '../wrap-text';
 import { CodeTag } from './code-tag';
 import { primaryCode } from './history-model';
 
-export const ICD10_SYSTEM = 'https://fhir.by/CodeSystem/InternClassificDiseases10';
+const ICD10_SYSTEM = 'https://fhir.by/CodeSystem/InternClassificDiseases10';
 
 // `failed`/`partial`: a visit without prescriptions may still have had some.
 export type PrescriptionsState = 'ok' | 'failed' | 'partial';

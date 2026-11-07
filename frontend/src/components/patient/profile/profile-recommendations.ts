@@ -35,12 +35,12 @@ export function isEcgVisit(entry: HistoryEntry): boolean {
   return ECG_NAME.test(entry.serviceType?.display ?? '');
 }
 
-function byNewest(a: HistoryEntry, b: HistoryEntry): number {
-  return Date.parse(b.date) - Date.parse(a.date);
+export function newestFinishedVisit(history: ReadonlyArray<HistoryEntry>): HistoryEntry | undefined {
+  return history.filter((entry) => entry.status === 'finished').sort((a, b) => Date.parse(b.date) - Date.parse(a.date))[0];
 }
 
 function repeatVisit({ history, appointments, today }: RecommendationInput): Recommendation | null {
-  const last: HistoryEntry | undefined = [...history].filter((entry) => entry.status === 'finished').sort(byNewest)[0];
+  const last: HistoryEntry | undefined = newestFinishedVisit(history);
   if (last === undefined || (last.recommendations ?? '').trim() === '') return null;
   const ago: number = daysBetween(clinicDayOf(last.date), today);
   if (!Number.isFinite(ago) || ago < 0 || ago > REPEAT_VISIT_WINDOW_DAYS) return null;

@@ -11,7 +11,7 @@ import type { MedicationPrescription, Prescription, ServicePrescription } from '
 import { WRAP_TEXT } from '../wrap-text';
 import { statusBucket, type StatusBucket } from './prescription-logic';
 
-export const ATC_SYSTEM = 'http://www.whocc.no/atc';
+const ATC_SYSTEM = 'http://www.whocc.no/atc';
 
 const CHIP_TONE: Readonly<Record<StatusBucket, string>> = {
   active: 'bg-success-soft text-success',

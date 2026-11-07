@@ -9,8 +9,6 @@ import { Avatar } from '@/components/ui/avatar';
 import { Card } from '@/components/ui/card';
 import { buttonVariants } from '@/components/ui/button-variants';
 import { useClinicFormat } from '@/hooks/use-clinic-format';
-import { isApiError } from '@/lib/api/api-fetch';
-import { errorCodeToUx } from '@/lib/api/error-code-map';
 import { useT } from '@/lib/i18n/use-t';
 import { cn } from '@/lib/ui/cn';
 import { PrintButton } from '../print-button';
@@ -20,6 +18,7 @@ import { WRAP_TEXT } from '../wrap-text';
 import type { Completeness } from './profile-completeness';
 import { displayName, initialsOf } from './profile-name';
 import { PhoneValue } from './profile-phone';
+import { isNoCard } from './use-profile-data';
 
 const GENDER_KEYS: Readonly<Record<string, string>> = { male: 'genderMale', female: 'genderFemale', other: 'genderOther' };
 
@@ -93,10 +92,9 @@ export function ProfilePersonalData({ completeness }: { readonly completeness: C
   const tProfile = useT('patient.profile');
   const account = useAccount();
   const patient = usePatientProfile();
-  const noCard: boolean = patient.isError && isApiError(patient.error) && errorCodeToUx(patient.error.problem.errorCode).kind === 'not-found';
   let card: ReactNode;
   if (patient.data !== undefined) card = <CardRows patient={patient.data} account={account.data} />;
-  else if (noCard) card = <p data-testid="no-patient" className="text-sm text-muted-foreground">{tProfile('noPatient')}</p>;
+  else if (isNoCard(patient)) card = <p data-testid="no-patient" className="text-sm text-muted-foreground">{tProfile('noPatient')}</p>;
   else card = <QueryFailure query={patient} embedded pending={<ContentSkeleton shape="detail" />} />;
   return (
     <Card as="section" radius="panel" padding="none" aria-labelledby="profile-data-title" id="profile-data" className="flex flex-col gap-4 p-[22px]">
