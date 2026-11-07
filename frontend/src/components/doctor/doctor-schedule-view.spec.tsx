@@ -72,8 +72,8 @@ function setup({ schedule = () => RESPONSE, visits = [VISIT] }: Setup = {}): voi
   renderWithClient(<DoctorScheduleView />);
 }
 
-function queryOf(path: string): URLSearchParams {
-  return new URL(path, 'http://x').searchParams;
+function queryOf(path: string, call: number): URLSearchParams {
+  return new URL(callsTo(apiFetchMock, path).at(call)?.[0] ?? '', 'http://x').searchParams;
 }
 
 describe('DoctorScheduleView', () => {
@@ -82,10 +82,10 @@ describe('DoctorScheduleView', () => {
 
     await screen.findByRole('table');
 
-    const query = queryOf(callsTo(apiFetchMock, SCHEDULE)[0]?.[0] ?? '');
+    const query = queryOf(SCHEDULE, 0);
     expect(query.get('from')).toBe(MONDAY);
     expect(query.get('to')).toBe(WEEK[6]);
-    expect(queryOf(callsTo(apiFetchMock, JOURNAL)[0]?.[0] ?? '').get('from')).toContain(MONDAY);
+    expect(queryOf(JOURNAL, 0).get('from')).toContain(MONDAY);
   });
 
   it('should say the working windows in words with the room once, not as RRULE text or a table of seven days', async () => {
@@ -164,8 +164,8 @@ describe('DoctorScheduleView', () => {
 
     await userEvent.click(screen.getByRole('button', { name: 'Следующая неделя' }));
 
-    await waitFor(() => expect(queryOf(callsTo(apiFetchMock, SCHEDULE).at(-1)?.[0] ?? '').get('from')).toBe(shiftDateKey(MONDAY, 7)));
-    expect(queryOf(callsTo(apiFetchMock, SCHEDULE).at(-1)?.[0] ?? '').get('to')).toBe(shiftDateKey(MONDAY, 13));
+    await waitFor(() => expect(queryOf(SCHEDULE, -1).get('from')).toBe(shiftDateKey(MONDAY, 7)));
+    expect(queryOf(SCHEDULE, -1).get('to')).toBe(shiftDateKey(MONDAY, 13));
   });
 
   it('should show the error with a retry button when the schedule cannot be loaded', async () => {

@@ -9,7 +9,7 @@ import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { apiFetch } from '@/lib/api/api-fetch';
 import type { Term } from './doctor-types';
-import { callsTo, renderWithClient, routeApi, type ApiMock } from './doctor-test-utils';
+import { callsTo, renderWithClient, routeApi, type ApiMock, type ApiRoute } from './doctor-test-utils';
 import { Icd10Combobox } from './icd10-combobox';
 
 const apiFetchMock = apiFetch as ApiMock;
@@ -31,6 +31,13 @@ function Harness({ onChange, onSelectTerm, id = 'icd10-test' }: HarnessProps): R
   return <Icd10Combobox id={id} value={value} onChange={(code) => { setValue(code); onChange?.(code); }} onSelectTerm={onSelectTerm} />;
 }
 
+const EXPANDED = (): unknown => ({ valueSet: 'icd10', total: 3, items: TERMS });
+
+function serveExpand(respond: ApiRoute['respond'] = EXPANDED): void {
+  apiFetchMock.mockReset();
+  routeApi(apiFetchMock, [{ path: '/api/v1/terminology/expand', respond }]);
+}
+
 async function typeAndWaitForList(text: string): Promise<HTMLElement> {
   const input = screen.getByRole('combobox');
   await userEvent.type(input, text);
@@ -39,10 +46,7 @@ async function typeAndWaitForList(text: string): Promise<HTMLElement> {
 }
 
 describe('Icd10Combobox', () => {
-  beforeEach(() => {
-    apiFetchMock.mockReset();
-    routeApi(apiFetchMock, [{ path: '/api/v1/terminology/expand', respond: () => ({ valueSet: 'icd10', total: 3, items: TERMS }) }]);
-  });
+  beforeEach(() => serveExpand());
 
   it('should search the ICD-10 value set by what was typed', async () => {
     renderWithClient(<Harness />);
@@ -140,7 +144,7 @@ describe('Icd10Combobox states of the search (A7)', () => {
   beforeEach(() => apiFetchMock.mockReset());
 
   it('should say it is searching while the terminology has not answered', async () => {
-    routeApi(apiFetchMock, [{ path: '/api/v1/terminology/expand', respond: () => new Promise(() => undefined) }]);
+    serveExpand(() => new Promise(() => undefined));
     renderWithClient(<Harness />);
 
     await userEvent.type(screen.getByRole('combobox'), 'J06');
@@ -149,7 +153,7 @@ describe('Icd10Combobox states of the search (A7)', () => {
   });
 
   it('should say nothing was found, with the text searched, when the terminology has no match', async () => {
-    routeApi(apiFetchMock, [{ path: '/api/v1/terminology/expand', respond: () => ({ valueSet: 'icd10', total: 0, items: [] }) }]);
+    serveExpand(() => ({ valueSet: 'icd10', total: 0, items: [] }));
     renderWithClient(<Harness />);
 
     await userEvent.type(screen.getByRole('combobox'), 'zz9');
@@ -160,7 +164,7 @@ describe('Icd10Combobox states of the search (A7)', () => {
 
   it('should say the terminology is unavailable and offer a retry that asks again', async () => {
     let isDown = true;
-    routeApi(apiFetchMock, [{ path: '/api/v1/terminology/expand', respond: () => { if (isDown) throw new Error('503'); return { valueSet: 'icd10', total: 3, items: TERMS }; } }]);
+    serveExpand(() => { if (isDown) throw new Error('503'); return EXPANDED(); });
     renderWithClient(<Harness />);
     await userEvent.type(screen.getByRole('combobox'), 'J06');
     expect(await screen.findByText(/Справочник недоступен/)).toBeInTheDocument();
@@ -185,10 +189,7 @@ describe('Icd10Combobox states of the search (A7)', () => {
 });
 
 describe('Icd10Combobox with its own text and shortcuts', () => {
-  beforeEach(() => {
-    apiFetchMock.mockReset();
-    routeApi(apiFetchMock, [{ path: '/api/v1/terminology/expand', respond: () => ({ valueSet: 'icd10', total: 3, items: TERMS }) }]);
-  });
+  beforeEach(() => serveExpand());
 
   function TextHarness({ onPick }: { readonly onPick?: (term: Term) => void }): ReactNode {
     const [text, setText] = useState('');

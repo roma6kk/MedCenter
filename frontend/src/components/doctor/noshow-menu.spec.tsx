@@ -36,6 +36,10 @@ async function openDialog(): Promise<HTMLElement> {
   return screen.getByRole('dialog', { name: 'Отметить неявку?' });
 }
 
+function confirm(dialog: HTMLElement): Promise<void> {
+  return userEvent.click(within(dialog).getByRole('button', { name: 'Подтвердить неявку' }));
+}
+
 describe('NoshowMenu', () => {
   beforeEach(() => {
     apiFetchMock.mockReset();
@@ -74,7 +78,7 @@ describe('NoshowMenu', () => {
     renderMenu();
     const dialog = await openDialog();
 
-    await userEvent.click(within(dialog).getByRole('button', { name: 'Подтвердить неявку' }));
+    await confirm(dialog);
 
     await waitFor(() => expect(apiFetchMock).toHaveBeenCalledWith('/api/v1/doctor/appointments/a1/noshow', { method: 'POST' }));
   });
@@ -102,7 +106,7 @@ describe('NoshowMenu', () => {
     renderMenu();
     const dialog = await openDialog();
 
-    await userEvent.click(within(dialog).getByRole('button', { name: 'Подтвердить неявку' }));
+    await confirm(dialog);
 
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
   });
@@ -112,7 +116,7 @@ describe('NoshowMenu', () => {
     renderMenu();
     const dialog = await openDialog();
 
-    await userEvent.click(within(dialog).getByRole('button', { name: 'Подтвердить неявку' }));
+    await confirm(dialog);
 
     expect(await screen.findByRole('alert')).toHaveTextContent('Запись уже не в статусе');
   });
@@ -124,7 +128,7 @@ describe('NoshowMenu', () => {
     renderWithClient(<NoshowMenu appointmentId="a1" />, client);
     const dialog = await openDialog();
 
-    await userEvent.click(within(dialog).getByRole('button', { name: 'Подтвердить неявку' }));
+    await confirm(dialog);
 
     expect(await screen.findByRole('alert')).toHaveTextContent('по ней уже открыт или завершён приём');
     await waitFor(() => expect(invalidate).toHaveBeenCalled());
@@ -135,7 +139,7 @@ describe('NoshowMenu', () => {
     renderMenu();
     const dialog = await openDialog();
 
-    await userEvent.click(within(dialog).getByRole('button', { name: 'Подтвердить неявку' }));
+    await confirm(dialog);
 
     expect(await screen.findByRole('alert')).toHaveTextContent('Внутренняя ошибка');
     expect(screen.getByRole('dialog')).toBeInTheDocument();
@@ -165,7 +169,7 @@ describe('NoshowMenu', () => {
     renderInRow();
     const dialog = await openDialog();
 
-    await userEvent.click(within(dialog).getByRole('button', { name: 'Подтвердить неявку' }));
+    await confirm(dialog);
 
     await waitFor(() => expect(screen.getByRole('link', { name: 'Кузнецов А.' })).toHaveFocus());
   });
@@ -174,7 +178,7 @@ describe('NoshowMenu', () => {
     apiFetchMock.mockRejectedValue(problem(500, 'INTERNAL'));
     renderInRow();
     const dialog = await openDialog();
-    await userEvent.click(within(dialog).getByRole('button', { name: 'Подтвердить неявку' }));
+    await confirm(dialog);
     await screen.findByRole('alert');
 
     expect(screen.getByRole('link', { name: 'Кузнецов А.' })).not.toHaveFocus();

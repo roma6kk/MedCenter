@@ -48,6 +48,17 @@ function setup(routes: ReadonlyArray<ApiRoute>, seed?: () => void): void {
   renderWithClient(<EncounterView encounterId="enc-1" />, createAppQueryClient());
 }
 
+const COMPLETED = (): unknown => ({ id: 'enc-1', status: 'finished' });
+const REPLAYED = (): never => { throw problem(409, 'ENCOUNTER_STATE_INVALID'); };
+
+function setupCompletion(answer: () => unknown): void {
+  let isFinished = false;
+  setup([
+    { path: '/api/v1/encounters/enc-1/complete', method: 'POST', respond: () => { isFinished = true; return answer(); } },
+    encounterRoute(() => encounter(isFinished ? FINISHED_CONTENT : {})),
+  ]);
+}
+
 describe('EncounterView', () => {
   it('should show the completion form when the encounter is in progress', async () => {
     setup([encounterRoute(() => encounter())]);
@@ -235,11 +246,7 @@ describe('EncounterView in progress (A6, A7, A8)', () => {
   });
 
   it('should drop the local draft when the visit is completed and the form gives way to the record', async () => {
-    let isFinished = false;
-    setup([
-      { path: '/api/v1/encounters/enc-1/complete', method: 'POST', respond: () => { isFinished = true; return { id: 'enc-1', status: 'finished' }; } },
-      encounterRoute(() => encounter(isFinished ? FINISHED_CONTENT : {})),
-    ]);
+    setupCompletion(COMPLETED);
     await fillTheForm();
     await userEvent.click(screen.getByRole('button', { name: 'Сохранить черновик' }));
     expect(readDraft('enc-1')).not.toBeNull();
@@ -253,11 +260,7 @@ describe('EncounterView in progress (A6, A7, A8)', () => {
 
 describe('EncounterView replay of a completed encounter (scenario C2)', () => {
   it('should turn into the read-only record when completing answers 409 ENCOUNTER_STATE_INVALID', async () => {
-    let isFinished = false;
-    setup([
-      { path: '/api/v1/encounters/enc-1/complete', method: 'POST', respond: () => { isFinished = true; throw problem(409, 'ENCOUNTER_STATE_INVALID'); } },
-      encounterRoute(() => encounter(isFinished ? FINISHED_CONTENT : {})),
-    ]);
+    setupCompletion(REPLAYED);
     await fillTheForm();
 
     await userEvent.click(screen.getByRole('button', { name: 'Завершить приём' }));
@@ -268,11 +271,7 @@ describe('EncounterView replay of a completed encounter (scenario C2)', () => {
   });
 
   it('should turn into the read-only record after a successful completion', async () => {
-    let isFinished = false;
-    setup([
-      { path: '/api/v1/encounters/enc-1/complete', method: 'POST', respond: () => { isFinished = true; return { id: 'enc-1', status: 'finished' }; } },
-      encounterRoute(() => encounter(isFinished ? FINISHED_CONTENT : {})),
-    ]);
+    setupCompletion(COMPLETED);
     await fillTheForm();
 
     await userEvent.click(screen.getByRole('button', { name: 'Завершить приём' }));
@@ -281,11 +280,7 @@ describe('EncounterView replay of a completed encounter (scenario C2)', () => {
   });
 
   it('should move focus to the completed banner after a successful completion', async () => {
-    let isFinished = false;
-    setup([
-      { path: '/api/v1/encounters/enc-1/complete', method: 'POST', respond: () => { isFinished = true; return { id: 'enc-1', status: 'finished' }; } },
-      encounterRoute(() => encounter(isFinished ? FINISHED_CONTENT : {})),
-    ]);
+    setupCompletion(COMPLETED);
     await fillTheForm();
 
     await userEvent.click(screen.getByRole('button', { name: 'Завершить приём' }));
@@ -294,11 +289,7 @@ describe('EncounterView replay of a completed encounter (scenario C2)', () => {
   });
 
   it('should move focus to the banner when a replay turns the form into the record', async () => {
-    let isFinished = false;
-    setup([
-      { path: '/api/v1/encounters/enc-1/complete', method: 'POST', respond: () => { isFinished = true; throw problem(409, 'ENCOUNTER_STATE_INVALID'); } },
-      encounterRoute(() => encounter(isFinished ? FINISHED_CONTENT : {})),
-    ]);
+    setupCompletion(REPLAYED);
     await fillTheForm();
 
     await userEvent.click(screen.getByRole('button', { name: 'Завершить приём' }));
