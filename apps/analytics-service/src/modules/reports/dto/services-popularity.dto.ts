@@ -6,7 +6,7 @@ import { DateRangeQueryDto } from '../../shared/date-range-query.dto';
 import type { MeasureReportDto } from './measure-report.dto';
 
 export const DEFAULT_TOP_SERVICES = 10;
-export const MAX_TOP_SERVICES = 50;
+const MAX_TOP_SERVICES = 50;
 
 export class ServicesPopularityQueryDto extends DateRangeQueryDto {
   @ApiPropertyOptional({ description: 'How many services to return', minimum: 1, maximum: MAX_TOP_SERVICES, default: DEFAULT_TOP_SERVICES })

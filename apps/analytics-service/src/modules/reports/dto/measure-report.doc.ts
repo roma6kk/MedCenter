@@ -5,7 +5,7 @@ import type { EncountersSummaryDto } from './encounters-summary.dto';
 import type { MeasureGroupDto, MeasurePeriodDto, MeasureReportDto } from './measure-report.dto';
 import type { ServicesPopularityDto } from './services-popularity.dto';
 
-export class MeasureGroupDoc implements MeasureGroupDto {
+class MeasureGroupDoc implements MeasureGroupDto {
   @ApiProperty({ description: 'Appointment.status, specialty code or HealthcareService id', example: 'booked' })
   code!: string;
 
@@ -19,7 +19,7 @@ export class MeasureGroupDoc implements MeasureGroupDto {
   count!: number;
 }
 
-export class MeasurePeriodDoc implements MeasurePeriodDto {
+class MeasurePeriodDoc implements MeasurePeriodDto {
   @ApiProperty({ type: String, format: 'date-time', example: '2026-10-01T00:00:00.000Z' })
   start!: string;
 
@@ -27,7 +27,7 @@ export class MeasurePeriodDoc implements MeasurePeriodDto {
   end!: string;
 }
 
-export class MeasureReportDoc implements MeasureReportDto {
+class MeasureReportDoc implements MeasureReportDto {
   @ApiProperty({ example: 'appointments-by-status' })
   measure!: string;
 

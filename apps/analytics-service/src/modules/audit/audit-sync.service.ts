@@ -10,11 +10,11 @@ export const AUDIT_SYNC_PAGE_SIZE = 200;
 // Re-read window behind the cursor: HAPI stamps meta.lastUpdated before commit, so a late commit can carry an older timestamp.
 export const AUDIT_SYNC_OVERLAP_MS = 60_000;
 
-export const AUDIT_SYNC_MAX_PAGES = 25;
+const AUDIT_SYNC_MAX_PAGES = 25;
 
 const EPOCH = new Date(0);
 
-export interface AuditSyncResult {
+interface AuditSyncResult {
   readonly fetched: number;
   readonly stored: number;
 }

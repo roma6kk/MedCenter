@@ -2,7 +2,7 @@ import { Column, Entity, PrimaryColumn } from 'typeorm';
 
 import { ANALYTICS_SCHEMA } from '../analytics-schema';
 
-export type AppointmentFactStatus = 'booked' | 'cancelled';
+type AppointmentFactStatus = 'booked' | 'cancelled';
 
 // Booked and cancelled travel on separate queues, so a cancellation may arrive first: it creates the row without start_at; the booking fills it without reviving the status.
 @Entity({ name: 'appointment_fact', schema: ANALYTICS_SCHEMA })

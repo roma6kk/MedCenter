@@ -19,14 +19,14 @@ export interface BookedFact {
   readonly bookedAt: Date;
 }
 
-export interface CancelledFact {
+interface CancelledFact {
   readonly appointmentId: string;
   readonly patientRef: string;
   readonly cancelledAt: Date;
   readonly actorType: string;
 }
 
-export interface EncounterFact {
+interface EncounterFact {
   readonly encounterId: string;
   readonly patientRef: string;
   readonly practitionerRef: string;

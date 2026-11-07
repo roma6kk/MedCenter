@@ -13,14 +13,14 @@ export interface StatusCountRow {
   readonly count: SqlCount;
 }
 
-export interface SpecialtyCountRow {
+interface SpecialtyCountRow {
   readonly system: string | null;
   readonly code: string;
   readonly display: string | null;
   readonly count: SqlCount;
 }
 
-export interface ServiceCountRow {
+interface ServiceCountRow {
   readonly serviceId: string;
   readonly count: SqlCount;
 }
@@ -58,13 +58,7 @@ export class TypeOrmReportsRepository implements ReportsRepository {
     noShowIds: ReadonlyArray<string>,
     fulfilledIds: ReadonlyArray<string>,
   ): Promise<ReadonlyArray<StatusCountRow>> {
-    const rows: ReadonlyArray<StatusCountRow> = await this.dataSource.query(COUNT_APPOINTMENTS_BY_STATUS, [
-      range.from,
-      range.toExclusive,
-      [...noShowIds],
-      [...fulfilledIds],
-    ]);
-    return rows;
+    return this.dataSource.query(COUNT_APPOINTMENTS_BY_STATUS, [range.from, range.toExclusive, [...noShowIds], [...fulfilledIds]]);
   }
 
   countEncountersBySpecialty(range: DateRange): Promise<ReadonlyArray<SpecialtyCountRow>> {

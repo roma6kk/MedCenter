@@ -24,7 +24,6 @@ export class FhirClinicalReportSource implements ClinicalReportSource {
 
   constructor(@Inject(FHIR_CLIENT) private readonly fhir: FhirClient) {}
 
-  // Pages until an empty page or Bundle.total; HAPI may serve fewer than _count, so the offset advances by what was received.
   noShowAppointmentIds(range: DateRange): Promise<ReadonlyArray<string>> {
     return this.appointmentIdsByStatus('noshow', range);
   }
@@ -33,6 +32,7 @@ export class FhirClinicalReportSource implements ClinicalReportSource {
     return this.appointmentIdsByStatus('fulfilled', range);
   }
 
+  // Pages until an empty page or Bundle.total; HAPI may serve fewer than _count, so the offset advances by what was received.
   private async appointmentIdsByStatus(status: 'noshow' | 'fulfilled', range: DateRange): Promise<ReadonlyArray<string>> {
     const ids = new Set<string>();
     let offset = 0;

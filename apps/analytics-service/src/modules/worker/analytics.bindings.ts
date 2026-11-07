@@ -1,6 +1,6 @@
 import type { AnalyticsEvent } from './analytics-event';
 
-export interface AnalyticsBinding {
+interface AnalyticsBinding {
   readonly queue: string;
   readonly routingKey: AnalyticsEvent['type'];
 }

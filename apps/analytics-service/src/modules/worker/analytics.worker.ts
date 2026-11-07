@@ -109,7 +109,11 @@ export class AnalyticsWorker implements OnModuleInit, OnModuleDestroy {
   private async onMessage(channel: Channel, queue: string, message: ConsumeMessage): Promise<void> {
     const attempt = attemptOf(message.properties.headers);
     const disposition = await this.processor.process(message.content, attempt);
-    this.settle(() => this.dispatch(channel, queue, message, disposition, attempt), disposition);
+    try {
+      this.dispatch(channel, queue, message, disposition, attempt);
+    } catch (error) {
+      this.logger.warn({ err: error, action: disposition }, 'could not settle message; broker will redeliver it');
+    }
   }
 
   private dispatch(channel: Channel, queue: string, message: ConsumeMessage, disposition: Disposition, attempt: number): void {
@@ -123,13 +127,5 @@ export class AnalyticsWorker implements OnModuleInit, OnModuleDestroy {
     }
     // A plain requeue would bounce straight back; the retry queue delays it, then dead-letters it home.
     deferDelivery(channel, queue, message, { ...message.properties.headers, [ATTEMPT_HEADER]: attempt + 1 });
-  }
-
-  private settle(action: () => void, label: string): void {
-    try {
-      action();
-    } catch (error) {
-      this.logger.warn({ err: error, action: label }, 'could not settle message; broker will redeliver it');
-    }
   }
 }

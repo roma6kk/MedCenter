@@ -5,11 +5,11 @@ import { MAX_PAGE_SIZE } from '@medcenter/contracts';
 
 import { DateRangeQueryDto } from '../../shared/date-range-query.dto';
 
-export const ENTITY_FILTER_PATTERN = /^[A-Z][A-Za-z]{1,63}(\/[A-Za-z0-9\-.]{1,64})?$/;
+const ENTITY_FILTER_PATTERN = /^[A-Z][A-Za-z]{1,63}(\/[A-Za-z0-9\-.]{1,64})?$/;
 
-export const USER_ID_FILTER_PATTERN = /^[A-Za-z0-9\-._:@/]{1,128}$/;
+const USER_ID_FILTER_PATTERN = /^[A-Za-z0-9\-._:@/]{1,128}$/;
 
-export const MAX_AUDIT_PAGE = 10_000;
+const MAX_AUDIT_PAGE = 10_000;
 
 export class AuditQueryDto extends DateRangeQueryDto {
   @ApiPropertyOptional({ description: 'Resource type or one resource reference', example: 'Appointment/1234' })

@@ -11,7 +11,7 @@ import { resolveDateRange } from '../shared/date-range';
 import { AUDIT_REPOSITORY, type AuditEventRow, type AuditRepository } from './audit.repository';
 import type { AuditEventDto } from './dto/audit-event.dto';
 
-export interface AuditQuery {
+interface AuditQuery {
   readonly from?: string;
   readonly to?: string;
   readonly entity?: string;

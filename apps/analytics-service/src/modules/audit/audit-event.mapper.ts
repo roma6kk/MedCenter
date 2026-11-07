@@ -125,11 +125,7 @@ function authUserIdOf(entities: ReadonlyArray<Json>): string | undefined {
   return undefined;
 }
 
-function requestIdOf(entities: ReadonlyArray<Json>): string | null {
-  return fit(rawRequestIdOf(entities), REQUEST_ID_MAX);
-}
-
-function rawRequestIdOf(entities: ReadonlyArray<Json>): string | undefined {
+function requestIdOf(entities: ReadonlyArray<Json>): string | undefined {
   for (const entity of entities) {
     if (asString(asObject(entity['type'])?.['code']) === REQUEST_ID_ENTITY_TYPE) {
       const value = asString(asObject(asObject(entity['what'])?.['identifier'])?.['value']);
@@ -152,7 +148,11 @@ function sourceOf(resource: FhirResource): string | null {
 }
 
 function reasonOf(resource: FhirResource, action: AuditAction): string | null {
-  return action === 'emergency-bypass' ? fit(asString(asObjects(resource['purposeOfEvent']).map((purpose) => asString(purpose['text'])).find((text) => text !== undefined)), REASON_MAX) : null;
+  if (action !== 'emergency-bypass') {
+    return null;
+  }
+  const texts = asObjects(resource['purposeOfEvent']).map((purpose) => asString(purpose['text']));
+  return fit(texts.find((text) => text !== undefined), REASON_MAX);
 }
 
 export function toAuditEventRow(resource: FhirResource): AuditEventRow | undefined {
@@ -169,7 +169,7 @@ export function toAuditEventRow(resource: FhirResource): AuditEventRow | undefin
     userId: userIdOf(resource),
     action,
     ...resourceOf(entities),
-    requestId: requestIdOf(entities),
+    requestId: fit(requestIdOf(entities), REQUEST_ID_MAX),
     source: sourceOf(resource),
     reason: reasonOf(resource, action),
   };

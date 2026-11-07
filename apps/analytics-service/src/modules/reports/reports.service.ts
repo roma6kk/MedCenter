@@ -71,10 +71,7 @@ export class ReportsService {
   ): Promise<ServicesPopularityDto> {
     const range = this.rangeOf(query);
     const rows = await this.repository.countBookingsByService(range, query.top ?? DEFAULT_TOP_SERVICES);
-    const names = rows.length === 0 ? new Map<string, string>() : await this.clinical.serviceNames(
-            rows.map((row) => row.serviceId),
-            lang,
-          );
+    const names = rows.length === 0 ? new Map<string, string>() : await this.clinical.serviceNames(rows.map((row) => row.serviceId), lang);
     const groups = rows.map((row): MeasureGroupDto => {
       const display = names.get(row.serviceId);
       return { code: row.serviceId, ...(display === undefined ? {} : { display }), count: toCount(row.count) };

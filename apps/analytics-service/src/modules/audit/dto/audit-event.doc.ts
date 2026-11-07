@@ -4,9 +4,9 @@ import type { PageMetaDto, PaginatedResponseDto } from '@medcenter/contracts';
 import type { AuditAction } from '../../../database/entities/audit-event-read.entity';
 import type { AuditEventDto } from './audit-event.dto';
 
-export const AUDIT_ACTIONS: readonly AuditAction[] = ['create', 'update', 'delete', 'read', 'denied', 'emergency-bypass'];
+const AUDIT_ACTIONS: readonly AuditAction[] = ['create', 'update', 'delete', 'read', 'denied', 'emergency-bypass'];
 
-export class AuditEventDoc implements AuditEventDto {
+class AuditEventDoc implements AuditEventDto {
   @ApiProperty({ description: 'AuditEvent id (FHIR id)' })
   id!: string;
 

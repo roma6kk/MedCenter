@@ -3,7 +3,7 @@ import { clinicDateOf, clinicDayStartMs } from '@medcenter/common';
 
 export const MAX_RANGE_DAYS = 366;
 
-export const DEFAULT_RANGE_DAYS = 30;
+const DEFAULT_RANGE_DAYS = 30;
 
 const DAY_MS = 86_400_000;
 
