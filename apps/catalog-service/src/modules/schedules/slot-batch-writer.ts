@@ -1,6 +1,6 @@
 import type { FhirClient, FhirResource } from '@medcenter/fhir';
 
-export const SLOT_BATCH_SIZE = 200;
+const SLOT_BATCH_SIZE = 200;
 
 interface BatchResponseEntry {
   readonly response?: {
@@ -9,7 +9,7 @@ interface BatchResponseEntry {
   };
 }
 
-export interface BatchWriteResult {
+interface BatchWriteResult {
   readonly generated: number;
   readonly failures: readonly string[];
 }

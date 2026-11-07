@@ -30,7 +30,7 @@ export const CACHE_TTLS = {
 export const CACHE_STORE = Symbol('CACHE_STORE');
 
 /** One cache page is read per clinic day: an unreachable Redis would otherwise log dozens of identical lines per request. */
-export const CACHE_WARN_INTERVAL_MS = 10_000;
+const CACHE_WARN_INTERVAL_MS = 10_000;
 
 @Injectable()
 export class RedisCacheService implements OnModuleDestroy {
@@ -80,7 +80,14 @@ export class RedisCacheService implements OnModuleDestroy {
   }
 
   async setJson(key: string, value: unknown, ttlSeconds: number): Promise<void> {
-    await this.write(key, value, ttlSeconds);
+    if (this.store === null) {
+      return;
+    }
+    try {
+      await this.store.set(key, JSON.stringify(value), ttlSeconds);
+    } catch (error: unknown) {
+      this.warn('write', `Cache write failed: ${key}`, error);
+    }
   }
 
   async invalidate(keys: string[]): Promise<void> {
@@ -109,17 +116,6 @@ export class RedisCacheService implements OnModuleDestroy {
     } catch (error: unknown) {
       this.warn('read', `Cache read failed, falling through: ${key}`, error);
       return null;
-    }
-  }
-
-  private async write(key: string, value: unknown, ttlSeconds: number): Promise<void> {
-    if (this.store === null) {
-      return;
-    }
-    try {
-      await this.store.set(key, JSON.stringify(value), ttlSeconds);
-    } catch (error: unknown) {
-      this.warn('write', `Cache write failed: ${key}`, error);
     }
   }
 

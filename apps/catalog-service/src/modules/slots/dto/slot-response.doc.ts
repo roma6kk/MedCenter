@@ -33,7 +33,7 @@ export class SlotResponseDoc implements SlotResponseDto {
   serviceId?: string;
 }
 
-export class WeeklyWindowViewDoc implements WeeklyWindowView {
+class WeeklyWindowViewDoc implements WeeklyWindowView {
   @ApiProperty({ enum: ['MO', 'TU', 'WE', 'TH', 'FR', 'SA', 'SU'] })
   dayOfWeek!: 'MO' | 'TU' | 'WE' | 'TH' | 'FR' | 'SA' | 'SU';
 
@@ -84,7 +84,7 @@ export class SchedulePageDoc {
   meta!: PageMetaDoc;
 }
 
-export class DoctorScheduleSlotDoc extends SlotResponseDoc implements DoctorScheduleSlotDto {
+class DoctorScheduleSlotDoc extends SlotResponseDoc implements DoctorScheduleSlotDto {
   @ApiProperty({
     description: 'Ready-to-render clinic-time label',
     example: '02.11.2026 12:00–12:30 · занят',

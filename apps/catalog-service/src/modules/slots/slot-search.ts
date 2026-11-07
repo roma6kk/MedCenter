@@ -27,7 +27,7 @@ export function withServiceIds(slots: readonly SlotResponseDto[], schedules: rea
   });
 }
 
-export interface ScheduleSlots {
+interface ScheduleSlots {
   readonly slots: SlotResponseDto[];
   readonly truncated: boolean;
 }

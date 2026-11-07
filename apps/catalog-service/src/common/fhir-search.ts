@@ -4,7 +4,7 @@ import type { FhirClient, FhirResource, FhirSearchResult } from '@medcenter/fhir
 /** HAPI's default `max_page_size` is 200: a larger `_count` is silently capped. */
 export const FHIR_PAGE_SIZE = 200;
 
-export const FHIR_MAX_PAGES = 10;
+const FHIR_MAX_PAGES = 10;
 
 const logger = new Logger('FhirSearch');
 
@@ -16,7 +16,7 @@ export function orReferences(resourceType: string, ids: readonly string[]): stri
   return ids.map((id) => `${resourceType}/${id}`).join(',');
 }
 
-export interface PagedSearchResult {
+interface PagedSearchResult {
   readonly resources: FhirResource[];
   readonly truncated: boolean;
 }
