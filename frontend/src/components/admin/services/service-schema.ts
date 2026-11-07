@@ -1,10 +1,3 @@
-/**
- * service-schema — the service (HealthcareService) form, limits of `CreateServiceDto` (api-designer-spec §5.1.3):
- * name ≤ 200, typeSystem ≤ 255, typeCode ≤ 50, duration 5…240 min, description ≤ 2000. Messages are message KEYS.
- *
- * `specialtyCodes` of the DTO is not on the form: catalog-service accepts it and drops it (`services.service.ts` never reads
- * it), so a field for it would say «created» and save nothing. It returns with the backend implementation.
- */
 import { z } from 'zod';
 import { SERVICE_CODE_SYSTEM_DEFAULT } from '@/lib/contracts';
 import type { AdminService, ServicePayload } from './service-types';
@@ -54,10 +47,6 @@ export function serviceValuesOf(service: AdminService): ServiceFormValues {
   };
 }
 
-/**
- * The body of `POST`/`PATCH /admin/services`. An edit always sends the description and the English texts (an empty one
- * clears it) and `isActive`; a create leaves empty optional fields out and says `isActive` only to create a deactivated service.
- */
 export function toServicePayload(values: ServiceFormValues, isEdit: boolean): ServicePayload {
   return {
     name: values.name.trim(),

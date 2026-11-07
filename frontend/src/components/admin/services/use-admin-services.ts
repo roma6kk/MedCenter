@@ -16,11 +16,7 @@ export interface ServicesFilter {
   readonly pageSize?: number;
 }
 
-/**
- * The administrator's catalogue (`GET /api/v1/admin/services`, API 5.1.6): deactivated services are in it, the public list hides them.
- * Always asked in Russian: the form edits the stored name and description, which an English answer would replace with the
- * translation (the English texts come as `nameEn` / `descriptionEn`).
- */
+// Always asked in Russian: the form edits the stored name and description, which an English answer would replace with the translation.
 export function useAdminServices(filter: ServicesFilter): UseQueryResult<PaginatedResponse<AdminService>, Error> {
   const params = { page: filter.page, pageSize: filter.pageSize ?? SERVICES_PAGE_SIZE, search: filter.search.trim() };
   return useQuery({
@@ -51,7 +47,6 @@ export function useUpdateService(): UseMutationResult<AdminService, Error, Updat
   });
 }
 
-/** 409 `SERVICE_IN_USE` while a schedule or an appointment still references the service. */
 export function useDeleteService(): UseMutationResult<void, Error, string> {
   return useAdminMutation<string, void>({
     mutationFn: (id) => apiFetch<void>(`/api/v1/admin/services/${id}`, { method: 'DELETE' }),

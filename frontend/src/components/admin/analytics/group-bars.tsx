@@ -19,10 +19,6 @@ interface Row {
   readonly muted: boolean;
 }
 
-/**
- * The groups of a report as horizontal bars, biggest first (9.2): a name, its count and share, and a bar scaled to the
- * biggest group so the ranking reads at a glance. The names are long, hence horizontal; one series, hence one colour.
- */
 export function GroupBars({ report, caption }: GroupBarsProps): ReactNode {
   const t = useT('admin.analytics');
   const { named, unnamed } = splitGroups(report.groups);

@@ -4,7 +4,6 @@ export type { UserRole };
 
 export const USER_ROLES: ReadonlyArray<UserRole> = ['PATIENT', 'DOCTOR', 'ADMIN'];
 
-/** `UserResponseDto` of `GET /api/v1/admin/users` (api-designer-spec §2.2, plus the additive `name`/`role`/`practitionerRoleRef`). */
 export interface AdminUser {
   readonly id: string;
   readonly email: string;
@@ -35,11 +34,9 @@ export interface UpdateUserPayload {
   readonly lastName?: string;
   readonly roles?: ReadonlyArray<UserRole>;
   readonly isActive?: boolean;
-  /** A FHIR id links the account to a `PractitionerRole`; `null` releases the link. */
   readonly practitionerRoleId?: string | null;
 }
 
-/** The bare id of a FHIR reference: `PractitionerRole/abc` → `abc`. */
 export function referenceId(reference: string | null): string {
   return reference === null ? '' : (reference.split('/').pop() ?? '');
 }

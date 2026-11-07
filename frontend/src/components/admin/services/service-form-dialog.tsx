@@ -104,7 +104,6 @@ interface ServiceFormDialogProps {
   readonly onClose: () => void;
 }
 
-/** Create (`POST /admin/services`) or edit (`PATCH`) dialog of a service (FR-016). */
 export function ServiceFormDialog({ service, onClose }: ServiceFormDialogProps): ReactNode {
   const t = useT('admin.services');
   return (

@@ -14,10 +14,6 @@ interface DeleteScheduleDialogProps {
   readonly onClose: () => void;
 }
 
-/**
- * Delete a schedule (api-designer-spec §5.2.4). With slots it answers 409 `SCHEDULE_IN_USE`; «удалить свободные слоты»
- * (`cascade: true`) removes the free ones, busy slots protect the schedule either way.
- */
 export function DeleteScheduleDialog({ schedule, scheduleLabel, onClose }: DeleteScheduleDialogProps): ReactNode {
   const t = useT('admin.schedules');
   const [cascade, setCascade] = useState(false);

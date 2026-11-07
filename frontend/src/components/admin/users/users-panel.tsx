@@ -41,7 +41,6 @@ function UserDialogs({ dialog, onClose }: { readonly dialog: DialogState; readon
 
 const DOCTORS_PAGE_SIZE = 100;
 
-/** `PractitionerRole` id → specialty of its doctor (same query as the account form's picker, so it is cached); empty while the catalogue loads or fails. */
 function usePractitionerRoleSpecialties(): ReadonlyMap<string, string> {
   const doctors = useDoctors({ pageSize: DOCTORS_PAGE_SIZE });
   const items = doctors.data?.items;
@@ -52,7 +51,6 @@ function usePractitionerRoleSpecialties(): ReadonlyMap<string, string> {
   }, [items]);
 }
 
-/** `/admin/users` (FR-015): filters, the server-paged list, create / edit / deactivate. */
 export function UsersPanel(): ReactNode {
   const t = useT('admin.users');
   const [filter, setFilter] = useState<UsersFilter>({ page: 1, role: '', search: '' });

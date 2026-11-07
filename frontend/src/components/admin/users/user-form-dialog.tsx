@@ -30,10 +30,6 @@ import type { AdminUser } from './user-types';
 const CREATE_FIELDS: ReadonlyArray<string> = ['email', 'firstName', 'lastName', 'password', 'roles', 'birthDate', 'gender', 'practitionerRoleId'];
 const EDIT_FIELDS: ReadonlyArray<string> = ['email', 'firstName', 'lastName', 'roles', 'practitionerRoleId', 'isActive'];
 
-/**
- * Server reasons that belong to one field. A 404 can only mean an unknown PractitionerRole (the account is the one being
- * edited, a new account has no id yet), so it goes to the role field, but only while that field is shown.
- */
 function useServerRules(showsRoleField: boolean): Readonly<Record<string, ServerFieldRule>> {
   const t = useT('admin.problems');
   return {
@@ -67,7 +63,6 @@ function CreateUserForm({ onClose }: { readonly onClose: () => void }): ReactNod
   );
 }
 
-/** What the roles of an existing account allow: PATIENT needs a FHIR Patient it may not have, and a link needs DOCTOR. */
 function roleNotesOf(user: AdminUser, selectedRoles: ReadonlyArray<string>): RoleNotes {
   return {
     patientLocked: user.patientRef === null && !user.roles.includes('PATIENT'),
@@ -102,12 +97,10 @@ function EditUserForm({ user, onClose }: { readonly user: AdminUser; readonly on
 }
 
 interface UserFormDialogProps {
-  /** The account to edit; omitted → the «create user» form. */
   readonly user?: AdminUser;
   readonly onClose: () => void;
 }
 
-/** Create (`POST /admin/users`) or edit (`PATCH /admin/users/{id}`) dialog of an account (FR-015). */
 export function UserFormDialog({ user, onClose }: UserFormDialogProps): ReactNode {
   const t = useT('admin.users');
   return (

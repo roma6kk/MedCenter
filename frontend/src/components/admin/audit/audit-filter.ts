@@ -1,16 +1,10 @@
-/**
- * audit-filter — the filters of `GET /api/v1/admin/audit?from=&to=&entity=&userId=` (api-designer-spec §9.4) with the
- * same patterns the analytics service validates, so a typo is caught before the request (it would answer 400).
- */
 import type { QueryParams } from '@/lib/api/query-string';
 import { DEFAULT_AUDIT_DAYS, lastDaysRange, validateReportRange, type ReportRangeError } from '../shared/report-range';
 
 export interface AuditFilter {
   readonly from: string;
   readonly to: string;
-  /** A resource type (`Appointment`) or one resource (`Appointment/123`); empty = any. */
   readonly entity: string;
-  /** The `sub` of a token or an agent reference; empty = anyone. */
   readonly userId: string;
 }
 
@@ -44,7 +38,6 @@ export function hasAuditFilterErrors(errors: AuditFilterErrors): boolean {
   return errors.range !== undefined || errors.entity === true || errors.userId === true;
 }
 
-/** Query parameters of one page; blank filters are left out. */
 export function toAuditParams(filter: AuditFilter, page: number): QueryParams {
   return {
     from: filter.from,

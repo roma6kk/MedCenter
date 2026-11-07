@@ -10,7 +10,6 @@ jest.mock('@/lib/api/api-fetch', () => {
   return { ...actual, apiFetch: jest.fn() };
 });
 
-/** The admin list reads the stored Russian text, whatever the interface language is. */
 const RUSSIAN = { headers: { 'Accept-Language': 'ru' } };
 const apiFetchMock = apiFetch as jest.MockedFunction<(path: string, options?: RequestInit) => Promise<unknown>>;
 

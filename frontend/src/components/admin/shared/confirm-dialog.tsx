@@ -15,11 +15,9 @@ interface ConfirmDialogProps {
   readonly message: string;
   readonly confirmLabel: string;
   readonly isPending: boolean;
-  /** The error of the last attempt (e.g. 409 `ROOM_IN_USE`); the dialog stays open so the admin can read it. */
   readonly error?: unknown;
   readonly onConfirm: () => void;
   readonly onCancel: () => void;
-  /** Extra options between the message and the buttons (the «удалить слоты» checkbox of a schedule). */
   readonly children?: ReactNode;
 }
 
@@ -30,10 +28,6 @@ function useSafeChoiceFocus(): RefObject<HTMLButtonElement> {
   return ref;
 }
 
-/**
- * Confirmation of a destructive admin action (delete, deactivate). The failure of the action is shown inside. The confirm
- * button is `aria-disabled` while the request runs or a 429 cools down, so it keeps the keyboard focus.
- */
 export function ConfirmDialog({ title, message, confirmLabel, isPending, error, onConfirm, onCancel, children }: ConfirmDialogProps): ReactNode {
   const t = useT('common');
   const tProblem = useT('feedback.problem');
@@ -46,7 +40,6 @@ export function ConfirmDialog({ title, message, confirmLabel, isPending, error, 
   const label: string = isPending ? t('loading') : cooldown > 0 ? tProblem('retryAfter', { seconds: cooldown }) : confirmLabel;
   const footer: ReactNode = (
     <>
-      {/* The safe choice is the first control: Enter must never confirm a deletion. */}
       <button ref={cancelRef} type="button" onClick={onCancel} className={SECONDARY_BUTTON_CLASS}>
         {t('cancel')}
       </button>

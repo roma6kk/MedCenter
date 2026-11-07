@@ -12,7 +12,6 @@ interface GroupTableProps {
   readonly caption: string;
   readonly nameHeader: string;
   readonly countHeader: string;
-  /** Which messages explain the groups that have no name: `<kind>.unknown`, `<kind>.unknownMany`, `<kind>.unknownNote`. */
   readonly kind: GroupKind;
 }
 
@@ -32,7 +31,6 @@ function UnnamedRow({ groups, total, kind }: { readonly groups: ReadonlyArray<Me
   );
 }
 
-/** The share as a number and a bar of the same length, so the ranking can be read by eye and checked by number. */
 function ShareCell({ count, total }: { readonly count: number; readonly total: number }): ReactNode {
   const percent = sharePercent(count, total);
   return (
@@ -45,10 +43,6 @@ function ShareCell({ count, total }: { readonly count: number; readonly total: n
   );
 }
 
-/**
- * The groups of a report, biggest first, each with its count, its share and a bar of it, and a totals row (9.3). The groups that
- * kept only a code (a deleted service) are merged into one row; their codes are behind a disclosure.
- */
 export function GroupTable({ report, caption, nameHeader, countHeader, kind }: GroupTableProps): ReactNode {
   const t = useT('admin.analytics');
   const { named, unnamed } = splitGroups(report.groups);

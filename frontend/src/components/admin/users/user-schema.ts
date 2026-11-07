@@ -1,7 +1,3 @@
-/**
- * user-schema — the admin user form, with the same limits as the class-validator DTOs of auth-service
- * (`CreateUserDto` / `UpdateUserDto`, api-designer-spec §2.2). Messages are message KEYS resolved by `useFormMessage`.
- */
 import { z } from 'zod';
 import { clinicDateKey } from '@/lib/clinic-time';
 import { EMAIL_MAX, NAME_MAX, PASSWORD_MAX, PASSWORD_MIN, PASSWORD_PATTERN, isCalendarDate } from '@/lib/contracts';
@@ -29,16 +25,11 @@ type CreateValues = z.infer<z.ZodObject<typeof createShape>>;
 
 type RoleValues = Pick<CreateValues, 'roles' | 'practitionerRoleId'> & { birthDate?: string };
 
-/**
- * The PractitionerRole id the account really gets: only a DOCTOR has one. The field is shown only while DOCTOR is chosen, so
- * what stays typed in it after DOCTOR is unchecked is not sent (a linked doctor loses the link) and is not validated either:
- * an error on a field nobody can see would block the submit without a word.
- */
+// Only a DOCTOR has a PractitionerRole id: the field is hidden otherwise, so what stays typed in it is neither sent nor validated.
 export function effectiveLink(values: Pick<RoleValues, 'roles' | 'practitionerRoleId'>): string {
   return values.roles.includes('DOCTOR') ? values.practitionerRoleId : '';
 }
 
-/** Cross-field rules of the server (`account-rules.ts`): a PATIENT needs a birth date, a visible PractitionerRole id is a FHIR id. */
 function checkRoleRules(values: RoleValues, ctx: z.RefinementCtx, needsBirthDate: boolean): void {
   if (needsBirthDate && values.roles.includes('PATIENT') && (values.birthDate ?? '') === '') {
     ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['birthDate'], message: 'admin.users.validation.birthDateRequired' });
@@ -85,7 +76,6 @@ export function editValuesOf(user: AdminUser): EditUserFormValues {
   };
 }
 
-/** The body of `POST /admin/users`: empty optional fields are left out (the DTO whitelist rejects `""`). */
 export function toCreatePayload(values: CreateUserFormValues): CreateUserPayload {
   return {
     email: values.email.trim(),
@@ -108,10 +98,7 @@ function linkChange(link: string, originalLink: string): UpdateUserPayload {
   return { practitionerRoleId: link === '' ? null : link };
 }
 
-/**
- * The body of `PATCH /admin/users/{id}`: only what changed. A cleared PractitionerRole releases the link (`null`);
- * sending an unchanged link again would be refused as already taken.
- */
+// Only what changed: a cleared PractitionerRole releases the link (`null`); sending an unchanged link again is refused as already taken.
 export function toUpdatePayload(values: EditUserFormValues, original: AdminUser): UpdateUserPayload {
   return {
     ...(values.email.trim() === original.email ? {} : { email: values.email.trim() }),

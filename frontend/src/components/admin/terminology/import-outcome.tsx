@@ -37,14 +37,9 @@ function AlreadyRunning(): ReactNode {
 
 interface ImportOutcomeProps {
   readonly accepted: ImportAccepted | undefined;
-  /** The failure of the last attempt that no field took (see `useFormBanner`); `null` when it sits at the version field. */
   readonly banner: FormBanner | null;
 }
 
-/**
- * What the last import attempt came to: accepted (202), already running (409 `IMPORT_RUNNING` only — any other 409 is an
- * ordinary conflict and gets the problem banner), or the problem banner for anything else.
- */
 export function ImportOutcome({ accepted, banner }: ImportOutcomeProps): ReactNode {
   if (banner !== null) {
     return detailCodeOf(problemOf(banner.error)) === 'IMPORT_RUNNING' ? <AlreadyRunning /> : <FormProblem banner={banner} />;

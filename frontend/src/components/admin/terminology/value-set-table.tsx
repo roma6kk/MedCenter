@@ -13,7 +13,6 @@ function StatusCell({ status }: { readonly status: string | undefined }): ReactN
   return <StampBadge status="pending">{t(`status.${status === 'draft' || status === 'retired' ? status : 'unknown'}`)}</StampBadge>;
 }
 
-/** The canonical URL of a ValueSet is long and has no break points: it wraps anywhere instead of widening the card. */
 function UrlChip({ url }: { readonly url: string }): ReactNode {
   return (
     <span className="inline-block max-w-full break-all">
@@ -76,7 +75,6 @@ function ValueSetDesktopTable({ rows }: { readonly rows: ReadonlyArray<ValueSetS
   );
 }
 
-/** The seeded ValueSets: title, canonical URL, release, status (FR-018). A table from `md` up, one card per set below. */
 export function ValueSetTable({ rows }: { readonly rows: ReadonlyArray<ValueSetSummary> }): ReactNode {
   return (
     <>

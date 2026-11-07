@@ -5,7 +5,6 @@ import { useT } from '@/lib/i18n/use-t';
 import { WEEK_DAYS, type WeeklyWindow } from './schedule-types';
 import { findOverlappingWindows, isWindowValid, windowsOfDay } from './schedule-windows';
 
-/** The week at a glance, MO–SU: what the windows add up to, with overlapping windows struck out in red. */
 export function ScheduleWeekPreview({ windows }: { readonly windows: ReadonlyArray<WeeklyWindow> }): ReactNode {
   const t = useT('admin.schedules');
   const overlapping = findOverlappingWindows(windows);

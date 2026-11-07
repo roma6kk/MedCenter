@@ -19,7 +19,6 @@ import { useGenerateSlots, type GenerateSlotsVars } from './use-admin-schedules'
 
 interface SlotGenerationDialogProps {
   readonly schedule: AdminSchedule;
-  /** Who the schedule belongs to, shown under the title (doctor · room). */
   readonly scheduleLabel?: string;
   readonly onClose: () => void;
 }
@@ -37,7 +36,6 @@ interface GenerationForm {
   readonly range: GenerationRange;
   readonly rangeError: GenerationRangeError | null;
   readonly generate: UseMutationResult<GenerateSlotsResult, Error, GenerateSlotsVars>;
-  /** A period edit: the result and the failure of the previous period are not the answer for the new one. */
   readonly change: (next: GenerationRange) => void;
   readonly handleSubmit: (event: FormEvent) => void;
 }
@@ -65,10 +63,6 @@ function useGenerationForm(schedule: AdminSchedule): GenerationForm {
   return { range, rangeError, generate, change, handleSubmit };
 }
 
-/**
- * Slot generation of one schedule (FR-020, API 5.2.5): a `from`…`to` period inside the planning horizon, sent with the
- * `Idempotency-Key` of the intent — a retry of the same period reuses it, a new period or a finished run gets a new key.
- */
 export function SlotGenerationDialog({ schedule, scheduleLabel, onClose }: SlotGenerationDialogProps): ReactNode {
   const t = useT('admin.slots');
   const { range, rangeError, generate, change, handleSubmit } = useGenerationForm(schedule);

@@ -17,11 +17,8 @@ import { USER_ROLES, type UserRole } from './user-types';
 export type SharedUserField = 'email' | 'firstName' | 'lastName' | 'roles' | 'practitionerRoleId';
 export type CreateOnlyField = 'password' | 'birthDate' | 'gender';
 
-/** What the form must tell the admin about the roles: a role that cannot be added, and a link that the new role set drops. */
 export interface RoleNotes {
-  /** `true` for an existing account without a FHIR `Patient`: the server refuses to add PATIENT to it. */
   readonly patientLocked: boolean;
-  /** `true` when DOCTOR is unchecked on a doctor that is linked to a PractitionerRole: saving releases the link. */
   readonly releasesLink: boolean;
 }
 
@@ -32,7 +29,6 @@ interface SharedFieldsProps {
   readonly errors: FieldMessages<SharedUserField>;
   readonly selectedRoles: ReadonlyArray<UserRole>;
   readonly notes?: RoleNotes;
-  /** What the PractitionerRole field offers; typing the id is the fallback when the catalog cannot be read. */
   readonly roleChoices?: PractitionerRoleChoices;
 }
 
@@ -104,7 +100,6 @@ function NameFields({ registrations, errors }: { readonly registrations: Registr
   );
 }
 
-/** Fields both the create and the edit form have: name, email, roles and — for a DOCTOR — the PractitionerRole link. */
 export function SharedUserFields({ register, errors, selectedRoles, notes = NO_ROLE_NOTES, roleChoices = { state: 'unavailable' } }: SharedFieldsProps): ReactNode {
   const t = useT('admin.users');
   // Registered in screen order here: react-hook-form focuses the first invalid field in the order they were registered.
@@ -135,7 +130,6 @@ interface CreateOnlyProps {
   readonly selectedRoles: ReadonlyArray<UserRole>;
 }
 
-/** Only a new account has a password, and only a PATIENT needs the birth date and gender for its FHIR `Patient`. */
 export function CreateOnlyUserFields({ register, control, errors, selectedRoles }: CreateOnlyProps): ReactNode {
   const t = useT('admin.users');
   const passwordHint: string = t('hints.password');

@@ -1,4 +1,3 @@
-/** import-schema — the snapshot import form, same rule as the server's `ImportTerminologyDto`. Messages are message KEYS. */
 import { z } from 'zod';
 import { DEFAULT_SNAPSHOT_VERSION, SNAPSHOT_VERSION_MAX, SNAPSHOT_VERSION_PATTERN } from './snapshot-version';
 

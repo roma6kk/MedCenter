@@ -11,7 +11,6 @@ type QueryLike<TData> = Pick<UseQueryResult<TData, Error>, 'data' | 'isPending' 
 
 interface QueryStateProps<TData> {
   readonly query: QueryLike<TData>;
-  /** `true` when the loaded data has nothing to list (an empty page, no rows). */
   readonly isEmpty?: (data: TData) => boolean;
   readonly emptyTitle?: string;
   readonly emptyDescription?: string;
@@ -19,10 +18,6 @@ interface QueryStateProps<TData> {
   readonly children: (data: TData) => ReactNode;
 }
 
-/**
- * While the list shows the previous page or filter (`keepPreviousData`) and the new one is still loading, the region is
- * `aria-busy` and dimmed, and a status line says so: the old rows must not pass for the answer to the new request.
- */
 function StaleRegion({ isStale, children }: { readonly isStale: boolean; readonly children: ReactNode }): ReactNode {
   const tAdmin = useT('admin.common');
   return (
@@ -33,10 +28,6 @@ function StaleRegion({ isStale, children }: { readonly isStale: boolean; readonl
   );
 }
 
-/**
- * Loading skeleton → error banner with «Повторить» (it stays while the read is repeated, `QueryFailure`) → empty state → the
- * data, so every admin list handles the four states alike.
- */
 export function QueryState<TData>({ query, isEmpty, emptyTitle, emptyDescription, emptyAction, children }: QueryStateProps<TData>): ReactNode {
   const tAdmin = useT('admin.common');
   if (query.data === undefined) return <QueryFailure query={query} embedded pending={<TableSkeleton />} />;

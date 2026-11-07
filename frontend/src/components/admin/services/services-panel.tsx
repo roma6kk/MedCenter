@@ -38,7 +38,6 @@ function ServiceDialogs({ dialog, onClose }: { readonly dialog: DialogState; rea
   return null;
 }
 
-/** `/admin/services` (FR-016): search, the server-paged catalogue, create / edit / delete. */
 export function ServicesPanel(): ReactNode {
   const t = useT('admin.services');
   const [filter, setFilter] = useState<ServicesFilter>({ page: 1, search: '' });

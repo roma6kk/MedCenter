@@ -14,10 +14,6 @@ interface ScheduleFormDialogProps {
   readonly onClose: () => void;
 }
 
-/**
- * Create / edit dialog of a schedule: waits for the doctor, room and service lists the editor picks from. When they fail, a new
- * schedule cannot be made (nothing to pick), but an existing one can still be edited: its actors are only shown as text.
- */
 export function ScheduleFormDialog({ schedule, onClose }: ScheduleFormDialogProps): ReactNode {
   const t = useT('admin.schedules');
   const pickers = useSchedulePickers();

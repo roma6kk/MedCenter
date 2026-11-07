@@ -45,7 +45,6 @@ function PeriodFields({ form, errors }: { readonly form: UseFormReturn<ScheduleF
 }
 
 interface ScheduleEditorProps {
-  /** The schedule to edit; omitted → create a new one. */
   readonly schedule?: AdminSchedule;
   readonly pickers: SchedulePickers;
   readonly onDone: () => void;
@@ -54,9 +53,7 @@ interface ScheduleEditorProps {
 
 interface ScheduleSubmit {
   readonly isPending: boolean;
-  /** The failure of the last submit, for the 429 cooldown and the overlap marks. */
   readonly error: Error | null;
-  /** What is left for the banner after the fields took their messages. */
   readonly banner: FormBanner | null;
   readonly submit: (event?: BaseSyntheticEvent) => Promise<void>;
 }
@@ -78,10 +75,6 @@ function useScheduleSubmit(mode: ScheduleMode, schedule: AdminSchedule | undefin
   return { isPending: mutation.isPending, error: mutation.error, banner, submit };
 }
 
-/**
- * The schedule editor (FR-020): doctor / room / service pickers, planning horizon (≤ 90 days), slot duration and the weekly
- * windows MO–SU. It produces `CreateScheduleDto`; for an existing schedule only horizon, windows, duration and comment change.
- */
 export function ScheduleEditor({ schedule, pickers, onDone, onCancel }: ScheduleEditorProps): ReactNode {
   const t = useT('admin.schedules');
   const resolve = useFormMessage();

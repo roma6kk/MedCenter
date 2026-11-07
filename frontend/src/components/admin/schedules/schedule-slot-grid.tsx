@@ -18,17 +18,14 @@ import { useScheduleSlots, type SlotsQuery } from './use-admin-schedules';
 import { Select } from '@/components/ui/select';
 
 const STATUS_FILTERS: ReadonlyArray<SlotStatus | ''> = ['', 'free', 'busy', 'entered-in-error'];
-/** The id the `Field` of «С» gives its error text; «По» is described by the same text. */
 const RANGE_ERROR_ID = 'slots-from-error';
 
-/** The look of a slot chip by status: the fill and the icon both say it, and the status word is there for screen readers (WCAG 1.4.1). */
 const CHIP_LOOK: Readonly<Record<SlotStatus, { readonly className: string; readonly icon: LucideIcon }>> = {
   free: { className: 'border-border bg-card text-foreground', icon: CircleCheck },
   busy: { className: 'border-transparent bg-secondary text-muted-foreground', icon: Ban },
   'entered-in-error': { className: 'border-warning bg-warning-soft text-warning', icon: CircleAlert },
 };
 
-/** A compact chip of one slot (VF2): a fixed width, the time centred; the status is the fill and the icon, spelled out for assistive technology. */
 function SlotTile({ slot }: { readonly slot: ScheduleSlot }): ReactNode {
   const tStamp = useT('stamp');
   const { className, icon: Icon } = CHIP_LOOK[slot.status];
@@ -42,7 +39,6 @@ function SlotTile({ slot }: { readonly slot: ScheduleSlot }): ReactNode {
   );
 }
 
-/** The totals, and — when the answer is as long as the server's page — the warning that they may be incomplete. */
 function SlotCountsLine({ counts, isPartial }: { readonly counts: SlotCounts; readonly isPartial: boolean }): ReactNode {
   const t = useT('admin.slots');
   const values = { total: counts.total, free: counts.free, busy: counts.busy, error: counts['entered-in-error'] };
@@ -93,7 +89,6 @@ interface SlotFiltersProps {
   readonly onChange: (query: SlotsQuery) => void;
 }
 
-/** «С» and «По»: one period error describes both dates (it is the pair that is wrong, not one of them). */
 function PeriodFields({ query, periodError, onChange }: SlotFiltersProps): ReactNode {
   const t = useT('admin.slots');
   const error: string | undefined = periodError === null ? undefined : t(`grid.errors.${periodError}`);
@@ -126,11 +121,6 @@ function SlotFilters({ query, periodError, onChange }: SlotFiltersProps): ReactN
   );
 }
 
-/**
- * The slots of one schedule by day, with free / busy / entered-in-error told apart (api-designer-spec §5.2.6). It opens on the
- * next two weeks of the planning horizon, so a schedule that starts later is not shown as empty. A period that cannot be sent
- * (cleared or reversed dates, over 90 days) is explained instead of asked for.
- */
 export function ScheduleSlotGrid({ schedule }: { readonly schedule: AdminSchedule }): ReactNode {
   const t = useT('admin.slots');
   const [query, setQuery] = useState<SlotsQuery>(() => ({ ...defaultGenerationRange(schedule), status: '' }));

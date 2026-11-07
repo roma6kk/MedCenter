@@ -20,7 +20,6 @@ interface RoomsTableProps extends RoomActionHandlers {
   readonly onPage: (page: number) => void;
 }
 
-/** One «⋯» menu per row (D4): edit first, the occupancy view, and the destructive delete last. */
 function RoomActions({ room, onUsage, onEdit, onDelete }: RoomActionHandlers & { readonly room: AdminRoom }): React.JSX.Element {
   const t = useT('admin.rooms');
   const tCommon = useT('admin.common');
@@ -44,7 +43,6 @@ function useRoomColumns(actions: RoomActionHandlers): ReadonlyArray<TableColumn<
   ];
 }
 
-/** Room list (FR-017): identifier, floor, status; occupancy drawer, edit and delete per row. */
 export function RoomsTable({ rows, meta, onPage, onUsage, onEdit, onDelete }: RoomsTableProps): React.JSX.Element {
   const t = useT('admin.rooms');
   const columns = useRoomColumns({ onUsage, onEdit, onDelete });

@@ -22,7 +22,6 @@ interface ImportForm {
   readonly start: ReturnType<typeof useStartImport>;
   readonly banner: FormBanner | null;
   readonly handleSubmit: (event?: BaseSyntheticEvent) => Promise<void>;
-  /** The version is edited: the answer to the old one (an accepted import, a refusal) is not the answer any more. */
   readonly handleEdit: () => void;
 }
 
@@ -43,10 +42,6 @@ function useImportForm(): ImportForm {
   return { form, start, banner, handleSubmit, handleEdit };
 }
 
-/**
- * Snapshot import of the terminology (FR-018, API 2.3.4): the release number goes to `POST /admin/terminology/import`.
- * 202 → «импорт принят», 409 `IMPORT_RUNNING` → «уже выполняется», 400 / 422 → the message sits at the version field.
- */
 export function TerminologyImportPanel(): ReactNode {
   const t = useT('admin.terminology.import');
   const resolve = useFormMessage();

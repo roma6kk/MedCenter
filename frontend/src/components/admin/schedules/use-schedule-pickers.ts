@@ -19,13 +19,10 @@ export interface ServicePickerOption extends PickerOption {
 }
 
 export interface SchedulePickers {
-  /** Active doctors linked to a `PractitionerRole`: the ones a new schedule can be made for. */
   readonly doctors: ReadonlyArray<PickerOption>;
-  /** Every doctor linked to a `PractitionerRole`, a disabled account marked as such: a schedule outlives its doctor's account, so labels and the doctor filter need them all. */
   readonly allDoctors: ReadonlyArray<PickerOption>;
   readonly rooms: ReadonlyArray<PickerOption>;
   readonly services: ReadonlyArray<ServicePickerOption>;
-  /** `true` when a list holds more entries than the one page the pickers read: some doctors, rooms or services are missing. */
   readonly isTruncated: boolean;
   readonly isPending: boolean;
   readonly error: Error | null;
@@ -33,7 +30,6 @@ export interface SchedulePickers {
 
 const ALL_PAGE_SIZE = 100;
 
-/** `Фамилия Имя` of an option, or the raw id when the list does not know it (a deleted room, a doctor without an account). */
 export function labelOf(options: ReadonlyArray<PickerOption>, id: string | undefined): string {
   if (id === undefined || id === '') return '—';
   return options.find((option) => option.value === id)?.label ?? id;
@@ -47,11 +43,7 @@ function linkedDoctors(users: ReadonlyArray<AdminUser>): ReadonlyArray<AdminUser
   return users.filter((user) => user.practitionerRoleRef !== null);
 }
 
-/**
- * The lists the schedule editor and the schedule table pick from. A schedule's actor is a `PractitionerRole`, not a
- * `Practitioner`: `GET /doctors` hands out practitioner ids, so the doctors come from the DOCTOR accounts, which carry the
- * `PractitionerRole` they are linked to.
- */
+// A schedule's actor is a `PractitionerRole`, not a `Practitioner` (`GET /doctors` hands out practitioner ids), so doctors come from the DOCTOR accounts.
 export function useSchedulePickers(): SchedulePickers {
   const t = useT('admin.schedules');
   const users = useAdminUsers({ page: 1, role: 'DOCTOR', search: '', pageSize: ALL_PAGE_SIZE });

@@ -20,7 +20,6 @@ interface OptionSelectProps {
   readonly required?: boolean;
 }
 
-/** A labelled themed native `<select>` (`ui/select`) with a «выберите…» first option, wired to react-hook-form. */
 export function OptionSelect({ id, label, placeholder, options, registration, error, hint, required = false }: OptionSelectProps): ReactNode {
   return (
     <Field id={id} label={label} error={error} hint={hint} required={required}>

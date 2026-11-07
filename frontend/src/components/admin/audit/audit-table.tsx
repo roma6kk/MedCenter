@@ -22,11 +22,7 @@ function resourceOf(event: AuditEvent): string {
   return event.resourceId === '' ? event.resourceType : `${event.resourceType}/${event.resourceId}`;
 }
 
-/**
- * Account id → «Фамилия Имя». The actors of writes and consent events are staff, so doctors and administrators are asked for
- * on their own (a clinic with hundreds of patients would push a new doctor past the first 100 accounts); the all-roles page
- * after them names the patients. An id none of them knows (a service, an older account) stays raw.
- */
+// Doctors and administrators are asked for on their own: a clinic with hundreds of patients would push a new doctor past the first 100 accounts.
 function useAccountNames(): ReadonlyMap<string, string> {
   const doctors = useAdminUsers({ page: 1, role: 'DOCTOR', search: '', pageSize: 100 });
   const admins = useAdminUsers({ page: 1, role: 'ADMIN', search: '', pageSize: 100 });
@@ -57,7 +53,6 @@ interface ActionLook {
   readonly icon: LucideIcon;
 }
 
-/** VA5: the colour follows the kind of event, so a refusal or a consent override stands out in a page of reads. */
 const ACTION_LOOK: Readonly<Record<AuditAction, ActionLook>> = {
   read: { tone: 'neutral', icon: Eye },
   create: { tone: 'success', icon: CirclePlus },
@@ -92,7 +87,6 @@ function useAuditColumns(): ReadonlyArray<TableColumn<AuditEvent>> {
   ];
 }
 
-/** The audit journal (FR-021): when, who, what, on which resource, and the request id for support. */
 export function AuditTable({ rows, meta, onPage }: AuditTableProps): React.JSX.Element {
   const t = useT('admin.audit');
   const columns = useAuditColumns();

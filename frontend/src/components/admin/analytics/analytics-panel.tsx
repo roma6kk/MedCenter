@@ -37,11 +37,6 @@ interface ScopeState {
   readonly chooseTop: (top: number) => void;
 }
 
-/**
- * The period and the top size, followed in both directions: a choice on screen is written to the address (so a link or a
- * reload keeps it), and a navigation that changes the address (back/forward, the sidebar link) moves the screen. A preset
- * follows the clock, so a page left open overnight moves on to the new day.
- */
 function useAnalyticsScope(): ScopeState {
   const today: string = useMinskToday();
   const params: URLSearchParams = useSearchParams();
@@ -65,7 +60,6 @@ function useAnalyticsScope(): ScopeState {
   };
 }
 
-/** `/admin/analytics` (FR-019): the period and the reports 9.1–9.3 of the analytics service, as tiles, a chart over time, bars and a ranking. */
 export function AnalyticsPanel(): ReactNode {
   const t = useT('admin.analytics');
   const locale = useUiStore((state) => state.locale);
@@ -77,7 +71,6 @@ export function AnalyticsPanel(): ReactNode {
   const encounters = useEncountersReport(range);
   const services = useServicesPopularity(range, top);
   const buckets = useMemo(() => bucketsOf({ from: range.from, to: range.to }), [range.from, range.to]);
-  // Nothing to chart while the totals say there is nothing: the empty state above already says so.
   const series = useAppointmentSeries(buckets, appointments.data === undefined || appointments.data.total > 0);
   const appointmentsHeading: string = useId();
   return (

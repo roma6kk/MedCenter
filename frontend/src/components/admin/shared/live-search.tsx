@@ -8,15 +8,10 @@ import { useDebouncedCommit } from './use-debounced-commit';
 
 interface LiveSearchProps {
   readonly label: string;
-  /** The text the list is filtered by now. */
   readonly value: string;
   readonly onChange: (value: string) => void;
 }
 
-/**
- * A text filter that applies itself: the list follows the text once typing pauses (`FILTER_DEBOUNCE_MS`), Enter applies at
- * once. There is no button to find; the field is a `search` landmark of its own.
- */
 export function LiveSearch({ label, value, onChange }: LiveSearchProps): ReactNode {
   const t = useT('admin.common');
   const inputId = useId();

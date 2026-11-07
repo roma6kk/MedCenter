@@ -20,10 +20,7 @@ interface AnalyticsFiltersProps {
   readonly onTop: (top: number) => void;
 }
 
-/**
- * The two dates of a custom period. They are kept as typed and only a valid, ordered period of at most 366 days is passed
- * on, so a half-typed date never reaches the API (it would answer 400) and no «Показать» button is needed.
- */
+// Dates stay as typed; only a valid ordered period of at most 366 days goes on, so a half-typed date never reaches the API (400).
 function CustomRange({ initial, onRange }: { readonly initial: ReportRange; readonly onRange: (range: ReportRange) => void }): ReactNode {
   const t = useT('admin.analytics');
   const [draft, setDraft] = useState<ReportRange>(initial);
@@ -45,7 +42,6 @@ function CustomRange({ initial, onRange }: { readonly initial: ReportRange; read
   );
 }
 
-/** Quick periods as one segmented control, a custom period behind «Свой период», and the length of the «top services» list. Every change applies at once. */
 export function AnalyticsFilters({ preset, range, top, onPreset, onRange, onTop }: AnalyticsFiltersProps): ReactNode {
   const t = useT('admin.analytics');
   return (

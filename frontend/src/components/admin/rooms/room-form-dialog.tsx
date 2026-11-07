@@ -78,7 +78,6 @@ interface RoomFormDialogProps {
   readonly onClose: () => void;
 }
 
-/** Create (`POST /admin/rooms`) or edit (`PATCH`) dialog of a room (FR-017). */
 export function RoomFormDialog({ room, onClose }: RoomFormDialogProps): ReactNode {
   const t = useT('admin.rooms');
   return (

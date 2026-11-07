@@ -46,7 +46,6 @@ function useServiceColumns(actions: Pick<ServicesTableProps, 'onEdit' | 'onDelet
   ];
 }
 
-/** Service catalogue (FR-016): НСИ type code, default duration, status, edit and delete. */
 export function ServicesTable({ rows, meta, onPage, onEdit, onDelete }: ServicesTableProps): React.JSX.Element {
   const t = useT('admin.services');
   const columns = useServiceColumns({ onEdit, onDelete });

@@ -24,7 +24,6 @@ type OpenableDialog = 'edit' | 'slots' | 'generate' | 'delete';
 
 type DialogState = { readonly kind: 'none' } | { readonly kind: 'create' } | { readonly kind: OpenableDialog; readonly schedule: AdminSchedule };
 
-/** The list opens on the active schedules; any other filter value narrows or widens what the admin asked for. */
 const DEFAULT_ACTIVE: SchedulesFilter['active'] = 'true';
 
 interface DialogsProps {
@@ -60,7 +59,6 @@ function useScheduleDialogs(): ScheduleDialogControls {
   };
 }
 
-/** The empty-state texts: a list narrowed by a filter says so, an empty default list invites to create the first schedule. */
 function emptyKeys(filter: SchedulesFilter): { readonly title: string; readonly hint: string } {
   const isFiltered: boolean = filter.doctorId !== '' || filter.active !== DEFAULT_ACTIVE;
   return isFiltered ? { title: 'emptyFiltered', hint: 'emptyFilteredHint' } : { title: 'empty', hint: 'emptyHint' };
@@ -74,7 +72,6 @@ interface ViewProps {
   readonly onFilter: (filter: SchedulesFilter) => void;
 }
 
-/** The paged list with the row actions. */
 function SchedulesListView({ filter, pickers, onFilter, onSlots, onGenerate, onEdit, onDelete }: ViewProps & ScheduleHandlers): ReactNode {
   const t = useT('admin.schedules');
   const query = useAdminSchedules(filter);
@@ -89,7 +86,6 @@ function SchedulesListView({ filter, pickers, onFilter, onSlots, onGenerate, onE
   );
 }
 
-/** The weekly plan of the same schedules (the filters apply): a row per doctor or per room, a column per weekday. */
 function SchedulesWeekView({ filter, pickers }: Omit<ViewProps, 'onFilter'>): ReactNode {
   const t = useT('admin.schedules');
   const [grouping, setGrouping] = useState<PlanGrouping>('doctor');
@@ -120,7 +116,6 @@ function SchedulesWeekView({ filter, pickers }: Omit<ViewProps, 'onFilter'>): Re
   );
 }
 
-/** `/admin/schedules` (FR-020): filters, the schedule list or its week plan, the editor, slot generation, the slot grid and delete. */
 export function SchedulesPanel(): ReactNode {
   const t = useT('admin.schedules');
   const [filter, setFilter] = useState<SchedulesFilter>({ page: 1, doctorId: '', active: DEFAULT_ACTIVE });

@@ -26,15 +26,10 @@ interface SchedulesTableProps extends ScheduleHandlers {
   readonly pickers: SchedulePickers;
 }
 
-/** `Иванова Мария · Кабинет 101`: who and where, for the dialogs opened from a row. */
 export function describeSchedule(schedule: AdminSchedule, pickers: SchedulePickers): string {
   return [labelOf(pickers.allDoctors, schedule.practitionerRoleId), labelOf(pickers.rooms, schedule.roomId)].join(' · ');
 }
 
-/**
- * D3: «Сгенерировать слоты» is the frequent action, so it stays a visible secondary button (only for an active schedule);
- * the rest goes into the «⋯» menu, edit first and the destructive delete last.
- */
 function ScheduleActions({ schedule, label, onSlots, onGenerate, onEdit, onDelete }: ScheduleHandlers & { readonly schedule: AdminSchedule; readonly label: string }): React.JSX.Element {
   const t = useT('admin.schedules');
   const tCommon = useT('admin.common');
@@ -56,10 +51,6 @@ function ScheduleActions({ schedule, label, onSlots, onGenerate, onEdit, onDelet
   );
 }
 
-/**
- * The weekly windows in words, one line per group of days with the same hours (`Пн–Пт 09:00–13:00`): a schedule of five working
- * days is one line, not five. Spans only: the mobile card puts a cell inside a `<p>`.
- */
 function WindowsCell({ schedule, dayLabel, duration }: { readonly schedule: AdminSchedule; readonly dayLabel: (day: WeekDay) => string; readonly duration: string | undefined }): React.JSX.Element {
   const groups = describeWindows(schedule.windows, dayLabel);
   if (groups.length === 0) return <>—</>;
@@ -75,7 +66,6 @@ function WindowsCell({ schedule, dayLabel, duration }: { readonly schedule: Admi
   );
 }
 
-/** `26.10 – 08.11.2026`: the year is written once when both ends are in it, so the column stays on one line. */
 function horizonOf(schedule: AdminSchedule): string {
   if (schedule.horizonFrom === undefined || schedule.horizonTo === undefined) return '—';
   const from: string = formatDateKey(schedule.horizonFrom, 'numeric');
@@ -100,7 +90,6 @@ function useScheduleColumns(pickers: SchedulePickers, handlers: ScheduleHandlers
   ];
 }
 
-/** Schedule list (FR-020): doctor, room, service, horizon, weekly windows, status; slots / generate / edit / delete per row. */
 export function SchedulesTable({ rows, meta, onPage, pickers, ...handlers }: SchedulesTableProps): React.JSX.Element {
   const t = useT('admin.schedules');
   const columns = useScheduleColumns(pickers, handlers);

@@ -1,21 +1,13 @@
-/**
- * schedule-week-plan-model — the admin's «Неделя» view of the schedule list: for each doctor (or each room) the working
- * windows of every weekday in one row. It is the weekly plan, not the load: the windows are in the list answer, while the
- * slots (what is booked) are read one schedule at a time and only a page of them.
- */
 import { WEEK_DAYS, type AdminSchedule, type WeekDay } from './schedule-types';
 
 export type PlanGrouping = 'doctor' | 'room';
 
 export interface PlanEntry {
-  /** `09:00–13:00`. */
   readonly times: string;
-  /** The other side of the row: the room for a doctor's row, the doctor for a room's row. */
   readonly where: string;
 }
 
 export interface PlanRow {
-  /** The doctor's or the room's id (`''` for a schedule that has none). */
   readonly key: string;
   readonly label: string;
   readonly days: Readonly<Record<WeekDay, ReadonlyArray<PlanEntry>>>;
@@ -30,7 +22,6 @@ function emptyDays(): Record<WeekDay, PlanEntry[]> {
   return { MO: [], TU: [], WE: [], TH: [], FR: [], SA: [], SU: [] };
 }
 
-/** One row per doctor or per room, alphabetical; every window of every schedule lands on its weekday, earliest first, twins once. */
 export function buildWeekPlan(schedules: ReadonlyArray<AdminSchedule>, grouping: PlanGrouping, names: Names): ReadonlyArray<PlanRow> {
   const rows = new Map<string, { label: string; days: Record<WeekDay, PlanEntry[]> }>();
   for (const schedule of schedules) {

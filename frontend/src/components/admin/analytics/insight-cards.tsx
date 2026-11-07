@@ -43,10 +43,6 @@ interface InsightCardsProps {
   readonly encounters: MeasureReport | undefined;
 }
 
-/**
- * Up to three findings, each worded from the numbers of the reports. A card exists only when its report has data behind it
- * (nothing cancelled, no completed encounter: no card); with no card at all the section is not rendered.
- */
 export function InsightCards({ appointments, encounters }: InsightCardsProps): ReactNode {
   const t = useT('admin.analytics.insights');
   const cancelled = appointments === undefined ? null : cancellationInsight(appointments);

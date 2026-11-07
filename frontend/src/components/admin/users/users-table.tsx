@@ -30,16 +30,13 @@ interface UserActions<TUser extends UserRow> {
 }
 
 interface UsersTableProps<TUser extends UserRow> extends UserActions<TUser> {
-  /** A row tied to a patient links to that patient's consent page (ADR-019); the admin screen turns it on. */
   readonly consentLinks?: boolean;
-  /** `PractitionerRole` id → specialty, from the doctors catalogue: it turns the raw link of a doctor's account into words. */
   readonly practitionerRoles?: ReadonlyMap<string, string>;
   readonly rows: ReadonlyArray<TUser>;
   readonly meta: PageMeta;
   readonly onPage: (page: number) => void;
 }
 
-/** `Врач` / `Doctor` for a known role, the raw code for one this screen does not know. */
 function roleLabel(role: string, t: Translate): string {
   return (USER_ROLES as ReadonlyArray<string>).includes(role) ? t(`roleNames.${role}`) : role;
 }
@@ -59,10 +56,6 @@ function RoleChips({ row }: { readonly row: UserRow }): React.JSX.Element {
   );
 }
 
-/**
- * What an account is tied to, in words (D1): the patient's record, or the doctor's role with the specialty the catalogue
- * knows. The raw FHIR reference (`Patient/…`, `PractitionerRole/…`) stays in the tooltip for the admin who needs the id.
- */
 function LinkChips({ row, practitionerRoles }: { readonly row: UserRow; readonly practitionerRoles: ReadonlyMap<string, string> | undefined }): React.JSX.Element {
   const t = useT('admin.users');
   const { patientRef, practitionerRoleRef } = row;
@@ -85,13 +78,11 @@ function StatusStamp({ row }: { readonly row: UserRow }): React.JSX.Element {
   return row.isActive === false ? <StampBadge status="cancelled" tone="neutral" icon={Ban}>{t('inactive')}</StampBadge> : <StampBadge status="active">{t('active')}</StampBadge>;
 }
 
-/** `Patient/abc` → `abc`; `null` for an account that is not tied to a patient. */
 function patientIdOf(row: UserRow): string | null {
   const reference: string | null | undefined = row.patientRef;
   return typeof reference === 'string' && reference.startsWith('Patient/') ? reference.slice('Patient/'.length) : null;
 }
 
-/** One «⋯» menu per row (D2): the first item is the primary action, the destructive one comes last and is red. */
 function RowActions<TUser extends UserRow>({ row, consentLinks, onEdit, onDeactivate, onActivate }: UserActions<TUser> & { readonly row: TUser; readonly consentLinks: boolean }): React.JSX.Element | null {
   const t = useT('admin.users');
   const tCommon = useT('admin.common');
@@ -131,11 +122,9 @@ function useUserColumns<TUser extends UserRow>(actions: UserActions<TUser>, cons
   return columns;
 }
 
-/** Admin user list (FR-015). Presentational: the panel owns the query, the paging state and the dialogs. */
 export function UsersTable<TUser extends UserRow>({ rows, meta, onPage, consentLinks = false, practitionerRoles, onEdit, onDeactivate, onActivate }: UsersTableProps<TUser>): React.JSX.Element {
   const t = useT('admin.users');
   const columns = useUserColumns({ onEdit, onDeactivate, onActivate }, consentLinks, practitionerRoles);
-  // The consent page of a patient names the person from here (it reads nothing about the patient itself, ADR-018).
   useEffect(() => {
     if (!consentLinks) return;
     rememberPatientNames(rows.flatMap((row) => {

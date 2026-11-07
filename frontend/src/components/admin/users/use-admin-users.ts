@@ -14,7 +14,6 @@ export interface UsersFilter {
   readonly page: number;
   readonly role: UserRole | '';
   readonly search: string;
-  /** Page size override: the schedule pickers read all doctors at once. */
   readonly pageSize?: number;
 }
 
@@ -50,7 +49,6 @@ export function useUpdateUser(successMessageKey: string = 'admin.users.toast.upd
   });
 }
 
-/** `DELETE` is a soft delete: the account is deactivated and answered back (api-designer-spec §2.2.5). */
 export function useDeactivateUser(): UseMutationResult<AdminUser, Error, string> {
   return useAdminMutation<string, AdminUser>({
     mutationFn: (id) => apiFetch<AdminUser>(`/api/v1/admin/users/${id}`, { method: 'DELETE' }),

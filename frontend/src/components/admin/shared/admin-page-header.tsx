@@ -7,11 +7,9 @@ import { useT } from '@/lib/i18n/use-t';
 interface AdminPageHeaderProps {
   readonly title: string;
   readonly description?: string;
-  /** The primary call to action (right-aligned, wraps below on a phone). */
   readonly action?: ReactNode;
 }
 
-/** The `h1` of an admin screen; it also names the browser tab, so the seven screens are told apart (WCAG 2.4.2). */
 export function AdminPageHeader({ title, description, action }: AdminPageHeaderProps): ReactNode {
   useDocumentTitle(title);
   return (

@@ -12,7 +12,6 @@ interface SchedulesFiltersProps {
   readonly onChange: (filter: SchedulesFilter) => void;
 }
 
-/** Doctor and status filters of the schedule list; they apply at once (a select is one decision, not typing). */
 export function SchedulesFilters({ filter, pickers, onChange }: SchedulesFiltersProps): ReactNode {
   const t = useT('admin.schedules');
   return (

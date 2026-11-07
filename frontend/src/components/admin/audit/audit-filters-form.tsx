@@ -25,11 +25,6 @@ interface FilterDraft {
 
 const sameFilter = (a: AuditFilter, b: AuditFilter): boolean => a.from === b.from && a.to === b.to && a.entity === b.entity && a.userId === b.userId;
 
-/**
- * The draft follows what is typed; once it pauses it is checked, and a valid one is applied. A draft that does not pass
- * stays on screen with its error and is not sent (the API would answer 400), and the error is judged only after the pause, so
- * the first capital letter of «Appointment» is not called a mistake while it is still being typed.
- */
 function useFilterDraft(filter: AuditFilter, onApply: (filter: AuditFilter) => void): FilterDraft {
   const [draft, setDraft] = useState<AuditFilter>(filter);
   const [errors, setErrors] = useState<AuditFilterErrors>({});
@@ -49,11 +44,9 @@ function useFilterDraft(filter: AuditFilter, onApply: (filter: AuditFilter) => v
     setErrors({});
     onApply(initial);
   };
-  // A draft that is back at the applied filter is not a mistake any more, whatever the last check said (the check runs only for a changed draft).
   return { draft, setDraft, errors: sameFilter(draft, filter) ? {} : errors, handleReset };
 }
 
-/** Period, resource and user filters of the journal. They apply themselves (dates and text once the typing pauses); «Сбросить» returns to the last 30 days. */
 export function AuditFiltersForm({ filter, onApply }: AuditFiltersFormProps): ReactNode {
   const t = useT('admin.audit');
   const { draft, setDraft, errors, handleReset } = useFilterDraft(filter, onApply);

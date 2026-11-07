@@ -36,10 +36,6 @@ interface RoomUsageDrawerProps {
   readonly onClose: () => void;
 }
 
-/**
- * Room occupancy side panel (api-designer-spec §4.7): the schedules and booked slots that block deleting the room
- * (409 `ROOM_IN_USE`, FR-017). Mount it only while open; it traps focus and closes on Escape.
- */
 export function RoomUsageDrawer({ roomId, roomName, onClose }: RoomUsageDrawerProps): ReactNode {
   const t = useT('admin.rooms');
   const query = useRoomUsage(roomId);

@@ -10,7 +10,6 @@ import { defaultAuditFilter, type AuditFilter } from './audit-filter';
 import { AuditTable } from './audit-table';
 import { useAuditEvents } from './use-audit';
 
-/** `/admin/audit` (FR-021): the period / resource / user filters and the server-paged journal. */
 export function AuditPanel(): ReactNode {
   const t = useT('admin.audit');
   const [filter, setFilter] = useState<AuditFilter>(() => defaultAuditFilter());

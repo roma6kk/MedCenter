@@ -32,10 +32,6 @@ function PlanCell({ row, day, grouping }: { readonly row: PlanRow; readonly day:
   );
 }
 
-/**
- * «Неделя» of the schedule list: a row per doctor (or room), a column per weekday, each window a tinted block with the room (or
- * the doctor) under its hours. The first column stays in view while the days scroll sideways on a narrow screen.
- */
 export function SchedulesWeekPlan({ schedules, pickers, grouping }: SchedulesWeekPlanProps): ReactNode {
   const t = useT('admin.schedules');
   const rows = buildWeekPlan(schedules, grouping, {

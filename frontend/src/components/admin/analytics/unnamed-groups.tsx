@@ -7,7 +7,6 @@ import type { MeasureGroup } from './analytics-types';
 
 export type GroupKind = 'encounters' | 'services';
 
-/** The groups that kept only a code (a deleted service, an unset specialty) merged into one label, their codes behind a «Подробнее» disclosure. */
 export function UnnamedGroups({ groups, kind }: { readonly groups: ReadonlyArray<MeasureGroup>; readonly kind: GroupKind }): ReactNode {
   const t = useT('admin.analytics');
   return (

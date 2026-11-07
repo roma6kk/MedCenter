@@ -10,11 +10,9 @@ import { referenceId, type AdminUser } from './user-types';
 export interface PractitionerRoleOption {
   readonly value: string;
   readonly label: string;
-  /** Linked to another account: the server would answer `PRACTITIONER_ROLE_TAKEN`. */
   readonly disabled: boolean;
 }
 
-/** `pending` while the catalog loads; `unavailable` when it failed, so the form falls back to typing the id. */
 export type PractitionerRoleChoices =
   | { readonly state: 'pending' }
   | { readonly state: 'unavailable' }
@@ -25,14 +23,11 @@ const ALL_PAGE_SIZE = 100;
 interface OptionInput {
   readonly doctors: ReadonlyArray<Doctor>;
   readonly accounts: ReadonlyArray<AdminUser>;
-  /** The account being edited (its own link is no conflict); `undefined` for a new account. */
   readonly userId: string | undefined;
-  /** The value already in the form: kept on offer even when the catalog does not list it. */
   readonly current: string;
   readonly takenBy: (name: string) => string;
 }
 
-/** One option per active PractitionerRole of the catalog, sorted by doctor; roles linked to another account are disabled. */
 export function practitionerRoleOptionsOf({ doctors, accounts, userId, current, takenBy }: OptionInput): ReadonlyArray<PractitionerRoleOption> {
   const owners = new Map<string, string>();
   accounts.forEach((account) => {
@@ -54,10 +49,6 @@ export function practitionerRoleOptionsOf({ doctors, accounts, userId, current, 
   return options;
 }
 
-/**
- * The PractitionerRoles a DOCTOR account can be linked to: `GET /doctors` lists each doctor's `practitionerRoleIds`, and the
- * DOCTOR accounts tell which roles are already linked. Without the account list nothing is marked, the server still decides.
- */
 export function usePractitionerRoleOptions(userId: string | undefined, current: string): PractitionerRoleChoices {
   const t = useT('admin.users');
   const doctors = useDoctors({ pageSize: ALL_PAGE_SIZE });

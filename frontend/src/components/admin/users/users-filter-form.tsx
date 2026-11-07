@@ -14,10 +14,6 @@ interface UsersFilterFormProps {
   readonly onApply: (role: UserRole | '', search: string) => void;
 }
 
-/**
- * Role and text search of the user list, both applied as they are changed: the role is a chip (one decision, applied at
- * once), the text follows once typing pauses, Enter applies it immediately. There is no «Применить» button.
- */
 export function UsersFilterForm({ role, search, onApply }: UsersFilterFormProps): ReactNode {
   const t = useT('admin.users');
   const searchId = useId();

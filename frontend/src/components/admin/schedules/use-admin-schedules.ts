@@ -13,7 +13,6 @@ export const SCHEDULES_PAGE_SIZE = 10;
 
 export interface SchedulesFilter {
   readonly page: number;
-  /** `PractitionerRole` id; empty = every doctor. */
   readonly doctorId: string;
   readonly active: 'true' | 'false' | '';
 }
@@ -53,11 +52,9 @@ export function useUpdateSchedule(): UseMutationResult<AdminSchedule, Error, Upd
 
 export interface DeleteScheduleVars {
   readonly id: string;
-  /** `true` also removes the free slots; busy slots protect the schedule either way (409 `SCHEDULE_IN_USE`). */
   readonly cascade: boolean;
 }
 
-/** The answer of `DELETE /admin/schedules/{id}`: 204 (empty), or `{ deactivated: true }` when slots with booking history kept the schedule. */
 export interface DeleteScheduleResult {
   readonly deactivated?: boolean;
 }
@@ -74,7 +71,6 @@ export interface GenerateSlotsVars extends GenerateSlotsPayload {
   readonly idempotencyKey: string;
 }
 
-/** `POST /admin/schedules/{id}/generate` (201 `{generated, skipped}`) with the `Idempotency-Key` of the intent. */
 export function useGenerateSlots(scheduleId: string): UseMutationResult<GenerateSlotsResult, Error, GenerateSlotsVars> {
   return useAdminMutation<GenerateSlotsVars, GenerateSlotsResult>({
     mutationFn: ({ from, to, idempotencyKey }) =>
@@ -91,11 +87,9 @@ export function useGenerateSlots(scheduleId: string): UseMutationResult<Generate
 export interface SlotsQuery {
   readonly from: string;
   readonly to: string;
-  /** Empty = the API's default (`free` and `busy`); `entered-in-error` slots are only returned when asked for. */
   readonly status: SlotStatus | '';
 }
 
-/** `isEnabled = false` holds the request back while the period cannot be sent (the server answers 400 without both dates). */
 export function useScheduleSlots(scheduleId: string, range: SlotsQuery, isEnabled = true): UseQueryResult<ReadonlyArray<ScheduleSlot>, Error> {
   return useQuery({
     queryKey: queryKeys.adminScheduleSlots(scheduleId, { from: range.from, to: range.to, status: range.status }),

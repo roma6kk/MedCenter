@@ -1,7 +1,6 @@
 import { sharePercent, splitGroups, statusCounts } from './analytics-math';
 import type { AppointmentsReport, MeasureReport } from './analytics-types';
 
-/** How the cancellations compare with the other two statuses. */
 export type CancellationComparison = 'overOthers' | 'overEach' | 'other';
 
 export interface CancellationInsight {
@@ -13,7 +12,6 @@ export interface CancellationInsight {
   readonly comparison: CancellationComparison;
 }
 
-/** `null` when nothing was cancelled: a card about zero cancellations would say nothing. */
 export function cancellationInsight(report: AppointmentsReport): CancellationInsight | null {
   const { booked, fulfilled, cancelled, noshow } = statusCounts(report);
   if (report.total <= 0 || cancelled <= 0) return null;
@@ -38,11 +36,9 @@ export interface SpecialtyInsight {
   readonly count: number;
   readonly total: number;
   readonly percent: number;
-  /** `true` when it is the only named specialty with encounters. */
   readonly only: boolean;
 }
 
-/** The leading specialty among the completed encounters; `null` without encounters or when none of the groups has a name. */
 export function specialtyInsight(report: MeasureReport): SpecialtyInsight | null {
   const { named } = splitGroups(report.groups);
   const leader = named[0];

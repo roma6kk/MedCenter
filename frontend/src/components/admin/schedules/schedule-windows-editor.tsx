@@ -12,7 +12,6 @@ import { Select } from '@/components/ui/select';
 
 interface WindowsEditorProps {
   readonly form: UseFormReturn<ScheduleFormValues>;
-  /** The server answered 409 `SCHEDULE_OVERLAP`: it does not say which window, so all of them are marked. */
   readonly serverOverlap: boolean;
 }
 
@@ -54,10 +53,6 @@ function WindowRow({ form, index, isOverlapping, serverOverlap, onRemove, canRem
   );
 }
 
-/**
- * The weekly windows of a schedule: one row per window (weekday + from + to). A window that crosses another one of the same
- * weekday is marked as soon as it is typed (BR-007 preview); the server's `SCHEDULE_OVERLAP` marks them all.
- */
 export function ScheduleWindowsEditor({ form, serverOverlap }: WindowsEditorProps): ReactNode {
   const t = useT('admin.schedules');
   const resolve = useFormMessage();

@@ -4,7 +4,6 @@ import { useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
 import { useT } from '@/lib/i18n/use-t';
 
-/** Writes to the clipboard; it can be denied (insecure origin, no permission): the id stays selectable as text. */
 async function copyText(text: string): Promise<boolean> {
   try {
     await navigator.clipboard.writeText(text);
@@ -16,15 +15,12 @@ async function copyText(text: string): Promise<boolean> {
 }
 
 const SHORT_ID_LENGTH = 8;
-/** How long «Скопировано» stays: long enough to be read and announced, short enough not to outlive the action. */
 export const COPIED_MESSAGE_MS = 2500;
 
-/** `3882171c-26eb-…` → `3882171c…`: enough to tell requests apart on screen; the button copies the whole id. */
 function shortId(requestId: string): string {
   return requestId.length > SHORT_ID_LENGTH ? `${requestId.slice(0, SHORT_ID_LENGTH)}…` : requestId;
 }
 
-/** `true` for `COPIED_MESSAGE_MS` after a successful copy: the confirmation is not a permanent part of the row. */
 function useCopiedFlag(): readonly [boolean, (isCopied: boolean) => void] {
   const [isCopied, setIsCopied] = useState(false);
   useEffect(() => {
@@ -35,11 +31,6 @@ function useCopiedFlag(): readonly [boolean, (isCopied: boolean) => void] {
   return [isCopied, setIsCopied];
 }
 
-/**
- * The `requestId` of an audit event with a «copy» button. An event written by a service that does not record the request id
- * has an empty one: there is nothing to copy, so no button is rendered, only a dash. The confirmation is a live region that
- * exists only after a copy, so a page of 20 events has no 20 empty regions.
- */
 export function CopyRequestId({ requestId }: { readonly requestId: string }): ReactNode {
   const t = useT('admin.audit');
   const tCommon = useT('common');

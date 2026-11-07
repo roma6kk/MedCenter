@@ -1,8 +1,3 @@
-/**
- * schedule-schema — the schedule editor form with the limits of `CreateScheduleDto` / `UpdateScheduleDto`
- * (api-designer-spec §5.2.1/§5.2.3): FHIR ids of the three actors, horizon ≤ 90 days, windows `HH:mm` with end > start
- * and no overlap, slot duration 5…120 min. Messages are message KEYS (`useFormMessage`).
- */
 import { z } from 'zod';
 import { isCalendarDate } from '@/lib/contracts';
 import { clinicDateKey, daysBetween, shiftDateKey } from '@/lib/clinic-time';
@@ -58,7 +53,6 @@ interface ActorValues {
   readonly serviceId: string;
 }
 
-/** The three actors are chosen once, when the schedule is created; the server does not let them change afterwards. */
 function checkActors(values: ActorValues, ctx: z.RefinementCtx): void {
   const required: ReadonlyArray<readonly [keyof ActorValues, string]> = [
     ['practitionerRoleId', 'admin.schedules.validation.doctorRequired'],
@@ -93,7 +87,6 @@ function checkEditable(values: EditableValues, ctx: z.RefinementCtx): void {
 
 export type ScheduleMode = 'create' | 'edit';
 
-/** One form type for both modes: an edit carries the (read-only) actors of the schedule and skips their validation. */
 export function scheduleSchemaFor(mode: ScheduleMode): z.ZodEffects<z.ZodObject<typeof scheduleShape>> {
   return z.object(scheduleShape).superRefine((values, ctx) => {
     if (mode === 'create') checkActors(values, ctx);
@@ -136,7 +129,6 @@ function cleanWindows(windows: ReadonlyArray<WeeklyWindow>): ReadonlyArray<Weekl
   return sortWindows(windows).map(({ dayOfWeek, startTime, endTime }) => ({ dayOfWeek: dayOfWeek as WeekDay, startTime, endTime }));
 }
 
-/** The body of `POST /admin/schedules`; an empty comment is left out. */
 export function toCreateSchedulePayload(values: ScheduleFormValues): CreateSchedulePayload {
   return {
     practitionerRoleId: values.practitionerRoleId,
@@ -150,10 +142,7 @@ export function toCreateSchedulePayload(values: ScheduleFormValues): CreateSched
   };
 }
 
-/**
- * The body of `PATCH /admin/schedules/{id}`. The comment is always sent: the server changes it only when it is present, so
- * leaving an emptied comment out would silently keep the old text (rooms and services send their description the same way).
- */
+// The comment is always sent: the server changes it only when present, so leaving an emptied one out would keep the old text.
 export function toUpdateSchedulePayload(values: ScheduleFormValues): UpdateSchedulePayload {
   return {
     horizonFrom: values.horizonFrom,

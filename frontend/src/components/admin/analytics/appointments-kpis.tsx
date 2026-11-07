@@ -28,7 +28,6 @@ interface DeltaLineProps {
   readonly preset: PeriodPreset;
 }
 
-/** `▲ +5 (+50%) к прошлому месяцу`: the direction is an icon and a word for assistive technology, the colour only says whether it is good news. */
 function DeltaLine({ kind, current, previous, preset }: DeltaLineProps): ReactNode {
   const t = useT('admin.analytics.kpi');
   const delta = deltaOf(current, previous);
@@ -51,7 +50,6 @@ interface KpiProps {
   readonly kind: AppointmentStatusCode | 'total';
   readonly value: number;
   readonly total: number;
-  /** The same count in the period before: `undefined` while it loads or when it could not be read (the tile then has no delta). */
   readonly previous: number | undefined;
   readonly previousPending: boolean;
   readonly preset: PeriodPreset;
@@ -77,7 +75,6 @@ interface AppointmentsKpisProps {
   readonly preset: PeriodPreset;
 }
 
-/** 9.1 as tiles: the total, then one per status with its share of the total and the change against the period before. */
 export function AppointmentsKpis({ report, previous, previousPending, preset }: AppointmentsKpisProps): ReactNode {
   const counts = statusCounts(report);
   const before = previous === undefined ? undefined : statusCounts(previous);

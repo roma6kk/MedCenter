@@ -9,11 +9,9 @@ interface FormActionsProps {
   readonly submitLabel: string;
   readonly isPending: boolean;
   readonly onCancel: () => void;
-  /** The failure of the last submit: a 429 keeps the submit closed until its `Retry-After` has passed (frontend-design-spec §5.4). */
   readonly error?: unknown;
 }
 
-/** «Отмена» + the submit button of a dialog form, with the note about the asterisk (WCAG 3.3.2). */
 export function FormActions({ submitLabel, isPending, onCancel, error }: FormActionsProps): ReactNode {
   const t = useT('common');
   const tAdmin = useT('admin.common');

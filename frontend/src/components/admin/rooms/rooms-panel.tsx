@@ -37,7 +37,6 @@ function RoomDialogs({ dialog, onClose }: { readonly dialog: DialogState; readon
   return null;
 }
 
-/** `/admin/rooms` (FR-017): the server-paged room list; create, edit, delete and the occupancy drawer. */
 export function RoomsPanel(): ReactNode {
   const t = useT('admin.rooms');
   const [page, setPage] = useState(1);

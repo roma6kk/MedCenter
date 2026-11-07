@@ -17,7 +17,6 @@ import { labelStride, niceAxis, roundedTopPath } from './chart-math';
 import { HATCH_KEY_STYLE, STATUS_KEY_CLASS } from './status-style';
 import type { AppointmentSeries, SeriesPoint } from './use-analytics';
 
-/** Bottom to top: the hatched no-show sits between the green and the blue, so the red and the orange never touch. */
 const STACK_ORDER: ReadonlyArray<AppointmentStatusCode> = ['fulfilled', 'noshow', 'booked', 'cancelled'];
 
 const FILL_CLASS: Readonly<Record<Exclude<AppointmentStatusCode, 'noshow'>, string>> = {
@@ -36,7 +35,6 @@ const MIN_LABEL_GAP = 44;
 
 const totalOf = (point: SeriesPoint): number => STACK_ORDER.reduce((sum, status) => sum + point.counts[status], 0);
 
-/** The width the chart may use: it is drawn in real pixels, so its text keeps its size at any width. */
 function useWidth(ref: RefObject<HTMLElement>): number {
   const [width, setWidth] = useState<number>(FALLBACK_WIDTH);
   useEffect(() => {
@@ -56,7 +54,6 @@ interface Segment {
   readonly height: number;
 }
 
-/** The coloured parts of one column, bottom up; every part but the lowest is shortened by the gap that separates it from the one below. */
 function segmentsOf(point: SeriesPoint, yOf: (value: number) => number): ReadonlyArray<Segment> {
   let sum = 0;
   return STACK_ORDER.filter((status) => point.counts[status] > 0).map((status, index) => {
@@ -90,7 +87,6 @@ interface TooltipProps {
   readonly side: 'left' | 'right';
 }
 
-/** Values lead, names follow; every status of the column at once, so the pointer never has to land on a segment. */
 function Tooltip({ point, title, left, side }: TooltipProps): ReactNode {
   const t = useT('admin.analytics.appointments');
   return (
@@ -117,7 +113,6 @@ function Tooltip({ point, title, left, side }: TooltipProps): ReactNode {
   );
 }
 
-/** What a screen reader says for one column: the title, then every status with a count. */
 function describe(point: SeriesPoint, title: string, t: Translate): string {
   return `${title}: ${APPOINTMENT_STATUSES.map((status) => `${t(status).toLowerCase()} ${point.counts[status]}`).join(', ')}`;
 }
@@ -254,14 +249,9 @@ type View = 'chart' | 'table';
 
 interface AppointmentsChartProps {
   readonly series: AppointmentSeries;
-  /** Columns of the period; fewer than two is not a trend, so the section is left out. */
   readonly columns: number;
 }
 
-/**
- * Appointments over time: stacked columns by status (9.1 asked once per column), a legend, a tooltip that follows the
- * pointer and the arrow keys, and the same numbers as a table for anyone who prefers to read them.
- */
 export function AppointmentsChart({ series, columns }: AppointmentsChartProps): ReactNode {
   const t = useT('admin.analytics.chart');
   const [view, setView] = useState<View>('chart');
