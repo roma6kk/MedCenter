@@ -1,6 +1,5 @@
 import { BadRequestException, Injectable, type PipeTransform } from '@nestjs/common';
-
-import { FHIR_ID_PATTERN } from './fhir-reference';
+import { FHIR_ID_PATTERN } from '@medcenter/common';
 
 /**
  * Path `{id}` must be a FHIR `id`. Besides rejecting junk early with

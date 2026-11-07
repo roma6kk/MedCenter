@@ -1,4 +1,5 @@
 import { Role } from '@medcenter/contracts';
+import { FHIR_ID_PATTERN } from '@medcenter/common';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Transform } from 'class-transformer';
 import {
@@ -22,7 +23,6 @@ import type { PatientGender } from '../patient-provisioner';
 import {
   DATE_ONLY_PATTERN,
   EMAIL_MAX_LENGTH,
-  FHIR_ID_PATTERN,
   GENDERS,
   IsPlausibleBirthDate,
   NO_CONTROL_CHARS,

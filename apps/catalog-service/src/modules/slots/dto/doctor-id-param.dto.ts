@@ -1,7 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { Matches } from 'class-validator';
-
-import { FHIR_ID_PATTERN } from '../../../common/fhir-id';
+import { FHIR_ID_PATTERN } from '@medcenter/common';
 
 /**
  * `{id}` of `GET /api/v1/doctors/{id}/slots` — the **Practitioner** id, the same

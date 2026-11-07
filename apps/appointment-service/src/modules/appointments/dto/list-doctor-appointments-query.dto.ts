@@ -1,8 +1,8 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Transform } from 'class-transformer';
 import { IsIn, IsISO8601, IsOptional, Matches } from 'class-validator';
+import { FHIR_ID_PATTERN } from '@medcenter/common';
 
-import { FHIR_ID_PATTERN } from '../fhir-reference';
 import { APPOINTMENT_STATUSES, toStatusList, type AppointmentStatus } from './list-appointments-query.dto';
 import { PageQueryDto } from './page-query.dto';
 

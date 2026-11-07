@@ -1,7 +1,7 @@
 import { ForbiddenException } from '@nestjs/common';
-import type { JwtClaims } from '@medcenter/common';
+import { FHIR_ID_PATTERN, type JwtClaims } from '@medcenter/common';
 
-import { FHIR_ID_PATTERN, parseReference, requirePatientReference, toPatientReference } from './fhir-reference';
+import { parseReference, requirePatientReference, toPatientReference } from './fhir-reference';
 
 const patient: JwtClaims = { sub: 'user-1', scope: 'patient/*.read', role: 'PATIENT', patient: '9f2c', jti: 'jti-1' };
 

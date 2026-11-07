@@ -1,12 +1,5 @@
 import { BadRequestException, ForbiddenException, Injectable, type PipeTransform } from '@nestjs/common';
-import { claimsOf, requirePatientRef, type RequestWithClaims } from '@medcenter/common';
-
-/**
- * FHIR R4 `id`: `[A-Za-z0-9\-.]{1,64}`. Dot-only values (`.`, `..`) are refused
- * on top of that: as a URL path segment they collapse `Communication/{id}` into
- * the FHIR base URL, so they can never name a resource.
- */
-export const FHIR_ID_PATTERN = /^(?!\.+$)[A-Za-z0-9\-.]{1,64}$/;
+import { claimsOf, FHIR_ID_PATTERN, type RequestWithClaims, requirePatientRef } from '@medcenter/common';
 
 const PATIENT_REFERENCE = /^Patient\/((?!\.+$)[A-Za-z0-9\-.]{1,64})$/;
 

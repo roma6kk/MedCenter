@@ -2,7 +2,16 @@ import { randomUUID } from 'node:crypto';
 import { BadRequestException, ConflictException, Inject, Injectable, InternalServerErrorException, Logger } from '@nestjs/common';
 import type { JwtClaims } from '@medcenter/common';
 import { Role, type ErrorCode } from '@medcenter/contracts';
-import { assertActiveConsent, findActiveConsent, FHIR_CLIENT, outboxWrite, type FhirClient, type FhirResource } from '@medcenter/fhir';
+import {
+  assertActiveConsent,
+  commitTransaction,
+  findActiveConsent,
+  FHIR_CLIENT,
+  outboxWrite,
+  versionOf,
+  type FhirClient,
+  type FhirResource,
+} from '@medcenter/fhir';
 import { toAppointmentResponseDto, type AppointmentResponseDto } from '@medcenter/fhir-mappers';
 
 import { bookedEvent, cancelledEvent, noshowEvent } from '../events/appointment-events';
@@ -21,7 +30,7 @@ import { assertDoctorParticipates, assertPatientOwns, patientRefOf, requireDocto
 import { CancelAppointmentDto } from './dto/cancel-appointment.dto';
 import { CreateAppointmentDto } from './dto/create-appointment.dto';
 import { requirePatientReference } from './fhir-reference';
-import { commitTransaction, referenceId, versionOf } from './fhir-transaction';
+import { referenceId } from './fhir-transaction';
 
 /** The Slot a booked Appointment holds, with the id it is addressed by. */
 interface OccupiedSlot {

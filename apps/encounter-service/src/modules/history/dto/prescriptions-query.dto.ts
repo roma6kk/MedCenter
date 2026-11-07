@@ -1,7 +1,7 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { IsOptional, IsString, Matches } from 'class-validator';
+import { FHIR_ID_PATTERN } from '@medcenter/common';
 
-import { FHIR_ID_PATTERN } from '../../../common/access/claims-identity';
 import { PageQueryDto } from '../../../common/paging/page-query.dto';
 
 /** Listing parameters of API §7.5/7.7: the paging of §7.4–7.7 plus an optional encounter filter. */

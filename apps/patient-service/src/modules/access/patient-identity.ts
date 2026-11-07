@@ -1,13 +1,5 @@
 import { ForbiddenException } from '@nestjs/common';
-import { requirePatientRef, type JwtClaims } from '@medcenter/common';
-
-/**
- * FHIR R4 `id` datatype: `[A-Za-z0-9\-\.]{1,64}` (HAPI assigns numeric ids,
- * clients may assign UUIDs). Dot-only values (`.`, `..`) are refused on top of
- * the R4 regex: as a URL path segment they collapse `Patient/{id}` into
- * `Patient/` (a search) or the server base, so they can never name a resource.
- */
-export const FHIR_ID_PATTERN = /^(?!\.+$)[A-Za-z0-9\-.]{1,64}$/;
+import { FHIR_ID_PATTERN, type JwtClaims, requirePatientRef } from '@medcenter/common';
 
 const PATIENT_PREFIX = 'Patient/';
 const PRACTITIONER_ROLE_PREFIX = 'PractitionerRole/';

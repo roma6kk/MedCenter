@@ -1,7 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { Matches } from 'class-validator';
-
-import { FHIR_ID_PATTERN } from '../../access/patient-identity';
+import { FHIR_ID_PATTERN } from '@medcenter/common';
 
 /** `:id` path parameter of `/api/v1/patients/{id}[/related]` — a FHIR R4 `id`. */
 export class PatientIdParamsDto {

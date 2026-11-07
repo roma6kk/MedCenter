@@ -16,8 +16,8 @@ import {
   type ValidationArguments,
 } from 'class-validator';
 import { Type } from 'class-transformer';
+import { FHIR_ID_PATTERN } from '@medcenter/common';
 
-import { FHIR_ID_PATTERN } from '../../../common/fhir-id';
 import { CALENDAR_DATE } from '../../../common/zoned-date';
 import { toMinutes } from '../slot-planner';
 

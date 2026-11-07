@@ -1,7 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { Matches } from 'class-validator';
-
-import { FHIR_ID_PATTERN } from '../../access/patient-identity';
+import { FHIR_ID_PATTERN } from '@medcenter/common';
 
 /** `:id` and `:scanId` of `/api/v1/patients/{id}/consent/scan/{scanId}` — both FHIR R4 ids. */
 export class ScanParamsDto {

@@ -1,7 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { Matches } from 'class-validator';
-
-import { FHIR_ID_PATTERN } from './fhir-id';
+import { FHIR_ID_PATTERN } from '@medcenter/common';
 
 /**
  * `{id}` of a path that goes into a FHIR read or reference search (services,

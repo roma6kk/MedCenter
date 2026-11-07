@@ -2,8 +2,7 @@ import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import { IsIn, IsInt, IsOptional, Matches, Max, Min } from 'class-validator';
 import { DEFAULT_PAGE, DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE } from '@medcenter/contracts';
-
-import { FHIR_ID_PATTERN } from '../../../common/fhir-id';
+import { FHIR_ID_PATTERN } from '@medcenter/common';
 
 /** Upper bound on `page`, so a client cannot push HAPI into an unbounded `_offset` scan. */
 const MAX_PAGE = 1000;

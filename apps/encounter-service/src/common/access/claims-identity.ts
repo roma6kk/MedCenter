@@ -1,12 +1,6 @@
 import { ForbiddenException } from '@nestjs/common';
-import { requirePatientRef, type JwtClaims } from '@medcenter/common';
+import { FHIR_ID_PATTERN, type JwtClaims, requirePatientRef } from '@medcenter/common';
 
-/**
- * FHIR `id` grammar (R4 datatypes: `[A-Za-z0-9\-\.]{1,64}`); excludes `,` and `/`,
- * so it cannot widen a search. Dot-only ids (`.`, `..`) are refused although the
- * grammar admits them: in a URL path `Encounter/..` collapses into the server base.
- */
-export const FHIR_ID_PATTERN = /^(?!\.+$)[A-Za-z0-9\-.]{1,64}$/;
 const PATIENT_PREFIX = 'Patient/';
 const PRACTITIONER_ROLE_PREFIX = 'PractitionerRole/';
 

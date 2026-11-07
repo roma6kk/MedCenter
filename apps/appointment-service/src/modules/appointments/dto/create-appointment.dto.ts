@@ -1,8 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { IsOptional, IsString, Matches, MaxLength, MinLength } from 'class-validator';
-import { Trim } from '@medcenter/common';
-
-import { FHIR_ID_PATTERN } from '../fhir-reference';
+import { FHIR_ID_PATTERN, Trim } from '@medcenter/common';
 
 const FHIR_ID_MESSAGE = '$property must be a FHIR resource id ([A-Za-z0-9-.]{1,64})';
 

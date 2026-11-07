@@ -1,7 +1,7 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { IsOptional, IsString, Matches, MaxLength } from 'class-validator';
+import { FHIR_ID_PATTERN } from '@medcenter/common';
 
-import { FHIR_ID_PATTERN } from '../../../common/fhir-id';
 import { PageQueryDto } from '../../../common/page-query.dto';
 
 /** Longest `search`/`specialty` term accepted (unauthenticated input on a public route). */

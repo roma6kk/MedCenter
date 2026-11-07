@@ -1,7 +1,7 @@
 import { BadRequestException, ForbiddenException, UnauthorizedException } from '@nestjs/common';
-import type { JwtClaims, RequestWithClaims } from '@medcenter/common';
+import { FHIR_ID_PATTERN, type JwtClaims, type RequestWithClaims } from '@medcenter/common';
 
-import { FHIR_ID_PATTERN, FhirIdPipe, patientReferenceOf } from './patient-reference';
+import { FhirIdPipe, patientReferenceOf } from './patient-reference';
 
 function requestWith(patient?: string): RequestWithClaims {
   const claims: JwtClaims = {

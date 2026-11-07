@@ -6,10 +6,8 @@ import {
   type ConsentEntryStatus,
   type CreateConsentRequest,
 } from '@medcenter/contracts';
-import { RFC3339_DATE_OR_DATE_TIME } from '@medcenter/common';
+import { FHIR_ID_PATTERN, RFC3339_DATE_OR_DATE_TIME } from '@medcenter/common';
 import { IsIn, IsISO8601, IsOptional, IsString, Length, Matches, MaxLength } from 'class-validator';
-
-import { FHIR_ID_PATTERN } from '../../access/patient-identity';
 
 const NOT_BLANK = /\S/;
 

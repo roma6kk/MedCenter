@@ -1,7 +1,5 @@
 import { ForbiddenException } from '@nestjs/common';
-import type { JwtClaims } from '@medcenter/common';
-
-import { FHIR_ID_SOURCE } from '../../common/fhir-id';
+import { FHIR_ID_SOURCE, type JwtClaims } from '@medcenter/common';
 
 /** `PractitionerRole/{id}` with a FHIR id (see `FHIR_ID_SOURCE`) and nothing else. */
 const PRACTITIONER_ROLE_REF = new RegExp(`^PractitionerRole/(${FHIR_ID_SOURCE})$`);

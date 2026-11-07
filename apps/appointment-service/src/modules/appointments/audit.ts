@@ -1,7 +1,5 @@
 import type { RequestWithClaims, RequestWithRequestId } from '@medcenter/common';
-import type { FhirResource } from '@medcenter/fhir';
-
-import type { TransactionWrite } from './fhir-transaction';
+import type { FhirResource, TransactionWrite } from '@medcenter/fhir';
 
 /** An authenticated request after `RequestIdMiddleware` has assigned its correlation id. */
 export type AuditedRequest = RequestWithClaims & Pick<RequestWithRequestId, 'requestId'>;
