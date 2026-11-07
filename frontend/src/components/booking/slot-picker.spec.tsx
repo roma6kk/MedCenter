@@ -42,6 +42,12 @@ function renderPicker(props: Partial<SlotPickerProps> = {}): { onSelect: jest.Mo
   return { onSelect };
 }
 
+async function openPicker(): Promise<void> {
+  answer(SLOTS);
+  renderPicker();
+  await screen.findByTestId('slot-s-1');
+}
+
 describe('SlotPicker', () => {
   beforeEach(() => apiFetchMock.mockReset());
 
@@ -67,9 +73,7 @@ describe('SlotPicker', () => {
   });
 
   it('should show the slots of another day when its chip is chosen', async () => {
-    answer(SLOTS);
-    renderPicker();
-    await screen.findByTestId('slot-s-1');
+    await openPicker();
 
     await userEvent.click(screen.getByTestId(`slot-day-chip-${DAY_AFTER}`));
 
@@ -79,9 +83,7 @@ describe('SlotPicker', () => {
   });
 
   it('should say how many free slots a day has and close the days without any when the strip is drawn', async () => {
-    answer(SLOTS);
-    renderPicker();
-    await screen.findByTestId('slot-s-1');
+    await openPicker();
 
     expect(screen.getByTestId(`slot-day-chip-${TODAY}`)).toHaveAccessibleName(expect.stringMatching(/свободного времени — 2$/));
     expect(screen.getByTestId(`slot-day-chip-${TODAY}`)).toHaveTextContent('2 окна');
@@ -91,9 +93,7 @@ describe('SlotPicker', () => {
   });
 
   it('should not switch the day when a day without slots is clicked', async () => {
-    answer(SLOTS);
-    renderPicker();
-    await screen.findByTestId('slot-s-1');
+    await openPicker();
 
     await userEvent.click(screen.getByTestId(`slot-day-chip-${shiftDateKey(TODAY, 1)}`));
 
@@ -139,9 +139,7 @@ describe('SlotPicker', () => {
   });
 
   it('should move the choice of the day with the arrow keys when focus is on the strip', async () => {
-    answer(SLOTS);
-    renderPicker();
-    await screen.findByTestId('slot-s-1');
+    await openPicker();
     screen.getByTestId(`slot-day-chip-${TODAY}`).focus();
 
     await userEvent.keyboard('{ArrowRight}');
@@ -154,9 +152,7 @@ describe('SlotPicker', () => {
   });
 
   it('should keep one tab stop in the strip and one in the slot grid', async () => {
-    answer(SLOTS);
-    renderPicker();
-    await screen.findByTestId('slot-s-1');
+    await openPicker();
 
     const stripStops = within(screen.getByTestId('slot-day-strip')).getAllByRole('radio').filter((chip) => chip.tabIndex === 0);
     const gridStops = [screen.getByTestId('slot-s-1'), screen.getByTestId('slot-s-2')].filter((chip) => chip.tabIndex === 0);
@@ -274,9 +270,7 @@ describe('SlotPicker', () => {
   });
 
   it('should search the next period when the visitor asks for later times', async () => {
-    answer(SLOTS);
-    renderPicker();
-    await screen.findByTestId('slot-s-1');
+    await openPicker();
 
     await userEvent.click(screen.getByRole('button', { name: 'Позже' }));
 
@@ -285,17 +279,13 @@ describe('SlotPicker', () => {
   });
 
   it('should not offer earlier times than today when the visitor asks for earlier periods', async () => {
-    answer(SLOTS);
-    renderPicker();
-    await screen.findByTestId('slot-s-1');
+    await openPicker();
 
     expect(screen.getByRole('button', { name: 'Раньше' })).toHaveAttribute('aria-disabled', 'true');
   });
 
   it('should not search another period when the visitor presses earlier times while the picker is at today', async () => {
-    answer(SLOTS);
-    renderPicker();
-    await screen.findByTestId('slot-s-1');
+    await openPicker();
     const searches: number = apiFetchMock.mock.calls.length;
 
     await userEvent.click(screen.getByRole('button', { name: 'Раньше' }));
@@ -318,9 +308,7 @@ describe('SlotPicker', () => {
   });
 
   it('should keep focus on the earlier button when the visitor presses it at the first period', async () => {
-    answer(SLOTS);
-    renderPicker();
-    await screen.findByTestId('slot-s-1');
+    await openPicker();
     const earlier: HTMLElement = screen.getByRole('button', { name: 'Раньше' });
 
     await userEvent.click(earlier);
@@ -329,9 +317,7 @@ describe('SlotPicker', () => {
   });
 
   it('should not let the calendar go past the last day the API accepts when the picker opens', async () => {
-    answer(SLOTS);
-    renderPicker();
-    await screen.findByTestId('slot-s-1');
+    await openPicker();
     const last: string = shiftDateKey(TODAY, MAX_LOOKAHEAD_DAYS);
 
     await userEvent.click(screen.getByRole('button', { name: 'Выбрать дату в календаре' }));
@@ -351,9 +337,7 @@ describe('SlotPicker', () => {
   });
 
   it('should let the visitor jump to a date when one is typed', async () => {
-    answer(SLOTS);
-    renderPicker();
-    await screen.findByTestId('slot-s-1');
+    await openPicker();
     const target: string = shiftDateKey(TODAY, 10);
 
     fireEvent.change(screen.getByLabelText('Перейти к дате'), { target: { value: target } });

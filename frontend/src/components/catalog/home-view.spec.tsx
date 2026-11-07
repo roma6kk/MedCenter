@@ -1,4 +1,4 @@
-import { screen, within } from '@testing-library/react';
+import { screen, within, type RenderResult } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
 const pushMock = jest.fn();
@@ -24,6 +24,14 @@ const CARDIOLOGIST: Doctor = { id: 'k', firstName: 'Алексей', lastName: '
 
 const ALL_SPECIALTY_DOCTORS: ReadonlyArray<Doctor> = DIRECTIONS.flatMap((direction) => direction.specialtyCode === undefined ? [] : [{ id: direction.id, firstName: 'И', lastName: direction.id, name: direction.id, specialtyCode: direction.specialtyCode }]);
 
+function renderHome(props: Partial<{ services: ReadonlyArray<CatalogService>; doctors: ReadonlyArray<Doctor>; isFailed: boolean }> = {}): RenderResult {
+  return renderWithCatalog(<HomeView services={SERVICES} doctors={DOCTORS} isFailed={false} {...props} />);
+}
+
+function signInAs(role: 'DOCTOR' | 'ADMIN'): void {
+  useSessionStore.getState().setSession({ accessToken: 't', expiresAt: null, role, scope: null, patientRef: null, fhirUser: null });
+}
+
 describe('HomeView', () => {
   beforeEach(() => {
     pushMock.mockReset();
@@ -33,7 +41,7 @@ describe('HomeView', () => {
   });
 
   it('should lead with what the clinic does and offer the departments and the booking as ways in when the page opens', () => {
-    renderWithCatalog(<HomeView services={SERVICES} doctors={DOCTORS} isFailed={false} />);
+    renderHome();
 
     expect(screen.getByRole('heading', { level: 1, name: 'Консультация, диагностика и наблюдение — в одном центре' })).toBeInTheDocument();
     const hero = screen.getByRole('region', { name: /Консультация, диагностика/ });
@@ -42,7 +50,7 @@ describe('HomeView', () => {
   });
 
   it('should make booking the primary action and finding a doctor the secondary one in the hero', () => {
-    renderWithCatalog(<HomeView services={SERVICES} doctors={DOCTORS} isFailed={false} />);
+    renderHome();
 
     const hero = screen.getByRole('region', { name: /Консультация, диагностика/ });
     const [primary, secondary] = within(hero).getAllByRole('link').filter((link) => ['Записаться на приём', 'Найти врача'].includes(link.textContent ?? ''));
@@ -54,7 +62,7 @@ describe('HomeView', () => {
 
   it('should offer the nearest free windows of the doctors in the hero, each opening the booking on that slot', async () => {
     serveCatalog({ slots: { a: [LATER_SLOT], b: [SLOT] } });
-    renderWithCatalog(<HomeView services={SERVICES} doctors={DOCTORS} isFailed={false} />);
+    renderHome();
 
     const windows = await screen.findByRole('region', { name: 'Ближайшие свободные окна' });
     const first = await within(windows).findByTestId('hero-window-b');
@@ -69,7 +77,7 @@ describe('HomeView', () => {
   });
 
   it('should say so when no doctor has free time in the next two weeks', async () => {
-    renderWithCatalog(<HomeView services={SERVICES} doctors={DOCTORS} isFailed={false} />);
+    renderHome();
 
     expect(await screen.findByText(/В ближайшие две недели свободного времени нет\. Позвоните/)).toBeInTheDocument();
   });
@@ -81,20 +89,20 @@ describe('HomeView', () => {
   });
 
   it('should keep a sticky booking bar for guests and patients on a phone, and none for staff', () => {
-    const { unmount } = renderWithCatalog(<HomeView services={SERVICES} doctors={DOCTORS} isFailed={false} />);
+    const { unmount } = renderHome();
 
     expect(within(screen.getByTestId('mobile-book-bar')).getByRole('link', { name: 'Записаться на приём' })).toHaveAttribute('href', '/booking');
     unmount();
-    useSessionStore.getState().setSession({ accessToken: 't', expiresAt: null, role: 'DOCTOR', scope: null, patientRef: null, fhirUser: null });
-    renderWithCatalog(<HomeView services={SERVICES} doctors={DOCTORS} isFailed={false} />);
+    signInAs('DOCTOR');
+    renderHome();
 
     expect(screen.queryByTestId('mobile-book-bar')).not.toBeInTheDocument();
   });
 
   it.each([['DOCTOR'], ['ADMIN']] as const)('should offer %s no way into the booking anywhere on the landing: the booking would only answer them with a 403', async (role) => {
     serveCatalog({ slots: { a: [LATER_SLOT], b: [SLOT] } });
-    useSessionStore.getState().setSession({ accessToken: 't', expiresAt: null, role, scope: null, patientRef: null, fhirUser: null });
-    const { container } = renderWithCatalog(<HomeView services={SERVICES} doctors={DOCTORS} isFailed={false} />);
+    signInAs(role);
+    const { container } = renderHome();
 
     const windows = await screen.findByRole('region', { name: 'Ближайшие свободные окна' });
     await within(windows).findByTestId('hero-window-b');
@@ -106,8 +114,8 @@ describe('HomeView', () => {
   });
 
   it('should leave staff «Найти врача» as the one action of the hero and of the closing band, in the primary look', () => {
-    useSessionStore.getState().setSession({ accessToken: 't', expiresAt: null, role: 'DOCTOR', scope: null, patientRef: null, fhirUser: null });
-    renderWithCatalog(<HomeView services={SERVICES} doctors={DOCTORS} isFailed={false} />);
+    signInAs('DOCTOR');
+    renderHome();
 
     const hero = within(screen.getByRole('region', { name: /Консультация, диагностика/ }));
     expect(hero.getByRole('link', { name: 'Найти врача' })).toHaveClass('bg-primary');
@@ -118,8 +126,8 @@ describe('HomeView', () => {
 
   it('should show staff the nearest times of the doctors as plain text, not as buttons that write a booking draft', async () => {
     serveCatalog({ slots: { a: [LATER_SLOT], b: [SLOT] } });
-    useSessionStore.getState().setSession({ accessToken: 't', expiresAt: null, role: 'ADMIN', scope: null, patientRef: null, fhirUser: null });
-    renderWithCatalog(<HomeView services={SERVICES} doctors={DOCTORS} isFailed={false} />);
+    signInAs('ADMIN');
+    renderHome();
 
     const windows = await screen.findByRole('region', { name: 'Ближайшие свободные окна' });
     const time = await within(windows).findByTestId('hero-window-b');
@@ -170,7 +178,7 @@ describe('HomeView', () => {
   });
 
   it('should hide a department that has no doctors of its specialty so that no card leads to an empty catalog', () => {
-    renderWithCatalog(<HomeView services={SERVICES} doctors={DOCTORS} isFailed={false} />);
+    renderHome();
 
     const departments = screen.getByRole('region', { name: 'Направления' });
     expect(within(departments).queryByRole('heading', { level: 3, name: 'Кардиология' })).not.toBeInTheDocument();
@@ -187,7 +195,7 @@ describe('HomeView', () => {
   });
 
   it('should show the licence and keep the demonstration note out of the page body when the page opens', () => {
-    renderWithCatalog(<HomeView services={SERVICES} doctors={DOCTORS} isFailed={false} />);
+    renderHome();
 
     const trust = screen.getByRole('region', { name: 'Почему нам доверяют' });
     expect(within(trust).getByText(`Специальное разрешение № ${CLINIC_LICENSE.number} от ${CLINIC_LICENSE.date}`)).toBeInTheDocument();
@@ -195,7 +203,7 @@ describe('HomeView', () => {
   });
 
   it('should name the companies and the insurers the clinic works with, as plain text, when the page opens', () => {
-    renderWithCatalog(<HomeView services={SERVICES} doctors={DOCTORS} isFailed={false} />);
+    renderHome();
 
     const audiences = screen.getByRole('region', { name: 'Кому мы помогаем' });
     for (const name of [...CORPORATE_CLIENTS, ...INSURANCE_PARTNERS]) expect(within(audiences).getByText(name)).toBeInTheDocument();
@@ -204,7 +212,7 @@ describe('HomeView', () => {
   });
 
   it('should promise neither a contract, a policy nor a request channel the service cannot back when the page opens', () => {
-    const { container } = renderWithCatalog(<HomeView services={SERVICES} doctors={DOCTORS} isFailed={false} />);
+    const { container } = renderHome();
 
     const audiences = screen.getByRole('region', { name: 'Кому мы помогаем' });
     expect(within(audiences).queryByRole('link', { name: 'Запросить предложение' })).not.toBeInTheDocument();
@@ -215,7 +223,7 @@ describe('HomeView', () => {
   });
 
   it('should lead the patient through four equal steps joined by a line when the page opens, with the booking only as the first', () => {
-    renderWithCatalog(<HomeView services={SERVICES} doctors={DOCTORS} isFailed={false} />);
+    renderHome();
 
     const path = screen.getByRole('region', { name: 'Ведём пациента от первого визита до результата' });
     expect(within(path).getAllByRole('listitem')).toHaveLength(4);
@@ -224,14 +232,14 @@ describe('HomeView', () => {
   });
 
   it('should list the services, each leading to its doctors, when services are loaded', () => {
-    renderWithCatalog(<HomeView services={SERVICES} doctors={DOCTORS} isFailed={false} />);
+    renderHome();
 
     expect(screen.getByRole('link', { name: /Приём терапевта/ })).toHaveAttribute('href', '/doctors?serviceId=svc-1');
     expect(screen.getAllByTestId('service-card')).toHaveLength(2);
   });
 
   it('should show only the first four doctors with a link to all of them when more are loaded', () => {
-    renderWithCatalog(<HomeView services={SERVICES} doctors={DOCTORS} isFailed={false} />);
+    renderHome();
 
     expect(screen.getAllByTestId('doctor-card')).toHaveLength(4);
     expect(screen.getByRole('link', { name: 'Все врачи' })).toHaveAttribute('href', '/doctors');
@@ -246,7 +254,7 @@ describe('HomeView', () => {
 
   it('should show the nearest free time and a booking link on the doctor cards of the landing', async () => {
     serveCatalog({ slots: { a: [SLOT] } });
-    renderWithCatalog(<HomeView services={SERVICES} doctors={DOCTORS} isFailed={false} />);
+    renderHome();
 
     const teaser = screen.getByRole('region', { name: 'Наши врачи' });
     expect((await within(teaser).findAllByText(/Ближайшее: завтра, 11:00/))).toHaveLength(1);
@@ -265,7 +273,7 @@ describe('HomeView', () => {
   });
 
   it('should offer the clinic contacts as working links when the page opens', () => {
-    renderWithCatalog(<HomeView services={SERVICES} doctors={DOCTORS} isFailed={false} />);
+    renderHome();
 
     expect(screen.getByRole('link', { name: '+375 17 000-00-00' })).toHaveAttribute('href', 'tel:+375170000000');
     expect(screen.getByRole('link', { name: 'info@lifeline.example' })).toHaveAttribute('href', 'mailto:info@lifeline.example');
