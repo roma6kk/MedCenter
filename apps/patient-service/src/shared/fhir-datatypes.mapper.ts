@@ -1,6 +1,6 @@
-export type AdministrativeGender = 'male' | 'female' | 'other' | 'unknown';
+export const ADMINISTRATIVE_GENDERS = ['male', 'female', 'other', 'unknown'] as const;
 
-const ADMINISTRATIVE_GENDERS: ReadonlyArray<string> = ['male', 'female', 'other', 'unknown'];
+export type AdministrativeGender = (typeof ADMINISTRATIVE_GENDERS)[number];
 
 export interface PersonNameDto {
   readonly fullName: string;
@@ -74,7 +74,7 @@ export function readPhotoUrl(value: unknown): string | undefined {
 }
 
 export function readGender(value: unknown): AdministrativeGender | undefined {
-  return typeof value === 'string' && ADMINISTRATIVE_GENDERS.includes(value) ? (value as AdministrativeGender) : undefined;
+  return typeof value === 'string' && (ADMINISTRATIVE_GENDERS as ReadonlyArray<string>).includes(value) ? (value as AdministrativeGender) : undefined;
 }
 
 export function readTelecom(value: unknown): ReadonlyArray<ContactPointDto> {

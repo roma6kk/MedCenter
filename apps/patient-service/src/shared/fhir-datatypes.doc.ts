@@ -1,8 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
-import type { AdministrativeGender, CodingDto, ContactPointDto, IdentifierDto } from './fhir-datatypes.mapper';
-
-export const ADMINISTRATIVE_GENDER_VALUES: readonly AdministrativeGender[] = ['male', 'female', 'other', 'unknown'];
+import type { CodingDto, ContactPointDto, IdentifierDto } from './fhir-datatypes.mapper';
 
 export class ContactPointDoc implements ContactPointDto {
   @ApiProperty({ description: 'ContactPoint.system', example: 'phone' })
