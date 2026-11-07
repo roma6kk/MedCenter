@@ -14,7 +14,7 @@ export interface RoomPayload {
   readonly description?: string;
 }
 
-export interface RoomUsageReference {
+interface RoomUsageReference {
   readonly resourceType: 'Schedule' | 'Slot' | 'PractitionerRole' | 'HealthcareService';
   readonly id: string;
   readonly display: string;

@@ -2,7 +2,7 @@ import type { AppointmentStatusCode } from './analytics-types';
 
 export type DeltaDirection = 'up' | 'down' | 'flat';
 
-export interface Delta {
+interface Delta {
   readonly direction: DeltaDirection;
   readonly change: number;
   readonly percent: number | null;

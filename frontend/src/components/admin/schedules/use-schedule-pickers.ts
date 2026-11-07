@@ -9,12 +9,12 @@ import { useAdminServices } from '../services/use-admin-services';
 import { useAdminUsers } from '../users/use-admin-users';
 import { referenceId, type AdminUser } from '../users/user-types';
 
-export interface PickerOption {
+interface PickerOption {
   readonly value: string;
   readonly label: string;
 }
 
-export interface ServicePickerOption extends PickerOption {
+interface ServicePickerOption extends PickerOption {
   readonly durationMin: number;
 }
 

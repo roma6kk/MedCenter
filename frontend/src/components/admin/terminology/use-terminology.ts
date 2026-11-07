@@ -16,7 +16,7 @@ export function useValueSets(): UseQueryResult<PaginatedResponse<ValueSetSummary
   });
 }
 
-export interface ImportVars {
+interface ImportVars {
   readonly snapshotVersion: string;
 }
 

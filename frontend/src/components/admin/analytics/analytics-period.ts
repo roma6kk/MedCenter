@@ -7,7 +7,7 @@ export type PeriodPreset = 'today' | 'week' | 'month' | 'year' | 'custom';
 
 export const PERIOD_PRESETS: ReadonlyArray<PeriodPreset> = ['today', 'week', 'month', 'year', 'custom'];
 
-export const DEFAULT_PRESET: PeriodPreset = 'month';
+const DEFAULT_PRESET: PeriodPreset = 'month';
 
 export interface AnalyticsScope {
   readonly preset: PeriodPreset;

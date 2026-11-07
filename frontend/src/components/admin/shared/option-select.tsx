@@ -4,7 +4,7 @@ import { CONTROL_CLASS } from './admin-styles';
 import { controlProps, Field } from './form-field';
 import { Select } from '@/components/ui/select';
 
-export interface SelectOption {
+interface SelectOption {
   readonly value: string;
   readonly label: string;
 }

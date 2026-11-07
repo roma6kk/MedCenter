@@ -22,7 +22,7 @@ export interface RoleNotes {
   readonly releasesLink: boolean;
 }
 
-export const NO_ROLE_NOTES: RoleNotes = { patientLocked: false, releasesLink: false };
+const NO_ROLE_NOTES: RoleNotes = { patientLocked: false, releasesLink: false };
 
 interface SharedFieldsProps {
   readonly register: (name: SharedUserField) => UseFormRegisterReturn;

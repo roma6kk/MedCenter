@@ -11,7 +11,7 @@ export interface GenerationRange {
 export type PeriodError = 'invalid' | 'order' | 'span';
 export type GenerationRangeError = PeriodError | 'outsideHorizon';
 
-export const DEFAULT_GENERATION_DAYS = 14;
+const DEFAULT_GENERATION_DAYS = 14;
 
 export function defaultGenerationRange(schedule: AdminSchedule, today: string = clinicDateKey()): GenerationRange {
   const horizonFrom: string | undefined = schedule.horizonFrom;

@@ -9,7 +9,7 @@ export interface FormBanner {
   readonly detail?: string;
 }
 
-export interface FormBannerState {
+interface FormBannerState {
   readonly banner: FormBanner | null;
   readonly fail: (error: Error) => void;
   readonly clear: () => void;

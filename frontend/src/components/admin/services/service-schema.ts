@@ -2,8 +2,8 @@ import { z } from 'zod';
 import { SERVICE_CODE_SYSTEM_DEFAULT } from '@/lib/contracts';
 import type { AdminService, ServicePayload } from './service-types';
 
-export const DURATION_MIN = 5;
-export const DURATION_MAX = 240;
+const DURATION_MIN = 5;
+const DURATION_MAX = 240;
 
 function isDurationInRange(value: string): boolean {
   const minutes = Number(value);

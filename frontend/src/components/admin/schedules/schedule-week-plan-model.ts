@@ -2,7 +2,7 @@ import { WEEK_DAYS, type AdminSchedule, type WeekDay } from './schedule-types';
 
 export type PlanGrouping = 'doctor' | 'room';
 
-export interface PlanEntry {
+interface PlanEntry {
   readonly times: string;
   readonly where: string;
 }

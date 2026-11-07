@@ -1,4 +1,4 @@
-export interface Axis {
+interface Axis {
   readonly max: number;
   readonly ticks: ReadonlyArray<number>;
 }

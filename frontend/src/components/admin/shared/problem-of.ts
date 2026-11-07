@@ -5,7 +5,7 @@ export function problemOf(error: unknown): ProblemDetails | null {
   return isApiError(error) ? error.problem : null;
 }
 
-export const KNOWN_DETAIL_CODES = [
+const KNOWN_DETAIL_CODES = [
   'EMAIL_TAKEN',
   'PRACTITIONER_ROLE_TAKEN',
   'SELF_LOCKOUT',
@@ -17,7 +17,7 @@ export const KNOWN_DETAIL_CODES = [
   'SCHEDULE_OVERLAP',
 ] as const;
 
-export type KnownDetailCode = (typeof KNOWN_DETAIL_CODES)[number];
+type KnownDetailCode = (typeof KNOWN_DETAIL_CODES)[number];
 
 export function detailCodeOf(problem: ProblemDetails | null): KnownDetailCode | null {
   if (problem === null || problem.detail === undefined) return null;

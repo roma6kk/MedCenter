@@ -7,7 +7,7 @@ import { useT } from '@/lib/i18n/use-t';
 import { useAdminUsers } from './use-admin-users';
 import { referenceId, type AdminUser } from './user-types';
 
-export interface PractitionerRoleOption {
+interface PractitionerRoleOption {
   readonly value: string;
   readonly label: string;
   readonly disabled: boolean;

@@ -8,7 +8,7 @@ import { FHIR_ID_PATTERN } from '../shared/fhir-id';
 
 export const SLOT_DURATION_MIN = 5;
 export const SLOT_DURATION_MAX = 120;
-export const DEFAULT_HORIZON_DAYS = 30;
+const DEFAULT_HORIZON_DAYS = 30;
 
 const windowSchema = z.object({
   dayOfWeek: z.enum(WEEK_DAYS),

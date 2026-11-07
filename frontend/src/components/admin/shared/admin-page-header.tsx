@@ -2,7 +2,6 @@
 
 import type { ReactNode } from 'react';
 import { useDocumentTitle } from '@/hooks/use-document-title';
-import { useT } from '@/lib/i18n/use-t';
 
 interface AdminPageHeaderProps {
   readonly title: string;

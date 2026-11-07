@@ -7,7 +7,7 @@ export interface ServerFieldRule {
   readonly message: string;
 }
 
-export interface ServerErrorOutcome {
+interface ServerErrorOutcome {
   readonly onFields: boolean;
   readonly leftover: ReadonlyArray<string>;
 }

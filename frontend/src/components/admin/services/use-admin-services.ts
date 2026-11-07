@@ -8,7 +8,7 @@ import { withQuery } from '@/lib/api/query-string';
 import type { AdminService, ServicePayload } from './service-types';
 import { useAdminMutation } from '../shared/use-admin-mutation';
 
-export const SERVICES_PAGE_SIZE = 10;
+const SERVICES_PAGE_SIZE = 10;
 
 export interface ServicesFilter {
   readonly page: number;
@@ -34,7 +34,7 @@ export function useCreateService(): UseMutationResult<AdminService, Error, Servi
   });
 }
 
-export interface UpdateServiceVars {
+interface UpdateServiceVars {
   readonly id: string;
   readonly payload: ServicePayload;
 }

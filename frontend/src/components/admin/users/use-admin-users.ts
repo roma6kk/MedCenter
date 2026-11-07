@@ -8,7 +8,7 @@ import { withQuery } from '@/lib/api/query-string';
 import { useAdminMutation } from '../shared/use-admin-mutation';
 import type { AdminUser, CreateUserPayload, UpdateUserPayload, UserRole } from './user-types';
 
-export const USERS_PAGE_SIZE = 10;
+const USERS_PAGE_SIZE = 10;
 
 export interface UsersFilter {
   readonly page: number;
@@ -36,7 +36,7 @@ export function useCreateUser(): UseMutationResult<AdminUser, Error, CreateUserP
   });
 }
 
-export interface UpdateUserVars {
+interface UpdateUserVars {
   readonly id: string;
   readonly payload: UpdateUserPayload;
 }

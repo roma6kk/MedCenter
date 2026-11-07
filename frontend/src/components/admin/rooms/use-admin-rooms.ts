@@ -8,7 +8,7 @@ import { withQuery } from '@/lib/api/query-string';
 import type { AdminRoom, RoomPayload, RoomUsage } from './room-types';
 import { useAdminMutation } from '../shared/use-admin-mutation';
 
-export const ROOMS_PAGE_SIZE = 10;
+const ROOMS_PAGE_SIZE = 10;
 
 export function useAdminRooms(page: number, pageSize: number = ROOMS_PAGE_SIZE): UseQueryResult<PaginatedResponse<AdminRoom>, Error> {
   const params = { page, pageSize };
@@ -34,7 +34,7 @@ export function useCreateRoom(): UseMutationResult<AdminRoom, Error, RoomPayload
   });
 }
 
-export interface UpdateRoomVars {
+interface UpdateRoomVars {
   readonly id: string;
   readonly payload: RoomPayload;
 }

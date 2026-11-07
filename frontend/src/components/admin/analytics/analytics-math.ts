@@ -18,7 +18,7 @@ export function rankGroups(groups: ReadonlyArray<MeasureGroup>): ReadonlyArray<M
   return [...groups].sort((a, b) => b.count - a.count || (a.display ?? a.code).localeCompare(b.display ?? b.code));
 }
 
-export interface SplitGroups {
+interface SplitGroups {
   readonly named: ReadonlyArray<MeasureGroup>;
   readonly unnamed: ReadonlyArray<MeasureGroup>;
 }

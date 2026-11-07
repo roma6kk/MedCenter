@@ -8,7 +8,7 @@ export interface ReportRange {
 
 export type ReportRangeError = 'invalid' | 'order' | 'span';
 
-export const MAX_REPORT_DAYS = 366;
+const MAX_REPORT_DAYS = 366;
 
 export const DEFAULT_AUDIT_DAYS = 30;
 

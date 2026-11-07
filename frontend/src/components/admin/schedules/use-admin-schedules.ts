@@ -9,7 +9,7 @@ import type { SlotStatus } from '@/components/feedback/stamp-badge';
 import type { AdminSchedule, CreateSchedulePayload, GenerateSlotsPayload, GenerateSlotsResult, ScheduleSlot, UpdateSchedulePayload } from './schedule-types';
 import { useAdminMutation } from '../shared/use-admin-mutation';
 
-export const SCHEDULES_PAGE_SIZE = 10;
+const SCHEDULES_PAGE_SIZE = 10;
 
 export interface SchedulesFilter {
   readonly page: number;
@@ -37,7 +37,7 @@ export function useCreateSchedule(): UseMutationResult<AdminSchedule, Error, Cre
   });
 }
 
-export interface UpdateScheduleVars {
+interface UpdateScheduleVars {
   readonly id: string;
   readonly payload: UpdateSchedulePayload;
 }
@@ -50,12 +50,12 @@ export function useUpdateSchedule(): UseMutationResult<AdminSchedule, Error, Upd
   });
 }
 
-export interface DeleteScheduleVars {
+interface DeleteScheduleVars {
   readonly id: string;
   readonly cascade: boolean;
 }
 
-export interface DeleteScheduleResult {
+interface DeleteScheduleResult {
   readonly deactivated?: boolean;
 }
 

@@ -1,8 +1,8 @@
 import { z } from 'zod';
 import type { AdminRoom, RoomPayload } from './room-types';
 
-export const FLOOR_MIN = 1;
-export const FLOOR_MAX = 10;
+const FLOOR_MIN = 1;
+const FLOOR_MAX = 10;
 
 function isFloorInRange(value: string): boolean {
   if (value === '') return true;

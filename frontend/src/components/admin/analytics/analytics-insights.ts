@@ -1,9 +1,9 @@
 import { sharePercent, splitGroups, statusCounts } from './analytics-math';
 import type { AppointmentsReport, MeasureReport } from './analytics-types';
 
-export type CancellationComparison = 'overOthers' | 'overEach' | 'other';
+type CancellationComparison = 'overOthers' | 'overEach' | 'other';
 
-export interface CancellationInsight {
+interface CancellationInsight {
   readonly count: number;
   readonly total: number;
   readonly percent: number;
@@ -20,7 +20,7 @@ export function cancellationInsight(report: AppointmentsReport): CancellationIns
   return { count: cancelled, total: report.total, percent: sharePercent(cancelled, report.total), booked, noshow, comparison };
 }
 
-export interface NoshowInsight {
+interface NoshowInsight {
   readonly count: number;
   readonly percent: number;
 }
@@ -31,7 +31,7 @@ export function noshowInsight(report: AppointmentsReport): NoshowInsight | null 
   return { count: noshow, percent: sharePercent(noshow, report.total) };
 }
 
-export interface SpecialtyInsight {
+interface SpecialtyInsight {
   readonly name: string;
   readonly count: number;
   readonly total: number;

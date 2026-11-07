@@ -26,7 +26,7 @@ type CreateValues = z.infer<z.ZodObject<typeof createShape>>;
 type RoleValues = Pick<CreateValues, 'roles' | 'practitionerRoleId'> & { birthDate?: string };
 
 // Only a DOCTOR has a PractitionerRole id: the field is hidden otherwise, so what stays typed in it is neither sent nor validated.
-export function effectiveLink(values: Pick<RoleValues, 'roles' | 'practitionerRoleId'>): string {
+function effectiveLink(values: Pick<RoleValues, 'roles' | 'practitionerRoleId'>): string {
   return values.roles.includes('DOCTOR') ? values.practitionerRoleId : '';
 }
 

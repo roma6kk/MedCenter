@@ -2,14 +2,14 @@ import { daysInMonth, keyOf, partsOf, weekdayIndex } from '@/lib/calendar-grid';
 import { daysBetween, shiftDateKey } from '@/lib/clinic-time';
 import type { ReportRange } from '../shared/report-range';
 
-export type Granularity = 'day' | 'week' | 'month';
+type Granularity = 'day' | 'week' | 'month';
 
 export interface Bucket extends ReportRange {
   readonly granularity: Granularity;
 }
 
-export const DAY_BUCKETS_MAX_DAYS = 31;
-export const WEEK_BUCKETS_MAX_DAYS = 93;
+const DAY_BUCKETS_MAX_DAYS = 31;
+const WEEK_BUCKETS_MAX_DAYS = 93;
 
 export function granularityOf(range: ReportRange): Granularity {
   const days: number = daysBetween(range.from, range.to) + 1;
