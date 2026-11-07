@@ -4,7 +4,6 @@ import type { PageMetaDto, PaginatedResponseDto } from '@medcenter/contracts';
 import { NOTIFICATION_KINDS, type NotificationKind } from '../notification-kind';
 import type { NotificationResponseDto } from './notification-response.dto';
 
-/** Swagger description of `NotificationResponseDto` (API §8.1). */
 export class NotificationResponseDoc implements NotificationResponseDto {
   @ApiProperty({ description: 'Communication id (FHIR id)', example: '3f1c2a9e-7b4d-4c58-9a0e-5d6f8b1c2d3e' })
   id!: string;
@@ -52,7 +51,6 @@ export class PageMetaDoc implements PageMetaDto {
   totalPages!: number;
 }
 
-/** `PaginatedResponseDto<NotificationResponseDto>` for Swagger. */
 export class NotificationPageDoc implements PaginatedResponseDto<NotificationResponseDoc> {
   @ApiProperty({ type: [NotificationResponseDoc] })
   items!: NotificationResponseDoc[];
@@ -61,13 +59,11 @@ export class NotificationPageDoc implements PaginatedResponseDto<NotificationRes
   meta!: PageMetaDoc;
 }
 
-/** API §8.2 response. */
 export class UnreadCountDoc {
   @ApiProperty({ minimum: 0, example: 3 })
   count!: number;
 }
 
-/** API §8.4 response. */
 export class MarkAllReadDoc {
   @ApiProperty({ description: 'Notifications marked as read by this call (up to 200)', minimum: 0, example: 5 })
   updated!: number;

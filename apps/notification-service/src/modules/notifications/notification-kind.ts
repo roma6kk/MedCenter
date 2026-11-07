@@ -1,11 +1,6 @@
-/**
- * `Communication.topic` coding: which event a notification came from. The stored text is Russian, so a client words
- * the notification itself from the kind (and the start for a booking) in the user's language (NFR-008) and shows
- * the text only for a notification stored before the kind existed.
- */
+/** `Communication.topic` coding: clients word the notification from the kind in the user's language; the Russian text is a fallback. */
 export const NOTIFICATION_KIND_SYSTEM = 'https://fhir.by/CodeSystem/notification-kind';
 
-/** The stable identifiers of `kind` in API §8.1. A cancellation by the clinic is a kind of its own: it is worded differently. */
 export const NOTIFICATION_KINDS = [
   'appointment.booked',
   'appointment.cancelled',

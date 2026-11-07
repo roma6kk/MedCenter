@@ -3,13 +3,7 @@ import { claimsOf, FHIR_ID_PATTERN, type RequestWithClaims, requirePatientRef } 
 
 const PATIENT_REFERENCE = /^Patient\/((?!\.+$)[A-Za-z0-9\-.]{1,64})$/;
 
-/**
- * Patient compartment of the caller as `Patient/{id}`, from the token only
- * (ADR-013). The SMART `patient` claim is a bare Patient id (auth-service
- * contract) while `Communication.recipient` holds `Patient/{id}`: comparing or
- * searching with the bare id would never match the caller's own notifications.
- * A claim that is already a Patient reference is accepted; anything else fails closed.
- */
+/** The SMART `patient` claim is a bare id while `Communication.recipient` is `Patient/{id}`; anything else fails closed. */
 export function patientReferenceOf(request: RequestWithClaims): string {
   const claim = requirePatientRef(claimsOf(request));
   if (FHIR_ID_PATTERN.test(claim)) {

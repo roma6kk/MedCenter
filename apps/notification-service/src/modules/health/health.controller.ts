@@ -12,14 +12,7 @@ export interface HealthResponseDto {
   readonly consumer?: 'disconnected';
 }
 
-/**
- * Liveness probe for the container runtime (architect §7, compose
- * `x-bff-healthcheck`). Not routed by Traefik (only `/api/v1/**` is) and
- * carries no data, hence `@Public()`. Unlike the other services this one has a
- * background duty besides HTTP: while the RabbitMQ consumer is enabled but not
- * connected no notification is written, so the probe answers 503 and the
- * container shows as unhealthy instead of silently idle.
- */
+/** 503 while the consumer is enabled but disconnected: no notification is written, so the container must show unhealthy. */
 @ApiTags('notification')
 @Controller('health')
 export class HealthController {

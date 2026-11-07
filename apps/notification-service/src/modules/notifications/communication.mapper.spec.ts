@@ -6,7 +6,6 @@ import { NOTIFICATION_KIND_SYSTEM, NOTIFICATION_KINDS } from './notification-kin
 
 const BASE = { v: 1, eventId: 'evt-1', occurredAt: '2026-10-22T08:00:00.000Z' };
 
-/** An event as `parseNotificationEvent` hands it over; the fixtures name only the fields a case is about. */
 function event(fields: Record<string, unknown>): NotificationEvent {
   return { ...BASE, ...fields } as unknown as NotificationEvent;
 }

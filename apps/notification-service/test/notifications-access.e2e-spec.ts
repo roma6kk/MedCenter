@@ -17,7 +17,6 @@ interface Route {
   readonly label: string;
   readonly verb: 'get' | 'post';
   readonly path: string;
-  /** Scope the route demands, so the wrong-role case can carry it. */
   readonly scope: string;
 }
 
@@ -34,11 +33,6 @@ const TOKENS = {
   readOnly: bearer({ role: 'PATIENT', scope: 'patient/*.read launch', patient: 'pat-1' }),
 } as const;
 
-/**
- * Who may read and change notifications (API §8, ADR-013): a patient token with
- * the right scope and a `patient` claim, nobody else. Every refusal must happen
- * before HAPI is called.
- */
 describe('Notifications access control (e2e)', () => {
   let app: INestApplication;
   let fhir: jest.Mocked<FhirClient>;
@@ -74,10 +68,8 @@ describe('Notifications access control (e2e)', () => {
 
   describe.each(ROUTES)('$label', (route) => {
     it('should answer 401 UNAUTHENTICATED when the call carries no token', async () => {
-      // Act
       const response = await call(route).expect(401);
 
-      // Assert
       expect(response.body).toMatchObject({ status: 401, errorCode: 'UNAUTHENTICATED' });
       expectFhirUntouched();
     });
@@ -86,41 +78,32 @@ describe('Notifications access control (e2e)', () => {
       ['doctor', TOKENS.doctor],
       ['admin', TOKENS.admin],
     ])('should answer 403 FORBIDDEN_SCOPE when a %s token carries only user scopes', async (_role, token) => {
-      // Act
       const response = await call(route, token).expect(403);
 
-      // Assert
       expect(response.body).toMatchObject({ status: 403, errorCode: 'FORBIDDEN_SCOPE' });
       expectFhirUntouched();
     });
 
     it('should answer 403 FORBIDDEN_ROLE when a staff token carries the patient scope', async () => {
-      // Arrange
       const staffWithPatientScope = bearer({ role: 'DOCTOR', scope: `${route.scope} launch`, fhirUser: 'PractitionerRole/role-7' });
 
-      // Act
       const response = await call(route, staffWithPatientScope).expect(403);
 
-      // Assert
       expect(response.body).toMatchObject({ status: 403, errorCode: 'FORBIDDEN_ROLE' });
       expectFhirUntouched();
     });
 
     it('should answer 403 COMPARTMENT_VIOLATION when a patient token carries no patient claim', async () => {
-      // Act
       const response = await call(route, TOKENS.noPatientClaim).expect(403);
 
-      // Assert
       expect(response.body).toMatchObject({ status: 403, errorCode: 'COMPARTMENT_VIOLATION' });
       expectFhirUntouched();
     });
   });
 
   it('should answer 403 FORBIDDEN_SCOPE when a patient token holds only the read scope and marks a notification read', async () => {
-    // Act
     const response = await call(ROUTES[2] as Route, TOKENS.readOnly).expect(403);
 
-    // Assert
     expect(response.body).toMatchObject({ status: 403, errorCode: 'FORBIDDEN_SCOPE' });
     expectFhirUntouched();
   });

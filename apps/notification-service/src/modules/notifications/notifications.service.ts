@@ -12,14 +12,11 @@ export interface ListNotificationsQuery {
   readonly unreadOnly: boolean;
 }
 
-/** `Communication.status` is `in-progress` while unread and `completed` once read. */
 const UNREAD = 'in-progress';
 const READ = 'completed';
 
-/** Read-all handles at most this many unread notifications per call (one FHIR batch). */
 export const READ_ALL_LIMIT = 200;
 
-/** The id of the first `Communication.about` reference to `resourceType`, if any. */
 function aboutId(communication: FhirResource, resourceType: string): string | undefined {
   const about = (communication['about'] as Array<{ reference?: unknown }> | undefined) ?? [];
   const prefix = `${resourceType}/`;
@@ -27,14 +24,12 @@ function aboutId(communication: FhirResource, resourceType: string): string | un
   return reference === undefined ? undefined : reference.slice(prefix.length);
 }
 
-/** The `kind` a notification was stored with (`Communication.topic`); `undefined` for one stored before the kind existed. */
 function kindOf(communication: FhirResource): NotificationKind | undefined {
   const topic = communication['topic'] as { coding?: Array<{ system?: unknown; code?: unknown }> } | undefined;
   const code = topic?.coding?.find((coding) => coding.system === NOTIFICATION_KIND_SYSTEM)?.code;
   return isNotificationKind(code) ? code : undefined;
 }
 
-/** The booked start a booking notification carries as an extension. */
 function startOf(communication: FhirResource): string | undefined {
   const extensions = (communication['extension'] as Array<{ url?: unknown; valueDateTime?: unknown }> | undefined) ?? [];
   const value = extensions.find((extension) => extension.url === MEDCENTER_EXT.NOTIFICATION_APPOINTMENT_START)?.valueDateTime;
@@ -63,20 +58,11 @@ function toDto(communication: FhirResource): NotificationResponseDto {
   };
 }
 
-/**
- * Patient-facing reads over `Communication` (API §8). Notifications are stored
- * in HAPI, so there is no separate notification database (architect §4.4).
- * The patient is always the compartment from the token (ADR-013).
- */
 @Injectable()
 export class NotificationsService {
   constructor(@Inject(FHIR_CLIENT) private readonly fhir: FhirClient) {}
 
-  /**
-   * API §8.1 in the listing envelope of API §0. `_offset` is the FHIR search
-   * paging parameter (`_getpagesoffset` only exists on HAPI's own page links, so
-   * page 2 used to repeat page 1); `_total=accurate` supplies `totalItems`.
-   */
+  /** `_offset` is the FHIR paging parameter (`_getpagesoffset` exists only on HAPI's page links); `_total=accurate` gives totalItems. */
   async list(patientRef: string, query: ListNotificationsQuery): Promise<PaginatedResponseDto<NotificationResponseDto>> {
     const result = await this.fhir.search('Communication', {
       recipient: patientRef,
@@ -87,7 +73,6 @@ export class NotificationsService {
       ...(query.unreadOnly ? { status: UNREAD } : {}),
     });
     const items = (result.entry ?? []).map((entry) => toDto(entry.resource));
-    // Without `total` the count is at least what the pages up to this one hold.
     const totalItems = result.total ?? (query.page - 1) * query.pageSize + items.length;
     return buildPaginatedResponse(items, {
       page: query.page,
@@ -106,7 +91,6 @@ export class NotificationsService {
     return result.total ?? 0;
   }
 
-  /** Marks a notification read. Only the recipient may do it (COMPARTMENT_VIOLATION otherwise). */
   async markRead(patientRef: string, id: string): Promise<void> {
     const communication = await this.fhir.read('Communication', id);
     const recipients = (communication['recipient'] as Array<{ reference?: unknown }> | undefined) ?? [];
@@ -119,11 +103,7 @@ export class NotificationsService {
     await this.fhir.update('Communication', id, { ...communication, status: READ });
   }
 
-  /**
-   * API §8.4: marks every unread notification of the caller read, up to {@link READ_ALL_LIMIT} per call, in one FHIR
-   * `batch` of `PUT`s under `If-Match` (a notification changed meanwhile simply stays as it is). The search is the
-   * patient's own compartment, so no other recipient's notification can be touched. Returns how many became read.
-   */
+  /** One FHIR `batch` of PUTs under `If-Match` (a notification changed meanwhile stays as it is); searches the patient's own compartment only. */
   async markAllRead(patientRef: string): Promise<number> {
     const result = await this.fhir.search('Communication', { recipient: patientRef, status: UNREAD, _count: READ_ALL_LIMIT });
     const unread = (result.entry ?? []).map((entry) => entry.resource).filter((resource) => resource.id !== undefined);

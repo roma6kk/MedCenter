@@ -7,7 +7,7 @@ import { MEDCENTER_EXT } from '@medcenter/terminology';
 import type { NotificationEvent } from './notification-event';
 import { NOTIFICATION_KIND_SYSTEM, type NotificationKind } from './notification-kind';
 
-/** Text is built only from the fields the message needs: legacy event emails and encounter diagnoses must never reach the clinical store. */
+/** Text uses only the fields the message needs: legacy event emails and diagnoses must never reach the clinical store. */
 export function communicationFromEvent(event: NotificationEvent): FhirResource {
   const built = describe(event);
   return {
@@ -65,7 +65,7 @@ function describe(event: NotificationEvent): Described {
       return {
         category: 'appointment',
         kind: event.actorType === 'ADMIN' ? 'appointment.cancelled.by-admin' : 'appointment.cancelled',
-        // The free-text reason is health data: it is neither carried by the event nor copied into the message (ADR-021).
+        // The free-text reason is health data: never copied into the message.
         text:
           event.actorType === 'ADMIN'
             ? 'Клиника отменила вашу запись на приём. Выберите другое время в разделе «Записаться».'

@@ -26,19 +26,15 @@ const bookedEvent: AppointmentBookedEvent = {
 
 const notFound = (): FhirClientError => new FhirClientError('GET', 'http://hapi/Communication/x', 404);
 
-/** Lets the fake-timer clock run pending promise chains (`advanceTimersByTimeAsync` yields between timers). */
 const flushFakeTimers = (): Promise<void> => jest.advanceTimersByTimeAsync(0);
 
-/** Lets a real-timer promise chain settle (used where fake timers are off). */
 const drain = (): Promise<void> => new Promise((resolve) => setImmediate(resolve));
 
-/** Broker delivery as amqplib hands it to the consume callback. */
 const delivery = (body: unknown): { content: Buffer; properties: Record<string, unknown> } => ({
   content: Buffer.from(JSON.stringify(body)),
   properties: {},
 });
 
-/** Fake amqplib channel: an EventEmitter with the calls the consumer makes. */
 function fakeChannel() {
   return Object.assign(new EventEmitter(), {
     prefetch: jest.fn().mockResolvedValue(undefined),
@@ -52,7 +48,6 @@ function fakeChannel() {
   });
 }
 
-/** Fake amqplib connection; `emit('close')` simulates the broker dropping it. */
 function fakeConnection(channel = fakeChannel()) {
   return Object.assign(new EventEmitter(), {
     createChannel: jest.fn().mockResolvedValue(channel),
@@ -403,7 +398,6 @@ describe('ConsumerService', () => {
   describe('message handling', () => {
     let connection: ReturnType<typeof fakeConnection>;
 
-    /** Delivers a message to the first queue's consume callback. */
     const deliverTo = (message: unknown): void => {
       const onDelivery = connection.channel.consume.mock.calls[0]?.[1] as (message: unknown) => void;
       onDelivery(message);
@@ -495,7 +489,6 @@ describe('ConsumerService', () => {
       expect(connection.channel.ack).toHaveBeenCalledWith(first);
       expect(connection.channel.nack).not.toHaveBeenCalled();
 
-      // The retry queue dead-letters the copy back to the main queue after its delay; the claim was released.
       const [, content, options] = connection.channel.sendToQueue.mock.calls[0] as [string, Buffer, { headers: Record<string, unknown> }];
       const redelivery = { content, properties: { headers: options.headers } };
       deliverTo(redelivery);
@@ -580,7 +573,6 @@ describe('ConsumerService', () => {
       expect(connection.channel.nack).not.toHaveBeenCalled();
       expect(connection.channel.sendToQueue).toHaveBeenCalledTimes(2);
 
-      // The retry queue dead-letters the deferred copy back to the main queue; the claim was released, so it is written now.
       const [, deferredContent] = connection.channel.sendToQueue.mock.calls[0] as [string, Buffer];
       const redelivered = { content: deferredContent, properties: {} };
       deliverTo(redelivered);

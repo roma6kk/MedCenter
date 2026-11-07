@@ -19,7 +19,7 @@ function parsePositiveInt(raw: string | undefined, fallback: number, max: number
   return value;
 }
 
-/** `true` / `false`; absent or empty is `false`. Anything else is a typo, not "all": `400`, as `@IsIn(['true', 'false'])` in the other services. */
+/** Anything but true/false is a typo, not "all": 400. */
 function parseFlag(raw: string | undefined, name: string): boolean {
   if (raw === undefined || raw === '' || raw === 'false') {
     return false;
@@ -30,7 +30,6 @@ function parseFlag(raw: string | undefined, name: string): boolean {
   throw new BadRequestException({ errorCode: 'VALIDATION_ERROR', message: `${name} must be true or false` });
 }
 
-/** API §8.1–8.3 — the patient's own in-app notifications (FR-008). */
 @ApiTags('notification')
 @ApiBearerAuth()
 @Controller('api/v1/notifications')
@@ -71,7 +70,7 @@ export class NotificationsController {
     return { count: await this.notifications.unreadCount(patientRef) };
   }
 
-  /** API §8.4: every unread notification of the caller becomes read; answers how many did. Declared before `:id/read`. */
+  /** Declared before `:id/read`. */
   @Post('read-all')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: '8.4 Mark all my unread notifications as read' })

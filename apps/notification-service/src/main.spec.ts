@@ -31,7 +31,6 @@ interface FakeApp {
   readonly listen: jest.Mock;
 }
 
-/** An app that records the order of the calls `main.ts` makes on it. */
 function createFakeApp(): FakeApp {
   const calls: string[] = [];
   const record = (name: string) => jest.fn(() => calls.push(name));
@@ -49,11 +48,6 @@ function createFakeApp(): FakeApp {
   return { app, calls, set, disable, useGlobalPipes, listen };
 }
 
-/**
- * Runs `main.ts` the way `node` does: importing it starts the bootstrap, which
- * this waits out. Each run gets its own module registry, so the logger is
- * silenced inside it.
- */
 async function runMain(): Promise<void> {
   await jest.isolateModulesAsync(async () => {
     const { Logger } = await import('@nestjs/common');
@@ -87,13 +81,10 @@ describe('notification-service main', () => {
   });
 
   it('should trust the Traefik hop and hide X-Powered-By before the app listens when TRUST_PROXY is 1', async () => {
-    // Arrange
     process.env['TRUST_PROXY'] = '1';
 
-    // Act
     await runMain();
 
-    // Assert
     expect(fake.set).toHaveBeenCalledWith('trust proxy', 1);
     expect(fake.disable).toHaveBeenCalledWith('x-powered-by');
     expect(fake.calls.indexOf('set')).toBeLessThan(fake.calls.indexOf('listen'));
@@ -101,31 +92,24 @@ describe('notification-service main', () => {
   });
 
   it('should trust no proxy when TRUST_PROXY is not set', async () => {
-    // Act
     await runMain();
 
-    // Assert
     expect(fake.set).toHaveBeenCalledWith('trust proxy', false);
     expect(fake.listen).toHaveBeenCalledTimes(1);
   });
 
   it('should exit with code 1 and never listen when TRUST_PROXY is not a valid value', async () => {
-    // Arrange
     process.env['TRUST_PROXY'] = 'not-a-proxy';
 
-    // Act
     await runMain();
 
-    // Assert
     expect(exit).toHaveBeenCalledWith(1);
     expect(fake.listen).not.toHaveBeenCalled();
   });
 
   it('should mount the validation pipe and install the Redis-backed rate-limit store when the environment is complete', async () => {
-    // Act
     await runMain();
 
-    // Assert
     expect(fake.useGlobalPipes.mock.calls[0]?.[0]?.constructor.name).toBe('ValidationPipe');
     expect(mockRedis).toHaveBeenCalledWith(
       ENV['REDIS_URL'],
@@ -134,32 +118,24 @@ describe('notification-service main', () => {
   });
 
   it('should listen on the route-map port 3006 when PORT is not set', async () => {
-    // Act
     await runMain();
 
-    // Assert
     expect(fake.listen).toHaveBeenCalledWith(3006);
   });
 
   it('should listen on the PORT variable when it is set', async () => {
-    // Arrange
     process.env['PORT'] = '8080';
 
-    // Act
     await runMain();
 
-    // Assert
     expect(fake.listen).toHaveBeenCalledWith('8080');
   });
 
   it('should exit with code 1 before the app is created when REDIS_URL is missing', async () => {
-    // Arrange
     delete process.env['REDIS_URL'];
 
-    // Act
     await runMain();
 
-    // Assert
     expect(exit).toHaveBeenCalledWith(1);
     expect(mockCreate).not.toHaveBeenCalled();
   });
