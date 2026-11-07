@@ -1,7 +1,7 @@
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 
-export interface RouteTemplate {
+interface RouteTemplate {
   readonly service: string;
   readonly method: string;
   readonly path: string;

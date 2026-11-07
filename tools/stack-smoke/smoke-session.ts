@@ -1,7 +1,7 @@
 import { obtainTokenGrant } from '../demo-seed/oauth-pkce-client';
 import type { SmokeAccount, SmokeConfig, Session, TokenClaims } from './smoke-types';
 
-export const REQUESTED_SCOPE = 'launch patient/*.read patient/*.write user/*.read user/*.write';
+const REQUESTED_SCOPE = 'launch patient/*.read patient/*.write user/*.read user/*.write';
 
 export function decodeClaims(token: string): TokenClaims {
   const payload = token.split('.')[1];

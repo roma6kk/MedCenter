@@ -13,7 +13,7 @@ import { clinicDateOf } from './demo-slots';
 import { seedDemoFhir, type DemoFhirSummary } from './seed-demo-fhir';
 import { seedDemoUsers } from './seed-demo-users';
 
-export const MANIFEST_PATH = join(__dirname, 'output', 'demo-manifest.json');
+const MANIFEST_PATH = join(__dirname, 'output', 'demo-manifest.json');
 
 function printFhirSummary(summary: DemoFhirSummary): void {
   console.log(`Slot horizon: ${summary.horizon.from} .. ${summary.horizon.to}`);

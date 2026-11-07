@@ -15,7 +15,7 @@ export interface OAuthConfig {
   readonly scope: string;
 }
 
-export interface LoginCredentials {
+interface LoginCredentials {
   readonly email: string;
   readonly password: string;
 }
@@ -156,7 +156,7 @@ async function resumeAuthorization(context: FlowContext, location: string): Prom
   return readAuthorizationCode(redirectLocation(response, 'authorize'), config.redirectUri, state);
 }
 
-export interface TokenGrant {
+interface TokenGrant {
   readonly accessToken: string;
   readonly scope?: string;
 }

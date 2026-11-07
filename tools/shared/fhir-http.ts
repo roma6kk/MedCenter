@@ -4,7 +4,7 @@ export interface FhirResource {
   readonly [element: string]: unknown;
 }
 
-export interface BundleEntryResponse {
+interface BundleEntryResponse {
   readonly status?: string;
   readonly location?: string;
   readonly etag?: string;
@@ -22,7 +22,7 @@ export interface Bundle {
   readonly link?: ReadonlyArray<{ readonly relation?: string; readonly url?: string }>;
 }
 
-export interface BundleRequestEntry {
+interface BundleRequestEntry {
   readonly method: 'PUT' | 'POST' | 'DELETE';
   readonly url: string;
   readonly resource?: FhirResource;
@@ -30,7 +30,7 @@ export interface BundleRequestEntry {
 }
 
 export type FetchLike = (url: string, init?: RequestInit) => Promise<Response>;
-export type SearchParams = Readonly<Record<string, string | readonly string[]>>;
+type SearchParams = Readonly<Record<string, string | readonly string[]>>;
 
 const FHIR_JSON = 'application/fhir+json';
 const MAX_SEARCH_PAGES = 50;

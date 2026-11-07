@@ -37,7 +37,7 @@ export function randomState(): string {
   return randomBytes(16).toString('base64url');
 }
 
-export interface PasswordSources {
+interface PasswordSources {
   readonly fromEnv?: string;
   readonly fromManifest?: string;
 }

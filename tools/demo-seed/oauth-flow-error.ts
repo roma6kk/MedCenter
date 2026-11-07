@@ -1,4 +1,4 @@
-export type OAuthStep = 'authorize' | 'login' | 'token';
+type OAuthStep = 'authorize' | 'login' | 'token';
 
 export class OAuthFlowError extends Error {
   constructor(

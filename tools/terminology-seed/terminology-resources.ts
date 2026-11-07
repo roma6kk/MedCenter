@@ -24,7 +24,7 @@ export interface SeedConcept {
   readonly display: string;
 }
 
-export interface SeedCodeSystem extends FhirResource {
+interface SeedCodeSystem extends FhirResource {
   readonly resourceType: 'CodeSystem';
   readonly id: string;
   readonly url: string;
@@ -38,7 +38,7 @@ export interface SeedCodeSystem extends FhirResource {
   readonly concept: readonly SeedConcept[];
 }
 
-export interface SeedValueSetInclude {
+interface SeedValueSetInclude {
   readonly system: string;
   readonly concept?: readonly SeedConcept[];
 }

@@ -10,7 +10,7 @@ export interface WeeklyWindow {
   readonly endTime: string;
 }
 
-export interface SlotInterval {
+interface SlotInterval {
   readonly start: string;
   readonly end: string;
 }

@@ -9,7 +9,7 @@ export interface RequestOptions {
   readonly query?: Readonly<Record<string, string | number | boolean | undefined>>;
 }
 
-export type ResponseListener = (method: string, path: string, status: number) => void;
+type ResponseListener = (method: string, path: string, status: number) => void;
 
 function withQuery(path: string, query: RequestOptions['query']): string {
   const entries = Object.entries(query ?? {}).filter((entry): entry is [string, string | number | boolean] => entry[1] !== undefined);

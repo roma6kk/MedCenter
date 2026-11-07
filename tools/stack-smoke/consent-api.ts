@@ -5,7 +5,7 @@ import { newKey, type Suite } from './suite';
 
 const CLERK_NAME = 'Смоук Регистратор';
 
-export function scanBytes(tag: string): Buffer {
+function scanBytes(tag: string): Buffer {
   return demoScanPdf(`smoke-${tag}`);
 }
 

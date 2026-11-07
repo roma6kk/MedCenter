@@ -47,7 +47,7 @@ export function scanHash(bytes: Buffer): string {
   return createHash('sha1').update(bytes).digest('base64');
 }
 
-export interface PlannedDemoConsent {
+interface PlannedDemoConsent {
   readonly binary: FhirResource;
   readonly consent: FhirResource;
 }
@@ -87,7 +87,7 @@ export function planDemoConsent(patient: PatientDef, patientId: string, now: Dat
   return { binary, consent: { ...consent, id: seedResourceId('Consent', `emr/${key}`) } };
 }
 
-export interface ConsentSelection {
+interface ConsentSelection {
   readonly withConsent: readonly PatientDef[];
   readonly withoutConsent: readonly PatientDef[];
 }
@@ -107,14 +107,14 @@ export function selectConsentPatients(
   };
 }
 
-export interface DemoConsentsSummary {
+interface DemoConsentsSummary {
   readonly created: readonly string[];
   readonly alreadyActive: readonly string[];
   readonly withoutConsent: readonly string[];
   readonly missing: readonly string[];
 }
 
-export interface DemoConsentsOptions extends ConsentSelection {
+interface DemoConsentsOptions extends ConsentSelection {
   readonly now: Date;
 }
 

@@ -2,7 +2,7 @@ import type { FhirHttp, FhirResource } from '../shared/fhir-http';
 import { expansionCodes } from './expansion-codes';
 import { buildExpansionChecks, TERMINOLOGY_URLS, type ExpansionCheck, type SeedConcept } from './terminology-resources';
 
-export interface KeyCode {
+interface KeyCode {
   readonly label: string;
   readonly valueSetUrl: string;
   readonly code: string;

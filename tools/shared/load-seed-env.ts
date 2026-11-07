@@ -2,7 +2,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { parseEnv } from 'node:util';
 
-export const SEED_ENV_NAMES: readonly string[] = [
+const SEED_ENV_NAMES: readonly string[] = [
   'BOOTSTRAP_ADMIN_EMAIL',
   'BOOTSTRAP_ADMIN_PASSWORD',
   'SEED_FHIR_BASE_URL',

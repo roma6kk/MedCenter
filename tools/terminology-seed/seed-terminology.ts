@@ -13,7 +13,7 @@ import {
   type SeedValueSet,
 } from './terminology-resources';
 
-export interface ExpandReport {
+interface ExpandReport {
   readonly valueSetUrl: string;
   readonly total: number;
   readonly missingCodes: readonly string[];
@@ -23,7 +23,7 @@ export interface ExpansionReport extends ExpandReport {
   readonly rejectedCodes: readonly string[];
 }
 
-export interface TerminologySeedSummary {
+interface TerminologySeedSummary {
   readonly upserts: readonly UpsertResult[];
   readonly expansions: readonly ExpansionReport[];
   readonly keyCodes: readonly KeyCodeProof[];
@@ -34,7 +34,7 @@ export { expansionCodes, findMissingCodes };
 
 const MIN_EXPANSION_COUNT = 1000;
 
-export async function verifyExpansion(http: FhirHttp, check: ExpansionCheck): Promise<ExpandReport> {
+async function verifyExpansion(http: FhirHttp, check: ExpansionCheck): Promise<ExpandReport> {
   const count = Math.max(MIN_EXPANSION_COUNT, check.expectedCodes.length * 2);
   const expanded = await http.operation('ValueSet/$expand', { url: check.valueSetUrl, count: String(count) });
   const returned = expansionCodes(expanded);

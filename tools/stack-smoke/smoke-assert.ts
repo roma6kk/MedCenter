@@ -74,7 +74,7 @@ export function bodyObject(response: ApiResponse): JsonObject {
   return asObject(response.body, `the body of ${describe(response)}`);
 }
 
-export type FieldType = 'string' | 'number' | 'boolean' | 'array' | 'object';
+type FieldType = 'string' | 'number' | 'boolean' | 'array' | 'object';
 
 export type FieldSpec = Readonly<Record<string, FieldType | `${FieldType}?`>>;
 

@@ -23,7 +23,7 @@ export interface DemoUsersSection {
   readonly accounts: readonly DemoUserRecord[];
 }
 
-export interface DemoFhirManifest {
+interface DemoFhirManifest {
   readonly generatedAt: string;
   readonly fhirBaseUrl: string;
   readonly organizationId: string;

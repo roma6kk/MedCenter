@@ -14,12 +14,12 @@ export interface SmokeSessions {
   readonly thirdPatient: Session;
 }
 
-export interface SlotRef {
+interface SlotRef {
   readonly id: string;
   readonly start: string;
 }
 
-export interface ChainState {
+interface ChainState {
   appointmentId?: string;
   encounterId?: string;
   slot?: SlotRef;

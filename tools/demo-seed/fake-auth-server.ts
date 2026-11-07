@@ -13,7 +13,7 @@ export interface FakeAuthOptions {
   readonly redirectOverride?: string;
 }
 
-export interface RecordedRequest {
+interface RecordedRequest {
   readonly method: string;
   readonly path: string;
   readonly cookie?: string;

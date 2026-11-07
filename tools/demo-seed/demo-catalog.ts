@@ -59,7 +59,7 @@ export interface PatientDef {
   readonly gender: 'male' | 'female';
 }
 
-export interface AdminDef {
+interface AdminDef {
   readonly emailLocal: string;
   readonly firstName: string;
   readonly lastName: string;

@@ -20,12 +20,12 @@ export interface DemoSeedOptions {
   readonly now: Date;
 }
 
-export interface WriteStats {
+interface WriteStats {
   readonly created: number;
   readonly updated: number;
 }
 
-export interface ScheduleSlotStats {
+interface ScheduleSlotStats {
   readonly scheduleKey: string;
   readonly scheduleId: string;
   readonly planned: number;

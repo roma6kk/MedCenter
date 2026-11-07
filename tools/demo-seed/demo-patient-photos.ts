@@ -1,13 +1,13 @@
 import type { FhirHttp, FhirResource } from '../shared/fhir-http';
 import { PATIENTS, patientPhotoUrl, type PatientDef } from './demo-catalog';
 
-export interface PatientPhotoSummary {
+interface PatientPhotoSummary {
   readonly updated: readonly string[];
   readonly unchanged: readonly string[];
   readonly missing: readonly string[];
 }
 
-export function withPhoto(patient: FhirResource, def: PatientDef): FhirResource {
+function withPhoto(patient: FhirResource, def: PatientDef): FhirResource {
   const photo = { contentType: 'image/jpeg', url: patientPhotoUrl(def), title: `${def.lastName} ${def.firstName}` };
   return { ...patient, photo: [photo] };
 }

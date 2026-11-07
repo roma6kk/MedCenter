@@ -1,12 +1,12 @@
 import type { Bundle, FhirHttp, FhirResource } from '../shared/fhir-http';
 
-export interface RepairSummary {
+interface RepairSummary {
   readonly fulfilled: readonly string[];
   readonly failed: ReadonlyArray<{ readonly id: string; readonly status: string }>;
   readonly leftovers: Leftovers;
 }
 
-export interface Leftovers {
+interface Leftovers {
   readonly inactiveSchedules: number;
   readonly checkResources: readonly string[];
 }

@@ -30,7 +30,7 @@ export interface PlannedAccount {
 
 const ERROR_EXCERPT_LENGTH = 300;
 
-export const DEMO_ACCOUNT_CONSENT_VERSION = '2026-10';
+const DEMO_ACCOUNT_CONSENT_VERSION = '2026-10';
 
 export function emailOf(local: string, domain: string): string {
   return `${local}@${domain}`;
