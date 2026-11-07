@@ -41,6 +41,11 @@ beforeEach(() => useUiStore.setState({ locale: 'ru' }));
 const field = (): HTMLInputElement => screen.getByLabelText('Дата') as HTMLInputElement;
 const openButton = (): HTMLElement => screen.getByRole('button', { name: 'Выбрать дату в календаре' });
 
+async function typeAndLeave(text: string): Promise<void> {
+  await userEvent.type(field(), text);
+  await userEvent.tab();
+}
+
 describe('DatePicker text field', () => {
   it('should show the day day-first and keep the ISO day as the value when the form already holds one', () => {
     render(<Harness initial="2026-10-27" />);
@@ -70,8 +75,7 @@ describe('DatePicker text field', () => {
     render(<Harness initial="2026-10-27" />);
 
     await userEvent.clear(field());
-    await userEvent.type(field(), '31.02.2026');
-    await userEvent.tab();
+    await typeAndLeave('31.02.2026');
 
     expect(screen.getByTestId('value')).toHaveTextContent(/^$/);
     expect(field()).toHaveValue('31.02.2026');
@@ -90,8 +94,7 @@ describe('DatePicker text field', () => {
   it('should write a typed ISO day in the standard form when the field loses focus', async () => {
     render(<Harness />);
 
-    await userEvent.type(field(), '2026-03-05');
-    await userEvent.tab();
+    await typeAndLeave('2026-03-05');
 
     expect(field()).toHaveValue('05.03.2026');
   });
@@ -139,8 +142,7 @@ describe('DatePicker unreadable text (WCAG 3.3.1, 1.4.1)', () => {
   it('should refuse a typed day before min and name the earliest day', async () => {
     render(<Harness min="2026-10-20" />);
 
-    await userEvent.type(field(), '19.10.2026');
-    await userEvent.tab();
+    await typeAndLeave('19.10.2026');
 
     expect(screen.getByTestId('value')).toHaveTextContent(/^$/);
     expect(screen.getByRole('alert')).toHaveTextContent('Дата не раньше 20.10.2026');
@@ -149,8 +151,7 @@ describe('DatePicker unreadable text (WCAG 3.3.1, 1.4.1)', () => {
   it('should accept a typed day on the edge of min and max', async () => {
     render(<Harness min="2026-10-20" max="2026-10-29" />);
 
-    await userEvent.type(field(), '29.10.2026');
-    await userEvent.tab();
+    await typeAndLeave('29.10.2026');
 
     expect(screen.getByTestId('value')).toHaveTextContent('2026-10-29');
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
@@ -159,8 +160,7 @@ describe('DatePicker unreadable text (WCAG 3.3.1, 1.4.1)', () => {
   it('should say what is wrong and which form is read when the visitor leaves the field with a text that is not a day', async () => {
     render(<Harness />);
 
-    await userEvent.type(field(), '31.02.2026');
-    await userEvent.tab();
+    await typeAndLeave('31.02.2026');
 
     expect(screen.getByRole('alert')).toHaveTextContent(MESSAGE);
     expect(field()).toHaveAccessibleDescription(MESSAGE);
@@ -179,16 +179,14 @@ describe('DatePicker unreadable text (WCAG 3.3.1, 1.4.1)', () => {
     render(<Harness describedBy="hint" />);
     expect(field()).toHaveAttribute('aria-describedby', 'hint');
 
-    await userEvent.type(field(), '31.02.2026');
-    await userEvent.tab();
+    await typeAndLeave('31.02.2026');
 
     expect(field().getAttribute('aria-describedby')).toMatch(/^hint \S+-unreadable$/);
   });
 
   it('should keep the explanation while the text is corrected and drop it once the text is a day', async () => {
     render(<Harness />);
-    await userEvent.type(field(), '31.02.2026');
-    await userEvent.tab();
+    await typeAndLeave('31.02.2026');
 
     fireEvent.change(field(), { target: { value: '31.02.202' } });
     expect(screen.getByRole('alert')).toBeInTheDocument();
@@ -201,8 +199,7 @@ describe('DatePicker unreadable text (WCAG 3.3.1, 1.4.1)', () => {
 
   it('should drop the explanation when the text is cleared', async () => {
     render(<Harness />);
-    await userEvent.type(field(), '31.02.2026');
-    await userEvent.tab();
+    await typeAndLeave('31.02.2026');
 
     await userEvent.clear(field());
 
@@ -211,8 +208,7 @@ describe('DatePicker unreadable text (WCAG 3.3.1, 1.4.1)', () => {
 
   it('should be silent again for the next half-typed text once a day was picked in the calendar', async () => {
     render(<Harness />);
-    await userEvent.type(field(), '31.02.2026');
-    await userEvent.tab();
+    await typeAndLeave('31.02.2026');
     expect(screen.getByRole('alert')).toBeInTheDocument();
 
     await userEvent.click(openButton());
@@ -227,8 +223,7 @@ describe('DatePicker unreadable text (WCAG 3.3.1, 1.4.1)', () => {
   it('should keep the calendar button in the box of the field, so the line under the field does not pull it down', async () => {
     render(<Harness />);
 
-    await userEvent.type(field(), '31.02.2026');
-    await userEvent.tab();
+    await typeAndLeave('31.02.2026');
 
     const box = openButton().parentElement as HTMLElement;
     expect(box).toContainElement(field());
@@ -239,8 +234,7 @@ describe('DatePicker unreadable text (WCAG 3.3.1, 1.4.1)', () => {
     useUiStore.setState({ locale: 'en' });
     render(<Harness />);
 
-    await userEvent.type(field(), '31.02.2026');
-    await userEvent.tab();
+    await typeAndLeave('31.02.2026');
 
     expect(screen.getByRole('alert')).toHaveTextContent('Not a valid date. Format: dd.mm.yyyy');
   });

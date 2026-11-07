@@ -35,11 +35,15 @@ function installSystemScheme(initialDark: boolean): { setSystemDark: (dark: bool
 
 const theme = (): string | undefined => document.documentElement.dataset['theme'];
 
+beforeEach(() => {
+  window.localStorage.clear();
+  delete document.documentElement.dataset['theme'];
+  useUiStore.setState({ themeMode: 'system' });
+});
+
 describe('ThemeSwitcher', () => {
   beforeEach(() => {
-    window.localStorage.clear();
-    delete document.documentElement.dataset['theme'];
-    useUiStore.setState({ locale: 'ru', themeMode: 'system' });
+    useUiStore.setState({ locale: 'ru' });
     installSystemScheme(false);
   });
 
@@ -124,12 +128,6 @@ describe('ThemeSwitcher', () => {
 });
 
 describe('ThemeSync', () => {
-  beforeEach(() => {
-    window.localStorage.clear();
-    delete document.documentElement.dataset['theme'];
-    useUiStore.setState({ themeMode: 'system' });
-  });
-
   it('should restore the saved mode into the store without touching the painted theme when it mounts', () => {
     installSystemScheme(false);
     window.localStorage.setItem(THEME_STORAGE_KEY, 'dark');

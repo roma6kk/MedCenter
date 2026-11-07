@@ -12,11 +12,14 @@ function renderMenu(overrides: { readonly onEdit?: () => void; readonly onDelete
   render(<><button type="button">До</button><DropdownMenu label="Действия: Иванов" items={items} /><button type="button">После</button></>);
 }
 
+const menuButton = (): HTMLElement => screen.getByRole('button', { name: 'Действия: Иванов' });
+const openMenu = (): Promise<void> => userEvent.click(menuButton());
+
 describe('DropdownMenu', () => {
   it('should offer a button with an accessible name that announces a menu and is collapsed at first', () => {
     renderMenu();
 
-    const button = screen.getByRole('button', { name: 'Действия: Иванов' });
+    const button = menuButton();
 
     expect(button).toHaveAttribute('aria-haspopup', 'menu');
     expect(button).toHaveAttribute('aria-expanded', 'false');
@@ -26,17 +29,17 @@ describe('DropdownMenu', () => {
   it('should open a menu of items and focus the first one when the button is pressed', async () => {
     renderMenu();
 
-    await userEvent.click(screen.getByRole('button', { name: 'Действия: Иванов' }));
+    await openMenu();
 
     expect(screen.getByRole('menu', { name: 'Действия: Иванов' })).toBeInTheDocument();
     expect(screen.getAllByRole('menuitem').map((item) => item.textContent)).toEqual(['Изменить', 'Открыть', 'Удалить']);
     expect(screen.getByRole('menuitem', { name: 'Изменить' })).toHaveFocus();
-    expect(screen.getByRole('button', { name: 'Действия: Иванов' })).toHaveAttribute('aria-expanded', 'true');
+    expect(menuButton()).toHaveAttribute('aria-expanded', 'true');
   });
 
   it('should open with the arrow key on the button', async () => {
     renderMenu();
-    screen.getByRole('button', { name: 'Действия: Иванов' }).focus();
+    menuButton().focus();
 
     await userEvent.keyboard('{ArrowDown}');
 
@@ -45,7 +48,7 @@ describe('DropdownMenu', () => {
 
   it('should move between the items with the arrow keys and wrap around at the ends', async () => {
     renderMenu();
-    await userEvent.click(screen.getByRole('button', { name: 'Действия: Иванов' }));
+    await openMenu();
 
     await userEvent.keyboard('{ArrowDown}');
     expect(screen.getByRole('menuitem', { name: 'Открыть' })).toHaveFocus();
@@ -61,17 +64,17 @@ describe('DropdownMenu', () => {
 
   it('should close on Escape and return the focus to the button', async () => {
     renderMenu();
-    await userEvent.click(screen.getByRole('button', { name: 'Действия: Иванов' }));
+    await openMenu();
 
     await userEvent.keyboard('{Escape}');
 
     expect(screen.queryByRole('menu')).not.toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Действия: Иванов' })).toHaveFocus();
+    expect(menuButton()).toHaveFocus();
   });
 
   it('should close when a click lands outside the menu', async () => {
     renderMenu();
-    await userEvent.click(screen.getByRole('button', { name: 'Действия: Иванов' }));
+    await openMenu();
 
     await userEvent.click(screen.getByRole('button', { name: 'После' }));
 
@@ -79,9 +82,9 @@ describe('DropdownMenu', () => {
   });
 
   it('should run the action after the menu closed and the focus is back on the button when an item is chosen', async () => {
-    const onEdit = jest.fn(() => expect(screen.getByRole('button', { name: 'Действия: Иванов' })).toHaveFocus());
+    const onEdit = jest.fn(() => expect(menuButton()).toHaveFocus());
     renderMenu({ onEdit });
-    await userEvent.click(screen.getByRole('button', { name: 'Действия: Иванов' }));
+    await openMenu();
 
     await userEvent.click(screen.getByRole('menuitem', { name: 'Изменить' }));
 
@@ -92,7 +95,7 @@ describe('DropdownMenu', () => {
   it('should activate an item with Enter', async () => {
     const onDelete = jest.fn();
     renderMenu({ onDelete });
-    await userEvent.click(screen.getByRole('button', { name: 'Действия: Иванов' }));
+    await openMenu();
 
     await userEvent.keyboard('{End}{Enter}');
 
@@ -101,14 +104,14 @@ describe('DropdownMenu', () => {
 
   it('should render a link item as a menu item that points at its address', async () => {
     renderMenu();
-    await userEvent.click(screen.getByRole('button', { name: 'Действия: Иванов' }));
+    await openMenu();
 
     expect(screen.getByRole('menuitem', { name: 'Открыть' })).toHaveAttribute('href', '/somewhere');
   });
 
   it('should write a destructive item in red with an icon so the meaning is not only a colour', async () => {
     renderMenu();
-    await userEvent.click(screen.getByRole('button', { name: 'Действия: Иванов' }));
+    await openMenu();
 
     const item = screen.getByRole('menuitem', { name: 'Удалить' });
 
@@ -119,19 +122,19 @@ describe('DropdownMenu', () => {
 
   it('should close the menu and hand the focus back to the button when Tab is pressed inside it', async () => {
     renderMenu();
-    await userEvent.click(screen.getByRole('button', { name: 'Действия: Иванов' }));
+    await openMenu();
 
     await userEvent.tab();
 
     expect(screen.queryByRole('menu')).not.toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Действия: Иванов' })).toHaveFocus();
+    expect(menuButton()).toHaveFocus();
   });
 });
 
 describe('DropdownMenu and the viewport', () => {
   it('should stay open and follow its button when the page scrolls', async () => {
     renderMenu();
-    await userEvent.click(screen.getByRole('button', { name: 'Действия: Иванов' }));
+    await openMenu();
 
     act(() => {
       window.dispatchEvent(new Event('scroll'));
@@ -143,6 +146,9 @@ describe('DropdownMenu and the viewport', () => {
 });
 
 describe('DropdownMenu as a profile menu', () => {
+  const profileButton = (): HTMLElement => screen.getByRole('button', { name: 'Профиль' });
+
+
   function renderProfileMenu(onChoose: (value: string) => void = jest.fn()): void {
     const items: ReadonlyArray<MenuItem> = [
       { key: 'ru', label: 'Русский', heading: 'Язык', checked: true, onSelect: () => onChoose('ru') },
@@ -155,7 +161,7 @@ describe('DropdownMenu as a profile menu', () => {
   it('should show the given content on the button instead of the dots and not force the square size on it', () => {
     renderProfileMenu();
 
-    const button = screen.getByRole('button', { name: 'Профиль' });
+    const button = profileButton();
 
     expect(button).toHaveTextContent('Иванова М.');
     expect(button).not.toHaveClass('size-11');
@@ -163,7 +169,7 @@ describe('DropdownMenu as a profile menu', () => {
 
   it('should offer a group as menu radios with the chosen one ticked and a caption above the group', async () => {
     renderProfileMenu();
-    await userEvent.click(screen.getByRole('button', { name: 'Профиль' }));
+    await userEvent.click(profileButton());
 
     expect(screen.getByRole('menuitemradio', { name: 'Русский' })).toHaveAttribute('aria-checked', 'true');
     expect(screen.getByRole('menuitemradio', { name: 'English' })).toHaveAttribute('aria-checked', 'false');
@@ -175,7 +181,7 @@ describe('DropdownMenu as a profile menu', () => {
   it('should reach the radio items with the arrow keys and run the chosen one', async () => {
     const onChoose = jest.fn();
     renderProfileMenu(onChoose);
-    await userEvent.click(screen.getByRole('button', { name: 'Профиль' }));
+    await userEvent.click(profileButton());
 
     await userEvent.keyboard('{ArrowDown}{Enter}');
 

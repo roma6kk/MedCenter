@@ -42,6 +42,12 @@ function renderBell(client: QueryClient = new QueryClient({ defaultOptions: { qu
   return render(<NotificationBell />, { wrapper: Wrapper });
 }
 
+function renderEmptyBell(): ReturnType<typeof render> {
+  unreadMock.mockResolvedValue(0);
+  listMock.mockResolvedValue(page([]));
+  return renderBell();
+}
+
 describe('NotificationBell', () => {
   beforeEach(() => {
     jest.resetAllMocks();
@@ -153,9 +159,7 @@ describe('NotificationBell', () => {
     });
 
     it('should say there is nothing yet when the list is empty, and offer no «mark all»', async () => {
-      unreadMock.mockResolvedValue(0);
-      listMock.mockResolvedValue(page([]));
-      renderBell();
+      renderEmptyBell();
 
       const panel = await openBell();
 
@@ -164,9 +168,7 @@ describe('NotificationBell', () => {
     });
 
     it('should close on Escape and give the focus back to the bell', async () => {
-      unreadMock.mockResolvedValue(0);
-      listMock.mockResolvedValue(page([]));
-      renderBell();
+      renderEmptyBell();
       await openBell();
 
       await userEvent.keyboard('{Escape}');
@@ -176,9 +178,7 @@ describe('NotificationBell', () => {
     });
 
     it('should close on a press outside', async () => {
-      unreadMock.mockResolvedValue(0);
-      listMock.mockResolvedValue(page([]));
-      renderBell();
+      renderEmptyBell();
       await openBell();
 
       await userEvent.click(document.body);
