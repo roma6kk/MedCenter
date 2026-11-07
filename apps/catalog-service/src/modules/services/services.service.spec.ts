@@ -170,12 +170,15 @@ describe('ServicesService', () => {
 
   describe('list', () => {
     const catalogBundle = { entry: [{ resource: { resourceType: 'HealthcareService', id: serviceId, name: 'Therapy' } }] };
+    let store: InMemoryCacheStore;
 
-    it('should cache the plain listing under one key per page when no search term is given', async () => {
-      const store = new InMemoryCacheStore();
+    beforeEach(() => {
+      store = new InMemoryCacheStore();
       servicesService = new ServicesService(fhirClient, new RedisCacheService(store));
       fhirClient.search.mockResolvedValue(catalogBundle);
+    });
 
+    it('should cache the plain listing under one key per page when no search term is given', async () => {
       await servicesService.list(2, 20);
       await servicesService.list(2, 20);
 
@@ -184,10 +187,6 @@ describe('ServicesService', () => {
     });
 
     it('should not cache anything when a search term is given', async () => {
-      const store = new InMemoryCacheStore();
-      servicesService = new ServicesService(fhirClient, new RedisCacheService(store));
-      fhirClient.search.mockResolvedValue(catalogBundle);
-
       await servicesService.list(1, 20, 'терапевт');
       await servicesService.list(1, 20, 'терапевт');
 
@@ -203,10 +202,6 @@ describe('ServicesService', () => {
     });
 
     it('should treat a blank search term as the plain listing when only whitespace is sent', async () => {
-      const store = new InMemoryCacheStore();
-      servicesService = new ServicesService(fhirClient, new RedisCacheService(store));
-      fhirClient.search.mockResolvedValue(catalogBundle);
-
       await servicesService.list(1, 20, '   ');
 
       expect([...store.entries.keys()]).toEqual([CACHE_KEYS.SERVICES_PAGE(1, 20)]);
@@ -214,9 +209,6 @@ describe('ServicesService', () => {
     });
 
     it('should clear every cached page when a service is created', async () => {
-      const store = new InMemoryCacheStore();
-      servicesService = new ServicesService(fhirClient, new RedisCacheService(store));
-      fhirClient.search.mockResolvedValue(catalogBundle);
       fhirClient.operation.mockResolvedValue(lookupFound);
       await servicesService.list(1, 20);
       await servicesService.list(2, 20);
