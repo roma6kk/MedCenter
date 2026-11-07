@@ -42,10 +42,6 @@ interface Described {
   readonly start?: string;
 }
 
-function startText(start: string): string {
-  return formatClinicDateTime(start) ?? start;
-}
-
 function startInstant(start: string): string | undefined {
   const epochMs = Date.parse(start);
   return Number.isNaN(epochMs) ? undefined : new Date(epochMs).toISOString();
@@ -57,7 +53,7 @@ function describe(event: NotificationEvent): Described {
       return {
         category: 'appointment',
         kind: 'appointment.booked',
-        text: `Вы записаны на приём. Начало: ${startText(event.start)} (время Минска)`,
+        text: `Вы записаны на приём. Начало: ${formatClinicDateTime(event.start) ?? event.start} (время Минска)`,
         about: `Appointment/${event.appointmentId}`,
         start: startInstant(event.start),
       };

@@ -6,7 +6,7 @@ import { MEDCENTER_EXT } from '@medcenter/terminology';
 import type { NotificationResponseDto } from './dto/notification-response.dto';
 import { isNotificationKind, NOTIFICATION_KIND_SYSTEM, type NotificationKind } from './notification-kind';
 
-export interface ListNotificationsQuery {
+interface ListNotificationsQuery {
   readonly page: number;
   readonly pageSize: number;
   readonly unreadOnly: boolean;
@@ -15,7 +15,7 @@ export interface ListNotificationsQuery {
 const UNREAD = 'in-progress';
 const READ = 'completed';
 
-export const READ_ALL_LIMIT = 200;
+const READ_ALL_LIMIT = 200;
 
 function aboutId(communication: FhirResource, resourceType: string): string | undefined {
   const about = (communication['about'] as Array<{ reference?: unknown }> | undefined) ?? [];

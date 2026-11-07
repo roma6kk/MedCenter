@@ -10,10 +10,10 @@ export interface DedupStore {
 
 export const DEDUP_STORE = Symbol('DEDUP_STORE');
 
-export const DEDUP_TTL_SECONDS = 7 * 24 * 60 * 60;
+const DEDUP_TTL_SECONDS = 7 * 24 * 60 * 60;
 
 /** Lease on an in-progress claim: a crashed write is taken over after it expires, not after the whole dedup window. */
-export const IN_PROGRESS_LEASE_SECONDS = 60;
+const IN_PROGRESS_LEASE_SECONDS = 60;
 
 export class EventInProgressError extends Error {
   constructor(eventId: string) {
