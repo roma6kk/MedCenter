@@ -8,7 +8,7 @@ jest.setTimeout(30_000);
 import { act, fireEvent, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { callsTo } from './doctor-test-utils';
-import { apiFetchMock, COMPLETE, completeCall, completeRoute, DIAGNOSIS_DISPLAY, diagnosisInput, fillRequired, setup, submit } from './encounter-form-test-utils';
+import { addDrug, apiFetchMock, COMPLETE, completeCall, completeRoute, DIAGNOSIS_DISPLAY, diagnosisInput, fillRequired, setup, submit } from './encounter-form-test-utils';
 
 async function settle(): Promise<void> {
   await act(async () => {
@@ -35,9 +35,7 @@ describe('EncounterCompleteForm implicit submit', () => {
   it('should not complete the encounter when Enter is pressed in the dosage field', async () => {
     setup();
     await fillRequired();
-    await userEvent.click(screen.getByRole('button', { name: 'Добавить лекарство' }));
-    await userEvent.type(screen.getByLabelText(/Код АТХ/), 'J01FA10');
-    await userEvent.type(screen.getByLabelText(/Дозировка 1/), '1 таб 3 раза в день{Enter}');
+    await addDrug('J01FA10', '1 таб 3 раза в день{Enter}');
     await settle();
 
     expect(completeCall()).toBeUndefined();

@@ -8,7 +8,7 @@ jest.setTimeout(30_000);
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { bodyOf } from './doctor-test-utils';
-import { completeCall, completeRoute, DIAGNOSIS_DISPLAY, diagnosisInput, fillRequired, OBSERVATION_SYSTEM, pickDiagnosis, SERVICE_SYSTEM, setup, submit } from './encounter-form-test-utils';
+import { addDrug, completeCall, completeRoute, DIAGNOSIS_DISPLAY, diagnosisInput, fillRequired, OBSERVATION_SYSTEM, pickDiagnosis, SERVICE_SYSTEM, setup, submit } from './encounter-form-test-utils';
 
 describe('EncounterCompleteForm validation', () => {
   it('should not send anything and should mark the fields when the form is empty', async () => {
@@ -87,9 +87,7 @@ describe('EncounterCompleteForm validation', () => {
   it('should block submission when a drug has an invalid ATC code', async () => {
     setup();
     await fillRequired();
-    await userEvent.click(screen.getByRole('button', { name: 'Добавить лекарство' }));
-    await userEvent.type(screen.getByLabelText(/Код АТХ/), 'bad');
-    await userEvent.type(screen.getByLabelText(/Дозировка 1/), '1 таб 3 раза в день');
+    await addDrug('bad', '1 таб 3 раза в день');
 
     await submit();
 
@@ -193,9 +191,7 @@ describe('EncounterCompleteForm submit', () => {
     await userEvent.selectOptions(screen.getByLabelText(/Единица 1/), 'Cel');
     await userEvent.click(screen.getByRole('button', { name: 'Добавить услугу' }));
     await userEvent.selectOptions(await screen.findByLabelText(/Услуга 1/), 'A01.001');
-    await userEvent.click(screen.getByRole('button', { name: 'Добавить лекарство' }));
-    await userEvent.type(screen.getByLabelText(/Код АТХ/), 'J01FA10');
-    await userEvent.type(screen.getByLabelText(/Дозировка 1/), '1 таб 3 раза в день после еды');
+    await addDrug('J01FA10', '1 таб 3 раза в день после еды');
 
     await submit();
 

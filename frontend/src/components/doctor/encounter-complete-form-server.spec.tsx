@@ -8,7 +8,7 @@ jest.setTimeout(30_000);
 import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { problem } from './doctor-test-utils';
-import { completeCall, completeRoute, DIAGNOSIS_DISPLAY, diagnosisInput, fillRequired, pickDiagnosis, setup, submit } from './encounter-form-test-utils';
+import { addDrug, completeCall, completeRoute, DIAGNOSIS_DISPLAY, diagnosisInput, fillRequired, pickDiagnosis, setup, submit } from './encounter-form-test-utils';
 
 describe('EncounterCompleteForm server errors', () => {
   it('should mark the rejected diagnosis code and focus it when the server answers INVALID_ICD10_CODE', async () => {
@@ -25,9 +25,7 @@ describe('EncounterCompleteForm server errors', () => {
   it('should mark the drug code when the server answers TERMINOLOGY_NOT_FOUND for it', async () => {
     setup(completeRoute(() => { throw problem(422, 'TERMINOLOGY_NOT_FOUND', 'TERMINOLOGY_NOT_FOUND: not in the terminology seed: http://www.whocc.no/atc#J01FA10'); }));
     await fillRequired();
-    await userEvent.click(screen.getByRole('button', { name: 'Добавить лекарство' }));
-    await userEvent.type(screen.getByLabelText(/Код АТХ/), 'J01FA10');
-    await userEvent.type(screen.getByLabelText(/Дозировка 1/), '1 таб 3 раза в день');
+    await addDrug('J01FA10', '1 таб 3 раза в день');
 
     await submit();
 
@@ -75,20 +73,17 @@ describe('EncounterCompleteForm server errors', () => {
 });
 
 describe('EncounterCompleteForm focus of added rows', () => {
-  it('should focus the code select of a new observation row, not its value input', async () => {
+  it.each([
+    ['observation', 'Добавить наблюдение', /Показатель 1/],
+    ['diagnosis', 'Добавить диагноз', /Диагноз 2:/],
+    ['drug', 'Добавить лекарство', /Код АТХ/],
+    ['service', 'Добавить услугу', /Услуга 1/],
+  ])('should focus the code field of a new %s row', async (_kind, button, field) => {
     setup();
 
-    await userEvent.click(screen.getByRole('button', { name: 'Добавить наблюдение' }));
+    await userEvent.click(screen.getByRole('button', { name: button }));
 
-    await waitFor(() => expect(screen.getByLabelText(/Показатель 1/)).toHaveFocus());
-  });
-
-  it('should focus the code field of a new diagnosis row', async () => {
-    setup();
-
-    await userEvent.click(screen.getByRole('button', { name: 'Добавить диагноз' }));
-
-    await waitFor(() => expect(diagnosisInput(2)).toHaveFocus());
+    await waitFor(() => expect(screen.getByLabelText(field)).toHaveFocus());
   });
 
   it('should keep the focus in the list after a diagnosis row is removed', async () => {
@@ -108,22 +103,6 @@ describe('EncounterCompleteForm focus of added rows', () => {
     await userEvent.click(await screen.findByRole('button', { name: /Удалить лекарство/ }));
 
     await waitFor(() => expect(document.activeElement).toBe(document.getElementById('encounter-section-medications-title')));
-  });
-
-  it('should focus the code field of a new drug row', async () => {
-    setup();
-
-    await userEvent.click(screen.getByRole('button', { name: 'Добавить лекарство' }));
-
-    await waitFor(() => expect(screen.getByLabelText(/Код АТХ/)).toHaveFocus());
-  });
-
-  it('should focus the code select of a new service row', async () => {
-    setup();
-
-    await userEvent.click(screen.getByRole('button', { name: 'Добавить услугу' }));
-
-    await waitFor(() => expect(screen.getByLabelText(/Услуга 1/)).toHaveFocus());
   });
 
   it('should fill the name from the terminology when a full code is typed and the field is left', async () => {

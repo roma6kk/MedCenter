@@ -55,3 +55,9 @@ export async function fillRequired(): Promise<void> {
 }
 
 export const submit = (): Promise<void> => userEvent.click(screen.getByRole('button', { name: 'Завершить приём' }));
+
+export async function addDrug(atcCode: string, dosage: string): Promise<void> {
+  await userEvent.click(screen.getByRole('button', { name: 'Добавить лекарство' }));
+  await userEvent.type(screen.getByLabelText(/Код АТХ/), atcCode);
+  await userEvent.type(screen.getByLabelText(/Дозировка 1/), dosage);
+}
