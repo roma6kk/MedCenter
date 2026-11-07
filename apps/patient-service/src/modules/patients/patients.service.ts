@@ -1,4 +1,4 @@
-import { ConflictException, Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { ConflictException, Inject, Injectable } from '@nestjs/common';
 import type { JwtClaims } from '@medcenter/common';
 import {
   buildConsentWriteAuditEvent,
@@ -10,6 +10,7 @@ import {
   type FhirResource,
 } from '@medcenter/fhir';
 
+import { readPatient } from '../../shared/read-patient';
 import { PatientAccessService } from '../access/patient-access.service';
 import { ownPatientId } from '../access/patient-identity';
 import type { PatientResponseDto } from './dto/patient-response.dto';
@@ -53,10 +54,7 @@ export class PatientsService {
     requestId?: string,
   ): Promise<PatientResponseDto> {
     const id = ownPatientId(claims);
-    const current = await this.fhir.read('Patient', id);
-    if (current.resourceType !== 'Patient') {
-      throw new NotFoundException({ errorCode: 'NOT_FOUND', message: `NOT_FOUND: Patient ${id} does not exist` });
-    }
+    const current = await readPatient(this.fhir, id);
     if (versionOf(current) !== `W/"${version}"`) {
       throw new ConflictException({
         errorCode: 'CONFLICT',
@@ -87,11 +85,7 @@ export class PatientsService {
   }
 
   private async readProfile(id: string): Promise<PatientResponseDto> {
-    const patient = await this.fhir.read('Patient', id);
-    if (patient.resourceType !== 'Patient') {
-      throw new NotFoundException({ errorCode: 'NOT_FOUND', message: `NOT_FOUND: Patient ${id} does not exist` });
-    }
-    return toPatientResponseDto(patient);
+    return toPatientResponseDto(await readPatient(this.fhir, id));
   }
 }
 

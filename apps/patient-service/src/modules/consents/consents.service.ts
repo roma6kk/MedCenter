@@ -1,4 +1,4 @@
-import { createHash, randomUUID } from 'node:crypto';
+import { randomUUID } from 'node:crypto';
 
 import {
   BadRequestException,
@@ -39,16 +39,17 @@ import {
 } from '@medcenter/fhir';
 
 import { readPersonName } from '../../shared/fhir-datatypes.mapper';
+import { readPatient } from '../../shared/read-patient';
 import { PatientAccessService } from '../access/patient-access.service';
 import { ownPatientId, practitionerRoleIdOf } from '../access/patient-identity';
-import { validateScanUpload, type UploadedScan } from './consent-scan';
+import { sha1Base64, validateScanUpload, type UploadedScan } from './consent-scan';
 
 const AUDIT_SOURCE = 'patient-service';
 const FUTURE_TOLERANCE_MS = 5 * 60 * 1000;
 const DATE_ONLY = /^\d{4}-\d{2}-\d{2}$/;
 const MAX_UTC_OFFSET_MS = 14 * 60 * 60 * 1000;
 
-export interface ScanContent {
+interface ScanContent {
   readonly contentType: string;
   readonly data: Buffer;
 }
@@ -119,7 +120,7 @@ export class ConsentsService {
       { interaction: 'search-type', source: AUDIT_SOURCE, requestId },
       async () => {
         await this.access.assertCanRead(claims, patientId);
-        await this.assertPatientExists(patientId);
+        await readPatient(this.fhir, patientId);
         return this.history(patientId);
       },
     );
@@ -137,7 +138,7 @@ export class ConsentsService {
       throw invalid('signedAt', 'must not be in the future');
     }
     this.assertRepresentativeFields(dto);
-    await this.assertPatientExists(patientId);
+    await readPatient(this.fhir, patientId);
     if ((await findActiveConsent(this.fhir, patientId)) !== null) {
       throw new ConflictException({
         errorCode: 'CONSENT_ALREADY_ACTIVE',
@@ -178,7 +179,7 @@ export class ConsentsService {
     requestId?: string,
   ): Promise<ConsentResponse> {
     await this.access.assertCanWrite(claims, patientId);
-    await this.assertPatientExists(patientId);
+    await readPatient(this.fhir, patientId);
     return this.closeActive(patientId, claims, dto, requestId);
   }
 
@@ -190,7 +191,7 @@ export class ConsentsService {
   ): Promise<ConsentScanUploadResponse> {
     await this.access.assertCanWrite(claims, patientId);
     const scan = validateScanUpload(file);
-    await this.assertPatientExists(patientId);
+    await readPatient(this.fhir, patientId);
     const binary: FhirResource = {
       resourceType: 'Binary',
       contentType: scan.contentType,
@@ -291,11 +292,8 @@ export class ConsentsService {
     if (inForce.length === 0) {
       throw notFound(`patient ${patientId} has no active consent to revoke`);
     }
-    for (const consent of inForce) {
-      const start = startOf(consent);
-      if (start !== undefined && new Date(revokedAt).getTime() < start) {
-        throw invalid('revokedAt', 'must not be before the consent began');
-      }
+    if (inForce.some((consent) => new Date(revokedAt).getTime() < (startOf(consent) ?? -Infinity))) {
+      throw invalid('revokedAt', 'must not be before the consent began');
     }
     const closed = inForce.map((consent) =>
       revokeConsent(consent, { revokedAt, applicationNumber: dto.applicationNumber?.trim() }),
@@ -370,7 +368,7 @@ export class ConsentsService {
         .filter((part): part is string => part !== undefined && part !== '')
         .map((part) => `${part.charAt(0).toUpperCase()}.`);
       const short = [person.lastName, ...initials].filter((part) => part !== '').join(' ');
-      return short === '' ? (person.fullName === '' ? undefined : person.fullName) : short;
+      return short || person.fullName || undefined;
     } catch (error) {
       this.logger.warn({ err: error, roleId }, 'Name of the signing doctor was not read; the reference is stored');
       return undefined;
@@ -423,7 +421,7 @@ export class ConsentsService {
     const bytes = Buffer.from(String(binary['data'] ?? ''), 'base64');
     return {
       contentType: String(binary['contentType']),
-      hash: createHash('sha1').update(bytes).digest('base64'),
+      hash: sha1Base64(bytes),
     };
   }
 
@@ -438,23 +436,12 @@ export class ConsentsService {
       throw error;
     }
   }
-
-  private async assertPatientExists(patientId: string): Promise<void> {
-    const patient = await this.fhir.read('Patient', patientId);
-    if (patient.resourceType !== 'Patient') {
-      throw notFound(`Patient ${patientId} does not exist`);
-    }
-  }
 }
 
 function createdId(bundle: FhirResource, resourceType: string): string {
   const entries =
     (bundle['entry'] as ReadonlyArray<{ response?: { location?: string } }> | undefined) ?? [];
-  for (const entry of entries) {
-    const location = entry.response?.location;
-    if (location?.includes(`${resourceType}/`) === true) {
-      return idFromLocation(location);
-    }
-  }
-  return '';
+  const location = entries.find((entry) => entry.response?.location?.includes(`${resourceType}/`) === true)?.response
+    ?.location;
+  return location === undefined ? '' : idFromLocation(location);
 }

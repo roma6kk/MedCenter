@@ -14,7 +14,7 @@ export interface UploadedScan {
   readonly originalname: string;
 }
 
-export interface ValidScan {
+interface ValidScan {
   readonly buffer: Buffer;
   readonly contentType: ConsentScanContentType;
   readonly size: number;
@@ -29,6 +29,10 @@ const SIGNATURES: ReadonlyArray<{
   { type: 'image/png', magic: [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a] },
   { type: 'image/jpeg', magic: [0xff, 0xd8, 0xff] },
 ];
+
+export function sha1Base64(bytes: Buffer): string {
+  return createHash('sha1').update(bytes).digest('base64');
+}
 
 function reject(message: string): BadRequestException {
   return new BadRequestException({
@@ -70,6 +74,6 @@ export function validateScanUpload(file: UploadedScan | undefined): ValidScan {
     buffer: file.buffer,
     contentType: file.mimetype,
     size: file.buffer.length,
-    hash: createHash('sha1').update(file.buffer).digest('base64'),
+    hash: sha1Base64(file.buffer),
   };
 }

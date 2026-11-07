@@ -1,15 +1,16 @@
-import { Inject, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { Inject, Injectable, Logger } from '@nestjs/common';
 import type { JwtClaims } from '@medcenter/common';
 import { buildPaginatedResponse, type PaginatedResponseDto } from '@medcenter/contracts';
 import { FHIR_CLIENT, PatientReadAudit, type FhirClient, type FhirResource } from '@medcenter/fhir';
 
+import { readPatient } from '../../shared/read-patient';
 import { PatientAccessService } from '../access/patient-access.service';
 import type { RelatedPersonResponseDto } from './dto/related-person-response.dto';
 import { relatedPatientIdOf, toRelatedPersonResponseDto } from './mappers/related-person.mapper';
 
 const AUDIT_SOURCE = 'patient-service';
 
-export interface RelatedPersonsPage {
+interface RelatedPersonsPage {
   readonly page: number;
   readonly pageSize: number;
 }
@@ -41,7 +42,7 @@ export class RelatedPersonsService {
     paging: RelatedPersonsPage,
   ): Promise<PaginatedResponseDto<RelatedPersonResponseDto>> {
     await this.access.assertCanRead(claims, patientId);
-    await this.assertPatientExists(patientId);
+    await readPatient(this.fhir, patientId);
 
     const result = await this.fhir.search('RelatedPerson', {
       patient: `Patient/${patientId}`,
@@ -62,13 +63,6 @@ export class RelatedPersonsService {
       totalItems,
       totalPages: Math.ceil(totalItems / paging.pageSize),
     });
-  }
-
-  private async assertPatientExists(patientId: string): Promise<void> {
-    const patient = await this.fhir.read('Patient', patientId);
-    if (patient.resourceType !== 'Patient') {
-      throw new NotFoundException({ errorCode: 'NOT_FOUND', message: `NOT_FOUND: Patient ${patientId} does not exist` });
-    }
   }
 
   // Defence in depth: an entry for any other patient is dropped (and logged), never disclosed.
