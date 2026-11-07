@@ -49,6 +49,12 @@ async function submit(): Promise<void> {
   await userEvent.click(screen.getByRole('button', { name: 'Зарегистрироваться' }));
 }
 
+async function renderAndSubmitValid(): Promise<void> {
+  renderForm();
+  await fillValidForm();
+  await submit();
+}
+
 describe('RegisterForm', () => {
   beforeEach(() => {
     jest.resetAllMocks();
@@ -66,10 +72,7 @@ describe('RegisterForm', () => {
 
   it('should put a server error for the account consent on the checkbox', async () => {
     apiFetchMock.mockRejectedValue(new ApiError(problem({ details: [{ field: 'accountConsent.accepted', message: 'accepted must be a boolean value' }] })));
-    renderForm();
-
-    await fillValidForm();
-    await submit();
+    await renderAndSubmitValid();
 
     expect(await screen.findByRole('checkbox', { name: /согласие на обработку персональных данных/i })).toHaveAttribute('aria-invalid', 'true');
     expect(screen.queryByTestId('problem-banner')).not.toBeInTheDocument();
@@ -104,10 +107,7 @@ describe('RegisterForm', () => {
 
   it('should post the trimmed registration and offer the login link when the form is valid', async () => {
     apiFetchMock.mockResolvedValue({ id: 'u-1' });
-    renderForm();
-
-    await fillValidForm();
-    await submit();
+    await renderAndSubmitValid();
 
     expect(await screen.findByTestId('register-success')).toBeInTheDocument();
     const [path, options] = apiFetchMock.mock.calls[0] ?? [];
@@ -130,10 +130,7 @@ describe('RegisterForm', () => {
         }),
       ),
     );
-    renderForm();
-
-    await fillValidForm();
-    await submit();
+    await renderAndSubmitValid();
 
     expect(await screen.findByLabelText('Email')).toHaveAccessibleDescription('Введите корректный email');
     expect(screen.getByLabelText('Пароль')).toHaveAccessibleDescription(expect.stringContaining('Пароль недостаточно надёжный'));
@@ -142,10 +139,7 @@ describe('RegisterForm', () => {
 
   it('should show a banner when the server names a field the form does not have', async () => {
     apiFetchMock.mockRejectedValue(new ApiError(problem({ details: [{ field: 'nickname', message: 'nickname must be a string' }] })));
-    renderForm();
-
-    await fillValidForm();
-    await submit();
+    await renderAndSubmitValid();
 
     expect(await screen.findByTestId('problem-banner')).toBeInTheDocument();
   });
@@ -187,10 +181,7 @@ describe('RegisterForm', () => {
 
   it('should hint at the email field with a login link when the email is already registered', async () => {
     apiFetchMock.mockRejectedValue(new ApiError(problem({ status: 409, errorCode: 'CONFLICT', detail: 'EMAIL_TAKEN: a user with this email already exists' })));
-    renderForm();
-
-    await fillValidForm();
-    await submit();
+    await renderAndSubmitValid();
 
     expect(await screen.findByText(/Этот email уже зарегистрирован/)).toBeInTheDocument();
     const loginLink = screen.getByRole('link', { name: 'Войти с этим email' });
@@ -201,10 +192,7 @@ describe('RegisterForm', () => {
 
   it('should show the problem banner with its code when the server fails in any other way', async () => {
     apiFetchMock.mockRejectedValue(new ApiError(problem({ status: 500, errorCode: 'INTERNAL', requestId: 'req-1' })));
-    renderForm();
-
-    await fillValidForm();
-    await submit();
+    await renderAndSubmitValid();
 
     expect(await screen.findByTestId('problem-banner')).toHaveTextContent('INTERNAL');
   });
@@ -212,10 +200,7 @@ describe('RegisterForm', () => {
   it('should keep the submit button focused and send one request when the request is running and the visitor presses it again', async () => {
     let resolve: (value: unknown) => void = () => undefined;
     apiFetchMock.mockReturnValue(new Promise((done) => { resolve = done; }));
-    renderForm();
-
-    await fillValidForm();
-    await submit();
+    await renderAndSubmitValid();
 
     const busy: HTMLElement = await screen.findByRole('button', { name: 'Регистрируем…' });
     await userEvent.click(busy);
@@ -231,10 +216,7 @@ describe('RegisterForm', () => {
     apiFetchMock
       .mockRejectedValueOnce(new ApiError(problem({ status: 429, errorCode: 'RATE_LIMITED', retryAfter: 1 })))
       .mockResolvedValueOnce({ id: 'u-1' });
-    renderForm();
-
-    await fillValidForm();
-    await submit();
+    await renderAndSubmitValid();
     const waiting: HTMLElement = await screen.findByRole('button', { name: 'Повторить через 1 с' });
     await userEvent.click(waiting);
     await userEvent.type(screen.getByLabelText('Имя'), '{Enter}');
@@ -248,10 +230,7 @@ describe('RegisterForm', () => {
 
   it('should leave the submit button open and show the banner when the connection is lost', async () => {
     apiFetchMock.mockRejectedValueOnce(new ApiError(networkProblem())).mockResolvedValueOnce({ id: 'u-1' });
-    renderForm();
-
-    await fillValidForm();
-    await submit();
+    await renderAndSubmitValid();
 
     expect(await screen.findByTestId('problem-banner')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Зарегистрироваться' })).not.toHaveAttribute('aria-disabled');
