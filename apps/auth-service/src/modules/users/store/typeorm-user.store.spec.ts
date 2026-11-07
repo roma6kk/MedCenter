@@ -10,12 +10,6 @@ import {
 import { TypeOrmUserStore } from './typeorm-user.store';
 import { DuplicateEmailError, ResourceAlreadyLinkedError, type NewUser } from './user-store';
 
-/**
- * Integration suite of the production `UserStore` against a real PostgreSQL
- * with every `auth` migration applied (own database, so it never races the
- * database of `test/postgres-flow.e2e-spec.ts`). Skipped when `TEST_PG_*` does not
- * reach a server — see `pg-test-connection.ts`.
- */
 const DATABASE = 'auth_user_store_test';
 const postgresAvailable = isPostgresAvailable();
 

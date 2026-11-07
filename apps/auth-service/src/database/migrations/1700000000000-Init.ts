@@ -1,10 +1,5 @@
 import { MigrationInterface, QueryRunner } from 'typeorm';
 
-/**
- * Initial `auth` schema: users, RBAC, the FHIR bridge and the OAuth store.
- * The unique index on `external_link(user_id, resource_type)` guarantees a
- * user links to at most one `Patient` and at most one `PractitionerRole`.
- */
 export class Init1700000000000 implements MigrationInterface {
   public readonly name = 'Init1700000000000';
 

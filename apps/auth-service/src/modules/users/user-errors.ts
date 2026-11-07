@@ -1,10 +1,5 @@
 import { BadRequestException, ConflictException, NotFoundException } from '@nestjs/common';
 
-/**
- * Error factories of the users module. `errorCode` values come from the
- * catalogue only (`libs/contracts` ERROR_CODES); the finer reason travels in
- * the RFC 7807 `detail` (API §2.2.6: «код `EMAIL_TAKEN` в `detail`»).
- */
 export function emailTaken(): ConflictException {
   return new ConflictException({ errorCode: 'CONFLICT', message: 'EMAIL_TAKEN: a user with this email already exists' });
 }

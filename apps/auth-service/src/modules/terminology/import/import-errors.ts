@@ -2,11 +2,6 @@ import { ConflictException, UnprocessableEntityException } from '@nestjs/common'
 
 import { SNAPSHOT_VERSION } from './snapshot-resources';
 
-/**
- * Error factories of the snapshot import. `errorCode` values come from the
- * catalogue only (`libs/contracts` ERROR_CODES); the finer reason travels in
- * the RFC 7807 `detail`.
- */
 export function importAlreadyRunning(): ConflictException {
   return new ConflictException({
     errorCode: 'CONFLICT',

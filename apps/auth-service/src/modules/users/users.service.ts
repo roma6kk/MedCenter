@@ -30,7 +30,6 @@ import { emailTaken, practitionerRoleTaken, selfLockout, userNotFound } from './
 import { linkedRefs } from './user-links';
 import { toUserDetails, toUserResponse } from './user-view.mapper';
 
-/** The domain error a store refusal stands for; anything else is not ours to translate. */
 function conflictOf(error: unknown): unknown {
   if (error instanceof DuplicateEmailError) {
     return emailTaken();
@@ -38,12 +37,6 @@ function conflictOf(error: unknown): unknown {
   return error instanceof ResourceAlreadyLinkedError ? practitionerRoleTaken() : error;
 }
 
-/**
- * Admin user management (API §2.2.1–2.2.5, FR-015) and the caller's own
- * profile (§2.2.7). Deletion is a soft deactivation (`isActive=false`): the row
- * — and with it the audit trail and FHIR links — stays. Every mutation writes
- * an `AuditEvent` (FR-021).
- */
 @Injectable()
 export class UsersService {
   private readonly logger = new Logger(UsersService.name);
@@ -103,7 +96,6 @@ export class UsersService {
     const changes = effectiveChangesOf(changesOf(dto, current), current);
     const demographics = effectiveDemographicsOf(demographicsOf(dto), current);
     if (Object.keys(changes).length === 0 && demographics === null) {
-      // Nothing to write: no account change, no Patient sync and no journal entry for a change that did not happen.
       return toUserDetails(current);
     }
     const updated = await this.applyChanges(id, changes);
@@ -112,7 +104,6 @@ export class UsersService {
     return toUserDetails(updated);
   }
 
-  /** API §2.2.5: soft delete — `isActive=false`, the row stays. */
   async deactivate(id: string, actor: AuditActor): Promise<UserDetailsResponseDto> {
     if (id === actor.sub) {
       throw selfLockout();
@@ -156,7 +147,6 @@ export class UsersService {
     return updated;
   }
 
-  /** Keeps the FHIR `Patient` in step with the account; a refusal by HAPI takes the account change back. */
   private async syncPatient(
     before: UserRecord,
     after: UserRecord,
@@ -187,7 +177,6 @@ export class UsersService {
     }
   }
 
-  /** The journal names every resource the change touched: those before it and those after it (a released link). */
   private async recordUpdate(
     before: UserRecord,
     after: UserRecord,

@@ -3,7 +3,6 @@ import { Role } from '@medcenter/contracts';
 import type { CreateUserDto } from '../dto/create-user.dto';
 import type { UsersHarness } from './users-harness';
 
-/** The administrator that performs every admin call of the users suites. */
 export const ADMIN = { sub: 'admin-1', requestId: 'req-1' } as const;
 
 export function doctorDto(overrides: Partial<CreateUserDto> = {}): CreateUserDto {

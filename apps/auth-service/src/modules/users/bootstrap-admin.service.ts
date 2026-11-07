@@ -6,13 +6,6 @@ import { SYSTEM_ACTOR } from '../audit/audit-event.builder';
 import { AccountFactory } from './account-factory.service';
 import { USER_STORE, type UserStore } from './store/user-store';
 
-/**
- * Idempotent first-administrator bootstrap, so a fresh stack is usable:
- * with `BOOTSTRAP_ADMIN_EMAIL` + `BOOTSTRAP_ADMIN_PASSWORD` set, the ADMIN
- * account is created once; when the email already exists nothing is touched
- * (an operator may have deactivated or re-roled it on purpose). Unset → no-op.
- * A half-set pair or a weak password fails the boot (`parseBootstrapAdminEnv`).
- */
 @Injectable()
 export class BootstrapAdminService implements OnApplicationBootstrap {
   private readonly logger = new Logger(BootstrapAdminService.name);
@@ -41,7 +34,7 @@ export class BootstrapAdminService implements OnApplicationBootstrap {
       );
       this.logger.log('Bootstrap administrator created');
     } catch (error: unknown) {
-      // Another replica booting at the same moment won the unique email index.
+      // another replica won the unique email index
       if (error instanceof ConflictException) {
         this.logger.log('Bootstrap administrator was created concurrently; nothing to do');
         return;

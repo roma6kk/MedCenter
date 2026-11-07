@@ -11,7 +11,6 @@ jest.mock(
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 
-/** Liveness, service metadata and the shared HTTP envelope (RFC 7807, correlation id) on the public surface. */
 describe('Public endpoints and the shared error envelope', () => {
   let app: INestApplication;
 

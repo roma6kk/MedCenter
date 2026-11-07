@@ -23,7 +23,6 @@ const VALIDATION = {
 
 type Caller = 'administrator' | 'doctor' | 'patient';
 
-/** Who may call the endpoint: the role pin narrows it to ADMIN, the scope pin excludes the PATIENT token. */
 function allowedCallers(endpoint: ProtectedEndpoint): ReadonlyArray<Caller> {
   if (endpoint.role !== null) {
     return ['administrator'];
@@ -33,12 +32,6 @@ function allowedCallers(endpoint: ProtectedEndpoint): ReadonlyArray<Caller> {
     : ['administrator', 'doctor'];
 }
 
-/**
- * Perimeter matrix over every protected route of the service: anonymous, malformed credential,
- * wrong scope, wrong role, and the one caller the handler is meant for (ADR-009, API §0 scope
- * matrix). Refused calls carry a *valid* request, so a guard that failed open would change state;
- * each refusal asserts that neither `auth` nor HAPI was written.
- */
 describe('Authorization matrix of the protected endpoints', () => {
   let fixture: AdminFixture;
   let app: INestApplication;

@@ -1,7 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { randomBytes, scrypt, timingSafeEqual, type ScryptOptions } from 'node:crypto';
 
-/** scrypt cost parameters; the defaults follow the OWASP minimum for scrypt (N=2^15, r=8, p=1). */
 export interface ScryptParams {
   readonly N: number;
   readonly r: number;
@@ -63,13 +62,6 @@ function parseHash(encoded: string): ParsedHash | null {
   return { params, salt: Buffer.from(salt, 'base64url'), key: Buffer.from(key, 'base64url') };
 }
 
-/**
- * Password hashing with Node's `scrypt` (memory-hard KDF) and a per-user random
- * salt. The stored value is self-describing —
- * `scrypt$<N>$<r>$<p>$<salt b64url>$<key b64url>` — so the cost can be raised
- * later without invalidating existing hashes. Comparison is constant-time.
- * Plaintext passwords are never logged or persisted.
- */
 @Injectable()
 export class PasswordHasher {
   private dummyHash?: Promise<string>;
@@ -83,7 +75,6 @@ export class PasswordHasher {
     return [SCHEME, N, r, p, salt.toString('base64url'), key.toString('base64url')].join('$');
   }
 
-  /** `false` for a wrong password **and** for an unreadable/foreign hash — never throws on bad input. */
   async verify(password: string, encoded: string): Promise<boolean> {
     const parsed = parseHash(encoded);
     if (parsed === null || parsed.key.length !== KEY_LENGTH) {

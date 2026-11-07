@@ -14,7 +14,6 @@ export const AUTH_SCHEMA = 'auth';
 
 export const authEntities = [User, Role, UserRole, ExternalLink, OAuthClient, OAuthToken];
 
-/** Applied in order at startup (`database.providers.ts`); never `synchronize`. */
 export const authMigrations = [Init1700000000000, RolesAndLinks1700000000001, AccountConsent1700000000002];
 
 export interface PostgresConnectionOptions {
@@ -36,10 +35,8 @@ function baseOptions(connection: PostgresConnectionOptions): DataSourceOptions {
   };
 }
 
-/** Runtime DataSource: migrations run explicitly at startup (never `synchronize`). */
 export function buildDataSource(connection: PostgresConnectionOptions): DataSource {
   return new DataSource(baseOptions(connection));
 }
 
-/** The test DataSource is the production one — same entities and migrations — pointed at a throwaway database. */
 export const buildTestDataSource: typeof buildDataSource = buildDataSource;

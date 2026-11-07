@@ -9,12 +9,6 @@ export interface HealthResponseDto {
   readonly service: string;
 }
 
-/**
- * Liveness probe for the container runtime (architect §7, compose
- * `x-bff-healthcheck`). Not routed by Traefik and carries no data, hence
- * `@Public()`. `@nestjs/terminus` is not installed, so PostgreSQL/HAPI
- * readiness is not probed here — a failed migration already fails the boot.
- */
 @ApiTags('auth')
 @Controller('health')
 export class HealthController {

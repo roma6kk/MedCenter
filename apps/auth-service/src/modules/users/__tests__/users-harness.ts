@@ -11,7 +11,6 @@ import { InMemoryUserStore } from './in-memory-user.store';
 
 export type FakeFhir = jest.Mocked<FhirClient>;
 
-/** HAPI stand-in: Patients get sequential ids, reads carry a version, writes and transaction Bundles are accepted. */
 export function createFakeFhir(): FakeFhir {
   let next = 0;
   return {
@@ -39,7 +38,6 @@ export interface UsersHarness {
   readonly users: UsersService;
 }
 
-/** The users module over an in-memory store, a fake HAPI; scrypt runs with cheap parameters. */
 export function createUsersHarness(): UsersHarness {
   const store = new InMemoryUserStore();
   const fhir = createFakeFhir();
@@ -52,14 +50,12 @@ export function createUsersHarness(): UsersHarness {
   return { store, fhir, hasher, accounts, registration, users };
 }
 
-/** FHIR `create` calls of one resource type, as `[resourceType, resource]` tuples. */
 export function createdOf(fhir: FakeFhir, resourceType: string): ReadonlyArray<Record<string, unknown>> {
   return fhir.create.mock.calls
     .filter(([type]) => type === resourceType)
     .map(([, resource]) => resource as unknown as Record<string, unknown>);
 }
 
-/** The single write of each transaction Bundle sent to HAPI: `[url, ifMatch, resource]`. */
 export function transactionWrites(fhir: FakeFhir): ReadonlyArray<{
   readonly url: string;
   readonly ifMatch: string | undefined;
@@ -73,14 +69,12 @@ export function transactionWrites(fhir: FakeFhir): ReadonlyArray<{
   );
 }
 
-/** The outbox records written to HAPI: the `Basic` of each `update` call, with the id it was stored under. */
 export function outboxRecords(fhir: FakeFhir): ReadonlyArray<{ readonly id: string; readonly resource: Record<string, unknown> }> {
   return fhir.update.mock.calls
     .filter(([type]) => type === 'Basic')
     .map(([, id, resource]) => ({ id, resource: resource as unknown as Record<string, unknown> }));
 }
 
-/** The event JSON stored in an outbox `Basic` (the `outbox-payload` extension). */
 export function outboxEvent(resource: Record<string, unknown>): Record<string, unknown> {
   const extensions = resource['extension'] as ReadonlyArray<{ url: string; valueString?: string }>;
   return JSON.parse(extensions.find((extension) => extension.url.endsWith('outbox-payload'))?.valueString ?? '{}') as Record<string, unknown>;

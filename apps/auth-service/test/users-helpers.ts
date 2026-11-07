@@ -5,7 +5,6 @@ import { PATIENT_PASSWORD } from './auth-flow-helpers';
 export const AUTH_USER_SYSTEM = 'https://api.medcenter.by/sid/auth-user';
 export const STAFF_PASSWORD = 'D0ctor!Passw0rd';
 
-/** What a patient types into the registration form (without the email, which each test picks). */
 export const REGISTRATION = {
   firstName: 'Анна',
   lastName: 'Орлова',
@@ -15,7 +14,6 @@ export const REGISTRATION = {
   gender: 'female',
 } as const;
 
-/** The body of `POST /api/v1/admin/users` for a staff account. */
 export function staffBody(
   email: string,
   roles: ReadonlyArray<Role>,
@@ -31,7 +29,6 @@ export function staffBody(
   };
 }
 
-/** The `Patient` HAPI holds for a registered account, at version 7, with a contact the auth service never wrote. */
 export function storedPatient(id: string, userId: string): Record<string, unknown> {
   return {
     resourceType: 'Patient',

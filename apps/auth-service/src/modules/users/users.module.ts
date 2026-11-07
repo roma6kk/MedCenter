@@ -16,16 +16,10 @@ import { RegistrationService } from './registration.service';
 import { UserIdentityResolver } from './user-identity.resolver';
 import { UsersService } from './users.service';
 
-/**
- * Accounts of the `auth` schema (API §2.2) and the two answers the OAuth
- * surface needs from them: "are these credentials valid?"
- * (`CredentialsService`) and "who is this token for?" (`IDENTITY_RESOLVER`).
- */
 @Module({
   imports: [DatabaseModule, FhirModule, AuditModule],
   controllers: [AdminUsersController, AccountController],
   providers: [
-    // Built by a factory: the scrypt parameters are a plain object, not a DI token.
     { provide: PasswordHasher, useFactory: (): PasswordHasher => new PasswordHasher() },
     RegistrationOutbox,
     PatientProvisioner,

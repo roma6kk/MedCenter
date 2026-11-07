@@ -6,8 +6,6 @@ import { createdOf, outboxEvent, outboxRecords } from '../src/modules/users/__te
 import { ADMIN, startWithAdmin, type AdminFixture } from './admin-fixture';
 import { PATIENT_PASSWORD, bearer, claimsOfToken, signIn } from './auth-flow-helpers';
 
-// `jose` is pure ESM and Jest's CJS runtime cannot load it; the signature check is stubbed and the
-// claims are decoded from the token the application actually signed (see `oauth.e2e-spec.ts`).
 jest.mock('jose', () => ({
   createRemoteJWKSet: () => 'mocked-jwks',
   jwtVerify: async (token: string) => {
@@ -23,7 +21,6 @@ function registration(email: string): Record<string, unknown> {
   return { email, firstName: 'Иван', lastName: 'Иванов', password: PATIENT_PASSWORD, birthDate: '1990-05-12', accountConsent: { accepted: true, textVersion: '2026-10' } };
 }
 
-/** API §2.2.6/2.2.7 — registration, `/me` and the admin perimeter, over real HTTP and the real guard stack. */
 describe('Users API (API 2.2.6, 2.2.7 and the admin perimeter)', () => {
   let fixture: AdminFixture;
   let app: INestApplication;

@@ -18,7 +18,6 @@ function linkKey(resourceType: ExternalResourceType): keyof UserLinks {
   return resourceType === 'Patient' ? 'patientId' : 'practitionerRoleId';
 }
 
-/** A string links the PractitionerRole, `null` releases it. */
 function withPractitionerRole(links: UserLinks, practitionerRoleId: string | null): UserLinks {
   return {
     ...(links.patientId !== undefined ? { patientId: links.patientId } : {}),
@@ -34,11 +33,6 @@ function matches(user: UserRecord, query: UserListQuery): boolean {
   return searchTokens(query.search).every((token) => fields.some((value) => value.includes(token.toLowerCase())));
 }
 
-/**
- * Test double of the `auth` schema with the same uniqueness rules as the
- * migrations: one email per account (case-insensitive) and one user per
- * linked FHIR resource.
- */
 export class InMemoryUserStore implements UserStore {
   readonly users = new Map<string, UserRecord>();
 
@@ -70,7 +64,6 @@ export class InMemoryUserStore implements UserStore {
     if (current === undefined) {
       return null;
     }
-    // Every check precedes the write, so a refused change leaves the user untouched (as a rolled-back transaction does).
     if (changes.email !== undefined) {
       this.assertEmailFree(changes.email, id);
     }

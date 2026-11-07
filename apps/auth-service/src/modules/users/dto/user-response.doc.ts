@@ -4,7 +4,6 @@ import { ApiProperty } from '@nestjs/swagger';
 import { PageMetaDoc } from './page-meta.doc';
 import type { ExternalLinkDto, UserDetailsResponseDto, UserResponseDto } from './user-response.dto';
 
-/** OpenAPI description of `UserResponseDto` (an interface cannot be reflected by Swagger). */
 export class UserResponseDoc implements UserResponseDto {
   @ApiProperty({ format: 'uuid' })
   id!: string;
@@ -48,7 +47,6 @@ export class ExternalLinkDoc implements ExternalLinkDto {
   reference!: string;
 }
 
-/** The user plus its `ExternalLink` rows (API 2.2.3, 2.2.7). */
 export class UserDetailsResponseDoc extends UserResponseDoc implements UserDetailsResponseDto {
   @ApiProperty({ type: [ExternalLinkDoc] })
   externalLinks!: ExternalLinkDoc[];
@@ -57,7 +55,6 @@ export class UserDetailsResponseDoc extends UserResponseDoc implements UserDetai
   createdAt!: string;
 }
 
-/** Page of users (API 2.2.2). */
 export class UserPageDoc {
   @ApiProperty({ type: [UserResponseDoc] })
   items!: UserResponseDoc[];

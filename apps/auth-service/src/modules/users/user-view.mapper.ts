@@ -15,7 +15,6 @@ function externalLinksOf(user: UserRecord): ExternalLinkDto[] {
   return links;
 }
 
-/** Never exposes `passwordHash`: the response is built field by field, not spread from the record. */
 export function toUserResponse(user: UserRecord): UserResponseDto {
   const { patientId, practitionerRoleId } = user.links;
   return {

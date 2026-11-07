@@ -35,7 +35,6 @@ function validationOf(result: boolean, display?: string): FhirResource {
   };
 }
 
-/** API §2.3.1–2.3.3: request validation, what is asked of HAPI, caching and how HAPI failures reach the client. */
 describe('Terminology API — contract and error mapping', () => {
   let fixture: AdminFixture;
   let app: INestApplication;

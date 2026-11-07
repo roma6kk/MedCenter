@@ -14,11 +14,6 @@ import { SnapshotImporter } from './snapshot-importer';
 import { SNAPSHOT_VERSION } from './snapshot-resources';
 import { SnapshotVerificationError } from './snapshot-verifier';
 
-/**
- * Upper bound of one import; the lease expires after it, so an import whose
- * process died cannot block the next one. Verification can wait for HAPI's
- * pre-expansion (6 attempts x 20 s per ValueSet) in the worst case.
- */
 export const IMPORT_LOCK_TTL_SECONDS = 1800;
 
 const UNKNOWN_FAILURE = 'import failed; see the service log';
@@ -40,12 +35,6 @@ interface ImportRun {
   readonly lease: ImportLease;
 }
 
-/**
- * Snapshot import (API 2.3.4, FR-018, ADR-016): validates the request, takes the
- * single-flight lock, answers at once and publishes the bundled terminology
- * snapshot to HAPI in the background. Progress is in the service log
- * (`importId`), the outcome in two `AuditEvent`s (accepted, finished).
- */
 @Injectable()
 export class TerminologyImportService {
   private readonly logger = new Logger(TerminologyImportService.name);
@@ -58,7 +47,6 @@ export class TerminologyImportService {
     @Inject(TERMINOLOGY_CACHE) private readonly cache: TerminologyCache,
   ) {}
 
-  /** `422` for a snapshot that is not bundled, `409` while another import runs, otherwise the accepted import. */
   async start(snapshotVersion: string, actor: AuditActor): Promise<ImportAcceptedDto> {
     if (snapshotVersion !== SNAPSHOT_VERSION) {
       throw snapshotNotBundled(snapshotVersion);
@@ -75,13 +63,12 @@ export class TerminologyImportService {
     };
     await this.audit.recordTerminologyImport({ stage: 'started', actor, snapshotVersion, importId: accepted.importId });
     this.running = this.execute({ accepted, actor, lease }).catch((error: unknown) => {
-      // `execute` handles its own failures; this only keeps a defect in the bookkeeping from becoming an unhandled rejection.
+      // `execute` handles its own failures; this only keeps a bookkeeping defect from becoming an unhandled rejection.
       this.logger.error({ err: error, importId: accepted.importId }, 'Terminology import bookkeeping failed');
     });
     return accepted;
   }
 
-  /** Resolves when the background import (if any) has finished; the job never rejects. */
   whenIdle(): Promise<void> {
     return this.running;
   }
@@ -97,7 +84,6 @@ export class TerminologyImportService {
       this.logger.error({ err: error, importId, snapshotVersion }, 'Terminology import failed');
       await this.record(run, 'failed', { failure: failureReason(error) });
     } finally {
-      // Written to HAPI either way: after a partial import the cached expansions are stale too.
       await this.cache.deleteByPrefix(EXPANSION_CACHE_PREFIX);
       await run.lease.release();
     }

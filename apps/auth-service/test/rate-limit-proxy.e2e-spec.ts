@@ -5,19 +5,13 @@ import request from 'supertest';
 import { startAuthApp } from './app-harness';
 import { E2E_CLIENT_ID, applyE2eEnv } from './e2e-env';
 
-// Same stub as `oauth.e2e-spec.ts`: `jose` is pure ESM and Jest's CJS runtime cannot load it.
 jest.mock('jose', () => ({
   createRemoteJWKSet: () => 'mocked-jwks',
   jwtVerify: async () => ({ payload: {}, protectedHeader: { alg: 'RS256' } }),
 }));
 
-/** `@RateLimit(20)` on `POST /oauth/token`. */
 const TOKEN_LIMIT = 20;
 
-/**
- * In-memory store. The trailing `:<minute>` segment is dropped from the key so a
- * suite that straddles a minute boundary cannot split one bucket in two.
- */
 class MemoryRateLimitStore implements RateLimitStore {
   private readonly hits = new Map<string, number>();
 
@@ -29,18 +23,10 @@ class MemoryRateLimitStore implements RateLimitStore {
   }
 }
 
-/**
- * Express reads `X-Forwarded-For` only when `trust proxy` is set; this is the
- * knob a Traefik-fronted deployment turns on.
- */
 async function bootApp(trustProxy: boolean | number): Promise<INestApplication> {
   return (await startAuthApp({ trustProxy })).app;
 }
 
-/**
- * A refresh grant without a token: cheap, side-effect free, answered 400 below the limit. It carries no credential,
- * so it is bucketed on `client_id|address` — the bucket these proxy tests are about.
- */
 function tokenCall(app: INestApplication, forwardedFor: string): request.Test {
   return request(app.getHttpServer())
     .post('/oauth/token')
@@ -48,7 +34,6 @@ function tokenCall(app: INestApplication, forwardedFor: string): request.Test {
     .send({ grant_type: 'refresh_token', client_id: E2E_CLIENT_ID });
 }
 
-/** An unknown refresh token: bucketed per credential, answered 400 below the limit. */
 function refreshCall(app: INestApplication, forwardedFor: string, refreshToken: string): request.Test {
   return request(app.getHttpServer())
     .post('/oauth/token')
@@ -128,7 +113,6 @@ describe('Rate limit behind a reverse proxy (X-Forwarded-For)', () => {
     });
 
     it('should bucket on the client address, not the proxy hop appended to the chain', async () => {
-      // `true` trusts every hop, so the left-most entry is the client.
       await exhaust(app, '203.0.113.10, 10.0.0.2');
 
       const response = await tokenCall(app, '203.0.113.10, 10.0.0.3');

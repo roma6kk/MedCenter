@@ -27,14 +27,11 @@ export interface NewAccount {
   readonly roles: ReadonlyArray<Role>;
   readonly birthDate?: string;
   readonly gender?: PatientGender;
-  /** Self-registration: the optional contact phone, already normalised (API 2.2.6). */
   readonly phone?: string;
   readonly practitionerRoleId?: string;
-  /** Self-registration only: the consent text version the account holder accepted (API 2.2.6). */
   readonly accountConsentVersion?: string;
 }
 
-/** Audit context: `actor` absent means the account acts on itself (self-registration). */
 export interface AccountContext {
   readonly event: string;
   readonly actor?: AuditActor;
@@ -46,16 +43,6 @@ function isOutcomeUnknown(error: unknown): boolean {
   return error instanceof FhirClientError && error.upstreamStatus === undefined;
 }
 
-/**
- * Creates an account end to end — `auth.user` + roles, the FHIR `Patient` of a
- * PATIENT account, the `ExternalLink` rows, the outbox record of
- * `patient.registered.v1` and the `AuditEvent`. Shared by self-registration (API §2.2.6), the admin
- * create (§2.2.1) and the bootstrap administrator.
- *
- * The user row is written first; when a later step fails (HAPI, a taken
- * `PractitionerRole`, the outbox record) the account is compensated — removed again together
- * with a Patient it already created — so a half-made account never remains.
- */
 @Injectable()
 export class AccountFactory {
   private readonly logger = new Logger(AccountFactory.name);
@@ -77,7 +64,7 @@ export class AccountFactory {
     const email = normaliseEmail(input.email);
     const user = await this.insertUser({ ...input, email, roles });
     const linked = await this.linkResources(user, input);
-    // The last step that can fail (the audit never throws), so no audit record names an account that was rolled back.
+    // The last step that can fail (the audit never throws), so no audit record names a rolled-back account.
     await this.recordRegistration(linked);
     await this.audit.recordUserChange({
       action: 'create',
@@ -115,7 +102,6 @@ export class AccountFactory {
     try {
       await this.outbox.remove(event);
     } catch (error: unknown) {
-      // 404/410: the write never landed, which is what is wanted.
       if (error instanceof FhirClientError && (error.upstreamStatus === 404 || error.upstreamStatus === 410)) {
         return;
       }

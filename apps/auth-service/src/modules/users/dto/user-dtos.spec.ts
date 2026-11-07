@@ -11,7 +11,6 @@ const LONG_PASSWORD = `Aa1!${'x'.repeat(125)}`;
 type Body = Readonly<Record<string, unknown>>;
 type InvalidCase = readonly [label: string, overrides: Body, property: string];
 
-/** `undefined` removes the property from the body. */
 function bodyOf(base: Body, overrides: Body): Body {
   return Object.fromEntries(
     Object.entries({ ...base, ...overrides }).filter(([, value]) => value !== undefined),
@@ -186,8 +185,6 @@ describe('UpdateUserDto (PATCH /api/v1/admin/users/{id})', () => {
     expect(violations.join('; ')).toContain(property);
   });
 
-  // Reviewer finding m-1: `@IsOptional()` lets JSON null through, and the service then
-  // answered 500 (email, roles) or stored null in a NOT NULL column (isActive, names).
   it.each(NULL_FIELDS)('should reject JSON null when %s is patched', async (field) => {
     const violations = await violationsOf(UpdateUserDto, { [field]: null });
 

@@ -5,25 +5,16 @@ import { upsertCanonical, type UpsertResult } from './canonical-upsert';
 import { SNAPSHOT_VERSION, buildCodeSystems, buildValueSets } from './snapshot-resources';
 import { DEFAULT_VERIFY_OPTIONS, verifySnapshot, type ExpansionReport, type VerifyOptions } from './snapshot-verifier';
 
-/** Overrides the verification pacing (tests; HAPI's pre-expansion wait is 20 s by default). */
 export const IMPORT_VERIFY_OPTIONS = Symbol('IMPORT_VERIFY_OPTIONS');
 
 export interface ImportSummary {
   readonly snapshotVersion: string;
   readonly created: number;
   readonly updated: number;
-  /** `Type/id` of every CodeSystem and ValueSet written, ids as HAPI holds them. */
   readonly resources: readonly string[];
   readonly expansions: readonly ExpansionReport[];
 }
 
-/**
- * Publishes the bundled terminology snapshot (ADR-016) to HAPI and proves it
- * is served. Idempotent: every resource is written with `PUT` on the id of the
- * copy that already holds its canonical (or on a deterministic id), so a re-run
- * updates in place and never duplicates. The in-service counterpart of the CLI
- * `tools/terminology-seed`, which publishes the very same snapshot.
- */
 @Injectable()
 export class SnapshotImporter {
   private readonly logger = new Logger(SnapshotImporter.name);

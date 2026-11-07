@@ -5,10 +5,8 @@ import { IsEnum, IsInt, IsOptional, IsString, Matches, Max, MaxLength, Min } fro
 
 import { NO_CONTROL_CHARS, NO_CONTROL_CHARS_MESSAGE } from './validation-patterns';
 
-/** Upper bound on `page`, so a client cannot push the database into an unbounded offset scan. */
 export const MAX_PAGE = 1000;
 
-/** API §2.2.2 `GET /api/v1/admin/users?role=&search=&page=&pageSize=` (API §0 pagination). */
 export class ListUsersQueryDto {
   @ApiPropertyOptional({ enum: Role, enumName: 'Role', description: 'Only accounts with this role' })
   @IsOptional()

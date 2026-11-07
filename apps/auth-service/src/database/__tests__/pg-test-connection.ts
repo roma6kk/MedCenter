@@ -3,11 +3,6 @@ import { DataSource } from 'typeorm';
 
 import { buildTestDataSource, type PostgresConnectionOptions } from '../typeorm.config';
 
-/**
- * Connection of the integration suites. Credentials come from `TEST_PG_*`
- * only — never from an env file on disk — and default to the compose stack's
- * published port (5433 in this checkout) with the documented dev password.
- */
 export function testConnectionOptions(database = 'postgres'): PostgresConnectionOptions {
   return {
     host: process.env['TEST_PG_HOST'] ?? '127.0.0.1',
@@ -18,15 +13,8 @@ export function testConnectionOptions(database = 'postgres'): PostgresConnection
   };
 }
 
-/**
- * Synchronous probe run at collection time (Jest registers `describe`/`it`
- * synchronously, so an async `beforeAll` probe would be too late to skip).
- * A child `node` process opens a real `pg` session, so a reachable server
- * that rejects the credentials skips the suite instead of failing it.
- */
 export function isPostgresAvailable(): boolean {
   const { host, port, username, password, database } = testConnectionOptions();
-  // `pg.Client` names the role `user`, not TypeORM's `username`.
   const clientConfig = { host, port, user: username, password, database, connectionTimeoutMillis: 1500 };
   const script = [
     `const { Client } = require(${JSON.stringify(require.resolve('pg'))});`,
@@ -44,7 +32,6 @@ export function warnPostgresUnavailable(suite: string): void {
   );
 }
 
-/** Recreates `database` from scratch, then applies every `auth` migration to it. */
 export async function createMigratedDatabase(database: string): Promise<DataSource> {
   const admin = await new DataSource({ type: 'postgres', ...testConnectionOptions() }).initialize();
   await admin.query(`DROP DATABASE IF EXISTS "${database}"`);
@@ -52,7 +39,6 @@ export async function createMigratedDatabase(database: string): Promise<DataSour
   await admin.destroy();
 
   const dataSource = await buildTestDataSource(testConnectionOptions(database)).initialize();
-  // TypeORM keeps its migrations table in the `auth` schema, which must exist first.
   await dataSource.query('CREATE SCHEMA IF NOT EXISTS "auth"');
   await dataSource.runMigrations();
   return dataSource;

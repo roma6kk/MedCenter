@@ -1,15 +1,12 @@
 import { registerDecorator, type ValidationOptions } from 'class-validator';
 
-/** R4 `date` without time — `Patient.birthDate` rejects a full timestamp. */
 export const DATE_ONLY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 
 export const EMAIL_MAX_LENGTH = 255;
 export const NAME_MAX_LENGTH = 100;
 
-/** Upper bound for a password; scrypt cost does not depend on it, the request size does. */
 export const PASSWORD_MAX_LENGTH = 128;
 
-/** `auth.user.account_consent_version` is `varchar(64)`. */
 export const ACCOUNT_CONSENT_VERSION_MAX_LENGTH = 64;
 
 export const GENDERS = ['male', 'female'] as const;
@@ -23,7 +20,6 @@ export function isPresent(_object: unknown, value: unknown): boolean {
   return value !== undefined;
 }
 
-/** `@Transform` of a free-text field: surrounding whitespace is dropped, so a name of blanks is empty and refused. */
 export function trimmed({ value }: { readonly value: unknown }): unknown {
   return typeof value === 'string' ? value.trim() : value;
 }
@@ -33,10 +29,8 @@ export function trimmed({ value }: { readonly value: unknown }): unknown {
 export const NO_CONTROL_CHARS = /^[^\u0000-\u001F\u007F]*$/;
 export const NO_CONTROL_CHARS_MESSAGE = '$property must not contain control characters';
 
-/** The earliest `birthDate` taken as real: older dates are typing slips (year 0001, 1800). */
 export const MIN_BIRTH_DATE = '1900-01-01';
 
-/** Today in the clinic's time zone as `YYYY-MM-DD` (the `sv-SE` locale formats dates that way). */
 export function todayInClinicZone(now: Date = new Date()): string {
   return new Intl.DateTimeFormat('sv-SE', { timeZone: 'Europe/Minsk' }).format(now);
 }

@@ -1,11 +1,9 @@
 import { Logger, type OnModuleDestroy } from '@nestjs/common';
 import Redis from 'ioredis';
 
-/** Read-through cache of expansions (NFR-005). Entries are reference data: a miss only costs a HAPI call. */
 export interface TerminologyCache {
   get(key: string): Promise<string | null>;
   set(key: string, value: string, ttlSeconds: number): Promise<void>;
-  /** Drops every entry whose key starts with `prefix` — after a snapshot import the cached expansions are stale. */
   deleteByPrefix(prefix: string): Promise<void>;
 }
 
@@ -18,7 +16,6 @@ interface Entry {
   readonly expiresAt: number;
 }
 
-/** Per-process fallback when no Redis is configured: bounded, insertion-ordered eviction. */
 export class InMemoryTerminologyCache implements TerminologyCache {
   private readonly entries = new Map<string, Entry>();
 
@@ -54,7 +51,6 @@ export class InMemoryTerminologyCache implements TerminologyCache {
   }
 }
 
-/** The subset of ioredis the cache uses, so tests can pass a fake. */
 export interface RedisLike {
   get(key: string): Promise<string | null>;
   set(key: string, value: string, mode: 'EX', seconds: number): Promise<unknown>;
@@ -70,11 +66,6 @@ function literalPattern(prefix: string): string {
   return `${prefix.replace(/[\\*?[\]]/g, '\\$&')}*`;
 }
 
-/**
- * Redis-backed cache shared by every replica. It never breaks a request: a
- * failing Redis is logged and behaves as a miss / dropped write, so
- * terminology stays correct (only slower) while the cache is down.
- */
 export class RedisTerminologyCache implements TerminologyCache, OnModuleDestroy {
   private readonly logger = new Logger(RedisTerminologyCache.name);
 
@@ -97,7 +88,6 @@ export class RedisTerminologyCache implements TerminologyCache, OnModuleDestroy 
     }
   }
 
-  /** Never throws: stale expansions expire on their own TTL, a failed sweep only delays the refresh. */
   async deleteByPrefix(prefix: string): Promise<void> {
     try {
       let cursor = '0';
@@ -120,7 +110,6 @@ export class RedisTerminologyCache implements TerminologyCache, OnModuleDestroy 
   }
 }
 
-/** Redis when `REDIS_URL` is set (compose, production), the in-process cache otherwise. */
 export function createTerminologyCache(source: NodeJS.ProcessEnv = process.env): TerminologyCache {
   const url = source['REDIS_URL'];
   if (url === undefined || url === '') {
@@ -128,7 +117,7 @@ export function createTerminologyCache(source: NodeJS.ProcessEnv = process.env):
   }
   const client = new Redis(url, { maxRetriesPerRequest: 1 });
   client.on('error', (error: Error) => {
-    // Without a listener an idle connection failure would crash the process.
+    // idle connection failure would crash the process
     new Logger(RedisTerminologyCache.name).warn({ err: error }, 'Terminology cache Redis connection error');
   });
   return new RedisTerminologyCache(client);

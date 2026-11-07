@@ -33,12 +33,6 @@ import {
   PASSWORD_MAX_LENGTH,
 } from './validation-patterns';
 
-/**
- * API §2.2.1 `POST /api/v1/admin/users`. A `PATIENT` account gets its FHIR
- * `Patient` exactly like a self-registration, so `birthDate` is required for
- * it (checked by the service, which knows the final role set). A `DOCTOR`
- * account may be linked to an existing `PractitionerRole` right away.
- */
 export class CreateUserDto {
   @ApiProperty({ example: 'ivanov@example.by', maxLength: EMAIL_MAX_LENGTH, description: 'Login; unique case-insensitively (409 EMAIL_TAKEN)' })
   @IsEmail()
@@ -86,7 +80,6 @@ export class CreateUserDto {
   @IsIn(GENDERS)
   gender?: PatientGender;
 
-  /** Bare `PractitionerRole.id`; only valid together with the `DOCTOR` role. */
   @ApiPropertyOptional({ example: 'pr-1', description: 'Bare PractitionerRole.id; only valid together with the DOCTOR role' })
   @ValidateIf(isPresent)
   @Matches(FHIR_ID_PATTERN, { message: '$property must be a FHIR resource id' })

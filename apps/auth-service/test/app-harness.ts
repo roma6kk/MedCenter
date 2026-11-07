@@ -12,13 +12,9 @@ import { IDENTITY_RESOLVER, type IdentityResolver } from '../src/modules/oauth/i
 import { applyE2eEnv } from './e2e-env';
 
 export interface AuthAppOptions {
-  /** Replaces the `auth`-schema identity lookup (token suites that mint codes for synthetic users). */
   readonly identities?: IdentityResolver;
-  /** Spec-only probe controllers mounted next to the application's own. */
   readonly controllers?: ReadonlyArray<Type<unknown>>;
-  /** Express `trust proxy`, as `main.ts` sets it from `TRUST_PROXY`. */
   readonly trustProxy?: boolean | number;
-  /** Use the real `auth` DataSource (configured through `AUTH_DB_*`) instead of the in-memory store. */
   readonly realDatabase?: boolean;
 }
 
@@ -28,12 +24,6 @@ export interface AuthApp {
   readonly fakes: InfrastructureFakes;
 }
 
-/**
- * Boots the real `AppModule` — guard stack, validation pipe, RFC 7807 filter,
- * OAuth, users and terminology modules — over an in-memory `auth` store, a fake
- * HAPI, so HTTP behaviour is tested without PostgreSQL or HAPI (`realDatabase`
- * swaps in PostgreSQL only).
- */
 export async function startAuthApp(options: AuthAppOptions = {}): Promise<AuthApp> {
   applyE2eEnv();
   const fakes = createInfrastructureFakes();
@@ -47,7 +37,6 @@ export async function startAuthApp(options: AuthAppOptions = {}): Promise<AuthAp
   }
   const moduleRef = await builder.compile();
   const app = moduleRef.createNestApplication();
-  // The same factory `main.ts` mounts, so the pipeline under test is the one that ships.
   app.useGlobalPipes(createValidationPipe());
   if (options.trustProxy !== undefined) {
     app.getHttpAdapter().getInstance().set('trust proxy', options.trustProxy);
@@ -56,7 +45,6 @@ export async function startAuthApp(options: AuthAppOptions = {}): Promise<AuthAp
   return { app, moduleRef, fakes };
 }
 
-/** `Set-Cookie` headers of a supertest response, as `name=value` pairs ready for a `Cookie` header. */
 export function cookiesOf(setCookie: unknown): ReadonlyArray<string> {
   const headers = Array.isArray(setCookie) ? setCookie : typeof setCookie === 'string' ? [setCookie] : [];
   return headers

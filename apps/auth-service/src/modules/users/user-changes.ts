@@ -5,11 +5,6 @@ import type { PatientDemographicsChange } from './patient-provisioner';
 import type { UpdateUserDto } from './dto/update-user.dto';
 import type { UserChanges, UserRecord } from './store/user-store';
 
-/**
- * A `PractitionerRole` identifies a DOCTOR only: an explicit value wins (`null`
- * releases the link), and dropping the DOCTOR role releases the one the
- * account still holds, so the role can be given to its next doctor.
- */
 function practitionerRoleChange(dto: UpdateUserDto, current: UserRecord): string | null | undefined {
   if (dto.practitionerRoleId !== undefined) {
     return dto.practitionerRoleId;
@@ -18,7 +13,6 @@ function practitionerRoleChange(dto: UpdateUserDto, current: UserRecord): string
   return dropsDoctor && current.links.practitionerRoleId !== undefined ? null : undefined;
 }
 
-/** What a PATCH changes in the `auth` schema; applied by the store in one transaction. */
 export function changesOf(dto: UpdateUserDto, current: UserRecord): UserChanges {
   const practitionerRoleId = practitionerRoleChange(dto, current);
   return {
@@ -31,7 +25,6 @@ export function changesOf(dto: UpdateUserDto, current: UserRecord): UserChanges 
   };
 }
 
-/** What a PATCH changes in the linked FHIR `Patient`; `null` when it touches nothing the Patient holds. */
 export function demographicsOf(dto: UpdateUserDto): PatientDemographicsChange | null {
   const change: PatientDemographicsChange = {
     ...(dto.email !== undefined ? { email: normaliseEmail(dto.email) } : {}),
@@ -46,7 +39,6 @@ export function demographicsOf(dto: UpdateUserDto): PatientDemographicsChange | 
 const sameSet = (a: ReadonlyArray<string>, b: ReadonlyArray<string>): boolean =>
   a.length === b.length && a.every((value) => b.includes(value));
 
-/** `changes` without the fields that already hold the requested value: what a PATCH really changes in `auth`. */
 export function effectiveChangesOf(changes: UserChanges, current: UserRecord): UserChanges {
   return {
     ...(changes.email !== undefined && changes.email !== current.email ? { email: changes.email } : {}),
@@ -60,10 +52,6 @@ export function effectiveChangesOf(changes: UserChanges, current: UserRecord): U
   };
 }
 
-/**
- * `change` without the e-mail and names the account already has. `birthDate` and `gender` stay: the account does
- * not hold them, the `Patient` does.
- */
 export function effectiveDemographicsOf(change: PatientDemographicsChange | null, current: UserRecord): PatientDemographicsChange | null {
   if (change === null) {
     return null;
@@ -78,7 +66,6 @@ export function effectiveDemographicsOf(change: PatientDemographicsChange | null
   return Object.keys(effective).length === 0 ? null : effective;
 }
 
-/** The changes that put exactly the fields of `changes` back to their values in `before`. */
 export function inverseOf(before: UserRecord, changes: UserChanges): UserChanges {
   return {
     ...(changes.email !== undefined ? { email: before.email } : {}),

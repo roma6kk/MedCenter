@@ -6,8 +6,6 @@ import { createdOf } from '../src/modules/users/__tests__/users-harness';
 import { startWithAdmin, type AdminFixture } from './admin-fixture';
 import { PATIENT_PASSWORD, claimsOfToken, signIn } from './auth-flow-helpers';
 
-// `jose` is pure ESM and Jest's CJS runtime cannot load it; the signature check is stubbed and the
-// claims are decoded from the token the application actually signed (see `oauth.e2e-spec.ts`).
 jest.mock('jose', () => ({
   createRemoteJWKSet: () => 'mocked-jwks',
   jwtVerify: async (token: string) => {
@@ -19,7 +17,6 @@ jest.mock('jose', () => ({
 
 const DOCTOR_PASSWORD = 'D0ctor!Passw0rd';
 
-/** API §2.2.1–2.2.5 — the admin CRUD, over real HTTP and the real guard stack. */
 describe('Admin users API (API 2.2.1–2.2.5)', () => {
   let fixture: AdminFixture;
   let app: INestApplication;

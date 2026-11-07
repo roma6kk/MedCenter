@@ -14,7 +14,6 @@ jest.mock(
 
 const VALID = { ...REGISTRATION, email: 'register-validation@example.by' };
 
-/** API §2.2.6 `POST /api/v1/auth/register`: the public endpoint refuses bad input before it writes anything. */
 describe('POST /api/v1/auth/register — validation and response contract', () => {
   let started: AuthApp;
   let app: INestApplication;

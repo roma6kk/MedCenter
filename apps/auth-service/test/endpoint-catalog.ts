@@ -2,12 +2,10 @@ import { Role } from '@medcenter/contracts';
 
 type Body = Readonly<Record<string, unknown>>;
 
-/** An id no account has: every handler answers it `404` without side effects. */
 export const UNKNOWN_USER_ID = '3f2c9a2e-8a0b-4f55-9d34-2f4a6f0b9b11';
 export const ICD10_VALUE_SET = 'https://fhir.by/ValueSet/InternClassificDiseases10';
 export const ICD10_SYSTEM = 'https://fhir.by/CodeSystem/InternClassificDiseases10';
 
-/** A request an authorised caller makes and the handler itself refuses cleanly (no side effect). */
 export interface Reached {
   readonly status: number;
   readonly path?: string;
@@ -17,15 +15,10 @@ export interface Reached {
 export interface ProtectedEndpoint {
   readonly name: string;
   readonly method: 'get' | 'post' | 'patch' | 'delete';
-  /** The Nest route template, exactly as the controllers declare it (`:id`, `:url`). */
   readonly route: string;
-  /** A concrete URL of the route. */
   readonly path: string;
-  /** A *valid* body, so a guard that failed open would really perform the operation. */
   readonly body?: Body;
-  /** The role the handler pins, or `null` when any authenticated role may call it. */
   readonly role: Role.ADMIN | null;
-  /** The SMART scope the handler pins, or `null` when none. */
   readonly scope: 'user/*.read' | 'user/*.write' | null;
   readonly reached: Reached;
 }
@@ -38,7 +31,6 @@ const NEW_USER: Body = {
   roles: [Role.DOCTOR],
 };
 
-/** Every route of the service that sits behind the JWT guard stack (ADR-009). */
 export const PROTECTED_ENDPOINTS: ReadonlyArray<ProtectedEndpoint> = [
   {
     name: 'POST /api/v1/admin/users',
@@ -154,11 +146,6 @@ export const PROTECTED_ENDPOINTS: ReadonlyArray<ProtectedEndpoint> = [
   },
 ];
 
-/**
- * The only routes that carry `@Public()`. Registration, the token endpoint and the login pair
- * authenticate by other means (rate limit, client credentials, a CSRF-guarded password form); the
- * rest is discovery or liveness. Growing this list is a security decision, hence the explicit list.
- */
 export const PUBLIC_ROUTES: ReadonlyArray<string> = [
   'GET /',
   'GET /health',

@@ -14,10 +14,6 @@ jest.mock(
 
 const HAPI_URL = 'http://hapi.internal:8080/fhir';
 
-/**
- * The `Patient` of a PATIENT account (FR-018, ADR-012): what the auth service writes to HAPI when
- * the account is created, and how an admin PATCH keeps the resource in step under `If-Match`.
- */
 describe('Users API — the Patient resource in HAPI', () => {
   let fixture: AdminFixture;
   let app: INestApplication;

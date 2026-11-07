@@ -21,14 +21,8 @@ import {
 } from './dto/terminology-response.doc';
 import { TerminologyService } from './terminology.service';
 
-/** The answer is the same for every caller, but it sits behind a bearer token: only the browser may keep it (`private`). */
 const CACHEABLE = 'private, max-age=300';
 
-/**
- * API §2.3.1–2.3.3 — terminology reads (FR-018). The `user/*.read` scope of the
- * spec is enforced by `ScopeGuard`; the ValueSet listing is ADMIN-only.
- * `POST /admin/terminology/import` (2.3.4) lives in `AdminTerminologyController`.
- */
 @ApiTags('auth')
 @ApiBearerAuth()
 @Controller('api/v1/terminology')
@@ -45,7 +39,6 @@ export class TerminologyController {
     return this.terminology.listValueSets();
   }
 
-  /** API 2.3.2 — `{url}` is the URL-encoded ValueSet canonical. */
   @Get('value-sets/:url/$expand')
   @ApiOperation({ summary: '2.3.2 Expand a ValueSet (URL-encoded canonical in the path)' })
   @ApiResponse({ status: 200, description: 'A page of the expansion (Cache-Control: private, max-age=300)', type: ExpansionResponseDoc })
@@ -56,7 +49,6 @@ export class TerminologyController {
     return this.terminology.expand(params.url, query);
   }
 
-  /** The same expansion in the form the client calls: `?system=<ValueSet canonical>`. */
   @Get('expand')
   @ApiOperation({ summary: '2.3.2 Expand a ValueSet by canonical (?system=)' })
   @ApiResponse({ status: 200, description: 'A page of the expansion (Cache-Control: private, max-age=300)', type: ExpansionResponseDoc })

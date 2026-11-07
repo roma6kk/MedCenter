@@ -32,18 +32,11 @@ import {
   PASSWORD_MAX_LENGTH,
 } from './validation-patterns';
 
-/**
- * Consent to the processing of the account's data (art. 5 of Law 99-Z), given by ticking the
- * checkbox of the registration form. It is not the consent to the electronic medical record
- * (ADR-019): that one is a FHIR `Consent` and is never created here.
- */
 export class AccountConsentDto {
-  /** Only `true` is accepted: a registration without the tick is refused, not stored as `false`. */
   @ApiProperty({ type: Boolean, enum: [true], example: true, description: 'Only true is accepted' })
   @Equals(true, { message: 'accepted must be true' })
   accepted!: true;
 
-  /** Version of the text the user agreed to, so a later change of the text can be told apart. */
   @ApiProperty({ example: '2026-10', maxLength: ACCOUNT_CONSENT_VERSION_MAX_LENGTH, description: 'Version of the consent text shown to the user' })
   @IsString()
   @IsNotEmpty()
@@ -52,11 +45,6 @@ export class AccountConsentDto {
   textVersion!: string;
 }
 
-/**
- * API §2.2.6 `POST /api/v1/auth/register`. The constraints mirror the
- * frontend zod schema field for field (`frontend/src/lib/contracts.ts`).
- * `@Matches(DATE_ONLY_PATTERN)` narrows `@IsDateString` to an R4 `date`.
- */
 export class RegisterPatientDto {
   @ApiProperty({ example: 'ivanov@example.by', maxLength: EMAIL_MAX_LENGTH })
   @IsEmail()
@@ -96,7 +84,6 @@ export class RegisterPatientDto {
   @IsIn(GENDERS)
   gender?: PatientGender;
 
-  /** Optional contact phone, `+375XXXXXXXXX`; spaces and dashes are accepted and dropped (API §2.2.6). */
   @ApiPropertyOptional({ example: '+375291234567', description: 'Belarus number: +375 and nine digits; spaces and dashes are dropped' })
   @ValidateIf(isPresent)
   @Transform(({ value }: { value: unknown }) => (typeof value === 'string' ? (normaliseBelarusPhone(value) ?? value) : value))

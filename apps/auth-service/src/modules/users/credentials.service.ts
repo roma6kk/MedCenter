@@ -4,7 +4,6 @@ import { normaliseEmail } from '../../config/auth-env';
 import { PasswordHasher } from './password-hasher';
 import { USER_STORE, type UserStore } from './store/user-store';
 
-/** Longest password ever compared; anything longer cannot match a stored one. */
 const MAX_PASSWORD_LENGTH = 128;
 
 /**
@@ -20,7 +19,6 @@ export class CredentialsService {
     private readonly hasher: PasswordHasher,
   ) {}
 
-  /** The user id when the credentials are valid for an active account, `null` otherwise. */
   async verify(email: string, password: string): Promise<string | null> {
     const user = await this.store.findByEmail(normaliseEmail(email));
     if (user === null || !user.isActive || password.length > MAX_PASSWORD_LENGTH) {

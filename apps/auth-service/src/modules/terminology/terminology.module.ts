@@ -20,7 +20,6 @@ const importLockProvider: Provider = {
   useFactory: (): ImportLock => createImportLock(),
 };
 
-/** Terminology reads (API §2.3.1–2.3.3) and the snapshot import (§2.3.4) over the seeded HAPI ValueSets. */
 @Module({
   imports: [FhirModule, AuditModule],
   controllers: [TerminologyController, AdminTerminologyController],

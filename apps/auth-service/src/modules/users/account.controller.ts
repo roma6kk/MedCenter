@@ -11,13 +11,8 @@ import { RegistrationService } from './registration.service';
 import type { AuthenticatedRequest } from './request-actor';
 import { UsersService } from './users.service';
 
-/** Registrations per minute per client IP (NFR-006): enough for a family, not for a bot. */
 export const REGISTER_RATE_LIMIT = 10;
 
-/**
- * API §2.2.6 (public self-registration) and §2.2.7 (the caller's own profile).
- * Both answer with the account's personal data, so neither may be cached.
- */
 @ApiTags('auth')
 @Controller('api/v1')
 @UseInterceptors(NoStoreInterceptor)
@@ -37,7 +32,6 @@ export class AccountController {
     return this.registration.registerPatient(dto, request.requestId);
   }
 
-  /** Any valid Bearer token; the account is the token `sub`, never a parameter. */
   @ApiOperation({ summary: '2.2.7 The caller\'s own profile' })
   @ApiBearerAuth()
   @ApiResponse({ status: 200, description: 'The account of the token with its ExternalLink rows', type: UserDetailsResponseDoc })

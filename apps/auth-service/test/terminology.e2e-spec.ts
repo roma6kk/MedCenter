@@ -5,8 +5,6 @@ import request from 'supertest';
 import { startWithAdmin, type AdminFixture } from './admin-fixture';
 import { PATIENT_PASSWORD, bearer, signIn, type TokenBody } from './auth-flow-helpers';
 
-// `jose` is pure ESM and Jest's CJS runtime cannot load it; the signature check is stubbed and the
-// claims are decoded from the token the application actually signed (see `oauth.e2e-spec.ts`).
 jest.mock('jose', () => ({
   createRemoteJWKSet: () => 'mocked-jwks',
   jwtVerify: async (token: string) => {
@@ -25,7 +23,6 @@ const EXPANSION = {
   expansion: { total: 1, contains: [{ system: ICD10_SYSTEM, code: 'J06.9', display: 'ОРВИ' }] },
 };
 
-/** API §2.3 — terminology reads over real HTTP, the real guard stack and a fake HAPI. */
 describe('Terminology API (API 2.3.1–2.3.3)', () => {
   let fixture: AdminFixture;
   let app: INestApplication;

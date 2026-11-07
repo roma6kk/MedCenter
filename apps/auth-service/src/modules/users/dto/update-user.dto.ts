@@ -32,12 +32,6 @@ import {
   isPresent,
 } from './validation-patterns';
 
-/**
- * API §2.2.4 `PATCH /api/v1/admin/users/{id}`:
- * `PartialType(OmitType(RegisterPatientDto, ['password']))` + `roles` + `isActive`,
- * spelled out because `@nestjs/mapped-types` is not a dependency of the
- * workspace. `practitionerRoleId` links a `DOCTOR` account (task brief).
- */
 export class UpdateUserDto {
   @ApiPropertyOptional({ example: 'ivanov@example.by', maxLength: EMAIL_MAX_LENGTH })
   @ValidateIf(isPresent)
@@ -75,7 +69,6 @@ export class UpdateUserDto {
   @IsIn(GENDERS)
   gender?: PatientGender;
 
-  /** Replaces the whole role set. */
   @ApiPropertyOptional({ enum: Role, enumName: 'Role', isArray: true, minItems: 1, uniqueItems: true, description: 'Replaces the whole role set' })
   @ValidateIf(isPresent)
   @IsArray()
@@ -89,7 +82,6 @@ export class UpdateUserDto {
   @IsBoolean()
   isActive?: boolean;
 
-  /** A FHIR id links the account's `PractitionerRole`; `null` releases the link. */
   @ApiPropertyOptional({ type: String, nullable: true, example: 'pr-1', description: 'A FHIR id links the PractitionerRole; null releases the link' })
   @IsOptional()
   @Matches(FHIR_ID_PATTERN, { message: '$property must be a FHIR resource id' })

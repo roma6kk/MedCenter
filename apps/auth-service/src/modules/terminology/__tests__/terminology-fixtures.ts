@@ -21,7 +21,6 @@ export function createFhir(): jest.Mocked<FhirClient> {
   } as jest.Mocked<FhirClient>;
 }
 
-/** The error `FhirClient` raises when HAPI answers a `$expand` with `status`. */
 export function upstream(status: number): FhirClientError {
   return new FhirClientError('GET', 'http://hapi/fhir/ValueSet/$expand', status);
 }

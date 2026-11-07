@@ -26,14 +26,8 @@ import { NoStoreInterceptor } from './no-store.interceptor';
 import { actorOf, type AuthenticatedRequest } from './request-actor';
 import { UsersService } from './users.service';
 
-/** Ids of `auth.user` are UUID v4 (API §0); anything else is `400 VALIDATION_ERROR`, never a database error. */
 const USER_ID = new ParseUUIDPipe({ version: '4' });
 
-/**
- * API §2.2.1–2.2.5 — user management (FR-015, BR-007). ADMIN only, and the
- * SMART `user/*` scope of the operation on top (scope matrix, API §0). Every
- * answer carries personal data, so none may be cached.
- */
 @ApiTags('auth')
 @ApiBearerAuth()
 @Controller('api/v1/admin/users')
@@ -89,7 +83,6 @@ export class AdminUsersController {
     return this.users.update(id, dto, actorOf(request));
   }
 
-  /** Soft delete: the account is deactivated and returned (200), never removed. */
   @Delete(':id')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: '2.2.5 Deactivate a user (soft delete)' })

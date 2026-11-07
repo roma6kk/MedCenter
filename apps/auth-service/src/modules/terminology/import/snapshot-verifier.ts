@@ -6,27 +6,17 @@ import { findByCanonical } from './canonical-upsert';
 import { expansionCodes, findMissingCodes } from './expansion-codes';
 import { buildExpansionChecks, buildValueSets, type ExpansionCheck, type SnapshotValueSet } from './snapshot-resources';
 
-/**
- * Proof that an imported snapshot works the way the services use it: every
- * ValueSet `$expand`s to all of its snapshot codes, and `$validate-code`
- * accepts every one of them — the services' own gate (BR-004, BR-009).
- */
-
 export interface ExpansionReport {
   readonly valueSetUrl: string;
   readonly total: number;
-  /** Snapshot codes `$expand` did not return. */
   readonly missingCodes: readonly string[];
-  /** Snapshot codes `$validate-code` refused. */
   readonly rejectedCodes: readonly string[];
 }
 
 export interface VerifyOptions {
-  /** Expansion attempts per ValueSet, the first included. */
   readonly attempts: number;
   /** Pause between attempts: HAPI caches resolved CodeSystems for about a minute. */
   readonly delayMs: number;
-  /** First pause before retrying a HAPI call that answered 5xx; it doubles for every further retry (default 1 s). */
   readonly serverErrorDelayMs?: number;
   readonly sleep: (ms: number) => Promise<void>;
 }
@@ -37,7 +27,6 @@ export const DEFAULT_VERIFY_OPTIONS: VerifyOptions = {
   sleep: (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
 };
 
-/** The snapshot was written to HAPI, but HAPI does not serve it the way the services need. */
 export class SnapshotVerificationError extends Error {
   constructor(message: string) {
     super(message);
@@ -48,11 +37,6 @@ export class SnapshotVerificationError extends Error {
 const MIN_EXPANSION_COUNT = 1000;
 const logger = new Logger('SnapshotVerifier');
 
-/**
- * Retries of one HAPI call that failed transiently (so at most `1 + 8` calls). The pause doubles from 1 s and one pause
- * is capped at 16 s: 1+2+4+8+16+16+16+16 = 79 s of waiting, which covers a HAPI restart or its pre-expansion job
- * (the same policy as `tools/terminology-seed`). The import lock outlives it (`IMPORT_LOCK_TTL_SECONDS`).
- */
 const SERVER_ERROR_RETRIES = 8;
 const DEFAULT_SERVER_ERROR_DELAY_MS = 1_000;
 const MAX_SERVER_ERROR_PAUSE_MS = 16_000;
@@ -66,7 +50,6 @@ function isTransient(error: unknown): error is FhirClientError {
   );
 }
 
-/** A 5xx or HAPI-2788 is retried with a growing pause; a 4xx, a timeout or any other failure is real and leaves at once. */
 async function retryOnServerError<T>(options: VerifyOptions, call: () => Promise<T>): Promise<T> {
   for (let retry = 0; ; retry += 1) {
     try {
@@ -82,7 +65,6 @@ async function retryOnServerError<T>(options: VerifyOptions, call: () => Promise
   }
 }
 
-/** `ValueSet/$expand?url=` — the same call the services' terminology guards depend on (BR-004). */
 async function expandedCodes(
   fhir: FhirClient,
   check: ExpansionCheck,
@@ -93,7 +75,6 @@ async function expandedCodes(
   return { total: expansionCodes(expanded).size, missing: findMissingCodes(expanded, check.expectedCodes) };
 }
 
-/** Snapshot codes `$validate-code` refuses for the ValueSet. */
 export async function findRejectedCodes(
   fhir: FhirClient,
   check: ExpansionCheck,
@@ -162,7 +143,6 @@ function assertVerified(reports: readonly ExpansionReport[]): void {
   }
 }
 
-/** Proves every ValueSet of the snapshot; throws {@link SnapshotVerificationError} when one is not served as imported. */
 export async function verifySnapshot(
   fhir: FhirClient,
   options: VerifyOptions = DEFAULT_VERIFY_OPTIONS,

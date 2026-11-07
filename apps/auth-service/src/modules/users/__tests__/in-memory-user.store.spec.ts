@@ -14,7 +14,6 @@ function newUser(overrides: Partial<NewUser> = {}): NewUser {
   };
 }
 
-/** The double must honour the `UserStore` contract the TypeORM adapter is held to (see `typeorm-user.store.spec.ts`). */
 describe('InMemoryUserStore.list search', () => {
   it.each(['Иванова Мария', 'Мария Иванова', 'ива мар', 'мария example'])('should find a user by the words %j of its name', async (search) => {
     const store = new InMemoryUserStore();
