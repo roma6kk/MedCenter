@@ -8,7 +8,7 @@ import { catalogStaleTime } from '@/components/catalog/use-catalog';
 import { queryKeys } from '@/lib/api/query-keys';
 import { groupServices, specialtyOfDoctors, type ServiceGroup } from './service-groups';
 
-export interface ServiceGroups {
+interface ServiceGroups {
   readonly groups: ReadonlyArray<ServiceGroup>;
   readonly isPending: boolean;
 }

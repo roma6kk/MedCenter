@@ -15,7 +15,7 @@ export interface SoonestWindow {
   readonly slot: Slot;
 }
 
-export interface SoonestWindows {
+interface SoonestWindows {
   readonly today: string;
   readonly windows: ReadonlyArray<SoonestWindow>;
   readonly isPending: boolean;

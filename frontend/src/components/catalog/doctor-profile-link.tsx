@@ -10,7 +10,7 @@ import { useT } from '@/lib/i18n/use-t';
 import type { Doctor } from './catalog-types';
 import { doctorLabel } from '@/lib/doctor-name';
 
-export function DoctorProfileLink({ doctor }: { readonly doctor: Doctor }): ReactNode {
+function DoctorProfileLink({ doctor }: { readonly doctor: Doctor }): ReactNode {
   const t = useT('catalog');
   return (
     <Link

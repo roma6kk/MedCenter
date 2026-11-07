@@ -11,7 +11,7 @@ import { SECONDARY_BUTTON_CLASS } from './catalog-styles';
 import { FIELD_CLASS } from '@/components/ui/field-styles';
 import { Select } from '@/components/ui/select';
 
-export const SEARCH_DEBOUNCE_MS = 300;
+const SEARCH_DEBOUNCE_MS = 300;
 
 interface DoctorFilterBarProps {
   readonly params: DirectoryParams;

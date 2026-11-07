@@ -6,7 +6,7 @@ import type { BookingDraft } from '@/store/use-booking-draft-store';
 export const REASON_MIN = 3;
 export const REASON_MAX = 500;
 
-export interface CreateAppointmentRequest {
+interface CreateAppointmentRequest {
   readonly slotId: string;
   readonly serviceId?: string;
   readonly reason?: string;
@@ -19,7 +19,7 @@ export interface AppointmentCreated {
   readonly end: string;
 }
 
-export type ReasonProblem = 'tooShort' | 'tooLong';
+type ReasonProblem = 'tooShort' | 'tooLong';
 
 export function reasonProblem(reason: string): ReasonProblem | null {
   const length: number = reason.trim().length;

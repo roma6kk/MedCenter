@@ -7,9 +7,9 @@ import { clinicDateKey } from '@/lib/clinic-time';
 import { nearestFreeSlots } from './slot-list';
 import { slotWindow } from './slot-time';
 
-export const NEAREST_SLOT_COUNT = 3;
+const NEAREST_SLOT_COUNT = 3;
 
-export interface NearestSlots {
+interface NearestSlots {
   readonly today: string;
   readonly slots: ReadonlyArray<Slot>;
   readonly isPending: boolean;

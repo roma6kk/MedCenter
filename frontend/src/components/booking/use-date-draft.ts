@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 
-export interface DateDraft {
+interface DateDraft {
   readonly value: string;
   readonly onChange: (day: string) => void;
   readonly onBlur: () => void;

@@ -20,7 +20,7 @@ export const CORPORATE_CLIENTS: ReadonlyArray<string> = [
 
 export const INSURANCE_PARTNERS: ReadonlyArray<string> = ['Белгосстрах', 'Промтрансинвест'];
 
-export type DirectionId = 'therapy' | 'cardiology' | 'neurology' | 'surgery' | 'diagnostics';
+type DirectionId = 'therapy' | 'cardiology' | 'neurology' | 'surgery' | 'diagnostics';
 
 export type DirectionTone = 'primary' | 'destructive' | 'info' | 'warm' | 'success';
 

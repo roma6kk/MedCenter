@@ -10,7 +10,7 @@ import { useUiStore } from '@/store/use-ui-store';
 import { isSelectable } from './slot-list';
 import { slotDurationMin } from './slot-time';
 
-export interface SlotChipProps {
+interface SlotChipProps {
   readonly slot: Slot;
   readonly selected: boolean;
   readonly taken: boolean;

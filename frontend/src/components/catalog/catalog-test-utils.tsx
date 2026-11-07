@@ -7,13 +7,13 @@ import type { Slot } from './catalog-types';
 
 export const apiFetchMock = apiFetch as jest.MockedFunction<(path: string) => Promise<unknown>>;
 
-export const SLOT_DAY: string = shiftDateKey(clinicDateKey(), 1);
+const SLOT_DAY: string = shiftDateKey(clinicDateKey(), 1);
 export const SLOT: Slot = { id: 'slot-1', start: `${SLOT_DAY}T08:00:00.000Z`, end: `${SLOT_DAY}T08:30:00.000Z`, status: 'free' };
 export const LATER_SLOT: Slot = { id: 'slot-2', start: `${SLOT_DAY}T10:00:00.000Z`, end: `${SLOT_DAY}T10:30:00.000Z`, status: 'free' };
 
 const META = { page: 1, pageSize: 100, totalItems: 0, totalPages: 1 };
 
-export interface CatalogFixture {
+interface CatalogFixture {
   readonly slots?: Readonly<Record<string, ReadonlyArray<Slot>>>;
   readonly doctorsByService?: Readonly<Record<string, ReadonlyArray<{ readonly id: string }>>>;
   readonly services?: ReadonlyArray<unknown>;

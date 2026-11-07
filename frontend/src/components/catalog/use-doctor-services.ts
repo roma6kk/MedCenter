@@ -7,7 +7,7 @@ import { fetchDoctors } from './catalog-api';
 import type { CatalogService } from './catalog-types';
 import { catalogStaleTime, useServices } from './use-catalog';
 
-export interface DoctorServices {
+interface DoctorServices {
   readonly services: ReadonlyArray<CatalogService>;
   readonly isPending: boolean;
 }
