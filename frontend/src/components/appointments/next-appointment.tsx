@@ -12,7 +12,7 @@ import { cn } from '@/lib/ui/cn';
 import { AppointmentActions } from './appointment-card';
 import { dateTile, durationMin } from './appointment-day';
 import { doctorOf, type AppointmentView } from './appointment-types';
-import { StatusBadge } from './status-badge';
+import { StampBadge } from '@/components/feedback/stamp-badge';
 
 interface NextAppointmentProps {
   readonly appointment: AppointmentView;
@@ -44,7 +44,7 @@ export function NextAppointment({ appointment, onCancel, more = 0 }: NextAppoint
       <div className="flex min-w-0 flex-[999_1_320px] flex-col gap-2.5">
         <div className="flex flex-wrap items-center gap-2.5">
           <h2 id="next-appointment-title" className="text-sm font-semibold text-primary-soft-foreground">{t('nextTitle')}</h2>
-          <StatusBadge status={appointment.status} />
+          <StampBadge status={appointment.status} />
         </div>
         <p className={cn('text-xl font-bold tracking-tight sm:text-2xl', WRAP_TEXT)}>
           <time dateTime={appointment.start} className="tabular-nums mr-1">{format.time(appointment.start)}</time>

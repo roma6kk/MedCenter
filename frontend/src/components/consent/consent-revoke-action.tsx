@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useId, useRef, useState } from 'react';
+import { useId, useState } from 'react';
 import type { ReactNode } from 'react';
 import { CircleX } from 'lucide-react';
 import { useForm } from 'react-hook-form';
@@ -10,6 +10,7 @@ import { ProblemBanner } from '@/components/feedback/problem-banner';
 import { Button } from '@/components/ui/button';
 import { Dialog } from '@/components/ui/dialog';
 import { FormField, INPUT_CLASS } from '@/components/patient/form-field';
+import { useCloseUnlessPending } from '@/components/patient/use-close-unless-pending';
 import { FIELD_NARROW_CLASS } from '@/components/ui/field-styles';
 import { isApiError } from '@/lib/api/api-fetch';
 import { applyProblemToForm } from '@/lib/api/field-errors';
@@ -30,13 +31,7 @@ function RevokeDialog({ patientId, onClose }: { readonly patientId: string; read
   const revoke = useRevokePatientConsent(patientId);
   const [isGone, setIsGone] = useState(false);
   const [problem, setProblem] = useState<ProblemDetails | null>(null);
-  const isPending = useRef(false);
-  useEffect(() => {
-    isPending.current = revoke.isPending;
-  }, [revoke.isPending]);
-  const close = (): void => {
-    if (!isPending.current) onClose();
-  };
+  const close = useCloseUnlessPending(revoke.isPending, onClose);
   const submit = form.handleSubmit(({ applicationNumber }) => {
     if (revoke.isPending) return;
     setIsGone(false);

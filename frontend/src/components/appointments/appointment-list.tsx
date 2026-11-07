@@ -6,6 +6,7 @@ import type { UseQueryResult } from '@tanstack/react-query';
 import { CalendarPlus } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { useClinicFormat } from '@/hooks/use-clinic-format';
+import { formatDayHeading } from '@/lib/clinic-time';
 import { Pager } from '@/components/data-display/paginated-table';
 import { EmptyState } from '@/components/feedback/states';
 import { ContentSkeleton } from '@/components/feedback/content-skeleton';
@@ -20,13 +21,13 @@ import type { PaginatedResponse } from '@/lib/api/pagination';
 import { useT } from '@/lib/i18n/use-t';
 import { cn } from '@/lib/ui/cn';
 import { AppointmentCard } from './appointment-card';
-import { dayHeading, groupByDay } from './appointment-day';
+import { groupByDay } from './appointment-day';
 import type { AppointmentTab, AppointmentView } from './appointment-types';
 import { NextAppointment } from './next-appointment';
 import { CancelAppointmentDialog } from './cancel-appointment-dialog';
 import { useAppointments } from './use-appointments';
 
-export const APPOINTMENTS_PAGE_SIZE = 10;
+const APPOINTMENTS_PAGE_SIZE = 10;
 const TABS_ID = 'appointments';
 
 function EmptyAppointments({ tab }: { readonly tab: AppointmentTab }): ReactNode {
@@ -44,8 +45,7 @@ interface ItemsProps {
 function AppointmentItems({ tab, page, onCancel, onPage }: ItemsProps): ReactNode {
   const t = useT('appointments');
   const { locale } = useClinicFormat();
-  const isUpcoming: boolean = tab === 'upcoming';
-  const next: AppointmentView | undefined = isUpcoming && page.meta.page === 1 ? page.items.find((appointment) => appointment.status === 'booked') : undefined;
+  const next: AppointmentView | undefined = tab === 'upcoming' && page.meta.page === 1 ? page.items.find((appointment) => appointment.status === 'booked') : undefined;
   const items: ReadonlyArray<AppointmentView> = next === undefined ? page.items : page.items.filter((appointment) => appointment !== next);
   const groups = groupByDay(items);
   const enter = useStaggerOnce();
@@ -55,8 +55,8 @@ function AppointmentItems({ tab, page, onCancel, onPage }: ItemsProps): ReactNod
       {groups.length === 0 ? null : (
         <div role="list" aria-label={t('listLabel')} className="flex flex-col gap-6">
           {groups.map((group) => (
-            <section key={`${group.day}-${group.items[0]?.id ?? ''}`} aria-label={dayHeading(group.day, locale)} role="listitem" className="flex flex-col gap-2.5">
-              <h2 className="text-base font-semibold text-muted-foreground first-letter:uppercase">{dayHeading(group.day, locale)}</h2>
+            <section key={`${group.day}-${group.items[0]?.id ?? ''}`} aria-label={formatDayHeading(group.day, locale)} role="listitem" className="flex flex-col gap-2.5">
+              <h2 className="text-base font-semibold text-muted-foreground first-letter:uppercase">{formatDayHeading(group.day, locale)}</h2>
               <Card as="div" padding="none" className={cn('divide-y divide-border overflow-hidden', enter)}>
                 {group.items.map((appointment) => <AppointmentCard key={appointment.id} appointment={appointment} onCancel={onCancel} />)}
               </Card>
@@ -82,30 +82,18 @@ function AppointmentsPanel({ tab, query, onCancel, onPage }: PanelProps): ReactN
   return page.items.length === 0 ? <EmptyAppointments tab={tab} /> : <AppointmentItems tab={tab} page={page} onCancel={onCancel} onPage={onPage} />;
 }
 
-function useListState(): {
-  readonly tab: AppointmentTab;
-  readonly page: number;
-  readonly target: AppointmentView | null;
-  readonly setTab: (tab: AppointmentTab) => void;
-  readonly setPage: (page: number) => void;
-  readonly setTarget: (target: AppointmentView | null) => void;
-} {
+export function AppointmentList(): ReactNode {
+  const t = useT('appointments');
   const [tab, setTabState] = useState<AppointmentTab>('upcoming');
   const [page, setPage] = useState(1);
   const [target, setTarget] = useState<AppointmentView | null>(null);
+  const panel = useRef<HTMLDivElement>(null);
+  const query = useAppointments({ tab, page, pageSize: APPOINTMENTS_PAGE_SIZE });
+  const close = useCallback(() => setTarget(null), []);
   const setTab = useCallback((next: AppointmentTab) => {
     setTabState(next);
     setPage(1);
   }, []);
-  return { tab, page, target, setTab, setPage, setTarget };
-}
-
-export function AppointmentList(): ReactNode {
-  const t = useT('appointments');
-  const { tab, page, target, setTab, setPage, setTarget } = useListState();
-  const panel = useRef<HTMLDivElement>(null);
-  const query = useAppointments({ tab, page, pageSize: APPOINTMENTS_PAGE_SIZE });
-  const close = useCallback(() => setTarget(null), [setTarget]);
   const options: ReadonlyArray<TabOption<AppointmentTab>> = [{ value: 'upcoming', label: t('tabUpcoming') }, { value: 'all', label: t('tabAll') }];
   useClampedPage(query.data?.meta, page, setPage);
   // The card that opened the dialog may lose its cancel button: keep the focus in the list.

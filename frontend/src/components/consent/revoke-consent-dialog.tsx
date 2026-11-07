@@ -1,27 +1,17 @@
 'use client';
 
-import { useCallback, useEffect, useRef } from 'react';
 import type { ReactNode } from 'react';
 import { Button } from '@/components/ui/button';
 import { Dialog } from '@/components/ui/dialog';
 import { ProblemBanner } from '@/components/feedback/problem-banner';
 import { isApiError } from '@/lib/api/api-fetch';
 import { useT } from '@/lib/i18n/use-t';
+import { useCloseUnlessPending } from '@/components/patient/use-close-unless-pending';
 import { useRevokeMyConsent } from './use-consent';
 
 interface RevokeConsentDialogProps {
   // Must keep its identity between renders: the focus trap restarts when it changes.
   readonly onClose: () => void;
-}
-
-function useCloseUnlessPending(pending: boolean, onClose: () => void): () => void {
-  const isPending = useRef(pending);
-  useEffect(() => {
-    isPending.current = pending;
-  }, [pending]);
-  return useCallback(() => {
-    if (!isPending.current) onClose();
-  }, [onClose]);
 }
 
 export function RevokeConsentDialog({ onClose }: RevokeConsentDialogProps): ReactNode {

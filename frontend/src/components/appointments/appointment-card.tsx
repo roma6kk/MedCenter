@@ -10,7 +10,7 @@ import { WRAP_TEXT } from '@/components/patient/wrap-text';
 import { useT } from '@/lib/i18n/use-t';
 import { cn } from '@/lib/ui/cn';
 import { doctorOf, isCancellable, type AppointmentView } from './appointment-types';
-import { StatusBadge } from './status-badge';
+import { StampBadge } from '@/components/feedback/stamp-badge';
 
 interface AppointmentCardProps {
   readonly appointment: AppointmentView;
@@ -56,7 +56,7 @@ export function AppointmentCard({ appointment, onCancel }: AppointmentCardProps)
           <p className={cn('text-sm text-muted-foreground', WRAP_TEXT)}>{t('fieldCancelReason')}: {appointment.cancelReason}</p>
         ) : null}
       </div>
-      <StatusBadge status={appointment.status} />
+      <StampBadge status={appointment.status} />
       <AppointmentActions appointment={appointment} onCancel={onCancel} />
     </article>
   );

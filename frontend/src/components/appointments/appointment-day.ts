@@ -1,10 +1,10 @@
-import { CLINIC_TIME_ZONE, clinicDayOf, formatDayHeading } from '@/lib/clinic-time';
+import { CLINIC_TIME_ZONE, clinicDayOf } from '@/lib/clinic-time';
 import type { Locale } from '@/lib/i18n/locale';
 import type { AppointmentView } from './appointment-types';
 
 const INTL_LOCALE: Readonly<Record<Locale, string>> = { ru: 'ru-BY', en: 'en-GB' };
 
-export interface DayGroup {
+interface DayGroup {
   readonly day: string;
   readonly items: ReadonlyArray<AppointmentView>;
 }
@@ -20,11 +20,7 @@ export function groupByDay(items: ReadonlyArray<AppointmentView>): ReadonlyArray
   return groups;
 }
 
-export function dayHeading(day: string, locale: Locale): string {
-  return formatDayHeading(day, locale);
-}
-
-export interface DateTile {
+interface DateTile {
   readonly weekday: string;
   readonly day: string;
   readonly month: string;

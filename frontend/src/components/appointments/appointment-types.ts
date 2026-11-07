@@ -1,8 +1,6 @@
 import type { AppointmentStatus } from '@/components/feedback/stamp-badge';
 import { normalizeDoctorName } from '@/lib/doctor-name';
 
-export type { AppointmentStatus };
-
 export interface AppointmentView {
   readonly id: string;
   readonly status: AppointmentStatus;

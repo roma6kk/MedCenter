@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useRef } from 'react';
+import { useEffect, useRef } from 'react';
 import type { ReactNode } from 'react';
 import { Button } from '@/components/ui/button';
 import { Dialog } from '@/components/ui/dialog';
@@ -9,6 +9,7 @@ import { FormField, INPUT_CLASS } from '@/components/patient/form-field';
 import { ProblemBanner } from '@/components/feedback/problem-banner';
 import { useClinicFormat } from '@/hooks/use-clinic-format';
 import { useT } from '@/lib/i18n/use-t';
+import { useCloseUnlessPending } from '@/components/patient/use-close-unless-pending';
 import { doctorOf, type AppointmentView } from './appointment-types';
 import { useCancelForm, type CancelFormState } from './use-cancel-form';
 
@@ -18,7 +19,6 @@ interface CancelAppointmentDialogProps {
   readonly onClose: () => void;
   readonly onCancelled: () => void;
 }
-
 
 function NotCancellable({ onClose }: { readonly onClose: () => void }): ReactNode {
   const t = useT('appointments');
@@ -51,17 +51,6 @@ function ReasonForm({ form, formId }: { readonly form: CancelFormState; readonly
       {form.problem !== null ? <div className="mt-3"><ProblemBanner problem={form.problem} /></div> : null}
     </form>
   );
-}
-
-// No-op while the request is in flight: it would cancel after the dialog was dismissed. Identity is stable (focus trap).
-function useCloseUnlessPending(pending: boolean, onClose: () => void): () => void {
-  const isPending = useRef(pending);
-  useEffect(() => {
-    isPending.current = pending;
-  }, [pending]);
-  return useCallback(() => {
-    if (!isPending.current) onClose();
-  }, [onClose]);
 }
 
 export function CancelAppointmentDialog({ appointment, onClose, onCancelled }: CancelAppointmentDialogProps): ReactNode {

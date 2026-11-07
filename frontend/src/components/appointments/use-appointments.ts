@@ -31,7 +31,7 @@ export function useAppointment(appointmentId: string): UseQueryResult<Appointmen
   });
 }
 
-export interface CancelInput {
+interface CancelInput {
   readonly appointmentId: string;
   readonly reason: string;
 }
