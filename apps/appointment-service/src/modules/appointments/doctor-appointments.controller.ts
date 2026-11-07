@@ -19,11 +19,6 @@ import { ListDoctorAppointmentsQueryDto } from './dto/list-doctor-appointments-q
 import { toPageQuery } from './dto/page-query.dto';
 import { FhirIdPipe } from './fhir-id.pipe';
 
-/**
- * API §6.5–6.6 — the doctor's own appointments and no-show (FR-006/009). The
- * doctor is identified by `fhirUser = PractitionerRole/{id}` and must be a
- * participant; a token without that identity fails closed (403).
- */
 @ApiTags('appointment')
 @ApiBearerAuth()
 @Controller('api/v1/doctor/appointments')

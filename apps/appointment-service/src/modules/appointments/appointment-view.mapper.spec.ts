@@ -17,7 +17,6 @@ const appointment: FhirResource = {
   ],
 };
 
-/** Search Bundle as HAPI returns it for `_include=Appointment:actor&_include:iterate=PractitionerRole:practitioner`. */
 const bundle = {
   total: 1,
   entry: [
@@ -31,61 +30,46 @@ const bundle = {
 
 describe('humanNameOf', () => {
   it('should prefer HumanName.text when it is present', () => {
-    // Arrange
     const practitioner: FhirResource = { resourceType: 'Practitioner', name: [{ text: 'Петров И. С.', family: 'X' }] };
 
-    // Act
     const name = humanNameOf(practitioner);
 
-    // Assert
     expect(name).toBe('Петров И. С.');
   });
 
   it('should join family and given names when HumanName.text is absent', () => {
-    // Arrange
     const patient: FhirResource = { resourceType: 'Patient', name: [{ family: 'Иванова', given: ['Анна', 'Петровна'] }] };
 
-    // Act
     const name = humanNameOf(patient);
 
-    // Assert
     expect(name).toBe('Иванова Анна Петровна');
   });
 
   it('should return undefined when the resource has no usable name', () => {
-    // Arrange
     const resources: readonly (FhirResource | undefined)[] = [undefined, { resourceType: 'Patient' }, { resourceType: 'Patient', name: [{}] }];
 
-    // Act
     const names = resources.map((resource) => humanNameOf(resource));
 
-    // Assert
     expect(names).toEqual([undefined, undefined, undefined]);
   });
 });
 
 describe('appointmentsOf', () => {
   it('should return only the Appointment matches when the bundle also carries included resources', () => {
-    // Arrange
     const result = bundle;
 
-    // Act
     const appointments = appointmentsOf(result);
 
-    // Assert
     expect(appointments.map((resource) => resource.id)).toEqual(['apt-1']);
   });
 });
 
 describe('toAppointmentView', () => {
   it('should enrich the response with doctor, service and patient names when they are included', () => {
-    // Arrange
     const included = indexIncluded(bundle);
 
-    // Act
     const view = toAppointmentView(appointment, included);
 
-    // Assert
     expect(view).toMatchObject({
       id: 'apt-1',
       status: 'booked',
@@ -101,13 +85,10 @@ describe('toAppointmentView', () => {
   });
 
   it('should still map the appointment when no related resource was included', () => {
-    // Arrange
     const included = indexIncluded({ entry: [] });
 
-    // Act
     const view = toAppointmentView(appointment, included);
 
-    // Assert
     expect(view).toMatchObject({ id: 'apt-1', doctorId: '', practitionerRoleId: 'role-1' });
     expect(view.doctorName).toBeUndefined();
     expect(view.serviceName).toBeUndefined();

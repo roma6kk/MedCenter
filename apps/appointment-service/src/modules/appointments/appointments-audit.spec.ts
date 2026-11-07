@@ -37,7 +37,6 @@ const COMMITTED = {
   entry: [{}, { response: { status: '201', location: 'Appointment/apt-9/_history/1' } }, {}],
 };
 
-/** The AuditEvent entry of the single transaction Bundle the service committed. */
 function auditEventOf(fhir: jest.Mocked<FhirClient>): { entity: ReadonlyArray<Record<string, unknown>> } {
   const bundle = fhir.batch.mock.calls[0]?.[0] as unknown as { entry: Array<{ resource: FhirResource }> };
   const audit = bundle.entry.map((entry) => entry.resource).find((resource) => resource.resourceType === 'AuditEvent');
@@ -52,7 +51,6 @@ describe('AppointmentsService audit trail (ADR-014, FR-021)', () => {
   let service: AppointmentsService;
 
   beforeEach(() => {
-    // An hour before FREE_SLOT starts: a started slot is refused, so the clock is pinned.
     jest.useFakeTimers({ now: new Date('2026-11-02T08:00:00+03:00') });
     fhir = {
       read: jest.fn(),
@@ -67,35 +65,26 @@ describe('AppointmentsService audit trail (ADR-014, FR-021)', () => {
   });
 
   it('should audit the booking with the patient and the request id when a patient books', async () => {
-    // Arrange
     fhir.read.mockImplementation(async (type) => (type === 'Slot' ? FREE_SLOT : SCHEDULE));
 
-    // Act
     await service.book(PATIENT, { slotId: 'slot-1' }, 'req-1');
 
-    // Assert
     expect(auditEventOf(fhir).entity).toEqual(expect.arrayContaining([PATIENT_ENTITY, REQUEST_ID_ENTITY]));
   });
 
   it('should audit the cancellation with the patient and the request id when the owner cancels', async () => {
-    // Arrange
     fhir.read.mockImplementation(async (type) => (type === 'Appointment' ? BOOKED : { ...FREE_SLOT, status: 'busy' }));
 
-    // Act
     await service.cancel(PATIENT, 'apt-1', { reason: 'не смогу прийти' }, 'req-1');
 
-    // Assert
     expect(auditEventOf(fhir).entity).toEqual(expect.arrayContaining([PATIENT_ENTITY, REQUEST_ID_ENTITY]));
   });
 
   it('should audit the no-show with the patient and the request id when the participant doctor marks it', async () => {
-    // Arrange
     fhir.read.mockResolvedValue(BOOKED);
 
-    // Act
     await service.markNoShow(DOCTOR, 'apt-1', 'req-1');
 
-    // Assert
     expect(auditEventOf(fhir).entity).toEqual(expect.arrayContaining([PATIENT_ENTITY, REQUEST_ID_ENTITY]));
   });
 });

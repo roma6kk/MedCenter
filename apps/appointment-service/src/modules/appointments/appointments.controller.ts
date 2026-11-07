@@ -46,7 +46,6 @@ import { toPageQuery } from './dto/page-query.dto';
 import { FhirIdPipe } from './fhir-id.pipe';
 import { assertRoleScope } from './scope-policy';
 
-/** API §6.1–6.4 — patient booking, own appointments, details and cancellation (FR-004/005). */
 @ApiTags('appointment')
 @ApiBearerAuth()
 @Controller('api/v1/appointments')
@@ -87,7 +86,6 @@ export class AppointmentsController {
     );
   }
 
-  /** 6.2 — the caller's own appointments; the patient comes from the token only (ADR-013). */
   @Get()
   @RequiresRoles(Role.PATIENT)
   @RequiresScopes(SMART_SCOPES.PATIENT_READ)
@@ -117,7 +115,6 @@ export class AppointmentsController {
     }, resolveContentLanguage(acceptLanguage));
   }
 
-  /** 6.3 — owner patient (`patient/*.read`), participant doctor or admin (`user/*.read`). */
   @Get(':id')
   @RequiresRoles(Role.PATIENT, Role.DOCTOR, Role.ADMIN)
   @ApiHeader({
@@ -141,7 +138,6 @@ export class AppointmentsController {
     return this.queries.findById(claims, id, resolveContentLanguage(acceptLanguage));
   }
 
-  /** 6.4 — owner patient (`patient/*.write`) or admin (`user/*.write`). */
   @Post(':id/cancel')
   @HttpCode(HttpStatus.OK)
   @RequiresRoles(Role.PATIENT, Role.ADMIN)

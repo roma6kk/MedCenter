@@ -20,7 +20,6 @@ const CONFIG: RelayConfig = {
   housekeepingIntervalMs: 60_000,
 };
 
-/** In-memory HAPI slice: Basic records, tag/_lastUpdated search, If-Match transactions, `$expunge` log. */
 class FakeHapi {
   readonly rows = new Map<string, FhirResource>();
   readonly expunged: string[] = [];
@@ -75,7 +74,6 @@ class FakeHapi {
             this.rows.delete(id);
           } else if (resource !== undefined) {
             const version = Number((this.rows.get(id)?.['meta'] as { versionId: string }).versionId) + 1;
-            // HAPI keeps the tags a version already had and only adds new ones (non-versioned tag storage).
             const kept = this.tagCodes(this.rows.get(id) as FhirResource).map((code) => ({ system: OUTBOX.STATUS_SYSTEM, code }));
             const given = (resource['meta'] as { tag?: Array<{ system: string; code: string }> }).tag ?? [];
             const tag = [...kept, ...given.filter((added) => !kept.some((old) => old.code === added.code))];

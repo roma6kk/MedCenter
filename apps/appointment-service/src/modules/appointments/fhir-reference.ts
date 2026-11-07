@@ -1,11 +1,6 @@
 import { ForbiddenException } from '@nestjs/common';
 import { FHIR_ID_PATTERN, type JwtClaims, requirePatientRef } from '@medcenter/common';
 
-/**
- * `Type/id` at the end of a reference, optionally followed by `/_history/n`.
- * Anything before it (an absolute base URL) is ignored. The id follows the same
- * rule as {@link FHIR_ID_PATTERN}, so a reference never yields a dot-only id.
- */
 const REFERENCE_PATTERN =
   /(?:^|\/)([A-Z][A-Za-z]+)\/((?!\.+(?:\/|$))[A-Za-z0-9\-.]{1,64})(?:\/_history\/[A-Za-z0-9\-.]{1,64})?$/;
 
@@ -14,12 +9,6 @@ export interface ParsedReference {
   readonly id: string;
 }
 
-/**
- * Parses a FHIR reference into its resource type and logical id. Relative
- * (`Patient/x`), absolute (`http://hapi/fhir/Patient/x`) and versioned
- * (`Patient/x/_history/2`) forms all resolve to the same `{ type, id }`, so a
- * compartment check never fails on formatting alone.
- */
 export function parseReference(reference: unknown): ParsedReference | undefined {
   if (typeof reference !== 'string') {
     return undefined;
@@ -30,7 +19,6 @@ export function parseReference(reference: unknown): ParsedReference | undefined 
   return type === undefined || id === undefined ? undefined : { type, id };
 }
 
-/** Canonical relative form `Type/id` of a reference of the given type, or `undefined`. */
 export function canonicalReference(reference: unknown, type: string): string | undefined {
   const parsed = parseReference(reference);
   return parsed?.type === type ? `${parsed.type}/${parsed.id}` : undefined;
@@ -40,11 +28,7 @@ function invalidPatientContext(): ForbiddenException {
   return new ForbiddenException({ errorCode: 'COMPARTMENT_VIOLATION', message: 'Token carries an invalid patient context' });
 }
 
-/**
- * The SMART `patient` launch claim is a bare Patient id (auth-service contract);
- * FHIR writes and searches need `Patient/{id}`. A claim that is already a
- * Patient reference is accepted too; anything else fails closed.
- */
+/** The SMART `patient` claim is a bare id; a Patient reference is accepted too, anything else fails closed. */
 export function toPatientReference(patientClaim: string): string {
   if (FHIR_ID_PATTERN.test(patientClaim)) {
     return `Patient/${patientClaim}`;
@@ -56,7 +40,6 @@ export function toPatientReference(patientClaim: string): string {
   return reference;
 }
 
-/** Patient compartment of the caller as `Patient/{id}` — from the token only (ADR-013). */
 export function requirePatientReference(claims: JwtClaims): string {
   return toPatientReference(requirePatientRef(claims));
 }

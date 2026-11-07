@@ -32,34 +32,23 @@ import { CreateAppointmentDto } from './dto/create-appointment.dto';
 import { requirePatientReference } from './fhir-reference';
 import { referenceId } from './fhir-transaction';
 
-/** The Slot a booked Appointment holds, with the id it is addressed by. */
 interface OccupiedSlot {
   readonly slotId: string;
   readonly slot: FhirResource;
 }
 
-/** `409 <code>` unless the appointment is still `booked` (BR-002, API §6.4/6.6). */
 function assertBooked(appointment: FhirResource, errorCode: ErrorCode, action: string): void {
   if (appointment['status'] !== BOOKED) {
     throw new ConflictException({ errorCode, message: `${errorCode}: only booked appointments can be ${action}` });
   }
 }
 
-/**
- * `409 SLOT_CONFLICT` when the Schedule or PractitionerRole behind a slot was deactivated: the catalog no longer
- * offers it. Only an explicit `active=false` counts, as in the catalog search, so an absent flag still means active.
- */
 function assertOffered(resource: FhirResource): void {
   if (resource['active'] === false) {
     throw new ConflictException({ errorCode: 'SLOT_CONFLICT', message: 'SLOT_CONFLICT: the slot is no longer offered' });
   }
 }
 
-/**
- * `409 ENCOUNTER_STATE_INVALID` while the appointment's time has not come: a no-show is not known earlier, and it
- * cannot be taken back (BR-008 then refuses the visit and the slot stays `busy`). An appointment without a
- * parsable start has no time to wait for.
- */
 function assertStarted(appointment: FhirResource): void {
   if (Date.parse(stringOf(appointment, 'start')) > Date.now()) {
     throw new ConflictException({
@@ -69,10 +58,7 @@ function assertStarted(appointment: FhirResource): void {
   }
 }
 
-/**
- * `409 SLOT_CONFLICT` once the slot has started. The catalog offers only slots that start later, but a slot
- * nobody booked stays `free` for good and its id is computable, so the booking tests the time as well (FR-004).
- */
+/** `409 SLOT_CONFLICT` once the slot has started: an unbooked slot stays `free` for good and its id is computable. */
 function assertNotStarted(slot: FhirResource, slotId: string): void {
   const startMs = Date.parse(stringOf(slot, 'start'));
   if (Number.isNaN(startMs)) {
@@ -83,15 +69,7 @@ function assertNotStarted(slot: FhirResource, slotId: string): void {
   }
 }
 
-/**
- * Booking lifecycle (FR-004/005/006, BR-001/002, ADR-012).
- *
- * Concurrency: the Slot write carries an `ifMatch` on the version that was read,
- * and it is committed in the same transaction as the Appointment. Two requests
- * that race for one slot both read the same version; only one commit succeeds,
- * and the other receives `409 SLOT_CONFLICT`. HAPI has no row locks over REST,
- * so this optimistic check replaces the pessimistic lock described in ADR-012.
- */
+/** Booking races are settled by optimistic locking: the Slot/Appointment write carries `ifMatch` on the version read, in one HAPI transaction; the loser gets 409. */
 @Injectable()
 export class AppointmentsService {
   private readonly logger = new Logger(AppointmentsService.name);
@@ -101,14 +79,11 @@ export class AppointmentsService {
     @Inject(CONSENT_ENFORCEMENT_MODE) private readonly consentEnforcement: ConsentEnforcement,
   ) {}
 
-  /** `requestId` is the `X-Request-Id` recorded in the AuditEvent (NFR-007). */
   async book(claims: JwtClaims, dto: CreateAppointmentDto, requestId?: string): Promise<AppointmentResponseDto> {
-    // `Patient/{id}`: the token carries a bare id, the Appointment needs a reference.
     const patientRef = requirePatientReference(claims);
     const reason = await this.reasonAllowedByConsent(patientRef, dto.reason);
     const bookable = await this.loadBookableSlot(dto);
-    // Client-assigned id (as ADR-020): the outbox event names the appointment, and the event is written in the
-    // same transaction, before HAPI could assign an id.
+    // Client-assigned id: the outbox event in the same transaction names the appointment before HAPI could assign one.
     const appointmentId = randomUUID();
     const appointment: FhirResource = { ...buildBookedAppointment(bookable, patientRef, reason), id: appointmentId };
     const { slot, slotId, practitionerRoleId, serviceId } = bookable;
@@ -122,7 +97,6 @@ export class AppointmentsService {
       serviceId,
     });
 
-    // One atomic commit: the booking, its audit and the outbox event exist together or not at all (ADR-021).
     await commitTransaction(
       this.fhir,
       [
@@ -136,10 +110,6 @@ export class AppointmentsService {
     return toAppointmentResponseDto(appointment);
   }
 
-  /**
-   * ADR-019: booking itself needs no consent, but a free-text reason is health data. Without a consent
-   * in force `block` answers `409 CONSENT_REQUIRED`; `warn` books without the reason and logs it.
-   */
   private async reasonAllowedByConsent(patientRef: string, reason: string | undefined): Promise<string | undefined> {
     if (reason === undefined) {
       return undefined;
@@ -156,7 +126,6 @@ export class AppointmentsService {
     return reason;
   }
 
-  /** Patient (own appointments) or ADMIN cancels a booked appointment; the slot becomes `free` again. */
   async cancel(
     claims: JwtClaims,
     appointmentId: string,
@@ -181,7 +150,6 @@ export class AppointmentsService {
     return toAppointmentResponseDto(cancelled);
   }
 
-  /** The appointment the caller may cancel (BR-002): own for a patient, any for an admin, and still `booked`. */
   private async readCancellable(claims: JwtClaims, appointmentId: string): Promise<FhirResource> {
     // Fail closed before HAPI: a patient token without a compartment never triggers a read.
     const callerRef = claims.role === Role.ADMIN ? undefined : requirePatientReference(claims);
@@ -196,16 +164,7 @@ export class AppointmentsService {
     return appointment;
   }
 
-  /**
-   * Doctor marks a booked appointment as a no-show (API §6.6). The slot stays
-   * `busy`: the time has passed and cannot be booked again. BR-008: only an
-   * appointment that is still `booked` and has no encounter yet can be a
-   * no-show, otherwise `409 ENCOUNTER_STATE_INVALID` — a patient who was seen
-   * (an in-progress or finished encounter, a `fulfilled` appointment) did show up.
-   * The same code refuses an appointment whose start has not come yet.
-   */
   async markNoShow(claims: JwtClaims, appointmentId: string, requestId?: string): Promise<AppointmentResponseDto> {
-    // Fail closed before HAPI: a token without `fhirUser = PractitionerRole/{id}` never triggers a read.
     const callerRef = requireDoctorRoleRef(claims);
     const appointment = await this.fhir.read('Appointment', appointmentId);
     // Ownership before state: a non-participant must not learn the appointment's status.
@@ -221,7 +180,6 @@ export class AppointmentsService {
       [
         { method: 'PUT', url: `Appointment/${appointmentId}`, resource: updated, ifMatch: versionOf(appointment) },
         auditWrite({ interaction: 'update', actorSub: claims.sub, entityRef: `Appointment/${appointmentId}`, patientRef, requestId }),
-        // The patient is told the visit was recorded as missed (FR-008); the event commits with the status or not at all (ADR-021).
         outboxWrite(noshowEvent({ appointmentId, patientRef: patientRef ?? '' })),
       ],
       'ENCOUNTER_STATE_INVALID',
@@ -229,11 +187,7 @@ export class AppointmentsService {
     return toAppointmentResponseDto(updated);
   }
 
-  /**
-   * `409 <errorCode>` when an Encounter (in progress or finished) refers to the appointment. An encounter
-   * opened between this search and the commit is caught by the `If-Match` on the Appointment: encounter-service
-   * changes the Appointment (`meta.tag`) in the transaction that opens the encounter.
-   */
+  /** An encounter opened after the search is caught by `If-Match` on the Appointment (encounter-service changes its `meta.tag`). */
   private async assertNoEncounter(appointmentId: string, errorCode: ErrorCode, action: string): Promise<void> {
     const encounters = await this.fhir.search('Encounter', { appointment: `Appointment/${appointmentId}`, _count: 1 });
     if ((encounters.entry ?? []).length > 0) {
@@ -244,17 +198,14 @@ export class AppointmentsService {
     }
   }
 
-  /** The Slot an Appointment occupies; a stored Appointment without one is an internal data error. */
   private async readSlotOf(appointment: FhirResource, appointmentId: string): Promise<OccupiedSlot> {
     const slotId = slotIdOf(appointment);
     if (slotId === '') {
-      // An empty id would otherwise become a `GET Slot/` collection request.
       throw missingReference(`Appointment ${appointmentId} has no slot`);
     }
     return { slotId, slot: await this.fhir.read('Slot', slotId) };
   }
 
-  /** Reads the Slot, its Schedule and role; the slot must be `free`, still ahead, still offered, and match a requested service. */
   private async loadBookableSlot(dto: CreateAppointmentDto): Promise<BookableSlot> {
     const slot = await this.fhir.read('Slot', dto.slotId);
     if (slot['status'] !== 'free') {

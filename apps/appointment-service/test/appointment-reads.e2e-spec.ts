@@ -6,10 +6,6 @@ import type { TestTokenClaims } from '@medcenter/testing';
 const PATIENT: TestTokenClaims = { sub: 'user-1', role: 'PATIENT', scope: 'patient/*.read patient/*.write launch', patient: 'pat-1' };
 const DOCTOR: TestTokenClaims = { sub: 'doc-1', role: 'DOCTOR', scope: 'user/*.read user/*.write launch', fhirUser: 'PractitionerRole/role-1' };
 
-/**
- * Appointment reads over HTTP (API §6.2, §6.3, §6.5): the real guard stack,
- * validation pipe and RFC 7807 filter in front of a fake HAPI.
- */
 describe('Appointment reads (e2e)', () => {
   let harness: AppHarness;
   const bearer = (claims: TestTokenClaims): string => `Bearer ${harness.issuer.sign(claims)}`;
@@ -145,7 +141,6 @@ describe('Appointment reads (e2e)', () => {
       'Appointment',
       expect.objectContaining({
         actor: 'PractitionerRole/role-1',
-        // The clinic day 2026-11-02 in Europe/Minsk, not the UTC day HAPI would read in a bare date.
         date: ['ge2026-11-01T21:00:00.000Z', 'le2026-11-02T20:59:59.999Z'],
       }),
     );

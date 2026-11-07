@@ -1,19 +1,13 @@
 import type { RequestWithClaims, RequestWithRequestId } from '@medcenter/common';
 import type { FhirResource, TransactionWrite } from '@medcenter/fhir';
 
-/** An authenticated request after `RequestIdMiddleware` has assigned its correlation id. */
 export type AuditedRequest = RequestWithClaims & Pick<RequestWithRequestId, 'requestId'>;
 
-/** What a clinical write did, who asked for it and through which request (ADR-014, FR-021, NFR-007). */
 export interface AuditParams {
   readonly interaction: 'create' | 'update';
-  /** Token `sub` of the requesting user. */
   readonly actorSub: string;
-  /** Changed resource; may be a `urn:uuid:` fullUrl of a resource created in the same bundle. */
   readonly entityRef: string;
-  /** Patient whose appointment changed (FR-021: whose data was touched). */
   readonly patientRef?: string;
-  /** `X-Request-Id` of the HTTP request (`RequestIdMiddleware`), the journal's correlation id. */
   readonly requestId?: string;
 }
 
@@ -25,16 +19,12 @@ const PATIENT_OBJECT_ROLE = {
   display: 'Patient',
 } as const;
 
-/** IHE BALP entity type the analytics journal reads the request id from (same as auth-service). */
 const REQUEST_ID_TYPE = {
   system: 'https://profiles.ihe.net/ITI/BALP/CodeSystem/BasicAuditEntityType',
   code: 'XrequestId',
 } as const;
 
-/**
- * `AuditEvent.entity`: the changed resource first (the journal shows the first
- * relative reference), then the patient and the request id when known.
- */
+/** The changed resource goes first: the analytics journal shows the first relative reference. */
 function entitiesOf(params: AuditParams): ReadonlyArray<Record<string, unknown>> {
   return [
     { what: { reference: params.entityRef } },
@@ -43,10 +33,6 @@ function entitiesOf(params: AuditParams): ReadonlyArray<Record<string, unknown>>
   ];
 }
 
-/**
- * FHIR `AuditEvent` written inside the same transaction as the clinical change
- * (ADR-014). Same envelope as encounter-/auth-service, so analytics reads one format.
- */
 export function buildAuditEvent(params: AuditParams): FhirResource {
   return {
     resourceType: 'AuditEvent',
@@ -65,7 +51,6 @@ export function buildAuditEvent(params: AuditParams): FhirResource {
   };
 }
 
-/** The `POST AuditEvent` entry that accompanies a clinical write in its transaction Bundle. */
 export function auditWrite(params: AuditParams): TransactionWrite {
   return { method: 'POST', url: 'AuditEvent', resource: buildAuditEvent(params) };
 }

@@ -9,7 +9,6 @@ const patientClaims: JwtClaims = {
   sub: 'user-1',
   scope: 'patient/*.write',
   role: 'PATIENT',
-  // auth-service issues the SMART launch context as a bare Patient id.
   patient: '9f2c',
   jti: 'jti-1',
 };
@@ -54,14 +53,12 @@ const bookedAppointment: FhirResource = {
   meta: { versionId: '2' },
 };
 
-/** The event envelope inside an outbox `Basic` (the payload extension, JSON text). */
 function outboxEventOf(basic: FhirResource | undefined): Record<string, unknown> {
   const extensions = (basic?.['extension'] ?? []) as Array<{ url: string; valueString?: string }>;
   const payload = extensions.find((extension) => extension.url === MEDCENTER_EXT.OUTBOX_PAYLOAD)?.valueString;
   return JSON.parse(payload ?? '{}') as Record<string, unknown>;
 }
 
-/** Error payload (`{ errorCode, message }`) thrown by a service call. */
 async function errorPayloadOf(promise: Promise<unknown>): Promise<unknown> {
   try {
     await promise;
@@ -71,7 +68,6 @@ async function errorPayloadOf(promise: Promise<unknown>): Promise<unknown> {
   throw new Error('expected the promise to reject');
 }
 
-/** An hour before `freeSlot` starts (09:00 in Minsk): the clock is pinned, so the specs do not age with the calendar. */
 const BEFORE_SLOT_START = new Date('2026-11-02T08:00:00+03:00');
 
 describe('AppointmentsService', () => {
@@ -349,7 +345,6 @@ describe('AppointmentsService', () => {
       expect(result).toMatchObject({ status: 'cancelled', cancelReason: 'не смог прийти' });
       const outbox = outboxEventOf(bundle.entry[3]?.resource);
       expect(outbox).toMatchObject({ type: 'appointment.cancelled.v1', appointmentId: 'apt-1', actorType: 'PATIENT', patientRef: 'Patient/9f2c' });
-      // Payload minimisation (ADR-021): the free-text reason never enters the outbox.
       expect(JSON.stringify(bundle.entry[3]?.resource)).not.toContain('не смог прийти');
     });
   });
@@ -359,7 +354,6 @@ describe('AppointmentsService', () => {
     const encounterOf = (status: string): FhirResource => ({ resourceType: 'Encounter', id: 'enc-1', status });
 
     beforeEach(() => {
-      // Ten minutes into the visit (09:00 in Minsk): a no-show is recorded once the appointment has started.
       jest.setSystemTime(new Date('2026-11-02T09:10:00+03:00'));
       fhir.search.mockResolvedValue({ entry: [] });
     });

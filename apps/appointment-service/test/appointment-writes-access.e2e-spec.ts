@@ -9,9 +9,7 @@ const PATIENT: TestTokenClaims = { sub: 'user-1', role: 'PATIENT', scope: 'patie
 
 const COMMITTED = { resourceType: 'Bundle', type: 'transaction-response', entry: [] };
 
-/** Slot id shape catalog-service generates: 64 hex chars of SHA-256, not a UUID. */
 const GENERATED_SLOT_ID = 'a3f1c9e07b2d4c5e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2b3c4d5e6f7a8b9c0d1e';
-/** Tomorrow: booking refuses a slot that has started, so a fixed date would age. */
 const SLOT_START_MS = Date.now() + 24 * 60 * 60 * 1000;
 const FREE_SLOT = {
   resourceType: 'Slot',
@@ -28,11 +26,6 @@ const SCHEDULE = {
   actor: [{ reference: 'PractitionerRole/role-1' }, { reference: 'HealthcareService/svc-1' }],
 };
 
-/**
- * Access rules of the M3 write side over HTTP (API §6.4, §6.6): the doctor is
- * recognised by the `fhirUser = PractitionerRole/{id}` claim auth-service now
- * issues, and the cancel scope follows the caller's role.
- */
 describe('Appointment write access (e2e)', () => {
   let harness: AppHarness;
   const bearer = (claims: TestTokenClaims): string => `Bearer ${harness.issuer.sign(claims)}`;
@@ -65,7 +58,6 @@ describe('Appointment write access (e2e)', () => {
       .send({ slotId: GENERATED_SLOT_ID })
       .expect(201);
 
-    // The service assigns the id itself (ADR-021: the outbox event must name the appointment before the commit).
     expect(response.body).toMatchObject({ id: expect.stringMatching(/^[0-9a-f-]{36}$/), status: 'booked', slotId: GENERATED_SLOT_ID, patientId: 'pat-1' });
   });
 

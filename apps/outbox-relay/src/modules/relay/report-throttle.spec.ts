@@ -35,7 +35,6 @@ describe('ReportThrottle', () => {
     throttle.shouldReport('b2', 1);
     throttle.shouldReport('b3', 2);
 
-    // b1 was dropped to make room, so it is reported as new; b3 is still held back.
     expect(throttle.shouldReport('b3', 3)).toBe(false);
     expect(throttle.shouldReport('b1', 4)).toBe(true);
   });

@@ -11,7 +11,6 @@ import { applyE2eEnv } from './e2e-env';
 import { startTestIssuer, type TestIssuer, type TestTokenClaims } from '@medcenter/testing';
 
 const HAPI_PORT = 8080;
-/** HAPI (Spring Boot) can need minutes on a loaded machine; `E2E_HAPI_STARTUP_MS` extends the budget. */
 const HAPI_STARTUP_MS = Number(process.env['E2E_HAPI_STARTUP_MS'] ?? 240_000);
 
 interface SeededSlot {
@@ -31,13 +30,8 @@ async function put(fhirBase: string, resource: Record<string, unknown>): Promise
   }
 }
 
-/**
- * Seeds one free slot with everything it references (HAPI enforces referential
- * integrity on write) and the names the read side resolves through `_include`.
- */
 async function seedFreeSlot(fhirBase: string, start: string, end: string): Promise<SeededSlot> {
   const [patientId, practitionerId, roleId, serviceId, scheduleId] = [1, 2, 3, 4, 5].map(() => randomUUID());
-  // Same id shape catalog-service generates (64 hex chars of SHA-256), not a UUID.
   const slotId = createHash('sha256').update(`${scheduleId}|${start}`).digest('hex').slice(0, 64);
 
   await put(fhirBase, { resourceType: 'Patient', id: patientId, active: true, name: [{ family: 'Иванова', given: ['Анна'] }] });
@@ -54,11 +48,6 @@ async function seedFreeSlot(fhirBase: string, start: string, end: string): Promi
   return { patientId, roleId, slotId };
 }
 
-/**
- * Booking against a real HAPI FHIR server started by Testcontainers (needs
- * Docker): the optimistic lock (BR-001, M3 gate) is exercised by HAPI itself,
- * and so are the read-side search parameters (API §6.2/6.3/6.5).
- */
 describe('Booking concurrency (e2e, HAPI-backed)', () => {
   let app: INestApplication;
   let hapi: StartedTestContainer | undefined;
@@ -70,7 +59,6 @@ describe('Booking concurrency (e2e, HAPI-backed)', () => {
     sub: `user-${randomUUID()}`,
     role: 'PATIENT',
     scope: 'patient/*.read patient/*.write',
-    // auth-service issues the SMART `patient` claim as a bare Patient id.
     patient: patientId,
   });
 
@@ -92,7 +80,6 @@ describe('Booking concurrency (e2e, HAPI-backed)', () => {
     await app.init();
   }, HAPI_STARTUP_MS + 60_000);
 
-  // Stopping the HAPI container can outlast Jest's 5 s default hook budget.
   afterAll(async () => {
     await app?.close();
     await issuer?.close();
@@ -100,7 +87,6 @@ describe('Booking concurrency (e2e, HAPI-backed)', () => {
   }, 120_000);
 
   it('should let exactly one booking succeed (201) and reject the other (409 SLOT_CONFLICT) when two race for one slot', async () => {
-    // Tomorrow: a slot that has started is refused (SLOT_CONFLICT), so a fixed date would make both bookings lose.
     const startMs = Date.now() + 24 * 60 * 60 * 1000;
     const { patientId, slotId } = await seedFreeSlot(fhirBase, new Date(startMs).toISOString(), new Date(startMs + 30 * 60 * 1000).toISOString());
     const token = bearer(patientOf(patientId));
