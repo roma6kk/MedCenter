@@ -1,7 +1,7 @@
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { apiFetch } from '@/lib/api/api-fetch';
-import { chooseRowAction, pageOf, renderWithClient } from '../shared/test-utils';
+import { chooseRowAction, firstButton, pageOf, renderWithClient } from '../shared/test-utils';
 import type { AdminSchedule } from './schedule-types';
 import { SchedulesPanel } from './schedules-panel';
 
@@ -34,10 +34,6 @@ function answer(schedules: ReadonlyArray<AdminSchedule>): (path: string) => Prom
     if (path.startsWith('/api/v1/admin/schedules')) return Promise.resolve(pageOf(schedules));
     return Promise.resolve(undefined);
   };
-}
-
-async function first(name: string): Promise<HTMLElement> {
-  return (await screen.findAllByRole('button', { name }))[0] as HTMLElement;
 }
 
 describe('SchedulesPanel', () => {
@@ -88,7 +84,7 @@ describe('SchedulesPanel', () => {
     apiFetchMock.mockImplementation(answer([active]));
     renderWithClient(<SchedulesPanel />);
 
-    await userEvent.click(await first('Сгенерировать слоты: Иванова Мария · Кабинет 101'));
+    await userEvent.click(await firstButton('Сгенерировать слоты: Иванова Мария · Кабинет 101'));
     await userEvent.click(within(screen.getByRole('dialog', { name: 'Генерация слотов' })).getByRole('button', { name: 'Сгенерировать' }));
 
     await waitFor(() => expect(apiFetchMock.mock.calls.some(([path]) => path === '/api/v1/admin/schedules/2572/generate')).toBe(true));
