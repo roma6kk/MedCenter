@@ -40,6 +40,7 @@ const HISTORY = {
   practitionerRoleId: 'role-1',
 };
 
+const OLDER = { ...HISTORY, id: 'enc-5', date: '2026-09-01T06:00:00Z', summary: 'Контроль', appointmentId: 'appt-5' };
 const MEDICATION = { id: 'm1', kind: 'medication', status: 'active', atcCode: 'J01FA10', atcDisplay: 'Азитромицин', dosageText: '1 таб 3 раза в день', encounterId: 'enc-9', authoredOn: '2026-10-14T06:20:00Z' };
 const SERVICE = { id: 's1', kind: 'service', status: 'active', codeSystem: 'https://fhir.by/CodeSystem/nsi-services', code: 'A01.001', display: 'Консультация кардиолога', encounterId: 'enc-9' };
 
@@ -250,8 +251,7 @@ describe('PatientCardView prescriptions (API 7.5)', () => {
 
 describe('PatientCardView history cards (A2)', () => {
   it('should open the newest visit by default and fold the others', async () => {
-    const older = { ...HISTORY, id: 'enc-5', date: '2026-09-01T06:00:00Z', summary: 'Контроль', appointmentId: 'appt-5' };
-    setup([{ path: '/api/v1/patients/p1/history', respond: () => pageOf([HISTORY, older]) }]);
+    setup([{ path: '/api/v1/patients/p1/history', respond: () => pageOf([HISTORY, OLDER]) }]);
 
     const section = within(await screen.findByRole('region', { name: 'История обращений' }));
     const [newest, oldest] = await section.findAllByRole('button', { expanded: undefined });
@@ -263,8 +263,7 @@ describe('PatientCardView history cards (A2)', () => {
   });
 
   it('should unfold a folded visit in place and fold it again', async () => {
-    const older = { ...HISTORY, id: 'enc-5', date: '2026-09-01T06:00:00Z', summary: 'Контроль', appointmentId: 'appt-5' };
-    setup([{ path: '/api/v1/patients/p1/history', respond: () => pageOf([HISTORY, older]) }]);
+    setup([{ path: '/api/v1/patients/p1/history', respond: () => pageOf([HISTORY, OLDER]) }]);
     const section = within(await screen.findByRole('region', { name: 'История обращений' }));
     const oldest = (await section.findAllByRole('button', { expanded: false }))[0] as HTMLElement;
 
@@ -298,8 +297,7 @@ describe('PatientCardView clinical summary (A2)', () => {
   });
 
   it('should list a diagnosis once, with its latest date, even when several visits carry it', async () => {
-    const older = { ...HISTORY, id: 'enc-5', date: '2026-09-01T06:00:00Z', appointmentId: 'appt-5' };
-    setup([{ path: '/api/v1/patients/p1/history', respond: () => pageOf([HISTORY, older]) }]);
+    setup([{ path: '/api/v1/patients/p1/history', respond: () => pageOf([HISTORY, OLDER]) }]);
 
     const summary = within(await screen.findByRole('region', { name: 'Клиническая сводка' }));
     await summary.findByText('Острый назофарингит');
