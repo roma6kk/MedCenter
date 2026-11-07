@@ -11,7 +11,7 @@ import { cn } from '@/lib/ui/cn';
 import { WRAP_TEXT } from '../wrap-text';
 import { initialsOf } from './profile-name';
 
-export interface DoctorEntry {
+interface DoctorEntry {
   readonly name: string;
   readonly appointment: AppointmentView;
 }

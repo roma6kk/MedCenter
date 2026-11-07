@@ -1,7 +1,7 @@
 import { clinicDayOf } from '@/lib/clinic-time';
 import type { HistoryEntry, Prescription } from '../patient-types';
 
-export interface MonthGroup {
+interface MonthGroup {
   readonly key: string;
   readonly entries: ReadonlyArray<HistoryEntry>;
 }

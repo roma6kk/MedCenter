@@ -6,9 +6,9 @@ export type NotificationFilter = 'all' | 'unread' | 'appointment' | 'encounter';
 
 export const NOTIFICATION_FILTERS: ReadonlyArray<NotificationFilter> = ['all', 'unread', 'appointment', 'encounter'];
 
-export type NotificationSource = Pick<NotificationItem, 'category'> & { readonly appointmentId?: string | null };
+type NotificationSource = Pick<NotificationItem, 'category'> & { readonly appointmentId?: string | null };
 
-export interface NotificationKind {
+interface NotificationKind {
   readonly labelKey: string;
   readonly icon: LucideIcon;
   readonly tone: string;
@@ -26,7 +26,7 @@ export function notificationKind(category: string): NotificationKind {
   return KINDS[category] ?? OTHER_KIND;
 }
 
-export interface NotificationAction {
+interface NotificationAction {
   readonly labelKey: string;
   readonly href: string;
 }
@@ -46,7 +46,7 @@ export function matchesFilter(item: Pick<NotificationItem, 'category' | 'read'>,
   return item.category === filter;
 }
 
-export interface NotificationDay<TItem> {
+interface NotificationDay<TItem> {
   readonly dayKey: string;
   readonly items: ReadonlyArray<TItem>;
 }

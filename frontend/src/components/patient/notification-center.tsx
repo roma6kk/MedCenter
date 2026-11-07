@@ -29,7 +29,7 @@ import { useRestoreFocus } from './use-restore-focus';
 import { NotificationRow } from './notifications/notification-row';
 import { groupByClinicDay, matchesFilter, NOTIFICATION_FILTERS, type NotificationFilter } from './notifications/notification-logic';
 
-export const NOTIFICATIONS_PAGE_SIZE = 10;
+const NOTIFICATIONS_PAGE_SIZE = 10;
 const TABS_ID = 'notifications';
 
 interface ListProps {

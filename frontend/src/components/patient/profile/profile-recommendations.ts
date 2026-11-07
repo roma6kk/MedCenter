@@ -3,7 +3,7 @@ import type { AppointmentView } from '@/components/appointments/appointment-type
 import type { HistoryEntry, Prescription } from '../patient-types';
 
 export const ECG_MIN_AGE_YEARS = 40;
-export const ECG_INTERVAL_DAYS = 365;
+const ECG_INTERVAL_DAYS = 365;
 export const REPEAT_VISIT_WINDOW_DAYS = 60;
 
 // Service codes of the national catalogue are unknown to the cabinet: ECG is matched by display name.

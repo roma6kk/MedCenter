@@ -1,6 +1,6 @@
 import { clinicDayOf, isDateKey } from '@/lib/clinic-time';
 
-export type ConsentStatus = 'active' | 'inactive' | 'rejected' | 'entered-in-error';
+type ConsentStatus = 'active' | 'inactive' | 'rejected' | 'entered-in-error';
 export type ConsentEntryStatus = 'active' | 'rejected';
 export type ConsenterType = 'self' | 'legal-representative' | 'guardian' | 'relative';
 

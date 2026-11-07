@@ -1,6 +1,6 @@
 import type { AccountProfile, PatientProfile } from '../patient-types';
 
-export type CompletenessItem = 'birthDate' | 'gender' | 'phone' | 'email';
+type CompletenessItem = 'birthDate' | 'gender' | 'phone' | 'email';
 
 const ITEMS: ReadonlyArray<CompletenessItem> = ['birthDate', 'gender', 'phone', 'email'];
 

@@ -12,7 +12,7 @@ import { WRAP_TEXT } from '../wrap-text';
 import { notificationAction, notificationKind } from './notification-logic';
 import { useNotificationText } from './use-notification-text';
 
-export interface NotificationRowProps {
+interface NotificationRowProps {
   readonly item: NotificationItem;
   readonly markingId: string | null;
   readonly onMarkRead: (id: string) => void;

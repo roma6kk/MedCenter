@@ -1,4 +1,4 @@
-export type DiagnosisVerification = 'working' | 'provisional' | 'confirmed';
+type DiagnosisVerification = 'working' | 'provisional' | 'confirmed';
 
 export interface DiagnosisView {
   readonly code: string;
@@ -6,7 +6,7 @@ export interface DiagnosisView {
   readonly verificationStatus?: DiagnosisVerification;
 }
 
-export interface CodingView {
+interface CodingView {
   readonly system?: string;
   readonly code?: string;
   readonly display?: string;

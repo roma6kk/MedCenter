@@ -20,7 +20,7 @@ function write(key: string, ids: ReadonlyArray<string>): void {
   }
 }
 
-export interface HiddenRecommendations {
+interface HiddenRecommendations {
   readonly hidden: ReadonlyArray<string>;
   readonly hide: (id: string) => void;
   readonly restore: () => void;

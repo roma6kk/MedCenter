@@ -8,9 +8,9 @@ import { useT } from '@/lib/i18n/use-t';
 import { cn } from '@/lib/ui/cn';
 import { StaffConsentBody } from './staff-consent-panel';
 
-export const CONSENT_ANCHOR = 'consent';
+const CONSENT_ANCHOR = 'consent';
 
-export interface ConsentManagementState {
+interface ConsentManagementState {
   readonly isOpen: boolean;
   readonly toggle: () => void;
   readonly reveal: () => void;
