@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { expect, test, type BrowserContext, type Page, type Response } from '@playwright/test';
-import { accessTokenOf, bookAnyFreeSlotAs, cancelAppointmentAs } from './fixtures/booking-api';
+import { accessTokenOf, authHeaders, bookAnyFreeSlotAs, cancelAppointmentAs, clinicDay } from './fixtures/booking-api';
 import { hasDemoManifest } from './fixtures/demo-accounts';
 import { openStoredSession } from './fixtures/session-state';
 
@@ -143,7 +143,7 @@ test.describe('admin audit journal', () => {
   let roomId: string;
 
   async function adminApi(path: string): Promise<{ readonly items: ReadonlyArray<{ readonly action: string }> }> {
-    const response = await page.request.get(path, { headers: { Authorization: `Bearer ${await accessTokenOf(page)}` } });
+    const response = await page.request.get(path, { headers: await authHeaders(page) });
     return (await response.json()) as { items: ReadonlyArray<{ action: string }> };
   }
 
@@ -163,7 +163,7 @@ test.describe('admin audit journal', () => {
   test.beforeAll(async ({ browser, baseURL }) => {
     ({ context, page } = await openStoredSession(browser, baseURL, 'ADMIN', 0));
     adminSub = await subjectOf(page);
-    const headers = { Authorization: `Bearer ${await accessTokenOf(page)}` };
+    const headers = await authHeaders(page);
     const identifier = `E2E${randomUUID().replace(/-/g, '').slice(0, 8).toUpperCase()}`;
     const created = await page.request.post('/api/v1/admin/rooms', { headers, data: { identifier, name: `Кабинет ${identifier}`, floor: 1 } });
     expect(created.status(), 'the admin creates a room').toBe(201);
@@ -216,9 +216,8 @@ test.describe('admin audit journal', () => {
 
   test('should filter by period: today holds the events, a past day does not', async () => {
     // A date-only `from`/`to` is a Minsk clinic day, so «today» is the Minsk day key, not the UTC date.
-    const dayKey = (date: Date): string => new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Minsk', year: 'numeric', month: '2-digit', day: '2-digit' }).format(date);
-    const today = dayKey(new Date());
-    const yesterdayOf = (day: string): string => dayKey(new Date(Date.parse(`${day}T12:00:00+03:00`) - 24 * 60 * 60 * 1000));
+    const today = clinicDay(new Date());
+    const yesterdayOf = (day: string): string => clinicDay(new Date(Date.parse(`${day}T12:00:00+03:00`) - 24 * 60 * 60 * 1000));
     const past = yesterdayOf(yesterdayOf(today));
 
     await applyFilters({ entity: `Location/${roomId}`, from: today, to: today });

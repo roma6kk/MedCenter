@@ -1,6 +1,6 @@
 import { randomInt } from 'node:crypto';
 import { expect, test, type Browser, type BrowserContext, type Locator, type Page, type Response } from '@playwright/test';
-import { accessTokenOf, clinicDay } from './fixtures/booking-api';
+import { authHeaders, clinicDay } from './fixtures/booking-api';
 import { hasDemoManifest, loadDemoAccount } from './fixtures/demo-accounts';
 import { openStoredSession } from './fixtures/session-state';
 
@@ -60,9 +60,7 @@ test.describe('admin creates a schedule and generates slots', () => {
     doctorRoleId = doctor.practitionerRoleId as string;
     adminPage = await signedInPage(browser, baseURL, 'ADMIN');
     // A leftover active schedule of this doctor must not share the horizon: rows are found by it.
-    const listed = await adminPage.request.get(`/api/v1/admin/schedules?doctorId=${doctorRoleId}&active=true&pageSize=100`, {
-      headers: { Authorization: `Bearer ${await accessTokenOf(adminPage)}` },
-    });
+    const listed = await adminPage.request.get(`/api/v1/admin/schedules?doctorId=${doctorRoleId}&active=true&pageSize=100`, { headers: await authHeaders(adminPage) });
     expect(listed.ok(), 'the admin schedule list answers').toBe(true);
     const taken = ((await listed.json()) as { items: ReadonlyArray<{ horizonFrom?: string; horizonTo?: string }> }).items;
     const isFree = (from: string): boolean => {
@@ -85,8 +83,7 @@ test.describe('admin creates a schedule and generates slots', () => {
 
   test.afterAll(async () => {
     for (const id of createdIds) {
-      const token = await accessTokenOf(adminPage);
-      const removed = await adminPage.request.delete(`/api/v1/admin/schedules/${id}`, { headers: { Authorization: `Bearer ${token}` }, data: { cascade: true } });
+      const removed = await adminPage.request.delete(`/api/v1/admin/schedules/${id}`, { headers: await authHeaders(adminPage), data: { cascade: true } });
       if (!removed.ok()) console.warn(`cleanup: DELETE /api/v1/admin/schedules/${id} answered ${removed.status()}`);
     }
     await Promise.all(contexts.map((context) => context.close()));

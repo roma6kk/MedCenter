@@ -1,5 +1,5 @@
 import { expect, test, type APIResponse, type BrowserContext, type Page } from '@playwright/test';
-import { accessTokenOf, bookSlotAs, cancelAppointmentAs, clinicDay, findFreeSlots, type FreeSlot } from './fixtures/booking-api';
+import { authHeaders, bookSlotAs, cancelAppointmentAs, clinicDay, findFreeSlots, type FreeSlot } from './fixtures/booking-api';
 import { isPostTo } from './fixtures/network';
 import { hasDemoManifest, loadDemoAccount } from './fixtures/demo-accounts';
 import { openStoredSession } from './fixtures/session-state';
@@ -39,7 +39,7 @@ test.describe('doctor completes an encounter', () => {
   let second: Visit;
 
   async function doctorApi(path: string, method: 'GET' | 'POST', data?: unknown): Promise<APIResponse> {
-    const headers = { Authorization: `Bearer ${await accessTokenOf(doctorPage)}` };
+    const headers = await authHeaders(doctorPage);
     return method === 'GET' ? doctorPage.request.get(path, { headers }) : doctorPage.request.post(path, { headers, data });
   }
 
@@ -126,8 +126,7 @@ test.describe('doctor completes an encounter', () => {
     expect(encounter.diagnoses.map((diagnosis) => diagnosis.code)).toEqual([DIAGNOSIS_CODE]);
     expect(encounter.observations).toEqual([expect.objectContaining({ value: Number(TEMPERATURE_VALUE), unit: TEMPERATURE_UNIT })]);
     expect(encounter.medicationRequests.map((drug) => drug.atcCode)).toEqual([DRUG_CODE]);
-    const patientToken = await accessTokenOf(patientPage);
-    const appointment = await patientPage.request.get(`/api/v1/appointments/${first.appointmentId}`, { headers: { Authorization: `Bearer ${patientToken}` } });
+    const appointment = await patientPage.request.get(`/api/v1/appointments/${first.appointmentId}`, { headers: await authHeaders(patientPage) });
     expect(((await appointment.json()) as { status: string }).status).toBe('fulfilled');
 
     await page.goto(`/doctor/appointments?date=${clinicDay(new Date(first.slot.start))}`);

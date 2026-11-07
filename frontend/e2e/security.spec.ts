@@ -1,18 +1,13 @@
-import { expect, test, type BrowserContext, type Page, type Request } from '@playwright/test';
+import { expect, test, type Page, type Request } from '@playwright/test';
 import { returnToOfAuthorizeUrl } from './fixtures/auth';
-import { accessTokenOf } from './fixtures/booking-api';
+import { authHeaders } from './fixtures/booking-api';
 import { hasDemoManifest, type DemoRole } from './fixtures/demo-accounts';
-import { openStoredSession } from './fixtures/session-state';
+import { openStoredSession, type StoredSession } from './fixtures/session-state';
 
 test.skip(!hasDemoManifest(), 'demo seed manifest not found');
 
 const PATIENT_ROUTES: ReadonlyArray<string> = ['/home', '/booking', '/appointments', '/medcard', '/history', '/prescriptions', '/profile', '/notifications'];
 const FORBIDDEN_TEXT = 'Этот раздел недоступен для вашей роли.';
-
-interface Session {
-  readonly context: BrowserContext;
-  readonly page: Page;
-}
 
 async function expectForbidden(page: Page, route: string): Promise<void> {
   await page.goto(route);
@@ -22,8 +17,8 @@ async function expectForbidden(page: Page, route: string): Promise<void> {
 
 test.describe('patient compartment (ADR-013)', () => {
   test.describe.configure({ mode: 'serial' });
-  let patient: Session;
-  let other: Session;
+  let patient: StoredSession;
+  let other: StoredSession;
 
   test.beforeAll(async ({ browser, baseURL }) => {
     patient = await openStoredSession(browser, baseURL, 'PATIENT', 0);
@@ -58,9 +53,8 @@ test.describe('patient compartment (ADR-013)', () => {
     const session = (await (await other.page.request.get('/api/auth/session')).json()) as { patientRef: string | null };
     const otherId = session.patientRef?.split('/').pop();
     expect(otherId, 'the second patient has a Patient reference').toBeTruthy();
-    const token = await accessTokenOf(patient.page);
 
-    const history = await patient.page.request.get(`/api/v1/patients/${encodeURIComponent(String(otherId))}/history`, { headers: { Authorization: `Bearer ${token}` } });
+    const history = await patient.page.request.get(`/api/v1/patients/${encodeURIComponent(String(otherId))}/history`, { headers: await authHeaders(patient.page) });
 
     expect(history.status()).toBe(403);
     expect(((await history.json()) as { errorCode?: string }).errorCode).toBe('COMPARTMENT_VIOLATION');
@@ -92,8 +86,7 @@ test.describe('role guards', () => {
     for (const role of ['PATIENT', 'DOCTOR'] as const) {
       const session = await openStoredSession(browser, baseURL, role, 0);
       try {
-        const token = await accessTokenOf(session.page);
-        const audit = await session.page.request.get('/api/v1/admin/audit', { headers: { Authorization: `Bearer ${token}` } });
+        const audit = await session.page.request.get('/api/v1/admin/audit', { headers: await authHeaders(session.page) });
         expect(audit.status(), `${role} on GET /api/v1/admin/audit`).toBe(403);
       } finally {
         await session.context.close();
