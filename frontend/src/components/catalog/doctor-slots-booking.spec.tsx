@@ -1,7 +1,5 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import type { ReactNode } from 'react';
 
 const pushMock = jest.fn();
 jest.mock('next/navigation', () => ({ useRouter: () => ({ push: pushMock }), usePathname: () => '/doctors/doc-1' }));
@@ -10,14 +8,13 @@ jest.mock('@/lib/api/api-fetch', () => {
   return { ...actual, apiFetch: jest.fn() };
 });
 
-import { apiFetch } from '@/lib/api/api-fetch';
 import { clinicDateKey, shiftDateKey } from '@/lib/clinic-time';
 import { useBookingDraftStore } from '@/store/use-booking-draft-store';
 import { useSessionStore } from '@/store/use-session-store';
+import { apiFetchMock, renderWithCatalog } from './catalog-test-utils';
 import type { CatalogService, Slot } from './catalog-types';
 import { DoctorSlotsBooking } from './doctor-slots-booking';
 
-const apiFetchMock = apiFetch as jest.MockedFunction<(path: string) => Promise<unknown>>;
 const DAY: string = shiftDateKey(clinicDateKey(), 2);
 const SLOT: Slot = { id: 'slot-1', start: `${DAY}T08:00:00.000Z`, end: `${DAY}T08:30:00.000Z`, status: 'free' };
 const SLOT_40: Slot = { id: 'slot-40', start: `${DAY}T09:00:00.000Z`, end: `${DAY}T09:40:00.000Z`, status: 'free' };
@@ -25,11 +22,7 @@ const SVC_30: CatalogService = { id: 'svc-30', name: 'Первичный при�
 const SVC_40: CatalogService = { id: 'svc-40', name: 'Расширенный приём', typeSystem: 's', typeCode: '2', defaultDurationMin: 40, isActive: true };
 
 function renderBooking(props: { readonly services?: ReadonlyArray<CatalogService>; readonly servicesPending?: boolean } = {}): void {
-  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  function Wrapper({ children }: { readonly children: ReactNode }): ReactNode {
-    return <QueryClientProvider client={client}>{children}</QueryClientProvider>;
-  }
-  render(<DoctorSlotsBooking doctorId="doc-1" {...props} />, { wrapper: Wrapper });
+  renderWithCatalog(<DoctorSlotsBooking doctorId="doc-1" {...props} />);
 }
 
 describe('DoctorSlotsBooking', () => {

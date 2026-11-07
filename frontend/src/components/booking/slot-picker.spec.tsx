@@ -1,22 +1,19 @@
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import type { ReactNode } from 'react';
 
 jest.mock('@/lib/api/api-fetch', () => {
   const actual = jest.requireActual('@/lib/api/api-fetch');
   return { ...actual, apiFetch: jest.fn() };
 });
 
-import { ApiError, apiFetch } from '@/lib/api/api-fetch';
+import { ApiError } from '@/lib/api/api-fetch';
 import type { ProblemDetails } from '@/lib/api/problem';
+import { apiFetchMock, renderWithCatalog } from '@/components/catalog/catalog-test-utils';
 import type { Slot } from '@/components/catalog/catalog-types';
 import { SlotPicker, type SlotPickerProps } from './slot-picker';
 import { formatTypedDate } from '@/lib/calendar-grid';
 import { clinicDateKey, shiftDateKey } from '@/lib/clinic-time';
 import { MAX_LOOKAHEAD_DAYS, SLOT_WINDOW_DAYS } from './slot-time';
-
-const apiFetchMock = apiFetch as jest.MockedFunction<(path: string) => Promise<unknown>>;
 
 const TODAY: string = clinicDateKey();
 const DAY_AFTER: string = shiftDateKey(TODAY, 2);
@@ -34,11 +31,7 @@ function answer(items: ReadonlyArray<Slot>, extra: Record<string, unknown> = {})
 
 function renderPicker(props: Partial<SlotPickerProps> = {}): { onSelect: jest.Mock } {
   const onSelect = jest.fn();
-  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  function Wrapper({ children }: { readonly children: ReactNode }): ReactNode {
-    return <QueryClientProvider client={client}>{children}</QueryClientProvider>;
-  }
-  render(<SlotPicker doctorId="doc-1" selectedSlotId={null} onSelect={onSelect} {...props} />, { wrapper: Wrapper });
+  renderWithCatalog(<SlotPicker doctorId="doc-1" selectedSlotId={null} onSelect={onSelect} {...props} />);
   return { onSelect };
 }
 
