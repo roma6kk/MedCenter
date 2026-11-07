@@ -1,5 +1,11 @@
 import { HttpClient, FhirClientError, createFhirClientProvider, FHIR_CLIENT } from './fhir-client.provider';
 
+function mockFetchOk(body: unknown): jest.Mock {
+  const fetchMock = jest.fn().mockResolvedValue({ ok: true, status: 200, json: () => Promise.resolve(body) });
+  global.fetch = fetchMock as unknown as typeof fetch;
+  return fetchMock;
+}
+
 describe('HttpClient', () => {
   const originalFetch = global.fetch;
 
@@ -8,12 +14,7 @@ describe('HttpClient', () => {
   });
 
   it('should read a resource and return the FHIR envelope', async () => {
-    const fetchMock = jest.fn().mockResolvedValue({
-      ok: true,
-      status: 200,
-      json: () => Promise.resolve({ resourceType: 'Slot', id: 'slot-1' }),
-    });
-    global.fetch = fetchMock as unknown as typeof fetch;
+    const fetchMock = mockFetchOk({ resourceType: 'Slot', id: 'slot-1' });
 
     const client = new HttpClient({ baseUrl: 'http://hapi:8080/fhir' });
     const result = await client.read('Slot', 'slot-1');
@@ -26,8 +27,7 @@ describe('HttpClient', () => {
   });
 
   it('should invoke an instance-level operation via POST with a Parameters body', async () => {
-    const fetchMock = jest.fn().mockResolvedValue({ ok: true, status: 200, json: () => Promise.resolve({ resourceType: 'Parameters' }) });
-    global.fetch = fetchMock as unknown as typeof fetch;
+    const fetchMock = mockFetchOk({ resourceType: 'Parameters' });
 
     const client = new HttpClient({ baseUrl: 'http://hapi:8080/fhir' });
     await client.operation('Basic', '$expunge', { limit: 1, expungeDeletedResources: true }, { method: 'POST', id: 'b-1' });
@@ -48,13 +48,7 @@ describe('HttpClient', () => {
   });
 
   it('should invoke a type-level operation via GET with serialised params', async () => {
-    const fetchMock = jest.fn().mockResolvedValue({
-      ok: true,
-      status: 200,
-      json: () =>
-        Promise.resolve({ resourceType: 'Parameters', parameter: [{ name: 'name', valueString: 'x' }] }),
-    });
-    global.fetch = fetchMock as unknown as typeof fetch;
+    const fetchMock = mockFetchOk({ resourceType: 'Parameters', parameter: [{ name: 'name', valueString: 'x' }] });
 
     const client = new HttpClient({ baseUrl: 'http://hapi:8080/fhir' });
     const result = await client.operation('CodeSystem', '$lookup', {
@@ -71,12 +65,7 @@ describe('HttpClient', () => {
   });
 
   it('should serialise search parameters into the query string', async () => {
-    const fetchMock = jest.fn().mockResolvedValue({
-      ok: true,
-      status: 200,
-      json: () => Promise.resolve({ entry: [] }),
-    });
-    global.fetch = fetchMock as unknown as typeof fetch;
+    const fetchMock = mockFetchOk({ entry: [] });
 
     const client = new HttpClient({ baseUrl: 'http://hapi:8080/fhir' });
     await client.search('Slot', { schedule: 'Schedule/1', empty: '' });
@@ -88,12 +77,7 @@ describe('HttpClient', () => {
   });
 
   it('should send array values as repeated parameters (FHIR AND semantics)', async () => {
-    const fetchMock = jest.fn().mockResolvedValue({
-      ok: true,
-      status: 200,
-      json: () => Promise.resolve({ entry: [] }),
-    });
-    global.fetch = fetchMock as unknown as typeof fetch;
+    const fetchMock = mockFetchOk({ entry: [] });
 
     const client = new HttpClient({ baseUrl: 'http://hapi:8080/fhir' });
     await client.search('Slot', { start: ['ge2026-01-01', 'le2026-01-31'] });
@@ -117,12 +101,7 @@ describe('HttpClient', () => {
       type: 'batch-response',
       entry: [{ response: { status: '201 Created' } }],
     };
-    const fetchMock = jest.fn().mockResolvedValue({
-      ok: true,
-      status: 200,
-      json: () => Promise.resolve(responseBundle),
-    });
-    global.fetch = fetchMock as unknown as typeof fetch;
+    const fetchMock = mockFetchOk(responseBundle);
 
     const client = new HttpClient({ baseUrl: 'http://hapi:8080/fhir/' });
     const result = await client.batch(bundle);
@@ -142,8 +121,7 @@ describe('HttpClient', () => {
   });
 
   it('should ask HAPI to bypass its search-result cache on searches and leave reads by id, operations and writes alone', async () => {
-    const fetchMock = jest.fn().mockResolvedValue({ ok: true, status: 200, json: () => Promise.resolve({ resourceType: 'Bundle' }) });
-    global.fetch = fetchMock as unknown as typeof fetch;
+    const fetchMock = mockFetchOk({ resourceType: 'Bundle' });
     const client = new HttpClient({ baseUrl: 'http://hapi:8080/fhir' });
 
     await client.search('Encounter', { appointment: 'Appointment/1' });
