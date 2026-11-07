@@ -43,7 +43,13 @@ export function patientsOf(visits: ReadonlyArray<JournalAppointment>, nowMs: num
 }
 
 export function findPatients(patients: ReadonlyArray<PatientHit>, query: string): ReadonlyArray<PatientHit> {
-  const words: ReadonlyArray<string> = normalizeName(query).split(' ').filter((word) => word !== '');
-  if (normalizeName(query).length < MIN_QUERY_LENGTH) return [];
-  return patients.filter((patient) => words.every((word) => normalizeName(patient.name).includes(word))).slice(0, MAX_HITS);
+  const normalized: string = normalizeName(query);
+  if (normalized.length < MIN_QUERY_LENGTH) return [];
+  const words: ReadonlyArray<string> = normalized.split(' ');
+  return patients
+    .filter((patient) => {
+      const name: string = normalizeName(patient.name);
+      return words.every((word) => name.includes(word));
+    })
+    .slice(0, MAX_HITS);
 }

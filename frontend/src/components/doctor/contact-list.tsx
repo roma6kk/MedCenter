@@ -11,6 +11,7 @@ function hrefOf(contact: Telecom): string | undefined {
 }
 
 export function ContactList({ telecom }: { readonly telecom: ReadonlyArray<Telecom> }): ReactNode {
+  // One catalogue key per FHIR ContactPoint.system: phone, email, fax, pager, url, sms, other.
   const t = useT('doctor.patient.telecom');
   return (
     <ul className="grid gap-1">

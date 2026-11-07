@@ -17,6 +17,7 @@ import { DiagnosisList } from './diagnosis-list';
 import type { HistoryItem, Prescription } from './doctor-types';
 import { QueryFailure } from '@/components/feedback/query-error-state';
 import { SkeletonText } from '@/components/ui/skeleton';
+import { orderName } from './patient-summary-model';
 import { isOwnVisit, useOwnRoleId } from './use-own-role';
 import { usePatientHistory, useVisitPrescriptions } from './use-doctor-queries';
 
@@ -30,7 +31,7 @@ function VisitText({ label, text }: { readonly label: string; readonly text: str
 }
 
 function orderText(item: Prescription): string {
-  return item.kind === 'medication' ? `${item.atcDisplay ?? item.atcCode} — ${item.dosageText}` : item.display ?? item.code;
+  return item.kind === 'medication' ? `${orderName(item)} — ${item.dosageText}` : orderName(item);
 }
 
 function VisitOrders({ patientId, encounterId }: { readonly patientId: string; readonly encounterId: string }): ReactNode {

@@ -27,6 +27,10 @@ export function buildRecentDiagnoses(history: ReadonlyArray<HistoryItem>): Reado
   return result.slice(0, MAX_SUMMARY_ROWS);
 }
 
+export function orderName(item: Prescription): string {
+  return item.kind === 'medication' ? item.atcDisplay ?? item.atcCode : item.display ?? item.code;
+}
+
 export function currentPrescriptions(items: ReadonlyArray<Prescription>): ReadonlyArray<Prescription> {
   return items.filter((item) => item.status === 'active');
 }

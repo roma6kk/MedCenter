@@ -14,6 +14,7 @@ import { cn } from '@/lib/ui/cn';
 import type { Prescription } from './doctor-types';
 import { ATC_SYSTEM } from './encounter-problem-fields';
 import { QueryFailure } from '@/components/feedback/query-error-state';
+import { orderName } from './patient-summary-model';
 import { isOwnVisit, useOwnRoleId } from './use-own-role';
 import { usePatientHistory, usePatientPrescriptions } from './use-doctor-queries';
 
@@ -40,10 +41,6 @@ function PrescriptionBody({ item }: { readonly item: Prescription }): ReactNode 
       </p>
     </>
   );
-}
-
-function orderName(item: Prescription): string {
-  return item.kind === 'medication' ? item.atcDisplay ?? item.atcCode : item.display ?? item.code;
 }
 
 function PrescriptionCard({ item, canOpenEncounter }: { readonly item: Prescription; readonly canOpenEncounter: boolean }): ReactNode {
