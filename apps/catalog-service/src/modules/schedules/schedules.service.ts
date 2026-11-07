@@ -1,12 +1,13 @@
 import { BadRequestException, HttpException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { buildPaginatedResponse, type PaginatedResponseDto } from '@medcenter/contracts';
-import { createAudited, FHIR_CLIENT, updateAudited, type AuditContext, type FhirClient, type FhirResource, type WriteActor } from '@medcenter/fhir';
+import { createAudited, FHIR_CLIENT, updateAudited, type FhirClient, type FhirResource, type WriteActor } from '@medcenter/fhir';
 import { type SlotResponseDto } from '@medcenter/fhir-mappers';
 
+import { auditOf } from '../../common/audit';
 import { FHIR_PAGE_SIZE } from '../../common/fhir-search';
 import { CACHE_KEYS, CACHE_TTLS, RedisCacheService } from '../cache/redis-cache.service';
 import type { ScheduleSummaryDto } from '../slots/dto/doctor-schedule-response.dto';
-import { toScheduleSummaryDto } from '../slots/schedule-summary.mapper';
+import { findExtension, toScheduleSummaryDto } from '../slots/schedule-summary.mapper';
 import { clinicDayRange } from '../slots/slot-range';
 import { SLOT_SEARCH_MAX_PAGES, searchScheduleSlots } from '../slots/slot-search';
 import { CreateScheduleDto } from './dto/create-schedule.dto';
@@ -22,8 +23,6 @@ import { removeScheduleWithSlots } from './schedule-removal';
 
 type Extension = Record<string, unknown>;
 
-const AUDIT_SOURCE = 'catalog-service';
-
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 export type SchedulePage = PaginatedResponseDto<ScheduleSummaryDto>;
@@ -34,10 +33,6 @@ export class SchedulesService {
     @Inject(FHIR_CLIENT) private readonly fhirClient: FhirClient,
     private readonly cache: RedisCacheService,
   ) {}
-
-  private auditOf(actor: WriteActor): AuditContext {
-    return { actor, source: AUDIT_SOURCE };
-  }
 
   async create(dto: CreateScheduleDto, actor: WriteActor): Promise<ScheduleSummaryDto> {
     this.assertHorizonSpan(dto.horizonFrom, dto.horizonTo);
@@ -64,7 +59,7 @@ export class SchedulesService {
       ],
       ...(dto.comment === undefined ? {} : { comment: dto.comment }),
     };
-    return toScheduleSummaryDto(await createAudited(this.fhirClient, schedule, this.auditOf(actor)));
+    return toScheduleSummaryDto(await createAudited(this.fhirClient, schedule, auditOf(actor)));
   }
 
   /** A missing reference would reach HAPI as a refused write and come back as a 500: name it as a 404 instead. */
@@ -119,7 +114,7 @@ export class SchedulesService {
       delete merged['extension'];
     }
     delete merged['slotDurationMin'];
-    return toScheduleSummaryDto(await updateAudited(this.fhirClient, { ...merged, id } as FhirResource, this.auditOf(actor)));
+    return toScheduleSummaryDto(await updateAudited(this.fhirClient, { ...merged, id } as FhirResource, auditOf(actor)));
   }
 
   private mergeExtensions(
@@ -128,7 +123,7 @@ export class SchedulesService {
     start: string | undefined,
     end: string | undefined,
   ): Extension[] {
-    const stored: Extension[] = Array.isArray(existing['extension']) ? (existing['extension'] as Extension[]) : [];
+    const stored = Array.isArray(existing['extension']) ? (existing['extension'] as Extension[]) : [];
     const duration = dto.slotDurationMin ?? this.readStoredDuration(existing);
     const changes: Extension[] = [
       ...(dto.windows === undefined
@@ -139,25 +134,13 @@ export class SchedulesService {
         : [{ url: PLANNING_HORIZON_EXT, valuePeriod: { ...(start === undefined ? {} : { start }), ...(end === undefined ? {} : { end }) } }]),
       ...(duration === undefined ? [] : [{ url: SLOT_DURATION_EXT, valueInteger: duration }]),
     ];
-    return changes.reduce((extensions, change) => this.upsertExtension(extensions, change), [...stored]);
-  }
-
-  private upsertExtension(extensions: readonly Extension[], extension: Extension): Extension[] {
-    return [...extensions.filter((ext) => ext['url'] !== extension['url']), extension];
+    const changed = new Set(changes.map((change) => change['url']));
+    return [...stored.filter((extension) => !changed.has(extension['url'])), ...changes];
   }
 
   private readStoredDuration(schedule: FhirResource): number | undefined {
-    const extensions = schedule['extension'];
-    if (Array.isArray(extensions)) {
-      const ext = (extensions as Array<Record<string, unknown>>).find(
-        (candidate) => candidate['url'] === SLOT_DURATION_EXT,
-      );
-      if (typeof ext?.['valueInteger'] === 'number') {
-        return ext['valueInteger'] as number;
-      }
-    }
-    const value = schedule['slotDurationMin'];
-    return typeof value === 'number' ? value : undefined;
+    const stored = findExtension(schedule, SLOT_DURATION_EXT)?.['valueInteger'] ?? schedule['slotDurationMin'];
+    return typeof stored === 'number' ? stored : undefined;
   }
 
   private assertHorizonSpan(start: string | undefined, end: string | undefined): void {
@@ -190,7 +173,7 @@ export class SchedulesService {
   }
 
   async remove(id: string, cascade: boolean, actor: WriteActor): Promise<boolean> {
-    const deactivated = await removeScheduleWithSlots(this.fhirClient, id, cascade, this.auditOf(actor));
+    const deactivated = await removeScheduleWithSlots(this.fhirClient, id, cascade, auditOf(actor));
     await this.cache.invalidate([CACHE_KEYS.SCHEDULE_SLOTS(id), CACHE_KEYS.ALL_DOCTOR_SLOTS]);
     return deactivated;
   }
@@ -221,15 +204,7 @@ export class SchedulesService {
     });
   }
 
-  private findHorizonPeriod(
-    schedule: FhirResource,
-  ): { start?: string; end?: string } | undefined {
-    if (!Array.isArray(schedule['extension'])) {
-      return undefined;
-    }
-    const ext = (schedule['extension'] as Array<Record<string, unknown>>).find(
-      (candidate) => candidate['url'] === PLANNING_HORIZON_EXT && 'valuePeriod' in candidate,
-    );
-    return ext === undefined ? undefined : (ext['valuePeriod'] as { start?: string; end?: string });
+  private findHorizonPeriod(schedule: FhirResource): { start?: string; end?: string } | undefined {
+    return findExtension(schedule, PLANNING_HORIZON_EXT)?.['valuePeriod'] as { start?: string; end?: string } | undefined;
   }
 }

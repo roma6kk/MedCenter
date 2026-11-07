@@ -5,9 +5,10 @@ import { clinicDateOf, clinicDayEndMs, clinicDaysBetween, clinicDayStartMs } fro
 import { buildWriteAuditEvent, commitTransaction, FHIR_CLIENT, type FhirClient, type FhirResource, type WriteActor } from '@medcenter/fhir';
 import { MEDCENTER_EXT } from '@medcenter/terminology';
 
+import { AUDIT_SOURCE } from '../../common/audit';
 import { searchPages } from '../../common/fhir-search';
 import { CACHE_KEYS, RedisCacheService } from '../cache/redis-cache.service';
-import { toScheduleSummaryDto } from '../slots/schedule-summary.mapper';
+import { findExtension, toScheduleSummaryDto } from '../slots/schedule-summary.mapper';
 import { GenerateSlotsDto } from './dto/generate-slots.dto';
 import type { WeeklyWindowDto } from './dto/create-schedule.dto';
 import { PLANNING_HORIZON_DAYS, SLOT_DURATION_EXT, WEEKLY_WINDOWS_EXT } from './schedule.constants';
@@ -16,8 +17,6 @@ import { planSlots, type PlannedSlot } from './slot-planner';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 export const EXISTING_SLOT_MAX_PAGES = 150;
-
-const AUDIT_SOURCE = 'catalog-service';
 
 interface ExistingSlot {
   readonly startMs: number;
@@ -32,10 +31,6 @@ export interface GenerateSlotsResult {
 
 interface ScheduleActors {
   readonly actor?: ReadonlyArray<{ readonly reference?: string }>;
-}
-
-interface ScheduleHorizon {
-  readonly extension?: ReadonlyArray<{ readonly url?: string; readonly valueString?: string }>;
 }
 
 @Injectable()
@@ -218,14 +213,12 @@ export class SlotGeneratorService {
   }
 
   private readWindows(scheduleId: string, schedule: FhirResource): WeeklyWindowDto[] {
-    const horizon = (schedule as ScheduleHorizon).extension?.find(
-      (ext) => ext.url === WEEKLY_WINDOWS_EXT,
-    );
-    if (horizon?.valueString === undefined) {
+    const raw = findExtension(schedule, WEEKLY_WINDOWS_EXT)?.['valueString'];
+    if (typeof raw !== 'string') {
       return [];
     }
     try {
-      const parsed: unknown = JSON.parse(horizon.valueString);
+      const parsed: unknown = JSON.parse(raw);
       return Array.isArray(parsed) ? (parsed as WeeklyWindowDto[]) : [];
     } catch (error: unknown) {
       this.logger.warn(
@@ -237,17 +230,8 @@ export class SlotGeneratorService {
   }
 
   private readSlotDuration(schedule: FhirResource): number {
-    const extensions = schedule['extension'];
-    if (Array.isArray(extensions)) {
-      const ext = (extensions as Array<Record<string, unknown>>).find(
-        (candidate) => candidate['url'] === SLOT_DURATION_EXT,
-      );
-      if (typeof ext?.['valueInteger'] === 'number') {
-        return ext['valueInteger'] as number;
-      }
-    }
-    const value = schedule['slotDurationMin'];
-    return typeof value === 'number' ? value : 30;
+    const stored = findExtension(schedule, SLOT_DURATION_EXT)?.['valueInteger'] ?? schedule['slotDurationMin'];
+    return typeof stored === 'number' ? stored : 30;
   }
 }
 

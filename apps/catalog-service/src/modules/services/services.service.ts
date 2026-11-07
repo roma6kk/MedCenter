@@ -14,21 +14,19 @@ import {
   FHIR_CLIENT,
   FhirClientError,
   updateAudited,
-  type AuditContext,
   type FhirClient,
   type FhirResource,
   type WriteActor,
 } from '@medcenter/fhir';
 import { FHIR_BY, MEDCENTER_EXT } from '@medcenter/terminology';
 
+import { auditOf } from '../../common/audit';
 import { CACHE_KEYS, CACHE_TTLS, RedisCacheService } from '../cache/redis-cache.service';
 import { CreateServiceDto } from './dto/create-service.dto';
 import { UpdateServiceDto } from './dto/update-service.dto';
 import type { ServiceResponseDto } from './dto/service-response.dto';
 
 export type ServicePage = PaginatedResponseDto<ServiceResponseDto>;
-
-const AUDIT_SOURCE = 'catalog-service';
 
 const LOOKUP_NOT_FOUND_STATUSES: ReadonlySet<number> = new Set([400, 404, 422]);
 
@@ -80,16 +78,12 @@ export class ServicesService {
     return this.toResponseDto(resource, lang);
   }
 
-  private auditOf(actor: WriteActor): AuditContext {
-    return { actor, source: AUDIT_SOURCE };
-  }
-
   async create(dto: CreateServiceDto, actor: WriteActor): Promise<ServiceResponseDto> {
     const typeDisplay = await this.assertTerminology(dto.typeSystem, dto.typeCode);
     const created = await createAudited(
       this.fhirClient,
       this.toHealthcareService({ ...dto, isActive: dto.isActive ?? true }, typeDisplay),
-      this.auditOf(actor),
+      auditOf(actor),
     );
     await this.invalidate();
     return this.toResponseDto(created);
@@ -112,16 +106,12 @@ export class ServicesService {
     this.mergeTranslations(merged, dto);
     // A partial type update replaces the whole coding: a new code with the old system would be incoherent.
     if (dto.typeCode !== undefined) {
-      const typeCoding = this.toHealthcareService(
-        {
-          typeSystem: dto.typeSystem ?? FHIR_BY.SERVICE_CODE_SYSTEM,
-          typeCode: dto.typeCode,
-        },
+      (merged as Record<string, unknown>)['type'] = this.toHealthcareService(
+        { typeSystem: dto.typeSystem ?? FHIR_BY.SERVICE_CODE_SYSTEM, typeCode: dto.typeCode },
         typeDisplay,
       )['type'];
-      (merged as Record<string, unknown>)['type'] = typeCoding;
     }
-    const updated = await updateAudited(this.fhirClient, { ...merged, id }, this.auditOf(actor));
+    const updated = await updateAudited(this.fhirClient, { ...merged, id }, auditOf(actor));
     await this.invalidate();
     return this.toResponseDto(updated);
   }
@@ -143,13 +133,7 @@ export class ServicesService {
   }
 
   private mergeDefined(base: FhirResource, patch: FhirResource): FhirResource {
-    const merged: Record<string, unknown> = { ...base };
-    for (const [key, value] of Object.entries(patch)) {
-      if (value !== undefined) {
-        merged[key] = value;
-      }
-    }
-    return merged as FhirResource;
+    return { ...base, ...Object.fromEntries(Object.entries(patch).filter(([, value]) => value !== undefined)) } as FhirResource;
   }
 
   /** `actor` is the R4 search parameter over the service: R4 `Schedule` has no `service` parameter (HAPI answers 400). */
@@ -167,7 +151,7 @@ export class ServicesService {
       throw this.serviceInUse(`service ${id} is referenced by a doctor role`);
     }
     try {
-      await deleteAudited(this.fhirClient, 'HealthcareService', id, this.auditOf(actor));
+      await deleteAudited(this.fhirClient, 'HealthcareService', id, auditOf(actor));
     } catch (error) {
       // HAPI's referential integrity refuses the delete for any other resource that points at the service.
       if (error instanceof ConflictException) {

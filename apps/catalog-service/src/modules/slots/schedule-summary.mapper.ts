@@ -15,7 +15,7 @@ const logger = new Logger('ScheduleSummary');
 const DAYS_OF_WEEK: ReadonlySet<string> = new Set(['MO', 'TU', 'WE', 'TH', 'FR', 'SA', 'SU']);
 const HH_MM = /^([01]\d|2[0-3]):[0-5]\d$/;
 
-function findExtension(schedule: FhirResource, url: string): Extension | undefined {
+export function findExtension(schedule: FhirResource, url: string): Extension | undefined {
   const extensions = schedule['extension'];
   if (!Array.isArray(extensions)) {
     return undefined;

@@ -93,12 +93,7 @@ function groupByClinicDay(slots: readonly ServiceSlotDto[]): Map<string, Service
   const pages = new Map<string, ServiceSlotDto[]>();
   for (const slot of slots) {
     const day = clinicDateOf(Date.parse(slot.start));
-    const page = pages.get(day);
-    if (page === undefined) {
-      pages.set(day, [slot]);
-    } else {
-      page.push(slot);
-    }
+    pages.set(day, [...(pages.get(day) ?? []), slot]);
   }
   return pages;
 }
