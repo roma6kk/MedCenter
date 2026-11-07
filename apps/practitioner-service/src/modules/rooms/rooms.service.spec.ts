@@ -6,16 +6,31 @@ import { MEDCENTER_EXT } from '@medcenter/terminology';
 import { auditedResource, committedAudit, committedEntries, transactionResponder } from '@medcenter/testing';
 import { RoomsService } from './rooms.service';
 
-const IS_ROOM = { physicalType: { coding: [{ system: 'http://terminology.hl7.org/CodeSystem/location-physical-type', code: 'ro' }] } };
+const PHYSICAL_TYPE_SYSTEM = 'http://terminology.hl7.org/CodeSystem/location-physical-type';
+
+const IS_ROOM = { physicalType: { coding: [{ system: PHYSICAL_TYPE_SYSTEM, code: 'ro' }] } };
 
 const ACTOR = { sub: 'admin-1', requestId: 'req-1' };
 
 const FLOOR = MEDCENTER_EXT.ROOM_FLOOR;
 
+const OTHER_EXTENSION = { url: 'https://example.org/StructureDefinition/other', valueString: 'keep-me' };
+
+function rejectionOf<E = unknown>(promise: Promise<unknown>): Promise<E | undefined> {
+  return promise.then(
+    () => undefined,
+    (error: unknown) => error as E,
+  );
+}
+
 describe('RoomsService', () => {
   let roomsService: RoomsService;
   let fhirClient: jest.Mocked<FhirClient>;
   const roomId = 'room-204';
+
+  function committedResource(): FhirResource {
+    return (committedEntries(fhirClient)[0]?.resource ?? {}) as FhirResource;
+  }
 
   beforeEach(() => {
     fhirClient = {
@@ -31,7 +46,7 @@ describe('RoomsService', () => {
   });
 
   describe('a Location that is not a room', () => {
-    const building = { resourceType: 'Location', id: 'building-1', name: 'Main building', physicalType: { coding: [{ system: 'http://terminology.hl7.org/CodeSystem/location-physical-type', code: 'bu' }] } };
+    const building = { resourceType: 'Location', id: 'building-1', name: 'Main building', physicalType: { coding: [{ system: PHYSICAL_TYPE_SYSTEM, code: 'bu' }] } };
 
     beforeEach(() => {
       fhirClient.read.mockResolvedValue(building);
@@ -42,10 +57,7 @@ describe('RoomsService', () => {
       ['remove', (): Promise<unknown> => roomsService.remove('building-1', ACTOR)],
       ['findById', (): Promise<unknown> => roomsService.findById('building-1')],
     ])('answers 404 NOT_FOUND like an unknown id and writes nothing when %s is asked for it', async (_label, call) => {
-      const error = await call().then(
-        () => undefined,
-        (e: unknown) => e as FhirClientError,
-      );
+      const error = await rejectionOf<FhirClientError>(call());
 
       expect(error).toBeInstanceOf(FhirClientError);
       expect(error?.getStatus()).toBe(404);
@@ -64,10 +76,7 @@ describe('RoomsService', () => {
   it('should mark the conflict with the ROOM_IN_USE error code', async () => {
     fhirClient.search.mockResolvedValue({ entry: [{ resource: { resourceType: 'Schedule' } }] });
 
-    const error = await roomsService.remove(roomId, ACTOR).then(
-      () => undefined,
-      (e: unknown) => e,
-    );
+    const error = await rejectionOf(roomsService.remove(roomId, ACTOR));
 
     expect(error).toBeInstanceOf(ConflictException);
     expect((error as ConflictException).getResponse()).toMatchObject({ errorCode: 'ROOM_IN_USE' });
@@ -76,10 +85,7 @@ describe('RoomsService', () => {
   it('should throw an error code the contract catalogues when the room is in use', async () => {
     fhirClient.search.mockResolvedValue({ entry: [{ resource: { resourceType: 'Schedule' } }] });
 
-    const error = await roomsService.remove(roomId, ACTOR).then(
-      () => undefined,
-      (e: unknown) => e as ConflictException,
-    );
+    const error = await rejectionOf<ConflictException>(roomsService.remove(roomId, ACTOR));
 
     const { errorCode } = error?.getResponse() as { errorCode: string };
     expect(ERROR_CODES).toContain(errorCode);
@@ -106,10 +112,7 @@ describe('RoomsService', () => {
       new FhirClientError('GET', 'http://hapi/Location/missing', 404, '{}'),
     );
 
-    const error = await roomsService.remove('missing', ACTOR).then(
-      () => undefined,
-      (e: unknown) => e as FhirClientError,
-    );
+    const error = await rejectionOf<FhirClientError>(roomsService.remove('missing', ACTOR));
     expect(error?.getStatus()).toBe(404);
     expect(fhirClient.search).not.toHaveBeenCalled();
     expect(fhirClient.batch).not.toHaveBeenCalled();
@@ -141,10 +144,7 @@ describe('RoomsService', () => {
     ])('should refuse with ROOM_IN_USE and delete nothing when only a %s references the room', async (type, referrer) => {
       referencedOnlyBy(type);
 
-      const error = await roomsService.remove(roomId, ACTOR).then(
-        () => undefined,
-        (e: unknown) => e as ConflictException,
-      );
+      const error = await rejectionOf<ConflictException>(roomsService.remove(roomId, ACTOR));
 
       expect(error).toBeInstanceOf(ConflictException);
       expect(error?.getResponse()).toMatchObject({ errorCode: 'ROOM_IN_USE', message: `ROOM_IN_USE: room ${roomId} is referenced by ${referrer}` });
@@ -179,10 +179,7 @@ describe('RoomsService', () => {
       fhirClient.search.mockResolvedValue({ entry: [] });
       fhirClient.batch.mockRejectedValue(new FhirClientError('POST', 'http://hapi/fhir', 409, '{}'));
 
-      const error = await roomsService.remove(roomId, ACTOR).then(
-        () => undefined,
-        (e: unknown) => e as ConflictException,
-      );
+      const error = await rejectionOf<ConflictException>(roomsService.remove(roomId, ACTOR));
 
       expect(error).toBeInstanceOf(ConflictException);
       expect(error?.getResponse()).toMatchObject({ errorCode: 'ROOM_IN_USE', message: `ROOM_IN_USE: room ${roomId} is referenced by another resource` });
@@ -204,11 +201,6 @@ describe('RoomsService', () => {
       name: 'Cabinet 204',
       description: 'Old description',
       identifier: [{ value: '204' }],
-      physicalType: {
-        coding: [
-          { system: 'http://terminology.hl7.org/CodeSystem/location-physical-type', code: 'ro' },
-        ],
-      },
     };
 
     it('does not blank stored fields omitted from the partial DTO', async () => {
@@ -216,7 +208,7 @@ describe('RoomsService', () => {
 
       await roomsService.update(roomId, { name: 'Renamed 204' }, ACTOR);
 
-      const merged = (committedEntries(fhirClient)[0]?.resource ?? {}) as FhirResource;
+      const merged = committedResource();
       expect(merged['name']).toBe('Renamed 204');
       expect(merged['description']).toBe('Old description');
       expect(merged['identifier']).toEqual([{ value: '204' }]);
@@ -227,7 +219,7 @@ describe('RoomsService', () => {
 
       await roomsService.update(roomId, { description: 'Freshly painted' }, ACTOR);
 
-      const merged = (committedEntries(fhirClient)[0]?.resource ?? {}) as FhirResource;
+      const merged = committedResource();
       expect(merged['description']).toBe('Freshly painted');
       expect(merged['name']).toBe('Cabinet 204');
     });
@@ -237,7 +229,7 @@ describe('RoomsService', () => {
 
       await roomsService.update(roomId, { description: '' }, ACTOR);
 
-      const merged = (committedEntries(fhirClient)[0]?.resource ?? {}) as FhirResource;
+      const merged = committedResource();
       expect(merged).not.toHaveProperty('description');
       expect(merged['name']).toBe('Cabinet 204');
     });
@@ -247,7 +239,7 @@ describe('RoomsService', () => {
 
       await roomsService.update(roomId, { name: 'Renamed 204', description: '' }, ACTOR);
 
-      const merged = (committedEntries(fhirClient)[0]?.resource ?? {}) as FhirResource;
+      const merged = committedResource();
       expect(merged['name']).toBe('Renamed 204');
       expect(merged).not.toHaveProperty('description');
     });
@@ -257,7 +249,7 @@ describe('RoomsService', () => {
 
       await roomsService.update(roomId, { name: 'Renamed 204', description }, ACTOR);
 
-      const merged = (committedEntries(fhirClient)[0]?.resource ?? {}) as FhirResource;
+      const merged = committedResource();
       expect(merged).not.toHaveProperty('description');
     });
 
@@ -269,7 +261,7 @@ describe('RoomsService', () => {
         identifier: [{ system: 'https://example.org/room-ids', value: '204' }],
         extension: [
           { url: FLOOR, valueInteger: 2 },
-          { url: 'https://example.org/StructureDefinition/other', valueString: 'keep-me' },
+          OTHER_EXTENSION,
         ],
       };
 
@@ -303,7 +295,7 @@ describe('RoomsService', () => {
 
         await roomsService.update(roomId, { identifier: '204', name: 'Renamed' }, ACTOR);
 
-        const merged = (committedEntries(fhirClient)[0]?.resource ?? {}) as FhirResource;
+        const merged = committedResource();
         expect(merged['identifier']).toEqual(seeded.identifier);
         expect(merged['name']).toBe('Renamed');
       });
@@ -318,14 +310,14 @@ describe('RoomsService', () => {
     it.each([['an empty text', ''], ['a blank text', '   '], ['null', null]])('leaves the description out of the Location when it is %s', async (_label, description) => {
       await roomsService.create({ identifier: '204', name: 'Cabinet 204', description }, ACTOR);
 
-      const created = (committedEntries(fhirClient)[0]?.resource ?? {}) as FhirResource;
+      const created = committedResource();
       expect(created).not.toHaveProperty('description');
     });
 
     it('leaves the extension out of the Location when the floor is null', async () => {
       await roomsService.create({ identifier: '204', name: 'Cabinet 204', floor: null }, ACTOR);
 
-      const created = (committedEntries(fhirClient)[0]?.resource ?? {}) as FhirResource;
+      const created = committedResource();
       expect(created).not.toHaveProperty('extension');
     });
   });
@@ -336,7 +328,7 @@ describe('RoomsService', () => {
 
       await roomsService.create({ identifier: '204', name: 'Cabinet 204', floor: 2 }, ACTOR);
 
-      const created = (committedEntries(fhirClient)[0]?.resource ?? {}) as FhirResource;
+      const created = committedResource();
       expect(created['extension']).toEqual([{ url: FLOOR, valueInteger: 2 }]);
     });
 
@@ -361,15 +353,15 @@ describe('RoomsService', () => {
         description: 'Old description',
         extension: [
           { url: FLOOR, valueInteger: 2 },
-          { url: 'https://example.org/StructureDefinition/other', valueString: 'keep-me' },
+          OTHER_EXTENSION,
         ],
       });
 
       await roomsService.update(roomId, { floor: 5 }, ACTOR);
 
-      const merged = (committedEntries(fhirClient)[0]?.resource ?? {}) as FhirResource;
+      const merged = committedResource();
       expect(merged['extension']).toEqual([
-        { url: 'https://example.org/StructureDefinition/other', valueString: 'keep-me' },
+        OTHER_EXTENSION,
         { url: FLOOR, valueInteger: 5 },
       ]);
       expect(merged['description']).toBe('Old description');
@@ -385,7 +377,7 @@ describe('RoomsService', () => {
 
       await roomsService.update(roomId, { name: 'Renamed' }, ACTOR);
 
-      const merged = (committedEntries(fhirClient)[0]?.resource ?? {}) as FhirResource;
+      const merged = committedResource();
       expect(merged['extension']).toEqual([{ url: FLOOR, valueInteger: 2 }]);
     });
 
@@ -396,14 +388,14 @@ describe('RoomsService', () => {
         name: 'Cabinet 204',
         extension: [
           { url: FLOOR, valueInteger: 2 },
-          { url: 'https://example.org/StructureDefinition/other', valueString: 'keep-me' },
+          OTHER_EXTENSION,
         ],
       });
 
       await roomsService.update(roomId, { floor: null }, ACTOR);
 
-      const merged = (committedEntries(fhirClient)[0]?.resource ?? {}) as FhirResource;
-      expect(merged['extension']).toEqual([{ url: 'https://example.org/StructureDefinition/other', valueString: 'keep-me' }]);
+      const merged = committedResource();
+      expect(merged['extension']).toEqual([OTHER_EXTENSION]);
     });
 
     it('drops the extension array when the floor was its only entry, as FHIR JSON has no empty array', async () => {
@@ -416,7 +408,7 @@ describe('RoomsService', () => {
 
       await roomsService.update(roomId, { name: 'Renamed', floor: null }, ACTOR);
 
-      const merged = (committedEntries(fhirClient)[0]?.resource ?? {}) as FhirResource;
+      const merged = committedResource();
       expect(merged).not.toHaveProperty('extension');
       expect(merged['name']).toBe('Renamed');
     });
@@ -426,7 +418,7 @@ describe('RoomsService', () => {
 
       await roomsService.update(roomId, { name: 'Renamed', floor: null }, ACTOR);
 
-      const merged = (committedEntries(fhirClient)[0]?.resource ?? {}) as FhirResource;
+      const merged = committedResource();
       expect(merged).not.toHaveProperty('extension');
     });
 
