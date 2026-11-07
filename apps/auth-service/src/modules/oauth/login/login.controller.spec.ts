@@ -47,13 +47,18 @@ function submit(setupResult: Setup, form: Partial<LoginFormDto> = {}): { form: L
   };
 }
 
+async function attempt(context: Setup, form: Partial<LoginFormDto> = {}): Promise<ReturnType<typeof createFakeResponse>> {
+  const { form: body, cookie } = submit(context, form);
+  const fake = createFakeResponse();
+  await context.controller.login(body, { headers: { cookie } }, fake.response);
+  return fake;
+}
+
 describe('LoginController', () => {
   it('should set the login session and return to the authorize endpoint when the credentials are valid', async () => {
     const context = setup();
-    const { form, cookie } = submit(context);
-    const fake = createFakeResponse();
 
-    await context.controller.login(form, { headers: { cookie } }, fake.response);
+    const fake = await attempt(context);
 
     expect(fake.redirect).toHaveBeenCalledWith(302, `/oauth/authorize?${AUTHORIZE_QUERY}`);
     const session = fake.cookies.find((set) => set.name === LOGIN_SESSION_COOKIE);
@@ -63,11 +68,7 @@ describe('LoginController', () => {
   });
 
   it('should re-render the form with one generic message when the credentials are rejected', async () => {
-    const context = setup(null);
-    const { form, cookie } = submit(context);
-    const fake = createFakeResponse();
-
-    await context.controller.login(form, { headers: { cookie } }, fake.response);
+    const fake = await attempt(setup(null));
 
     expect(fake.redirect).not.toHaveBeenCalled();
     expect(fake.body()).toContain(INVALID_CREDENTIALS_MESSAGE);
@@ -88,11 +89,7 @@ describe('LoginController', () => {
   });
 
   it('should answer 400 without a form when the authorization request names no registered client', async () => {
-    const context = setup();
-    const { form, cookie } = submit(context, { authorize_query: 'client_id=unknown&response_type=code' });
-    const fake = createFakeResponse();
-
-    await context.controller.login(form, { headers: { cookie } }, fake.response);
+    const fake = await attempt(setup(), { authorize_query: 'client_id=unknown&response_type=code' });
 
     expect(fake.statusCode()).toBe(400);
     expect(fake.body()).toContain(BROKEN_REQUEST_MESSAGE);
@@ -100,35 +97,21 @@ describe('LoginController', () => {
   });
 
   it('should answer 400 when the redirect_uri of the form is not registered for the client', async () => {
-    const context = setup();
     const query = AUTHORIZE_QUERY.replace(encodeURIComponent(TEST_REDIRECT_URI), encodeURIComponent('https://evil.example/cb'));
-    const { form, cookie } = submit(context, { authorize_query: query });
-    const fake = createFakeResponse();
 
-    await context.controller.login(form, { headers: { cookie } }, fake.response);
+    const fake = await attempt(setup(), { authorize_query: query });
 
     expect(fake.statusCode()).toBe(400);
     expect(fake.redirect).not.toHaveBeenCalled();
   });
 
   it('should drop smuggled parameters from the redirect when the form query carries extras', async () => {
-    const context = setup();
-    const { form, cookie } = submit(context, { authorize_query: `${AUTHORIZE_QUERY}&prompt=none&next=https://evil.example` });
-    const fake = createFakeResponse();
-
-    await context.controller.login(form, { headers: { cookie } }, fake.response);
+    const fake = await attempt(setup(), { authorize_query: `${AUTHORIZE_QUERY}&prompt=none&next=https://evil.example` });
 
     expect(fake.redirect).toHaveBeenCalledWith(302, `/oauth/authorize?${AUTHORIZE_QUERY}`);
   });
 
   describe('per-account throttle', () => {
-    async function attempt(context: Setup, form: Partial<LoginFormDto> = {}): Promise<ReturnType<typeof createFakeResponse>> {
-      const { form: body, cookie } = submit(context, form);
-      const fake = createFakeResponse();
-      await context.controller.login(body, { headers: { cookie } }, fake.response);
-      return fake;
-    }
-
     it('should refuse with 429 and never check the password when the account exhausted its attempts', async () => {
       const context = setup(null);
       for (let spent = 0; spent < ACCOUNT_ATTEMPT_LIMIT; spent += 1) {
