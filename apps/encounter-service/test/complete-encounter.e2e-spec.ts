@@ -15,12 +15,6 @@ import {
 
 const CLINICAL_TYPES = ['Condition', 'ClinicalImpression', 'CarePlan', 'Observation', 'ServiceRequest', 'MedicationRequest'];
 
-/**
- * API §7.1–7.3 over HTTP (plan Task 14, Step 5): open → complete with
- * `J06.9` / `36.6 Cel` / `J01FA10` → replay. HAPI is the in-memory `FakeHapi`
- * (atomic transactions with `If-Match`); the live-stack variant runs against
- * the compose HAPI.
- */
 describe('Complete encounter (API §7.1–7.3)', () => {
   let harness: AppHarness;
 
@@ -205,7 +199,6 @@ describe('Complete encounter (API §7.1–7.3)', () => {
   });
 
   it('should refuse a patient token with 403 FORBIDDEN_SCOPE when it opens an encounter', async () => {
-    // ADR-009 guard order: JWT → scope → role, so a `patient/*` token stops at the scope check.
     const response = await as(PATIENT).post('/api/v1/encounters', { appointmentId: APPOINTMENT_ID }).expect(403);
 
     expect(response.body).toMatchObject({ errorCode: 'FORBIDDEN_SCOPE' });

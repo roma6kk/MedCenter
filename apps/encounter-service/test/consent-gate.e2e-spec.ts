@@ -28,7 +28,6 @@ function inProgress(): FhirResource {
 
 const REASON = 'Пациент без сознания, представителя нет';
 
-/** API §7.1/7.3 with the patient-consent rule of ADR-019 (`CONSENT_ENFORCEMENT`). */
 describe('Consent gate on 7.1 / 7.3', () => {
   let harness: AppHarness;
 

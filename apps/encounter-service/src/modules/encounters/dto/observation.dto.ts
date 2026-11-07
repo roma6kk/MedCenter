@@ -2,9 +2,7 @@ import { ApiProperty } from '@nestjs/swagger';
 import { IsIn, IsNotEmpty, IsNumber, IsString, Max, MaxLength, Min } from 'class-validator';
 import { FHIR_BY } from '@medcenter/terminology';
 
-/** API §7.3 — one measurement, stored as `Observation` with a UCUM `valueQuantity` (BR-009). */
 export class ObservationDto {
-  /** НСИ CodeSystem canonical, e.g. `https://fhir.by/CodeSystem/nsi-observations`. */
   @ApiProperty({ description: 'НСИ CodeSystem canonical', enum: [FHIR_BY.OBSERVATION_CODE_SYSTEM], example: FHIR_BY.OBSERVATION_CODE_SYSTEM })
   @IsIn([FHIR_BY.OBSERVATION_CODE_SYSTEM])
   codeSystem!: string;
@@ -21,7 +19,6 @@ export class ObservationDto {
   @Max(300)
   value!: number;
 
-  /** UCUM code (canonical `http://unitsofmeasure.org`), e.g. `Cel`. */
   @ApiProperty({ description: 'UCUM unit (http://unitsofmeasure.org)', example: 'Cel', maxLength: 20 })
   @IsString()
   @IsNotEmpty()

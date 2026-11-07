@@ -35,7 +35,6 @@ export function encounterStatusOf(encounter: FhirResource): EncounterStatus {
   return isEncounterStatus(status) ? status : 'unknown';
 }
 
-/** `Appointment/{id}` the encounter was opened for (`Encounter.appointment[0]`), as a bare id. */
 export function appointmentIdOf(encounter: FhirResource): string {
   return referenceIdOf(stringField(arrayField(encounter, 'appointment')[0], 'reference'), 'Appointment') ?? '';
 }
@@ -46,7 +45,6 @@ function periodOf(encounter: FhirResource): EncounterResponseDto['period'] {
   return { start: stringField(period, 'start') ?? '', ...(end === undefined ? {} : { end }) };
 }
 
-/** API §7.1/§7.3 response (bare FHIR ids, as in `AppointmentResponseDto`). */
 export function toEncounterResponse(encounter: FhirResource, diagnosisCodes: readonly string[]): EncounterResponseDto {
   const roleRef = encounterPractitionerRoleRefs(encounter)[0];
   return {
@@ -60,11 +58,6 @@ export function toEncounterResponse(encounter: FhirResource, diagnosisCodes: rea
   };
 }
 
-/**
- * API §7.2 — the encounter with its clinical content, in the field names of
- * `CompleteEncounterDto` so the doctor's read-only form can render it.
- * `related` are the `_revinclude`d resources; only those of this encounter count.
- */
 export function toEncounterDetails(encounter: FhirResource, related: readonly FhirResource[]): EncounterDetailsDto {
   const own = relatedTo(`Encounter/${encounter.id ?? ''}`, related);
   const diagnoses = rankedDiagnoses(encounter, ofType(own, 'Condition'));

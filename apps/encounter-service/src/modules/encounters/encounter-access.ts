@@ -7,13 +7,11 @@ import { practitionerRoleRefFromClaims } from '../../common/access/claims-identi
 import { arrayField, referenceField } from '../../common/fhir/fhir-read';
 import { canonicalReference } from '../../common/fhir/fhir-reference';
 
-/** Who reads an encounter (API §7.2): its participant doctor; ADMIN is excluded by ADR-018. */
 export interface EncounterViewer {
   readonly kind: 'doctor';
   readonly roleRef: string;
 }
 
-/** Parties of an Appointment as written by appointment-service (`participant[].actor`). */
 export interface AppointmentParties {
   readonly patientRef?: string;
   readonly practitionerRoleRefs: readonly string[];
@@ -24,14 +22,12 @@ function compartmentViolation(message: string): ForbiddenException {
   return new ForbiddenException({ errorCode: 'COMPARTMENT_VIOLATION', message: `COMPARTMENT_VIOLATION: ${message}` });
 }
 
-/** `resource[listKey][].<referenceKey>.reference` of the given type, canonicalised to `Type/id`. */
 function referencesOf(resource: FhirResource, listKey: string, referenceKey: string, type: string): string[] {
   return arrayField(resource, listKey)
     .map((item) => canonicalReference(referenceField(item, referenceKey), type))
     .filter((reference): reference is string => reference !== undefined);
 }
 
-/** `PractitionerRole/{id}` participants of an Encounter (`participant[].individual`). */
 export function encounterPractitionerRoleRefs(encounter: FhirResource): string[] {
   return referencesOf(encounter, 'participant', 'individual', 'PractitionerRole');
 }
@@ -44,7 +40,7 @@ export function appointmentParties(appointment: FhirResource): AppointmentPartie
   };
 }
 
-/** Resolves the caller before any FHIR call, so an incomplete doctor token fails closed. */
+// Resolves the caller before any FHIR call, so an incomplete doctor token fails closed.
 export function resolveEncounterViewer(claims: JwtClaims): EncounterViewer {
   if (claims.role === Role.DOCTOR) {
     return { kind: 'doctor', roleRef: practitionerRoleRefFromClaims(claims) };
@@ -52,7 +48,7 @@ export function resolveEncounterViewer(claims: JwtClaims): EncounterViewer {
   throw new ForbiddenException({ errorCode: 'FORBIDDEN_ROLE', message: `Role ${claims.role} cannot read encounters` });
 }
 
-/** The doctor must be a participant of the encounter (checked before its state is revealed). */
+// Checked before the encounter state is revealed.
 export function assertEncounterParticipant(roleRef: string, encounter: FhirResource): void {
   if (!encounterPractitionerRoleRefs(encounter).includes(roleRef)) {
     throw compartmentViolation('encounter is not assigned to this practitioner');
@@ -63,7 +59,6 @@ export function assertViewerSeesEncounter(viewer: EncounterViewer, encounter: Fh
   assertEncounterParticipant(viewer.roleRef, encounter);
 }
 
-/** The doctor must be the appointment's practitioner (API §7.1). */
 export function assertAppointmentParticipant(roleRef: string, parties: AppointmentParties): void {
   if (!parties.practitionerRoleRefs.includes(roleRef)) {
     throw compartmentViolation('appointment is not assigned to this practitioner');

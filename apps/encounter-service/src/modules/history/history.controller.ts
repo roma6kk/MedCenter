@@ -20,17 +20,8 @@ import { PrescriptionsService } from './prescriptions.service';
 
 const AUDIT_SOURCE = 'encounter-service';
 
-/** An authenticated request after `RequestIdMiddleware` has assigned its correlation id. */
 type AuditedRequest = RequestWithClaims & Pick<RequestWithRequestId, 'requestId'>;
 
-/**
- * API §7.4–7.7 — history and prescriptions (FR-007, FR-012…FR-014). The `/me`
- * routes take the patient from the token only; the `/patients/{id}` routes
- * check the caller against that patient first (ADR-013). A `patient` query
- * parameter is never read: `PageQueryDto` does not declare it, so the
- * validation pipe strips it. A doctor's read of `/patients/{id}/…` and any refused
- * read leave an `AuditEvent` (ADR-018, D-3).
- */
 @ApiTags('encounter')
 @ApiBearerAuth()
 @ApiExtraModels(MedicationPrescriptionDoc, ServicePrescriptionDoc)
@@ -43,7 +34,6 @@ export class HistoryController {
     private readonly readAudit: PatientReadAudit,
   ) {}
 
-  /** 7.4 — owner patient (`patient/*.read`) or treating doctor (`user/*.read`); not an admin (ADR-018). */
   @Get('patients/:id/history')
   @ApiOperation({ summary: '7.4 Patient history of encounters; doctorName follows Accept-Language (en or ru)' })
   @ApiParam({ name: 'id', description: 'Patient id (FHIR id)' })
@@ -65,7 +55,6 @@ export class HistoryController {
     );
   }
 
-  /** 7.5 — same access as 7.4. */
   @Get('patients/:id/prescriptions')
   @ApiOperation({ summary: '7.5 Patient prescriptions' })
   @ApiParam({ name: 'id', description: 'Patient id (FHIR id)' })
@@ -86,7 +75,6 @@ export class HistoryController {
     );
   }
 
-  /** 7.6 — the caller's own history (patient compartment). */
   @Get('me/history')
   @ApiOperation({ summary: '7.6 My history of encounters; doctorName follows Accept-Language (en or ru)' })
   @ApiResponse({ status: 200, description: 'Page of the caller\'s finished encounters', type: HistoryPageDoc })
@@ -101,7 +89,6 @@ export class HistoryController {
     return this.history.historyOf(patientRefFromClaims(claimsOf(request)), toPageQuery(query), resolveContentLanguage(acceptLanguage));
   }
 
-  /** 7.7 — the caller's own prescriptions (patient compartment). */
   @Get('me/prescriptions')
   @ApiOperation({ summary: '7.7 My prescriptions' })
   @ApiResponse({ status: 200, description: 'Page of the caller\'s prescriptions', type: PrescriptionPageDoc })

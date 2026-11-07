@@ -23,22 +23,11 @@ function sortBy(field: string, order: SortOrder): string {
   return order === 'asc' ? field : `-${field}`;
 }
 
-/**
- * API §7.5/7.7 — the patient's prescriptions: `MedicationRequest`s first, then
- * `ServiceRequest`s, each by authoring date. HAPI cannot search two resource
- * types in one request, so the listing is the concatenation of the two typed
- * searches and a page is cut from it with exact offsets: the medication search
- * reports its total, and the service-request search continues where the
- * medications end. Two FHIR calls per page, never an unbounded scan.
- */
 @Injectable()
 export class PrescriptionsService {
   constructor(@Inject(FHIR_CLIENT) private readonly fhir: FhirClient) {}
 
-  /**
-   * `encounterId` narrows both searches to one visit; the `patient` constraint
-   * stays, so another patient's encounter id yields an empty page, never a read.
-   */
+  // The `patient` constraint stays, so another patient's encounter id yields an empty page, never a read.
   async prescriptionsOf(
     patientRef: string,
     query: PageQuery,
@@ -75,7 +64,6 @@ export class PrescriptionsService {
       _total: 'accurate',
     });
     const resources = resourcesOfType(result, resourceType).slice(0, count);
-    // Without a reported total the type is known to extend at least to this slice.
     return { resources, total: totalOf(result) ?? offset + resources.length };
   }
 

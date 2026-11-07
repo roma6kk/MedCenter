@@ -12,11 +12,6 @@ function compartmentViolation(message: string): ForbiddenException {
   return new ForbiddenException({ errorCode: 'COMPARTMENT_VIOLATION', message: `COMPARTMENT_VIOLATION: ${message}` });
 }
 
-/**
- * Patient compartment reference (`Patient/{id}`) taken from the token only
- * (ADR-013). The SMART `patient` claim is a bare id; a `Patient/{id}` value is
- * accepted too, so both issuer formats resolve to the same compartment.
- */
 export function patientRefFromClaims(claims: JwtClaims): string {
   const raw = requirePatientRef(claims);
   const id = raw.startsWith(PATIENT_PREFIX) ? raw.slice(PATIENT_PREFIX.length) : raw;
@@ -26,10 +21,7 @@ export function patientRefFromClaims(claims: JwtClaims): string {
   return `${PATIENT_PREFIX}${id}`;
 }
 
-/**
- * Doctor identity (`PractitionerRole/{id}`) from the `fhirUser` claim. Fails
- * closed: a token without a practitioner identity never grants access.
- */
+// Fails closed: a token without a practitioner identity never grants access.
 export function practitionerRoleRefFromClaims(claims: JwtClaims): string {
   const reference = claims.fhirUser;
   if (reference === undefined || !reference.startsWith(PRACTITIONER_ROLE_PREFIX)) {

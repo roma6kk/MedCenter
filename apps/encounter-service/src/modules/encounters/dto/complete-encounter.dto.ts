@@ -20,12 +20,7 @@ import { MedicationRequestDto } from './medication-request.dto';
 import { ObservationDto } from './observation.dto';
 import { ServiceRequestDto } from './service-request.dto';
 
-/**
- * API §7.3 — one body, one atomic completion of the encounter (FR-011…FR-014).
- * The first diagnosis is the primary one: every prescription references it (BR-005).
- */
 export class CompleteEncounterDto {
-  /** `ClinicalImpression.summary`. */
   @ApiProperty({ description: 'ClinicalImpression.summary', minLength: 3, maxLength: 4000 })
   @Trim()
   @IsString()
@@ -34,7 +29,6 @@ export class CompleteEncounterDto {
   @MaxLength(4000)
   summary!: string;
 
-  /** `Condition[]` (category=encounter-diagnosis, BR-004). */
   @ApiProperty({ type: [ConditionDto], minItems: 1, maxItems: 20, description: 'The first diagnosis is the primary one' })
   @IsArray()
   @ArrayMinSize(1)
@@ -44,7 +38,6 @@ export class CompleteEncounterDto {
   @Type(() => ConditionDto)
   diagnoses!: ConditionDto[];
 
-  /** `CarePlan.description` (FR-013). */
   @ApiProperty({ description: 'CarePlan.description', minLength: 3, maxLength: 2000 })
   @Trim()
   @IsString()
@@ -78,7 +71,6 @@ export class CompleteEncounterDto {
   @Type(() => MedicationRequestDto)
   medicationRequests?: MedicationRequestDto[];
 
-  /** ADR-019: completes without a patient consent and journals the reason. */
   @ApiPropertyOptional({ description: 'Completes without the patient consent (ADR-019); the reason is journalled', minLength: 10, maxLength: 500 })
   @IsOptional()
   @EmergencyReason()

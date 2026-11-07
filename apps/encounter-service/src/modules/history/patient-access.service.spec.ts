@@ -57,7 +57,6 @@ describe('PatientAccessService', () => {
   });
 
   it('should refuse a doctor when the found encounter belongs to another patient', async () => {
-    // Defence in depth: a search parameter the server ignored must not widen the compartment.
     const foreign = { ...inProgressEncounter, subject: { reference: 'Patient/pat-2' } };
     fhir.search.mockResolvedValueOnce({ total: 1, entry: [{ resource: foreign }] }).mockResolvedValueOnce({ total: 0 });
 

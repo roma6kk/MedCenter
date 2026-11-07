@@ -7,7 +7,6 @@ import type { MedicationRequestDto } from '../dto/medication-request.dto';
 import type { ObservationDto } from '../dto/observation.dto';
 import type { ServiceRequestDto } from '../dto/service-request.dto';
 
-/** What every clinical resource of one completion shares. */
 export interface ClinicalContext {
   readonly encounterRef: string;
   readonly patientRef: string;
@@ -18,11 +17,7 @@ export interface ClinicalContext {
 
 export const VERIFICATION_STATUS_SYSTEM = 'http://terminology.hl7.org/CodeSystem/condition-ver-status';
 
-/**
- * API verification status → R4 `condition-ver-status` (required binding). R4 has
- * no `working`; a working diagnosis is one without sufficient evidence to be
- * confirmed, which is exactly R4 `unconfirmed`.
- */
+// R4 has no `working`; a working diagnosis is R4 `unconfirmed`.
 export const VERIFICATION_TO_R4: Readonly<Record<DiagnosisVerificationStatus, string>> = {
   working: 'unconfirmed',
   provisional: 'provisional',
@@ -58,7 +53,6 @@ function noteOf(note: string | undefined): Record<string, unknown> {
   return note === undefined || note === '' ? {} : { note: [{ text: note }] };
 }
 
-/** Diagnosis (FR-012, BR-004): ICD-10 `Condition` in the context of the encounter. */
 export function conditionResource(context: ClinicalContext, diagnosis: ConditionDto): FhirResource {
   const status = diagnosis.verificationStatus;
   return {
@@ -76,7 +70,6 @@ export function conditionResource(context: ClinicalContext, diagnosis: Condition
   };
 }
 
-/** Result of the visit (FR-011): summary, findings = diagnoses, investigations = observations. */
 export function clinicalImpressionResource(
   context: ClinicalContext,
   summary: string,
@@ -98,7 +91,6 @@ export function clinicalImpressionResource(
   };
 }
 
-/** Recommendations (FR-013) addressing the diagnoses. */
 export function carePlanResource(context: ClinicalContext, recommendations: string, conditionRefs: readonly string[]): FhirResource {
   return {
     resourceType: 'CarePlan',
@@ -113,7 +105,6 @@ export function carePlanResource(context: ClinicalContext, recommendations: stri
   };
 }
 
-/** Measurement with a UCUM quantity (BR-009). */
 export function observationResource(context: ClinicalContext, observation: ObservationDto): FhirResource {
   return {
     resourceType: 'Observation',
@@ -127,7 +118,6 @@ export function observationResource(context: ClinicalContext, observation: Obser
   };
 }
 
-/** Referral / procedure order (FR-014) linked to the encounter and the diagnosis (BR-005). */
 export function serviceRequestResource(context: ClinicalContext, request: ServiceRequestDto, reasonRef: string): FhirResource {
   return {
     resourceType: 'ServiceRequest',
@@ -142,7 +132,6 @@ export function serviceRequestResource(context: ClinicalContext, request: Servic
   };
 }
 
-/** Prescription (FR-014) with an ATC code (BR-009), linked to the encounter and the diagnosis (BR-005). */
 export function medicationRequestResource(context: ClinicalContext, request: MedicationRequestDto, reasonRef: string): FhirResource {
   const atc = FHIR_BY.ATC_CODE_SYSTEM;
   return {

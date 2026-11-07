@@ -14,7 +14,6 @@ import type {
   ServiceRequestViewDto,
 } from './encounter-response.dto';
 
-/** FHIR R4 `Encounter.status` value set. */
 export const ENCOUNTER_STATUSES: readonly EncounterStatus[] = [
   'planned',
   'arrived',
@@ -102,7 +101,6 @@ export class MedicationRequestViewDoc implements MedicationRequestViewDto {
   note?: string;
 }
 
-/** Swagger description of `EncounterResponseDto` (API §7.1, §7.3). */
 export class EncounterResponseDoc implements EncounterResponseDto {
   @ApiProperty({ description: 'Encounter id (FHIR id)', example: '1234' })
   id!: string;
@@ -126,7 +124,6 @@ export class EncounterResponseDoc implements EncounterResponseDto {
   practitionerRoleId!: string;
 }
 
-/** Swagger description of `EncounterDetailsDto` (API §7.2). */
 export class EncounterDetailsDoc extends EncounterResponseDoc implements EncounterDetailsDto {
   @ApiPropertyOptional({ type: CodingDoc })
   serviceType?: CodingDoc;

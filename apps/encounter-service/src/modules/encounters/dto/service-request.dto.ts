@@ -3,9 +3,7 @@ import { IsIn, IsNotEmpty, IsOptional, IsString, MaxLength } from 'class-validat
 import { Trim } from '@medcenter/common';
 import { FHIR_BY } from '@medcenter/terminology';
 
-/** API §7.3 — one referral/procedure order, stored as `ServiceRequest` (BR-005). */
 export class ServiceRequestDto {
-  /** НСИ ЦИСЗ CodeSystem canonical (ADR-002), e.g. `https://fhir.by/CodeSystem/nsi-services`. */
   @ApiProperty({ description: 'НСИ ЦИСЗ CodeSystem canonical', enum: [FHIR_BY.SERVICE_CODE_SYSTEM], example: FHIR_BY.SERVICE_CODE_SYSTEM })
   @IsIn([FHIR_BY.SERVICE_CODE_SYSTEM])
   codeSystem!: string;

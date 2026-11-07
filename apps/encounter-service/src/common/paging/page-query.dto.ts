@@ -9,7 +9,7 @@ import {
   type PaginatedResponseDto,
 } from '@medcenter/contracts';
 
-/** Upper bound on `page`, so a client cannot push HAPI into an unbounded `_offset` scan. */
+// Upper bound on `page`: keeps a client from forcing an unbounded HAPI `_offset` scan.
 export const MAX_PAGE = 1000;
 
 export type SortOrder = 'asc' | 'desc';
@@ -20,10 +20,6 @@ export interface PageQuery {
   readonly sortOrder: SortOrder;
 }
 
-/**
- * Listing parameters of API §7.4–7.7 (API §0 pagination). Clinical history is
- * read newest first, so `sortOrder` defaults to `desc` on these endpoints.
- */
 export class PageQueryDto {
   @ApiPropertyOptional({ minimum: 1, maximum: MAX_PAGE, default: 1 })
   @IsOptional()
@@ -55,15 +51,10 @@ export function toPageQuery(dto: PageQueryDto): PageQuery {
   };
 }
 
-/** `_offset` of the first item of the page. */
 export function pageOffset(query: PageQuery): number {
   return (query.page - 1) * query.pageSize;
 }
 
-/**
- * The API §0 envelope. Without a reported total the count is known up to this
- * page, which is the honest lower bound.
- */
 export function toPage<TItem>(items: TItem[], total: number | undefined, query: PageQuery): PaginatedResponseDto<TItem> {
   const totalItems = total ?? pageOffset(query) + items.length;
   return buildPaginatedResponse(items, {

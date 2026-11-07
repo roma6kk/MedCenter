@@ -16,10 +16,6 @@ export interface EncounterPeriodDto {
   readonly end?: string;
 }
 
-/**
- * API §7.3 response `{ id; status; period; diagnosisCodes }`, plus the ids a
- * client needs to navigate (all bare FHIR ids, as in `AppointmentResponseDto`).
- */
 export interface EncounterResponseDto {
   readonly id: string;
   readonly status: EncounterStatus;
@@ -64,11 +60,6 @@ export interface CodingDto {
   readonly display?: string;
 }
 
-/**
- * API §7.2 — the encounter plus, once finished, its clinical content in the
- * field names of `CompleteEncounterDto`, so the doctor's read-only form can be
- * filled from it as is.
- */
 export interface EncounterDetailsDto extends EncounterResponseDto {
   readonly serviceType?: CodingDto;
   readonly summary?: string;
@@ -79,7 +70,6 @@ export interface EncounterDetailsDto extends EncounterResponseDto {
   readonly medicationRequests: readonly MedicationRequestViewDto[];
 }
 
-/** Result of API §7.1: `created=false` when the appointment already had an open encounter. */
 export interface OpenEncounterResult {
   readonly created: boolean;
   readonly encounter: EncounterResponseDto;

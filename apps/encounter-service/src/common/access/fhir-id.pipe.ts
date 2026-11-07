@@ -2,7 +2,6 @@ import { BadRequestException, Injectable, type PipeTransform } from '@nestjs/com
 
 import { isFhirId } from './claims-identity';
 
-/** Path `:id` guard: only a FHIR resource id may reach a FHIR read or search. */
 @Injectable()
 export class FhirIdPipe implements PipeTransform<string, string> {
   transform(value: string): string {

@@ -4,7 +4,6 @@ import { FHIR_ID_PATTERN } from '@medcenter/common';
 
 import { PageQueryDto } from '../../../common/paging/page-query.dto';
 
-/** Listing parameters of API §7.5/7.7: the paging of §7.4–7.7 plus an optional encounter filter. */
 export class PrescriptionsQueryDto extends PageQueryDto {
   @ApiPropertyOptional({ description: 'Only the prescriptions written at this encounter (FHIR id)', example: '1234' })
   @IsOptional()

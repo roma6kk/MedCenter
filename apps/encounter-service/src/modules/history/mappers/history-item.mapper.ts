@@ -11,11 +11,6 @@ function nonEmpty(value: unknown): value is string {
   return typeof value === 'string' && value.trim() !== '';
 }
 
-/**
- * Display form of the first `HumanName`: `text`, else `family given…` — the same as `doctorName` in appointment-service.
- * In English the translated `family`/`given` (HL7 `translation` extension, as in the doctor catalog) win over the
- * stored Russian `text`; Russian and a missing translation keep the stored value.
- */
 function humanNameOf(resource: FhirResource | undefined, lang: ContentLanguage): string | undefined {
   const first = (Array.isArray(resource?.['name']) ? resource['name'] : [])[0] as Record<string, unknown> | undefined;
   if (first === undefined) {
@@ -34,7 +29,6 @@ function humanNameOf(resource: FhirResource | undefined, lang: ContentLanguage):
   return parts.length === 0 ? undefined : parts.join(' ');
 }
 
-/** The Practitioner behind the encounter's PractitionerRole, when the Bundle carries both. */
 function doctorNameOf(roleId: string, related: readonly FhirResource[], lang: ContentLanguage): string | undefined {
   const role = related.find((resource) => resource.resourceType === 'PractitionerRole' && resource.id === roleId);
   const practitionerId = referenceIdOf(referenceField(role, 'practitioner'), 'Practitioner');
@@ -44,7 +38,6 @@ function doctorNameOf(roleId: string, related: readonly FhirResource[], lang: Co
   );
 }
 
-/** A finished encounter and the `_revinclude`d resources of the page → one history item. */
 export function toHistoryItem(
   encounter: FhirResource,
   related: readonly FhirResource[],

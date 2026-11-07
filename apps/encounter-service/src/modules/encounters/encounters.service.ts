@@ -49,7 +49,6 @@ import {
 const IN_PROGRESS = 'in-progress';
 const BOOKED = 'booked';
 
-/** Everything API §7.2 shows comes back in one search through `_revinclude`. */
 const ENCOUNTER_REVINCLUDES: readonly string[] = [
   'Condition:encounter',
   'ClinicalImpression:encounter',
@@ -59,7 +58,6 @@ const ENCOUNTER_REVINCLUDES: readonly string[] = [
   'MedicationRequest:encounter',
 ];
 
-/** What `complete` needs from HAPI before it writes: the in-progress encounter and its booked appointment. */
 interface CompletableEncounter {
   readonly encounter: FhirResource;
   readonly appointment: FhirResource;
@@ -90,17 +88,6 @@ function completionContextOf(inputs: CompletionInputs): CompletionContext {
   };
 }
 
-/**
- * Reading and completing an encounter (API §7.2–7.3, FR-011…FR-014, BR-003/004/005/008/009);
- * opening is `EncounterOpeningService`.
- *
- * Concurrency: HAPI has no row locks over REST. Completing writes every resource
- * in one `transaction` Bundle whose `PUT Encounter` and `PUT Appointment`
- * (`fulfilled`, BR-008) carry `If-Match` on the versions that were read, so a
- * concurrent or replayed completion, or an appointment cancelled / marked as a
- * no-show meanwhile, loses with `409 ENCOUNTER_STATE_INVALID` and nothing of it
- * is stored.
- */
 @Injectable()
 export class EncountersService {
   constructor(
@@ -109,7 +96,6 @@ export class EncountersService {
     @Inject(CONSENT_ENFORCEMENT_MODE) private readonly consentEnforcement: ConsentEnforcement,
   ) {}
 
-  /** 7.2 — the encounter and its clinical content, for its participant doctor (ADMIN is excluded, ADR-018). */
   async findOne(claims: JwtClaims, encounterId: string): Promise<EncounterDetailsDto> {
     const viewer = resolveEncounterViewer(claims);
     const result = await this.fhir.search('Encounter', {
@@ -130,7 +116,6 @@ export class EncountersService {
     return toEncounterDetails(encounter, resources);
   }
 
-  /** 7.3 — state and terminology are checked before any write; then one atomic transaction. */
   async complete(
     claims: JwtClaims,
     encounterId: string,
@@ -139,7 +124,7 @@ export class EncountersService {
   ): Promise<EncounterResponseDto> {
     const roleRef = practitionerRoleRefFromClaims(claims);
     const loaded = await this.loadCompletable(roleRef, encounterId);
-    // ADR-019: before terminology lookups and before the transaction.
+    // ADR-019: before terminology lookups and the transaction.
     const consent = await checkConsent(
       this.fhir,
       this.consentEnforcement,
@@ -170,9 +155,8 @@ export class EncountersService {
           ),
         ]
       : [];
-    // The encounter exists since it was opened, so its id is known: the outbox event is written in the very
-    // transaction that completes it and is published by outbox-relay (ADR-021). Only the diagnosis count goes
-    // into the event, never their codes or names.
+    // The outbox event is written in the transaction that completes the encounter (published by outbox-relay, ADR-021);
+    // only the diagnosis count goes into it, never codes or names (health data).
     const event = completedEvent({
       encounterId,
       patientRef: loaded.patientRef,
@@ -186,12 +170,7 @@ export class EncountersService {
     );
   }
 
-  /**
-   * Reads the encounter and refuses, before any terminology lookup or write:
-   * a non-participant (403, checked first so the state is not revealed), an
-   * encounter that is not in progress (409, BR-003) and an appointment that is
-   * no longer booked (409, BR-008).
-   */
+  // Order matters: non-participant 403 first (state is not revealed), then state 409, then appointment 409.
   private async loadCompletable(
     roleRef: string,
     encounterId: string,
@@ -211,10 +190,7 @@ export class EncountersService {
     return { encounter, appointment, patientRef };
   }
 
-  /**
-   * BR-008: a cancelled or no-show appointment cannot get a completed encounter.
-   * The appointment is returned as read: its version guards the `fulfilled` update.
-   */
+  // The appointment is returned as read: its version guards the `fulfilled` update.
   private async readStillBookedAppointment(encounter: FhirResource): Promise<FhirResource> {
     const appointmentId = appointmentIdOf(encounter);
     if (appointmentId === '') {

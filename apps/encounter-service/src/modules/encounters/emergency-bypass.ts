@@ -2,7 +2,7 @@ import { buildEmergencyBypassAuditEvent } from '@medcenter/fhir';
 
 import type { TransactionWrite } from '../../common/fhir/fhir-transaction';
 
-/** The emergency-bypass AuditEvent rides in the clinical transaction: no bypass without its journal entry (ADR-019). */
+// The bypass AuditEvent rides in the clinical transaction: no bypass without its journal entry (ADR-019).
 export function emergencyBypassWrite(
   actorSub: string,
   patientRef: string,

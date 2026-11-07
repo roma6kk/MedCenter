@@ -15,7 +15,6 @@ import {
 } from './app-harness';
 import type { TestTokenClaims } from '@medcenter/testing';
 
-/** A finished encounter of another patient: it must never leak into `Patient/pat-1` listings. */
 const FOREIGN_ENCOUNTER = {
   resourceType: 'Encounter',
   id: 'enc-foreign',
@@ -25,11 +24,6 @@ const FOREIGN_ENCOUNTER = {
   period: { start: '2026-10-01T06:00:00Z', end: '2026-10-01T06:20:00Z' },
 };
 
-/**
- * API §7.4–7.7 over HTTP: the patient compartment comes from the token only
- * (ADR-013), a doctor reads a patient only after sharing care with them, an
- * admin reads no medical data (ADR-018). HAPI is the in-memory `FakeHapi`.
- */
 describe('History and prescriptions (API §7.4–7.7)', () => {
   let harness: AppHarness;
 
@@ -106,7 +100,6 @@ describe('History and prescriptions (API §7.4–7.7)', () => {
   it('should answer 403 when an admin reads the history or the prescriptions of a patient', async () => {
     await completeVisit();
 
-    // The role guard refuses first (FORBIDDEN_ROLE); the compartment check behind it is the second layer (ADR-018).
     for (const path of ['/api/v1/patients/pat-1/history', '/api/v1/patients/pat-1/prescriptions']) {
       const response = await get(ADMIN, path).expect(403);
       expect(response.body).toMatchObject({ errorCode: expect.stringMatching(/^(FORBIDDEN_ROLE|COMPARTMENT_VIOLATION)$/) });
@@ -156,7 +149,6 @@ describe('History and prescriptions (API §7.4–7.7)', () => {
   });
 
   it('should answer 403 FORBIDDEN_SCOPE when a doctor token calls the patient-only me routes', async () => {
-    // ADR-009 guard order: the `user/*` token fails the `patient/*.read` check before the role check.
     const response = await get(DOCTOR, '/api/v1/me/history').expect(403);
 
     expect(response.body).toMatchObject({ errorCode: 'FORBIDDEN_SCOPE' });

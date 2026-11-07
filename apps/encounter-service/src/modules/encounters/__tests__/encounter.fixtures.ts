@@ -83,7 +83,6 @@ export function createFhirMock(): jest.Mocked<FhirClient> {
   } as unknown as jest.Mocked<FhirClient>;
 }
 
-/** `$validate-code` answer: `Parameters` with `result` (and `display` for a known code). */
 export function validateCodeAnswer(isKnown: boolean, display = 'Отображение'): FhirResource {
   return {
     resourceType: 'Parameters',
@@ -94,7 +93,6 @@ export function validateCodeAnswer(isKnown: boolean, display = 'Отображе
   };
 }
 
-/** `transaction-response` with one `201 Created` entry per location. */
 export function transactionResponse(locations: readonly string[]): FhirResource {
   return {
     resourceType: 'Bundle',
@@ -109,13 +107,11 @@ export interface CommittedEntry {
   readonly request: Readonly<Record<string, unknown>>;
 }
 
-/** Entries of the n-th transaction Bundle sent through `fhir.batch`. */
 export function committedEntries(fhir: jest.Mocked<FhirClient>, call = 0): readonly CommittedEntry[] {
   const bundle = fhir.batch.mock.calls[call]?.[0] as unknown as { entry?: CommittedEntry[] } | undefined;
   return bundle?.entry ?? [];
 }
 
-/** Error payload (`{ errorCode, message }`) of an `HttpException` thrown by `promise`. */
 export async function errorPayloadOf(promise: Promise<unknown>): Promise<unknown> {
   try {
     await promise;

@@ -1,12 +1,6 @@
 import { registerDecorator, type ValidationOptions } from 'class-validator';
 import { isValidIcd10Code } from '@medcenter/terminology';
 
-/**
- * First line of defence for an ICD-10 code (API §7.3 `@MatchesICD10()`): the
- * `libs/terminology` grammar. Membership in the seeded ValueSet
- * `https://fhir.by/ValueSet/InternClassificDiseases10` is checked by
- * `TerminologyValidatorService` (422 `INVALID_ICD10_CODE`).
- */
 export function MatchesICD10(options?: ValidationOptions): PropertyDecorator {
   return (target: object, propertyName: string | symbol): void => {
     registerDecorator({

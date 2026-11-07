@@ -1,9 +1,5 @@
 import { registerDecorator, type ValidationOptions } from 'class-validator';
 
-/**
- * An array whose items must not repeat the same `key` (case-insensitive), e.g. one ICD-10 code twice in
- * `diagnoses` (API §7.3). Anything that is not an array of objects passes for `@IsArray()` to refuse.
- */
 export function UniqueBy(key: string, options?: ValidationOptions): PropertyDecorator {
   return (target: object, propertyName: string | symbol): void => {
     registerDecorator({

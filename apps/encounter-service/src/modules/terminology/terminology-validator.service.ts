@@ -9,15 +9,13 @@ import { ICD10_CODE_SYSTEM, SEEDED_VALUE_SETS, seededValueSetOf } from './seeded
 
 export { ICD10_CODE_SYSTEM, SEEDED_VALUE_SETS };
 
-/** UCUM case-sensitive codes are printable ASCII without spaces; free text (`горсть`) never is. */
+// UCUM case-sensitive codes are printable ASCII without spaces; free text never is.
 const UCUM_SYNTAX = /^[!-~]{1,20}$/;
-/** HAPI answers an unknown ValueSet / code system with one of these instead of `result=false`. */
+// HAPI answers an unknown ValueSet / code system with these instead of `result=false`.
 const NOT_FOUND_STATUSES: ReadonlySet<number> = new Set([400, 404, 422]);
 const LOOKUP_CONCURRENCY = 6;
 
-/** Where a code sits in the request: its path is what a 422 reports in `details[].field`. */
 export interface CodeLocation {
-  /** Request path of the code, e.g. `diagnoses.0.code` (same syntax as the `details[].field` of a 400). */
   readonly field?: string;
 }
 
@@ -26,12 +24,10 @@ export interface TerminologyRef extends CodeLocation {
   readonly code: string;
 }
 
-/** An ICD-10 code of the request (the system is always {@link ICD10_CODE_SYSTEM}). */
 export interface Icd10Ref extends CodeLocation {
   readonly code: string;
 }
 
-/** Display text resolved by the terminology server, keyed by {@link displayKey}. */
 export type TerminologyDisplays = ReadonlyMap<string, string>;
 
 interface CodeCheck {
@@ -58,7 +54,6 @@ function uniqueRefs(refs: readonly TerminologyRef[]): TerminologyRef[] {
   return [...seen.values()];
 }
 
-/** A ref that can never be in the seed: system outside it, or a unit that is not UCUM syntax. */
 function isOutsideSeed(ref: TerminologyRef): boolean {
   if (seededValueSetOf(ref.system) === undefined) {
     return true;
@@ -66,7 +61,6 @@ function isOutsideSeed(ref: TerminologyRef): boolean {
   return ref.system === FHIR_BY.UCUM_SYSTEM && !UCUM_SYNTAX.test(ref.code);
 }
 
-/** One `details[]` entry per request field that carries an offending code, in request order; refs without a path are skipped. */
 function fieldDetails<TRef extends CodeLocation>(refs: readonly TRef[], describe: (ref: TRef) => string): FieldErrorDetail[] {
   return refs.flatMap((ref) => (ref.field === undefined ? [] : [{ field: ref.field, message: describe(ref) }]));
 }
@@ -82,19 +76,6 @@ function collectDisplays(refs: readonly TerminologyRef[], checks: readonly CodeC
   return displays;
 }
 
-/**
- * Terminology gate of API §7.3 (BR-004, BR-009, ADR-002/016). The DTO grammar
- * (`@MatchesICD10`, `@MatchesATC`) is the first line; this service then checks
- * every code against the ValueSet the seed publishes for its system, through
- * `ValueSet/$validate-code` with the canonical `https://fhir.by/ValueSet/...` URL:
- * - ICD-10 → `InternClassificDiseases10`; a miss is `422 INVALID_ICD10_CODE`.
- *   Membership is strict: a seeded category (`J06`) does not admit an unseeded
- *   subcategory (`J06.8`).
- * - ATC, UCUM (closed unit list, BR-009) and НСИ codes → their `fhir.by`
- *   ValueSets; a miss — or a system the seed does not carry — is
- *   `422 TERMINOLOGY_NOT_FOUND`.
- * A terminology server that is down is not a client error: that failure propagates (502/504).
- */
 @Injectable()
 export class TerminologyValidatorService {
   private readonly logger = new Logger(TerminologyValidatorService.name);
@@ -120,11 +101,6 @@ export class TerminologyValidatorService {
     }
   }
 
-  /**
-   * Every ref must be in the seeded ValueSet of its system; returns the displays
-   * HAPI resolved. Codes of systems outside the seed are refused without a
-   * lookup, the rest is looked up, and the refusal names all of them at once.
-   */
   async assertCodesExist(refs: readonly TerminologyRef[]): Promise<TerminologyDisplays> {
     const distinct = uniqueRefs(refs);
     const outside = distinct.filter(isOutsideSeed);
@@ -146,7 +122,7 @@ export class TerminologyValidatorService {
     } catch (error) {
       const status = error instanceof FhirClientError ? error.upstreamStatus : undefined;
       if (status !== undefined && NOT_FOUND_STATUSES.has(status)) {
-        // An unseeded ValueSet looks exactly like this; worth seeing in the log, not worth a 5xx.
+        // An unseeded ValueSet looks exactly like this; worth a log line, not a 5xx.
         this.logger.warn({ valueSetUrl, code: ref.code, status }, 'terminology lookup answered as unknown code');
         return { isKnown: false };
       }
@@ -154,7 +130,6 @@ export class TerminologyValidatorService {
     }
   }
 
-  /** `missing` are the distinct refs to name in the message; `requested` are all refs, so every field that carries one is reported. */
   private notFound(missing: readonly TerminologyRef[], requested: readonly TerminologyRef[]): UnprocessableEntityException {
     const listed = missing.map((ref) => `${ref.system}#${ref.code}`).join(', ');
     const missingKeys = new Set(missing.map((ref) => displayKey(ref.system, ref.code)));

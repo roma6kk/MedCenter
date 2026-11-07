@@ -19,11 +19,6 @@ async function messagesOf(target: object): Promise<string[]> {
   return errors.flatMap((error) => Object.values(error.constraints ?? {}));
 }
 
-/**
- * The grammar checks fail as `400 VALIDATION_ERROR` with the same `<property> must be …` sentence the other
- * DTO validators use (`$property must be a FHIR resource id`, `… must be a date (YYYY-MM-DD)`), so a client that
- * localises validation messages by their `must be …` tail can treat these two alike.
- */
 describe('clinical code validators', () => {
   it('should word an ATC failure as the property followed by must be an ATC code with an example when the code is malformed', async () => {
     const messages = await messagesOf(Object.assign(new Prescription(), { atcCode: 'J01' }));
