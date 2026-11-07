@@ -1,7 +1,8 @@
-import { expect, test, type BrowserContext, type Locator, type Page } from '@playwright/test';
+import { expect, test, type BrowserContext, type Page } from '@playwright/test';
 import { bookAnyFreeSlotAs, cancelAppointmentAs } from './fixtures/booking-api';
 import { hasDemoManifest } from './fixtures/demo-accounts';
 import { isPostTo } from './fixtures/network';
+import { cancelledNotificationRow, openNotificationsUntilCancelled } from './fixtures/notifications';
 import { openStoredSession } from './fixtures/session-state';
 
 test.skip(!hasDemoManifest(), 'demo seed manifest not found');
@@ -18,22 +19,6 @@ test.describe('patient notifications', () => {
     const { id: appointmentId } = await bookAnyFreeSlotAs(page);
     await cancelAppointmentAs(page, appointmentId);
     return { appointmentId };
-  }
-
-  function rowOf(appointmentId: string): Locator {
-    return page
-      .getByRole('group', { name: 'Список уведомлений' })
-      .getByRole('listitem')
-      .filter({ has: page.locator(`a[href="/appointments/${appointmentId}"]`), hasText: 'Запись на приём отменена.' });
-  }
-
-  async function openUntilArrived(appointmentId: string): Promise<Locator> {
-    const row = rowOf(appointmentId);
-    await expect(async () => {
-      await page.goto('/notifications');
-      await expect(row).toBeVisible({ timeout: 3_000 });
-    }).toPass({ timeout: POLL_TIMEOUT_MS, intervals: [2_000, 3_000, 5_000] });
-    return row;
   }
 
   test.beforeAll(async ({ browser, baseURL }) => {
@@ -61,7 +46,7 @@ test.describe('patient notifications', () => {
 
   test('should mark one notification read and keep it in the list without the «Новое» marker', async () => {
     const { appointmentId } = await bookAndCancel();
-    const row = await openUntilArrived(appointmentId);
+    const row = await openNotificationsUntilCancelled(page, appointmentId, POLL_TIMEOUT_MS);
     await expect(row.getByText('Новое', { exact: true })).toBeVisible();
 
     const marked = page.waitForResponse(isPostTo(/\/api\/v1\/notifications\/[^/]+\/read$/));
@@ -72,12 +57,12 @@ test.describe('patient notifications', () => {
     await expect(row.getByText('Новое', { exact: true })).toHaveCount(0);
     await expect(row.getByRole('button', { name: 'Отметить прочитанным' })).toHaveCount(0);
     await page.getByRole('tab', { name: 'Непрочитанные' }).click();
-    await expect(rowOf(appointmentId)).toHaveCount(0);
+    await expect(cancelledNotificationRow(page, appointmentId)).toHaveCount(0);
   });
 
   test('should mark every notification read with one action', async () => {
     const { appointmentId } = await bookAndCancel();
-    const row = await openUntilArrived(appointmentId);
+    const row = await openNotificationsUntilCancelled(page, appointmentId, POLL_TIMEOUT_MS);
     await expect(row.getByText('Новое', { exact: true })).toBeVisible();
 
     const markedAll = page.waitForResponse(isPostTo('/api/v1/notifications/read-all'));

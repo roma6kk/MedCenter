@@ -1,22 +1,11 @@
-import { expect, test, type Browser, type BrowserContext, type Page } from '@playwright/test';
-import { returnToOfAuthorizeUrl, signInThroughLoginForm } from './fixtures/auth';
-import { hasDemoManifest, loadDemoAccount, ROLE_LANDING, type DemoRole } from './fixtures/demo-accounts';
+import { expect, test } from '@playwright/test';
+import { openSignedInSession, returnToOfAuthorizeUrl } from './fixtures/auth';
+import { hasDemoManifest, ROLE_LANDING } from './fixtures/demo-accounts';
+import type { StoredSession } from './fixtures/session-state';
 
 test.skip(!hasDemoManifest(), 'demo seed manifest not found');
 
 const DEFAULT_ORIGIN = 'http://localhost:3000';
-
-interface Session {
-  readonly context: BrowserContext;
-  readonly page: Page;
-}
-
-async function openSession(browser: Browser, role: DemoRole, index: number, baseURL: string | undefined, returnTo?: string): Promise<Session> {
-  const context = await browser.newContext({ baseURL });
-  const page = await context.newPage();
-  await signInThroughLoginForm(page, loadDemoAccount(role, index), { webOrigin: baseURL, returnTo });
-  return { context, page };
-}
 
 test.describe('anonymous visitor', () => {
   test('should be sent to /login with returnTo, and from there straight to the auth-service form, when a protected route is opened', async ({ page, request }) => {
@@ -48,10 +37,10 @@ test.describe('anonymous visitor', () => {
 
 test.describe('patient session', () => {
   test.describe.configure({ mode: 'serial' });
-  let session: Session;
+  let session: StoredSession;
 
   test.beforeAll(async ({ browser, baseURL }) => {
-    session = await openSession(browser, 'PATIENT', 0, baseURL);
+    session = await openSignedInSession(browser, 'PATIENT', 0, baseURL);
   });
 
   test.afterAll(async () => {
@@ -93,10 +82,10 @@ test.describe('patient session', () => {
 
 test.describe('patient session with returnTo, rotation and sign-out', () => {
   test.describe.configure({ mode: 'serial' });
-  let session: Session;
+  let session: StoredSession;
 
   test.beforeAll(async ({ browser, baseURL }) => {
-    session = await openSession(browser, 'PATIENT', 1, baseURL, '/appointments');
+    session = await openSignedInSession(browser, 'PATIENT', 1, baseURL, '/appointments');
   });
 
   test.afterAll(async () => {
@@ -135,10 +124,10 @@ test.describe('patient session with returnTo, rotation and sign-out', () => {
 for (const role of ['DOCTOR', 'ADMIN'] as const) {
   test.describe(`${role.toLowerCase()} session`, () => {
     test.describe.configure({ mode: 'serial' });
-    let session: Session;
+    let session: StoredSession;
 
     test.beforeAll(async ({ browser, baseURL }) => {
-      session = await openSession(browser, role, 0, baseURL);
+      session = await openSignedInSession(browser, role, 0, baseURL);
     });
 
     test.afterAll(async () => {

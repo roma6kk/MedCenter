@@ -1,6 +1,7 @@
 import { expect, test, type BrowserContext, type Page } from '@playwright/test';
 import { bookSlotAs, cancelAppointmentAs, findFreeSlot } from './fixtures/booking-api';
 import { isPostTo } from './fixtures/network';
+import { openNotificationsUntilCancelled } from './fixtures/notifications';
 import { hasDemoManifest } from './fixtures/demo-accounts';
 import { openStoredSession } from './fixtures/session-state';
 
@@ -47,14 +48,6 @@ test.describe('patient cancels an appointment', () => {
   });
 
   test('should show a notification about the cancellation in the notification center', async () => {
-    // The notification is produced asynchronously (RabbitMQ → notification-service): re-read the list until it arrives.
-    const row = page
-      .getByRole('group', { name: 'Список уведомлений' })
-      .getByRole('listitem')
-      .filter({ has: page.locator(`a[href="/appointments/${appointmentId}"]`), hasText: 'Запись на приём отменена.' });
-    await expect(async () => {
-      await page.goto('/notifications');
-      await expect(row).toBeVisible({ timeout: 3_000 });
-    }).toPass({ timeout: NOTIFICATION_TIMEOUT_MS, intervals: [2_000, 3_000, 5_000] });
+    await openNotificationsUntilCancelled(page, appointmentId, NOTIFICATION_TIMEOUT_MS);
   });
 });

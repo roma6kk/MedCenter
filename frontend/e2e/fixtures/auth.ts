@@ -1,5 +1,6 @@
 import { test as base, expect, type Browser, type Page } from '@playwright/test';
 import { loadDemoAccount, type DemoAccount, type DemoRole } from './demo-accounts';
+import type { StoredSession } from './session-state';
 
 const SIGN_IN_TIMEOUT_MS = 20_000;
 const DEFAULT_WEB_ORIGIN = 'http://localhost:3000';
@@ -32,11 +33,11 @@ export async function signInThroughLoginForm(page: Page, account: DemoAccount, o
   await fillAuthServiceForm(page, account, webOrigin);
 }
 
-async function openSignedInPage(browser: Browser, role: DemoRole, baseURL: string | undefined): Promise<Page> {
+export async function openSignedInSession(browser: Browser, role: DemoRole, index: number, baseURL: string | undefined, returnTo?: string): Promise<StoredSession> {
   const context = await browser.newContext({ baseURL });
   const page = await context.newPage();
-  await signInThroughLoginForm(page, loadDemoAccount(role), { webOrigin: baseURL });
-  return page;
+  await signInThroughLoginForm(page, loadDemoAccount(role, index), { webOrigin: baseURL, returnTo });
+  return { context, page };
 }
 
 interface SignedInFixtures {
@@ -48,7 +49,7 @@ interface SignedInFixtures {
 const signedInPage =
   (role: DemoRole) =>
   async ({ browser, baseURL }: { browser: Browser; baseURL: string | undefined }, use: (page: Page) => Promise<void>): Promise<void> => {
-    const page = await openSignedInPage(browser, role, baseURL);
+    const { page } = await openSignedInSession(browser, role, 0, baseURL);
     await use(page);
     await page.context().close();
   };
