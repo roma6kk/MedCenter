@@ -71,10 +71,17 @@ describe('History and prescriptions (API §7.4–7.7)', () => {
     ]);
   });
 
-  it('should answer 403 COMPARTMENT_VIOLATION when a patient reads another patient history', async () => {
-    const response = await get(PATIENT, '/api/v1/patients/pat-2/history').expect(403);
+  it.each([
+    ['COMPARTMENT_VIOLATION', 403, 'a patient reads another patient history', PATIENT, '/api/v1/patients/pat-2/history'],
+    ['VALIDATION_ERROR', 400, 'the encounterId filter is not a FHIR id', PATIENT, '/api/v1/me/prescriptions?encounterId=a%20b'],
+    ['COMPARTMENT_VIOLATION', 403, 'a doctor never treated the patient', OTHER_DOCTOR, '/api/v1/patients/pat-1/prescriptions'],
+    ['FORBIDDEN_SCOPE', 403, 'a doctor token calls the patient-only me routes', DOCTOR, '/api/v1/me/history'],
+    ['VALIDATION_ERROR', 400, 'the patient path id is made of dots only', DOCTOR, '/api/v1/patients/%2E%2E/history'],
+    ['VALIDATION_ERROR', 400, 'the page size exceeds the API limit', PATIENT, '/api/v1/me/history?pageSize=101'],
+  ])('should answer %s with %i when %s', async (errorCode, status, _case, claims, path) => {
+    const response = await get(claims, path).expect(status);
 
-    expect(response.body).toMatchObject({ errorCode: 'COMPARTMENT_VIOLATION' });
+    expect(response.body).toMatchObject({ errorCode });
   });
 
   it('should let the treating doctor read the patient history when they share an encounter', async () => {
@@ -83,18 +90,6 @@ describe('History and prescriptions (API §7.4–7.7)', () => {
     const response = await get(DOCTOR, '/api/v1/patients/pat-1/history').expect(200);
 
     expect(response.body.items).toEqual([expect.objectContaining({ id: encounterId, practitionerRoleId: 'role-1' })]);
-  });
-
-  it('should answer 400 when the encounterId filter is not a FHIR id', async () => {
-    const response = await get(PATIENT, '/api/v1/me/prescriptions?encounterId=a%20b').expect(400);
-
-    expect(response.body).toMatchObject({ errorCode: 'VALIDATION_ERROR' });
-  });
-
-  it('should answer 403 COMPARTMENT_VIOLATION when a doctor never treated the patient', async () => {
-    const response = await get(OTHER_DOCTOR, '/api/v1/patients/pat-1/prescriptions').expect(403);
-
-    expect(response.body).toMatchObject({ errorCode: 'COMPARTMENT_VIOLATION' });
   });
 
   it('should answer 403 when an admin reads the history or the prescriptions of a patient', async () => {
@@ -146,23 +141,5 @@ describe('History and prescriptions (API §7.4–7.7)', () => {
 
       await get(DOCTOR, '/api/v1/patients/pat-1/history').expect(200);
     });
-  });
-
-  it('should answer 403 FORBIDDEN_SCOPE when a doctor token calls the patient-only me routes', async () => {
-    const response = await get(DOCTOR, '/api/v1/me/history').expect(403);
-
-    expect(response.body).toMatchObject({ errorCode: 'FORBIDDEN_SCOPE' });
-  });
-
-  it('should answer 400 VALIDATION_ERROR when the patient path id is made of dots only', async () => {
-    const response = await get(DOCTOR, '/api/v1/patients/%2E%2E/history').expect(400);
-
-    expect(response.body).toMatchObject({ errorCode: 'VALIDATION_ERROR' });
-  });
-
-  it('should answer 400 VALIDATION_ERROR when the page size exceeds the API limit', async () => {
-    const response = await get(PATIENT, '/api/v1/me/history?pageSize=101').expect(400);
-
-    expect(response.body).toMatchObject({ errorCode: 'VALIDATION_ERROR' });
   });
 });

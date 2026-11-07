@@ -67,14 +67,11 @@ describe('toAuditEventRow', () => {
     });
   });
 
-  it('should map the R4 action code U to update when no restful subtype is present', () => {
-    const row = toAuditEventRow(appointmentServiceAudit({ action: 'U', subtype: undefined }));
-
-    expect(row?.action).toBe('update');
-  });
-
-  it('should map the R4 action code D to delete when the event records a deletion', () => {
-    expect(toAuditEventRow(appointmentServiceAudit({ action: 'D', subtype: undefined }))?.action).toBe('delete');
+  it.each([
+    ['U', 'update'],
+    ['D', 'delete'],
+  ])('should map the R4 action code %s to %s when no restful subtype is present', (action, expected) => {
+    expect(toAuditEventRow(appointmentServiceAudit({ action, subtype: undefined }))?.action).toBe(expected);
   });
 
   describe('patient-data reads (ADR-018)', () => {

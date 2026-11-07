@@ -198,17 +198,13 @@ describe('Complete encounter (API §7.1–7.3)', () => {
     expect(response.body).toMatchObject({ errorCode: 'COMPARTMENT_VIOLATION' });
   });
 
-  it('should refuse a patient token with 403 FORBIDDEN_SCOPE when it opens an encounter', async () => {
-    const response = await as(PATIENT).post('/api/v1/encounters', { appointmentId: APPOINTMENT_ID }).expect(403);
+  it.each([
+    ['FORBIDDEN_SCOPE', 'a patient', PATIENT],
+    ['FORBIDDEN_ROLE', 'an admin', ADMIN],
+  ])('should refuse with 403 %s when %s token opens an encounter', async (errorCode, _who, claims) => {
+    const response = await as(claims).post('/api/v1/encounters', { appointmentId: APPOINTMENT_ID }).expect(403);
 
-    expect(response.body).toMatchObject({ errorCode: 'FORBIDDEN_SCOPE' });
-    expect(harness.hapi.transactions).toHaveLength(0);
-  });
-
-  it('should refuse an admin token with 403 FORBIDDEN_ROLE when it opens an encounter', async () => {
-    const response = await as(ADMIN).post('/api/v1/encounters', { appointmentId: APPOINTMENT_ID }).expect(403);
-
-    expect(response.body).toMatchObject({ errorCode: 'FORBIDDEN_ROLE' });
+    expect(response.body).toMatchObject({ errorCode });
     expect(harness.hapi.transactions).toHaveLength(0);
   });
 
