@@ -31,6 +31,6 @@ import { UsersService } from './users.service';
     UserIdentityResolver,
     { provide: IDENTITY_RESOLVER, useExisting: UserIdentityResolver },
   ],
-  exports: [CredentialsService, IDENTITY_RESOLVER],
+  exports: [CredentialsService, IDENTITY_RESOLVER, UsersService],
 })
 export class UsersModule {}

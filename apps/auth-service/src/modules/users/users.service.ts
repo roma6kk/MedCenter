@@ -16,10 +16,11 @@ import type { ListUsersQueryDto } from './dto/list-users-query.dto';
 import type { MeResponseDto } from './dto/me-response.dto';
 import type { UpdateUserDto } from './dto/update-user.dto';
 import type { UserDetailsResponseDto, UserResponseDto } from './dto/user-response.dto';
+import { PasswordHasher } from './password-hasher';
 import { PatientProvisioner, type PatientDemographicsChange } from './patient-provisioner';
 import { USER_STORE, type UserChanges, type UserRecord, type UserStore } from './store/user-store';
 import { changesOf, demographicsOf, effectiveChangesOf, effectiveDemographicsOf, inverseOf } from './user-changes';
-import { conflictOf, emailTaken, selfLockout, userNotFound } from './user-errors';
+import { conflictOf, emailTaken, invalidPassword, selfLockout, userNotFound } from './user-errors';
 import { linkedRefs } from './user-links';
 import { toUserDetails, toUserResponse } from './user-view.mapper';
 
@@ -32,6 +33,7 @@ export class UsersService {
     private readonly accounts: AccountFactory,
     private readonly patients: PatientProvisioner,
     private readonly audit: AuditService,
+    private readonly hasher: PasswordHasher,
   ) {}
 
   async list(query: ListUsersQueryDto): Promise<PaginatedResponseDto<UserResponseDto>> {
@@ -101,6 +103,20 @@ export class UsersService {
     const updated = await this.applyChanges(id, { isActive: false });
     await this.recordUpdate(current, updated, actor, 'user.deactivated');
     return toUserDetails(updated);
+  }
+
+  /**
+   * The patient closes their own account: sign-in stops and the account consent is stamped as withdrawn. Only the
+   * `auth` row changes; the Patient and every clinical resource stay with the clinic. A wrong password and an account
+   * that is already inactive answer the same 403.
+   */
+  async deactivateSelf(id: string, password: string, actor: AuditActor): Promise<void> {
+    const current = await this.require(id);
+    if (!current.isActive || !(await this.hasher.verify(password, current.passwordHash))) {
+      throw invalidPassword();
+    }
+    const updated = await this.applyChanges(id, { isActive: false, accountConsentWithdrawnAt: new Date() });
+    await this.recordUpdate(current, updated, actor, 'user.deactivated');
   }
 
   private async require(id: string): Promise<UserRecord> {

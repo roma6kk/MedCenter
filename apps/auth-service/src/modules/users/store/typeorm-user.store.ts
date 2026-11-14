@@ -54,6 +54,9 @@ function toRecord(user: User, roles: ReadonlyArray<RoleName>, links: UserLinks):
     createdAt: user.createdAt,
     ...(user.accountConsentAt !== null && user.accountConsentAt !== undefined ? { accountConsentAt: user.accountConsentAt } : {}),
     ...(user.accountConsentVersion !== null && user.accountConsentVersion !== undefined ? { accountConsentVersion: user.accountConsentVersion } : {}),
+    ...(user.accountConsentWithdrawnAt !== null && user.accountConsentWithdrawnAt !== undefined
+      ? { accountConsentWithdrawnAt: user.accountConsentWithdrawnAt }
+      : {}),
   };
 }
 

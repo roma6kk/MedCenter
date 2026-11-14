@@ -46,7 +46,7 @@ export function createUsersHarness(): UsersHarness {
   const audit = new AuditService(fhir);
   const accounts = new AccountFactory(store, hasher, patients, audit, new RegistrationOutbox(fhir));
   const registration = new RegistrationService(accounts);
-  const users = new UsersService(store, accounts, patients, audit);
+  const users = new UsersService(store, accounts, patients, audit, hasher);
   return { store, fhir, hasher, accounts, registration, users };
 }
 

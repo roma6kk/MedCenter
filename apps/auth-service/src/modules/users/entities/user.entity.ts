@@ -26,6 +26,9 @@ export class User {
   @Column({ name: 'account_consent_version', type: 'varchar', length: 64, nullable: true })
   accountConsentVersion!: string | null;
 
+  @Column({ name: 'account_consent_withdrawn_at', type: 'timestamptz', nullable: true })
+  accountConsentWithdrawnAt!: Date | null;
+
   @CreateDateColumn({ name: 'created_at' })
   createdAt!: Date;
 

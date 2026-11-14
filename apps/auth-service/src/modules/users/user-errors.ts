@@ -1,4 +1,4 @@
-import { BadRequestException, ConflictException, NotFoundException, UnprocessableEntityException } from '@nestjs/common';
+import { BadRequestException, ConflictException, ForbiddenException, NotFoundException, UnprocessableEntityException } from '@nestjs/common';
 
 import { DuplicateEmailError, ResourceAlreadyLinkedError } from './store/user-store';
 
@@ -18,6 +18,10 @@ export function selfLockout(): ConflictException {
     errorCode: 'CONFLICT',
     message: 'SELF_LOCKOUT: an administrator cannot deactivate or demote their own account',
   });
+}
+
+export function invalidPassword(): ForbiddenException {
+  return new ForbiddenException({ errorCode: 'FORBIDDEN', message: 'INVALID_PASSWORD: the current password is wrong' });
 }
 
 export function ageRestricted(): UnprocessableEntityException {

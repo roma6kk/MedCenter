@@ -7,6 +7,7 @@ import { z } from 'zod';
 import { readSessionIdleTimeoutMs } from '../../config/auth-env';
 import { AuditModule } from '../audit/audit.module';
 import { UsersModule } from '../users/users.module';
+import { AccountDeactivationController } from './account-deactivation.controller';
 import { AuthorizeController } from './authorize.controller';
 import { OAuthErrorFilter } from './filters/oauth-error.filter';
 import { AuthorizePageGuard } from './guards/authorize-page.guard';
@@ -123,7 +124,7 @@ export function loadRegisteredClients(source: NodeJS.ProcessEnv = process.env): 
 
 @Module({
   imports: [UsersModule, AuditModule],
-  controllers: [OAuthController, AuthorizeController, LoginController, LoginAssetsController],
+  controllers: [OAuthController, AccountDeactivationController, AuthorizeController, LoginController, LoginAssetsController],
   providers: [
     PkceService,
     JwtService,

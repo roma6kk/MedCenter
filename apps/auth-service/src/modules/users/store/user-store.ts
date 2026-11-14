@@ -19,6 +19,7 @@ export interface UserRecord {
   readonly createdAt: Date;
   readonly accountConsentAt?: Date;
   readonly accountConsentVersion?: string;
+  readonly accountConsentWithdrawnAt?: Date;
 }
 
 export interface NewUser {
@@ -35,6 +36,7 @@ export interface UserChanges {
   readonly firstName?: string;
   readonly lastName?: string;
   readonly isActive?: boolean;
+  readonly accountConsentWithdrawnAt?: Date;
   readonly roles?: ReadonlyArray<Role>;
   readonly practitionerRoleId?: string | null;
 }

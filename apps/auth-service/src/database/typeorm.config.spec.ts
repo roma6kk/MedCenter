@@ -9,6 +9,7 @@ import { UserRole } from '../modules/users/entities/user-role.entity';
 import { Init1700000000000 } from './migrations/1700000000000-Init';
 import { RolesAndLinks1700000000001 } from './migrations/1700000000001-RolesAndLinks';
 import { AccountConsent1700000000002 } from './migrations/1700000000002-AccountConsent';
+import { AccountConsentWithdrawal1700000000003 } from './migrations/1700000000003-AccountConsentWithdrawal';
 import {
   AUTH_SCHEMA,
   authEntities,
@@ -52,6 +53,7 @@ describe('auth data source factory', () => {
       Init1700000000000,
       RolesAndLinks1700000000001,
       AccountConsent1700000000002,
+      AccountConsentWithdrawal1700000000003,
     ]);
   });
 
