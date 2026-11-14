@@ -428,6 +428,42 @@ describe('ConsentsService', () => {
       expect(fhir.batch).not.toHaveBeenCalled();
     });
 
+    function patientBornOn(birthDate: string | undefined): FhirResource {
+      const rest: FhirResource = { ...patientResource };
+      delete rest['birthDate'];
+      return birthDate === undefined ? rest : { ...rest, birthDate };
+    }
+
+    it.each([
+      ['is missing', undefined],
+      ['is not a date', 'unknown'],
+      ['is an impossible date', '2000-02-30'],
+      ['is a year the patient turns 18 after the signing day', '2008'],
+      ['is a month the patient turns 18 after the signing day', '2008-10'],
+    ])('should refuse a self-signed consent when the birth date %s', async (_case, birthDate) => {
+      fhir.read.mockImplementation(async (type) => (type === 'Patient' ? patientBornOn(birthDate) : relatedPerson));
+
+      expect(await errorPayloadOf(service.create(PATIENT_ID, { ...createDto, signedAt: '2026-05-31' }, adminClaims))).toMatchObject({
+        details: [{ field: 'consenterType' }],
+      });
+      expect(fhir.batch).not.toHaveBeenCalled();
+    });
+
+    it('should accept a self-signed consent when a partial birth date is already 18 or more at its latest day', async () => {
+      fhir.read.mockImplementation(async (type) => (type === 'Patient' ? { ...patientResource, birthDate: '2007' } : scanBinary));
+      fhir.batch.mockResolvedValue(createdBundle('Consent', 'c-9'));
+
+      await expect(service.create(PATIENT_ID, { ...createDto, signedAt: '2025-12-31' }, adminClaims)).resolves.toBeDefined();
+    });
+
+    it('should report the patient as not an adult when the birth date is missing or partial', async () => {
+      fhir.read.mockResolvedValue(patientBornOn(undefined));
+      expect((await service.getForPatient(PATIENT_ID, adminClaims)).patientIsAdult).toBe(false);
+
+      fhir.read.mockResolvedValue({ ...patientResource, birthDate: '2008-12' });
+      expect((await service.getForPatient(PATIENT_ID, adminClaims)).patientIsAdult).toBe(false);
+    });
+
     it('should accept the self-signed consent on the day the patient turns 18', async () => {
       fhir.read.mockImplementation(async (type) => (type === 'Patient' ? { ...patientResource, birthDate: '2008-10-21' } : scanBinary));
       fhir.batch.mockResolvedValue(createdBundle('Consent', 'c-9'));

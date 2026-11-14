@@ -77,9 +77,32 @@ function isInTheFuture(moment: string, now: Date): boolean {
   return new Date(moment).getTime() > now.getTime() + FUTURE_TOLERANCE_MS;
 }
 
+/** The latest day a possibly partial FHIR date (`YYYY`, `YYYY-MM`, `YYYY-MM-DD`) can mean; `undefined` when it is not a date. */
+function latestBirthDay(birthDate: unknown): string | undefined {
+  if (typeof birthDate !== 'string') {
+    return undefined;
+  }
+  const match = /^(\d{4})(?:-(\d{2})(?:-(\d{2}))?)?$/.exec(birthDate);
+  if (match === null) {
+    return undefined;
+  }
+  const year = Number(match[1]);
+  const month = match[2] === undefined ? 12 : Number(match[2]);
+  if (month < 1 || month > 12) {
+    return undefined;
+  }
+  const lastDay = new Date(Date.UTC(year, month, 0)).getUTCDate();
+  const day = match[3] === undefined ? lastDay : Number(match[3]);
+  if (day < 1 || day > lastDay) {
+    return undefined;
+  }
+  return `${match[1]}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+}
+
+// Fails closed: a missing, invalid or partial birth date counts as the latest day it can mean.
 function isAdultAt(patient: FhirResource, day: string): boolean {
-  const birthDate = patient['birthDate'];
-  return typeof birthDate !== 'string' || !DATE_ONLY.test(birthDate) || isAdultOn(birthDate, day);
+  const birthDay = latestBirthDay(patient['birthDate']);
+  return birthDay !== undefined && isAdultOn(birthDay, day);
 }
 
 function startOf(consent: FhirResource): number | undefined {
