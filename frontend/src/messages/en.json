@@ -517,7 +517,12 @@
         "delete": "Delete",
         "read": "Read",
         "denied": "Access denied",
-        "emergency-bypass": "Emergency consent bypass"
+        "emergency-bypass": "Emergency consent bypass",
+        "login": "Sign-in",
+        "login-failed": "Failed sign-in",
+        "login-throttled": "Sign-in blocked (attempt limit)",
+        "logout": "Sign-out",
+        "session-idle": "Session ended by inactivity"
       }
     },
     "terminology": {

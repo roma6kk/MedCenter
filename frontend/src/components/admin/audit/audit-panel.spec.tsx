@@ -111,6 +111,25 @@ describe('AuditPanel', () => {
     expect(table.getByTestId('audit-action-emergency-bypass')).toHaveClass('bg-destructive-soft');
   });
 
+  it('should name every authentication event and show a dash for an unknown account', async () => {
+    const actions = ['login', 'login-failed', 'login-throttled', 'logout', 'session-idle'] as const;
+    const events: ReadonlyArray<AuditEvent> = actions.map((action, index) => ({
+      id: String(index), occurredAt: '2026-10-16T08:00:00.000Z', userId: action === 'login-failed' ? '' : 'u-1', action, resourceType: action === 'login-failed' ? '' : 'AuthUser', resourceId: action === 'login-failed' ? '' : 'u-1', requestId: '',
+    }));
+    apiFetchMock.mockResolvedValue({ items: events, meta: { page: 1, pageSize: 20, totalItems: 5, totalPages: 1 } });
+    renderWithClient(<AuditPanel />);
+
+    const table = within(await screen.findByRole('table', { name: 'Журнал аудита' }));
+    await table.findByTestId('audit-action-login');
+
+    expect(table.getByTestId('audit-action-login')).toHaveTextContent('Вход');
+    expect(table.getByTestId('audit-action-login-failed')).toHaveTextContent('Неудачный вход');
+    expect(table.getByTestId('audit-action-login-throttled')).toHaveTextContent('Вход заблокирован');
+    expect(table.getByTestId('audit-action-logout')).toHaveTextContent('Выход');
+    expect(table.getByTestId('audit-action-session-idle')).toHaveTextContent('Сеанс завершён по бездействию');
+    expect(table.getByText('—', { selector: 'span.text-muted-foreground' })).toBeInTheDocument();
+  });
+
   it('should name the emergency consent bypass and show the reason the doctor gave (ADR-019)', async () => {
     const bypass: ReadonlyArray<AuditEvent> = [
       { id: '5', occurredAt: '2026-10-16T08:02:00.000Z', userId: 'u-1', action: 'emergency-bypass', resourceType: 'Patient', resourceId: '1442', requestId: 'r-5', reason: 'Пациент без сознания' },

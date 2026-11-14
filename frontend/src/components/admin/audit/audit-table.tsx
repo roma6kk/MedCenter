@@ -6,7 +6,7 @@ import { useT } from '@/lib/i18n/use-t';
 import { useUiStore } from '@/store/use-ui-store';
 import { formatClinicDateTime } from '@/lib/clinic-time';
 import { useMemo } from 'react';
-import { Eye, CirclePlus, Pencil, ShieldAlert, Trash2, TriangleAlert, type LucideIcon } from 'lucide-react';
+import { Eye, CirclePlus, KeyRound, LogOut, Lock, Pencil, ShieldAlert, Timer, Trash2, TriangleAlert, type LucideIcon } from 'lucide-react';
 import { useAdminUsers } from '../users/use-admin-users';
 import type { AuditAction, AuditEvent } from './audit-types';
 import { CopyRequestId } from './copy-request-id';
@@ -39,6 +39,7 @@ function useAccountNames(): ReadonlyMap<string, string> {
 }
 
 function WhoCell({ userId, name }: { readonly userId: string; readonly name: string | undefined }): React.JSX.Element {
+  if (userId === '') return <span className="text-muted-foreground">—</span>;
   if (name === undefined) return <span className="mono text-xs">{userId}</span>;
   return (
     <span className="grid">
@@ -60,6 +61,11 @@ const ACTION_LOOK: Readonly<Record<AuditAction, ActionLook>> = {
   delete: { tone: 'critical', icon: Trash2 },
   denied: { tone: 'warning', icon: ShieldAlert },
   'emergency-bypass': { tone: 'critical', icon: TriangleAlert },
+  login: { tone: 'success', icon: KeyRound },
+  'login-failed': { tone: 'warning', icon: ShieldAlert },
+  'login-throttled': { tone: 'critical', icon: Lock },
+  logout: { tone: 'neutral', icon: LogOut },
+  'session-idle': { tone: 'neutral', icon: Timer },
 };
 
 function ActionCell({ event }: { readonly event: AuditEvent }): React.JSX.Element {

@@ -1,4 +1,15 @@
-export type AuditAction = 'create' | 'update' | 'delete' | 'read' | 'denied' | 'emergency-bypass';
+export type AuditAction =
+  | 'create'
+  | 'update'
+  | 'delete'
+  | 'read'
+  | 'denied'
+  | 'emergency-bypass'
+  | 'login'
+  | 'login-failed'
+  | 'login-throttled'
+  | 'logout'
+  | 'session-idle';
 
 export interface AuditEvent {
   readonly id: string;
