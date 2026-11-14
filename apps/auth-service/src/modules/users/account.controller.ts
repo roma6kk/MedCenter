@@ -25,7 +25,10 @@ export class AccountController {
   @Public()
   @ApiOperation({ summary: '2.2.6 Register a patient account' })
   @ApiResponse({ status: 201, description: 'The account and its FHIR Patient are created', type: UserResponseDoc })
-  @ApiProblems([400, 409, 429, 500], { 409: 'EMAIL_TAKEN: a user with this email already exists' })
+  @ApiProblems([400, 409, 422, 429, 500], {
+    409: 'EMAIL_TAKEN: a user with this email already exists',
+    422: 'AGE_RESTRICTED: the patient is under 18 on the registration date',
+  })
   @RateLimit(REGISTER_RATE_LIMIT)
   @Post('auth/register')
   register(@Body() dto: RegisterPatientDto, @Req() request: AuthenticatedRequest): Promise<UserResponseDto> {

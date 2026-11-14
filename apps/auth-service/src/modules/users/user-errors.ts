@@ -1,4 +1,4 @@
-import { BadRequestException, ConflictException, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, NotFoundException, UnprocessableEntityException } from '@nestjs/common';
 
 import { DuplicateEmailError, ResourceAlreadyLinkedError } from './store/user-store';
 
@@ -17,6 +17,14 @@ export function selfLockout(): ConflictException {
   return new ConflictException({
     errorCode: 'CONFLICT',
     message: 'SELF_LOCKOUT: an administrator cannot deactivate or demote their own account',
+  });
+}
+
+export function ageRestricted(): UnprocessableEntityException {
+  return new UnprocessableEntityException({
+    errorCode: 'AGE_RESTRICTED',
+    message: 'AGE_RESTRICTED: self-registration is open to persons aged 18 and over',
+    details: [{ field: 'birthDate', message: 'must be 18 or older to register' }],
   });
 }
 

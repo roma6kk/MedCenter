@@ -144,6 +144,7 @@ export class PaginatedResponseDto<TItem> {
 | `SERVICE_IN_USE` | 409 | 5.1.5: на услугу ссылается `Schedule` или роль врача (`PractitionerRole.healthcareService`) |
 | `SCHEDULE_IN_USE` | 409 | 5.2.4: расписание нельзя удалить — есть слоты или busy-слот (таблица 5.2.4) |
 | `ROOM_IN_USE` | 409 | 4.6: на кабинет ссылается `Schedule` (активное или нет), роль врача (`PractitionerRole.location`) или услуга (`HealthcareService.location`) |
+| `AGE_RESTRICTED` | 422 | 2.2.6: саморегистрация пациента младше 18 лет на дату регистрации (часовой пояс клиники) |
 | `INVALID_ICD10_CODE` | 422 | код не входит в ValueSet `https://fhir.by/ValueSet/InternClassificDiseases10`; `details[]` называет поля запроса (`diagnoses.1.code`), `detail` сохраняет список кодов |
 | `TERMINOLOGY_NOT_FOUND` | 422 | код отсутствует в локальном seed НСИ (ADR-002/016); `details[]` называет поля запроса (`medicationRequests.0.atcCode`, `observations.0.unit`), `detail` сохраняет список кодов |
 | `RATE_LIMITED` | 429 | превышение лимита |

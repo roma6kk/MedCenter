@@ -1,9 +1,11 @@
 import { Injectable } from '@nestjs/common';
+import { clinicDateOf, isAdultOn } from '@medcenter/common';
 import { Role } from '@medcenter/contracts';
 
 import { AccountFactory } from './account-factory.service';
 import type { RegisterPatientDto } from './dto/register-patient.dto';
 import type { UserResponseDto } from './dto/user-response.dto';
+import { ageRestricted } from './user-errors';
 import { toUserResponse } from './user-view.mapper';
 
 @Injectable()
@@ -11,6 +13,9 @@ export class RegistrationService {
   constructor(private readonly accounts: AccountFactory) {}
 
   async registerPatient(dto: RegisterPatientDto, requestId?: string): Promise<UserResponseDto> {
+    if (!isAdultOn(dto.birthDate, clinicDateOf(Date.now()))) {
+      throw ageRestricted();
+    }
     const user = await this.accounts.create(
       {
         email: dto.email,

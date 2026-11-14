@@ -17,6 +17,28 @@ function registrationDto(overrides: Partial<RegisterPatientDto> = {}): RegisterP
 }
 
 describe('RegistrationService', () => {
+  describe('age restriction', () => {
+    afterEach(() => jest.useRealTimers());
+
+    it('should refuse with AGE_RESTRICTED and create nothing when the patient is a day short of 18', async () => {
+      jest.useFakeTimers({ now: new Date('2026-11-14T09:00:00Z'), doNotFake: ['nextTick', 'setImmediate', 'queueMicrotask'] });
+      const { registration, fhir } = createUsersHarness();
+
+      await expect(registration.registerPatient(registrationDto({ birthDate: '2008-11-15' }))).rejects.toMatchObject({
+        status: 422,
+        response: { errorCode: 'AGE_RESTRICTED' },
+      });
+      expect(fhir.create).not.toHaveBeenCalled();
+    });
+
+    it('should register when the patient turns 18 on the registration day in the clinic zone', async () => {
+      jest.useFakeTimers({ now: new Date('2026-11-13T22:30:00Z'), doNotFake: ['nextTick', 'setImmediate', 'queueMicrotask'] });
+      const { registration } = createUsersHarness();
+
+      await expect(registration.registerPatient(registrationDto({ birthDate: '2008-11-14' }))).resolves.toMatchObject({ roles: ['PATIENT'] });
+    });
+  });
+
   it('should create a FHIR Patient and link it when a patient self-registers', async () => {
     const { registration, fhir } = createUsersHarness();
 

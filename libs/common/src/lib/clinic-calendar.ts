@@ -44,6 +44,18 @@ export function addClinicDays(date: string, days: number): string {
   return new Date(Date.parse(`${date}T00:00:00Z`) + days * DAY_MS).toISOString().slice(0, 10);
 }
 
+export const ADULT_AGE_YEARS = 18;
+
+/** Completed years on `onDate`; both are `YYYY-MM-DD`. A 29 February birthday counts from 1 March in a common year. */
+export function ageInYearsOn(birthDate: string, onDate: string): number {
+  const years = Number(onDate.slice(0, 4)) - Number(birthDate.slice(0, 4));
+  return onDate.slice(5) < birthDate.slice(5) ? years - 1 : years;
+}
+
+export function isAdultOn(birthDate: string, onDate: string): boolean {
+  return ageInYearsOn(birthDate, onDate) >= ADULT_AGE_YEARS;
+}
+
 const CLINIC_FORMAT = new Intl.DateTimeFormat('ru-RU', {
   timeZone: CLINIC_TIME_ZONE,
   day: '2-digit',

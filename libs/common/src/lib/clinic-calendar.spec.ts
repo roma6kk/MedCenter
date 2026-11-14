@@ -1,5 +1,6 @@
 import {
   addClinicDays,
+  ageInYearsOn,
   CLINIC_TIME_ZONE,
   clinicDateOf,
   clinicDayCode,
@@ -9,6 +10,7 @@ import {
   clinicInstantMs,
   formatClinicDateTime,
   formatSlotPeriod,
+  isAdultOn,
 } from './clinic-calendar';
 
 describe('clinic calendar', () => {
@@ -121,5 +123,18 @@ describe('formatClinicDateTime', () => {
 
   it('should return undefined when the value is no instant', () => {
     expect(formatClinicDateTime('not-a-date')).toBeUndefined();
+  });
+});
+
+describe('ageInYearsOn / isAdultOn', () => {
+  it.each([
+    ['2008-11-14', '2026-11-14', 18, true],
+    ['2008-11-15', '2026-11-14', 17, false],
+    ['2000-02-29', '2026-02-28', 25, true],
+    ['2008-02-29', '2026-02-28', 17, false],
+    ['2008-02-29', '2026-03-01', 18, true],
+  ])('should give the completed years and adulthood when %s is read on %s', (birth, on, years, adult) => {
+    expect(ageInYearsOn(birth, on)).toBe(years);
+    expect(isAdultOn(birth, on)).toBe(adult);
   });
 });
