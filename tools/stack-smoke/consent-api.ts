@@ -42,9 +42,8 @@ export function consentOf(response: ApiResponse): { readonly active: JsonObject 
   return { active: active as JsonObject | null, history: asArray(body['history'], 'history') };
 }
 
-export function bookSlot(suite: Suite, session: Session, slotId: string, reason?: string): Promise<ApiResponse> {
-  const body = { slotId, ...(reason === undefined ? {} : { reason }) };
-  return suite.api.post('/api/v1/appointments', { session, body, headers: { 'Idempotency-Key': newKey() } });
+export function bookSlot(suite: Suite, session: Session, slotId: string): Promise<ApiResponse> {
+  return suite.api.post('/api/v1/appointments', { session, body: { slotId }, headers: { 'Idempotency-Key': newKey() } });
 }
 
 export async function ensureConsent(suite: Suite, patient: Session): Promise<void> {

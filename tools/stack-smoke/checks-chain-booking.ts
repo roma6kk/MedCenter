@@ -9,7 +9,7 @@ import { newKey, type Suite } from './suite';
 interface Booking {
   readonly slot: JsonObject;
   readonly key: string;
-  readonly body: { readonly slotId: string; readonly reason: string };
+  readonly body: { readonly slotId: string };
   firstAnswer: string;
 }
 
@@ -118,7 +118,7 @@ function slotGoneStep(suite: Suite, booking: Booking): SmokeStep {
 
 export function bookingSteps(suite: Suite, slots: readonly JsonObject[]): SmokeStep[] {
   const slot = slots[0] as JsonObject;
-  const booking: Booking = { slot, key: newKey(), body: { slotId: String(slot['id']), reason: 'Контрольный осмотр (smoke)' }, firstAnswer: '' };
+  const booking: Booking = { slot, key: newKey(), body: { slotId: String(slot['id']) }, firstAnswer: '' };
   return [
     findSlotStep(suite, booking),
     bookStep(suite, booking),

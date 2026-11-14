@@ -76,7 +76,7 @@ function cancelStep(suite: Suite, removal: Removal): SmokeStep {
   return {
     name: 'the patient cancels it (POST /appointments/{id}/cancel) -> 200; the slot is free again but the Appointment still names it',
     run: async () => {
-      const body = { reason: 'Отмена перед удалением расписания (smoke)' };
+      const body = { reason: 'plans-changed' };
       const response = await suite.api.post(`/api/v1/appointments/${removal.appointment}/cancel`, { session: suite.sessions.thirdPatient, body });
       expectStatus(response, 200);
       expectEqual(expectShape(response.body, APPOINTMENT_SHAPE, 'appointment')['status'], 'cancelled', 'status');
@@ -142,7 +142,7 @@ function repeatStep(suite: Suite, removal: Removal): SmokeStep {
 async function removeLeftovers(suite: Suite, removal: Removal): Promise<void> {
   const session = suite.sessions.admin;
   if (removal.appointment !== '' && !removal.cancelled) {
-    await suite.api.post(`/api/v1/appointments/${removal.appointment}/cancel`, { session, body: { reason: 'Уборка после неудачного smoke-прогона' } });
+    await suite.api.post(`/api/v1/appointments/${removal.appointment}/cancel`, { session, body: { reason: 'plans-changed' } });
   }
   if (removal.schedule !== '') {
     const response = await cascadeDelete(suite, removal);

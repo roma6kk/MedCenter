@@ -175,7 +175,7 @@ function afterVisitStep(suite: Suite): SmokeStep {
     name: 'noshow after the finished encounter -> 409 ENCOUNTER_STATE_INVALID; cancel -> 409 APPOINTMENT_NOT_CANCELLABLE; still fulfilled',
     run: async () => {
       expectProblem(await api.post(`/api/v1/doctor/appointments/${chain.appointmentId}/noshow`, { session: sessions.doctor }), 409, 'ENCOUNTER_STATE_INVALID');
-      const cancel = await api.post(`/api/v1/appointments/${chain.appointmentId}/cancel`, { session: sessions.patient, body: { reason: 'Приём уже состоялся (smoke)' } });
+      const cancel = await api.post(`/api/v1/appointments/${chain.appointmentId}/cancel`, { session: sessions.patient, body: { reason: 'plans-changed' } });
       expectProblem(cancel, 409, 'APPOINTMENT_NOT_CANCELLABLE');
       const response = await api.get(`/api/v1/appointments/${chain.appointmentId}`, { session: sessions.patient });
       expectEqual(expectShape(response.body, APPOINTMENT_SHAPE, 'appointment')['status'], 'fulfilled', 'status after the refused noshow and cancel');

@@ -4,11 +4,11 @@ import type { ApiResponse } from './smoke-types';
 const answer = (status: number, body: unknown = undefined): ApiResponse => ({ status, contentType: 'application/json', text: '', body });
 
 describe('modeFromAnswer', () => {
-  it('should read block from the 409 CONSENT_REQUIRED that a booking with a reason gets without consent', () => {
+  it('should read block from the 409 CONSENT_REQUIRED that the first gated encounter open gets without consent', () => {
     expect(modeFromAnswer(answer(409, { errorCode: 'CONSENT_REQUIRED' }))).toBe('block');
   });
 
-  it('should read warn from a 201: the stack booked without the reason instead of refusing', () => {
+  it('should read warn from a 201: the stack opened the encounter instead of refusing', () => {
     expect(modeFromAnswer(answer(201, { id: 'a1' }))).toBe('warn');
   });
 

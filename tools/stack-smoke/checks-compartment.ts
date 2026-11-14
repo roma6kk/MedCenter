@@ -24,7 +24,7 @@ function otherPatientAttempts(suite: Suite, ids: { patientId: string; appointmen
     ['GET /patients/{other patient}/history', () => api.get(`/api/v1/patients/${patientId}/history`, { session })],
     ['GET /patients/{other patient}/prescriptions', () => api.get(`/api/v1/patients/${patientId}/prescriptions`, { session })],
     ["GET /appointments/{another patient's}", () => api.get(`/api/v1/appointments/${appointmentId}`, { session })],
-    ["POST /appointments/{another patient's}/cancel", () => api.post(`/api/v1/appointments/${appointmentId}/cancel`, { session, body: { reason: 'чужая запись' } })],
+    ["POST /appointments/{another patient's}/cancel", () => api.post(`/api/v1/appointments/${appointmentId}/cancel`, { session, body: { reason: 'plans-changed' } })],
   ];
 }
 

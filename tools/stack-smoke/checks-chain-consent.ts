@@ -11,7 +11,7 @@ import type { JsonObject, Session } from './smoke-types';
 import { runTag, type Suite } from './suite';
 
 const GROUP = 'consent (ADR-019)';
-const REASON = 'Жалобы на кашель (smoke)';
+const CANCEL_BODY = { reason: 'plans-changed' };
 const EMERGENCY_REASON = 'Пациент без сознания, согласие дать не может (smoke)';
 const FIRST_SLOT = 3;
 
@@ -19,6 +19,7 @@ interface Run {
   readonly tag: string;
   readonly email: string;
   patient?: Session;
+  password: string;
   patientId: string;
   mode: EnforcementMode;
   readonly appointment: { first: string; second: string; third: string };
@@ -33,6 +34,7 @@ function registerStep(suite: Suite, run: Run): SmokeStep {
     name: 'register and sign in a throwaway patient (accountConsent at registration, API 2.2.6)',
     run: async () => {
       const password = newPassword();
+      run.password = password;
       const body = { email: run.email, password, firstName: 'Смоук', lastName: 'Согласие', birthDate: '1990-05-06', gender: 'male', accountConsent: { accepted: true, textVersion: '2026-10' } };
       expectStatus(await suite.api.post('/api/v1/auth/register', { body }), 201);
       run.patient = await signIn(suite.config, { role: 'PATIENT', email: run.email, password });
@@ -41,25 +43,9 @@ function registerStep(suite: Suite, run: Run): SmokeStep {
   };
 }
 
-function reasonWithoutConsentStep(suite: Suite, run: Run, slotId: string): SmokeStep {
-  return {
-    name: '6.1 with a free-text reason and no consent: block -> 409 CONSENT_REQUIRED, warn -> booked without the reason',
-    run: async () => {
-      const response = await bookSlot(suite, session(run), slotId, REASON);
-      run.mode = reconcileMode(suite.config.consentEnforcement, modeFromAnswer(response));
-      if (run.mode === 'block') {
-        return expectProblem(response, 409, 'CONSENT_REQUIRED');
-      }
-      expectStatus(response, 201);
-      expectTrue(!JSON.stringify(response.body).includes(REASON), 'warn mode must drop the reason, not store it');
-      expectStatus(await suite.api.post(`/api/v1/appointments/${idOf(response)}/cancel`, { session: session(run), body: { reason: 'Освобождаем слот (smoke)' } }), 200);
-    },
-  };
-}
-
 function bookStep(suite: Suite, run: Run, slotId: string, key: keyof Run['appointment'], label: string): SmokeStep {
   return {
-    name: `book the ${label} appointment without a reason -> 201 (booking itself needs no consent)`,
+    name: `book the ${label} appointment -> 201 (booking itself needs no consent)`,
     run: async () => {
       const response = await bookSlot(suite, session(run), slotId);
       expectStatus(response, 201);
@@ -72,11 +58,14 @@ function openEncounter(suite: Suite, run: Run, key: keyof Run['appointment'], ex
   return suite.api.post('/api/v1/encounters', { session: suite.sessions.doctor, body: { appointmentId: run.appointment[key], ...extra } });
 }
 
-function gatedOpenStep(suite: Suite, run: Run, key: keyof Run['appointment'], name: string): SmokeStep {
+function gatedOpenStep(suite: Suite, run: Run, key: keyof Run['appointment'], name: string, detectMode = false): SmokeStep {
   return {
     name: `${name}: block -> 409 CONSENT_REQUIRED (nothing written), warn -> 201`,
     run: async () => {
       const response = await openEncounter(suite, run, key);
+      if (detectMode) {
+        run.mode = reconcileMode(suite.config.consentEnforcement, modeFromAnswer(response));
+      }
       if (run.mode === 'block') {
         return expectProblem(response, 409, 'CONSENT_REQUIRED');
       }
@@ -198,7 +187,7 @@ function tidySecondStep(suite: Suite, run: Run): SmokeStep {
     name: 'tidy up the second appointment (block: the patient cancels it; warn: the doctor completes the encounter warn opened)',
     run: async () => {
       if (run.mode === 'block') {
-        return expectStatus(await suite.api.post(`/api/v1/appointments/${run.appointment.second}/cancel`, { session: session(run), body: { reason: 'Уборка после smoke-проверки' } }), 200);
+        return expectStatus(await suite.api.post(`/api/v1/appointments/${run.appointment.second}/cancel`, { session: session(run), body: CANCEL_BODY }), 200);
       }
       const opened = await openEncounter(suite, run, 'second');
       expectStatus(opened, 200);
@@ -224,9 +213,8 @@ function stepsOf(suite: Suite, run: Run, slots: readonly JsonObject[]): SmokeSte
   const slotId = (offset: number): string => String((slots[FIRST_SLOT + offset] as JsonObject)['id']);
   return [
     registerStep(suite, run),
-    reasonWithoutConsentStep(suite, run, slotId(0)),
     bookStep(suite, run, slotId(0), 'first', 'first'),
-    gatedOpenStep(suite, run, 'first', '7.1 without consent'),
+    gatedOpenStep(suite, run, 'first', '7.1 without consent (also tells the enforcement mode)', true),
     noConsentYetStep(suite, run),
     ...recordSteps(suite, run),
     ...withConsentSteps(suite, run),
@@ -242,13 +230,19 @@ function stepsOf(suite: Suite, run: Run, slots: readonly JsonObject[]): SmokeSte
 
 export async function consentChecks(suite: Suite, slots: readonly JsonObject[]): Promise<void> {
   const tag = runTag();
-  const run: Run = { tag, email: `smoke.consent.${tag}@medcenter.test`, patientId: '', mode: 'block', appointment: { first: '', second: '', third: '' }, encounterId: '' };
+  const run: Run = { tag, email: `smoke.consent.${tag}@medcenter.test`, patientId: '', password: '', mode: suite.config.consentEnforcement ?? 'block', appointment: { first: '', second: '', third: '' }, encounterId: '' };
   await suite.runner.chain(GROUP, stepsOf(suite, run, slots));
-  await suite.runner.check(GROUP, 'the throwaway patient account is deactivated again (the run leaves no active test account)', async () => {
-    const found = await suite.api.get('/api/v1/admin/users', { session: suite.sessions.admin, query: { search: run.email, pageSize: 5 } });
-    const user = ((bodyObject(found)['items'] as JsonObject[] | undefined) ?? []).find((item) => item['email'] === run.email);
-    if (user !== undefined) {
-      expectStatus(await suite.api.delete(`/api/v1/admin/users/${String(user['id'])}`, { session: suite.sessions.admin }), 200);
+  await suite.runner.check(GROUP, 'the throwaway patient closes their own account (POST /me/deactivate -> 204); the admin delete is the fallback, so the run leaves no active test account', async () => {
+    const closed = run.patient === undefined ? undefined : await suite.api.post('/api/v1/me/deactivate', { session: run.patient, body: { password: run.password } });
+    if (closed?.status !== 204) {
+      const found = await suite.api.get('/api/v1/admin/users', { session: suite.sessions.admin, query: { search: run.email, pageSize: 5 } });
+      const user = ((bodyObject(found)['items'] as JsonObject[] | undefined) ?? []).find((item) => item['email'] === run.email);
+      if (user !== undefined) {
+        expectStatus(await suite.api.delete(`/api/v1/admin/users/${String(user['id'])}`, { session: suite.sessions.admin }), 200);
+      }
+    }
+    if (closed !== undefined) {
+      expectStatus(closed, 204);
     }
   });
 }
