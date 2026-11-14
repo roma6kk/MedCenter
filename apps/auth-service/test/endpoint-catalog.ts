@@ -18,7 +18,7 @@ export interface ProtectedEndpoint {
   readonly route: string;
   readonly path: string;
   readonly body?: Body;
-  readonly role: Role.ADMIN | null;
+  readonly role: Role.ADMIN | Role.PATIENT | null;
   readonly scope: 'user/*.read' | 'user/*.write' | null;
   readonly reached: Reached;
 }
@@ -152,6 +152,16 @@ export const PROTECTED_ENDPOINTS: ReadonlyArray<ProtectedEndpoint> = [
     role: null,
     scope: null,
     reached: { status: 200 },
+  },
+  {
+    name: 'POST /api/v1/me/deactivate',
+    method: 'post',
+    route: '/api/v1/me/deactivate',
+    path: '/api/v1/me/deactivate',
+    body: { password: 'not-the-password-of-anyone' },
+    role: Role.PATIENT,
+    scope: null,
+    reached: { status: 403 },
   },
 ];
 

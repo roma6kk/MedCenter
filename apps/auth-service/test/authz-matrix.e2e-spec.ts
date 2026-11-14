@@ -24,8 +24,11 @@ const VALIDATION = {
 type Caller = 'administrator' | 'doctor' | 'patient';
 
 function allowedCallers(endpoint: ProtectedEndpoint): ReadonlyArray<Caller> {
-  if (endpoint.role !== null) {
+  if (endpoint.role === Role.ADMIN) {
     return ['administrator'];
+  }
+  if (endpoint.role === Role.PATIENT) {
+    return ['patient'];
   }
   return endpoint.scope === null
     ? ['administrator', 'doctor', 'patient']
@@ -143,7 +146,7 @@ describe('Authorization matrix of the protected endpoints', () => {
       });
     }
 
-    if (endpoint.role !== null) {
+    if (endpoint.role === Role.ADMIN) {
       it('should answer 403 FORBIDDEN_ROLE and change nothing when a doctor, who holds the user scopes, calls it', async () => {
         const before = writes();
 
@@ -166,6 +169,21 @@ describe('Authorization matrix of the protected endpoints', () => {
 
         expect(response.body).toMatchObject({ errorCode: 'FORBIDDEN_ROLE' });
       });
+    }
+
+    if (endpoint.role === Role.PATIENT) {
+      it.each(['administrator', 'doctor'] as const)(
+        'should answer 403 FORBIDDEN_ROLE and change nothing when the %s calls a patient-only endpoint',
+        async (caller) => {
+          const before = writes();
+
+          const response = await call(endpoint, authorization[caller]);
+
+          expect(response.status).toBe(403);
+          expect(response.body).toMatchObject({ errorCode: 'FORBIDDEN_ROLE' });
+          expect(writes()).toBe(before);
+        },
+      );
     }
 
     it.each(allowedCallers(endpoint))(
