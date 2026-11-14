@@ -27,10 +27,21 @@ describe('PrivacyPolicy', () => {
     render(<PrivacyPolicy />);
 
     const table = within(screen.getByRole('table'));
-    for (const name of ['mc_rt', 'mc_at', 'mc_session', 'mc_pkce', 'mc-locale']) expect(table.getByText(name)).toBeInTheDocument();
+    for (const name of ['mc_rt', 'mc_at', 'mc_session', 'mc_as_session', 'mc_as_csrf', 'mc_pkce', 'mc-locale']) expect(table.getByText(name)).toBeInTheDocument();
     expect(table.getByText('mc_rt').closest('tr')).toHaveTextContent('14 суток');
+    expect(table.getByText('mc_as_session').closest('tr')).toHaveTextContent('5 минут');
+    expect(table.getByText('mc_as_csrf').closest('tr')).toHaveTextContent('30 минут');
     expect(table.getByText('mc_pkce').closest('tr')).toHaveTextContent('10 минут');
     expect(table.getByText('mc-locale').closest('tr')).toHaveTextContent('1 год');
     expect(screen.queryByRole('button')).not.toBeInTheDocument();
+  });
+
+  it('should describe the browser storage the app really uses as technical and kept in the browser', () => {
+    render(<PrivacyPolicy />);
+
+    const storage = screen.getByText(/Кроме cookie, браузер хранит/);
+    expect(storage).toHaveTextContent('mc-last-activity');
+    expect(storage).toHaveTextContent('черновик записи на приём');
+    expect(storage).toHaveTextContent('не передаются третьим лицам');
   });
 });

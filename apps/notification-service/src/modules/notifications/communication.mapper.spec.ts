@@ -29,6 +29,13 @@ describe('communicationFromEvent', () => {
     expect(completed['about']).toEqual([{ reference: 'Encounter/e9' }]);
   });
 
+  it('should word an encounter notice without the term medical card', () => {
+    const completed = communicationFromEvent(event({ type: 'encounter.completed.v1', encounterId: 'e9', patientRef: 'Patient/1', practitionerRef: 'Practitioner/p', diagnoses: [] }));
+
+    expect(JSON.stringify(completed)).toContain('Результаты приёма доступны в личном кабинете.');
+    expect(JSON.stringify(completed)).not.toMatch(/карт/);
+  });
+
   it('should word a cancellation without the reason even when an older event still carries one', () => {
     const communication = communicationFromEvent(event({ type: 'appointment.cancelled.v1', appointmentId: '7', patientRef: 'Patient/1', reason: 'Заболел', actorType: 'PATIENT' }));
 

@@ -79,7 +79,7 @@ function describe(event: NotificationEvent): Described {
       return {
         category: 'encounter',
         kind: 'encounter.completed',
-        text: 'Приём завершён. Результаты доступны в медицинской карте.',
+        text: 'Приём завершён. Результаты приёма доступны в личном кабинете.',
         about: `Encounter/${event.encounterId}`,
       };
     case 'patient.registered.v1':

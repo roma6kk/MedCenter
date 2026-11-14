@@ -160,7 +160,7 @@ jest.setTimeout(30_000);
     expect(screen.getAllByRole('button', { name: /Действия с записью/ })).toHaveLength(1);
   });
 
-  it('should keep the no-show away from the «Карта пациента» button and behind a menu with a confirmation (A5)', async () => {
+  it('should keep the no-show away from the «Карточка пациента» button and behind a menu with a confirmation (A5)', async () => {
     setup();
     await findTable();
     expect(screen.queryByRole('button', { name: 'Неявка' })).not.toBeInTheDocument();

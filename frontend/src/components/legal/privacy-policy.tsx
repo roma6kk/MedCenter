@@ -37,6 +37,8 @@ export function PrivacyPolicy(): ReactNode {
     { name: 'mc_rt', purpose: t('cookieRefreshPurpose'), lifetime: t('cookieRefreshLifetime') },
     { name: 'mc_at', purpose: t('cookieAccessPurpose'), lifetime: t('cookieAccessLifetime') },
     { name: 'mc_session', purpose: t('cookieSessionPurpose'), lifetime: t('cookieSessionLifetime') },
+    { name: 'mc_as_session', purpose: t('cookieAsSessionPurpose'), lifetime: t('cookieAsSessionLifetime') },
+    { name: 'mc_as_csrf', purpose: t('cookieAsCsrfPurpose'), lifetime: t('cookieAsCsrfLifetime') },
     { name: 'mc_pkce', purpose: t('cookiePkcePurpose'), lifetime: t('cookiePkceLifetime') },
     { name: 'mc-locale', purpose: t('cookieLocalePurpose'), lifetime: t('cookieLocaleLifetime') },
   ];
