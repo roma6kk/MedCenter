@@ -319,4 +319,53 @@ describe('toAuditEventRow', () => {
       expect(row).toMatchObject({ resourceType: null, resourceId: null });
     });
   });
+
+  describe('authentication events of auth-service', () => {
+    const DCM = 'http://dicom.nema.org/resources/ontology/DCM';
+
+    function authAudit(subtype: string, outcome: string, outcomeDesc?: string, userId?: string): FhirResource {
+      return appointmentServiceAudit({
+        type: { system: DCM, code: '110114', display: 'User Authentication' },
+        subtype: [{ system: DCM, code: subtype }],
+        action: 'E',
+        outcome,
+        ...(outcomeDesc !== undefined ? { outcomeDesc } : {}),
+        agent: [{ ...(userId !== undefined ? { who: { identifier: { value: userId } } } : {}), requestor: true }],
+        source: { observer: { display: 'auth-service' } },
+        entity:
+          userId === undefined
+            ? []
+            : [{ what: { identifier: { system: 'https://api.medcenter.by/sid/auth-user', value: userId } }, name: 'auth.user' }],
+      });
+    }
+
+    it.each([
+      ['110122', '0', undefined, 'login'],
+      ['110122', '4', 'login-failed', 'login-failed'],
+      ['110122', '4', 'login-throttled', 'login-throttled'],
+      ['110123', '0', undefined, 'logout'],
+      ['110123', '0', 'session-idle', 'session-idle'],
+    ] as const)('should journal subtype %s with outcome %s (%s) as %s', (subtype, outcome, outcomeDesc, action) => {
+      expect(toAuditEventRow(authAudit(subtype, outcome, outcomeDesc, 'user-1'))).toMatchObject({
+        action,
+        userId: 'user-1',
+        resourceType: 'AuthUser',
+        resourceId: 'user-1',
+        source: 'auth-service',
+      });
+    });
+
+    it('should journal a failed login of an unknown account without a user or a resource', () => {
+      expect(toAuditEventRow(authAudit('110122', '4', 'login-failed'))).toMatchObject({
+        action: 'login-failed',
+        userId: null,
+        resourceType: null,
+        resourceId: null,
+      });
+    });
+
+    it('should not treat a login with an unexpected outcome description as a lockout', () => {
+      expect(toAuditEventRow(authAudit('110122', '0', 'login-throttled', 'user-1'))).toMatchObject({ action: 'login' });
+    });
+  });
 });

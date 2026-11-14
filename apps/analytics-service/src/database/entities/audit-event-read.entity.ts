@@ -2,7 +2,18 @@ import { Column, Entity, PrimaryColumn } from 'typeorm';
 
 import { ANALYTICS_SCHEMA } from '../analytics-schema';
 
-export type AuditAction = 'create' | 'update' | 'delete' | 'read' | 'denied' | 'emergency-bypass';
+export type AuditAction =
+  | 'create'
+  | 'update'
+  | 'delete'
+  | 'read'
+  | 'denied'
+  | 'emergency-bypass'
+  | 'login'
+  | 'login-failed'
+  | 'login-throttled'
+  | 'logout'
+  | 'session-idle';
 
 // Copy of FHIR AuditEvent: HAPI cannot filter the journal by user (agent.who.identifier) or by resource type.
 @Entity({ name: 'audit_event', schema: ANALYTICS_SCHEMA })

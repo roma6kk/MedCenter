@@ -11,6 +11,14 @@ const READ_SUBTYPES: ReadonlySet<string> = new Set(['read', 'search-type']);
 const OUTCOME_MINOR_FAILURE = '4';
 const BYPASS_SUBTYPE = 'consent-emergency-bypass';
 
+// auth-service files sign-in events as DCM 110114 User Authentication; the refusal reasons ride in outcomeDesc.
+const DCM_SYSTEM = 'http://dicom.nema.org/resources/ontology/DCM';
+const USER_AUTHENTICATION_CODE = '110114';
+const LOGIN_SUBTYPE = '110122';
+const LOGOUT_SUBTYPE = '110123';
+const LOGIN_THROTTLED_DESC = 'login-throttled';
+const SESSION_IDLE_DESC = 'session-idle';
+
 const REQUEST_ID_ENTITY_TYPE = 'XrequestId';
 const REQUEST_ID_DETAIL_TYPES: ReadonlySet<string> = new Set(['requestId', 'x-request-id', 'X-Request-Id']);
 
@@ -54,7 +62,34 @@ function fit(value: string | undefined, max: number): string | null {
   return value === undefined ? null : value.slice(0, max);
 }
 
+function isCoding(value: unknown, system: string, code: string): boolean {
+  const coding = asObject(value);
+  return asString(coding?.['system']) === system && asString(coding?.['code']) === code;
+}
+
+function authenticationActionOf(resource: FhirResource): AuditAction | undefined {
+  if (!isCoding(resource['type'], DCM_SYSTEM, USER_AUTHENTICATION_CODE)) {
+    return undefined;
+  }
+  const subtypes = asObjects(resource['subtype']);
+  const outcomeDesc = asString(resource['outcomeDesc']);
+  if (subtypes.some((coding) => isCoding(coding, DCM_SYSTEM, LOGIN_SUBTYPE))) {
+    if (asString(resource['outcome']) !== OUTCOME_MINOR_FAILURE) {
+      return 'login';
+    }
+    return outcomeDesc === LOGIN_THROTTLED_DESC ? 'login-throttled' : 'login-failed';
+  }
+  if (subtypes.some((coding) => isCoding(coding, DCM_SYSTEM, LOGOUT_SUBTYPE))) {
+    return outcomeDesc === SESSION_IDLE_DESC ? 'session-idle' : 'logout';
+  }
+  return undefined;
+}
+
 function actionOf(resource: FhirResource): AuditAction | undefined {
+  const authentication = authenticationActionOf(resource);
+  if (authentication !== undefined) {
+    return authentication;
+  }
   const subtypes = asObjects(resource['subtype']).map((coding) => asString(coding['code']));
   const write = subtypes.find((code): code is AuditAction => code !== undefined && WRITE_SUBTYPES.has(code));
   if (write !== undefined) {
