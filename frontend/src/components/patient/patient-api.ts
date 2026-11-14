@@ -33,3 +33,7 @@ export function updateMyPhone({ phone, version }: PhoneChange): Promise<PatientP
     body: JSON.stringify({ phone }),
   });
 }
+
+export function closeMyAccount(password: string): Promise<void> {
+  return apiFetch<void>('/api/v1/me/deactivate', { method: 'POST', body: JSON.stringify({ password }) });
+}

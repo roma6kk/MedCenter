@@ -129,6 +129,14 @@ export async function endIdleSession(): Promise<void> {
   window.location.assign(`/login?returnTo=${encodeURIComponent(returnTo)}&reason=${SESSION_IDLE_REASON}`);
 }
 
+// The server already revoked the session; the logout request below only clears the cookies. Nothing of the closed account may stay in this browser.
+export async function endClosedAccountSession(): Promise<void> {
+  await endSession();
+  useBookingDraftStore.getState().clearDraft();
+  clearAllDrafts();
+  window.location.assign('/account-closed');
+}
+
 export function redirectToLogin(): void {
   window.location.assign(`/login?returnTo=${encodeURIComponent(currentReturnTo())}`);
 }

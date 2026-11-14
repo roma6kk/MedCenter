@@ -1943,5 +1943,27 @@
     "consequencesText": "Without consent to keep an account, registration and online booking are unavailable. Booking and visits at the clinic remain possible through the front desk.",
     "crossBorderTitle": "Cross-border transfer",
     "crossBorderText": "No cross-border transfer is carried out."
+  },
+  "accountClosure": {
+    "title": "Delete account",
+    "lead": "You can close your personal cabinet. Sign-in stops, while your medical records stay with the clinic.",
+    "open": "Delete account",
+    "dialogTitle": "Delete your account?",
+    "removedTitle": "What will be deleted",
+    "removedText": "Access to the personal cabinet, sign-in with email and password, and the current session. Your consent to the personal cabinet will be withdrawn.",
+    "keptTitle": "What is kept and why",
+    "keptText": "Visit records, appointment history and paper consents stay with the clinic: they are kept as required by health-care law, for the period set by the operator's retention schedule. Medical records are not deleted.",
+    "rightsText": "You can request information about how your data is processed with a written application to the clinic. More in the",
+    "rightsLink": "personal data processing policy",
+    "passwordLabel": "Current password",
+    "passwordHint": "Enter your password to confirm the deletion.",
+    "passwordRequired": "Enter your password",
+    "wrongPassword": "The password is wrong or the account is already closed.",
+    "keep": "Keep my account",
+    "confirm": "Delete account",
+    "busy": "Deleting…",
+    "closedTitle": "Account deleted",
+    "closedLead": "Sign-in to the personal cabinet is closed, the session has ended and your consent to the personal cabinet is withdrawn.",
+    "closedHome": "To the home page"
   }
 }

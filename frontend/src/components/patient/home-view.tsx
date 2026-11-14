@@ -5,6 +5,7 @@ import { QueryFailure } from '@/components/feedback/query-error-state';
 import { ContentSkeleton } from '@/components/feedback/content-skeleton';
 import { useDocumentTitle } from '@/hooks/use-document-title';
 import { useT } from '@/lib/i18n/use-t';
+import { DeleteAccountSection } from '@/components/account/delete-account-section';
 import { MyConsentSection } from '@/components/consent/my-consent-section';
 import { HomeHero } from './profile/home-hero';
 import { computeCompleteness, type Completeness } from './profile/profile-completeness';
@@ -49,6 +50,7 @@ export function HomeView(): ReactNode {
         <aside className="flex min-w-0 flex-[1_1_360px] flex-col gap-6">
           <ProfilePersonalData completeness={completenessOf(data)} />
           <MyConsentSection />
+          <DeleteAccountSection />
         </aside>
       </div>
     </div>

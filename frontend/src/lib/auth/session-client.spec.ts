@@ -1,4 +1,4 @@
-import { currentReturnTo, endIdleSession, endRevokedSession, endSession, ensureSession, loadSession, logout, redirectToLogin, refreshSession } from './session-client';
+import { currentReturnTo, endClosedAccountSession, endIdleSession, endRevokedSession, endSession, ensureSession, loadSession, logout, redirectToLogin, refreshSession } from './session-client';
 import { getAccessToken, clearAccessToken, setAccessToken } from './access-token';
 import { readDraft, writeDraft } from '@/lib/encounter-draft';
 import { consumeFlash } from '@/lib/ui/flash-message';
@@ -359,5 +359,17 @@ describe('endSession and logout', () => {
     await endRevokedSession();
 
     expect(useBookingDraftStore.getState().doctorId).toBe('doc-1');
+  });
+
+  it('should clear the drafts and open the closed-account page after the account was closed', async () => {
+    useBookingDraftStore.getState().updateDraft({ doctorId: 'doc-1', step: 3 });
+    setAccessToken('a.b.c');
+    jest.spyOn(global, 'fetch').mockResolvedValueOnce(jsonResponse({ loggedOut: true }, 200));
+
+    await endClosedAccountSession();
+
+    expect(assignSpy).toHaveBeenLastCalledWith('/account-closed');
+    expect(getAccessToken()).toBeNull();
+    expect(useBookingDraftStore.getState().doctorId).toBeNull();
   });
 });
