@@ -37,7 +37,7 @@ class AccountConsentDto {
   @Equals(true, { message: 'accepted must be true' })
   accepted!: true;
 
-  @ApiProperty({ example: '2026-10', maxLength: ACCOUNT_CONSENT_VERSION_MAX_LENGTH, description: 'Version of the consent text shown to the user' })
+  @ApiProperty({ example: '2026-11', maxLength: ACCOUNT_CONSENT_VERSION_MAX_LENGTH, description: 'Version of the consent text shown to the user' })
   @IsString()
   @IsNotEmpty()
   @MaxLength(ACCOUNT_CONSENT_VERSION_MAX_LENGTH)

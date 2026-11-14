@@ -60,14 +60,23 @@ describe('RegisterForm', () => {
     jest.resetAllMocks();
   });
 
-  it('should ask for the account consent and say the electronic record consent is signed at the clinic', () => {
+  it('should ask for the account consent and say the clinic system consent is signed at the clinic', () => {
     renderForm();
 
     const box: HTMLElement = screen.getByRole('checkbox', { name: /согласие на обработку персональных данных/i });
     expect(box).toHaveAttribute('aria-required', 'true');
     expect(box).not.toBeChecked();
-    expect(screen.getByText('Согласие на ведение электронной медкарты оформляется письменно в клинике.')).toBeInTheDocument();
+    expect(screen.getByText('Согласие распространяется только на личный кабинет и запись на приём. Согласие на внесение сведений в информационную систему клиники оформляется письменно в клинике.')).toBeInTheDocument();
     expect(screen.queryByRole('checkbox', { name: /медицинск|медкарт/i })).not.toBeInTheDocument();
+  });
+
+  it('should leave the consent checkbox unchecked, state the scope and rights next to it and link to the policy', () => {
+    renderForm();
+
+    expect(screen.getByRole('checkbox', { name: /согласие на обработку персональных данных/i })).not.toBeChecked();
+    expect(screen.getByText(/только на личный кабинет и запись на приём/i)).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Ваши права и последствия отказа' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Политика обработки персональных данных' })).toHaveAttribute('href', '/privacy');
   });
 
   it('should put a server error for the account consent on the checkbox', async () => {
@@ -113,7 +122,7 @@ describe('RegisterForm', () => {
     const [path, options] = apiFetchMock.mock.calls[0] ?? [];
     expect(path).toBe('/api/v1/auth/register');
     expect(options?.method).toBe('POST');
-    expect(JSON.parse(String(options?.body))).toEqual({ email: 'ivan@example.by', firstName: 'Иван', lastName: 'Иванов', password: 'Str0ng!Pass', birthDate: '1990-05-12', accountConsent: { accepted: true, textVersion: '2026-10' } });
+    expect(JSON.parse(String(options?.body))).toEqual({ email: 'ivan@example.by', firstName: 'Иван', lastName: 'Иванов', password: 'Str0ng!Pass', birthDate: '1990-05-12', accountConsent: { accepted: true, textVersion: '2026-11' } });
     const loginLink = screen.getByRole('link', { name: 'Войти' });
     expect(loginLink).toHaveAttribute('href', '/api/auth/authorize');
     expect(loginLink).not.toHaveAttribute('data-next-link');

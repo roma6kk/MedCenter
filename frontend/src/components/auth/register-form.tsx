@@ -1,6 +1,7 @@
 'use client';
 
 import type { ReactNode } from 'react';
+import Link from 'next/link';
 import { Controller } from 'react-hook-form';
 import { Button } from '@/components/ui/button';
 import { buttonVariants } from '@/components/ui/button-variants';
@@ -84,13 +85,20 @@ function ConsentField({ state }: { readonly state: RegisterFormState }): ReactNo
   const t = useT('auth.register');
   const { register, formState: { errors } } = state.form;
   return (
-    <AuthField id="accountConsent" label={t('consentLabel')} error={errors.accountConsent?.message} hint={t('consentRecordNote')} labelHidden>
-      {(control) => (
-        <Checkbox {...control} aria-required="true" {...register('accountConsent')} wrapperClassName="items-start">
-          {t('consentLabel')}
-        </Checkbox>
-      )}
-    </AuthField>
+    <>
+      <AuthField id="accountConsent" label={t('consentLabel')} error={errors.accountConsent?.message} hint={t('consentRecordNote')} labelHidden>
+        {(control) => (
+          <Checkbox {...control} aria-required="true" {...register('accountConsent')} wrapperClassName="items-start">
+            {t('consentLabel')}
+          </Checkbox>
+        )}
+      </AuthField>
+      <section aria-labelledby="consent-rights-title" className="mt-3 rounded-card border border-border bg-card px-4 py-3 text-sm">
+        <h2 id="consent-rights-title" className="font-semibold">{t('consentRightsTitle')}</h2>
+        <p className="mt-1 text-muted-foreground">{t('consentRightsText')}</p>
+        <Link href="/privacy" target="_blank" rel="noopener" className="mt-2 inline-flex min-h-[44px] items-center font-semibold text-primary underline">{t('consentPolicyLink')}</Link>
+      </section>
+    </>
   );
 }
 

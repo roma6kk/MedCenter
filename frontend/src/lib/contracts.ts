@@ -1,11 +1,12 @@
 import { z } from 'zod';
+import { POLICY_VERSION } from './policy-version';
 
 export const EMAIL_MAX = 255;
 export const NAME_MAX = 100;
 
 const ACCOUNT_CONSENT_VERSION_MAX = 64;
 
-export const ACCOUNT_CONSENT_VERSION = '2026-10';
+export const ACCOUNT_CONSENT_VERSION = POLICY_VERSION;
 
 export const CONSENT_FORM_NUMBER_MAX = 64;
 export const CONSENT_SIGNED_BY_MAX = 200;

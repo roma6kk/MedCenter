@@ -1305,7 +1305,8 @@
     "directionGeneric": "Consultations with the doctors of this department.",
     "directionServices": "All services",
     "ctaTitle": "Book a visit in a couple of minutes",
-    "ctaText": "Choose a doctor and a free time. You can sign in or register on the next step, your choice is kept."
+    "ctaText": "Choose a doctor and a free time. You can sign in or register on the next step, your choice is kept.",
+    "footerPrivacy": "Personal data processing policy"
   },
   "catalog": {
     "doctorsTitle": "Doctors",
@@ -1478,8 +1479,11 @@
       "successCta": "Sign in",
       "requiredNote": "All fields except gender and phone are required.",
       "retryIn": "Try again in {seconds} s",
-      "consentLabel": "I consent to the processing of my personal data to keep my account on the Lifeline clinic portal (art. 5 of Law 99-Z on personal data protection).",
-      "consentRecordNote": "Consent to keep an electronic medical record is signed on paper at the clinic."
+      "consentLabel": "I consent to the processing of my personal data (email, first and last name, date of birth, sex, phone) to keep my account and book appointments on the Lifeline clinic portal until I withdraw consent (art. 5 of Law 99-Z on personal data protection).",
+      "consentRecordNote": "The consent covers only the account and appointment booking. Consent to entering data into the clinic information system is signed on paper at the clinic.",
+      "consentRightsTitle": "Your rights and the consequences of refusal",
+      "consentRightsText": "You may withdraw consent, get information on the processing, and require data to be changed or deleted: by application to the operator, answered within 5 working days (information) or 15 days (change, withdrawal, deletion). Without consent the account and online booking are unavailable; you can still book through the clinic front desk.",
+      "consentPolicyLink": "Personal data processing policy"
     }
   },
   "patientHistory": {
@@ -1887,5 +1891,57 @@
       "emptyText": "Choose a doctor and a time that suits you — it takes about two minutes.",
       "book": "Book a visit"
     }
+  },
+  "privacy": {
+    "title": "Personal data processing policy",
+    "trainingNote": "Training project: the operator and its details are fictitious; enter test data only.",
+    "versionLine": "Policy version {version} of {date}",
+    "operatorTitle": "Operator",
+    "operatorText": "Operator: {name}, taxpayer no. {unp}, address: {address}. Contacts for requests: {email}, {phone}. The details are placeholders used to demonstrate the interface.",
+    "purposesTitle": "Purposes, personal data and legal basis",
+    "purposesLead": "Data is processed only for the purposes listed. Each purpose states the data, the basis and the term.",
+    "fieldData": "Data",
+    "fieldBasis": "Basis",
+    "fieldRetention": "Term",
+    "purposeAccountTitle": "Account on the portal",
+    "purposeAccountData": "Email, first and last name, date of birth, optional sex and phone, password (stored only as a hash), time and version of the consent text.",
+    "purposeAccountBasis": "The data subject consent (art. 5 of Law 99-Z), given by a mark on the site; the checkbox is never pre-filled.",
+    "purposeBookingTitle": "Appointment booking",
+    "purposeBookingData": "Chosen doctor, service and time, booking status, cancellation reason as a code from a list (no free text). The fact of seeking medical care is covered by medical confidentiality.",
+    "purposeBookingBasis": "Consent (art. 5) and actions under a contract being concluded for services (art. 6); the fact of seeking care falls under art. 8 para. 2 of Law 99-Z and is handled by clinic staff bound by medical confidentiality.",
+    "purposeClinicTitle": "Clinic information system (visits, diagnoses, prescriptions)",
+    "purposeClinicData": "Health data entered by the doctor: visit data, diagnoses, prescriptions.",
+    "purposeClinicBasis": "Special personal data: art. 8 para. 2 of Law 99-Z and art. 44 (part 13) of the Law on Healthcare. Consent to entering data into the clinic information system is given on paper at the clinic, not by a mark on the site.",
+    "purposeSecurityTitle": "Protection and action journal",
+    "purposeSecurityData": "Time and type of the event (sign-in, failed sign-in, sign-out, actions on data), account identifier. IP address and browser details are not recorded.",
+    "purposeSecurityBasis": "The operator duty to take protection measures (art. 17 of Law 99-Z).",
+    "retentionConsent": "Consent is valid until withdrawn. Retention period: per the operator records schedule, to be confirmed.",
+    "cookiesTitle": "Cookies and browser data",
+    "cookiesLead": "Only technical cookies are used, without which sign-in and the site cannot work. There is no analytics, advertising or third-party service, so no consent banner is shown.",
+    "cookieName": "Cookie",
+    "cookiePurpose": "Purpose",
+    "cookieLifetime": "Lifetime",
+    "cookieRefreshPurpose": "Session refresh token (HttpOnly)",
+    "cookieRefreshLifetime": "14 days",
+    "cookieAccessPurpose": "Access token (HttpOnly)",
+    "cookieAccessLifetime": "up to 15 minutes (token lifetime)",
+    "cookieSessionPurpose": "Marker that a session exists, for page navigation (HttpOnly)",
+    "cookieSessionLifetime": "14 days",
+    "cookiePkcePurpose": "Sign-in procedure protection (HttpOnly)",
+    "cookiePkceLifetime": "10 minutes",
+    "cookieLocalePurpose": "Chosen interface language",
+    "cookieLocaleLifetime": "1 year",
+    "cookiesStorage": "The browser local storage holds the theme, the time of last activity (for sign-out on inactivity) and doctor drafts. They are not sent to the server.",
+    "rightsTitle": "Rights of the data subject",
+    "rightsLead": "The rights are set out in art. 10–14 of Law 99-Z:",
+    "rightInfo": "to get information on the processing of your data, answered within 5 working days;",
+    "rightChange": "to require inaccurate data to be changed, within 15 days;",
+    "rightWithdraw": "to withdraw consent, with processing stopped within 15 days;",
+    "rightDelete": "to require deletion, within 15 days, unless there are other grounds to keep the data, for example healthcare legislation.",
+    "rightsHow": "The application is sent to the operator in writing or as an electronic document with an electronic digital signature. The rights are not limited to the personal account: an application can be filed without an account.",
+    "consequencesTitle": "Consequences of refusal",
+    "consequencesText": "Without consent to keep an account, registration and online booking are unavailable. Booking and visits at the clinic remain possible through the front desk.",
+    "crossBorderTitle": "Cross-border transfer",
+    "crossBorderText": "No cross-border transfer is carried out."
   }
 }

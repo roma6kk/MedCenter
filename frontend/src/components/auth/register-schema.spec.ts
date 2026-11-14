@@ -108,7 +108,7 @@ describe('account consent', () => {
 
   it('should send the acceptance with the version of the text shown when the box is ticked', () => {
     expect(toRegisterRequest(registerFormSchema.parse(VALID)).accountConsent).toEqual({ accepted: true, textVersion: ACCOUNT_CONSENT_VERSION });
-    expect(ACCOUNT_CONSENT_VERSION).toBe('2026-10');
+    expect(ACCOUNT_CONSENT_VERSION).toBe('2026-11');
   });
 
   it('should let server errors for the consent and its subfields land on the checkbox', () => {

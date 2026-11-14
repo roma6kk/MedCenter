@@ -35,6 +35,7 @@ describe('route-guard', () => {
       ['/login', 'login page'],
       ['/login?returnTo=/booking', 'login with query'],
       ['/register', 'registration'],
+      ['/privacy', 'privacy policy'],
       ['/bookingx', 'prefix without segment boundary'],
       ['/booking-confirmation', 'hyphenated lookalike'],
       ['/administrator', 'admin lookalike without boundary'],

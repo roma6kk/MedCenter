@@ -117,5 +117,6 @@ describe('PublicShell', () => {
     expect(footer).toHaveTextContent('ООО «Лайфлайн»');
     expect(footer).toHaveTextContent('Лицензия №');
     expect(footer).toHaveTextContent('Демонстрационные данные');
+    expect(within(footer).getByRole('link', { name: 'Политика обработки персональных данных' })).toHaveAttribute('href', '/privacy');
   });
 });
