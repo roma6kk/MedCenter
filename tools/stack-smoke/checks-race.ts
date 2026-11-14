@@ -15,7 +15,7 @@ function book(suite: Suite, session: Session, slotId: string): Promise<ApiRespon
 }
 
 function cancel(suite: Suite, session: Session, appointmentId: string): Promise<ApiResponse> {
-  return suite.api.post(`/api/v1/appointments/${appointmentId}/cancel`, { session, body: { reason: 'Отмена в рамках smoke-проверки' } });
+  return suite.api.post(`/api/v1/appointments/${appointmentId}/cancel`, { session, body: { reason: 'plans-changed' } });
 }
 
 async function isOffered(suite: Suite, slotId: string): Promise<boolean> {
@@ -55,7 +55,7 @@ function cancelSteps(suite: Suite, race: Race): SmokeStep[] {
         expectStatus(response, 200);
         const cancelled = expectShape(response.body, APPOINTMENT_SHAPE, 'cancelled appointment');
         expectEqual(cancelled['status'], 'cancelled', 'status');
-        expectTrue(String(cancelled['cancelReason']).length >= 3, 'the cancellation reason was not stored');
+        expectEqual(cancelled['cancelReason'], 'plans-changed', 'cancelReason');
       },
     },
     {

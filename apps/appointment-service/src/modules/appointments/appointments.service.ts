@@ -1,11 +1,9 @@
 import { randomUUID } from 'node:crypto';
-import { BadRequestException, ConflictException, Inject, Injectable, InternalServerErrorException, Logger } from '@nestjs/common';
+import { BadRequestException, ConflictException, Inject, Injectable, InternalServerErrorException } from '@nestjs/common';
 import type { JwtClaims } from '@medcenter/common';
-import { Role, type ErrorCode } from '@medcenter/contracts';
+import { APPOINTMENT_CANCEL_REASON_SYSTEM, Role, type ErrorCode } from '@medcenter/contracts';
 import {
-  assertActiveConsent,
   commitTransaction,
-  findActiveConsent,
   FHIR_CLIENT,
   outboxWrite,
   versionOf,
@@ -25,7 +23,6 @@ import {
   type BookableSlot,
 } from './appointment-resource';
 import { auditWrite } from './audit';
-import { CONSENT_ENFORCEMENT_MODE, type ConsentEnforcement } from './consent-enforcement';
 import { assertDoctorParticipates, assertPatientOwns, patientRefOf, requireDoctorRoleRef, slotIdOf } from './compartment';
 import { CancelAppointmentDto } from './dto/cancel-appointment.dto';
 import { CreateAppointmentDto } from './dto/create-appointment.dto';
@@ -71,20 +68,14 @@ function assertNotStarted(slot: FhirResource, slotId: string): void {
 /** Booking races are settled by optimistic locking: the Slot/Appointment write carries `ifMatch` on the version read, in one HAPI transaction; the loser gets 409. */
 @Injectable()
 export class AppointmentsService {
-  private readonly logger = new Logger(AppointmentsService.name);
-
-  constructor(
-    @Inject(FHIR_CLIENT) private readonly fhir: FhirClient,
-    @Inject(CONSENT_ENFORCEMENT_MODE) private readonly consentEnforcement: ConsentEnforcement,
-  ) {}
+  constructor(@Inject(FHIR_CLIENT) private readonly fhir: FhirClient) {}
 
   async book(claims: JwtClaims, dto: CreateAppointmentDto, requestId?: string): Promise<AppointmentResponseDto> {
     const patientRef = requirePatientReference(claims);
-    const reason = await this.reasonAllowedByConsent(patientRef, dto.reason);
     const bookable = await this.loadBookableSlot(dto);
     // Client-assigned id: the outbox event in the same transaction names the appointment before HAPI could assign one.
     const appointmentId = randomUUID();
-    const appointment: FhirResource = { ...buildBookedAppointment(bookable, patientRef, reason), id: appointmentId };
+    const appointment: FhirResource = { ...buildBookedAppointment(bookable, patientRef), id: appointmentId };
     const { slot, slotId, practitionerRoleId, serviceId } = bookable;
     const audit = { interaction: 'create', actorSub: claims.sub, entityRef: `Appointment/${appointmentId}`, patientRef, requestId } as const;
     const event = bookedEvent({
@@ -109,22 +100,6 @@ export class AppointmentsService {
     return toAppointmentResponseDto(appointment);
   }
 
-  private async reasonAllowedByConsent(patientRef: string, reason: string | undefined): Promise<string | undefined> {
-    if (reason === undefined) {
-      return undefined;
-    }
-    const patientId = patientRef.split('/')[1] ?? '';
-    if (this.consentEnforcement === 'block') {
-      await assertActiveConsent(this.fhir, patientId);
-      return reason;
-    }
-    if ((await findActiveConsent(this.fhir, patientId)) === null) {
-      this.logger.warn({ patientId }, 'free-text reason dropped: the patient has no active consent (CONSENT_ENFORCEMENT=warn)');
-      return undefined;
-    }
-    return reason;
-  }
-
   async cancel(
     claims: JwtClaims,
     appointmentId: string,
@@ -133,7 +108,7 @@ export class AppointmentsService {
   ): Promise<AppointmentResponseDto> {
     const appointment = await this.readCancellable(claims, appointmentId);
     const { slotId, slot } = await this.readSlotOf(appointment, appointmentId);
-    const cancelled: FhirResource = { ...appointment, status: 'cancelled', cancelationReason: { text: dto.reason } };
+    const cancelled: FhirResource = { ...appointment, status: 'cancelled', cancelationReason: { coding: [{ system: APPOINTMENT_CANCEL_REASON_SYSTEM, code: dto.reason }] } };
     const patientRef = patientRefOf(appointment);
     const actorType = claims.role === Role.ADMIN ? 'ADMIN' : 'PATIENT';
     await commitTransaction(

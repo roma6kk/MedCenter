@@ -57,7 +57,7 @@ describe('AppointmentsService audit trail (ADR-014, FR-021)', () => {
       search: jest.fn().mockResolvedValue({ entry: [] }),
       batch: jest.fn().mockResolvedValue(COMMITTED),
     } as unknown as jest.Mocked<FhirClient>;
-    service = new AppointmentsService(fhir, 'warn');
+    service = new AppointmentsService(fhir);
   });
 
   afterEach(() => {
@@ -75,7 +75,7 @@ describe('AppointmentsService audit trail (ADR-014, FR-021)', () => {
   it('should audit the cancellation with the patient and the request id when the owner cancels', async () => {
     fhir.read.mockImplementation(async (type) => (type === 'Appointment' ? BOOKED : { ...FREE_SLOT, status: 'busy' }));
 
-    await service.cancel(PATIENT, 'apt-1', { reason: 'не смогу прийти' }, 'req-1');
+    await service.cancel(PATIENT, 'apt-1', { reason: 'other' }, 'req-1');
 
     expect(auditEventOf(fhir).entity).toEqual(expect.arrayContaining([PATIENT_ENTITY, REQUEST_ID_ENTITY]));
   });

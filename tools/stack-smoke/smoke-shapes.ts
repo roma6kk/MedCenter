@@ -43,7 +43,6 @@ export const APPOINTMENT_SHAPE: FieldSpec = {
   doctorId: 'string',
   practitionerRoleId: 'string',
   serviceId: 'string',
-  reason: 'string?',
   cancelReason: 'string?',
   createdAt: 'string',
 };

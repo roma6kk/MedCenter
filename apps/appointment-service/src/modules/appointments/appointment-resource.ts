@@ -37,7 +37,7 @@ export function missingReference(detail: string): InternalServerErrorException {
   return new InternalServerErrorException({ errorCode: 'INTERNAL', message: `INTERNAL: ${detail}` });
 }
 
-export function buildBookedAppointment(bookable: BookableSlot, patientRef: string, reason: string | undefined): FhirResource {
+export function buildBookedAppointment(bookable: BookableSlot, patientRef: string): FhirResource {
   const { slotId, slot, practitionerRoleId, practitionerId, serviceId } = bookable;
   return {
     resourceType: 'Appointment',
@@ -52,6 +52,5 @@ export function buildBookedAppointment(bookable: BookableSlot, patientRef: strin
       ...(practitionerId === '' ? [] : [{ actor: { reference: `Practitioner/${practitionerId}` }, status: 'accepted' }]),
       { actor: { reference: `HealthcareService/${serviceId}` }, status: 'accepted' },
     ],
-    ...(reason === undefined ? {} : { reasonCode: [{ text: reason }] }),
   };
 }

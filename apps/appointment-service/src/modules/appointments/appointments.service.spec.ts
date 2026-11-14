@@ -92,7 +92,7 @@ describe('AppointmentsService', () => {
       operation: jest.fn(),
       batch: jest.fn(),
     } as unknown as jest.Mocked<FhirClient>;
-    service = new AppointmentsService(fhir, 'warn');
+    service = new AppointmentsService(fhir);
   });
 
   afterEach(() => {
@@ -284,7 +284,7 @@ describe('AppointmentsService', () => {
         fhir.read.mockResolvedValue(bookedAppointment);
         fhir.search.mockResolvedValue({ entry: [{ resource: { resourceType: 'Encounter', id: 'enc-1', status } }] });
 
-        expect(await errorPayloadOf(service.cancel(patientClaims, 'apt-1', { reason: 'не смог прийти' }))).toMatchObject({
+        expect(await errorPayloadOf(service.cancel(patientClaims, 'apt-1', { reason: 'plans-changed' }))).toMatchObject({
           errorCode: 'APPOINTMENT_NOT_CANCELLABLE',
         });
         expect(fhir.search).toHaveBeenCalledWith('Encounter', { appointment: 'Appointment/apt-1', _count: 1 });
@@ -296,7 +296,7 @@ describe('AppointmentsService', () => {
       fhir.read.mockImplementation(async (type) => (type === 'Appointment' ? bookedAppointment : { ...freeSlot, status: 'busy' }));
       fhir.batch.mockRejectedValue(new FhirClientError('POST', 'http://hapi/fhir', 412, '{}'));
 
-      expect(await errorPayloadOf(service.cancel(patientClaims, 'apt-1', { reason: 'не смог прийти' }))).toMatchObject({
+      expect(await errorPayloadOf(service.cancel(patientClaims, 'apt-1', { reason: 'plans-changed' }))).toMatchObject({
         errorCode: 'APPOINTMENT_NOT_CANCELLABLE',
       });
     });
@@ -304,7 +304,7 @@ describe('AppointmentsService', () => {
     it('should fail with INTERNAL, without reading a collection URL, when the appointment has no slot', async () => {
       fhir.read.mockResolvedValue({ ...bookedAppointment, slot: undefined });
 
-      expect(await errorPayloadOf(service.cancel(patientClaims, 'apt-1', { reason: 'не смог прийти' }))).toMatchObject({
+      expect(await errorPayloadOf(service.cancel(patientClaims, 'apt-1', { reason: 'plans-changed' }))).toMatchObject({
         errorCode: 'INTERNAL',
       });
       expect(fhir.read).not.toHaveBeenCalledWith('Slot', '');
@@ -314,7 +314,7 @@ describe('AppointmentsService', () => {
     it('should refuse with COMPARTMENT_VIOLATION when the appointment belongs to another patient', async () => {
       fhir.read.mockResolvedValue({ ...bookedAppointment, participant: [{ actor: { reference: 'Patient/other' } }] });
 
-      expect(await errorPayloadOf(service.cancel(patientClaims, 'apt-1', { reason: 'не смог прийти' }))).toMatchObject({
+      expect(await errorPayloadOf(service.cancel(patientClaims, 'apt-1', { reason: 'plans-changed' }))).toMatchObject({
         errorCode: 'COMPARTMENT_VIOLATION',
       });
       expect(fhir.batch).not.toHaveBeenCalled();
@@ -324,7 +324,7 @@ describe('AppointmentsService', () => {
       fhir.read.mockResolvedValue(bookedAppointment);
       const noPatient: JwtClaims = { ...patientClaims, patient: undefined };
 
-      expect(await errorPayloadOf(service.cancel(noPatient, 'apt-1', { reason: 'не смог прийти' }))).toMatchObject({
+      expect(await errorPayloadOf(service.cancel(noPatient, 'apt-1', { reason: 'plans-changed' }))).toMatchObject({
         errorCode: 'COMPARTMENT_VIOLATION',
       });
       expect(fhir.read).not.toHaveBeenCalled();
@@ -333,7 +333,7 @@ describe('AppointmentsService', () => {
     it('should reject with APPOINTMENT_NOT_CANCELLABLE when the appointment is already cancelled', async () => {
       fhir.read.mockResolvedValue({ ...bookedAppointment, status: 'cancelled' });
 
-      expect(await errorPayloadOf(service.cancel(patientClaims, 'apt-1', { reason: 'не смог прийти' }))).toMatchObject({
+      expect(await errorPayloadOf(service.cancel(patientClaims, 'apt-1', { reason: 'plans-changed' }))).toMatchObject({
         errorCode: 'APPOINTMENT_NOT_CANCELLABLE',
       });
       expect(fhir.batch).not.toHaveBeenCalled();
@@ -345,16 +345,19 @@ describe('AppointmentsService', () => {
       );
       fhir.batch.mockResolvedValue(COMMITTED);
 
-      const result = await service.cancel(patientClaims, 'apt-1', { reason: 'не смог прийти' });
+      const result = await service.cancel(patientClaims, 'apt-1', { reason: 'plans-changed' });
 
       const bundle = sentBundle();
       expect(bundle.entry[0]?.request).toEqual({ method: 'PUT', url: 'Appointment/apt-1', ifMatch: 'W/"2"' });
       expect(bundle.entry[1]?.resource['status']).toBe('free');
       expect(bundle.entry[1]?.request).toEqual({ method: 'PUT', url: 'Slot/slot-1', ifMatch: 'W/"3"' });
-      expect(result).toMatchObject({ status: 'cancelled', cancelReason: 'не смог прийти' });
+      expect(bundle.entry[0]?.resource['cancelationReason']).toEqual({
+        coding: [{ system: 'urn:medcenter:appointment-cancel-reason', code: 'plans-changed' }],
+      });
+      expect(result).toMatchObject({ status: 'cancelled', cancelReason: 'plans-changed' });
       const outbox = outboxEventOf(bundle.entry[3]?.resource);
       expect(outbox).toMatchObject({ type: 'appointment.cancelled.v1', appointmentId: 'apt-1', actorType: 'PATIENT', patientRef: 'Patient/9f2c' });
-      expect(JSON.stringify(bundle.entry[3]?.resource)).not.toContain('не смог прийти');
+      expect(JSON.stringify(bundle.entry[3]?.resource)).not.toContain('plans-changed');
     });
   });
 

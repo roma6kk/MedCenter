@@ -19,5 +19,4 @@ export function applyE2eEnv(): void {
   process.env['REDIS_URL'] = 'redis://localhost:6379';
   process.env['RABBITMQ_URL'] = 'amqp://localhost:5672';
   process.env['RATE_LIMIT_PER_MINUTE'] = '1000';
-  process.env['CONSENT_ENFORCEMENT'] = 'warn';
 }

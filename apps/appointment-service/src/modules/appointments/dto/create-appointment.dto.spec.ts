@@ -44,42 +44,18 @@ describe('CreateAppointmentDto', () => {
   });
 
   it('should reject the request when slotId is missing', async () => {
-    const body = { reason: 'Болит спина' };
+    const body = { serviceId: '1001' };
 
     const invalid = await invalidPropertiesOf(body);
 
     expect(invalid).toEqual(['slotId']);
   });
 
-  it('should reject the reason when it is shorter than 3 characters', async () => {
-    const body = { slotId: GENERATED_SLOT_ID, reason: 'ok' };
-
-    const invalid = await invalidPropertiesOf(body);
-
-    expect(invalid).toEqual(['reason']);
-  });
-
-  it('should reject the reason when it is only whitespace, so that no blank text is stored', async () => {
-    const body = { slotId: GENERATED_SLOT_ID, reason: '     ' };
-
-    const invalid = await invalidPropertiesOf(body);
-
-    expect(invalid).toEqual(['reason']);
-  });
-
-  it('should count the characters of the reason without the padding when it is shorter than 3', async () => {
-    const body = { slotId: GENERATED_SLOT_ID, reason: '  ab  ' };
-
-    const invalid = await invalidPropertiesOf(body);
-
-    expect(invalid).toEqual(['reason']);
-  });
-
-  it('should keep the reason without its padding when the text around it is blank', () => {
-    const body = { slotId: GENERATED_SLOT_ID, reason: '  Болит спина\n' };
-
+  it('should drop a free-text reason, so that no health text is booked', async () => {
+    const body = { slotId: GENERATED_SLOT_ID, reason: 'Болит спина' };
     const dto = plainToInstance(CreateAppointmentDto, body);
-
-    expect(dto.reason).toBe('Болит спина');
+    const errors = await validate(dto, { whitelist: true });
+    expect(errors).toEqual([]);
+    expect(dto).not.toHaveProperty('reason');
   });
 });

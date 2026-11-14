@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import type { PageMetaDto } from '@medcenter/contracts';
+import { APPOINTMENT_CANCEL_REASON_CODES, type AppointmentCancelReasonCode, type PageMetaDto } from '@medcenter/contracts';
 import type { AppointmentResponseDto } from '@medcenter/fhir-mappers';
 
 import type { AppointmentViewDto } from './appointment-view.dto';
@@ -49,11 +49,12 @@ export class AppointmentResponseDoc implements AppointmentResponseDto {
   @ApiProperty({ description: 'HealthcareService id', example: '1044' })
   serviceId!: string;
 
-  @ApiPropertyOptional({ description: 'Reason of the visit (free text)' })
-  reason?: string;
-
-  @ApiPropertyOptional({ description: 'Cancellation reason (statusReason)' })
-  cancelReason?: string;
+  @ApiPropertyOptional({
+    enum: APPOINTMENT_CANCEL_REASON_CODES,
+    enumName: 'AppointmentCancelReason',
+    description: 'Cancellation reason code; free text stored before the codes existed reads as `other`',
+  })
+  cancelReason?: AppointmentCancelReasonCode;
 
   @ApiProperty({ format: 'date-time', example: '2026-10-23T08:15:00.000Z' })
   createdAt!: string;

@@ -138,25 +138,20 @@ describe('Appointment write access (e2e)', () => {
     const response = await request(harness.app.getHttpServer())
       .post('/api/v1/appointments/apt-1/cancel')
       .set('Authorization', bearer(PATIENT))
-      .send({ reason: 'не смогу прийти' })
+      .send({ reason: 'plans-changed' })
       .expect(200);
 
-    expect(response.body).toMatchObject({ status: 'cancelled', cancelReason: 'не смогу прийти' });
+    expect(response.body).toMatchObject({ status: 'cancelled', cancelReason: 'plans-changed' });
   });
 
-  it('should store the cancellation reason without its padding and refuse a reason of whitespace only', async () => {
-    const server = harness.app.getHttpServer();
-
-    const padded = await request(server)
+  it('should refuse a free-text cancellation reason before reading anything', async () => {
+    const response = await request(harness.app.getHttpServer())
       .post('/api/v1/appointments/apt-1/cancel')
       .set('Authorization', bearer(PATIENT))
-      .send({ reason: '  не смогу прийти  ' })
-      .expect(200);
-    harness.fhir.read.mockClear();
-    const blank = await request(server).post('/api/v1/appointments/apt-1/cancel').set('Authorization', bearer(PATIENT)).send({ reason: '     ' }).expect(400);
+      .send({ reason: 'не смогу прийти' })
+      .expect(400);
 
-    expect(padded.body).toMatchObject({ cancelReason: 'не смогу прийти' });
-    expect(blank.body).toMatchObject({ errorCode: 'VALIDATION_ERROR' });
+    expect(response.body).toMatchObject({ errorCode: 'VALIDATION_ERROR' });
     expect(harness.fhir.read).not.toHaveBeenCalled();
   });
 
@@ -164,7 +159,7 @@ describe('Appointment write access (e2e)', () => {
     const response = await request(harness.app.getHttpServer())
       .post('/api/v1/appointments/apt-1/cancel')
       .set('Authorization', bearer({ ...ADMIN, scope: 'user/*.read' }))
-      .send({ reason: 'ошибка записи' })
+      .send({ reason: 'other' })
       .expect(403);
 
     expect(response.body).toMatchObject({ errorCode: 'FORBIDDEN_SCOPE' });
