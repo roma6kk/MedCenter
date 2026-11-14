@@ -159,6 +159,13 @@ describe('ConsentsService', () => {
       );
     });
 
+    it('should tell the staff whether the patient is an adult', async () => {
+      expect((await service.getForPatient(PATIENT_ID, adminClaims)).patientIsAdult).toBe(true);
+
+      fhir.read.mockResolvedValue({ ...patientResource, birthDate: '2015-01-01' });
+      expect((await service.getForPatient(PATIENT_ID, adminClaims)).patientIsAdult).toBe(false);
+    });
+
     it('should journal an administrator read too', async () => {
       await service.getForPatient(PATIENT_ID, adminClaims, 'req-1');
 
@@ -409,6 +416,35 @@ describe('ConsentsService', () => {
       ).toMatchObject({
         details: [{ field: 'relatedPersonId' }],
       });
+    });
+
+    it('should refuse a self-signed consent when the patient is under 18 on the signing day', async () => {
+      fhir.read.mockImplementation(async (type) => (type === 'Patient' ? { ...patientResource, birthDate: '2010-06-01' } : relatedPerson));
+
+      expect(await errorPayloadOf(service.create(PATIENT_ID, { ...createDto, signedAt: '2026-05-31' }, adminClaims))).toMatchObject({
+        errorCode: 'VALIDATION_ERROR',
+        details: [{ field: 'consenterType' }],
+      });
+      expect(fhir.batch).not.toHaveBeenCalled();
+    });
+
+    it('should accept the self-signed consent on the day the patient turns 18', async () => {
+      fhir.read.mockImplementation(async (type) => (type === 'Patient' ? { ...patientResource, birthDate: '2008-10-21' } : scanBinary));
+      fhir.batch.mockResolvedValue(createdBundle('Consent', 'c-9'));
+
+      await expect(service.create(PATIENT_ID, createDto, adminClaims)).resolves.toBeDefined();
+    });
+
+    it('should accept a representative for a patient under 18', async () => {
+      fhir.read.mockImplementation(async (type) => {
+        if (type === 'Patient') return { ...patientResource, birthDate: '2015-01-01' };
+        return type === 'RelatedPerson' ? relatedPerson : scanBinary;
+      });
+      fhir.batch.mockResolvedValue(createdBundle('Consent', 'c-9'));
+
+      await expect(
+        service.create(PATIENT_ID, { ...createDto, consenterType: 'guardian', relatedPersonId: 'rp-1', representativeDocument: 'Свидетельство о рождении' }, adminClaims),
+      ).resolves.toBeDefined();
     });
 
     it('should refuse a signing date in the future', async () => {

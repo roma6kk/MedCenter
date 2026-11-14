@@ -51,6 +51,8 @@ export interface ConsentResponse {
 export interface PatientConsentResponse {
   readonly active: ConsentResponse | null;
   readonly history: ReadonlyArray<ConsentResponse>;
+  /** Only in the staff read (3.7): false when the patient is under 18, so the form offers no `self` signer. */
+  readonly patientIsAdult?: boolean;
 }
 
 export interface ConsentScanUploadResponse {

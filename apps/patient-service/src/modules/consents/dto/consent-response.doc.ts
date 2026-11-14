@@ -81,6 +81,9 @@ export class PatientConsentResponseDoc implements PatientConsentResponse {
 
   @ApiProperty({ type: [ConsentResponseDoc], description: 'Newest first, including the active one' })
   readonly history!: readonly ConsentResponseDoc[];
+
+  @ApiPropertyOptional({ description: 'Staff read only: false when the patient is under 18 (a representative must sign)' })
+  readonly patientIsAdult?: boolean;
 }
 
 export class ConsentScanUploadResponseDoc implements ConsentScanUploadResponse {

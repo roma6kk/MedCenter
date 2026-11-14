@@ -8,7 +8,7 @@ import {
   Logger,
   NotFoundException,
 } from '@nestjs/common';
-import type { JwtClaims } from '@medcenter/common';
+import { clinicDateOf, isAdultOn, type JwtClaims } from '@medcenter/common';
 import {
   Role,
   type ConsentResponse,
@@ -77,6 +77,11 @@ function isInTheFuture(moment: string, now: Date): boolean {
   return new Date(moment).getTime() > now.getTime() + FUTURE_TOLERANCE_MS;
 }
 
+function isAdultAt(patient: FhirResource, day: string): boolean {
+  const birthDate = patient['birthDate'];
+  return typeof birthDate !== 'string' || !DATE_ONLY.test(birthDate) || isAdultOn(birthDate, day);
+}
+
 function startOf(consent: FhirResource): number | undefined {
   const period = (consent['provision'] as { period?: { start?: string } } | undefined)?.period;
   const time = new Date(period?.start ?? '').getTime();
@@ -120,8 +125,8 @@ export class ConsentsService {
       { interaction: 'search-type', source: AUDIT_SOURCE, requestId },
       async () => {
         await this.access.assertCanRead(claims, patientId);
-        await readPatient(this.fhir, patientId);
-        return this.history(patientId);
+        const patient = await readPatient(this.fhir, patientId);
+        return { ...(await this.history(patientId)), patientIsAdult: isAdultAt(patient, clinicDateOf(Date.now())) };
       },
     );
   }
@@ -138,7 +143,8 @@ export class ConsentsService {
       throw invalid('signedAt', 'must not be in the future');
     }
     this.assertRepresentativeFields(dto);
-    await readPatient(this.fhir, patientId);
+    const patient = await readPatient(this.fhir, patientId);
+    this.assertSignerMayBeSelf(patient, dto);
     if ((await findActiveConsent(this.fhir, patientId)) !== null) {
       throw new ConflictException({
         errorCode: 'CONSENT_ALREADY_ACTIVE',
@@ -372,6 +378,17 @@ export class ConsentsService {
     } catch (error) {
       this.logger.warn({ err: error, roleId }, 'Name of the signing doctor was not read; the reference is stored');
       return undefined;
+    }
+  }
+
+  // A patient under 18 cannot give the consent themselves: a representative signs (the form is dated by the signing day).
+  private assertSignerMayBeSelf(patient: FhirResource, dto: CreateConsentRequest): void {
+    if (dto.consenterType !== 'self') {
+      return;
+    }
+    const signedOn = DATE_ONLY.test(dto.signedAt) ? dto.signedAt : clinicDateOf(Date.parse(dto.signedAt));
+    if (!isAdultAt(patient, signedOn)) {
+      throw invalid('consenterType', 'a patient under 18 cannot sign themselves: a legal representative or guardian signs');
     }
   }
 
