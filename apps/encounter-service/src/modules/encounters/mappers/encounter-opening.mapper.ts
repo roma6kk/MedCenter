@@ -48,7 +48,6 @@ export function openingBypassName(appointmentId: string): string {
 }
 
 export function openedEncounterResource(context: OpeningContext): FhirResource {
-  const reasonCode = arrayField(context.appointment, 'reasonCode');
   return {
     resourceType: 'Encounter',
     status: 'in-progress',
@@ -58,7 +57,6 @@ export function openedEncounterResource(context: OpeningContext): FhirResource {
     participant: [{ type: [ATTENDER], individual: { reference: context.practitionerRoleRef } }],
     appointment: [{ reference: `Appointment/${context.appointmentId}` }],
     period: { start: context.now },
-    ...(reasonCode.length === 0 ? {} : { reasonCode }),
   };
 }
 
