@@ -5,8 +5,14 @@ function fakeRedis(): RedisTokenClient & { readonly data: Map<string, { value: s
   const data = new Map<string, { value: string; ttl: number }>();
   return {
     data,
-    set: async (key, value, _mode, seconds) => {
-      data.set(key, { value, ttl: seconds });
+    set: async (key: string, value: string, mode: string, seconds: number | string) => {
+      if (mode === 'KEEPTTL') {
+        const existing = data.get(key);
+        if (existing === undefined) return null;
+        data.set(key, { value, ttl: existing.ttl });
+        return 'OK';
+      }
+      data.set(key, { value, ttl: Number(seconds) });
       return 'OK';
     },
     get: async (key) => data.get(key)?.value ?? null,
@@ -39,6 +45,21 @@ describe('RedisTokenStore', () => {
     await store.save(TOKEN);
 
     await expect(store.find('jti-1')).resolves.toEqual(TOKEN);
+  });
+
+  it('should update the activity time in place and never resurrect a taken token', async () => {
+    const redis = fakeRedis();
+    const store = new RedisTokenStore(redis);
+    await store.save(TOKEN);
+    const ttl = redis.data.get('oauth:token:jti-1')?.ttl;
+
+    await store.touch('jti-1', 42);
+
+    await expect(store.find('jti-1')).resolves.toMatchObject({ lastActivityAt: 42 });
+    expect(redis.data.get('oauth:token:jti-1')?.ttl).toBe(ttl);
+    await store.take('jti-1');
+    await store.touch('jti-1', 99);
+    await expect(store.find('jti-1')).resolves.toBeNull();
   });
 
   it('should give the token to one taker only', async () => {

@@ -221,3 +221,65 @@ describe('OAuthService', () => {
     await expect(service.revoke({ refreshToken: 'never-issued', userId: 'u1' })).resolves.toBe(false);
   });
 });
+
+describe('OAuthService idle session timeout', () => {
+  const IDLE_MS = 15 * 60_000;
+
+  beforeEach(() => {
+    jest.useFakeTimers({ now: new Date('2026-11-14T10:00:00Z') });
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
+  function refresh(harness: OAuthHarness, token: string): ReturnType<OAuthHarness['service']['refresh']> {
+    return harness.service.refresh({ refreshToken: token, clientId: 'medcenter-web' });
+  }
+
+  it('should refuse a refresh once the session was idle for longer than the limit', async () => {
+    const harness = createHarness(IDLE_MS);
+    const first = await signIn(harness);
+
+    jest.setSystemTime(Date.now() + IDLE_MS + 1_000);
+
+    const error = await captureOAuthError(refresh(harness, first.refresh_token));
+    expect(error.getResponse()).toMatchObject({ error: 'invalid_grant' });
+    await expect(harness.tokens.isRevoked(first.refresh_token)).resolves.toBe(true);
+  });
+
+  it('should not count a refresh as activity, so polling cannot keep an abandoned session alive', async () => {
+    const harness = createHarness(IDLE_MS);
+    let current = await signIn(harness);
+
+    for (let minute = 0; minute < 10; minute += 1) {
+      jest.setSystemTime(Date.now() + 2 * 60_000);
+      current = await refresh(harness, current.refresh_token).catch(() => current);
+    }
+
+    await expect(refresh(harness, current.refresh_token)).rejects.toBeDefined();
+  });
+
+  it('should keep the session alive while activity is recorded', async () => {
+    const harness = createHarness(IDLE_MS);
+    let current = await signIn(harness);
+
+    for (let step = 0; step < 6; step += 1) {
+      jest.setSystemTime(Date.now() + 10 * 60_000);
+      await expect(harness.service.recordActivity(current.refresh_token, 'u1')).resolves.toBe(true);
+      current = await refresh(harness, current.refresh_token);
+    }
+
+    await expect(refresh(harness, current.refresh_token)).resolves.toMatchObject({ token_type: 'Bearer' });
+  });
+
+  it('should refuse to record activity for an idle, unknown or foreign session', async () => {
+    const harness = createHarness(IDLE_MS);
+    const first = await signIn(harness);
+
+    await expect(harness.service.recordActivity('never-issued', 'u1')).resolves.toBe(false);
+    await expect(harness.service.recordActivity(first.refresh_token, 'intruder')).resolves.toBe(false);
+    jest.setSystemTime(Date.now() + IDLE_MS + 1_000);
+    await expect(harness.service.recordActivity(first.refresh_token, 'u1')).resolves.toBe(false);
+  });
+});

@@ -4,6 +4,7 @@ import { Module } from '@nestjs/common';
 import { TOKEN_REVOCATION } from '@medcenter/common';
 import { z } from 'zod';
 
+import { readSessionIdleTimeoutMs } from '../../config/auth-env';
 import { UsersModule } from '../users/users.module';
 import { AuthorizeController } from './authorize.controller';
 import { OAuthErrorFilter } from './filters/oauth-error.filter';
@@ -27,7 +28,7 @@ import { LoginSessionService } from './login/login-session.service';
 import { LoginThrottle } from './login/login-throttle.service';
 import { LoginController } from './login/login.controller';
 import { OAuthController } from './oauth.controller';
-import { OAuthService } from './oauth.service';
+import { SESSION_IDLE_TIMEOUT_MS, OAuthService } from './oauth.service';
 import { PkceService } from './pkce.service';
 import { TOKEN_STORES, createTokenStores, type TokenStores } from './redis-token-stores';
 import {
@@ -140,6 +141,7 @@ export function loadRegisteredClients(source: NodeJS.ProcessEnv = process.env): 
     { provide: LOGIN_ATTEMPT_STORE, useFactory: createLoginAttemptStore },
     { provide: LOGIN_KEYS, useFactory: loadLoginKeys },
     { provide: SIGNING_KEYS, useFactory: loadSigningKeys },
+    { provide: SESSION_IDLE_TIMEOUT_MS, useFactory: (): number => readSessionIdleTimeoutMs() },
     { provide: TOKEN_STORES, useFactory: createTokenStores },
     { provide: TOKEN_STORE, useFactory: (stores: TokenStores): TokenStore => stores.store, inject: [TOKEN_STORES] },
     { provide: TOKEN_DENYLIST, useFactory: (stores: TokenStores): TokenDenylist => stores.denylist, inject: [TOKEN_STORES] },

@@ -21,6 +21,8 @@ export interface StoredToken {
   readonly scope: string;
   readonly codeChallenge: string;
   readonly expiresAt: Date;
+  // Epoch ms of the last user activity in this session; carried over on rotation. Absent on tokens issued before the idle timeout existed.
+  readonly lastActivityAt?: number;
   readonly role?: string;
   readonly patientRef?: string;
   readonly fhirUser?: string;
@@ -30,6 +32,8 @@ export interface TokenStore {
   save(token: StoredToken): Promise<void>;
   find(jti: string): Promise<StoredToken | null>;
   take(jti: string): Promise<StoredToken | null>;
+  // Never creates: a token that was spent or revoked in the meantime stays gone.
+  touch(jti: string, lastActivityAt: number): Promise<void>;
   delete(jti: string): Promise<void>;
 }
 
@@ -56,6 +60,13 @@ export class InMemoryTokenStore implements TokenStore {
     const token = this.tokens.get(jti) ?? null;
     this.tokens.delete(jti);
     return token;
+  }
+
+  async touch(jti: string, lastActivityAt: number): Promise<void> {
+    const token = this.tokens.get(jti);
+    if (token !== undefined) {
+      this.tokens.set(jti, { ...token, lastActivityAt });
+    }
   }
 
   async delete(jti: string): Promise<void> {
@@ -90,6 +101,7 @@ export interface IssueTokenParams {
   readonly kind: TokenKind;
   readonly ttlSeconds: number;
   readonly codeChallenge?: string;
+  readonly lastActivityAt?: number;
   readonly role?: string;
   readonly patientRef?: string;
   readonly fhirUser?: string;
@@ -111,6 +123,7 @@ export class TokenService implements TokenRevocationChecker {
       scope: params.scope,
       codeChallenge: params.codeChallenge ?? '',
       expiresAt: new Date(Date.now() + params.ttlSeconds * 1000),
+      lastActivityAt: params.lastActivityAt ?? Date.now(),
       ...(params.role !== undefined ? { role: params.role } : {}),
       ...(params.patientRef !== undefined ? { patientRef: params.patientRef } : {}),
       ...(params.fhirUser !== undefined ? { fhirUser: params.fhirUser } : {}),
@@ -136,6 +149,10 @@ export class TokenService implements TokenRevocationChecker {
       return null;
     }
     return token;
+  }
+
+  async touch(jti: string): Promise<void> {
+    await this.store.touch(jti, Date.now());
   }
 
   async isDenied(jti: string): Promise<boolean> {

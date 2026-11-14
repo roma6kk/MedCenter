@@ -15,7 +15,7 @@ Port map and edge routes of all services: `../../infra/traefik/dynamic.yml` (thi
 
 | Area | Endpoint | Access |
 | --- | --- | --- |
-| SMART / OAuth2 | `GET /.well-known/smart-configuration`, `GET /.well-known/jwks.json`, `POST /oauth/token`, `POST /oauth/token/revoke` | see API §2.1 |
+| SMART / OAuth2 | `GET /.well-known/smart-configuration`, `GET /.well-known/jwks.json`, `POST /oauth/token`, `POST /oauth/token/revoke`, `POST /oauth/token/activity` | see API §2.1 |
 | Browser login | `GET /oauth/authorize` (renders the login form without a session), `POST /oauth/login` | public, rate-limited |
 | Users (API §2.2) | `POST /api/v1/auth/register` | public, rate-limited |
 | | `GET /api/v1/me` | any Bearer |

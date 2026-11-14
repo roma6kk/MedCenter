@@ -1,5 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 
+import { readSessionIdleTimeoutMs } from '../../config/auth-env';
+
 import type { RegisteredClient } from './guards/client.guard';
 import {
   IDENTITY_RESOLVER,
@@ -18,6 +20,8 @@ import {
   TokenService,
   type StoredToken,
 } from './token.service';
+
+export const SESSION_IDLE_TIMEOUT_MS = 'SESSION_IDLE_TIMEOUT_MS';
 
 interface AuthorizeParams {
   readonly client: RegisteredClient;
@@ -94,6 +98,7 @@ export class OAuthService {
     private readonly jwt: JwtService,
     private readonly tokens: TokenService,
     @Inject(IDENTITY_RESOLVER) private readonly identities: IdentityResolver,
+    @Inject(SESSION_IDLE_TIMEOUT_MS) private readonly idleTimeoutMs: number = readSessionIdleTimeoutMs(),
   ) {}
 
   async authorize(params: AuthorizeParams): Promise<string> {
@@ -158,12 +163,26 @@ export class OAuthService {
     if (found.clientId !== params.clientId) {
       throw OAuthError.invalidGrant('client_id does not match the refresh token');
     }
+    if (this.isIdle(found)) {
+      await this.tokens.revoke(found.jti);
+      throw OAuthError.invalidGrant('Session ended after a period of inactivity');
+    }
     const grant = await this.resolveGrant(found);
     const stored = await this.tokens.consume(params.refreshToken, 'refresh');
     if (stored === null) {
       throw OAuthError.invalidGrant('Refresh token is invalid or expired');
     }
     return this.issuePair(stored, grant);
+  }
+
+  // Only the user-driven activity ping calls this: a refresh never counts, or background polling would keep an abandoned session alive.
+  async recordActivity(sessionId: string, userId: string): Promise<boolean> {
+    const found = await this.tokens.find(sessionId);
+    if (found === null || found.kind !== 'refresh' || found.userId !== userId || this.isIdle(found)) {
+      return false;
+    }
+    await this.tokens.touch(sessionId);
+    return true;
   }
 
   async revoke(params: RevokeParams): Promise<boolean> {
@@ -189,6 +208,7 @@ export class OAuthService {
       scope,
       kind: 'refresh',
       ttlSeconds: REFRESH_TOKEN_TTL_SECONDS,
+      ...(stored.lastActivityAt !== undefined ? { lastActivityAt: stored.lastActivityAt } : {}),
       role: claims.role,
       ...(claims.patient !== undefined ? { patientRef: claims.patient } : {}),
       ...(claims.fhirUser !== undefined ? { fhirUser: claims.fhirUser } : {}),
@@ -210,6 +230,10 @@ export class OAuthService {
       scope,
       ...(claims.patient !== undefined ? { patient: claims.patient } : {}),
     };
+  }
+
+  private isIdle(token: StoredToken): boolean {
+    return token.lastActivityAt !== undefined && Date.now() - token.lastActivityAt > this.idleTimeoutMs;
   }
 
   private async resolveGrant(stored: StoredToken): Promise<ResolvedGrant> {

@@ -144,6 +144,15 @@ export const PROTECTED_ENDPOINTS: ReadonlyArray<ProtectedEndpoint> = [
     scope: null,
     reached: { status: 200 },
   },
+  {
+    name: 'POST /oauth/token/activity',
+    method: 'post',
+    route: '/oauth/token/activity',
+    path: '/oauth/token/activity',
+    role: null,
+    scope: null,
+    reached: { status: 200 },
+  },
 ];
 
 export const PUBLIC_ROUTES: ReadonlyArray<string> = [

@@ -135,3 +135,17 @@ export function isCookieSecureForced(source: NodeJS.ProcessEnv): boolean {
 }
 
 let cookieSecureMemo: { readonly raw: string | undefined; readonly forced: boolean } | null = null;
+
+export const DEFAULT_SESSION_IDLE_TIMEOUT_MINUTES = 15;
+
+const sessionIdleSchema = z.object({
+  SESSION_IDLE_TIMEOUT_MINUTES: z.preprocess(
+    (value) => (value === '' ? undefined : value),
+    z.coerce.number().int().min(1).max(24 * 60).default(DEFAULT_SESSION_IDLE_TIMEOUT_MINUTES),
+  ),
+});
+
+/** How long a signed-in session may go without a user activity ping before its refresh token stops working. */
+export function readSessionIdleTimeoutMs(source: NodeJS.ProcessEnv = process.env): number {
+  return sessionIdleSchema.parse(source).SESSION_IDLE_TIMEOUT_MINUTES * 60_000;
+}

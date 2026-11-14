@@ -3,6 +3,7 @@ import {
   normaliseEmail,
   parseBootstrapAdminEnv,
   parseDatabaseEnv,
+  readSessionIdleTimeoutMs,
   readSessionSecret,
 } from './auth-env';
 
@@ -155,5 +156,21 @@ describe('isCookieSecureForced', () => {
 
     expect(() => isCookieSecureForced({ AUTH_COOKIE_SECURE: 'yes' })).toThrow();
     expect(() => isCookieSecureForced({ AUTH_COOKIE_SECURE: 'yes' })).toThrow();
+  });
+});
+
+describe('readSessionIdleTimeoutMs', () => {
+  it('should default to 15 minutes', () => {
+    expect(readSessionIdleTimeoutMs({})).toBe(15 * 60_000);
+    expect(readSessionIdleTimeoutMs({ SESSION_IDLE_TIMEOUT_MINUTES: '' })).toBe(15 * 60_000);
+  });
+
+  it('should read the configured minutes', () => {
+    expect(readSessionIdleTimeoutMs({ SESSION_IDLE_TIMEOUT_MINUTES: '30' })).toBe(30 * 60_000);
+  });
+
+  it('should reject a value that is not a positive whole number of minutes', () => {
+    expect(() => readSessionIdleTimeoutMs({ SESSION_IDLE_TIMEOUT_MINUTES: '0' })).toThrow();
+    expect(() => readSessionIdleTimeoutMs({ SESSION_IDLE_TIMEOUT_MINUTES: 'soon' })).toThrow();
   });
 });

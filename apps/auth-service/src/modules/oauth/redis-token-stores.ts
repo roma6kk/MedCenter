@@ -25,6 +25,7 @@ export function connectRedis(url: string, owner: string, label: string): Redis {
 
 export interface RedisTokenClient {
   set(key: string, value: string, mode: 'EX', seconds: number): Promise<unknown>;
+  set(key: string, value: string, keepTtl: 'KEEPTTL', onlyIfExists: 'XX'): Promise<unknown>;
   get(key: string): Promise<string | null>;
   getdel(key: string): Promise<string | null>;
   del(...keys: string[]): Promise<number>;
@@ -61,6 +62,15 @@ export class RedisTokenStore implements TokenStore, OnModuleDestroy {
 
   async take(jti: string): Promise<StoredToken | null> {
     return parseStored(await this.redis.getdel(`${TOKEN_KEY_PREFIX}${jti}`));
+  }
+
+  // Read-modify-write with XX: a concurrent rotation that already took the token cannot be undone by a late touch.
+  async touch(jti: string, lastActivityAt: number): Promise<void> {
+    const key = `${TOKEN_KEY_PREFIX}${jti}`;
+    const token = parseStored(await this.redis.get(key));
+    if (token !== null) {
+      await this.redis.set(key, JSON.stringify({ ...token, lastActivityAt }), 'KEEPTTL', 'XX');
+    }
   }
 
   async delete(jti: string): Promise<void> {

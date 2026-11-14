@@ -22,6 +22,7 @@ import {
   OAuthErrorDoc,
   RevokeRequestDoc,
   RevokeResponseDoc,
+  ActivityResponseDoc,
   SmartConfigurationDoc,
   TokenResponseDoc,
 } from './dto/oauth-response.doc';
@@ -40,7 +41,7 @@ interface RevokeRequestDto {
 }
 
 interface AuthenticatedRequest {
-  readonly user?: { readonly sub?: string };
+  readonly user?: { readonly sub?: string; readonly sid?: string };
 }
 
 function readPrincipalId(request: AuthenticatedRequest): string {
@@ -174,5 +175,19 @@ export class OAuthController {
       ...(typeof clientId === 'string' && clientId.length > 0 ? { clientId } : {}),
     });
     return { revoked };
+  }
+
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: '2.1.6 Record user activity for the idle session timeout' })
+  @ApiBearerAuth()
+  @ApiResponse({ status: 200, description: 'false when the session is unknown or already idle for longer than the limit', type: ActivityResponseDoc })
+  @ApiProblems(GUARD_PROBLEM_STATUSES)
+  @Post('oauth/token/activity')
+  async activity(@Req() request: AuthenticatedRequest): Promise<{ readonly recorded: boolean }> {
+    const sessionId = request.user?.sid;
+    if (typeof sessionId !== 'string' || sessionId.length === 0) {
+      return { recorded: false };
+    }
+    return { recorded: await this.oauth.recordActivity(sessionId, readPrincipalId(request)) };
   }
 }

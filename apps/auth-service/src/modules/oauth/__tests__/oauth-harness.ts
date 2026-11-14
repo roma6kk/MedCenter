@@ -13,11 +13,11 @@ export interface OAuthHarness {
   readonly identities: StubIdentityResolver;
 }
 
-export function createOAuthHarness(): OAuthHarness {
+export function createOAuthHarness(idleTimeoutMs?: number): OAuthHarness {
   const tokens = new TokenService(new InMemoryTokenStore(), new InMemoryTokenDenylist());
   const pkce = new PkceService();
   const identities = new StubIdentityResolver();
-  const service = new OAuthService(pkce, new JwtService(createTestKeys()), tokens, identities);
+  const service = new OAuthService(pkce, new JwtService(createTestKeys()), tokens, identities, idleTimeoutMs);
   return { service, pkce, tokens, identities };
 }
 

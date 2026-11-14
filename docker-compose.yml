@@ -194,6 +194,8 @@ services:
       <<: [*bff-env, *db-env]
       PORT: '3001'
       HEALTH_PATH: /.well-known/jwks.json
+      # Minutes without user activity before the refresh token stops working; the web build reads the same value for its client-side timer.
+      SESSION_IDLE_TIMEOUT_MINUTES: ${SESSION_IDLE_TIMEOUT_MINUTES:-15}
     ports:
       - '127.0.0.1:3001:3001'
     depends_on:
@@ -313,6 +315,7 @@ services:
       args:
         # Baked in at build time (the /api/v1 rewrite and inlined NEXT_PUBLIC_*): changing it needs a rebuild.
         NEXT_PUBLIC_API_URL: http://traefik:8081
+        NEXT_PUBLIC_SESSION_IDLE_TIMEOUT_MINUTES: ${SESSION_IDLE_TIMEOUT_MINUTES:-15}
     # No env_file: a public PKCE client needs none of the backend secrets.
     environment:
       PORT: '3000'

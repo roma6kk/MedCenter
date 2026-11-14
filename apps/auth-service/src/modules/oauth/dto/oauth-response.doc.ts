@@ -48,6 +48,11 @@ export class RevokeResponseDoc {
   revoked!: boolean;
 }
 
+export class ActivityResponseDoc {
+  @ApiProperty({ description: 'false when the session is unknown or has already been idle for longer than SESSION_IDLE_TIMEOUT_MINUTES' })
+  recorded!: boolean;
+}
+
 export class SmartConfigurationDoc implements SmartConfiguration {
   @ApiProperty({ format: 'uri' })
   authorization_endpoint!: string;

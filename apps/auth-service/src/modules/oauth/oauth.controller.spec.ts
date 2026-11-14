@@ -160,4 +160,20 @@ describe('OAuthController', () => {
     ).resolves.toEqual({ revoked: false });
     await expect(tokens.isDenied(issued.jti)).resolves.toBe(false);
   });
+
+  it('should record activity for the session named by the access token', async () => {
+    const { controller, tokens } = createHarness();
+    const issued = await tokens.issue({ userId: 'u1', clientId: 'medcenter-web', scope: 'launch', kind: 'refresh', ttlSeconds: 60, lastActivityAt: Date.now() - 60_000 });
+
+    const request = { user: { sub: 'u1', sid: issued.jti } } as unknown as RevokeRequest;
+
+    await expect(controller.activity(request)).resolves.toEqual({ recorded: true });
+    expect((await tokens.find(issued.jti))?.lastActivityAt).toBeGreaterThan(Date.now() - 30_000);
+  });
+
+  it('should not record activity for a token without a session id', async () => {
+    const { controller } = createHarness();
+
+    await expect(controller.activity({ user: { sub: 'u1' } } as unknown as RevokeRequest)).resolves.toEqual({ recorded: false });
+  });
 });

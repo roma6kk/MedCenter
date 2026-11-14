@@ -17,6 +17,8 @@ RUN --mount=type=cache,id=medcenter-web-npm,target=/root/.npm,sharing=locked \
 FROM base AS build
 ARG NEXT_PUBLIC_API_URL=http://traefik:8081
 ENV NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
+ARG NEXT_PUBLIC_SESSION_IDLE_TIMEOUT_MINUTES=15
+ENV NEXT_PUBLIC_SESSION_IDLE_TIMEOUT_MINUTES=${NEXT_PUBLIC_SESSION_IDLE_TIMEOUT_MINUTES}
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 RUN mkdir -p public && npm run build

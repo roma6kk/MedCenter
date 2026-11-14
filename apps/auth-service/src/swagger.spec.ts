@@ -52,6 +52,7 @@ describe('auth-service OpenAPI document (API §10)', () => {
     '/oauth/login',
     '/oauth/token',
     '/oauth/token/revoke',
+    '/oauth/token/activity',
     '/api/v1/auth/register',
     '/api/v1/me',
     '/api/v1/admin/users',
