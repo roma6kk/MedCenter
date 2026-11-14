@@ -1,4 +1,6 @@
 import { createHash } from 'node:crypto';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 
 import { buildConsent, isConsentInForce } from '@medcenter/fhir';
 
@@ -11,33 +13,20 @@ export const DEFAULT_PATIENT_WITHOUT_CONSENT = 'patient.novikov';
 
 const SIGNER_DOCTOR_KEY = 'ivanova';
 const DAY_MS = 24 * 60 * 60 * 1000;
-const MINIMAL_PDF_LIMIT = 4096;
+const SCAN_SIZE_LIMIT = 100 * 1024;
+const SCAN_FIXTURE_DIR = join(__dirname, 'fixtures');
 
 export function consentKeyOf(patient: Pick<PatientDef, 'emailLocal'>): string {
   return patient.emailLocal.replace(/^patient\./, '');
 }
 
+// Sample scan with a "ОБРАЗЕЦ — вымышленные данные" watermark; regenerate with fixtures/generate-consent-samples.py.
 export function demoScanPdf(key: string): Buffer {
-  const stream = `BT /F1 14 Tf 40 100 Td (DEMO consent scan - ${key.replace(/[()\\]/g, '')}) Tj ET`;
-  const objects = [
-    '<< /Type /Catalog /Pages 2 0 R >>',
-    '<< /Type /Pages /Kids [3 0 R] /Count 1 >>',
-    '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 300 150] /Contents 4 0 R /Resources << /Font << /F1 5 0 R >> >> >>',
-    `<< /Length ${stream.length} >>\nstream\n${stream}\nendstream`,
-    '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>',
-  ];
-  let body = '%PDF-1.4\n';
-  const offsets: number[] = [];
-  objects.forEach((object, index) => {
-    offsets.push(body.length);
-    body += `${index + 1} 0 obj\n${object}\nendobj\n`;
-  });
-  const xref = body.length;
-  body += `xref\n0 ${objects.length + 1}\n0000000000 65535 f \n`;
-  body += offsets.map((offset) => `${String(offset).padStart(10, '0')} 00000 n \n`).join('');
-  body += `trailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF\n`;
-  const pdf = Buffer.from(body, 'latin1');
-  if (pdf.length > MINIMAL_PDF_LIMIT) {
+  if (!/^[a-z]+$/.test(key)) {
+    throw new Error(`Invalid demo consent key "${key}"`);
+  }
+  const pdf = readFileSync(join(SCAN_FIXTURE_DIR, `consent-sample-${key}.pdf`));
+  if (pdf.length > SCAN_SIZE_LIMIT) {
     throw new Error('the demo scan grew past its size budget');
   }
   return pdf;

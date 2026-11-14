@@ -37,6 +37,7 @@ export const PROTECTED_ROUTES: readonly ProtectedRoute[] = [
   route('GET', `/api/v1/patients/${ID}/related`, 'any'),
   route('GET', '/api/v1/me/consent', PATIENT),
   route('POST', '/api/v1/me/consent/revoke', PATIENT),
+  route('POST', '/api/v1/me/deactivate', PATIENT),
   route('GET', `/api/v1/patients/${ID}/consent`, STAFF),
   route('POST', `/api/v1/patients/${ID}/consent`, STAFF),
   route('POST', `/api/v1/patients/${ID}/consent/revoke`, STAFF),

@@ -23,7 +23,7 @@ describe('demoScanPdf', () => {
     const scan = demoScanPdf('kuznetsov');
 
     expect(scan.subarray(0, 5).toString('latin1')).toBe('%PDF-');
-    expect(scan.length).toBeLessThan(4096);
+    expect(scan.length).toBeLessThan(100 * 1024);
     expect(demoScanPdf('lebedeva').equals(scan)).toBe(false);
     expect(demoScanPdf('kuznetsov').equals(scan)).toBe(true);
   });
