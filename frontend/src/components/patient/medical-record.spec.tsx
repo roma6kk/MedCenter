@@ -24,11 +24,11 @@ describe('MedicalRecord', () => {
   it('should open on the visit history with one heading for the page and the history tab selected', async () => {
     renderWithClient(<MedicalRecord />);
 
-    expect(screen.getByRole('heading', { level: 1, name: 'Медкарта' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 1, name: 'Медицинские записи' })).toBeInTheDocument();
     expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
     expect(screen.getByRole('tab', { name: 'История приёмов' })).toHaveAttribute('aria-selected', 'true');
     expect(await screen.findByText('Приём терапевта (первичный)')).toBeInTheDocument();
-    expect(document.title).toBe('Медкарта — Лайфлайн');
+    expect(document.title).toBe('Медицинские записи — Лайфлайн');
   });
 
   it('should open on the prescriptions when asked to', async () => {

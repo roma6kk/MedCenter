@@ -30,7 +30,7 @@ async function fillSelf(): Promise<void> {
   await userEvent.upload(screen.getByLabelText('Скан подписанной формы'), PDF);
 }
 
-const submit = (): Promise<void> => userEvent.click(screen.getByRole('button', { name: 'Внести в карту' }));
+const submit = (): Promise<void> => userEvent.click(screen.getByRole('button', { name: 'Внести согласие' }));
 
 async function renderAndSubmitSelf(): Promise<void> {
   renderForm();
@@ -117,7 +117,7 @@ describe('ConsentRecordForm', () => {
     await user.type(screen.getByLabelText('Номер формы'), 'Ф-12');
     await user.type(screen.getByLabelText('Дата подписания'), '2020-01-15');
     await user.upload(screen.getByLabelText('Скан подписанной формы', { selector: 'input' }), file);
-    await user.click(screen.getByRole('button', { name: 'Внести в карту' }));
+    await user.click(screen.getByRole('button', { name: 'Внести согласие' }));
 
     expect(await screen.findByText(message)).toBeInTheDocument();
     expect(screen.getByLabelText('Скан подписанной формы', { selector: 'input' })).toHaveAttribute('aria-invalid', 'true');
@@ -161,7 +161,7 @@ describe('ConsentRecordForm', () => {
 
     await userEvent.selectOptions(screen.getByLabelText('Кто подписал'), 'родственник');
 
-    expect(await screen.findByText(/нет доверенных лиц в карте/)).toBeInTheDocument();
+    expect(await screen.findByText(/нет доверенных лиц в системе/)).toBeInTheDocument();
   });
 
   it('should say to revoke first when the patient already has an active consent (409 CONSENT_ALREADY_ACTIVE)', async () => {
@@ -206,6 +206,6 @@ describe('ConsentRecordForm', () => {
     expect(busy).toHaveAttribute('aria-disabled', 'true');
     expect(mocked.postPatientConsent).toHaveBeenCalledTimes(1);
     finish(ACTIVE_RECORD);
-    await waitFor(() => expect(screen.getByRole('button', { name: 'Внести в карту' })).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Внести согласие' })).toBeInTheDocument());
   });
 });

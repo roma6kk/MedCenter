@@ -95,7 +95,7 @@ describe('HomeView', () => {
     loadAll();
     renderWithClient(<HomeView />);
 
-    const section = await screen.findByRole('region', { name: 'Согласие на электронную медкарту' });
+    const section = await screen.findByRole('region', { name: 'Согласие на внесение сведений в информационную систему клиники' });
     expect(await within(section).findByText('Согласие не оформлено')).toBeInTheDocument();
   });
 
@@ -169,7 +169,7 @@ describe('HomeView', () => {
     expect(within(actions).getByText('Действующих: 1')).toBeInTheDocument();
     expect(within(actions).getByRole('link', { name: /Мои записи/ })).toHaveAttribute('href', '/appointments');
     expect(within(actions).getByRole('link', { name: /Назначения/ })).toHaveAttribute('href', '/medcard?tab=prescriptions');
-    expect(within(actions).getByRole('link', { name: /Медкарта/ })).toHaveAttribute('href', '/medcard');
+    expect(within(actions).getByRole('link', { name: /История приёмов/ })).toHaveAttribute('href', '/medcard');
     expect(within(actions).queryByRole('link', { name: /Записаться/ })).not.toBeInTheDocument();
   });
 

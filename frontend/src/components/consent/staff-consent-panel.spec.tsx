@@ -20,7 +20,7 @@ describe('StaffConsentPanel', () => {
     mocked.fetchPatientConsent.mockResolvedValue(WITH_ACTIVE);
     renderWithClient(<StaffConsentPanel patientId="p1" role="DOCTOR" />);
 
-    const panel = await screen.findByRole('region', { name: 'Согласие на электронную медкарту' });
+    const panel = await screen.findByRole('region', { name: 'Согласие на внесение сведений в информационную систему клиники' });
     expect(await within(panel).findByText('Согласие действует')).toBeInTheDocument();
     expect(mocked.fetchPatientConsent).toHaveBeenCalledWith('p1', expect.anything());
     expect(within(panel).getByRole('button', { name: 'Скачать скан формы Ф-12' })).toBeInTheDocument();

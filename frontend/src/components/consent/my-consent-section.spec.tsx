@@ -25,7 +25,7 @@ describe('MyConsentSection', () => {
 
     expect(await screen.findByText('Согласие не оформлено')).toBeInTheDocument();
     expect(screen.getByText(/обратитесь в регистратуру с паспортом/)).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'Согласие на электронную медкарту' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Согласие на внесение сведений в информационную систему клиники' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Отозвать согласие' })).not.toBeInTheDocument();
   });
 
@@ -33,7 +33,7 @@ describe('MyConsentSection', () => {
     mocked.fetchMyConsent.mockResolvedValue(WITH_ACTIVE);
     renderWithClient(<MyConsentSection />);
 
-    expect(await screen.findByText('Согласие на ЭМК действует с 20.10.2026')).toBeInTheDocument();
+    expect(await screen.findByText('Согласие на ведение записей в ИС клиники действует с 20.10.2026')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Подробнее' })).toHaveAttribute('aria-expanded', 'false');
     expect(screen.queryByRole('button', { name: 'Отозвать согласие' })).not.toBeInTheDocument();
     expect(screen.queryByRole('list', { name: 'История' })).not.toBeInTheDocument();
@@ -44,7 +44,7 @@ describe('MyConsentSection', () => {
     mocked.fetchMyConsent.mockResolvedValue({ ...WITH_ACTIVE, active: { ...WITH_ACTIVE.active!, signedAt: '2026-10-22T09:00:00.000Z' } });
     renderWithClient(<MyConsentSection />);
 
-    expect(await screen.findByText('Согласие на ЭМК действует с 22.10.2026')).toBeInTheDocument();
+    expect(await screen.findByText('Согласие на ведение записей в ИС клиники действует с 22.10.2026')).toBeInTheDocument();
   });
 
   it('should show the law, the facts of the entry, the history and the revoke button once the details are opened', async () => {
@@ -74,7 +74,7 @@ describe('MyConsentSection', () => {
   });
 
   it.each([
-    ['revoked', REVOKED, 'Согласие отозвано', /Новые записи в карту не вносятся/],
+    ['revoked', REVOKED, 'Согласие отозвано', /Новые записи в систему не вносятся/],
     ['rejected', REJECTED, 'Оформлен письменный отказ', /Если вы передумали/],
   ])('should explain a %s consent and offer no revoke', async (_name, consent, headline, how) => {
     mocked.fetchMyConsent.mockResolvedValue(consent);
@@ -100,7 +100,7 @@ describe('MyConsentSection', () => {
     await userEvent.click(await screen.findByRole('button', { name: 'Отозвать согласие' }));
 
     const dialog = await screen.findByRole('dialog', { name: 'Отозвать согласие?' });
-    expect(dialog).toHaveTextContent('перестанут вносить новые записи');
+    expect(dialog).toHaveTextContent('вноситься не будут');
     expect(dialog).toHaveTextContent('Уже внесённые записи не удаляются');
     expect(dialog).toHaveTextContent('письменным заявлением в клинике');
     await userEvent.click(within(dialog).getByRole('button', { name: 'Оставить согласие' }));

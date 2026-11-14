@@ -62,10 +62,10 @@ async function runConsentsStep(options: CliOptions, now: Date): Promise<void> {
   const except = options.consentExcept === undefined ? DEFAULT_PATIENT_WITHOUT_CONSENT : options.consentExcept === 'none' ? undefined : options.consentExcept;
   const selection = selectConsentPatients(PATIENTS, accounts.map((account) => account.email), except);
   const baseUrl = resolveFhirBaseUrl();
-  console.log(`Seeding demo EMR consents into ${baseUrl}`);
+  console.log(`Seeding demo information system consents into ${baseUrl}`);
   const summary = await seedDemoConsents(new FhirHttp(baseUrl), { ...selection, now });
-  console.log(`EMR consent created: ${summary.created.join(', ') || 'none'}`);
-  console.log(`EMR consent already active (kept): ${summary.alreadyActive.join(', ') || 'none'}`);
+  console.log(`information system consent created: ${summary.created.join(', ') || 'none'}`);
+  console.log(`information system consent already active (kept): ${summary.alreadyActive.join(', ') || 'none'}`);
   console.log(`Left WITHOUT consent on purpose (the CONSENT_REQUIRED demo): ${summary.withoutConsent.join(', ') || 'nobody'}`);
   if (summary.missing.length > 0) {
     throw new Error(`No Patient on the server for: ${summary.missing.join(', ')} (register the accounts: --users)`);

@@ -100,7 +100,7 @@ describe('HistoryTimeline', () => {
     expect(screen.getByText(/После первого приёма здесь появятся диагнозы/)).toBeInTheDocument();
     expect(screen.getByTestId('empty-state-icon')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Записаться' })).toHaveAttribute('href', '/booking');
-    expect(screen.queryByRole('button', { name: 'Выписка из медкарты' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Выписка о приёмах' })).not.toBeInTheDocument();
   });
 
   it('should show a banner with the request id and retry when the service fails', async () => {
@@ -129,7 +129,7 @@ describe('HistoryTimeline', () => {
     historyMock.mockResolvedValue(pageOf([historyFixture()]));
     renderWithClient(<HistoryTimeline />);
 
-    await userEvent.click(await screen.findByRole('button', { name: 'Выписка из медкарты' }));
+    await userEvent.click(await screen.findByRole('button', { name: 'Выписка о приёмах' }));
 
     expect(print).toHaveBeenCalledTimes(1);
     print.mockRestore();

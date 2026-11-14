@@ -31,7 +31,7 @@ export interface BuildConsentParams {
   };
 }
 
-const SCAN_TITLE = 'Согласие на внесение сведений в электронную медкарту';
+const SCAN_TITLE = 'Согласие на внесение сведений в информационную систему клиники';
 const SIGNER_NOTE_TEXT = 'Подпись медицинского работника на бумажной форме';
 
 type Json = Readonly<Record<string, unknown>>;

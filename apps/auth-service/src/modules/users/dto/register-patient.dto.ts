@@ -91,7 +91,7 @@ export class RegisterPatientDto {
   @Matches(BELARUS_PHONE_PATTERN, { message: 'phone must be a Belarus number: +375 and nine digits' })
   phone?: string;
 
-  @ApiProperty({ type: () => AccountConsentDto, description: 'Consent to the processing of the account data (not the EMR consent)' })
+  @ApiProperty({ type: () => AccountConsentDto, description: 'Consent to the processing of the account data (not the consent to entering health information)' })
   @IsDefined()
   @ValidateNested()
   @Type(() => AccountConsentDto)

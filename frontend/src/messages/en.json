@@ -698,7 +698,7 @@
       "navLabel": "Patient",
       "appointments": "My appointments",
       "home": "Home",
-      "medcard": "Medical record",
+      "medcard": "Medical records",
       "book": "Book a visit"
     },
     "doctor": {
@@ -1185,7 +1185,7 @@
     "CONFLICT": "Conflicts with existing data",
     "SLOT_CONFLICT": "The slot is already taken",
     "APPOINTMENT_NOT_CANCELLABLE": "The appointment cannot be cancelled",
-    "CONSENT_REQUIRED": "No active consent to the electronic record: send the patient to the front desk or record the paper consent",
+    "CONSENT_REQUIRED": "No active consent to entering information into the clinic information system: send the patient to the front desk or record the paper consent",
     "CONSENT_ALREADY_ACTIVE": "The patient already has an active consent: record its revocation first",
     "ENCOUNTER_STATE_INVALID": "The encounter is already completed",
     "SCHEDULE_OVERLAP": "Schedule windows overlap",
@@ -1217,17 +1217,17 @@
     "title": "Lifeline — medical center",
     "eyebrow": "Multidisciplinary medical center",
     "heroTitle": "Consultation, diagnostics and follow-up in one center",
-    "lead": "Therapy, cardiology, neurology and surgery, with functional diagnostics on site. Visit results, diagnoses and prescriptions are kept in your electronic health record.",
+    "lead": "Therapy, cardiology, neurology and surgery, with functional diagnostics on site. Visit results, diagnoses and prescriptions are entered by the doctor and available to you in your personal cabinet.",
     "book": "Book an appointment",
     "findDoctor": "Find a doctor",
-    "recordTitle": "Electronic health record",
+    "recordTitle": "Visit history",
     "recordText": "Visit history, diagnoses and prescriptions in your personal account",
     "trustLabel": "Why patients trust us",
     "trustLicenseTitle": "Ministry of Health license",
     "trustLicense": "Special permit No. {number} of {date}",
     "trustDiagTitle": "Diagnostics on site",
     "trustDiag": "ECG with interpretation on the day of the visit",
-    "trustRecordTitle": "Health record online",
+    "trustRecordTitle": "Visit records online",
     "trustRecord": "ICD-10 diagnoses and prescriptions",
     "trustCorpTitle": "We work with companies",
     "trustCorp": "Contract-based care for employees",
@@ -1253,7 +1253,7 @@
       },
       "diagnostics": {
         "name": "Functional diagnostics",
-        "about": "Examinations whose results the doctor sees right in the health record."
+        "about": "Examinations whose results the doctor sees right in the visit record."
       }
     },
     "servicesTitle": "Services",
@@ -1367,7 +1367,7 @@
       "appointmentsHint": "Upcoming: {count}",
       "prescriptions": "Prescriptions",
       "prescriptionsHint": "Active: {count}",
-      "history": "Medical record",
+      "history": "Visit history",
       "historyHint": "Visits, diagnoses, extract"
     },
     "reco": {
@@ -1489,7 +1489,7 @@
   "patientHistory": {
     "title": "Visit history",
     "subtitle": "Completed visits, diagnoses and doctors' recommendations",
-    "print": "Medical record extract",
+    "print": "Visit extract",
     "summaryLabel": "Summary",
     "tileVisits": "completed visits",
     "tileLast": "last visit",
@@ -1703,7 +1703,7 @@
       "cancelled": "The appointment has been cancelled.",
       "cancelledByClinic": "The clinic cancelled your appointment. Choose another time under «Book a visit».",
       "noShow": "The visit is marked as missed: the doctor recorded a no-show.",
-      "encounterCompleted": "The visit is complete. The results are in your medical record.",
+      "encounterCompleted": "The visit is complete. The results are in the Visit history section.",
       "registered": "Your registration at the medical centre is complete."
     },
     "subtitleUnread": "Unread: {count}",
@@ -1718,7 +1718,7 @@
     "openHistory": "Open in history"
   },
   "consent": {
-    "title": "Consent to the electronic record",
+    "title": "Consent to entering information into the clinic information system",
     "status": {
       "active": "In force",
       "inactive": "Revoked",
@@ -1751,18 +1751,18 @@
       "loading": "Loading the consent details…"
     },
     "mine": {
-      "lead": "Lifeline keeps your electronic medical record only with your written consent (art. 44 of the Healthcare Law).",
-      "noneHow": "To give your consent, come to the front desk with your passport: the form is signed on paper and its scan is attached to your record. Until then a doctor cannot add entries to your record.",
-      "revokedHow": "No new entries are added to your record; existing ones are kept. To have a consent in force again, sign a new one at the front desk.",
+      "lead": "Lifeline enters information about your health into the clinic information system only with your written consent (art. 44 of the Healthcare Law).",
+      "noneHow": "To give your consent, come to the front desk with your passport: the form is signed on paper and its scan is attached to your profile. Until then a doctor cannot add entries to the clinic information system.",
+      "revokedHow": "No new entries are added to the clinic information system; existing ones are kept. To have a consent in force again, sign a new one at the front desk.",
       "rejectedHow": "Your written refusal is on file. If you change your mind, sign a consent at the front desk.",
       "revoke": "Revoke consent",
       "dialogTitle": "Revoke your consent?",
-      "dialogBody": "After the revocation no new entries are added to your medical record. Entries already made are not deleted. Confirm the revocation with a written application at the clinic.",
+      "dialogBody": "After the revocation no new entries about you are added to the clinic information system. Entries already made are not deleted. Confirm the revocation with a written application at the clinic.",
       "dialogConfirm": "Revoke consent",
       "dialogBusy": "Revoking…",
       "dialogKeep": "Keep consent",
       "revoked": "Consent revoked. Confirm it with a written application at the clinic.",
-      "summaryActive": "EHR consent in force since {date}",
+      "summaryActive": "Records consent in force since {date}",
       "details": "Details"
     },
     "staff": {
@@ -1790,12 +1790,12 @@
       "signedByName": "Name of the staff member who handled the form",
       "signedByDoctorHint": "Filled in from your account.",
       "file": "Scan of the signed form",
-      "submit": "Add to the record",
+      "submit": "Save consent",
       "submitting": "Adding…",
       "recorded": "The consent entry is recorded.",
       "alreadyActive": "The patient already has an active consent. Record its revocation from the written application first, then add the new form.",
       "revokeTitle": "Record a revocation",
-      "revokeLead": "The patient's written application to revoke the consent. New entries to the record stop, existing ones are not deleted.",
+      "revokeLead": "The patient's written application to revoke the consent. New entries to the clinic information system stop, existing ones are not deleted.",
       "applicationNumber": "Application number",
       "revokeSubmit": "Record revocation",
       "revoking": "Recording…",
@@ -1806,7 +1806,7 @@
       "revokeCancel": "Cancel"
     },
     "required": {
-      "title": "No consent to the electronic record",
+      "title": "No consent to entering information into the clinic information system",
       "openLead": "The encounter cannot be opened: the patient has no active consent.",
       "completeLead": "The encounter cannot be completed: the patient has no active consent.",
       "how": "Send the patient to the front desk to sign the consent, or record the paper consent on the patient's page.",
@@ -1822,25 +1822,25 @@
       "sending": "Sending…"
     },
     "banner": {
-      "noneTitle": "No active consent to the electronic record",
-      "revokedTitle": "Consent to the electronic record is revoked",
-      "rejectedTitle": "The patient refused the electronic record in writing",
+      "noneTitle": "No active consent to entering information into the clinic information system",
+      "revokedTitle": "Consent to entering information into the clinic information system is revoked",
+      "rejectedTitle": "The patient refused entering information into the clinic information system in writing",
       "text": "An encounter can be opened only after the consent is signed, or as emergency care with a stated reason.",
       "record": "Record the consent"
     },
     "admin": {
-      "title": "Consent to the electronic record",
+      "title": "Consent to entering information into the clinic information system",
       "back": "Back to users",
-      "open": "EMR consent",
-      "openFor": "Consent to the electronic record: {name}",
+      "open": "Records consent",
+      "openFor": "Consent to keeping records in the clinic system: {name}",
       "notFound": "Patient not found",
       "nameUnknown": "The patient's name is not known on this page. Open the consent from the user list to see whose it is."
     },
     "line": {
-      "active": "EHR consent · in force since {date}",
-      "none": "No EHR consent",
-      "revoked": "EHR consent revoked",
-      "rejected": "Written refusal of the EHR",
+      "active": "Records consent · in force since {date}",
+      "none": "No records consent",
+      "revoked": "Records consent revoked",
+      "rejected": "Written refusal of records",
       "manage": "Manage consent"
     }
   },
@@ -1876,9 +1876,9 @@
     }
   },
   "medcard": {
-    "title": "Medical record",
+    "title": "Medical records",
     "subtitle": "Visits, diagnoses and prescriptions in one place",
-    "tabsLabel": "Medical record sections",
+    "tabsLabel": "Records sections",
     "tabHistory": "Visit history",
     "tabPrescriptions": "Prescriptions"
   },

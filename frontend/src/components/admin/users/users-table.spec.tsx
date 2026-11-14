@@ -49,7 +49,7 @@ describe('UsersTable', () => {
     render(<UsersTable rows={rows} meta={meta} onPage={jest.fn()} practitionerRoles={new Map([['6ef5270b-6282-5a43-87f9-26d2d8b0c4f7', 'Терапевт']])} />);
 
     expect(screen.getAllByText('Врач · Терапевт').length).toBeGreaterThan(0);
-    expect(screen.getAllByText('Медкарта пациента').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Медицинские записи пациента').length).toBeGreaterThan(0);
     expect(screen.queryByText(/PractitionerRole\//)).not.toBeInTheDocument();
     expect(screen.queryByText(/Patient\/1417/)).not.toBeInTheDocument();
   });
@@ -98,7 +98,7 @@ describe('UsersTable', () => {
 
       await userEvent.click(screen.getAllByRole('button', { name: 'Действия: Кузнецов Алексей' })[0]!);
 
-      const link = screen.getByRole('menuitem', { name: 'Согласие на ЭМК' });
+      const link = screen.getByRole('menuitem', { name: 'Согласие на ведение записей в ИС клиники' });
       expect(link).toHaveAttribute('href', '/admin/patients/p-77/consent');
     });
 

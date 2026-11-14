@@ -39,14 +39,14 @@ describe('PatientShell', () => {
     expect(screen.getByRole('main')).toHaveAttribute('id', 'main-content');
   });
 
-  it('should list three sections: the home, the appointments and the medical record', () => {
+  it('should list three sections: the home, the appointments and the visit history', () => {
     renderPatient();
 
     const nav = screen.getByRole('navigation', { name: 'Пациент' });
     expect(within(nav).getAllByRole('link').map((link) => [link.textContent, link.getAttribute('href')])).toEqual([
       ['Главная', '/home'],
       ['Мои записи', '/appointments'],
-      ['Медкарта', '/medcard'],
+      ['Медицинские записи', '/medcard'],
     ]);
   });
 
@@ -95,7 +95,7 @@ describe('PatientShell', () => {
     const stopNavigation = (event: Event): void => event.preventDefault();
     document.addEventListener('click', stopNavigation);
 
-    await userEvent.click(within(screen.getByRole('dialog')).getByRole('link', { name: 'Медкарта' }));
+    await userEvent.click(within(screen.getByRole('dialog')).getByRole('link', { name: 'Медицинские записи' }));
     document.removeEventListener('click', stopNavigation);
 
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();

@@ -18,13 +18,13 @@ describe('ConsentStatusLine', () => {
     mocked.fetchPatientConsent.mockResolvedValue(WITH_ACTIVE);
     renderWithClient(<ConsentStatusLine patientId="p1" />);
 
-    expect(await screen.findByTestId('consent-line-active')).toHaveTextContent('Согласие на ЭМК · действует с 20.10.2026');
+    expect(await screen.findByTestId('consent-line-active')).toHaveTextContent('Согласие на ведение записей в ИС клиники · действует с 20.10.2026');
   });
 
   it.each([
-    ['none', NONE, 'Нет согласия на ЭМК'],
-    ['revoked', REVOKED, 'Согласие на ЭМК отозвано'],
-    ['rejected', REJECTED, 'Письменный отказ от ЭМК'],
+    ['none', NONE, 'Нет согласия на ведение записей в ИС клиники'],
+    ['revoked', REVOKED, 'Согласие на ведение записей в ИС клиники отозвано'],
+    ['rejected', REJECTED, 'Письменный отказ от ведения записей в ИС клиники'],
   ])('should say so in words when the consent is %s', async (state, consent, text) => {
     mocked.fetchPatientConsent.mockResolvedValue(consent);
     renderWithClient(<ConsentStatusLine patientId="p1" />);

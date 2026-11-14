@@ -34,6 +34,6 @@ export async function checkConsent(
   if (mode === 'block') {
     await assertActiveConsent(fhir, patientId);
   }
-  logger.warn({ patientId }, 'patient has no active consent to the electronic medical record (CONSENT_ENFORCEMENT=warn)');
+  logger.warn({ patientId }, 'patient has no active consent to the clinic information system (CONSENT_ENFORCEMENT=warn)');
   return { bypass: false };
 }

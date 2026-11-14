@@ -15,9 +15,9 @@ describe('PatientConsentBanner', () => {
   });
 
   it.each([
-    ['none', NONE, 'Нет действующего согласия на электронную медкарту'],
-    ['revoked', REVOKED, 'Согласие на электронную медкарту отозвано'],
-    ['rejected', REJECTED, 'Пациент письменно отказался от электронной медкарты'],
+    ['none', NONE, 'Нет действующего согласия на внесение сведений в информационную систему клиники'],
+    ['revoked', REVOKED, 'Согласие на внесение сведений в информационную систему клиники отозвано'],
+    ['rejected', REJECTED, 'Пациент письменно отказался от внесения сведений в информационную систему клиники'],
   ])('should warn the doctor up front when the consent is %s, with one button that opens the way to record it', async (_name, consent, title) => {
     mocked.fetchPatientConsent.mockResolvedValue(consent);
     const onRecord = jest.fn();

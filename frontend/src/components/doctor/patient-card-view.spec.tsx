@@ -139,7 +139,7 @@ describe('PatientCardView header lines (A1, A15)', () => {
 
     const header = within(await screen.findByRole('region', { name: 'Кузнецов Алексей Иванович' }));
 
-    expect(await header.findByTestId('consent-line-active')).toHaveTextContent('Согласие на ЭМК · действует с 20.10.2026');
+    expect(await header.findByTestId('consent-line-active')).toHaveTextContent('Согласие на ведение записей в ИС клиники · действует с 20.10.2026');
   });
 });
 
@@ -382,8 +382,8 @@ describe('PatientCardView consent (ADR-019, A1)', () => {
   it('should warn up front, before any encounter is tried, when the patient has no active consent, with one button to record it', async () => {
     setup([{ path: '/api/v1/patients/p1/consent', respond: () => ({ active: null, history: [] }) }]);
 
-    expect(await screen.findByTestId('consent-banner')).toHaveTextContent('Нет действующего согласия на электронную медкарту');
-    expect(screen.getByTestId('consent-line-none')).toHaveTextContent('Нет согласия на ЭМК');
+    expect(await screen.findByTestId('consent-banner')).toHaveTextContent('Нет действующего согласия на внесение сведений в информационную систему клиники');
+    expect(screen.getByTestId('consent-line-none')).toHaveTextContent('Нет согласия на ведение записей в ИС клиники');
 
     await userEvent.click(screen.getByRole('button', { name: 'Внести согласие' }));
 

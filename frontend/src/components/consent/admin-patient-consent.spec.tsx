@@ -24,9 +24,9 @@ describe('AdminPatientConsent', () => {
     jest.mocked(api.fetchPatientConsent).mockResolvedValue(NONE);
     renderWithClient(<AdminPatientConsent patientId="p-77" />);
 
-    expect(screen.getByRole('heading', { level: 1, name: 'Согласие на электронную медкарту' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 1, name: 'Согласие на внесение сведений в информационную систему клиники' })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'К пользователям' })).toHaveAttribute('href', '/admin/users');
-    const panel = await screen.findByRole('region', { name: 'Согласие на электронную медкарту' });
+    const panel = await screen.findByRole('region', { name: 'Согласие на внесение сведений в информационную систему клиники' });
     expect(await within(panel).findByText('Согласие не оформлено')).toBeInTheDocument();
     expect(within(panel).getByLabelText(/ФИО медработника/)).toBeInTheDocument();
     expect(screen.getByText(/медицинских данных пациента этот раздел не показывает/)).toBeInTheDocument();
@@ -36,7 +36,7 @@ describe('AdminPatientConsent', () => {
     rememberPatientNames([{ patientId: 'p-77', name: 'Иванова Мария' }]);
     const { unmount } = renderWithClient(<AdminPatientConsent patientId="p-77" />);
 
-    expect(await screen.findByText('Согласие на электронную медкарту: Иванова Мария')).toBeInTheDocument();
+    expect(await screen.findByText('Согласие на ведение записей в ИС клиники: Иванова Мария')).toBeInTheDocument();
     unmount();
     renderWithClient(<AdminPatientConsent patientId="p-99" />);
 

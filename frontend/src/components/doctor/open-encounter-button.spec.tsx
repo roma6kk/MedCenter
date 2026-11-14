@@ -233,7 +233,7 @@ describe('OpenEncounterButton', () => {
 
       await click();
 
-      const dialog = await screen.findByRole('dialog', { name: 'Нет согласия на электронную медкарту' });
+      const dialog = await screen.findByRole('dialog', { name: 'Нет согласия на внесение сведений в информационную систему клиники' });
       expect(dialog).toHaveTextContent('Приём нельзя открыть');
       expect(screen.getByRole('link', { name: 'Внести согласие в карточке пациента' })).toHaveAttribute('href', '/patients/p1#consent');
       expect(push).not.toHaveBeenCalled();

@@ -156,13 +156,13 @@ describe('EncounterView patient context (A3)', () => {
 
     expect(await bar.findByRole('link', { name: 'Кузнецов Алексей Иванович' })).toHaveAttribute('href', '/patients/p1');
     expect(bar.getByText(/48 лет · Мужской/)).toBeInTheDocument();
-    expect(await bar.findByTestId('consent-line-active')).toHaveTextContent('Согласие на ЭМК · действует с 20.10.2026');
+    expect(await bar.findByTestId('consent-line-active')).toHaveTextContent('Согласие на ведение записей в ИС клиники · действует с 20.10.2026');
   });
 
   it('should warn in the bar when the patient has no consent', async () => {
     setup([encounterRoute(() => encounter()), { path: '/api/v1/patients/p1/consent', respond: () => ({ active: null, history: [] }) }]);
 
-    expect(await screen.findByTestId('consent-line-none')).toHaveTextContent('Нет согласия на ЭМК');
+    expect(await screen.findByTestId('consent-line-none')).toHaveTextContent('Нет согласия на ведение записей в ИС клиники');
   });
 
   it('should show the same summary as the patient card beside the form: diagnoses, prescriptions and vitals', async () => {

@@ -55,7 +55,7 @@ export async function assertActiveConsent(
     throw new ConflictException({
       errorCode: 'CONSENT_REQUIRED',
       message:
-        'CONSENT_REQUIRED: the patient has no active consent to the electronic medical record',
+        'CONSENT_REQUIRED: the patient has no active consent to the clinic information system',
     });
   }
   return consent;
