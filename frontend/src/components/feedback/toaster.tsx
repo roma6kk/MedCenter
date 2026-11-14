@@ -69,7 +69,9 @@ export function Toaster(): ReactNode {
   const toasts = useToastStore((state) => state.toasts);
 
   useEffect(() => {
-    if (consumeFlash() === 'session-ended') showToast('info', 'session.ended');
+    const flash = consumeFlash();
+    if (flash === 'session-ended') showToast('info', 'session.ended');
+    if (flash === 'session-idle') showToast('info', 'session.idle');
   }, []);
 
   const polite: ReadonlyArray<Toast> = toasts.filter((toast) => toast.tone !== 'error');

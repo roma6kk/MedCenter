@@ -1,6 +1,7 @@
-import { currentReturnTo, endRevokedSession, endSession, ensureSession, loadSession, logout, redirectToLogin, refreshSession } from './session-client';
+import { currentReturnTo, endIdleSession, endRevokedSession, endSession, ensureSession, loadSession, logout, redirectToLogin, refreshSession } from './session-client';
 import { getAccessToken, clearAccessToken, setAccessToken } from './access-token';
 import { readDraft, writeDraft } from '@/lib/encounter-draft';
+import { consumeFlash } from '@/lib/ui/flash-message';
 import { useBookingDraftStore } from '@/store/use-booking-draft-store';
 import { useSessionStore } from '@/store/use-session-store';
 
@@ -337,6 +338,18 @@ describe('endSession and logout', () => {
     await endRevokedSession();
 
     expect(assignSpy).toHaveBeenLastCalledWith('/login?returnTo=%2Fdoctor%2Fappointments%3Fdate%3D2026-10-05&reason=session-ended');
+  });
+
+  it('should end an idle session with the idle reason, a flash and no drafts left behind', async () => {
+    Object.defineProperty(window, 'location', { value: { pathname: '/doctor/appointments', search: '', assign: assignSpy }, writable: true });
+    useBookingDraftStore.getState().updateDraft({ doctorId: 'doc-1', step: 3 });
+    jest.spyOn(global, 'fetch').mockResolvedValueOnce(jsonResponse({ loggedOut: true }, 200));
+
+    await endIdleSession();
+
+    expect(assignSpy).toHaveBeenLastCalledWith('/login?returnTo=%2Fdoctor%2Fappointments&reason=session-idle');
+    expect(consumeFlash()).toBe('session-idle');
+    expect(useBookingDraftStore.getState().doctorId).not.toBe('doc-1');
   });
 
   it('should keep the booking draft when the session was revoked, so the visitor returns to it after signing in', async () => {

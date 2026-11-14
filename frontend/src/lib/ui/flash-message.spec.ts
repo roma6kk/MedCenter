@@ -12,6 +12,12 @@ describe('flash-message', () => {
     expect(consumeFlash()).toBeNull();
   });
 
+  it('should hand the idle-timeout message over as well', () => {
+    setFlash('session-idle');
+
+    expect(consumeFlash()).toBe('session-idle');
+  });
+
   it('should ignore a stored value that is not a known flash', () => {
     window.sessionStorage.setItem('mc-flash', '<script>');
 

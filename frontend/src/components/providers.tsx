@@ -5,6 +5,7 @@ import { useContext, useEffect, useRef, useState } from 'react';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { NextIntlClientProvider } from 'next-intl';
 import { AppRouterContext } from 'next/dist/shared/lib/app-router-context.shared-runtime';
+import { IdleSessionWatcher } from '@/components/auth/idle-session-watcher';
 import { Toaster } from '@/components/feedback/toaster';
 import { ThemeSync } from '@/components/layout/theme-sync';
 import { createAppQueryClient } from '@/lib/api/query-client';
@@ -59,6 +60,7 @@ export function Providers({ children }: { readonly children: ReactNode }): React
     <NextIntlClientProvider locale={locale} messages={MESSAGES[locale]} timeZone={CLINIC_TIME_ZONE}>
       <QueryClientProvider client={client}>
         <SessionHydrator />
+        <IdleSessionWatcher />
         <LocaleSync />
         <LocaleDataSync />
         <ThemeSync />

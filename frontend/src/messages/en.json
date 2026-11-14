@@ -766,7 +766,8 @@
     "active": "Active"
   },
   "session": {
-    "ended": "Your session has ended, please sign in again"
+    "ended": "Your session has ended, please sign in again",
+    "idle": "Your session ended due to inactivity"
   },
   "doctor": {
     "journal": {

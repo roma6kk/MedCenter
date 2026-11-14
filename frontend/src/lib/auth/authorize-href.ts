@@ -6,6 +6,9 @@ export function authorizeHref(returnTo: string): string {
 
 export const SESSION_ENDED_REASON = 'session-ended';
 
+export const SESSION_IDLE_REASON = 'session-idle';
+
 export function isSessionEnded(raw: string | ReadonlyArray<string> | undefined): boolean {
-  return (typeof raw === 'string' ? raw : (raw?.[0] ?? '')).trim().toLowerCase() === SESSION_ENDED_REASON;
+  const reason = (typeof raw === 'string' ? raw : (raw?.[0] ?? '')).trim().toLowerCase();
+  return reason === SESSION_ENDED_REASON || reason === SESSION_IDLE_REASON;
 }

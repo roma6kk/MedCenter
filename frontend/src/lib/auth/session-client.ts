@@ -1,6 +1,6 @@
 // Refresh tokens are single-use: every exchange in this tab goes through ONE in-flight request.
 import { clearAllDrafts } from '@/lib/encounter-draft';
-import { SESSION_ENDED_REASON } from './authorize-href';
+import { SESSION_ENDED_REASON, SESSION_IDLE_REASON } from './authorize-href';
 import { setAccessToken, clearAccessToken, getAccessToken } from './access-token';
 import { parseUserRole } from './user-role';
 import { setFlash } from '@/lib/ui/flash-message';
@@ -117,6 +117,16 @@ export async function endRevokedSession(): Promise<void> {
   await endSession();
   setFlash('session-ended');
   window.location.assign(`/login?returnTo=${encodeURIComponent(currentReturnTo())}&reason=${SESSION_ENDED_REASON}`);
+}
+
+// Same clean-up as a manual logout: an unattended screen must not leave booking or clinical drafts behind.
+export async function endIdleSession(): Promise<void> {
+  const returnTo = currentReturnTo();
+  await endSession();
+  useBookingDraftStore.getState().clearDraft();
+  clearAllDrafts();
+  setFlash('session-idle');
+  window.location.assign(`/login?returnTo=${encodeURIComponent(returnTo)}&reason=${SESSION_IDLE_REASON}`);
 }
 
 export function redirectToLogin(): void {

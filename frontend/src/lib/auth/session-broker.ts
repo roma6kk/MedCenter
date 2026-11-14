@@ -129,6 +129,26 @@ export async function revokeRefreshToken(refreshToken: string, accessToken: stri
   }
 }
 
+export type ActivityResult = 'recorded' | 'idle' | 'unauthorized' | 'unavailable';
+
+export async function recordSessionActivity(accessToken: string, env: EnvSource = process.env): Promise<ActivityResult> {
+  try {
+    const response: Response = await fetch(`${resolveAuthBackendUrl(env)}/oauth/token/activity`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${accessToken}` },
+      cache: 'no-store',
+      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+    });
+    if (response.status === 401) return 'unauthorized';
+    if (!response.ok) return 'unavailable';
+    const body = (await response.json().catch(() => null)) as { readonly recorded?: unknown } | null;
+    return body?.recorded === false ? 'idle' : 'recorded';
+  } catch (error: unknown) {
+    console.error('[auth-broker] activity ping failed: auth-service unreachable', error);
+    return 'unavailable';
+  }
+}
+
 export function resetRotationGraceForTests(): void {
   recentRotations.clear();
 }
