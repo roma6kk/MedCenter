@@ -34,11 +34,11 @@ export function selectDoctorSlot(doctorId: string, slot: Pick<Slot, 'id' | 'star
 }
 
 export function draftFromSlot(doctorId: string, slot: Pick<Slot, 'id' | 'start' | 'end'>, serviceId: string | null = null): Partial<BookingDraft> {
-  return { serviceId, doctorId, reason: '', ...selectSlot(slot) };
+  return { serviceId, doctorId, ...selectSlot(slot) };
 }
 
 export function draftForDoctor(doctorId: string): Partial<BookingDraft> {
-  return { serviceId: null, doctorId, ...NO_SLOT, reason: '', step: 3 };
+  return { serviceId: null, doctorId, ...NO_SLOT, step: 3 };
 }
 
 function isPast(iso: string | null, now: number): boolean {

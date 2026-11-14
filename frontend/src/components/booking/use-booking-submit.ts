@@ -13,7 +13,6 @@ import {
   bookAppointment,
   buildBookingRequest,
   classifyBookingFailure,
-  serverReasonMessage,
   type AppointmentCreated,
   type BookingFailure,
 } from './book-appointment';
@@ -25,11 +24,9 @@ interface Outcome {
   readonly notice: BookingNotice | null;
   readonly takenSlot: Slot | null;
   readonly problem: ProblemDetails | null;
-  readonly reasonError: string | null;
-  readonly consentRefused: boolean;
 }
 
-const NO_OUTCOME: Outcome = { notice: null, takenSlot: null, problem: null, reasonError: null, consentRefused: false };
+const NO_OUTCOME: Outcome = { notice: null, takenSlot: null, problem: null };
 
 export interface BookedVisit extends AppointmentCreated {
   readonly doctorId: string | null;
@@ -57,12 +54,6 @@ function outcomeFor(failure: BookingFailure, problem: ProblemDetails, taken: Slo
       return { ...NO_OUTCOME, notice: 'gone', takenSlot: taken };
     case 'mismatch':
       return { ...NO_OUTCOME, notice: 'mismatch' };
-    case 'consent':
-      return { ...NO_OUTCOME, consentRefused: true };
-    case 'reason': {
-      const reasonError: string | null = serverReasonMessage(problem);
-      return reasonError === null ? { ...NO_OUTCOME, problem } : { ...NO_OUTCOME, reasonError };
-    }
     default:
       return { ...NO_OUTCOME, problem };
   }
@@ -93,7 +84,7 @@ export function useBookingSubmit(): BookingSubmit {
   const [outcome, setOutcome] = useState<Outcome>(NO_OUTCOME);
   const mutation = useMutation({
     mutationFn: sendDraft,
-    onMutate: () => setOutcome((last) => ({ ...NO_OUTCOME, consentRefused: last.consentRefused })),
+    onMutate: () => setOutcome(NO_OUTCOME),
     onSuccess: () => {
       useBookingDraftStore.getState().clearDraft();
       void invalidateFor(client, 'booking');

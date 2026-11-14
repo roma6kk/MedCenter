@@ -53,7 +53,7 @@ function StepView({ draft, booking, update, goTo }: StepViewProps): ReactNode {
       />
     );
   }
-  return <ConfirmStep draft={draft} booking={booking} onReasonChange={(reason) => update({ reason })} onEdit={goTo} />;
+  return <ConfirmStep draft={draft} booking={booking} onEdit={goTo} />;
 }
 
 interface BookingWizardProps {

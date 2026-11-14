@@ -309,12 +309,12 @@ describe('endSession and logout', () => {
   });
 
   it('should forget the booking draft when the user signs out', async () => {
-    useBookingDraftStore.getState().updateDraft({ doctorId: 'doc-1', reason: 'Болит спина', step: 4 });
+    useBookingDraftStore.getState().updateDraft({ doctorId: 'doc-1', serviceId: 'svc-1', step: 4 });
     jest.spyOn(global, 'fetch').mockResolvedValueOnce(jsonResponse({ loggedOut: true }, 200));
 
     await logout();
 
-    expect(useBookingDraftStore.getState().reason).toBe('');
+    expect(useBookingDraftStore.getState().serviceId).toBeNull();
     expect(useBookingDraftStore.getState().doctorId).toBeNull();
   });
 

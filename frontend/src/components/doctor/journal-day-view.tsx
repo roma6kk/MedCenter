@@ -75,7 +75,6 @@ function VisitCard({ visit }: { readonly visit: JournalAppointment }): ReactNode
         <span className="flex min-w-0 flex-1 basis-48 flex-col">
           <span className="font-semibold [overflow-wrap:anywhere]"><PatientLink visit={visit} /></span>
           {visit.serviceName ? <span className="text-sm text-muted-foreground">{visit.serviceName}</span> : null}
-          {visit.reason ? <span className="text-sm text-muted-foreground">{visit.reason}</span> : null}
         </span>
         <span className="inline-flex flex-wrap items-center gap-2">
           <OpenEncounterButton appointmentId={visit.id} patientId={visit.patientId} start={visit.start} label={`${name}, ${formatClinicTime(visit.start)}`} />
@@ -173,7 +172,6 @@ function NextPatientPanel({ visit }: { readonly visit: JournalAppointment }): Re
       <dl className="grid grid-cols-2 gap-3">
         {visit.serviceName ? <DetailCell term={t('columns.service')}>{visit.serviceName}</DetailCell> : null}
         <DetailCell term={t('duration')}><span className="tabular-nums font-medium">{t('minutes', { count: visitMinutes(visit) })}</span></DetailCell>
-        {visit.reason ? <DetailCell term={t('columns.reason')} wide>{visit.reason}</DetailCell> : null}
       </dl>
       <OpenEncounterButton appointmentId={visit.id} patientId={visit.patientId} start={visit.start} label={label} size="lg" fullWidth />
       <div className="flex items-center gap-2.5">

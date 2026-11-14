@@ -605,10 +605,6 @@
     "summaryTime": "Time",
     "summaryDuration": "Duration",
     "serviceBySchedule": "set by the schedule of the chosen time",
-    "reasonLabel": "Reason for the visit (optional)",
-    "reasonHint": "3 to 500 characters",
-    "reasonTooShort": "The reason must be at least 3 characters",
-    "reasonTooLong": "The reason must be at most 500 characters",
     "submitting": "Booking…",
     "conflictLead": "That time has just been taken. Pick another — the rest of the booking is kept.",
     "gone": "The chosen time is already taken. Pick another.",
@@ -639,7 +635,6 @@
     "slotsFound": "Available times: {count}",
     "retryIn": "Try again in {seconds} s",
     "nextPeriodLimit": "This is the last available period: you can search up to a year ahead.",
-    "reasonNoConsent": "Free text about your health can be added only after the consent to the electronic record is signed. Ask the front desk: the visit can be booked without a reason.",
     "part": {
       "morning": "Morning",
       "day": "Afternoon",
@@ -832,7 +827,6 @@
         "time": "Time",
         "patient": "Patient",
         "service": "Service",
-        "reason": "Reason for visit",
         "status": "Status",
         "actions": "Actions"
       },
@@ -1537,7 +1531,6 @@
     "fieldService": "Service",
     "fieldTime": "Time",
     "fieldStatus": "Status",
-    "fieldReason": "Reason for the visit",
     "fieldCancelReason": "Cancellation reason",
     "fieldCreated": "Created",
     "open": "Details",
@@ -1549,13 +1542,10 @@
     "serviceUnknown": "Service not specified",
     "cancel": "Cancel appointment",
     "cancelFor": "Cancel appointment: {when}, {doctor}",
-    "cancelLead": "Give the reason for cancelling. The time becomes available to other patients.",
-    "reasonRequired": "Enter the reason for cancelling",
-    "reasonTooShort": "The reason must be at least 3 characters long",
-    "reasonTooLong": "The reason must not exceed 500 characters",
+    "cancelLead": "Choose the reason for cancelling. The time becomes available to other patients.",
+    "reasonRequired": "Choose the reason for cancelling",
     "cancelTitle": "Cancel the appointment",
     "cancelReasonLabel": "Cancellation reason",
-    "cancelReasonHint": "3 to 500 characters",
     "cancelSubmit": "Confirm cancellation",
     "cancelBusy": "Cancelling…",
     "cancelKeep": "Keep the appointment",
@@ -1565,7 +1555,13 @@
     "cancelShort": "Cancel",
     "minutes": "{minutes} min",
     "detailHeading": "Appointment on {when}",
-    "moreVisits": "More appointments: {count}"
+    "moreVisits": "More appointments: {count}",
+    "cancelReasons": {
+      "plans-changed": "My plans changed",
+      "inconvenient-time": "The time is inconvenient",
+      "other-doctor": "I will choose another doctor",
+      "other": "Other"
+    }
   },
   "patientPrescriptions": {
     "subtitle": "Medications and referrals your doctor recorded at your visits",

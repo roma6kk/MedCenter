@@ -6,6 +6,7 @@ import type { PaginatedResponse } from '@/lib/api/pagination';
 import { STALE_TIME_MS } from '@/lib/api/query-config';
 import { queryKeys } from '@/lib/api/query-keys';
 import { showToast } from '@/lib/ui/toast';
+import type { CancelReasonCode } from '@/lib/contracts';
 import { cancelAppointment, fetchAppointment, fetchAppointments, type AppointmentListParams } from './appointment-api';
 import type { AppointmentTab, AppointmentView } from './appointment-types';
 
@@ -33,7 +34,7 @@ export function useAppointment(appointmentId: string): UseQueryResult<Appointmen
 
 interface CancelInput {
   readonly appointmentId: string;
-  readonly reason: string;
+  readonly reason: CancelReasonCode;
 }
 
 // The success is announced here, not by the caller: a caller that navigated away would never tell the user.

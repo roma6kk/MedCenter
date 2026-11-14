@@ -1,4 +1,5 @@
 import { apiFetch } from '@/lib/api/api-fetch';
+import type { CancelReasonCode } from '@/lib/contracts';
 import type { PaginatedResponse } from '@/lib/api/pagination';
 import { withQuery } from '@/lib/api/query-string';
 import type { AppointmentTab, AppointmentView } from './appointment-types';
@@ -24,6 +25,6 @@ export function fetchAppointment(appointmentId: string): Promise<AppointmentView
   return apiFetch<AppointmentView>(`${BASE_PATH}/${encodeURIComponent(appointmentId)}`);
 }
 
-export function cancelAppointment(appointmentId: string, reason: string): Promise<unknown> {
+export function cancelAppointment(appointmentId: string, reason: CancelReasonCode): Promise<unknown> {
   return apiFetch<unknown>(`${BASE_PATH}/${encodeURIComponent(appointmentId)}/cancel`, { method: 'POST', body: JSON.stringify({ reason }) });
 }

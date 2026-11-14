@@ -67,12 +67,12 @@ jest.setTimeout(30_000);
     expect(within(row as HTMLElement).getByText('Консультация терапевта')).toBeInTheDocument();
   });
 
-  it('should show the reason of the next patient in the side panel and leave out what the API does not have', async () => {
+  it('should show the next patient in the side panel and leave out what the API does not have', async () => {
     setup();
 
     const panel = within(await screen.findByRole('region', { name: 'Кузнецов Алексей' }));
 
-    expect(panel.getByText('Боль в горле')).toBeInTheDocument();
+    expect(panel.queryByText('Боль в горле')).toBeNull();
     expect(panel.getByText('30 мин')).toBeInTheDocument();
     expect(panel.queryByText(/Прошлые визиты|Последний диагноз/)).toBeNull();
   });

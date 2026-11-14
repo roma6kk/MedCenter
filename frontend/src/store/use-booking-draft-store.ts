@@ -9,7 +9,6 @@ export interface BookingDraft {
   readonly slotId: string | null;
   readonly slotStart: string | null;
   readonly slotEnd: string | null;
-  readonly reason: string;
   readonly step: BookingStep;
   readonly idempotencyKey: string | null;
 }
@@ -27,14 +26,13 @@ const INITIAL: BookingDraft = {
   slotId: null,
   slotStart: null,
   slotEnd: null,
-  reason: '',
   step: 1,
   idempotencyKey: null,
 };
 
 export const BOOKING_DRAFT_KEY = 'booking-draft';
 
-const INTENT_FIELDS: ReadonlyArray<keyof BookingDraft> = ['serviceId', 'slotId', 'reason'];
+const INTENT_FIELDS: ReadonlyArray<keyof BookingDraft> = ['serviceId', 'slotId'];
 
 function changesIntent(state: BookingDraft, patch: Partial<BookingDraft>): boolean {
   return INTENT_FIELDS.some((field) => field in patch && patch[field] !== state[field]);
@@ -84,7 +82,6 @@ export const useBookingDraftStore = create<BookingDraftStore>()(
         slotId: state.slotId,
         slotStart: state.slotStart,
         slotEnd: state.slotEnd,
-        reason: state.reason,
         step: state.step,
         idempotencyKey: state.idempotencyKey,
       }),

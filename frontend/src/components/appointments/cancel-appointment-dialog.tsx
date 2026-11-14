@@ -5,8 +5,8 @@ import type { ReactNode } from 'react';
 import { Button } from '@/components/ui/button';
 import { Dialog } from '@/components/ui/dialog';
 import { buttonVariants } from '@/components/ui/button-variants';
-import { FormField, INPUT_CLASS } from '@/components/patient/form-field';
 import { ProblemBanner } from '@/components/feedback/problem-banner';
+import { CANCEL_REASON_CODES } from '@/lib/contracts';
 import { useClinicFormat } from '@/hooks/use-clinic-format';
 import { useT } from '@/lib/i18n/use-t';
 import { useCloseUnlessPending } from '@/components/patient/use-close-unless-pending';
@@ -45,9 +45,16 @@ function ReasonForm({ form, formId }: { readonly form: CancelFormState; readonly
   const error: string | undefined = useReasonError(form);
   return (
     <form id={formId} onSubmit={(event) => { event.preventDefault(); form.submit(); }} noValidate className="mt-3">
-      <FormField id="cancel-reason" label={t('cancelReasonLabel')} hint={t('cancelReasonHint')} error={error}>
-        {(control) => <textarea rows={4} {...control} {...form.register('reason')} className={INPUT_CLASS} />}
-      </FormField>
+      <fieldset aria-describedby={error === undefined ? undefined : 'cancel-reason-error'} className="grid gap-2">
+        <legend className="form-label mb-1">{t('cancelReasonLabel')}</legend>
+        {CANCEL_REASON_CODES.map((code) => (
+          <label key={code} className="flex min-h-11 cursor-pointer items-center gap-3 text-sm">
+            <input type="radio" value={code} {...form.register('reason')} className="size-4 accent-primary" />
+            {t(`cancelReasons.${code}`)}
+          </label>
+        ))}
+        {error === undefined ? null : <p id="cancel-reason-error" role="alert" className="text-sm text-destructive">{error}</p>}
+      </fieldset>
       {form.problem !== null ? <div className="mt-3"><ProblemBanner problem={form.problem} /></div> : null}
     </form>
   );

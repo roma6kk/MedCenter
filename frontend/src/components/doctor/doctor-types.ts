@@ -12,7 +12,6 @@ export interface JournalAppointment {
   readonly doctorId: string;
   readonly practitionerRoleId: string;
   readonly serviceId: string;
-  readonly reason?: string;
   readonly cancelReason?: string;
   readonly createdAt: string;
   readonly doctorName?: string;

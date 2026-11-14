@@ -18,7 +18,7 @@ export interface CancelFormState {
 }
 
 export function useCancelForm(appointmentId: string, onCancelled: () => void): CancelFormState {
-  const form = useForm<CancelReasonForm>({ resolver: zodResolver(cancelReasonSchema), defaultValues: { reason: '' } });
+  const form = useForm<CancelReasonForm>({ resolver: zodResolver(cancelReasonSchema), defaultValues: {} });
   const cancel = useCancelAppointment();
   const failure: ProblemDetails | null = isApiError(cancel.error) ? cancel.error.problem : null;
   const submit = form.handleSubmit(({ reason }) => {

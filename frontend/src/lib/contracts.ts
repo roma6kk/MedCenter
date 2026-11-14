@@ -2,8 +2,6 @@ import { z } from 'zod';
 
 export const EMAIL_MAX = 255;
 export const NAME_MAX = 100;
-export const REASON_MIN = 3;
-export const REASON_MAX = 500;
 
 const ACCOUNT_CONSENT_VERSION_MAX = 64;
 
@@ -51,8 +49,16 @@ export const registerPatientSchema = z.object({
 
 export type RegisterPatientForm = z.infer<typeof registerPatientSchema>;
 
+export const CANCEL_REASON_CODES = ['plans-changed', 'inconvenient-time', 'other-doctor', 'other'] as const;
+
+export type CancelReasonCode = (typeof CANCEL_REASON_CODES)[number];
+
+export function toCancelReasonCode(value: unknown): CancelReasonCode {
+  return CANCEL_REASON_CODES.find((code) => code === value) ?? 'other';
+}
+
 export const cancelAppointmentSchema = z.object({
-  reason: z.string().min(REASON_MIN).max(REASON_MAX),
+  reason: z.enum(CANCEL_REASON_CODES),
 });
 
 export type CancelAppointmentForm = z.infer<typeof cancelAppointmentSchema>;

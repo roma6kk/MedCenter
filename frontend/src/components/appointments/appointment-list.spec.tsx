@@ -139,12 +139,12 @@ describe('AppointmentList', () => {
     renderWithClient(<AppointmentList />);
     await userEvent.click(await screen.findByRole('button', { name: /Отменить запись:/ }));
 
-    await userEvent.type(screen.getByLabelText('Причина отмены'), 'Заболел');
+    await userEvent.click(screen.getByRole('radio', { name: 'Неудобное время' }));
     listMock.mockResolvedValue(pageOf([{ ...BOOKED, status: 'cancelled' }]));
     await userEvent.click(screen.getByRole('button', { name: 'Подтвердить отмену' }));
 
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
-    expect(cancelMock).toHaveBeenCalledWith('1', 'Заболел');
+    expect(cancelMock).toHaveBeenCalledWith('1', 'inconvenient-time');
     expect(useToastStore.getState().toasts.map((toast) => toast.message)).toContain('Запись отменена');
     expect(await screen.findByTestId('stamp-cancelled')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /Отменить запись:/ })).not.toBeInTheDocument();

@@ -107,7 +107,7 @@ export async function bookSlotAs(page: Page, slotId: string): Promise<{ readonly
   return { status: response.status(), body: (await response.json().catch(() => ({}))) as Record<string, unknown> };
 }
 
-export async function cancelAppointmentAs(page: Page, appointmentId: string, reason = 'Очистка после E2E'): Promise<void> {
+export async function cancelAppointmentAs(page: Page, appointmentId: string, reason = 'other'): Promise<void> {
   await page.request.post(`/api/v1/appointments/${encodeURIComponent(appointmentId)}/cancel`, {
     headers: await authHeaders(page),
     data: { reason },

@@ -7,7 +7,6 @@ const EMPTY: BookingDraft = {
   slotId: null,
   slotStart: null,
   slotEnd: null,
-  reason: '',
   step: 1,
   idempotencyKey: null,
 };
@@ -59,7 +58,7 @@ describe('selectSlot', () => {
 
 describe('draftFromSlot', () => {
   it('should prepare the confirmation step when a slot was picked on the doctor page', () => {
-    expect(draftFromSlot('d1', SLOT)).toEqual({ serviceId: null, doctorId: 'd1', reason: '', slotId: 'slot-1', slotStart: SLOT.start, slotEnd: SLOT.end, step: 4 });
+    expect(draftFromSlot('d1', SLOT)).toEqual({ serviceId: null, doctorId: 'd1', slotId: 'slot-1', slotStart: SLOT.start, slotEnd: SLOT.end, step: 4 });
   });
 
   it('should carry the service the visitor chose on the doctor page when there is one', () => {

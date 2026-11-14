@@ -71,7 +71,6 @@ export function appointment(overrides: Partial<JournalAppointment> = {}): Journa
     createdAt: '2026-10-16T08:00:00Z',
     patientName: 'Кузнецов Алексей',
     serviceName: 'Консультация терапевта',
-    reason: 'Боль в горле',
     ...overrides,
   };
 }

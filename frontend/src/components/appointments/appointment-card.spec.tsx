@@ -67,9 +67,16 @@ describe('AppointmentCard', () => {
   });
 
   it('should show why a cancelled appointment was cancelled', () => {
-    render(<AppointmentCard appointment={appointmentFixture({ status: 'cancelled', cancelReason: 'Заболел' })} />);
+    render(<AppointmentCard appointment={appointmentFixture({ status: 'cancelled', cancelReason: 'plans-changed' })} />);
 
-    expect(screen.getByText('Причина отмены: Заболел')).toBeInTheDocument();
+    expect(screen.getByText('Причина отмены: Изменились планы')).toBeInTheDocument();
+  });
+
+  it('should show legacy free text as Другое and never print it', () => {
+    render(<AppointmentCard appointment={appointmentFixture({ status: 'cancelled', cancelReason: 'Заболел, температура' })} />);
+
+    expect(screen.getByText('Причина отмены: Другое')).toBeInTheDocument();
+    expect(screen.queryByText(/температура/)).not.toBeInTheDocument();
   });
 
   it('should speak English when the locale is en', () => {
@@ -78,13 +85,6 @@ describe('AppointmentCard', () => {
 
     expect(screen.getByTestId('stamp-booked')).toHaveTextContent('Booked');
     expect(screen.getByRole('button', { name: /Cancel appointment: / })).toBeInTheDocument();
-  });
-
-  it('should let a cancellation reason without spaces wrap so the buttons and the stamp stay on screen', () => {
-    render(<AppointmentCard appointment={appointmentFixture({ status: 'cancelled', cancelReason: LONG_UNBROKEN_TEXT })} />);
-
-    expectWraps(screen.getByText(LONG_UNBROKEN_TEXT, { exact: false }));
-    expect(screen.getByRole('link', { name: /Подробнее о записи/ })).toBeInTheDocument();
   });
 
   it('should let a long doctor or service name wrap too', () => {

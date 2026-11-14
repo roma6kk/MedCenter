@@ -31,15 +31,14 @@ describe('BookingWizard booking', () => {
     serveApi();
   });
 
-  it('should book the slot with the service, the reason and an idempotency key, then show the success screen when the visitor confirms', async () => {
+  it('should book the slot with the service and an idempotency key, then show the success screen when the visitor confirms', async () => {
     await renderConfirmation();
 
-    await userEvent.type(screen.getByLabelText(/Причина обращения/), ' Болит спина ');
     await userEvent.click(screen.getByRole('button', { name: 'Подтвердить запись' }));
 
     expect(await screen.findByTestId('booking-success')).toBeInTheDocument();
     expect(screen.getByTestId('success-cancel-link')).toHaveAttribute('href', '/appointments/appt-1');
-    expect(postBodies()).toEqual([{ slotId: 'slot-30', serviceId: 'svc-30', reason: 'Болит спина' }]);
+    expect(postBodies()).toEqual([{ slotId: 'slot-30', serviceId: 'svc-30' }]);
     expect(postKeys()[0]).toMatch(/^[0-9a-f-]{36}$/i);
     expect(useBookingDraftStore.getState().slotId).toBeNull();
   });
@@ -82,25 +81,11 @@ describe('BookingWizard booking', () => {
     expect(Object.keys(postBodies()[0] as object)).not.toContain('patient');
   });
 
-  it('should not call the API when the reason is shorter than three characters', async () => {
+  it('should offer no field for a reason of the visit', async () => {
     await renderConfirmation();
 
-    await userEvent.type(screen.getByLabelText(/Причина обращения/), 'ab');
-    await userEvent.click(screen.getByRole('button', { name: 'Подтвердить запись' }));
-
-    expect(await screen.findByText('Причина — не короче 3 символов')).toBeInTheDocument();
-    expect(postBodies()).toHaveLength(0);
-  });
-
-  it('should move focus to the reason field when the reason is too short and the visitor confirms', async () => {
-    await renderConfirmation();
-    const reason: HTMLElement = screen.getByLabelText(/Причина обращения/);
-
-    await userEvent.type(reason, 'ab');
-    await userEvent.click(screen.getByRole('button', { name: 'Подтвердить запись' }));
-
-    await waitFor(() => expect(reason).toHaveFocus());
-    expect(reason).toHaveAttribute('aria-invalid', 'true');
+    expect(screen.queryByLabelText(/Причина обращения/)).not.toBeInTheDocument();
+    expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
   });
 
   it('should send the same idempotency key again when the retry follows a server failure', async () => {
@@ -196,24 +181,5 @@ describe('BookingWizard booking', () => {
     expect(await screen.findByTestId('slot-conflict-notice')).toHaveTextContent('Это время уже наступило');
     expect(postBodies()).toHaveLength(0);
     expect(useBookingDraftStore.getState().slotId).toBeNull();
-  });
-
-  it('should close the reason field and book without it when the server answers 409 CONSENT_REQUIRED', async () => {
-    serveOutcomes(
-      () => Promise.reject(new ApiError(problem({ status: 409, errorCode: 'CONSENT_REQUIRED' }))),
-      () => Promise.resolve({ id: 'appt-3' }),
-    );
-    await renderConfirmation();
-    await userEvent.type(screen.getByLabelText(/Причина обращения/), 'Болит спина');
-
-    await userEvent.click(screen.getByRole('button', { name: 'Подтвердить запись' }));
-
-    await waitFor(() => expect(screen.getByLabelText(/Причина обращения/)).toBeDisabled());
-    expect(screen.queryByTestId('problem-banner')).not.toBeInTheDocument();
-    expect(screen.queryByText(/отправьте пациента/)).not.toBeInTheDocument();
-    await userEvent.click(screen.getByRole('button', { name: 'Подтвердить запись' }));
-
-    expect(await screen.findByTestId('booking-success')).toBeInTheDocument();
-    expect(postBodies()[1]).toEqual({ slotId: 'slot-30', serviceId: 'svc-30' });
   });
 });

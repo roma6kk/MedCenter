@@ -35,9 +35,9 @@ describe('contracts', () => {
     expect(result.success).toBe(false);
   });
 
-  it('should require a cancellation reason of 3..500 chars', () => {
-    expect(cancelAppointmentSchema.safeParse({ reason: 'ok' }).success).toBe(false);
-    expect(cancelAppointmentSchema.safeParse({ reason: 'Пациент заболел' }).success).toBe(true);
+  it('should require a cancellation reason that is one of the neutral codes', () => {
+    expect(cancelAppointmentSchema.safeParse({ reason: 'Пациент заболел' }).success).toBe(false);
+    expect(cancelAppointmentSchema.safeParse({ reason: 'plans-changed' }).success).toBe(true);
   });
 
   it('should require at least one ICD-10 diagnosis to complete an encounter', () => {

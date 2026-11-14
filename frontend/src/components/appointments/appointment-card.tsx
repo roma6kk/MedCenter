@@ -7,6 +7,7 @@ import { buttonVariants } from '@/components/ui/button-variants';
 import { Button } from '@/components/ui/button';
 import { useClinicFormat } from '@/hooks/use-clinic-format';
 import { WRAP_TEXT } from '@/components/patient/wrap-text';
+import { toCancelReasonCode } from '@/lib/contracts';
 import { useT } from '@/lib/i18n/use-t';
 import { cn } from '@/lib/ui/cn';
 import { doctorOf, isCancellable, type AppointmentView } from './appointment-types';
@@ -53,7 +54,7 @@ export function AppointmentCard({ appointment, onCancel }: AppointmentCardProps)
         <p className={cn('text-base font-semibold', WRAP_TEXT)}>{appointment.serviceName ?? t('serviceUnknown')}</p>
         <p className={cn('text-sm text-muted-foreground', WRAP_TEXT)}>{doctorOf(appointment, t('doctorUnknown'))}</p>
         {appointment.status === 'cancelled' && appointment.cancelReason ? (
-          <p className={cn('text-sm text-muted-foreground', WRAP_TEXT)}>{t('fieldCancelReason')}: {appointment.cancelReason}</p>
+          <p className={cn('text-sm text-muted-foreground', WRAP_TEXT)}>{t('fieldCancelReason')}: {t(`cancelReasons.${toCancelReasonCode(appointment.cancelReason)}`)}</p>
         ) : null}
       </div>
       <StampBadge status={appointment.status} />

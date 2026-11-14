@@ -56,11 +56,11 @@ describe('useBookingDraftStore', () => {
       expect(useBookingDraftStore.getState().ensureIdempotencyKey()).not.toBe(first);
     });
 
-    it('should drop the key when the reason changes', () => {
-      useBookingDraftStore.getState().updateDraft({ slotId: 'slot-1', reason: 'Болит спина' });
+    it('should drop the key when the service changes', () => {
+      useBookingDraftStore.getState().updateDraft({ slotId: 'slot-1', serviceId: 's-1' });
       useBookingDraftStore.getState().ensureIdempotencyKey();
 
-      useBookingDraftStore.getState().updateDraft({ reason: 'Болит голова' });
+      useBookingDraftStore.getState().updateDraft({ serviceId: 's-2' });
 
       expect(useBookingDraftStore.getState().idempotencyKey).toBeNull();
     });
@@ -86,8 +86,8 @@ describe('useBookingDraftStore', () => {
   });
 
   describe('releaseSlot', () => {
-    it('should forget the slot and its key but keep service, doctor and reason', () => {
-      useBookingDraftStore.getState().updateDraft({ serviceId: 's-1', doctorId: 'd-1', slotId: 'slot-1', slotStart: '2026-10-19T11:00:00.000Z', reason: 'Болит спина', step: 4 });
+    it('should forget the slot and its key but keep service and doctor', () => {
+      useBookingDraftStore.getState().updateDraft({ serviceId: 's-1', doctorId: 'd-1', slotId: 'slot-1', slotStart: '2026-10-19T11:00:00.000Z', step: 4 });
       useBookingDraftStore.getState().ensureIdempotencyKey();
 
       useBookingDraftStore.getState().releaseSlot();
@@ -99,7 +99,6 @@ describe('useBookingDraftStore', () => {
       expect(draft.step).toBe(3);
       expect(draft.serviceId).toBe('s-1');
       expect(draft.doctorId).toBe('d-1');
-      expect(draft.reason).toBe('Болит спина');
     });
   });
 });

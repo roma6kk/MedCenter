@@ -7,7 +7,7 @@ import { openStoredSession } from './fixtures/session-state';
 
 test.skip(!hasDemoManifest(), 'demo seed manifest not found');
 
-const CANCEL_REASON = 'Пациент заболел';
+const CANCEL_REASON = 'Неудобное время';
 const NOTIFICATION_TIMEOUT_MS = 90_000;
 
 test.describe('patient cancels an appointment', () => {
@@ -35,7 +35,7 @@ test.describe('patient cancels an appointment', () => {
 
     await page.getByRole('button', { name: /^Отменить запись/ }).click();
     const dialog = page.getByRole('dialog', { name: 'Отмена записи' });
-    await dialog.getByLabel('Причина отмены').fill(CANCEL_REASON);
+    await dialog.getByRole('radio', { name: CANCEL_REASON }).check();
     const cancelled = page.waitForResponse(isPostTo(`/api/v1/appointments/${appointmentId}/cancel`));
     await dialog.getByRole('button', { name: 'Подтвердить отмену' }).click();
     expect((await cancelled).ok()).toBe(true);

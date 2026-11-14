@@ -1,12 +1,12 @@
 import {
   registerPatientSchema,
   cancelAppointmentSchema,
+  toCancelReasonCode,
   completeEncounterSchema,
   ICD10_PATTERN,
   ATC_PATTERN,
   EMAIL_MAX,
   NAME_MAX,
-  REASON_MAX,
 } from './contracts';
 
 const VALID_REGISTER = {
@@ -73,18 +73,20 @@ describe('contracts boundary pipeline', () => {
   });
 
   describe('cancelAppointmentSchema', () => {
-    it('should reject a reason shorter than the minimum', () => {
-      expect(cancelAppointmentSchema.safeParse({ reason: 'ok' }).success).toBe(false);
-      expect(cancelAppointmentSchema.safeParse({ reason: 'ab' }).success).toBe(false);
+    it.each(['plans-changed', 'inconvenient-time', 'other-doctor', 'other'])('should accept the code %s', (reason) => {
+      expect(cancelAppointmentSchema.safeParse({ reason }).success).toBe(true);
     });
 
-    it('should accept reasons at the exact boundaries', () => {
-      expect(cancelAppointmentSchema.safeParse({ reason: 'abc' }).success).toBe(true);
-      expect(cancelAppointmentSchema.safeParse({ reason: 'я'.repeat(REASON_MAX) }).success).toBe(true);
+    it.each(['', 'Заболел', 'illness', 'Plans-Changed'])('should reject %p, so that no free text goes out', (reason) => {
+      expect(cancelAppointmentSchema.safeParse({ reason }).success).toBe(false);
     });
+  });
 
-    it('should reject a reason longer than the maximum', () => {
-      expect(cancelAppointmentSchema.safeParse({ reason: 'я'.repeat(REASON_MAX + 1) }).success).toBe(false);
+  describe('toCancelReasonCode', () => {
+    it('should keep a known code and read legacy free text, an unknown code or nothing as other', () => {
+      expect(toCancelReasonCode('other-doctor')).toBe('other-doctor');
+      expect(toCancelReasonCode('Не смогу прийти')).toBe('other');
+      expect(toCancelReasonCode(undefined)).toBe('other');
     });
   });
 });
