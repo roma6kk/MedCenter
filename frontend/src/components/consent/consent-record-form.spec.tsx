@@ -1,4 +1,4 @@
-import { screen, waitFor } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { apiProblem, newQueryClient, pageOf, renderWithClient, resetCabinetState } from '@/components/patient/cabinet-test-utils';
 import { useToastStore } from '@/store/use-toast-store';
@@ -45,6 +45,15 @@ describe('ConsentRecordForm', () => {
     doctorMocked.fetchRelatedPersons.mockResolvedValue(pageOf([RELATED]));
     mocked.postConsentScan.mockResolvedValue({ scanId: 's1', contentType: 'application/pdf', size: 8, hash: 'h' });
     mocked.postPatientConsent.mockResolvedValue(ACTIVE_RECORD);
+  });
+
+  it('should offer no self signer and default to the legal representative for a minor patient', () => {
+    renderWithClient(<ConsentRecordForm patientId="p1" role="DOCTOR" canSelfSign={false} />, newQueryClient());
+
+    const select = screen.getByLabelText('Кто подписал');
+    expect(within(select).queryByRole('option', { name: 'сам пациент' })).not.toBeInTheDocument();
+    expect(select).toHaveValue('legal-representative');
+    expect(screen.getByText(/нет 18 лет/)).toBeInTheDocument();
   });
 
   it('should leave the signing clerk to the server for a doctor and ask for the name from an administrator', () => {

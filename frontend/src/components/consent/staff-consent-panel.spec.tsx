@@ -47,6 +47,14 @@ describe('StaffConsentPanel', () => {
     expect(screen.queryByRole('button', { name: 'Записать отзыв' })).not.toBeInTheDocument();
   });
 
+  it('should offer no self signer when the server says the patient is under 18', async () => {
+    mocked.fetchPatientConsent.mockResolvedValue({ ...NONE, patientIsAdult: false });
+    renderWithClient(<StaffConsentPanel patientId="p1" role="DOCTOR" />);
+
+    const form = await screen.findByRole('form', { name: 'Внести бумажное согласие или отказ' });
+    expect(within(form).queryByRole('option', { name: 'сам пациент' })).not.toBeInTheDocument();
+  });
+
   it('should show the failure with a retry and no forms when the consent cannot be read', async () => {
     mocked.fetchPatientConsent.mockRejectedValue(apiProblem(500, 'INTERNAL'));
     renderWithClient(<StaffConsentPanel patientId="p1" role="DOCTOR" />);

@@ -1,5 +1,8 @@
 import { z } from 'zod';
+import { ageInYears } from '@/lib/clinic-time';
 import { ACCOUNT_CONSENT_VERSION, EMAIL_MAX, NAME_MAX, PASSWORD_MAX, PASSWORD_MIN, PASSWORD_PATTERN, isCalendarDate, normaliseBelarusPhone } from '@/lib/contracts';
+
+export const ADULT_AGE_YEARS = 18;
 
 const REQUIRED = { message: 'validation.required' } as const;
 const TOO_LONG = { message: 'validation.tooLong' } as const;
@@ -14,7 +17,7 @@ export const registerFormSchema = z.object({
   firstName: requiredText(NAME_MAX),
   lastName: requiredText(NAME_MAX),
   password: z.string().min(1, REQUIRED).min(PASSWORD_MIN, WEAK_PASSWORD).max(PASSWORD_MAX, TOO_LONG).regex(PASSWORD_PATTERN, WEAK_PASSWORD),
-  birthDate: z.string().min(1, REQUIRED).refine(isCalendarDate, { message: 'validation.date' }),
+  birthDate: z.string().min(1, REQUIRED).refine(isCalendarDate, { message: 'validation.date' }).refine((value) => !isCalendarDate(value) || (ageInYears(value) ?? ADULT_AGE_YEARS) >= ADULT_AGE_YEARS, { message: 'validation.ageRestricted' }),
   gender: z.enum(['', 'male', 'female']),
   phone: z.string().trim().refine((value) => value === '' || normaliseBelarusPhone(value) !== null, { message: 'validation.phone' }),
   accountConsent: z.boolean().refine((accepted) => accepted, { message: 'validation.consentRequired' }),

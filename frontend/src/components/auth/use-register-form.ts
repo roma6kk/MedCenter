@@ -43,6 +43,11 @@ function useRegisterProblems(form: RegisterForm): RegisterProblems {
       form.setFocus('email');
       return;
     }
+    if (failure.errorCode === 'AGE_RESTRICTED') {
+      form.setError('birthDate', { type: 'server', message: 'validation.ageRestricted' });
+      form.setFocus('birthDate');
+      return;
+    }
     const unmatched: ReadonlyArray<string> = applyProblemToForm(failure, setFieldError, REGISTER_FIELDS);
     const hasFieldErrors: boolean = (failure.details?.length ?? 0) > unmatched.length;
     if (!hasFieldErrors || unmatched.length > 0) setProblem(failure);

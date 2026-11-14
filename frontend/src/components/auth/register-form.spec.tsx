@@ -137,6 +137,26 @@ describe('RegisterForm', () => {
     expect(screen.queryByTestId('problem-banner')).not.toBeInTheDocument();
   });
 
+  it('should put the age message on the birth date when the API answers AGE_RESTRICTED', async () => {
+    apiFetchMock.mockRejectedValue(new ApiError(problem({ status: 422, errorCode: 'AGE_RESTRICTED', details: [{ field: 'birthDate', message: 'must be 18 or older to register' }] })));
+    await renderAndSubmitValid();
+
+    expect(await screen.findByLabelText('Дата рождения')).toHaveAccessibleDescription(expect.stringContaining('Регистрация доступна только с 18 лет'));
+    expect(screen.queryByTestId('problem-banner')).not.toBeInTheDocument();
+  });
+
+  it('should refuse a minor birth date before calling the API', async () => {
+    renderForm();
+    await fillValidForm();
+    const birthDate = screen.getByLabelText('Дата рождения');
+    await userEvent.clear(birthDate);
+    await userEvent.type(birthDate, `${new Date().getFullYear() - 5}-01-01`);
+    await submit();
+
+    expect(await screen.findByLabelText('Дата рождения')).toHaveAccessibleDescription(expect.stringContaining('только с 18 лет'));
+    expect(apiFetchMock).not.toHaveBeenCalled();
+  });
+
   it('should show a banner when the server names a field the form does not have', async () => {
     apiFetchMock.mockRejectedValue(new ApiError(problem({ details: [{ field: 'nickname', message: 'nickname must be a string' }] })));
     await renderAndSubmitValid();

@@ -56,7 +56,7 @@ function PersonalFields({ state }: { readonly state: RegisterFormState }): React
   const { register, control: formControl, formState: { errors } } = state.form;
   return (
     <>
-      <AuthField id="birthDate" label={t('birthDate')} error={errors.birthDate?.message}>
+      <AuthField id="birthDate" label={t('birthDate')} error={errors.birthDate?.message} hint={t('birthDateHint')}>
         {(control) => (
           <Controller control={formControl} name="birthDate" render={({ field }) => <DatePicker {...control} {...field} max={clinicDateKey()} autoComplete="bday" aria-required="true" />} />
         )}

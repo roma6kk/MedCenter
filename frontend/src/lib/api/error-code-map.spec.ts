@@ -4,9 +4,9 @@ import { LOCALES } from '@/lib/i18n/locale';
 import { hasMessage } from '@/lib/i18n/translate';
 
 describe('errorCodeMap', () => {
-  it('should have exactly one UX entry per catalogue errorCode (22/22)', () => {
+  it('should have exactly one UX entry per catalogue errorCode (23/23)', () => {
     expect(Object.keys(errorCodeMap).sort()).toEqual([...ERROR_CODES].sort());
-    expect(ERROR_CODES).toHaveLength(22);
+    expect(ERROR_CODES).toHaveLength(23);
   });
 
   it('should return the same entry from errorCodeToUx as from the map', () => {

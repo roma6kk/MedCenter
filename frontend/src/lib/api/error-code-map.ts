@@ -40,6 +40,7 @@ export const errorCodeMap: Readonly<Record<ErrorCode, ErrorUx>> = {
   SCHEDULE_IN_USE: { kind: 'in-use-conflict', resource: 'schedule' },
   ROOM_IN_USE: { kind: 'in-use-conflict', resource: 'room' },
   SERVICE_IN_USE: { kind: 'in-use-conflict', resource: 'service' },
+  AGE_RESTRICTED: { kind: 'banner-generic' },
   INVALID_ICD10_CODE: { kind: 'focus-icd10' },
   TERMINOLOGY_NOT_FOUND: { kind: 'focus-terminology' },
   RATE_LIMITED: { kind: 'rate-limit-toast' },

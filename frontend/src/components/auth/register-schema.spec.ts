@@ -34,6 +34,16 @@ describe('registerFormSchema', () => {
     });
   });
 
+  it('should refuse a birth date under 18 with the age message and accept an adult', () => {
+    const minor = new Date();
+    minor.setFullYear(minor.getFullYear() - 10);
+    const adult = new Date();
+    adult.setFullYear(adult.getFullYear() - 30);
+
+    expect(messagesOf({ ...VALID, birthDate: minor.toISOString().slice(0, 10) })['birthDate']).toBe('validation.ageRestricted');
+    expect(messagesOf({ ...VALID, birthDate: adult.toISOString().slice(0, 10) })['birthDate']).toBeUndefined();
+  });
+
   it('should reject the email when it is malformed', () => {
     expect(messagesOf({ ...VALID, email: 'not-an-email' })['email']).toBe('validation.email');
   });

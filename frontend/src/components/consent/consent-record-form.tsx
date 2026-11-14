@@ -77,7 +77,7 @@ function SignerField({ state, role }: { readonly state: ConsentRecordFormState; 
   );
 }
 
-function EntryFields({ state, role, patientId }: { readonly state: ConsentRecordFormState; readonly role: Role; readonly patientId: string }): ReactNode {
+function EntryFields({ state, role, patientId, canSelfSign }: { readonly state: ConsentRecordFormState; readonly role: Role; readonly patientId: string; readonly canSelfSign: boolean }): ReactNode {
   const t = useT('consent.staff');
   const tType = useT('consent.view.consenterTypes');
   const { register, control, formState: { errors } } = state.form;
@@ -98,10 +98,10 @@ function EntryFields({ state, role, patientId }: { readonly state: ConsentRecord
           </Select>
         )}
       </FormField>
-      <FormField id="consent-consenter" label={t('consenterType')}>
+      <FormField id="consent-consenter" label={t('consenterType')} error={errors.consenterType?.message} hint={canSelfSign ? undefined : t('minorHint')}>
         {(controlProps) => (
           <Select {...controlProps} {...register('consenterType')} wrapperClassName="max-w-xs">
-            {CONSENTER_TYPES.map((type) => <option key={type} value={type}>{tType(type)}</option>)}
+            {CONSENTER_TYPES.filter((type) => canSelfSign || type !== 'self').map((type) => <option key={type} value={type}>{tType(type)}</option>)}
           </Select>
         )}
       </FormField>
@@ -115,15 +115,16 @@ function EntryFields({ state, role, patientId }: { readonly state: ConsentRecord
 interface ConsentRecordFormProps {
   readonly patientId: string;
   readonly role: Role;
+  readonly canSelfSign?: boolean;
 }
 
-export function ConsentRecordForm({ patientId, role }: ConsentRecordFormProps): ReactNode {
+export function ConsentRecordForm({ patientId, role, canSelfSign = true }: ConsentRecordFormProps): ReactNode {
   const t = useT('consent.staff');
-  const state: ConsentRecordFormState = useConsentRecordForm(patientId, role);
+  const state: ConsentRecordFormState = useConsentRecordForm(patientId, role, canSelfSign);
   return (
     <form onSubmit={state.submit} noValidate aria-labelledby="consent-record-title" className="mt-2">
       <h3 id="consent-record-title" className="text-base font-bold">{t('recordTitle')}</h3>
-      <EntryFields state={state} role={role} patientId={patientId} />
+      <EntryFields state={state} role={role} patientId={patientId} canSelfSign={canSelfSign} />
       {state.isAlreadyActive ? <p role="alert" className="mt-3 rounded-card bg-warning-soft p-3 text-sm">{t('alreadyActive')}</p> : null}
       {state.problem !== null ? <div className="mt-3"><ProblemBanner problem={state.problem} /></div> : null}
       <Button type="submit" aria-disabled={state.isPending ? true : undefined} aria-busy={state.isPending} className="mt-4">

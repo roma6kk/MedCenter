@@ -34,6 +34,7 @@ export interface ConsentRecord {
 export interface PatientConsent {
   readonly active: ConsentRecord | null;
   readonly history: ReadonlyArray<ConsentRecord>;
+  readonly patientIsAdult?: boolean;
 }
 
 export interface ScanUpload {

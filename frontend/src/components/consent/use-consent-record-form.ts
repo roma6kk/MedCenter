@@ -33,9 +33,9 @@ const DEFAULTS: ConsentRecordValues = {
 
 const FIELDS: ReadonlyArray<string> = ['formNumber', 'signedAt', 'status', 'consenterType', 'relatedPersonId', 'representativeDocument', 'signedByName', 'file', 'scanId'];
 
-export function useConsentRecordForm(patientId: string, role: 'ADMIN' | 'DOCTOR'): ConsentRecordFormState {
+export function useConsentRecordForm(patientId: string, role: 'ADMIN' | 'DOCTOR', canSelfSign = true): ConsentRecordFormState {
   const schema = useMemo(() => consentRecordSchema(role, clinicDateKey()), [role]);
-  const form = useForm<ConsentRecordValues>({ resolver: zodResolver(schema), defaultValues: DEFAULTS });
+  const form = useForm<ConsentRecordValues>({ resolver: zodResolver(schema), defaultValues: canSelfSign ? DEFAULTS : { ...DEFAULTS, consenterType: 'legal-representative' } });
   const record = useRecordConsent(patientId);
   const [isAlreadyActive, setIsAlreadyActive] = useState(false);
   const [problem, setProblem] = useState<ProblemDetails | null>(null);
@@ -56,7 +56,7 @@ export function useConsentRecordForm(patientId: string, role: 'ADMIN' | 'DOCTOR'
     if (record.isPending) return;
     setIsAlreadyActive(false);
     setProblem(null);
-    record.mutate(toConsentEntry(values), { onSuccess: () => form.reset(DEFAULTS), onError: showFailure });
+    record.mutate(toConsentEntry(values), { onSuccess: () => form.reset(canSelfSign ? DEFAULTS : { ...DEFAULTS, consenterType: 'legal-representative' }), onError: showFailure });
   });
   return { form, submit, isPending: record.isPending, isAlreadyActive, problem };
 }

@@ -21,7 +21,7 @@ export function StaffConsentBody({ patientId, role }: StaffConsentProps): ReactN
   return (
     <>
       <ConsentStatusView consent={consent.data} scanOfPatient={patientId} />
-      {consent.data.active === null ? <ConsentRecordForm patientId={patientId} role={role} /> : <div><ConsentRevokeAction patientId={patientId} /></div>}
+      {consent.data.active === null ? <ConsentRecordForm patientId={patientId} role={role} canSelfSign={consent.data.patientIsAdult !== false} /> : <div><ConsentRevokeAction patientId={patientId} /></div>}
     </>
   );
 }
