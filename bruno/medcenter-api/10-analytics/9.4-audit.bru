@@ -33,13 +33,19 @@ tests {
   test('events carry the action and the resource', function () {
     if (res.body.items.length) {
       const e = res.body.items[0];
-      expect(['create', 'update', 'delete', 'read', 'denied', 'emergency-bypass']).to.include(e.action);
-      expect(e.resourceType).to.be.a('string');
-      expect(e.requestId).to.be.a('string');
+      const authActions = ['login', 'login-failed', 'login-throttled', 'logout', 'session-idle'];
+      expect(['create', 'update', 'delete', 'read', 'denied', 'emergency-bypass', ...authActions]).to.include(e.action);
+      if (!authActions.includes(e.action)) {
+        expect(e.resourceType).to.be.a('string');
+        expect(e.requestId).to.be.a('string');
+      } else {
+        expect(e.resourceType === null || typeof e.resourceType === 'string').to.equal(true);
+        expect(e.requestId === null || typeof e.requestId === 'string').to.equal(true);
+      }
     }
   });
 }
 
 docs {
-  Spec 9.4. ADMIN. A date-only `from`/`to` is a calendar day of the clinic (Europe/Minsk). Filters `from`, `to`, `entity` (`Patient` or `Patient/123`), `userId`, `page`, `pageSize`. Actions: create, update, delete, read, denied, emergency-bypass (`reason` only on the last).
+  Spec 9.4. ADMIN. A date-only `from`/`to` is a calendar day of the clinic (Europe/Minsk). Filters `from`, `to`, `entity` (`Patient` or `Patient/123`), `userId`, `page`, `pageSize`. Actions: create, update, delete, read, denied, emergency-bypass (`reason` only on the last), and the authentication events login, login-failed, login-throttled, logout, session-idle (`resourceType` and `requestId` may be null for these).
 }

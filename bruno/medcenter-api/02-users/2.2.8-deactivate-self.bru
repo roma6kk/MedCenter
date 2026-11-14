@@ -1,0 +1,35 @@
+meta {
+  name: 2.2.8 Close own account
+  type: http
+  seq: 9
+  tags: [
+    write
+    role-patient
+    destructive
+  ]
+}
+
+post {
+  url: {{baseUrl}}/api/v1/me/deactivate
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "password": "{{deactivateSelfPassword}}"
+  }
+}
+
+script:pre-request {
+  // closes the account of the token owner: runs only when the password is set on purpose.
+  if (!bru.getEnvVar('deactivateSelfPassword')) { bru.runner.skipRequest(); }
+}
+
+assert {
+  res.status: eq 204
+}
+
+docs {
+  Spec 2.2.8. PATIENT only. The patient closes their own account with the current password: sign-in stops, the account consent is stamped withdrawn, the session of the token is revoked and the change is journaled. The HAPI resources stay. Wrong password or an already closed account -> 403 `FORBIDDEN` with `INVALID_PASSWORD` at the start of `message`; other roles -> 403 `FORBIDDEN_ROLE`. Skipped unless the environment variable `deactivateSelfPassword` is set.
+}

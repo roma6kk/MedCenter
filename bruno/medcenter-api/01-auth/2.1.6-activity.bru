@@ -1,0 +1,24 @@
+meta {
+  name: 2.1.6 Record activity (idle timeout)
+  type: http
+  seq: 7
+  tags: [
+    oauth-manual
+    write
+  ]
+}
+
+post {
+  url: {{baseUrl}}/oauth/token/activity
+  body: none
+  auth: inherit
+}
+
+assert {
+  res.status: eq 200
+  res.body.recorded: isBoolean
+}
+
+docs {
+  Spec 2.1.6. Bearer required, any role, no body. Marks the session of the token as active for the idle session timeout. `recorded:false` when the session is unknown or has already been idle for longer than the limit.
+}
