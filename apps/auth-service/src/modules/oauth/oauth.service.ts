@@ -1,6 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 
 import { readSessionIdleTimeoutMs } from '../../config/auth-env';
+import { AuditService } from '../audit/audit.service';
 
 import type { RegisteredClient } from './guards/client.guard';
 import {
@@ -98,6 +99,7 @@ export class OAuthService {
     private readonly jwt: JwtService,
     private readonly tokens: TokenService,
     @Inject(IDENTITY_RESOLVER) private readonly identities: IdentityResolver,
+    private readonly audit: AuditService,
     @Inject(SESSION_IDLE_TIMEOUT_MS) private readonly idleTimeoutMs: number = readSessionIdleTimeoutMs(),
   ) {}
 
@@ -165,6 +167,7 @@ export class OAuthService {
     }
     if (this.isIdle(found)) {
       await this.tokens.revoke(found.jti);
+      void this.audit.recordAuthEvent({ kind: 'session-idle', userId: found.userId });
       throw OAuthError.invalidGrant('Session ended after a period of inactivity');
     }
     const grant = await this.resolveGrant(found);
@@ -196,6 +199,7 @@ export class OAuthService {
       return false;
     }
     await this.tokens.revoke(params.refreshToken);
+    void this.audit.recordAuthEvent({ kind: 'logout', userId: stored.userId });
     return true;
   }
 

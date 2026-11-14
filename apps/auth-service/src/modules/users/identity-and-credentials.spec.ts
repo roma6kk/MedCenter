@@ -39,6 +39,15 @@ describe('CredentialsService', () => {
     await expect(credentials.verify('petrov@example.by', 'Wr0ng!Pass')).resolves.toBeNull();
   });
 
+  it('should name the account in check() only for a wrong password of an active account', async () => {
+    const harness = createUsersHarness();
+    const userId = await seedDoctor(harness);
+    const credentials = new CredentialsService(harness.store, harness.hasher);
+
+    await expect(credentials.check('petrov@example.by', 'Wr0ng!Pass')).resolves.toEqual({ userId: null, accountId: userId });
+    await expect(credentials.check('nobody@example.by', 'Wr0ng!Pass')).resolves.toEqual({ userId: null, accountId: null });
+  });
+
   it('should return null and still spend the scrypt cost when the email is unknown', async () => {
     const harness = createUsersHarness();
     const dummy = jest.spyOn(harness.hasher, 'verifyAgainstDummy');

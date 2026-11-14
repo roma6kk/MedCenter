@@ -1,3 +1,4 @@
+import type { AuditService } from '../audit/audit.service';
 import { JwtService } from './jwt.service';
 import { JwksService } from './jwks.service';
 import { OAuthController, readFhirBaseUrl } from './oauth.controller';
@@ -27,7 +28,7 @@ function createHarness(): ControllerHarness {
   const keys = createTestKeys();
   const tokens = new TokenService(new InMemoryTokenStore(), new InMemoryTokenDenylist());
   const pkce = new PkceService();
-  const oauth = new OAuthService(pkce, new JwtService(keys), tokens, new StubIdentityResolver());
+  const oauth = new OAuthService(pkce, new JwtService(keys), tokens, new StubIdentityResolver(), { recordAuthEvent: jest.fn() } as unknown as AuditService);
 
   return {
     controller: new OAuthController(oauth, new JwksService(keys), keys),

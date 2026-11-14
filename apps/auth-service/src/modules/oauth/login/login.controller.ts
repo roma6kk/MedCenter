@@ -3,6 +3,7 @@ import type { Response } from 'express';
 import { ApiProblems, Public, RateLimit } from '@medcenter/common';
 import { ApiBody, ApiConsumes, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 
+import { AuditService } from '../../audit/audit.service';
 import { CredentialsService } from '../../users/credentials.service';
 import { CLIENT_REGISTRY, type ClientRegistry } from '../guards/client.guard';
 import { authorizeLocation, loginLocaleOf, sanitizeAuthorizeQuery } from './authorize-query';
@@ -27,6 +28,7 @@ const LOGIN_RATE_LIMIT = 10;
 
 interface LoginRequest extends CookieRequest {
   readonly ip?: string;
+  readonly requestId?: string;
 }
 
 type Refusal = Pick<LoginFormView, 'status' | 'error' | 'email' | 'retryAfterSeconds'>;
@@ -41,6 +43,7 @@ export class LoginController {
     private readonly throttle: LoginThrottle,
     private readonly sessions: LoginSessionService,
     private readonly page: LoginPageResponder,
+    private readonly audit: AuditService,
     @Inject(CLIENT_REGISTRY) private readonly clients: ClientRegistry,
   ) {}
 
@@ -99,8 +102,9 @@ export class LoginController {
       this.page.sendForm(request, response, { authorizeQuery, redirectUri, email, ...refusal });
       return;
     }
-    const userId = await this.credentials.verify(email, form.password ?? '');
+    const { userId, accountId } = await this.credentials.check(email, form.password ?? '');
     if (userId === null) {
+      this.recordAuth(request, 'login-failed', accountId);
       this.logger.warn({ ip: request.ip }, 'Login rejected: invalid credentials or inactive account');
       this.page.sendForm(request, response, {
         authorizeQuery,
@@ -112,6 +116,7 @@ export class LoginController {
       return;
     }
     await this.throttle.forgive(email);
+    this.recordAuth(request, 'login', userId);
     this.resumeAuthorization(request, response, userId, authorizeQuery);
   }
 
@@ -123,6 +128,7 @@ export class LoginController {
     const admission = await this.throttle.admit(form.email ?? '');
     if (admission === 'throttled') {
       this.logger.warn({ ip: request.ip }, 'Login refused: the account reached its attempt limit');
+      this.recordAuth(request, 'login-throttled');
       return {
         status: HttpStatus.TOO_MANY_REQUESTS,
         error: loginMessage('throttled', locale),
@@ -130,6 +136,15 @@ export class LoginController {
       };
     }
     return admission === 'unavailable' ? { status: HttpStatus.SERVICE_UNAVAILABLE, error: loginMessage('unavailable', locale) } : null;
+  }
+
+  // Not awaited: the sign-in never waits for, or fails with, the journal.
+  private recordAuth(request: LoginRequest, kind: 'login' | 'login-failed' | 'login-throttled', userId?: string | null): void {
+    void this.audit.recordAuthEvent({
+      kind,
+      ...(userId !== undefined && userId !== null ? { userId } : {}),
+      ...(request.requestId !== undefined ? { requestId: request.requestId } : {}),
+    });
   }
 
   private resumeAuthorization(request: LoginRequest, response: Response, userId: string, authorizeQuery: string): void {

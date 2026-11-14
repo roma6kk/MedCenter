@@ -5,6 +5,7 @@ import { TOKEN_REVOCATION } from '@medcenter/common';
 import { z } from 'zod';
 
 import { readSessionIdleTimeoutMs } from '../../config/auth-env';
+import { AuditModule } from '../audit/audit.module';
 import { UsersModule } from '../users/users.module';
 import { AuthorizeController } from './authorize.controller';
 import { OAuthErrorFilter } from './filters/oauth-error.filter';
@@ -121,7 +122,7 @@ export function loadRegisteredClients(source: NodeJS.ProcessEnv = process.env): 
 }
 
 @Module({
-  imports: [UsersModule],
+  imports: [UsersModule, AuditModule],
   controllers: [OAuthController, AuthorizeController, LoginController, LoginAssetsController],
   providers: [
     PkceService,

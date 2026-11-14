@@ -246,6 +246,7 @@ describe('OAuthService idle session timeout', () => {
     const error = await captureOAuthError(refresh(harness, first.refresh_token));
     expect(error.getResponse()).toMatchObject({ error: 'invalid_grant' });
     await expect(harness.tokens.isRevoked(first.refresh_token)).resolves.toBe(true);
+    expect(harness.recordAuthEvent).toHaveBeenCalledWith({ kind: 'session-idle', userId: 'u1' });
   });
 
   it('should not count a refresh as activity, so polling cannot keep an abandoned session alive', async () => {
@@ -281,5 +282,25 @@ describe('OAuthService idle session timeout', () => {
     await expect(harness.service.recordActivity(first.refresh_token, 'intruder')).resolves.toBe(false);
     jest.setSystemTime(Date.now() + IDLE_MS + 1_000);
     await expect(harness.service.recordActivity(first.refresh_token, 'u1')).resolves.toBe(false);
+  });
+});
+
+describe('OAuthService authentication journal', () => {
+  it('should journal a logout when the refresh token is revoked by its owner', async () => {
+    const harness = createHarness();
+    const tokens = await signIn(harness);
+
+    await harness.service.revoke({ refreshToken: tokens.refresh_token, userId: 'u1' });
+
+    expect(harness.recordAuthEvent).toHaveBeenCalledWith({ kind: 'logout', userId: 'u1' });
+  });
+
+  it('should not journal a logout when the token belongs to someone else', async () => {
+    const harness = createHarness();
+    const tokens = await signIn(harness);
+
+    await harness.service.revoke({ refreshToken: tokens.refresh_token, userId: 'other' });
+
+    expect(harness.recordAuthEvent).not.toHaveBeenCalled();
   });
 });

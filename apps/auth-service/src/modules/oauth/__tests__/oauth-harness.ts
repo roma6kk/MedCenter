@@ -1,3 +1,4 @@
+import type { AuditService } from '../../audit/audit.service';
 import { JwtService } from '../jwt.service';
 import { OAuthError } from '../oauth-error';
 import { OAuthService } from '../oauth.service';
@@ -11,14 +12,17 @@ export interface OAuthHarness {
   readonly pkce: PkceService;
   readonly tokens: TokenService;
   readonly identities: StubIdentityResolver;
+  readonly recordAuthEvent: jest.Mock;
 }
 
 export function createOAuthHarness(idleTimeoutMs?: number): OAuthHarness {
   const tokens = new TokenService(new InMemoryTokenStore(), new InMemoryTokenDenylist());
   const pkce = new PkceService();
   const identities = new StubIdentityResolver();
-  const service = new OAuthService(pkce, new JwtService(createTestKeys()), tokens, identities, idleTimeoutMs);
-  return { service, pkce, tokens, identities };
+  const recordAuthEvent = jest.fn().mockResolvedValue(undefined);
+  const audit = { recordAuthEvent } as unknown as AuditService;
+  const service = new OAuthService(pkce, new JwtService(createTestKeys()), tokens, identities, audit, idleTimeoutMs);
+  return { service, pkce, tokens, identities, recordAuthEvent };
 }
 
 export function decodeClaims(accessToken: string): Record<string, unknown> {
