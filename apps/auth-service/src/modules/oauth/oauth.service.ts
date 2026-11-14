@@ -53,7 +53,12 @@ interface RevokeParams {
   readonly refreshToken: string;
   readonly userId: string;
   readonly clientId?: string;
+  // The client ended the session because the user was away; honoured only when the session really was quiet for about the limit.
+  readonly reason?: 'idle';
 }
+
+// Client and server clocks of the idle limit differ by up to one activity ping.
+const IDLE_REASON_SKEW_MS = 60_000;
 
 export interface TokenResponse {
   readonly access_token: string;
@@ -180,11 +185,11 @@ export class OAuthService {
 
   // Only the user-driven activity ping calls this: a refresh never counts, or background polling would keep an abandoned session alive.
   async recordActivity(sessionId: string, userId: string): Promise<boolean> {
-    const found = await this.tokens.find(sessionId);
+    const found = await this.tokens.findBySession(sessionId);
     if (found === null || found.kind !== 'refresh' || found.userId !== userId || this.isIdle(found)) {
       return false;
     }
-    await this.tokens.touch(sessionId);
+    await this.tokens.touch(found.jti);
     return true;
   }
 
@@ -199,11 +204,12 @@ export class OAuthService {
       return false;
     }
     await this.tokens.revoke(params.refreshToken);
-    void this.audit.recordAuthEvent({ kind: 'logout', userId: stored.userId });
+    const kind = params.reason === 'idle' && this.wasQuiet(stored) ? 'session-idle' : 'logout';
+    void this.audit.recordAuthEvent({ kind, userId: stored.userId });
     return true;
   }
 
-  // Refresh token first: its jti is the access token's sid. Role and identity are re-resolved on every grant, so a deactivated account cannot refresh.
+  // Refresh token first: its session id is the access token's sid and survives rotation. Role and identity are re-resolved on every grant, so a deactivated account cannot refresh.
   private async issuePair(stored: StoredToken, grant: ResolvedGrant): Promise<TokenResponse> {
     const { scope, claims } = grant;
     const refresh = await this.tokens.issue({
@@ -213,6 +219,7 @@ export class OAuthService {
       kind: 'refresh',
       ttlSeconds: REFRESH_TOKEN_TTL_SECONDS,
       ...(stored.lastActivityAt !== undefined ? { lastActivityAt: stored.lastActivityAt } : {}),
+      ...(stored.kind === 'refresh' ? { sessionId: stored.sessionId ?? stored.jti } : {}),
       role: claims.role,
       ...(claims.patient !== undefined ? { patientRef: claims.patient } : {}),
       ...(claims.fhirUser !== undefined ? { fhirUser: claims.fhirUser } : {}),
@@ -221,7 +228,7 @@ export class OAuthService {
       sub: stored.userId,
       scope,
       role: claims.role,
-      sid: refresh.jti,
+      sid: refresh.sessionId ?? refresh.jti,
       ...(claims.patient !== undefined ? { patientRef: claims.patient } : {}),
       ...(claims.fhirUser !== undefined ? { fhirUser: claims.fhirUser } : {}),
     });
@@ -238,6 +245,10 @@ export class OAuthService {
 
   private isIdle(token: StoredToken): boolean {
     return token.lastActivityAt !== undefined && Date.now() - token.lastActivityAt > this.idleTimeoutMs;
+  }
+
+  private wasQuiet(token: StoredToken): boolean {
+    return token.lastActivityAt !== undefined && Date.now() - token.lastActivityAt > this.idleTimeoutMs - IDLE_REASON_SKEW_MS;
   }
 
   private async resolveGrant(stored: StoredToken): Promise<ResolvedGrant> {

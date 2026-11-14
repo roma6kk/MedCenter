@@ -112,3 +112,25 @@ describe('createTokenStores', () => {
     expect(stores.denylist).toBeInstanceOf(InMemoryTokenDenylist);
   });
 });
+
+describe('RedisTokenStore session index', () => {
+  it('should resolve the live token of a session after the token rotated', async () => {
+    const redis = fakeRedis();
+    const store = new RedisTokenStore(redis);
+    await store.save({ ...TOKEN, jti: 'jti-1', sessionId: 'sess-1' });
+    await store.take('jti-1');
+    await store.save({ ...TOKEN, jti: 'jti-2', sessionId: 'sess-1' });
+
+    await expect(store.findCurrent('sess-1')).resolves.toMatchObject({ jti: 'jti-2' });
+    expect(redis.data.get('oauth:session-current:sess-1')?.ttl).toBe(redis.data.get('oauth:token:jti-2')?.ttl);
+  });
+
+  it('should answer null for a session whose live token is gone', async () => {
+    const store = new RedisTokenStore(fakeRedis());
+    await store.save({ ...TOKEN, sessionId: 'sess-1' });
+    await store.delete('jti-1');
+
+    await expect(store.findCurrent('sess-1')).resolves.toBeNull();
+    await expect(store.findCurrent('unknown')).resolves.toBeNull();
+  });
+});

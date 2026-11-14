@@ -38,6 +38,7 @@ interface RevokeRequestDto {
   readonly refreshToken?: string;
   readonly client_id?: string;
   readonly clientId?: string;
+  readonly reason?: string;
 }
 
 interface AuthenticatedRequest {
@@ -173,6 +174,7 @@ export class OAuthController {
       refreshToken: body.refreshToken,
       userId: readPrincipalId(request),
       ...(typeof clientId === 'string' && clientId.length > 0 ? { clientId } : {}),
+      ...(body.reason === 'idle' ? { reason: 'idle' as const } : {}),
     });
     return { revoked };
   }

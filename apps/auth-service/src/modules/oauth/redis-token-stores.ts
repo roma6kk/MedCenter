@@ -11,6 +11,7 @@ import {
 } from './token.service';
 
 const TOKEN_KEY_PREFIX = 'oauth:token:';
+const SESSION_KEY_PREFIX = 'oauth:session-current:';
 
 const COMMAND_TIMEOUT_MS = 2000;
 
@@ -54,6 +55,14 @@ export class RedisTokenStore implements TokenStore, OnModuleDestroy {
   async save(token: StoredToken): Promise<void> {
     const ttl = ttlSecondsOf((token.expiresAt.getTime() - Date.now()) / 1000);
     await this.redis.set(`${TOKEN_KEY_PREFIX}${token.jti}`, JSON.stringify(token), 'EX', ttl);
+    if (token.kind === 'refresh' && token.sessionId !== undefined) {
+      await this.redis.set(`${SESSION_KEY_PREFIX}${token.sessionId}`, token.jti, 'EX', ttl);
+    }
+  }
+
+  async findCurrent(sessionId: string): Promise<StoredToken | null> {
+    const jti = await this.redis.get(`${SESSION_KEY_PREFIX}${sessionId}`);
+    return jti === null ? null : this.find(jti);
   }
 
   async find(jti: string): Promise<StoredToken | null> {

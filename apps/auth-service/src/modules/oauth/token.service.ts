@@ -23,6 +23,8 @@ export interface StoredToken {
   readonly expiresAt: Date;
   // Epoch ms of the last user activity in this session; carried over on rotation. Absent on tokens issued before the idle timeout existed.
   readonly lastActivityAt?: number;
+  // Stable across rotations of a refresh token and carried as the access token's sid. Absent on tokens issued before it existed: their own jti is the session id.
+  readonly sessionId?: string;
   readonly role?: string;
   readonly patientRef?: string;
   readonly fhirUser?: string;
@@ -31,6 +33,8 @@ export interface StoredToken {
 export interface TokenStore {
   save(token: StoredToken): Promise<void>;
   find(jti: string): Promise<StoredToken | null>;
+  // The refresh token that is live now for a session id; null when it was spent, revoked or never indexed.
+  findCurrent(sessionId: string): Promise<StoredToken | null>;
   take(jti: string): Promise<StoredToken | null>;
   // Never creates: a token that was spent or revoked in the meantime stays gone.
   touch(jti: string, lastActivityAt: number): Promise<void>;
@@ -47,13 +51,22 @@ export const TOKEN_DENYLIST = 'TOKEN_DENYLIST';
 
 export class InMemoryTokenStore implements TokenStore {
   private readonly tokens = new Map<string, StoredToken>();
+  private readonly current = new Map<string, string>();
 
   async save(token: StoredToken): Promise<void> {
     this.tokens.set(token.jti, token);
+    if (token.kind === 'refresh' && token.sessionId !== undefined) {
+      this.current.set(token.sessionId, token.jti);
+    }
   }
 
   async find(jti: string): Promise<StoredToken | null> {
     return this.tokens.get(jti) ?? null;
+  }
+
+  async findCurrent(sessionId: string): Promise<StoredToken | null> {
+    const jti = this.current.get(sessionId);
+    return jti === undefined ? null : (this.tokens.get(jti) ?? null);
   }
 
   async take(jti: string): Promise<StoredToken | null> {
@@ -102,6 +115,7 @@ export interface IssueTokenParams {
   readonly ttlSeconds: number;
   readonly codeChallenge?: string;
   readonly lastActivityAt?: number;
+  readonly sessionId?: string;
   readonly role?: string;
   readonly patientRef?: string;
   readonly fhirUser?: string;
@@ -115,8 +129,9 @@ export class TokenService implements TokenRevocationChecker {
   ) {}
 
   async issue(params: IssueTokenParams): Promise<StoredToken> {
+    const jti = randomUUID();
     const token: StoredToken = {
-      jti: randomUUID(),
+      jti,
       userId: params.userId,
       clientId: params.clientId,
       kind: params.kind,
@@ -124,6 +139,7 @@ export class TokenService implements TokenRevocationChecker {
       codeChallenge: params.codeChallenge ?? '',
       expiresAt: new Date(Date.now() + params.ttlSeconds * 1000),
       lastActivityAt: params.lastActivityAt ?? Date.now(),
+      ...(params.kind === 'refresh' ? { sessionId: params.sessionId ?? jti } : {}),
       ...(params.role !== undefined ? { role: params.role } : {}),
       ...(params.patientRef !== undefined ? { patientRef: params.patientRef } : {}),
       ...(params.fhirUser !== undefined ? { fhirUser: params.fhirUser } : {}),
@@ -167,10 +183,20 @@ export class TokenService implements TokenRevocationChecker {
     return this.store.find(jti);
   }
 
-  // The session entry lasts a flat ACCESS_TOKEN_TTL_SECONDS: a pair may be minted one second before the refresh token expires.
-  async revoke(jti: string): Promise<void> {
+  // Takes a session id (an access token's sid) or a refresh token jti; a legacy token has no session id, so its jti is both.
+  async findBySession(id: string): Promise<StoredToken | null> {
+    return (await this.store.findCurrent(id)) ?? (await this.store.find(id));
+  }
+
+  // The session entry lasts a flat ACCESS_TOKEN_TTL_SECONDS: a pair may be minted one second before the refresh token expires. Access tokens carry the session id, so that is what the guard must see denied.
+  async revoke(id: string): Promise<void> {
+    const live = await this.findBySession(id);
+    const jti = live?.jti ?? id;
     await this.store.delete(jti);
     await this.denylist.add(`${REUSE_PREFIX}${jti}`, REFRESH_TOKEN_TTL_SECONDS);
-    await this.denylist.add(`${SESSION_PREFIX}${jti}`, ACCESS_TOKEN_TTL_SECONDS);
+    await this.denylist.add(`${SESSION_PREFIX}${live?.sessionId ?? id}`, ACCESS_TOKEN_TTL_SECONDS);
+    if (live?.sessionId !== undefined && live.sessionId !== jti) {
+      await this.denylist.add(`${SESSION_PREFIX}${jti}`, ACCESS_TOKEN_TTL_SECONDS);
+    }
   }
 }

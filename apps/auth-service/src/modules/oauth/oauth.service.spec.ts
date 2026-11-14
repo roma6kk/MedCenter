@@ -274,6 +274,47 @@ describe('OAuthService idle session timeout', () => {
     await expect(refresh(harness, current.refresh_token)).resolves.toMatchObject({ token_type: 'Bearer' });
   });
 
+  it('should record activity of a tab holding a rotated session id against the live refresh token', async () => {
+    const harness = createHarness(IDLE_MS);
+    const first = await signIn(harness);
+    const sid = decodeClaims(first.access_token)['sid'] as string;
+    jest.setSystemTime(Date.now() + 5 * 60_000);
+    const rotated = await refresh(harness, first.refresh_token);
+
+    expect(decodeClaims(rotated.access_token)['sid']).toBe(sid);
+    jest.setSystemTime(Date.now() + 5 * 60_000);
+    await expect(harness.service.recordActivity(sid, 'u1')).resolves.toBe(true);
+
+    jest.setSystemTime(Date.now() + 10 * 60_000);
+    await expect(refresh(harness, rotated.refresh_token)).resolves.toMatchObject({ token_type: 'Bearer' });
+  });
+
+  it('should revoke the whole session through its stable id after rotations', async () => {
+    const harness = createHarness(IDLE_MS);
+    const first = await signIn(harness);
+    const sid = decodeClaims(first.access_token)['sid'] as string;
+    const rotated = await refresh(harness, first.refresh_token);
+
+    await harness.tokens.revoke(sid);
+
+    await expect(harness.tokens.isRevoked(sid)).resolves.toBe(true);
+    await expect(harness.tokens.find(rotated.refresh_token)).resolves.toBeNull();
+  });
+
+  it('should treat a legacy token without a session id as its own session', async () => {
+    const harness = createHarness(IDLE_MS);
+    const legacy = await harness.tokens.issue({ userId: 'u1', clientId: 'medcenter-web', scope: 'launch', kind: 'refresh', ttlSeconds: 600 });
+    const withoutSession = { ...legacy } as { -readonly [K in keyof typeof legacy]?: (typeof legacy)[K] };
+    delete withoutSession.sessionId;
+    await harness.store.save(withoutSession as typeof legacy);
+
+    await expect(harness.service.recordActivity(legacy.jti, 'u1')).resolves.toBe(true);
+    const rotated = await refresh(harness, legacy.jti);
+
+    expect(decodeClaims(rotated.access_token)['sid']).toBe(legacy.jti);
+    await expect(harness.service.recordActivity(legacy.jti, 'u1')).resolves.toBe(true);
+  });
+
   it('should refuse to record activity for an idle, unknown or foreign session', async () => {
     const harness = createHarness(IDLE_MS);
     const first = await signIn(harness);
@@ -291,6 +332,27 @@ describe('OAuthService authentication journal', () => {
     const tokens = await signIn(harness);
 
     await harness.service.revoke({ refreshToken: tokens.refresh_token, userId: 'u1' });
+
+    expect(harness.recordAuthEvent).toHaveBeenCalledWith({ kind: 'logout', userId: 'u1' });
+  });
+
+  it('should journal a session-idle when the client ended the session for inactivity', async () => {
+    jest.useFakeTimers({ now: new Date('2026-11-14T10:00:00Z') });
+    const harness = createHarness(15 * 60_000);
+    const tokens = await signIn(harness);
+    jest.setSystemTime(Date.now() + 15 * 60_000 - 30_000);
+
+    await harness.service.revoke({ refreshToken: tokens.refresh_token, userId: 'u1', reason: 'idle' });
+    jest.useRealTimers();
+
+    expect(harness.recordAuthEvent).toHaveBeenCalledWith({ kind: 'session-idle', userId: 'u1' });
+  });
+
+  it('should journal a plain logout when an idle reason is claimed for a recently active session', async () => {
+    const harness = createHarness(15 * 60_000);
+    const tokens = await signIn(harness);
+
+    await harness.service.revoke({ refreshToken: tokens.refresh_token, userId: 'u1', reason: 'idle' });
 
     expect(harness.recordAuthEvent).toHaveBeenCalledWith({ kind: 'logout', userId: 'u1' });
   });
