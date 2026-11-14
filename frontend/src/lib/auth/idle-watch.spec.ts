@@ -93,6 +93,48 @@ describe('startIdleWatch', () => {
     expect(onIdle).toHaveBeenCalledTimes(1);
   });
 
+  async function flush(): Promise<void> {
+    for (let turn = 0; turn < 6; turn += 1) await Promise.resolve();
+  }
+
+  it('should refresh the session once and ping again before ending it when the server answers not recorded', async () => {
+    stop();
+    sendPing = jest.fn().mockResolvedValueOnce(false).mockResolvedValueOnce(true);
+    const renewSession = jest.fn().mockResolvedValue(true);
+    stop = startIdleWatch({ timeoutMs: 15 * MINUTE, onIdle, sendPing, renewSession });
+
+    touch();
+    await flush();
+
+    expect(renewSession).toHaveBeenCalledTimes(1);
+    expect(sendPing).toHaveBeenCalledTimes(2);
+    expect(onIdle).not.toHaveBeenCalled();
+  });
+
+  it('should end the session when the retried ping is still not recorded', async () => {
+    stop();
+    sendPing = jest.fn().mockResolvedValue(false);
+    stop = startIdleWatch({ timeoutMs: 15 * MINUTE, onIdle, sendPing, renewSession: jest.fn().mockResolvedValue(true) });
+
+    touch();
+    await flush();
+
+    expect(sendPing).toHaveBeenCalledTimes(2);
+    expect(onIdle).toHaveBeenCalledTimes(1);
+  });
+
+  it('should end the session without a second ping when the session cannot be renewed', async () => {
+    stop();
+    sendPing = jest.fn().mockResolvedValue(false);
+    stop = startIdleWatch({ timeoutMs: 15 * MINUTE, onIdle, sendPing, renewSession: jest.fn().mockResolvedValue(false) });
+
+    touch();
+    await flush();
+
+    expect(sendPing).toHaveBeenCalledTimes(1);
+    expect(onIdle).toHaveBeenCalledTimes(1);
+  });
+
   it('should ignore a failed ping and not end the session', async () => {
     stop();
     sendPing = jest.fn().mockRejectedValue(new Error('offline'));

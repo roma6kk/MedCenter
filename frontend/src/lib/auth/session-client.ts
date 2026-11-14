@@ -86,13 +86,15 @@ export function refreshSession(): Promise<ExchangeOutcome> {
   return exchange('/api/auth/refresh', { method: 'POST' });
 }
 
-export async function endSession(): Promise<void> {
+export async function endSession(reason?: 'idle'): Promise<void> {
   const token = getAccessToken();
+  const headers: Record<string, string> = token === null ? {} : { Authorization: `Bearer ${token}` };
   try {
     await fetch('/api/auth/logout', {
       method: 'POST',
       credentials: 'same-origin',
-      headers: token === null ? {} : { Authorization: `Bearer ${token}` },
+      headers: reason === undefined ? headers : { ...headers, 'Content-Type': 'application/json' },
+      ...(reason !== undefined ? { body: JSON.stringify({ reason }) } : {}),
     });
   } catch (error: unknown) {
     console.error('[session] logout request failed; the local session is cleared anyway', error);
@@ -122,7 +124,7 @@ export async function endRevokedSession(): Promise<void> {
 // Same clean-up as a manual logout: an unattended screen must not leave booking or clinical drafts behind.
 export async function endIdleSession(): Promise<void> {
   const returnTo = currentReturnTo();
-  await endSession();
+  await endSession('idle');
   useBookingDraftStore.getState().clearDraft();
   clearAllDrafts();
   setFlash('session-idle');

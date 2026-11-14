@@ -4,11 +4,12 @@ import { fakeAccessToken, jsonResponse, tokenEndpointBody } from '@/lib/auth/jwt
 import { resetRotationGraceForTests } from '@/lib/auth/session-broker';
 import { POST } from './route';
 
-function logout(cookie: string | null, bearer: string | null = null): Promise<Response> {
+function logout(cookie: string | null, bearer: string | null = null, body?: unknown): Promise<Response> {
   const headers: Record<string, string> = {};
   if (cookie !== null) headers['cookie'] = cookie;
   if (bearer !== null) headers['authorization'] = `Bearer ${bearer}`;
-  return POST(new NextRequest('http://0.0.0.0:3000/api/auth/logout', { method: 'POST', headers }));
+  if (body !== undefined) headers['content-type'] = 'application/json';
+  return POST(new NextRequest('http://0.0.0.0:3000/api/auth/logout', { method: 'POST', headers, ...(body !== undefined ? { body: JSON.stringify(body) } : {}) }));
 }
 
 function calls(spy: jest.SpyInstance): ReadonlyArray<{ readonly url: string; readonly init: RequestInit }> {
@@ -46,6 +47,17 @@ describe('POST /api/auth/logout', () => {
 
     const [revoke] = calls(fetchSpy);
     expectRevoke(revoke, 'access-1', 'refresh-1');
+  });
+
+  it('should forward the idle reason of the client to the revoke call and ignore any other reason', async () => {
+    fetchSpy.mockResolvedValue(jsonResponse({ revoked: true }));
+
+    await logout('mc_rt=refresh-1', 'access-1', { reason: 'idle' });
+    await logout('mc_rt=refresh-1', 'access-1', { reason: 'whatever' });
+
+    const [idle, other] = calls(fetchSpy);
+    expect(JSON.parse(String(idle?.init.body))).toMatchObject({ reason: 'idle' });
+    expect(JSON.parse(String(other?.init.body))).not.toHaveProperty('reason');
   });
 
   it('should use the cached access-token cookie as the Bearer when the client sent none, without minting a new pair', async () => {

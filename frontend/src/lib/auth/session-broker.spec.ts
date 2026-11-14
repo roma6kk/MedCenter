@@ -192,6 +192,15 @@ describe('revokeRefreshToken', () => {
     expect(JSON.parse(String(init.body))).toEqual({ refreshToken: 'refresh-1', client_id: 'medcenter-web' });
   });
 
+  it('should pass the idle reason on to the revoke endpoint', async () => {
+    const fetchSpy = jest.spyOn(globalThis, 'fetch').mockResolvedValueOnce(jsonResponse({ revoked: true }));
+
+    await revokeRefreshToken('refresh-1', 'access-1', ENV, 'idle');
+
+    const [, init] = fetchSpy.mock.calls[0] as [string, RequestInit];
+    expect(JSON.parse(String(init.body))).toEqual({ refreshToken: 'refresh-1', client_id: 'medcenter-web', reason: 'idle' });
+  });
+
   it('should resolve false instead of throwing when auth-service is unreachable', async () => {
     jest.spyOn(console, 'error').mockImplementation(() => undefined);
     jest.spyOn(globalThis, 'fetch').mockRejectedValueOnce(new TypeError('fetch failed'));

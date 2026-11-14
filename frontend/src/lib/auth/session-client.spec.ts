@@ -287,6 +287,7 @@ describe('endSession and logout', () => {
     const init = fetchSpy.mock.calls[0]?.[1] as RequestInit;
     expect(fetchSpy.mock.calls[0]?.[0]).toBe('/api/auth/logout');
     expect((init.headers as Record<string, string>)['Authorization']).toBe('Bearer a.b.c');
+    expect(init.body).toBeUndefined();
     expect(getAccessToken()).toBeNull();
     expect(useSessionStore.getState().role).toBeNull();
   });
@@ -345,8 +346,12 @@ describe('endSession and logout', () => {
     useBookingDraftStore.getState().updateDraft({ doctorId: 'doc-1', step: 3 });
     jest.spyOn(global, 'fetch').mockResolvedValueOnce(jsonResponse({ loggedOut: true }, 200));
 
+    const fetchSpy = jest.mocked(global.fetch);
     await endIdleSession();
 
+    const init = fetchSpy.mock.calls[0]?.[1] as RequestInit;
+    expect(JSON.parse(String(init.body))).toEqual({ reason: 'idle' });
+    expect((init.headers as Record<string, string>)['Content-Type']).toBe('application/json');
     expect(assignSpy).toHaveBeenLastCalledWith('/login?returnTo=%2Fdoctor%2Fappointments&reason=session-idle');
     expect(consumeFlash()).toBe('session-idle');
     expect(useBookingDraftStore.getState().doctorId).not.toBe('doc-1');

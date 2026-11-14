@@ -113,12 +113,12 @@ export function rotateRefreshToken(refreshToken: string, env: EnvSource = proces
   return result;
 }
 
-export async function revokeRefreshToken(refreshToken: string, accessToken: string, env: EnvSource = process.env): Promise<boolean> {
+export async function revokeRefreshToken(refreshToken: string, accessToken: string, env: EnvSource = process.env, reason?: 'idle'): Promise<boolean> {
   try {
     const response: Response = await fetch(`${resolveAuthBackendUrl(env)}/oauth/token/revoke`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
-      body: JSON.stringify({ refreshToken, client_id: resolveOauthClientId(env) }),
+      body: JSON.stringify({ refreshToken, client_id: resolveOauthClientId(env), ...(reason !== undefined ? { reason } : {}) }),
       cache: 'no-store',
       signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
     });

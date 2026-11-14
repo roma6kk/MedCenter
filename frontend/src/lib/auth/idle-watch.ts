@@ -18,6 +18,9 @@ export interface IdleWatchOptions {
   readonly onIdle: () => void;
   // The server keeps its own idle clock; false means it already ended the session.
   readonly sendPing: () => Promise<boolean>;
+  // A tab's Bearer may name a session id the server no longer matches; one refresh and one more ping settle that before the session is ended.
+  // Resolves false when the session could not be renewed.
+  readonly renewSession?: () => Promise<boolean>;
 }
 
 function readShared(): number | null {
@@ -37,7 +40,7 @@ function writeShared(at: number): void {
   }
 }
 
-export function startIdleWatch({ timeoutMs, onIdle, sendPing }: IdleWatchOptions): () => void {
+export function startIdleWatch({ timeoutMs, onIdle, sendPing, renewSession }: IdleWatchOptions): () => void {
   let lastActivity = Date.now();
   let lastWrite = 0;
   let lastPing = 0;
@@ -58,10 +61,17 @@ export function startIdleWatch({ timeoutMs, onIdle, sendPing }: IdleWatchOptions
     return true;
   };
 
+  const confirmed = async (): Promise<boolean> => {
+    if (await sendPing()) return true;
+    if (renewSession === undefined) return false;
+    if (!(await renewSession())) return false;
+    return sendPing();
+  };
+
   const ping = (now: number): void => {
     if (now - lastPing < PING_INTERVAL_MS) return;
     lastPing = now;
-    void sendPing().then((recorded) => {
+    void confirmed().then((recorded) => {
       if (!recorded) end();
     }, () => undefined);
   };
