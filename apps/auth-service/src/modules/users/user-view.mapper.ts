@@ -46,11 +46,14 @@ export function toMe(user: UserRecord): MeResponseDto {
 }
 
 export function toRetentionExpiredItem(user: UserRecord): RetentionExpiredItemDto {
-  const retentionUntil = user.retentionUntil ?? user.createdAt;
+  const { closedAt, retentionUntil } = user;
+  if (closedAt === undefined || retentionUntil === undefined) {
+    throw new Error('a retention-expired account must carry closedAt and retentionUntil');
+  }
   return {
     id: user.id,
     name: `${user.lastName} ${user.firstName}`,
-    closedAt: (user.closedAt ?? retentionUntil).toISOString(),
+    closedAt: closedAt.toISOString(),
     retentionUntil: retentionUntil.toISOString(),
   };
 }
