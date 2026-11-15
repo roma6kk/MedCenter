@@ -429,9 +429,9 @@ describe('ConsentsService', () => {
     });
 
     function patientBornOn(birthDate: string | undefined): FhirResource {
-      const rest: FhirResource = { ...patientResource };
-      delete rest['birthDate'];
-      return birthDate === undefined ? rest : { ...rest, birthDate };
+      const rest: Record<string, unknown> = { ...patientResource };
+      Reflect.deleteProperty(rest, 'birthDate');
+      return (birthDate === undefined ? rest : { ...rest, birthDate }) as FhirResource;
     }
 
     it.each([
