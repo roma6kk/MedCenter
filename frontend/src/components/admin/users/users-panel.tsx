@@ -9,6 +9,7 @@ import { AdminProblem } from '../shared/admin-problem';
 import { CreateButton } from '../shared/create-button';
 import { QueryState } from '../shared/query-state';
 import { useAdminUsers, useDeactivateUser, useUpdateUser, type UsersFilter } from './use-admin-users';
+import { RetentionExpiredSection } from './retention-expired-section';
 import { UserFormDialog } from './user-form-dialog';
 import { UsersFilterForm } from './users-filter-form';
 import { UsersTable } from './users-table';
@@ -78,6 +79,7 @@ export function UsersPanel(): ReactNode {
           />
         )}
       </QueryState>
+      <RetentionExpiredSection />
       <UserDialogs dialog={dialog} onClose={closeDialog} />
     </>
   );

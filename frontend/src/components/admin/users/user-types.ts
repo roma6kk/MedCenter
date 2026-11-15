@@ -18,6 +18,13 @@ export interface AdminUser {
   readonly accountConsentWithdrawnAt?: string | null;
 }
 
+export interface RetentionExpiredAccount {
+  readonly id: string;
+  readonly name: string;
+  readonly closedAt: string;
+  readonly retentionUntil: string;
+}
+
 export interface CreateUserPayload {
   readonly email: string;
   readonly firstName: string;

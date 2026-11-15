@@ -101,6 +101,16 @@
         "patient": "Patient record",
         "doctor": "Doctor",
         "doctorWithSpecialty": "Doctor · {specialty}"
+      },
+      "retention": {
+        "title": "Retention period expired",
+        "description": "Closed accounts whose data retention period under the operator's records schedule has passed. Nothing is deleted automatically: the operator decides what happens next. The patient's medical records are not affected by this list.",
+        "empty": "No closed accounts with an expired retention period",
+        "columns": {
+          "name": "User",
+          "closedAt": "Closed",
+          "retentionUntil": "Keep until"
+        }
       }
     },
     "rooms": {
@@ -1921,7 +1931,7 @@
     "purposeSecurityTitle": "Protection and action journal",
     "purposeSecurityData": "Time and type of the event (sign-in, failed sign-in, sign-out, actions on data), account identifier. IP address and browser details are not recorded.",
     "purposeSecurityBasis": "The operator duty to take protection measures (art. 17 of Law 99-Z).",
-    "retentionConsent": "Consent is valid until withdrawn. Retention period: per the operator records schedule, to be confirmed.",
+    "retentionConsent": "Consent is valid until withdrawn. The data of a closed account is kept for the period set by the operator under its records schedule (to be confirmed), after which the operator decides what to do with it. Medical records are not affected.",
     "cookiesTitle": "Cookies and browser data",
     "cookiesLead": "Only technical cookies are used, without which sign-in and the site cannot work. There is no analytics, advertising or third-party service, so no consent banner is shown.",
     "cookieName": "Cookie",

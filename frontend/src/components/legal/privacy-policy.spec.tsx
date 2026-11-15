@@ -44,4 +44,13 @@ describe('PrivacyPolicy', () => {
     expect(storage).toHaveTextContent('черновик записи на приём');
     expect(storage).toHaveTextContent('не передаются третьим лицам');
   });
+
+  it('should say the data of a closed account is kept for the configured period and then reviewed by the operator', () => {
+    render(<PrivacyPolicy />);
+
+    const first = screen.getByTestId('purpose-account');
+    expect(first).toHaveTextContent('Данные закрытой учётной записи хранятся в течение срока, заданного оператором');
+    expect(first).toHaveTextContent('затем оператор принимает решение');
+    expect(first).toHaveTextContent('Медицинские записи не затрагиваются');
+  });
 });
