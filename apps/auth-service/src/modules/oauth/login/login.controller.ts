@@ -105,7 +105,7 @@ export class LoginController {
     const { userId, accountId } = await this.credentials.check(email, form.password ?? '');
     if (userId === null) {
       this.recordAuth(request, 'login-failed', accountId);
-      this.logger.warn({ ip: request.ip }, 'Login rejected: invalid credentials or inactive account');
+      this.logger.warn('Login rejected: invalid credentials or inactive account');
       this.page.sendForm(request, response, {
         authorizeQuery,
         redirectUri,
@@ -127,7 +127,7 @@ export class LoginController {
     }
     const admission = await this.throttle.admit(form.email ?? '');
     if (admission === 'throttled') {
-      this.logger.warn({ ip: request.ip }, 'Login refused: the account reached its attempt limit');
+      this.logger.warn('Login refused: the account reached its attempt limit');
       this.recordAuth(request, 'login-throttled');
       return {
         status: HttpStatus.TOO_MANY_REQUESTS,
