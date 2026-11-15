@@ -6,6 +6,7 @@ import {
   ResourceAlreadyLinkedError,
   searchTokens,
   type NewUser,
+  type RetentionExpiredQuery,
   type UserChanges,
   type UserLinks,
   type UserListQuery,
@@ -67,13 +68,15 @@ export class InMemoryUserStore implements UserStore {
     if (changes.email !== undefined) {
       this.assertEmailFree(changes.email, id);
     }
-    const { practitionerRoleId, ...scalars } = changes;
+    const { practitionerRoleId, closedAt, retentionUntil, ...scalars } = changes;
     if (typeof practitionerRoleId === 'string') {
       this.assertLinkFree(id, 'PractitionerRole', practitionerRoleId);
     }
     const updated: UserRecord = {
       ...current,
       ...scalars,
+      ...(closedAt === undefined ? {} : { closedAt: closedAt ?? undefined }),
+      ...(retentionUntil === undefined ? {} : { retentionUntil: retentionUntil ?? undefined }),
       links: practitionerRoleId === undefined ? current.links : withPractitionerRole(current.links, practitionerRoleId),
     };
     this.users.set(id, updated);
@@ -97,6 +100,14 @@ export class InMemoryUserStore implements UserStore {
     const found = [...this.users.values()]
       .filter((user) => matches(user, query))
       .sort((a, b) => a.lastName.localeCompare(b.lastName) || a.firstName.localeCompare(b.firstName));
+    const start = (query.page - 1) * query.pageSize;
+    return { items: found.slice(start, start + query.pageSize), total: found.length };
+  }
+
+  async listRetentionExpired(query: RetentionExpiredQuery): Promise<UserPage> {
+    const found = [...this.users.values()]
+      .filter((user) => !user.isActive && user.retentionUntil !== undefined && user.retentionUntil <= query.now)
+      .sort((a, b) => (a.retentionUntil?.getTime() ?? 0) - (b.retentionUntil?.getTime() ?? 0));
     const start = (query.page - 1) * query.pageSize;
     return { items: found.slice(start, start + query.pageSize), total: found.length };
   }

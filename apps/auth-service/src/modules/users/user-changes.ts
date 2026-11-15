@@ -72,6 +72,8 @@ export function inverseOf(before: UserRecord, changes: UserChanges): UserChanges
     ...(changes.firstName !== undefined ? { firstName: before.firstName } : {}),
     ...(changes.lastName !== undefined ? { lastName: before.lastName } : {}),
     ...(changes.isActive !== undefined ? { isActive: before.isActive } : {}),
+    ...(changes.closedAt !== undefined ? { closedAt: before.closedAt ?? null } : {}),
+    ...(changes.retentionUntil !== undefined ? { retentionUntil: before.retentionUntil ?? null } : {}),
     ...(changes.roles !== undefined ? { roles: before.roles } : {}),
     ...(changes.practitionerRoleId !== undefined ? { practitionerRoleId: before.links.practitionerRoleId ?? null } : {}),
   };

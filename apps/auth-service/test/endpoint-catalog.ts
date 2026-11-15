@@ -53,6 +53,15 @@ export const PROTECTED_ENDPOINTS: ReadonlyArray<ProtectedEndpoint> = [
     reached: { status: 200 },
   },
   {
+    name: 'GET /api/v1/admin/users/retention-expired',
+    method: 'get',
+    route: '/api/v1/admin/users/retention-expired',
+    path: '/api/v1/admin/users/retention-expired',
+    role: Role.ADMIN,
+    scope: 'user/*.read',
+    reached: { status: 200 },
+  },
+  {
     name: 'GET /api/v1/admin/users/:id',
     method: 'get',
     route: '/api/v1/admin/users/:id',

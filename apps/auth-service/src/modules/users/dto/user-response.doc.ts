@@ -2,7 +2,7 @@ import { Role } from '@medcenter/contracts';
 import { ApiProperty } from '@nestjs/swagger';
 
 import { PageMetaDoc } from './page-meta.doc';
-import type { ExternalLinkDto, UserDetailsResponseDto, UserResponseDto } from './user-response.dto';
+import type { ExternalLinkDto, RetentionExpiredItemDto, UserDetailsResponseDto, UserResponseDto } from './user-response.dto';
 
 export class UserResponseDoc implements UserResponseDto {
   @ApiProperty({ format: 'uuid' })
@@ -66,6 +66,28 @@ export class UserDetailsResponseDoc extends UserResponseDoc implements UserDetai
 export class UserPageDoc {
   @ApiProperty({ type: [UserResponseDoc] })
   items!: UserResponseDoc[];
+
+  @ApiProperty({ type: PageMetaDoc })
+  meta!: PageMetaDoc;
+}
+
+export class RetentionExpiredItemDoc implements RetentionExpiredItemDto {
+  @ApiProperty({ format: 'uuid' })
+  id!: string;
+
+  @ApiProperty({ example: 'Иванов Иван', description: 'Display name, last name first' })
+  name!: string;
+
+  @ApiProperty({ type: String, format: 'date-time', description: 'When the account was deactivated' })
+  closedAt!: string;
+
+  @ApiProperty({ type: String, format: 'date-time', description: 'closedAt plus RETENTION_ACCOUNT_DAYS; the operator reviews the account after it' })
+  retentionUntil!: string;
+}
+
+export class RetentionExpiredPageDoc {
+  @ApiProperty({ type: [RetentionExpiredItemDoc] })
+  items!: RetentionExpiredItemDoc[];
 
   @ApiProperty({ type: PageMetaDoc })
   meta!: PageMetaDoc;

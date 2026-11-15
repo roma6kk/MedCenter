@@ -10,12 +10,19 @@ import { Init1700000000000 } from './migrations/1700000000000-Init';
 import { RolesAndLinks1700000000001 } from './migrations/1700000000001-RolesAndLinks';
 import { AccountConsent1700000000002 } from './migrations/1700000000002-AccountConsent';
 import { AccountConsentWithdrawal1700000000003 } from './migrations/1700000000003-AccountConsentWithdrawal';
+import { AccountRetention1700000000004 } from './migrations/1700000000004-AccountRetention';
 
 export const AUTH_SCHEMA = 'auth';
 
 export const authEntities = [User, Role, UserRole, ExternalLink, OAuthClient, OAuthToken];
 
-const authMigrations = [Init1700000000000, RolesAndLinks1700000000001, AccountConsent1700000000002, AccountConsentWithdrawal1700000000003];
+const authMigrations = [
+  Init1700000000000,
+  RolesAndLinks1700000000001,
+  AccountConsent1700000000002,
+  AccountConsentWithdrawal1700000000003,
+  AccountRetention1700000000004,
+];
 
 export interface PostgresConnectionOptions {
   host: string;

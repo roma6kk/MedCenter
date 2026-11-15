@@ -1,5 +1,5 @@
 import { primaryRole } from '../oauth/identity';
-import type { ExternalLinkDto, UserDetailsResponseDto, UserResponseDto } from './dto/user-response.dto';
+import type { ExternalLinkDto, RetentionExpiredItemDto, UserDetailsResponseDto, UserResponseDto } from './dto/user-response.dto';
 import type { UserRecord } from './store/user-store';
 
 function externalLinksOf(user: UserRecord): ExternalLinkDto[] {
@@ -34,4 +34,14 @@ export function toUserResponse(user: UserRecord): UserResponseDto {
 
 export function toUserDetails(user: UserRecord): UserDetailsResponseDto {
   return { ...toUserResponse(user), externalLinks: externalLinksOf(user), createdAt: user.createdAt.toISOString() };
+}
+
+export function toRetentionExpiredItem(user: UserRecord): RetentionExpiredItemDto {
+  const retentionUntil = user.retentionUntil ?? user.createdAt;
+  return {
+    id: user.id,
+    name: `${user.lastName} ${user.firstName}`,
+    closedAt: (user.closedAt ?? retentionUntil).toISOString(),
+    retentionUntil: retentionUntil.toISOString(),
+  };
 }

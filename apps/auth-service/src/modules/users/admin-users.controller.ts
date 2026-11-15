@@ -19,9 +19,10 @@ import { Role, SMART_SCOPES, type PaginatedResponseDto } from '@medcenter/contra
 
 import { CreateUserDto } from './dto/create-user.dto';
 import { ListUsersQueryDto } from './dto/list-users-query.dto';
+import { RetentionExpiredQueryDto } from './dto/retention-expired-query.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
-import type { UserDetailsResponseDto, UserResponseDto } from './dto/user-response.dto';
-import { UserDetailsResponseDoc, UserPageDoc } from './dto/user-response.doc';
+import type { RetentionExpiredItemDto, UserDetailsResponseDto, UserResponseDto } from './dto/user-response.dto';
+import { RetentionExpiredPageDoc, UserDetailsResponseDoc, UserPageDoc } from './dto/user-response.doc';
 import { NoStoreInterceptor } from './no-store.interceptor';
 import { actorOf, type AuthenticatedRequest } from './request-actor';
 import { UsersService } from './users.service';
@@ -53,6 +54,16 @@ export class AdminUsersController {
   @RequiresScopes(SMART_SCOPES.USER_READ)
   list(@Query() query: ListUsersQueryDto): Promise<PaginatedResponseDto<UserResponseDto>> {
     return this.users.list(query);
+  }
+
+  @Get('retention-expired')
+  @ApiOperation({ summary: '2.2.9 Closed accounts whose retention period has passed' })
+  @ApiResponse({ status: 200, description: 'A page of closed accounts waiting for the operator review; nothing is deleted', type: RetentionExpiredPageDoc })
+  @ApiProblems([...GUARD_PROBLEM_STATUSES, 400])
+  @RequiresRoles(Role.ADMIN)
+  @RequiresScopes(SMART_SCOPES.USER_READ)
+  listRetentionExpired(@Query() query: RetentionExpiredQueryDto): Promise<PaginatedResponseDto<RetentionExpiredItemDto>> {
+    return this.users.listRetentionExpired(query);
   }
 
   @Get(':id')

@@ -5,6 +5,7 @@ import { AuditModule } from '../audit/audit.module';
 import { FhirModule } from '../fhir/fhir.module';
 import { IDENTITY_RESOLVER } from '../oauth/identity';
 import { AccountController } from './account.controller';
+import { ACCOUNT_RETENTION, accountRetentionFromEnv } from './account-retention';
 import { AccountFactory } from './account-factory.service';
 import { AdminUsersController } from './admin-users.controller';
 import { BootstrapAdminService } from './bootstrap-admin.service';
@@ -25,6 +26,7 @@ import { UsersService } from './users.service';
     PatientProvisioner,
     AccountFactory,
     RegistrationService,
+    { provide: ACCOUNT_RETENTION, useFactory: () => accountRetentionFromEnv() },
     UsersService,
     CredentialsService,
     BootstrapAdminService,

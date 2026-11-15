@@ -10,19 +10,21 @@ import { normaliseEmail } from '../../config/auth-env';
 import type { AuditActor } from '../audit/audit-event.builder';
 import { AuditService } from '../audit/audit.service';
 import { AccountFactory } from './account-factory.service';
+import { ACCOUNT_RETENTION, accountRetentionFromEnv, closureOf, type AccountRetention } from './account-retention';
 import { assertUpdatable } from './account-rules';
 import type { CreateUserDto } from './dto/create-user.dto';
 import type { ListUsersQueryDto } from './dto/list-users-query.dto';
+import type { RetentionExpiredQueryDto } from './dto/retention-expired-query.dto';
 import type { MeResponseDto } from './dto/me-response.dto';
 import type { UpdateUserDto } from './dto/update-user.dto';
-import type { UserDetailsResponseDto, UserResponseDto } from './dto/user-response.dto';
+import type { RetentionExpiredItemDto, UserDetailsResponseDto, UserResponseDto } from './dto/user-response.dto';
 import { PasswordHasher } from './password-hasher';
 import { PatientProvisioner, type PatientDemographicsChange } from './patient-provisioner';
 import { USER_STORE, type UserChanges, type UserRecord, type UserStore } from './store/user-store';
 import { changesOf, demographicsOf, effectiveChangesOf, effectiveDemographicsOf, inverseOf } from './user-changes';
 import { conflictOf, emailTaken, invalidPassword, selfLockout, userNotFound } from './user-errors';
 import { linkedRefs } from './user-links';
-import { toUserDetails, toUserResponse } from './user-view.mapper';
+import { toRetentionExpiredItem, toUserDetails, toUserResponse } from './user-view.mapper';
 
 @Injectable()
 export class UsersService {
@@ -34,6 +36,7 @@ export class UsersService {
     private readonly patients: PatientProvisioner,
     private readonly audit: AuditService,
     private readonly hasher: PasswordHasher,
+    @Inject(ACCOUNT_RETENTION) private readonly retention: AccountRetention = accountRetentionFromEnv(),
   ) {}
 
   async list(query: ListUsersQueryDto): Promise<PaginatedResponseDto<UserResponseDto>> {
@@ -46,6 +49,19 @@ export class UsersService {
       ...(query.search !== undefined ? { search: query.search } : {}),
     });
     return buildPaginatedResponse(found.items.map(toUserResponse), {
+      page,
+      pageSize,
+      totalItems: found.total,
+      totalPages: Math.ceil(found.total / pageSize),
+    });
+  }
+
+  /** Closed accounts whose retention period is over and which wait for the operator's review; nothing is deleted here. */
+  async listRetentionExpired(query: RetentionExpiredQueryDto): Promise<PaginatedResponseDto<RetentionExpiredItemDto>> {
+    const page = query.page ?? DEFAULT_PAGE;
+    const pageSize = query.pageSize ?? DEFAULT_PAGE_SIZE;
+    const found = await this.store.listRetentionExpired({ now: this.retention.now(), page, pageSize });
+    return buildPaginatedResponse(found.items.map(toRetentionExpiredItem), {
       page,
       pageSize,
       totalItems: found.total,
@@ -86,8 +102,9 @@ export class UsersService {
     if (Object.keys(changes).length === 0 && demographics === null) {
       return toUserDetails(current);
     }
-    const updated = await this.applyChanges(id, changes);
-    await this.syncPatient(current, updated, changes, demographics, actor);
+    const closure = changes.isActive === undefined ? {} : changes.isActive ? { closedAt: null, retentionUntil: null } : closureOf(this.retention);
+    const updated = await this.applyChanges(id, { ...changes, ...closure });
+    await this.syncPatient(current, updated, { ...changes, ...closure }, demographics, actor);
     await this.recordUpdate(current, updated, actor, changes.isActive === false ? 'user.deactivated' : 'user.updated');
     return toUserDetails(updated);
   }
@@ -100,7 +117,7 @@ export class UsersService {
     if (!current.isActive) {
       return toUserDetails(current);
     }
-    const updated = await this.applyChanges(id, { isActive: false });
+    const updated = await this.applyChanges(id, { isActive: false, ...closureOf(this.retention) });
     await this.recordUpdate(current, updated, actor, 'user.deactivated');
     return toUserDetails(updated);
   }
@@ -115,7 +132,7 @@ export class UsersService {
     if (!current.isActive || !(await this.hasher.verify(password, current.passwordHash))) {
       throw invalidPassword();
     }
-    const updated = await this.applyChanges(id, { isActive: false, accountConsentWithdrawnAt: new Date() });
+    const updated = await this.applyChanges(id, { isActive: false, accountConsentWithdrawnAt: new Date(), ...closureOf(this.retention) });
     await this.recordUpdate(current, updated, actor, 'user.deactivated');
   }
 

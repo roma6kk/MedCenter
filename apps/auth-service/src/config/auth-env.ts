@@ -149,3 +149,20 @@ const sessionIdleSchema = z.object({
 export function readSessionIdleTimeoutMs(source: NodeJS.ProcessEnv = process.env): number {
   return sessionIdleSchema.parse(source).SESSION_IDLE_TIMEOUT_MINUTES * 60_000;
 }
+
+export const DEFAULT_RETENTION_ACCOUNT_DAYS = 1825;
+
+const retentionSchema = z.object({
+  RETENTION_ACCOUNT_DAYS: z.preprocess(
+    (value) => (value === '' ? undefined : value),
+    z.coerce.number().int().min(1).max(36_500).default(DEFAULT_RETENTION_ACCOUNT_DAYS),
+  ),
+});
+
+/**
+ * How many days the data of a closed account is kept after it was deactivated before the operator reviews it. The
+ * period follows the operator's records-retention schedule (по номенклатуре дел оператора) and is subject to confirmation.
+ */
+export function readRetentionAccountDays(source: NodeJS.ProcessEnv = process.env): number {
+  return retentionSchema.parse(source).RETENTION_ACCOUNT_DAYS;
+}

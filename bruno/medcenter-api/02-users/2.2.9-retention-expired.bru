@@ -1,0 +1,29 @@
+meta {
+  name: 2.2.9 Closed accounts past retention
+  type: http
+  seq: 10
+  tags: [
+    ro-admin
+  ]
+}
+
+get {
+  url: {{baseUrl}}/api/v1/admin/users/retention-expired?page=1&pageSize=20
+  body: none
+  auth: inherit
+}
+
+params:query {
+  page: 1
+  pageSize: 20
+}
+
+assert {
+  res.status: eq 200
+  res.body.items: isArray
+  res.body.meta.totalItems: isNumber
+}
+
+docs {
+  Spec 2.2.9. ADMIN. Closed accounts whose `retentionUntil` (closure + `RETENTION_ACCOUNT_DAYS`) has passed: `id`, `name`, `closedAt`, `retentionUntil`. Report only, nothing is deleted.
+}

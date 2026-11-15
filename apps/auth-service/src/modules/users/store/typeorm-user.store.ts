@@ -10,6 +10,7 @@ import {
   ResourceAlreadyLinkedError,
   searchTokens,
   type NewUser,
+  type RetentionExpiredQuery,
   type UserChanges,
   type UserLinks,
   type UserListQuery,
@@ -57,6 +58,8 @@ function toRecord(user: User, roles: ReadonlyArray<RoleName>, links: UserLinks):
     ...(user.accountConsentWithdrawnAt !== null && user.accountConsentWithdrawnAt !== undefined
       ? { accountConsentWithdrawnAt: user.accountConsentWithdrawnAt }
       : {}),
+    ...(user.closedAt !== null && user.closedAt !== undefined ? { closedAt: user.closedAt } : {}),
+    ...(user.retentionUntil !== null && user.retentionUntil !== undefined ? { retentionUntil: user.retentionUntil } : {}),
   };
 }
 
@@ -147,6 +150,20 @@ export class TypeOrmUserStore implements UserStore {
     const [rows, total] = await builder
       .orderBy('u.lastName', 'ASC')
       .addOrderBy('u.firstName', 'ASC')
+      .addOrderBy('u.id', 'ASC')
+      .skip((query.page - 1) * query.pageSize)
+      .take(query.pageSize)
+      .getManyAndCount();
+    return { items: await this.hydrateMany(rows), total };
+  }
+
+  async listRetentionExpired(query: RetentionExpiredQuery): Promise<UserPage> {
+    const [rows, total] = await this.users()
+      .createQueryBuilder('u')
+      .where('u.isActive = false')
+      .andWhere('u.retentionUntil IS NOT NULL')
+      .andWhere('u.retentionUntil <= :now', { now: query.now })
+      .orderBy('u.retentionUntil', 'ASC')
       .addOrderBy('u.id', 'ASC')
       .skip((query.page - 1) * query.pageSize)
       .take(query.pageSize)

@@ -196,6 +196,7 @@ services:
       HEALTH_PATH: /.well-known/jwks.json
       # Minutes without user activity before the refresh token stops working; the web build reads the same value for its client-side timer.
       SESSION_IDLE_TIMEOUT_MINUTES: ${SESSION_IDLE_TIMEOUT_MINUTES:-15}
+      RETENTION_ACCOUNT_DAYS: ${RETENTION_ACCOUNT_DAYS:-1825}
     ports:
       - '127.0.0.1:3001:3001'
     depends_on:

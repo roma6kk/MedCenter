@@ -24,3 +24,10 @@ export interface UserDetailsResponseDto extends UserResponseDto {
   readonly externalLinks: ReadonlyArray<ExternalLinkDto>;
   readonly createdAt: string;
 }
+
+export interface RetentionExpiredItemDto {
+  readonly id: string;
+  readonly name: string;
+  readonly closedAt: string;
+  readonly retentionUntil: string;
+}

@@ -38,7 +38,12 @@ export interface UsersHarness {
   readonly users: UsersService;
 }
 
-export function createUsersHarness(): UsersHarness {
+export interface UsersHarnessOptions {
+  readonly retentionDays?: number;
+  readonly now?: () => Date;
+}
+
+export function createUsersHarness(options: UsersHarnessOptions = {}): UsersHarness {
   const store = new InMemoryUserStore();
   const fhir = createFakeFhir();
   const hasher = new PasswordHasher({ N: 2 ** 10, r: 8, p: 1 });
@@ -46,7 +51,10 @@ export function createUsersHarness(): UsersHarness {
   const audit = new AuditService(fhir);
   const accounts = new AccountFactory(store, hasher, patients, audit, new RegistrationOutbox(fhir));
   const registration = new RegistrationService(accounts);
-  const users = new UsersService(store, accounts, patients, audit, hasher);
+  const users = new UsersService(store, accounts, patients, audit, hasher, {
+    days: options.retentionDays ?? 1825,
+    now: options.now ?? (() => new Date()),
+  });
   return { store, fhir, hasher, accounts, registration, users };
 }
 

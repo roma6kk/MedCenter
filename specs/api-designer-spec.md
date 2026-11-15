@@ -283,6 +283,7 @@ guard-слоем — **401 `TOKEN_REVOKED`** (см. 2.1.3).
 | 2.2.6 | `POST /api/v1/auth/register` | саморегистрация пациента (A-6) | public |
 | 2.2.7 | `GET /api/v1/me` | профиль текущего пользователя + `ExternalLink` | любой Bearer |
 | 2.2.8 | `POST /api/v1/me/deactivate` | пациент закрывает свою учётную запись (тело `{password}`); ответ **204** | `PATIENT`, rate-limit 5/мин |
+| 2.2.9 | `GET /api/v1/admin/users/retention-expired?page=&pageSize=` | закрытые учётные записи с истёкшим сроком хранения | `ADMIN` |
 
 **2.2.8 `POST /api/v1/me/deactivate`** — тело `{ "password": "<текущий пароль>" }`. Сервис деактивирует `User` (`isActive=false`,
 вход прекращается), ставит `account_consent_withdrawn_at` (отзыв согласия на учётную запись; `account_consent_at` и версия текста остаются) и
@@ -290,6 +291,15 @@ guard-слоем — **401 `TOKEN_REVOKED`** (см. 2.1.3).
 запись отказывает). Пишет `AuditEvent` `user.deactivated` (агент — сам пациент). `Patient` в HAPI и мед. ресурсы не изменяются и не удаляются.
 Ответы: **204**; **400** — пустой пароль; **403** `INVALID_PASSWORD` — пароль неверный или запись уже закрыта (один ответ на оба случая);
 **429**.
+
+**Срок хранения закрытой учётной записи.** При деактивации (2.2.5, `PATCH` с `isActive: false`, 2.2.8) `User` получает `closedAt` и
+`retentionUntil = closedAt + RETENTION_ACCOUNT_DAYS` (переменная окружения auth-service, по умолчанию 1825; значение — по номенклатуре дел
+оператора, подлежит подтверждению); при повторной активации (2.2.4 `isActive: true`) оба поля сбрасываются. Миграция `AccountRetention1700000000004`
+добавляет колонки `closed_at`, `retention_until` и проставляет их уже закрытым записям (по умолчанию 1825 суток).
+
+**2.2.9 `GET /api/v1/admin/users/retention-expired`** — страница (`page`, `pageSize`, как в 2.2.2) закрытых записей с `retentionUntil` ≤ сейчас,
+по возрастанию `retentionUntil`. Элемент: `{ id, name, closedAt, retentionUntil }` (без e-mail и ролей). Автоматического удаления нет: отчёт
+для решения оператора; `Patient` и мед. ресурсы в HAPI не затрагиваются. Ответы: **200**, **400** (параметры страницы), **401**, **403**.
 
 **2.2.6 `POST /api/v1/auth/register`** — после создания `User` сервис создаёт `Patient` в HAPI
 через `fhir-kit-client` и сохраняет `ExternalLink`; событие `patient.registered.v1` (§4.4

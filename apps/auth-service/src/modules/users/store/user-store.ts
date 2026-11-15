@@ -20,6 +20,8 @@ export interface UserRecord {
   readonly accountConsentAt?: Date;
   readonly accountConsentVersion?: string;
   readonly accountConsentWithdrawnAt?: Date;
+  readonly closedAt?: Date;
+  readonly retentionUntil?: Date;
 }
 
 export interface NewUser {
@@ -37,6 +39,8 @@ export interface UserChanges {
   readonly lastName?: string;
   readonly isActive?: boolean;
   readonly accountConsentWithdrawnAt?: Date;
+  readonly closedAt?: Date | null;
+  readonly retentionUntil?: Date | null;
   readonly roles?: ReadonlyArray<Role>;
   readonly practitionerRoleId?: string | null;
 }
@@ -53,6 +57,12 @@ export interface UserPage {
   readonly total: number;
 }
 
+export interface RetentionExpiredQuery {
+  readonly now: Date;
+  readonly page: number;
+  readonly pageSize: number;
+}
+
 export interface UserStore {
   findById(id: string): Promise<UserRecord | null>;
   findByEmail(email: string): Promise<UserRecord | null>;
@@ -61,6 +71,7 @@ export interface UserStore {
   remove(id: string): Promise<void>;
   link(userId: string, resourceType: ExternalResourceType, resourceId: string): Promise<void>;
   list(query: UserListQuery): Promise<UserPage>;
+  listRetentionExpired(query: RetentionExpiredQuery): Promise<UserPage>;
 }
 
 export const USER_STORE = Symbol('USER_STORE');

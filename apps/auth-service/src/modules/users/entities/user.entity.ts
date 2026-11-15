@@ -29,6 +29,12 @@ export class User {
   @Column({ name: 'account_consent_withdrawn_at', type: 'timestamptz', nullable: true })
   accountConsentWithdrawnAt!: Date | null;
 
+  @Column({ name: 'closed_at', type: 'timestamptz', nullable: true })
+  closedAt!: Date | null;
+
+  @Column({ name: 'retention_until', type: 'timestamptz', nullable: true })
+  retentionUntil!: Date | null;
+
   @CreateDateColumn({ name: 'created_at' })
   createdAt!: Date;
 
