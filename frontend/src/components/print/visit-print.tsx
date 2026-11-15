@@ -25,6 +25,7 @@ export interface VisitPrintData {
   readonly summary?: string | undefined;
   readonly recommendations?: string | undefined;
   readonly orders: ReadonlyArray<PrintCoding>;
+  readonly ordersUnavailable?: boolean | undefined;
 }
 
 function Row({ label, children }: { readonly label: string; readonly children: ReactNode }): ReactNode {
@@ -67,7 +68,16 @@ export function VisitPrintSheet({ data }: { readonly data: VisitPrintData }): Re
         <Row label={t('diagnoses')}><Codings items={data.diagnoses} empty={t('none')} /></Row>
         <Row label={t('conclusion')}>{data.summary ? <span className="visit-print-text">{data.summary}</span> : t('none')}</Row>
         <Row label={t('recommendations')}>{data.recommendations ? <span className="visit-print-text">{data.recommendations}</span> : t('none')}</Row>
-        <Row label={t('prescriptions')}><Codings items={data.orders} empty={t('none')} /></Row>
+        <Row label={t('prescriptions')}>
+          {data.ordersUnavailable ? (
+            <>
+              {data.orders.length > 0 ? <Codings items={data.orders} empty="" /> : null}
+              <span data-testid="visit-print-orders-unavailable">{t('prescriptionsNotLoaded')}</span>
+            </>
+          ) : (
+            <Codings items={data.orders} empty={t('none')} />
+          )}
+        </Row>
       </dl>
       <p className="visit-print-footer">{t('footer', { doctor, datetime: format.dateTime(data.enteredAt) })}</p>
     </div>
@@ -85,6 +95,8 @@ export function VisitPrintPortal({ data, onDone }: { readonly data: VisitPrintDa
     };
     window.addEventListener('afterprint', finish);
     window.print();
+    // Browsers that never fire afterprint would leave the sheet mounted and the button stuck.
+    finish();
     return () => {
       window.removeEventListener('afterprint', finish);
       document.body.classList.remove(PRINTING_CLASS);

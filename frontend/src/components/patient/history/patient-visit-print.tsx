@@ -4,6 +4,7 @@ import { useEffect } from 'react';
 import type { ReactNode } from 'react';
 import { VisitPrintPortal, type VisitPrintData } from '@/components/print/visit-print';
 import type { HistoryEntry, Prescription } from '../patient-types';
+import type { PrescriptionsState } from './visit-row';
 import { usePatientProfile } from '../use-patient-queries';
 import { diagnosesOf } from './history-model';
 
@@ -15,15 +16,16 @@ function orderOf(prescription: Prescription): { readonly code: string; readonly 
 interface PatientVisitPrintProps {
   readonly entry: HistoryEntry;
   readonly prescriptions: ReadonlyArray<Prescription>;
+  readonly prescriptionsState: PrescriptionsState;
   readonly onDone: () => void;
 }
 
-export function PatientVisitPrint({ entry, prescriptions, onDone }: PatientVisitPrintProps): ReactNode {
+export function PatientVisitPrint({ entry, prescriptions, prescriptionsState, onDone }: PatientVisitPrintProps): ReactNode {
   const profile = usePatientProfile();
   useEffect(() => {
     if (profile.isError) onDone();
   }, [profile.isError, onDone]);
-  if (profile.data === undefined) return null;
+  if (profile.data === undefined || prescriptionsState === 'loading') return null;
   const data: VisitPrintData = {
     patientName: profile.data.fullName,
     birthDate: profile.data.birthDate,
@@ -35,6 +37,7 @@ export function PatientVisitPrint({ entry, prescriptions, onDone }: PatientVisit
     summary: entry.summary,
     recommendations: entry.recommendations,
     orders: prescriptions.map(orderOf),
+    ordersUnavailable: prescriptionsState !== 'ok',
   };
   return <VisitPrintPortal data={data} onDone={onDone} />;
 }

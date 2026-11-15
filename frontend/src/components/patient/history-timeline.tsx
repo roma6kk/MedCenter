@@ -101,7 +101,7 @@ export function HistoryTimeline({ embedded = false }: { readonly embedded?: bool
   useDocumentTitle(embedded ? null : t('title'));
   const data = query.data;
   // A visit without prescriptions is not proof there were none: the lookup may have failed or miss older visits.
-  const prescriptionsState: PrescriptionsState = prescriptions.data === undefined ? (prescriptions.isError ? 'failed' : 'ok') : prescriptions.data.meta.totalPages > 1 ? 'partial' : 'ok';
+  const prescriptionsState: PrescriptionsState = prescriptions.data === undefined ? (prescriptions.isError ? 'failed' : 'loading') : prescriptions.data.meta.totalPages > 1 ? 'partial' : 'ok';
   return (
     <section className="flex flex-col gap-6">
       <div className="flex flex-wrap items-end justify-between gap-4">

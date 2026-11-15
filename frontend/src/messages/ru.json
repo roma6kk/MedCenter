@@ -2019,6 +2019,7 @@
     "conclusion": "Заключение",
     "recommendations": "Рекомендации",
     "prescriptions": "Назначения",
+    "prescriptionsNotLoaded": "Назначения не загружены",
     "none": "Не указано",
     "unknownDoctor": "врач не указан",
     "print": "Печать",

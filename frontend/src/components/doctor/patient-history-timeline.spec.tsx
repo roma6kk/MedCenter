@@ -1,4 +1,4 @@
-import { act, render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useSessionStore } from '@/store/use-session-store';
 import { useUiStore } from '@/store/use-ui-store';
@@ -50,7 +50,10 @@ describe('PatientHistoryTimeline with two doctors', () => {
   });
 
   it('should print the opened visit with the patient and the orders, and name the doctor who entered it', async () => {
-    const print = jest.fn();
+    let printed: HTMLElement | null = null;
+    const print = jest.fn(() => {
+      printed = screen.getByTestId('visit-print-sheet').cloneNode(true) as HTMLElement;
+    });
     window.print = print;
     jest.mocked(usePatient).mockReturnValue({ data: { id: 'p1', active: true, fullName: 'Лебедева Анна', lastName: 'Лебедева', firstName: 'Анна', birthDate: '1992-11-02', telecom: [] } } as never);
     jest.mocked(useVisitPrescriptions).mockReturnValue({ data: { items: [{ id: 'o1', kind: 'medication', atcCode: 'J01FA10', atcDisplay: 'Азитромицин', dosageText: '500 мг', encounterId: 'mine' }], meta: META } } as never);
@@ -58,17 +61,14 @@ describe('PatientHistoryTimeline with two doctors', () => {
 
     await userEvent.click(screen.getByRole('button', { name: /^Печать приёма от/ }));
 
-    const sheet = await screen.findByTestId('visit-print-sheet');
+    await waitFor(() => expect(print).toHaveBeenCalledTimes(1));
+    const sheet = printed as unknown as HTMLElement;
     expect(sheet).toHaveTextContent('Лебедева Анна');
     expect(sheet).toHaveTextContent('2 ноября 1992 г.');
     expect(sheet).toHaveTextContent('J06.9 ОРВИ');
     expect(sheet).toHaveTextContent('J01FA10 Азитромицин — 500 мг');
     expect(sheet).toHaveTextContent('Внесено: Орлов А. Н., 1 окт. 2026 г., 10:00. Документ сформирован информационной системой и не является медицинским документом; юридическую силу имеет запись в медицинской карте на бумаге.');
     expect(sheet.textContent).not.toMatch(/подписан|ЭМК/i);
-    expect(print).toHaveBeenCalledTimes(1);
-    act(() => {
-      window.dispatchEvent(new Event('afterprint'));
-    });
     expect(screen.queryByTestId('visit-print-sheet')).not.toBeInTheDocument();
   });
 });

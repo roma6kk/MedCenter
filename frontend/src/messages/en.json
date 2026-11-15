@@ -2019,6 +2019,7 @@
     "conclusion": "Conclusion",
     "recommendations": "Recommendations",
     "prescriptions": "Prescriptions",
+    "prescriptionsNotLoaded": "Prescriptions could not be loaded",
     "none": "Not specified",
     "unknownDoctor": "doctor not specified",
     "print": "Print",

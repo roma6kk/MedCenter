@@ -19,7 +19,7 @@ import { diagnosesOf } from './history-model';
 const ICD10_SYSTEM = 'https://fhir.by/CodeSystem/InternClassificDiseases10';
 
 // `failed`/`partial`: a visit without prescriptions may still have had some.
-export type PrescriptionsState = 'ok' | 'failed' | 'partial';
+export type PrescriptionsState = 'loading' | 'ok' | 'failed' | 'partial';
 
 interface VisitRowProps {
   readonly entry: HistoryEntry;
@@ -92,7 +92,7 @@ function Details({ entry, prescriptions, prescriptionsState = 'ok', onRetryPresc
           <ul className="flex flex-col gap-1.5">{prescriptions.map((p) => <PrescriptionLine key={p.id} prescription={p} />)}</ul>
         </div>
       ) : null}
-      {prescriptions.length === 0 && prescriptionsState !== 'ok' ? (
+      {prescriptions.length === 0 && (prescriptionsState === 'failed' || prescriptionsState === 'partial') ? (
         <p role="status" className="flex flex-wrap items-center gap-x-3 text-sm text-muted-foreground">
           {prescriptionsState === 'failed' ? t('prescriptionsFailed') : t('prescriptionsPartial')}
           {prescriptionsState === 'failed' && onRetryPrescriptions !== undefined ? (
@@ -107,7 +107,7 @@ function Details({ entry, prescriptions, prescriptionsState = 'ok', onRetryPresc
         <Link href={`/appointments/${encodeURIComponent(entry.appointmentId)}`} className={buttonVariants({ variant: 'secondary' })}>{t('openAppointment')}</Link>
         {prescriptions.length > 0 ? <Link href="/medcard?tab=prescriptions" className={buttonVariants({ variant: 'secondary' })}>{t('prescriptionsLink')}</Link> : null}
         <VisitPrintButton label={tPrint('print')} ariaLabel={tPrint('printVisit', { date: format.dateTime(entry.date) })}>
-          {(finish) => <PatientVisitPrint entry={entry} prescriptions={prescriptions} onDone={finish} />}
+          {(finish) => <PatientVisitPrint entry={entry} prescriptions={prescriptions} prescriptionsState={prescriptionsState} onDone={finish} />}
         </VisitPrintButton>
       </div>
     </div>
