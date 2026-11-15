@@ -136,8 +136,13 @@ describe('selectConsentPatients', () => {
   });
 });
 
-function fakeHttp(patients: ReadonlyArray<FhirResource>, existing: FhirResource[] = []): { http: FhirHttp; puts: FhirResource[] } {
+function fakeHttp(
+  patients: ReadonlyArray<FhirResource>,
+  existing: FhirResource[] = [],
+): { http: FhirHttp; puts: FhirResource[]; ifMatches: Array<string | undefined>; expunged: string[] } {
   const puts: FhirResource[] = [];
+  const ifMatches: Array<string | undefined> = [];
+  const expunged: string[] = [];
   const consents = [...existing];
   const http = {
     search: async (type: string, params: Record<string, string>) => {
@@ -149,15 +154,19 @@ function fakeHttp(patients: ReadonlyArray<FhirResource>, existing: FhirResource[
       }
       throw new Error(`unexpected search ${type}`);
     },
-    put: async (resource: FhirResource) => {
+    put: async (resource: FhirResource, options?: { ifMatch?: string }) => {
       puts.push(resource);
+      ifMatches.push(options?.ifMatch);
       if (resource.resourceType === 'Consent') {
         consents.push(resource);
       }
       return resource;
     },
+    expungePreviousVersions: async (type: string, id: string) => {
+      expunged.push(`${type}/${id}`);
+    },
   } as unknown as FhirHttp;
-  return { http, puts };
+  return { http, puts, ifMatches, expunged };
 }
 
 const patientOf = (id: string, def: PatientDef): FhirResource => ({ resourceType: 'Patient', id, name: [{ family: def.lastName }] });
@@ -239,6 +248,24 @@ describe('refreshDemoScans', () => {
     expect(puts[1]).toEqual({ ...stored, sourceAttachment: plan.consent['sourceAttachment'] });
     expect(scanHashOf(puts[1])).toBe(scanHash(demoScanPdf('kuznetsov')));
     expect(summary).toEqual({ refreshed: [kuznetsov.emailLocal], unchanged: [], notDemoConsent: [], noConsent: [], missing: [] });
+  });
+
+  it('should PUT the Consent under If-Match of the stored version and expunge the previous versions of the replaced Binary', async () => {
+    const stored = { ...withOldScan(kuznetsov, 'p1'), meta: { versionId: '3' } };
+    const { http, puts, ifMatches, expunged } = fakeHttp(patients, [stored]);
+
+    await refreshDemoScans(http, { withConsent: [kuznetsov], now: NOW });
+
+    expect(ifMatches[puts.findIndex((resource) => resource.resourceType === 'Consent')]).toBe('W/"3"');
+    expect(expunged).toEqual([`Binary/${planDemoConsent(kuznetsov, 'p1', NOW).binary.id}`]);
+  });
+
+  it('should expunge nothing when the scan is already the watermarked one', async () => {
+    const { http, expunged } = fakeHttp(patients, [planDemoConsent(kuznetsov, 'p1', NOW).consent]);
+
+    await refreshDemoScans(http, { withConsent: [kuznetsov], now: NOW });
+
+    expect(expunged).toEqual([]);
   });
 
   it('should be idempotent: a consent that already carries the watermarked scan hash is left alone', async () => {

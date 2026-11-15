@@ -174,7 +174,9 @@ async function refreshScanOf(http: FhirHttp, patient: PatientDef, now: Date): Pr
     return 'unchanged';
   }
   await http.put(plan.binary);
-  await http.put({ ...stored, sourceAttachment: plan.consent['sourceAttachment'] });
+  await http.expungePreviousVersions('Binary', plan.binary.id ?? '');
+  const versionId = (stored['meta'] as { versionId?: string } | undefined)?.versionId;
+  await http.put({ ...stored, sourceAttachment: plan.consent['sourceAttachment'] }, versionId === undefined ? {} : { ifMatch: `W/"${versionId}"` });
   return 'refreshed';
 }
 
