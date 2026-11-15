@@ -43,7 +43,7 @@ export function RetentionExpiredSection(): ReactNode {
   return (
     <section className="mt-8" aria-labelledby="retention-expired-title">
       <h2 id="retention-expired-title" className="text-base font-semibold">
-        <button type="button" aria-expanded={open} aria-controls="retention-expired-body" onClick={() => setOpen(!open)} className="inline-flex items-center gap-2 rounded-md py-1">
+        <button type="button" aria-expanded={open} aria-controls="retention-expired-body" onClick={() => setOpen(!open)} className="inline-flex items-center gap-2 rounded-control py-1">
           {t('title')}
           <ChevronDown aria-hidden className={open ? 'size-4 rotate-180 transition-transform' : 'size-4 transition-transform'} />
         </button>
