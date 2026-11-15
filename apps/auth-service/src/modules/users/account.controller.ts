@@ -5,7 +5,7 @@ import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagg
 import { RegisterPatientDto } from './dto/register-patient.dto';
 import type { MeResponseDto } from './dto/me-response.dto';
 import type { UserResponseDto } from './dto/user-response.dto';
-import { UserDetailsResponseDoc, UserResponseDoc } from './dto/user-response.doc';
+import { MeResponseDoc, UserResponseDoc } from './dto/user-response.doc';
 import { NoStoreInterceptor } from './no-store.interceptor';
 import { RegistrationService } from './registration.service';
 import type { AuthenticatedRequest } from './request-actor';
@@ -37,7 +37,7 @@ export class AccountController {
 
   @ApiOperation({ summary: '2.2.7 The caller\'s own profile' })
   @ApiBearerAuth()
-  @ApiResponse({ status: 200, description: 'The account of the token with its ExternalLink rows', type: UserDetailsResponseDoc })
+  @ApiResponse({ status: 200, description: 'The account of the token with its ExternalLink rows and the account consent', type: MeResponseDoc })
   @ApiProblems([...GUARD_PROBLEM_STATUSES, 404])
   @Get('me')
   me(@Req() request: AuthenticatedRequest): Promise<MeResponseDto> {

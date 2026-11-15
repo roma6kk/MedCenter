@@ -1,4 +1,5 @@
 import { primaryRole } from '../oauth/identity';
+import type { MeResponseDto } from './dto/me-response.dto';
 import type { ExternalLinkDto, RetentionExpiredItemDto, UserDetailsResponseDto, UserResponseDto } from './dto/user-response.dto';
 import type { UserRecord } from './store/user-store';
 
@@ -34,6 +35,14 @@ export function toUserResponse(user: UserRecord): UserResponseDto {
 
 export function toUserDetails(user: UserRecord): UserDetailsResponseDto {
   return { ...toUserResponse(user), externalLinks: externalLinksOf(user), createdAt: user.createdAt.toISOString() };
+}
+
+export function toMe(user: UserRecord): MeResponseDto {
+  const { accountConsentAt, accountConsentVersion } = user;
+  return {
+    ...toUserDetails(user),
+    accountConsent: accountConsentAt === undefined || accountConsentVersion === undefined ? null : { at: accountConsentAt.toISOString(), version: accountConsentVersion },
+  };
 }
 
 export function toRetentionExpiredItem(user: UserRecord): RetentionExpiredItemDto {

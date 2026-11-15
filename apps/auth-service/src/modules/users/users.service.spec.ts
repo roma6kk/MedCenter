@@ -185,4 +185,23 @@ describe('UsersService', () => {
 
     expect(me.externalLinks[0]).toMatchObject({ resourceType: 'Patient' });
   });
+
+  it('should return the moment and text version of the account consent when /me is requested after a self-registration', async () => {
+    const harness = createUsersHarness();
+    const userId = await seedPatient(harness);
+
+    const me = await harness.users.me(userId);
+
+    expect(me.accountConsent).toEqual({ at: expect.any(String), version: '2026-10' });
+    expect(Number.isNaN(Date.parse(me.accountConsent?.at ?? ''))).toBe(false);
+  });
+
+  it('should return a null account consent when /me is requested for an account made by an administrator', async () => {
+    const harness = createUsersHarness();
+    const created = await harness.users.create(doctorDto(), ADMIN);
+
+    const me = await harness.users.me(created.id);
+
+    expect(me.accountConsent).toBeNull();
+  });
 });

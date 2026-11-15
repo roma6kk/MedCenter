@@ -281,7 +281,7 @@ guard-слоем — **401 `TOKEN_REVOKED`** (см. 2.1.3).
 | 2.2.4 | `PATCH /api/v1/admin/users/{id}` | роль, `isActive` | `ADMIN` |
 | 2.2.5 | `DELETE /api/v1/admin/users/{id}` | деактивация (soft); ответ **200** с карточкой пользователя (не 204) | `ADMIN` |
 | 2.2.6 | `POST /api/v1/auth/register` | саморегистрация пациента (A-6) | public |
-| 2.2.7 | `GET /api/v1/me` | профиль текущего пользователя + `ExternalLink` | любой Bearer |
+| 2.2.7 | `GET /api/v1/me` | профиль текущего пользователя + `ExternalLink` + `accountConsent` (`{at, version}` или `null`) | любой Bearer |
 | 2.2.8 | `POST /api/v1/me/deactivate` | пациент закрывает свою учётную запись (тело `{password}`); ответ **204** | `PATIENT`, rate-limit 5/мин |
 | 2.2.9 | `GET /api/v1/admin/users/retention-expired?page=&pageSize=` | закрытые учётные записи с истёкшим сроком хранения | `ADMIN` |
 
@@ -358,7 +358,7 @@ export class AccountConsentDto {
 столбца: `account_consent_at` (момент приёма запроса, `timestamptz`) и `account_consent_version` (`varchar(64)`, `textVersion`); оба `NULL` у записей,
 созданных администратором (2.2.1) и до миграции `AccountConsent1700000000002`. `FHIR Consent` при регистрации **не создаётся**: согласие на
 электронную медкарту даётся отдельно (3.8) и без него 7.1/7.3 блокируются. В `UserResponseDto` эти поля не возвращаются; `accountConsent`
-отсутствует в 2.2.1 и 2.2.4. Карточка 2.2.3 дополнительно содержит `externalLinks` и `createdAt`.
+отсутствует в 2.2.1 и 2.2.4; 2.2.7 возвращает `accountConsent: {at, version} | null` (для выгрузки «Скачать мои данные», ст. 11 п. 1 Закона № 99-З). Карточка 2.2.3 дополнительно содержит `externalLinks` и `createdAt`.
 
 **Response 201** `UserResponseDto`: `{ id: UUID; email; firstName; lastName; roles: string[];
 patientRef: string | null; practitionerRoleRef: string | null; name: string; role: string; isActive: boolean }` · **409** email занят: `errorCode=CONFLICT`, код

@@ -24,7 +24,7 @@ import { USER_STORE, type UserChanges, type UserRecord, type UserStore } from '.
 import { changesOf, demographicsOf, effectiveChangesOf, effectiveDemographicsOf, inverseOf } from './user-changes';
 import { conflictOf, emailTaken, invalidPassword, selfLockout, userNotFound } from './user-errors';
 import { linkedRefs } from './user-links';
-import { toRetentionExpiredItem, toUserDetails, toUserResponse } from './user-view.mapper';
+import { toMe, toRetentionExpiredItem, toUserDetails, toUserResponse } from './user-view.mapper';
 
 @Injectable()
 export class UsersService {
@@ -74,7 +74,7 @@ export class UsersService {
   }
 
   async me(userId: string): Promise<MeResponseDto> {
-    return toUserDetails(await this.require(userId));
+    return toMe(await this.require(userId));
   }
 
   async create(dto: CreateUserDto, actor: AuditActor): Promise<UserDetailsResponseDto> {

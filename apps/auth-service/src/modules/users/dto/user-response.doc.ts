@@ -2,6 +2,7 @@ import { Role } from '@medcenter/contracts';
 import { ApiProperty } from '@nestjs/swagger';
 
 import { PageMetaDoc } from './page-meta.doc';
+import type { AccountConsentDto, MeResponseDto } from './me-response.dto';
 import type { ExternalLinkDto, RetentionExpiredItemDto, UserDetailsResponseDto, UserResponseDto } from './user-response.dto';
 
 export class UserResponseDoc implements UserResponseDto {
@@ -61,6 +62,19 @@ export class UserDetailsResponseDoc extends UserResponseDoc implements UserDetai
 
   @ApiProperty({ type: String, format: 'date-time' })
   createdAt!: string;
+}
+
+class AccountConsentDoc implements AccountConsentDto {
+  @ApiProperty({ type: String, format: 'date-time', description: 'When the registration form with the consent box was accepted' })
+  at!: string;
+
+  @ApiProperty({ example: '2026-11', description: 'Version of the consent text and policy the patient accepted' })
+  version!: string;
+}
+
+export class MeResponseDoc extends UserDetailsResponseDoc implements MeResponseDto {
+  @ApiProperty({ type: AccountConsentDoc, nullable: true, description: 'Null for accounts made by an administrator or before the consent was recorded' })
+  accountConsent!: AccountConsentDoc | null;
 }
 
 export class UserPageDoc {
