@@ -192,6 +192,9 @@ describe('Authorization matrix of the protected endpoints', () => {
         const response = await call(endpoint, authorization[caller], true);
 
         expect(response.status).toBe(endpoint.reached.status);
+        if (endpoint.reached.errorCode !== undefined) {
+          expect(response.body).toMatchObject({ errorCode: endpoint.reached.errorCode });
+        }
       },
     );
   });

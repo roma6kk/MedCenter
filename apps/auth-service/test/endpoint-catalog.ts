@@ -10,6 +10,7 @@ export interface Reached {
   readonly status: number;
   readonly path?: string;
   readonly body?: Body;
+  readonly errorCode?: string;
 }
 
 export interface ProtectedEndpoint {
@@ -161,7 +162,7 @@ export const PROTECTED_ENDPOINTS: ReadonlyArray<ProtectedEndpoint> = [
     body: { password: 'not-the-password-of-anyone' },
     role: Role.PATIENT,
     scope: null,
-    reached: { status: 403 },
+    reached: { status: 403, errorCode: 'INVALID_PASSWORD' },
   },
 ];
 
