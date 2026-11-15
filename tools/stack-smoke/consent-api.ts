@@ -6,7 +6,7 @@ import { newKey, type Suite } from './suite';
 const CLERK_NAME = 'Смоук Регистратор';
 
 function scanBytes(tag: string): Buffer {
-  return demoScanPdf(`smoke-${tag}`);
+  return Buffer.concat([demoScanPdf('kuznetsov'), Buffer.from(`\n% smoke ${tag}\n`)]);
 }
 
 export async function uploadScan(suite: Suite, patientId: string, tag: string, session: Session = suite.sessions.admin): Promise<string> {
