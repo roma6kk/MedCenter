@@ -71,7 +71,7 @@ export class AdminUsersController {
   @ApiParam({ name: 'id', format: 'uuid', description: 'User id (UUID v4)' })
   @ApiResponse({ status: 200, description: 'The updated account', type: UserDetailsResponseDoc })
   @ApiProblems([...GUARD_PROBLEM_STATUSES, 400, 404, 409], {
-    409: 'EMAIL_TAKEN, PRACTITIONER_ROLE_TAKEN or SELF_LOCKOUT in detail',
+    409: 'EMAIL_TAKEN, PRACTITIONER_ROLE_TAKEN, SELF_LOCKOUT, or ACCOUNT_CONSENT_WITHDRAWN (isActive: true on an account the patient closed)',
   })
   @RequiresRoles(Role.ADMIN)
   @RequiresScopes(SMART_SCOPES.USER_WRITE)

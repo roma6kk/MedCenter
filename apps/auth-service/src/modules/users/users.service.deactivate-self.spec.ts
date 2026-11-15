@@ -1,5 +1,5 @@
 import { createdOf, createUsersHarness } from './__tests__/users-harness';
-import { seedPatient } from './__tests__/users-fixtures';
+import { ADMIN, seedPatient } from './__tests__/users-fixtures';
 
 const PASSWORD = 'Str0ng!Pass';
 
@@ -25,7 +25,7 @@ describe('UsersService.deactivateSelf', () => {
 
     await expect(harness.users.deactivateSelf(userId, 'Wrong!Pass1', { sub: userId })).rejects.toMatchObject({
       status: 403,
-      response: { errorCode: 'FORBIDDEN' },
+      response: { errorCode: 'INVALID_PASSWORD' },
     });
 
     const user = await harness.store.findById(userId);
@@ -63,5 +63,36 @@ describe('UsersService.deactivateSelf', () => {
     await harness.users.deactivateSelf(userId, PASSWORD, { sub: userId });
 
     await expect(harness.users.deactivateSelf(userId, PASSWORD, { sub: userId })).rejects.toMatchObject({ status: 403 });
+  });
+
+  it('should refuse an admin reactivation of a self-closed account with ACCOUNT_CONSENT_WITHDRAWN and keep it closed', async () => {
+    const { harness, userId } = await seeded();
+    await harness.users.deactivateSelf(userId, PASSWORD, { sub: userId });
+
+    await expect(harness.users.update(userId, { isActive: true }, ADMIN)).rejects.toMatchObject({
+      status: 409,
+      response: { errorCode: 'ACCOUNT_CONSENT_WITHDRAWN' },
+    });
+
+    expect((await harness.store.findById(userId))?.isActive).toBe(false);
+  });
+
+  it('should still let an admin edit the name of a self-closed account when isActive is not turned on', async () => {
+    const { harness, userId } = await seeded();
+    await harness.users.deactivateSelf(userId, PASSWORD, { sub: userId });
+
+    const updated = await harness.users.update(userId, { lastName: 'Сидоров' }, ADMIN);
+
+    expect(updated.lastName).toBe('Сидоров');
+    expect(updated.isActive).toBe(false);
+  });
+
+  it('should expose the withdrawal moment on the account card', async () => {
+    const { harness, userId } = await seeded();
+    await harness.users.deactivateSelf(userId, PASSWORD, { sub: userId });
+
+    const details = await harness.users.getById(userId);
+
+    expect(details.accountConsentWithdrawnAt).toEqual(expect.stringMatching(/^\d{4}-\d{2}-\d{2}T/));
   });
 });

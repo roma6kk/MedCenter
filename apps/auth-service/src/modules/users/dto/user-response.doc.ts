@@ -34,6 +34,14 @@ export class UserResponseDoc implements UserResponseDto {
 
   @ApiProperty({ enum: Role, enumName: 'Role', nullable: true, description: 'The role a token of this account carries (ADMIN > DOCTOR > PATIENT)' })
   role!: Role | null;
+
+  @ApiProperty({
+    type: String,
+    format: 'date-time',
+    nullable: true,
+    description: 'When the patient closed the account and withdrew the account consent, or null; such an account cannot be reactivated',
+  })
+  accountConsentWithdrawnAt!: string | null;
 }
 
 class ExternalLinkDoc implements ExternalLinkDto {

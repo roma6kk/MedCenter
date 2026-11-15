@@ -64,7 +64,8 @@
         "practitionerRoleId": "The catalog doctor this account is linked to. Without it the doctor sees no schedule.",
         "practitionerRoleIdTyped": "The doctor catalog is unavailable right now — type the PractitionerRole id. Without it the doctor sees no schedule.",
         "patientLocked": "The Patient role is unavailable: this account has no patient record. Create a separate user with the patient role.",
-        "linkReleased": "The PractitionerRole link will be released: after saving, the doctor will not see their schedule."
+        "linkReleased": "The PractitionerRole link will be released: after saving, the doctor will not see their schedule.",
+        "closedByPatient": "Account closed by the patient on {date}. It cannot be switched back on: the patient withdrew consent."
       },
       "filters": {
         "label": "User filters",
@@ -1192,6 +1193,8 @@
     "SCHEDULE_IN_USE": "The schedule is in use: it has linked slots or appointments",
     "ROOM_IN_USE": "The room is used by schedules",
     "SERVICE_IN_USE": "The service is used by schedules or appointments",
+    "ACCOUNT_CONSENT_WITHDRAWN": "The patient closed this account: it cannot be switched back on",
+    "INVALID_PASSWORD": "Wrong password",
     "AGE_RESTRICTED": "Registration is open from age 18",
     "INVALID_ICD10_CODE": "Invalid ICD-10 code",
     "TERMINOLOGY_NOT_FOUND": "Term not found",

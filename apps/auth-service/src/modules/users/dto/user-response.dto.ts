@@ -11,6 +11,7 @@ export interface UserResponseDto {
   readonly isActive: boolean;
   readonly name: string;
   readonly role: Role | null;
+  readonly accountConsentWithdrawnAt: string | null;
 }
 
 export interface ExternalLinkDto {

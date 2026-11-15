@@ -3,6 +3,7 @@
 import type { ReactNode } from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
+import { formatClinicDateTime } from '@/lib/clinic-time';
 import { useT } from '@/lib/i18n/use-t';
 import { FormProblem } from '../shared/admin-problem';
 import type { ServerFieldRule } from '../shared/apply-server-error';
@@ -74,6 +75,7 @@ function EditUserForm({ user, onClose }: { readonly user: AdminUser; readonly on
   const t = useT('admin.users');
   const resolve = useFormMessage();
   const update = useUpdateUser();
+  const closedByPatient = user.accountConsentWithdrawnAt ?? null;
   const form = useForm<EditUserFormValues>({ resolver: zodResolver(editUserSchema), defaultValues: editValuesOf(user) });
   const { register, handleSubmit, watch, formState } = form;
   const roles = watch('roles');
@@ -87,9 +89,12 @@ function EditUserForm({ user, onClose }: { readonly user: AdminUser; readonly on
   return (
     <form onSubmit={(event) => void submit(event)} noValidate>
       <SharedUserFields register={register} errors={errors} selectedRoles={roles} notes={roleNotesOf(user, roles)} roleChoices={roleChoices} />
-      <Switch wrapperClassName="mt-3" {...register('isActive')}>
+      <Switch wrapperClassName="mt-3" disabled={closedByPatient !== null} {...register('isActive')}>
         {t('fields.isActive')}
       </Switch>
+      {closedByPatient === null ? null : (
+        <p className="text-sm text-[var(--muted-foreground)]">{t('hints.closedByPatient', { date: formatClinicDateTime(closedByPatient) })}</p>
+      )}
       <FormProblem banner={banner} />
       <FormActions submitLabel={t('save')} isPending={update.isPending} onCancel={onClose} error={update.error} />
     </form>

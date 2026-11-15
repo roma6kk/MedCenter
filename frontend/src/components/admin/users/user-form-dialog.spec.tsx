@@ -240,6 +240,34 @@ describe('UserFormDialog (edit)', () => {
     expect(JSON.parse(String(options?.body))).toEqual({ firstName: 'Анна' });
   });
 
+  it('should show when the patient closed the account and lock the activation switch', () => {
+    const closed: AdminUser = { ...doctor, isActive: false, accountConsentWithdrawnAt: '2026-11-01T09:30:00.000Z' };
+    renderWithClient(<UserFormDialog user={closed} onClose={jest.fn()} />);
+
+    expect(screen.getByText(/Учётная запись закрыта пациентом 1 нояб\. 2026/)).toBeInTheDocument();
+    expect(screen.getByRole('switch', { name: 'Учётная запись активна' })).toBeDisabled();
+  });
+
+  it('should not send isActive when other fields of a patient-closed account are edited', async () => {
+    apiFetchMock.mockResolvedValue(doctor);
+    const closed: AdminUser = { ...doctor, isActive: false, accountConsentWithdrawnAt: '2026-11-01T09:30:00.000Z' };
+    renderWithClient(<UserFormDialog user={closed} onClose={jest.fn()} />);
+
+    await userEvent.clear(screen.getByLabelText(/Имя/));
+    await userEvent.type(screen.getByLabelText(/Имя/), 'Анна');
+    await userEvent.click(screen.getByRole('button', { name: 'Сохранить' }));
+
+    await waitFor(() => expect(apiFetchMock).toHaveBeenCalled());
+    expect(JSON.parse(String(apiFetchMock.mock.calls[0]?.[1]?.body))).toEqual({ firstName: 'Анна' });
+  });
+
+  it('should leave the switch enabled and show no note when the account was not closed by the patient', () => {
+    renderWithClient(<UserFormDialog user={doctor} onClose={jest.fn()} />);
+
+    expect(screen.queryByText(/закрыта пациентом/)).not.toBeInTheDocument();
+    expect(screen.getByRole('switch', { name: 'Учётная запись активна' })).toBeEnabled();
+  });
+
   it('should put PRACTITIONER_ROLE_TAKEN at the PractitionerRole field when the role belongs to another account', async () => {
     apiFetchMock.mockRejectedValue(apiProblem({ status: 409, errorCode: 'CONFLICT', detail: 'PRACTITIONER_ROLE_TAKEN: this PractitionerRole is already linked to another user' }));
     renderWithClient(<UserFormDialog user={doctor} onClose={jest.fn()} />);

@@ -138,6 +138,8 @@ export class PaginatedResponseDto<TItem> {
 | `SLOT_CONFLICT` | 409 | BR-001: слот уже занят (гонка, ADR-012) или уже начался, или расписание/роль врача деактивированы (6.1) |
 | `CONSENT_REQUIRED` | 409 | у пациента нет действующего согласия на электронную медкарту (7.1, 7.3; ADR-019); при `CONSENT_ENFORCEMENT=warn` не возвращается |
 | `CONSENT_ALREADY_ACTIVE` | 409 | 3.8: у пациента уже есть действующее согласие; сначала отзыв (3.9) |
+| `ACCOUNT_CONSENT_WITHDRAWN` | 409 | 2.2.4: `isActive: true` для учётной записи, которую пациент закрыл сам (отозвано согласие, `accountConsentWithdrawnAt`); включить её нельзя |
+| `INVALID_PASSWORD` | 403 | 2.2.8: неверный пароль при закрытии своей учётной записи (или она уже закрыта) |
 | `APPOINTMENT_NOT_CANCELLABLE` | 409 | BR-002: статус не позволяет отмену |
 | `ENCOUNTER_STATE_INVALID` | 409 | BR-003/BR-008: приём уже оформлен / запись не `booked` (cancelled/noshow/fulfilled); неявка (6.6) для записи, у которой уже есть приём или время которой ещё не наступило |
 | `SCHEDULE_OVERLAP` | 409 | пересечение `Schedule.planningHorizon` одного `PractitionerRole` |

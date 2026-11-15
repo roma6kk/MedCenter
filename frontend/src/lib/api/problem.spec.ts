@@ -1,8 +1,8 @@
 import { errorCodeToUx, ERROR_CODES } from './problem';
 
 describe('errorCodeToUx', () => {
-  it('should list all 23 catalogue codes', () => {
-    expect(ERROR_CODES).toHaveLength(23);
+  it('should list all 25 catalogue codes', () => {
+    expect(ERROR_CODES).toHaveLength(25);
   });
 
   it('should render COMPARTMENT_VIOLATION as 404', () => {

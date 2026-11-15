@@ -28,6 +28,7 @@ export function toUserResponse(user: UserRecord): UserResponseDto {
     isActive: user.isActive,
     name: `${user.lastName} ${user.firstName}`,
     role: primaryRole(user.roles),
+    accountConsentWithdrawnAt: user.accountConsentWithdrawnAt?.toISOString() ?? null,
   };
 }
 

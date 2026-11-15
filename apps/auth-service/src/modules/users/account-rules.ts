@@ -1,6 +1,6 @@
 import { Role } from '@medcenter/contracts';
 
-import { invalidUserInput, selfLockout } from './user-errors';
+import { accountConsentWithdrawn, invalidUserInput, selfLockout } from './user-errors';
 import type { UserRecord } from './store/user-store';
 
 interface AccountShape {
@@ -32,6 +32,9 @@ export function assertUpdatable(current: UserRecord, update: AccountUpdate, acto
   const isDemotingSelf = update.roles !== undefined && !update.roles.includes(Role.ADMIN);
   if (current.id === actorSub && (update.isActive === false || isDemotingSelf)) {
     throw selfLockout();
+  }
+  if (update.isActive === true && current.accountConsentWithdrawnAt !== undefined) {
+    throw accountConsentWithdrawn();
   }
   if (update.roles?.includes(Role.PATIENT) === true && current.links.patientId === undefined) {
     throw invalidUserInput('roles: PATIENT requires a linked FHIR Patient (self-registration)');

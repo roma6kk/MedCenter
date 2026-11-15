@@ -35,6 +35,8 @@ export const errorCodeMap: Readonly<Record<ErrorCode, ErrorUx>> = {
   APPOINTMENT_NOT_CANCELLABLE: { kind: 'appointment-refresh' },
   CONSENT_REQUIRED: { kind: 'consent-required' },
   CONSENT_ALREADY_ACTIVE: { kind: 'consent-active' },
+  ACCOUNT_CONSENT_WITHDRAWN: { kind: 'banner-generic' },
+  INVALID_PASSWORD: { kind: 'banner-generic' },
   ENCOUNTER_STATE_INVALID: { kind: 'encounter-readonly' },
   SCHEDULE_OVERLAP: { kind: 'schedule-highlight' },
   SCHEDULE_IN_USE: { kind: 'in-use-conflict', resource: 'schedule' },

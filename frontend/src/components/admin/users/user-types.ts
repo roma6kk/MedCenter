@@ -15,6 +15,7 @@ export interface AdminUser {
   readonly isActive: boolean;
   readonly name: string;
   readonly role: UserRole | null;
+  readonly accountConsentWithdrawnAt?: string | null;
 }
 
 export interface CreateUserPayload {

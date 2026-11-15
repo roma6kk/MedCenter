@@ -1,8 +1,8 @@
 import { ERROR_CODE_HTTP_STATUS, ERROR_CODES, ErrorCode } from './error-code';
 
 describe('ERROR_CODES', () => {
-  it('should expose exactly the 23 API error codes when the catalogue is read', () => {
-    expect(ERROR_CODES).toHaveLength(23);
+  it('should expose exactly the 25 API error codes when the catalogue is read', () => {
+    expect(ERROR_CODES).toHaveLength(25);
   });
 
   it('should declare no duplicate code when every entry is collected', () => {

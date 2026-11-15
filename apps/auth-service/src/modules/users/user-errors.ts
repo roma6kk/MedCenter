@@ -20,8 +20,15 @@ export function selfLockout(): ConflictException {
   });
 }
 
+export function accountConsentWithdrawn(): ConflictException {
+  return new ConflictException({
+    errorCode: 'ACCOUNT_CONSENT_WITHDRAWN',
+    message: 'ACCOUNT_CONSENT_WITHDRAWN: the patient closed this account and withdrew the consent; it cannot be reactivated',
+  });
+}
+
 export function invalidPassword(): ForbiddenException {
-  return new ForbiddenException({ errorCode: 'FORBIDDEN', message: 'INVALID_PASSWORD: the current password is wrong' });
+  return new ForbiddenException({ errorCode: 'INVALID_PASSWORD', message: 'INVALID_PASSWORD: the current password is wrong' });
 }
 
 export function ageRestricted(): UnprocessableEntityException {
