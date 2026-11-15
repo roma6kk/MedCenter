@@ -82,13 +82,22 @@ export class FhirHttp {
     return bundle.total ?? 0;
   }
 
-  async put(resource: FhirResource): Promise<FhirResource> {
+  async put(resource: FhirResource, options: { readonly ifMatch?: string } = {}): Promise<FhirResource> {
     if (resource.id === undefined || resource.id.length === 0) {
       throw new Error(`FHIR PUT ${resource.resourceType} requires a client-assigned id`);
     }
     return this.request(this.url(`${resource.resourceType}/${resource.id}`), {
       method: 'PUT',
       body: JSON.stringify(resource),
+      ...(options.ifMatch === undefined ? {} : { headers: { 'if-match': options.ifMatch } }),
+    });
+  }
+
+  // HAPI instance operation; needs HAPI_FHIR_EXPUNGE_ENABLED. Physically removes every version except the current one.
+  async expungePreviousVersions(resourceType: string, id: string): Promise<void> {
+    await this.request(this.url(`${resourceType}/${id}/$expunge`), {
+      method: 'POST',
+      body: JSON.stringify({ resourceType: 'Parameters', parameter: [{ name: 'expungePreviousVersions', valueBoolean: true }] }),
     });
   }
 
@@ -124,7 +133,7 @@ export class FhirHttp {
   private async request(url: string, init: RequestInit): Promise<FhirResource> {
     const response = await this.fetchImpl(url, {
       ...init,
-      headers: { accept: FHIR_JSON, 'content-type': FHIR_JSON, 'cache-control': 'no-cache' },
+      headers: { accept: FHIR_JSON, 'content-type': FHIR_JSON, 'cache-control': 'no-cache', ...(init.headers as Record<string, string> | undefined) },
       signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
     });
     const text = await response.text();
