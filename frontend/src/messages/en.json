@@ -1985,5 +1985,18 @@
     "closedTitle": "Account deleted",
     "closedLead": "Sign-in to the personal cabinet is closed, the session has ended and your consent to the personal cabinet is withdrawn.",
     "closedHome": "To the home page"
+  },
+  "myData": {
+    "title": "My data",
+    "lead": "A file with the details about you that you can already see in the cabinet, and the information about how they are processed under art. 11 p. 1 of Law No. 99-Z.",
+    "download": "Download my data",
+    "preparing": "Preparing the file…",
+    "saved": "The file is saved to your downloads folder.",
+    "failed": "The file could not be prepared. Try again.",
+    "infoLegalBasis": "Provided under art. 11 p. 1 of the Law of the Republic of Belarus No. 99-Z \"On personal data protection\".",
+    "infoOperatorNote": "The operator is fictitious: the details are placeholders of a training project.",
+    "infoRetention": "Data of a closed account and medical records are kept according to the operator's records schedule (the period is to be confirmed by the operator).",
+    "infoAuthorised": "No authorised persons have been assigned to process data on the operator's behalf (training project).",
+    "infoFullRequest": "Full information about the processing can be requested by a written application to the operator (art. 14 of Law No. 99-Z); the operator answers within 5 working days."
   }
 }

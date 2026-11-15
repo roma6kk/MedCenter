@@ -99,6 +99,16 @@ describe('HomeView', () => {
     expect(await within(section).findByText('Согласие не оформлено')).toBeInTheDocument();
   });
 
+  it('should offer the download of the patient\'s own data above the account deletion', async () => {
+    loadAll();
+    renderWithClient(<HomeView />);
+
+    const mine = await screen.findByRole('region', { name: 'Мои данные' });
+    const danger = screen.getByRole('region', { name: 'Удаление учётной записи' });
+    expect(within(mine).getByRole('button', { name: 'Скачать мои данные' })).toBeInTheDocument();
+    expect(mine.compareDocumentPosition(danger) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
   it('should warn about a missing phone in the completeness, the personal data and a recommendation, and drop the old counter', async () => {
     loadAll({ patient: { telecom: [{ system: 'email', value: 'a@b.test' }] } });
     renderWithClient(<HomeView />);

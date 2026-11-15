@@ -51,6 +51,11 @@ export interface ServicePrescription extends PrescriptionBase {
 
 export type Prescription = MedicationPrescription | ServicePrescription;
 
+export interface AccountConsent {
+  readonly at: string;
+  readonly version: string;
+}
+
 export interface AccountProfile {
   readonly id: string;
   readonly email: string;
@@ -59,6 +64,7 @@ export interface AccountProfile {
   readonly name?: string;
   readonly isActive: boolean;
   readonly createdAt?: string;
+  readonly accountConsent?: AccountConsent | null;
 }
 
 export interface ContactPoint {
