@@ -145,6 +145,10 @@ async function adminUserChecks(suite: Suite, email: string, users: TestUsers): P
   await runner.check(GROUP, 'GET /admin/users/{unknown uuid} -> 404 NOT_FOUND', async () => {
     expectProblem(await api.get(`${ADMIN_USERS}/${UNKNOWN_UUID}`, { session: sessions.admin }), 404, 'NOT_FOUND');
   });
+  await runner.check(GROUP, 'GET /admin/users/retention-expired -> page of closed accounts past retention, nothing deleted', async () => {
+    const items = expectPage(await api.get(`${ADMIN_USERS}/retention-expired`, { session: sessions.admin, query: { pageSize: 5 } }));
+    expectTrue(items.every((item) => typeof item['retentionUntil'] === 'string' && Date.parse(String(item['retentionUntil'])) <= Date.now()), 'a listed account is still within retention');
+  });
 }
 
 export async function authChecks(suite: Suite): Promise<void> {
