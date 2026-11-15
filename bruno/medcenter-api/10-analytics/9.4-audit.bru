@@ -18,6 +18,7 @@ params:query {
   ~to: 
   ~entity: Patient
   ~userId: 
+  ~action: login,login-failed,login-throttled,logout,session-idle
   page: 1
   pageSize: 20
 }
@@ -47,5 +48,5 @@ tests {
 }
 
 docs {
-  Spec 9.4. ADMIN. A date-only `from`/`to` is a calendar day of the clinic (Europe/Minsk). Filters `from`, `to`, `entity` (`Patient` or `Patient/123`), `userId`, `page`, `pageSize`. Actions: create, update, delete, read, denied, emergency-bypass (`reason` only on the last), and the authentication events login, login-failed, login-throttled, logout, session-idle (`resourceType` and `requestId` may be null for these).
+  Spec 9.4. ADMIN. A date-only `from`/`to` is a calendar day of the clinic (Europe/Minsk). Filters `from`, `to`, `entity` (`Patient` or `Patient/123`), `userId`, `action`, `page`, `pageSize`. `action` is one or several actions (comma list `action=login,logout` or repeated `action=login&action=logout`, OR); an unknown value is 400 VALIDATION_ERROR; omitted means every action. Actions: create, update, delete, read, denied, emergency-bypass (`reason` only on the last), and the authentication events login, login-failed, login-throttled, logout, session-idle (`resourceType` and `requestId` may be null for these).
 }

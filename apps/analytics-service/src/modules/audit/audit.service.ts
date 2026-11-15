@@ -6,6 +6,7 @@ import {
   type PaginatedResponseDto,
 } from '@medcenter/contracts';
 
+import type { AuditAction } from '../../database/entities/audit-event-read.entity';
 import { CLOCK, type Clock } from '../shared/clock';
 import { resolveDateRange } from '../shared/date-range';
 import { AUDIT_REPOSITORY, type AuditEventRow, type AuditRepository } from './audit.repository';
@@ -16,6 +17,7 @@ interface AuditQuery {
   readonly to?: string;
   readonly entity?: string;
   readonly userId?: string;
+  readonly action?: ReadonlyArray<AuditAction>;
   readonly page?: number;
   readonly pageSize?: number;
 }
@@ -53,7 +55,7 @@ export class AuditService {
     const page = query.page ?? DEFAULT_PAGE;
     const pageSize = query.pageSize ?? DEFAULT_PAGE_SIZE;
     const { rows, total } = await this.repository.findPage(
-      { range, userId: query.userId, ...entityFilter(query.entity) },
+      { range, userId: query.userId, actions: query.action, ...entityFilter(query.entity) },
       { offset: (page - 1) * pageSize, limit: pageSize },
     );
     return buildPaginatedResponse(rows.map(toDto), {

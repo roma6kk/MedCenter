@@ -23,6 +23,7 @@ export interface AuditFilter {
   readonly resourceType?: string;
   readonly resourceId?: string;
   readonly userId?: string;
+  readonly actions?: ReadonlyArray<AuditAction>;
 }
 
 export interface PageWindow {
@@ -68,6 +69,9 @@ export class TypeOrmAuditRepository implements AuditRepository {
       .where('audit.occurredAt >= :from AND audit.occurredAt < :toExclusive', filter.range);
     if (filter.userId !== undefined) {
       query.andWhere('audit.userId = :userId', { userId: filter.userId });
+    }
+    if (filter.actions !== undefined && filter.actions.length > 0) {
+      query.andWhere('audit.action IN (:...actions)', { actions: filter.actions });
     }
     if (filter.resourceType !== undefined) {
       query.andWhere('audit.resourceType = :resourceType', { resourceType: filter.resourceType });

@@ -12,6 +12,7 @@ function matches(row: AuditEventRow, filter: AuditFilter): boolean {
     time >= filter.range.from.getTime() &&
     time < filter.range.toExclusive.getTime() &&
     (filter.userId === undefined || row.userId === filter.userId) &&
+    (filter.actions === undefined || filter.actions.length === 0 || filter.actions.includes(row.action)) &&
     (filter.resourceType === undefined || row.resourceType === filter.resourceType) &&
     (filter.resourceId === undefined || row.resourceId === filter.resourceId)
   );

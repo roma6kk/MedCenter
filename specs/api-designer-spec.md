@@ -1086,7 +1086,7 @@ ADR-013) · 404 `NOT_FOUND` (8.3: нет такого уведомления). �
 | 9.1 | `GET /api/v1/admin/analytics/appointments?from=&to=` (`from`/`to` необязательны, по умолчанию последние 30 дней) | сводка записей (booked/fulfilled/cancelled/noshow) | `ADMIN` |
 | 9.2 | `GET /api/v1/admin/analytics/encounters?from=&to=` | сводка приёмов по специальностям | `ADMIN` |
 | 9.3 | `GET /api/v1/admin/analytics/services-popularity?from=&to=&top=` | топ услуг | `ADMIN` |
-| 9.4 | `GET /api/v1/admin/audit?from=&to=&entity=&userId=&page=` | журнал `AuditEvent` (read-model) | `ADMIN` |
+| 9.4 | `GET /api/v1/admin/audit?from=&to=&entity=&userId=&action=&page=` | журнал `AuditEvent` (read-model) | `ADMIN` |
 
 `from`/`to` (9.1–9.4): дата без времени — календарный день клиники (`Europe/Minsk`, как в 5.2): `from` — его первое мгновение, `to` — последнее;
 дата-время берётся как есть (без смещения — UTC), `to` включительно. Без `to` период кончается концом сегодняшнего дня клиники.
@@ -1103,7 +1103,7 @@ PostgreSQL (worker наполняет по событиям). 9.1 разбива
 requestId; reason? }`. `read` — чтение данных пациента врачом или администратором, `denied` — отказ в нём (ADR-018);
 чтение пациентом своей карты в журнал не попадает. `emergency-bypass` — приём открыт или завершён без согласия пациента по
 `emergencyReason` (7.1/7.3, ADR-019): `userId` — врач, `resourceType/resourceId` — пациент, `reason` — указанная причина
-(только у этого действия); UI: «Экстренный обход согласия». Изменения услуг, кабинетов и расписаний (`create`/`update`/`delete`) пишутся в той же транзакции; генерация слотов расписания (5.2.5) пишет одно событие `create` с `resourceType=Schedule`; ресурс в `resourceType/resourceId` определяется по логической ссылке (ADR-020). **Status:** 200 · 400 (диапазон > 366 дней).
+(только у этого действия); UI: «Экстренный обход согласия». Изменения услуг, кабинетов и расписаний (`create`/`update`/`delete`) пишутся в той же транзакции; генерация слотов расписания (5.2.5) пишет одно событие `create` с `resourceType=Schedule`; ресурс в `resourceType/resourceId` определяется по логической ссылке (ADR-020). Фильтр `action` — одно или несколько значений перечисления `AuditAction` (`create`, `update`, `delete`, `read`, `denied`, `emergency-bypass`, `login`, `login-failed`, `login-throttled`, `logout`, `session-idle`): список через запятую (`action=login,logout`) или повторяющийся параметр, условия объединяются по ИЛИ; без параметра — все действия. Неизвестное значение — 400 `VALIDATION_ERROR`. UI: сегменты «Тип события» (Все · Вход и выход · Чтение данных · Изменения · Экстренный доступ) сопоставлены группам действий и хранятся в адресной строке (`?type=auth|read|changes|emergency`). **Status:** 200 · 400 (диапазон > 366 дней, неизвестный `action`).
 
 #### 10. Swagger / OpenAPI
 

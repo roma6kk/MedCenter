@@ -110,6 +110,27 @@ describe('GET /api/v1/admin/audit (API §9.4, FR-021) over a mocked HAPI', () =>
     expect(response.body.items.map((item: { id: string }) => item.id)).toEqual(['ae-2', 'ae-1']);
   });
 
+  it('should keep only the given action when action is a single value', async () => {
+    const response = await get(`/api/v1/admin/audit?${OCTOBER}&action=create`).expect(200);
+
+    expect(response.body.items.map((item: { id: string }) => item.id)).toEqual(['ae-1']);
+  });
+
+  it.each([
+    ['a comma list', 'action=create,update'],
+    ['repeated parameters', 'action=create&action=update'],
+  ])('should keep the events of any listed action when action is %s', async (_case, query) => {
+    const response = await get(`/api/v1/admin/audit?${OCTOBER}&${query}`).expect(200);
+
+    expect(response.body.meta.totalItems).toBe(3);
+  });
+
+  it('should return nothing when no event has the requested action', async () => {
+    const response = await get(`/api/v1/admin/audit?${OCTOBER}&action=login-failed`).expect(200);
+
+    expect(response.body.items).toEqual([]);
+  });
+
   it('should filter by one resource when entity is a Type/id reference', async () => {
     const response = await get(`/api/v1/admin/audit?${OCTOBER}&entity=Encounter/enc-1`).expect(200);
 
@@ -203,6 +224,8 @@ describe('GET /api/v1/admin/audit (API §9.4, FR-021) over a mocked HAPI', () =>
 
   it.each([
     ['an entity that is not a resource reference', 'entity=appointment;drop'],
+    ['an unknown action', 'action=teleport'],
+    ['an unknown action in a list', 'action=login,teleport'],
     ['a pageSize above 100', 'pageSize=101'],
     ['a malformed date', 'from=31.10.2026'],
     ['a month instead of a date', 'from=2026-10&to=2026-10'],
