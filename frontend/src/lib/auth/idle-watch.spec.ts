@@ -166,3 +166,70 @@ describe('startIdleWatch', () => {
     expect(onIdle).not.toHaveBeenCalled();
   });
 });
+
+describe('startIdleWatch warning', () => {
+  let onIdle: jest.Mock;
+  let onWarn: jest.Mock;
+  let onResume: jest.Mock;
+  let stop: () => void;
+  const start = new Date('2026-11-14T10:00:00Z').getTime();
+
+  beforeEach(() => {
+    jest.useFakeTimers({ now: start });
+    window.localStorage.clear();
+    onIdle = jest.fn();
+    onWarn = jest.fn();
+    onResume = jest.fn();
+    stop = startIdleWatch({
+      timeoutMs: 15 * MINUTE,
+      onIdle,
+      sendPing: jest.fn().mockResolvedValue(true),
+      warnBeforeMs: MINUTE,
+      onWarn,
+      onResume,
+    });
+  });
+
+  afterEach(() => {
+    stop();
+    jest.useRealTimers();
+  });
+
+  it('should warn once a minute before the end with the moment the session ends', () => {
+    jest.advanceTimersByTime(13 * MINUTE + 55_000);
+    expect(onWarn).not.toHaveBeenCalled();
+
+    jest.advanceTimersByTime(10_000);
+    jest.advanceTimersByTime(20_000);
+
+    expect(onWarn).toHaveBeenCalledTimes(1);
+    expect(onWarn).toHaveBeenCalledWith(start + 15 * MINUTE);
+    expect(onIdle).not.toHaveBeenCalled();
+  });
+
+  it('should cancel the warning and keep the session on a key press', () => {
+    jest.advanceTimersByTime(14 * MINUTE + 10_000);
+    window.dispatchEvent(new Event('keydown'));
+    jest.advanceTimersByTime(2 * MINUTE);
+
+    expect(onResume).toHaveBeenCalledTimes(1);
+    expect(onIdle).not.toHaveBeenCalled();
+  });
+
+  it('should keep the warning up on a mere mouse move', () => {
+    jest.advanceTimersByTime(14 * MINUTE + 10_000);
+    window.dispatchEvent(new Event('pointermove'));
+    jest.advanceTimersByTime(MINUTE);
+
+    expect(onResume).not.toHaveBeenCalled();
+    expect(onIdle).toHaveBeenCalledTimes(1);
+  });
+
+  it('should cancel the warning when another tab records activity', () => {
+    jest.advanceTimersByTime(14 * MINUTE + 10_000);
+    window.localStorage.setItem('mc-last-activity', String(Date.now()));
+    jest.advanceTimersByTime(5_000);
+
+    expect(onResume).toHaveBeenCalledTimes(1);
+  });
+});

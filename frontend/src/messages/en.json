@@ -773,7 +773,10 @@
   },
   "session": {
     "ended": "Your session has ended, please sign in again",
-    "idle": "Your session ended due to inactivity"
+    "idle": "Your session ended due to inactivity",
+    "idleWarningTitle": "Your session is about to end",
+    "idleWarningText": "You have been inactive for a while. In {seconds} s the session will end and you will need to sign in again.",
+    "idleWarningStay": "Continue working"
   },
   "doctor": {
     "journal": {
