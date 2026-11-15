@@ -15,6 +15,7 @@ const EXPECTED_UX: Record<ErrorCode, string> = {
   CONSENT_REQUIRED: 'consent-required',
   CONSENT_ALREADY_ACTIVE: 'consent-active',
   ACCOUNT_CONSENT_WITHDRAWN: 'banner-generic',
+  INVALID_PASSWORD: 'banner-generic',
   ENCOUNTER_STATE_INVALID: 'encounter-readonly',
   SCHEDULE_OVERLAP: 'schedule-highlight',
   SCHEDULE_IN_USE: 'in-use-conflict',

@@ -14,7 +14,9 @@ async function pingServer(): Promise<boolean> {
 }
 
 async function renewSession(): Promise<boolean> {
-  return (await refreshSession()) === 'ok';
+  const outcome = await refreshSession();
+  if (outcome === 'unavailable') throw new Error('token service unavailable');
+  return outcome === 'ok';
 }
 
 export function IdleSessionWatcher(): null {

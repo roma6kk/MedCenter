@@ -135,6 +135,17 @@ describe('startIdleWatch', () => {
     expect(onIdle).toHaveBeenCalledTimes(1);
   });
 
+  it('should keep the session when the renewal fails because the token service is unavailable', async () => {
+    stop();
+    sendPing = jest.fn().mockResolvedValue(false);
+    stop = startIdleWatch({ timeoutMs: 15 * MINUTE, onIdle, sendPing, renewSession: jest.fn().mockRejectedValue(new Error('unavailable')) });
+
+    touch();
+    await flush();
+
+    expect(onIdle).not.toHaveBeenCalled();
+  });
+
   it('should ignore a failed ping and not end the session', async () => {
     stop();
     sendPing = jest.fn().mockRejectedValue(new Error('offline'));
