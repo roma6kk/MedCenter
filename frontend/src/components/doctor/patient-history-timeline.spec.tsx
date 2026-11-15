@@ -1,9 +1,9 @@
-import { render, screen } from '@testing-library/react';
+import { act, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useSessionStore } from '@/store/use-session-store';
 import { useUiStore } from '@/store/use-ui-store';
 import { PatientHistoryTimeline } from './patient-history-timeline';
-import { usePatientHistory, useVisitPrescriptions } from './use-doctor-queries';
+import { usePatient, usePatientHistory, useVisitPrescriptions } from './use-doctor-queries';
 
 jest.mock('./use-doctor-queries');
 
@@ -29,7 +29,7 @@ describe('PatientHistoryTimeline with two doctors', () => {
     expect(screen.getByText('Врач: Громова Е. В.')).toBeInTheDocument();
     expect(screen.getAllByRole('link', { name: /Открыть приём/ })).toHaveLength(1);
 
-    await userEvent.click(screen.getAllByRole('button')[1] as HTMLElement);
+    await userEvent.click(screen.getByRole('button', { expanded: false }));
 
     expect(screen.getByText('Приём другого врача')).toBeInTheDocument();
     expect(screen.getAllByRole('link', { name: /Открыть приём/ })).toHaveLength(1);
@@ -44,8 +44,31 @@ describe('PatientHistoryTimeline with two doctors', () => {
     expect(useVisitPrescriptions).not.toHaveBeenCalledWith('p1', 'theirs');
     expect(screen.getByText('Азитромицин — 500 мг')).toBeInTheDocument();
 
-    await userEvent.click(screen.getAllByRole('button')[1] as HTMLElement);
+    await userEvent.click(screen.getByRole('button', { expanded: false }));
 
     expect(useVisitPrescriptions).toHaveBeenCalledWith('p1', 'theirs');
+  });
+
+  it('should print the opened visit with the patient and the orders, and name the doctor who entered it', async () => {
+    const print = jest.fn();
+    window.print = print;
+    jest.mocked(usePatient).mockReturnValue({ data: { id: 'p1', active: true, fullName: 'Лебедева Анна', lastName: 'Лебедева', firstName: 'Анна', birthDate: '1992-11-02', telecom: [] } } as never);
+    jest.mocked(useVisitPrescriptions).mockReturnValue({ data: { items: [{ id: 'o1', kind: 'medication', atcCode: 'J01FA10', atcDisplay: 'Азитромицин', dosageText: '500 мг', encounterId: 'mine' }], meta: META } } as never);
+    render(<PatientHistoryTimeline patientId="p1" />);
+
+    await userEvent.click(screen.getByRole('button', { name: /^Печать приёма от/ }));
+
+    const sheet = await screen.findByTestId('visit-print-sheet');
+    expect(sheet).toHaveTextContent('Лебедева Анна');
+    expect(sheet).toHaveTextContent('2 ноября 1992 г.');
+    expect(sheet).toHaveTextContent('J06.9 ОРВИ');
+    expect(sheet).toHaveTextContent('J01FA10 Азитромицин — 500 мг');
+    expect(sheet).toHaveTextContent('Внесено: Орлов А. Н., 1 окт. 2026 г., 10:00. Документ сформирован информационной системой и не является медицинским документом; юридическую силу имеет запись в медицинской карте на бумаге.');
+    expect(sheet.textContent).not.toMatch(/подписан|ЭМК/i);
+    expect(print).toHaveBeenCalledTimes(1);
+    act(() => {
+      window.dispatchEvent(new Event('afterprint'));
+    });
+    expect(screen.queryByTestId('visit-print-sheet')).not.toBeInTheDocument();
   });
 });

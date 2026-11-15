@@ -9,10 +9,12 @@ import { useClinicFormat } from '@/hooks/use-clinic-format';
 import { useT } from '@/lib/i18n/use-t';
 import { cn } from '@/lib/ui/cn';
 import { normalizeDoctorName } from '@/lib/doctor-name';
-import type { DiagnosisView, HistoryEntry, Prescription } from '../patient-types';
+import type { HistoryEntry, Prescription } from '../patient-types';
 import { WRAP_TEXT } from '../wrap-text';
+import { VisitPrintButton } from '@/components/print/visit-print-button';
+import { PatientVisitPrint } from './patient-visit-print';
 import { CodeTag } from './code-tag';
-import { primaryCode } from './history-model';
+import { diagnosesOf } from './history-model';
 
 const ICD10_SYSTEM = 'https://fhir.by/CodeSystem/InternClassificDiseases10';
 
@@ -24,12 +26,6 @@ interface VisitRowProps {
   readonly prescriptions: ReadonlyArray<Prescription>;
   readonly prescriptionsState?: PrescriptionsState;
   readonly onRetryPrescriptions?: () => void;
-}
-
-function diagnosesOf(entry: HistoryEntry): ReadonlyArray<DiagnosisView> {
-  if (entry.diagnoses.length > 0) return entry.diagnoses;
-  const code = primaryCode(entry);
-  return code === '' ? [] : [{ code, display: '' }];
 }
 
 function utcDate(dayKey: string): Date {
@@ -66,6 +62,8 @@ function PrescriptionLine({ prescription }: { readonly prescription: Prescriptio
 
 function Details({ entry, prescriptions, prescriptionsState = 'ok', onRetryPrescriptions }: VisitRowProps): ReactNode {
   const t = useT('patientHistory');
+  const tPrint = useT('visitPrint');
+  const format = useClinicFormat();
   const others = diagnosesOf(entry).slice(1);
   return (
     <div className="flex flex-col gap-3 px-5 pb-5 sm:pl-[98px]">
@@ -108,6 +106,9 @@ function Details({ entry, prescriptions, prescriptionsState = 'ok', onRetryPresc
         <Link href="/booking" className={buttonVariants({ variant: 'primary' })}>{t('rebook')}</Link>
         <Link href={`/appointments/${encodeURIComponent(entry.appointmentId)}`} className={buttonVariants({ variant: 'secondary' })}>{t('openAppointment')}</Link>
         {prescriptions.length > 0 ? <Link href="/medcard?tab=prescriptions" className={buttonVariants({ variant: 'secondary' })}>{t('prescriptionsLink')}</Link> : null}
+        <VisitPrintButton label={tPrint('print')} ariaLabel={tPrint('printVisit', { date: format.dateTime(entry.date) })}>
+          {(finish) => <PatientVisitPrint entry={entry} prescriptions={prescriptions} onDone={finish} />}
+        </VisitPrintButton>
       </div>
     </div>
   );

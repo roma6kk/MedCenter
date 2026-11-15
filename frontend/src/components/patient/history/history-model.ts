@@ -1,5 +1,5 @@
 import { clinicDayOf } from '@/lib/clinic-time';
-import type { HistoryEntry, Prescription } from '../patient-types';
+import type { DiagnosisView, HistoryEntry, Prescription } from '../patient-types';
 
 interface MonthGroup {
   readonly key: string;
@@ -24,6 +24,12 @@ const NOT_COMPLETED: ReadonlySet<string> = new Set(['cancelled', 'entered-in-err
 
 export function primaryCode(entry: HistoryEntry): string {
   return entry.diagnosis !== '' ? entry.diagnosis : (entry.diagnoses[0]?.code ?? '');
+}
+
+export function diagnosesOf(entry: HistoryEntry): ReadonlyArray<DiagnosisView> {
+  if (entry.diagnoses.length > 0) return entry.diagnoses;
+  const code = primaryCode(entry);
+  return code === '' ? [] : [{ code, display: '' }];
 }
 
 function primaryDisplay(entry: HistoryEntry): string {

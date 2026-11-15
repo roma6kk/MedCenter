@@ -13,7 +13,9 @@ import { useStaggerOnce } from '@/hooks/use-stagger-once';
 import { useT } from '@/lib/i18n/use-t';
 import { formatClinicDateTime } from '@/lib/clinic-time';
 import { cn } from '@/lib/ui/cn';
+import { VisitPrintButton } from '@/components/print/visit-print-button';
 import { DiagnosisList } from './diagnosis-list';
+import { DoctorVisitPrint } from './doctor-visit-print';
 import type { HistoryItem, Prescription } from './doctor-types';
 import { QueryFailure } from '@/components/feedback/query-error-state';
 import { SkeletonText } from '@/components/ui/skeleton';
@@ -58,6 +60,7 @@ interface VisitEntryProps {
 
 function VisitEntry({ item, patientId, isOpen, isColleague, onToggle }: VisitEntryProps): ReactNode {
   const t = useT('doctor.history');
+  const tPrint = useT('visitPrint');
   const detailsId: string = useId();
   return (
     <li className="relative">
@@ -88,6 +91,11 @@ function VisitEntry({ item, patientId, isOpen, isColleague, onToggle }: VisitEnt
             {item.summary ? <VisitText label={t('summary')} text={item.summary} /> : null}
             {item.recommendations ? <VisitText label={t('recommendations')} text={item.recommendations} /> : null}
             <VisitOrders patientId={patientId} encounterId={item.id} />
+            <div>
+              <VisitPrintButton label={tPrint('print')} ariaLabel={tPrint('printVisit', { date: formatClinicDateTime(item.date) })}>
+                {(finish) => <DoctorVisitPrint item={item} patientId={patientId} onDone={finish} />}
+              </VisitPrintButton>
+            </div>
             {isColleague ? (
               <p className="text-sm text-muted-foreground">{t('otherDoctor')}</p>
             ) : (

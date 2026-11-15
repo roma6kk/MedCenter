@@ -254,7 +254,7 @@ describe('PatientCardView history cards (A2)', () => {
     setup([{ path: '/api/v1/patients/p1/history', respond: () => pageOf([HISTORY, OLDER]) }]);
 
     const section = within(await screen.findByRole('region', { name: 'История обращений' }));
-    const [newest, oldest] = await section.findAllByRole('button', { expanded: undefined });
+    const [newest, oldest] = (await section.findAllByRole('button')).filter((button) => button.hasAttribute('aria-expanded'));
 
     expect(newest).toHaveAttribute('aria-expanded', 'true');
     expect(oldest).toHaveAttribute('aria-expanded', 'false');

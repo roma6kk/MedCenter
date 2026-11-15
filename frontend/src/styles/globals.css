@@ -269,7 +269,19 @@ p {
   }
 }
 
+.visit-print-sheet { display: none; }
+
 @media print {
+  body.printing-visit > *:not(.visit-print-sheet) { display: none !important; }
+  body.printing-visit .visit-print-sheet { display: block; color: #000000; background: #ffffff; font-size: 12pt; line-height: 1.45; }
+  .visit-print-sheet h1 { margin: 4pt 0 12pt; font-size: 18pt; font-weight: 700; }
+  .visit-print-clinic { font-size: 11pt; font-weight: 700; }
+  .visit-print-row { display: grid; grid-template-columns: 38mm 1fr; gap: 8pt; padding: 4pt 0; border-bottom: 0.5pt solid #000000; break-inside: avoid; }
+  .visit-print-row dt { font-weight: 700; }
+  .visit-print-row ul { margin: 0; padding: 0; list-style: none; }
+  .visit-print-row code { font-family: ui-monospace, monospace; font-weight: 700; }
+  .visit-print-text { white-space: pre-line; overflow-wrap: anywhere; }
+  .visit-print-footer { margin-top: 16pt; font-size: 10pt; }
   .no-print { display: none !important; }
   .reveal-on-scroll, .stagger-children > * { animation: none !important; }
   body { background: #ffffff; color: #000000; }
