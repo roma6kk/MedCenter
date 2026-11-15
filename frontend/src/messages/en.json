@@ -506,7 +506,15 @@
         "entity": "Resource",
         "entityHint": "Resource type or Type/id, for example Appointment or Appointment/123",
         "userId": "User",
-        "reset": "Reset"
+        "reset": "Reset",
+        "group": "Event type"
+      },
+      "groups": {
+        "all": "All",
+        "auth": "Sign-in and sign-out",
+        "read": "Data reads",
+        "changes": "Changes",
+        "emergency": "Emergency access"
       },
       "errors": {
         "invalid": "Enter valid dates",

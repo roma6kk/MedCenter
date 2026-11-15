@@ -4,11 +4,12 @@ import { useState } from 'react';
 import type { ReactNode } from 'react';
 import { useT } from '@/lib/i18n/use-t';
 import { DatePicker } from '@/components/ui/date-picker';
+import { SegmentedControl } from '@/components/ui/segmented-control';
 import { cn } from '@/lib/ui/cn';
 import { CONTROL_CLASS, SECONDARY_BUTTON_CLASS } from '../shared/admin-styles';
 import { controlProps, Field } from '../shared/form-field';
 import { useDebouncedCommit } from '../shared/use-debounced-commit';
-import { defaultAuditFilter, hasAuditFilterErrors, validateAuditFilter, type AuditFilter, type AuditFilterErrors } from './audit-filter';
+import { AUDIT_ACTION_GROUPS, defaultAuditFilter, hasAuditFilterErrors, validateAuditFilter, type AuditActionGroup, type AuditFilter, type AuditFilterErrors } from './audit-filter';
 import { ENTITY_SUGGESTIONS } from './audit-types';
 
 interface AuditFiltersFormProps {
@@ -23,7 +24,7 @@ interface FilterDraft {
   readonly handleReset: () => void;
 }
 
-const sameFilter = (a: AuditFilter, b: AuditFilter): boolean => a.from === b.from && a.to === b.to && a.entity === b.entity && a.userId === b.userId;
+const sameFilter = (a: AuditFilter, b: AuditFilter): boolean => a.from === b.from && a.to === b.to && a.entity === b.entity && a.userId === b.userId && a.group === b.group;
 
 function useFilterDraft(filter: AuditFilter, onApply: (filter: AuditFilter) => void): FilterDraft {
   const [draft, setDraft] = useState<AuditFilter>(filter);
@@ -72,6 +73,17 @@ export function AuditFiltersForm({ filter, onApply }: AuditFiltersFormProps): Re
       <Field id="audit-user" label={t('filters.userId')}>
         <input {...controlProps('audit-user', userError)} value={draft.userId} maxLength={128} autoComplete="off" onChange={(event) => setDraft({ ...draft, userId: event.target.value })} className={cn(CONTROL_CLASS, 'mono w-52')} />
       </Field>
+      <div className="grid content-start gap-1">
+        <span aria-hidden="true" className="form-label">{t('filters.group')}</span>
+        <SegmentedControl<AuditActionGroup>
+          kind="toggle"
+          label={t('filters.group')}
+          idPrefix="audit-group"
+          value={draft.group}
+          onChange={(group) => setDraft({ ...draft, group })}
+          options={AUDIT_ACTION_GROUPS.map((value) => ({ value, label: t(`groups.${value}`) }))}
+        />
+      </div>
       <button type="button" onClick={handleReset} className={SECONDARY_BUTTON_CLASS}>{t('filters.reset')}</button>
       {/* The hint of «Ресурс» sits under the whole row, not under its field: a taller field would lift its input above the others. */}
       {/* The messages sit under the whole row too: an error inside a Field would lift that field above the others (items-end). */}

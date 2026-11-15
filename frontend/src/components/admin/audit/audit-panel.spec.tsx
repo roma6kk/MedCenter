@@ -1,3 +1,5 @@
+jest.mock('next/navigation', () => ({ useSearchParams: () => new URLSearchParams(window.location.search) }));
+
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { apiFetch } from '@/lib/api/api-fetch';
@@ -28,6 +30,7 @@ function auditPaths(): ReadonlyArray<string> {
 
 describe('AuditPanel', () => {
   beforeEach(() => {
+    window.history.replaceState(null, '', '/admin/audit');
     apiFetchMock.mockReset();
     apiFetchMock.mockResolvedValue(paged(3));
   });
@@ -174,6 +177,56 @@ describe('AuditPanel', () => {
       expect(auditPaths()).toContain('/api/v1/admin/audit?from=2026-10-01&to=2026-10-16&entity=Appointment%2F123&userId=PractitionerRole%2Fabc&page=1&pageSize=20'),
     );
     expect(screen.queryByRole('button', { name: 'Применить' })).not.toBeInTheDocument();
+  });
+
+  it.each([
+    ['Вход и выход', 'login%2Clogin-failed%2Clogin-throttled%2Clogout%2Csession-idle', 'auth'],
+    ['Чтение данных', 'read%2Cdenied', 'read'],
+    ['Изменения', 'create%2Cupdate%2Cdelete', 'changes'],
+    ['Экстренный доступ', 'emergency-bypass', 'emergency'],
+  ])('should ask for the actions of «%s» and keep the choice in the address when the group is picked', async (name, action, group) => {
+    renderWithClient(<AuditPanel />);
+    await screen.findByText('Найдено событий: 41');
+
+    await userEvent.click(screen.getByRole('button', { name }));
+
+    await waitFor(() => expect(auditPaths().at(-1)).toContain(`action=${action}&page=1&pageSize=20`));
+    expect(screen.getByRole('button', { name })).toHaveAttribute('aria-pressed', 'true');
+    expect(window.location.search).toBe(`?type=${group}`);
+  });
+
+  it('should send no action again and clear the address when «Все» is picked after a group', async () => {
+    renderWithClient(<AuditPanel />);
+    await screen.findByText('Найдено событий: 41');
+    await userEvent.click(screen.getByRole('button', { name: 'Изменения' }));
+    await waitFor(() => expect(auditPaths().at(-1)).toContain('action='));
+
+    await userEvent.click(screen.getByRole('button', { name: 'Все' }));
+
+    await waitFor(() => expect(auditPaths().at(-1)).not.toContain('action='));
+    expect(window.location.search).toBe('');
+  });
+
+  it('should open on the group named in the address', async () => {
+    window.history.replaceState(null, '', '/admin/audit?type=read');
+    renderWithClient(<AuditPanel />);
+
+    await screen.findByText('Найдено событий: 41');
+
+    expect(auditPaths()[0]).toContain('action=read%2Cdenied');
+    expect(screen.getByRole('button', { name: 'Чтение данных' })).toHaveAttribute('aria-pressed', 'true');
+  });
+
+  it('should go back to «Все» when «Сбросить» is pressed after a group was picked', async () => {
+    renderWithClient(<AuditPanel />);
+    await screen.findByText('Найдено событий: 41');
+    await userEvent.click(screen.getByRole('button', { name: 'Экстренный доступ' }));
+    await waitFor(() => expect(auditPaths().at(-1)).toContain('action=emergency-bypass'));
+
+    await userEvent.click(screen.getByRole('button', { name: 'Сбросить' }));
+
+    expect(screen.getByRole('button', { name: 'Все' })).toHaveAttribute('aria-pressed', 'true');
+    await waitFor(() => expect(auditPaths().at(-1)).not.toContain('action='));
   });
 
   it('should keep the filters and ask for the next page when the pager moves', async () => {
