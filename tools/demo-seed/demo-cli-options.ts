@@ -13,11 +13,12 @@ export interface CliOptions {
   readonly runConsents: boolean;
   readonly consentExcept?: string;
   readonly withAdmin: boolean;
+  readonly refreshScans: boolean;
   readonly days: number;
   readonly from?: string;
 }
 
-const SWITCHES = ['--fhir', '--users', '--repair', '--consents', '--with-admin'] as const;
+const SWITCHES = ['--fhir', '--users', '--repair', '--consents', '--with-admin', '--refresh-scans'] as const;
 const VALUED = ['--consent-except', '--days', '--from'] as const;
 
 const DAY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
@@ -67,6 +68,9 @@ function assertFlagCombination(flags: ReadonlySet<string>, values: ReadonlyMap<s
   if (flags.has('--with-admin') && !flags.has('--users')) {
     throw new Error('--with-admin belongs to the users step: add --users');
   }
+  if (flags.has('--refresh-scans') && !flags.has('--consents')) {
+    throw new Error('--refresh-scans belongs to the consents step: add --consents');
+  }
   if (values.has('--consent-except') && !flags.has('--consents')) {
     throw new Error('--consent-except belongs to the consents step: add --consents');
   }
@@ -84,6 +88,7 @@ function optionsOf(flags: ReadonlySet<string>, values: ReadonlyMap<string, strin
     runRepair,
     runConsents,
     withAdmin: flags.has('--with-admin'),
+    refreshScans: flags.has('--refresh-scans'),
     days: parseDays(values.get('--days') ?? String(DEFAULT_SLOT_DAYS)),
     ...(consentExcept === undefined ? {} : { consentExcept }),
     ...(from === undefined ? {} : { from: parseFrom(from) }),

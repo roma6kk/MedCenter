@@ -138,3 +138,51 @@ export async function seedDemoConsents(http: FhirHttp, options: DemoConsentsOpti
   }
   return { created, alreadyActive, withoutConsent: options.withoutConsent.map((patient) => patient.emailLocal), missing };
 }
+
+interface RefreshScansSummary {
+  readonly refreshed: readonly string[];
+  readonly unchanged: readonly string[];
+  readonly notDemoConsent: readonly string[];
+  readonly noConsent: readonly string[];
+  readonly missing: readonly string[];
+}
+
+function scanHashOf(consent: FhirResource): string | undefined {
+  return (consent['sourceAttachment'] as { hash?: string } | undefined)?.hash;
+}
+
+type RefreshOutcome = keyof RefreshScansSummary;
+
+async function refreshScanOf(http: FhirHttp, patient: PatientDef, now: Date): Promise<RefreshOutcome> {
+  const [found] = await http.search('Patient', { family: patient.lastName, given: patient.firstName, birthdate: patient.birthDate });
+  const patientId = found?.id;
+  if (patientId === undefined) {
+    return 'missing';
+  }
+  const active = (await http.search('Consent', { patient: `Patient/${patientId}`, scope: 'patient-privacy', status: 'active' })).filter((consent) =>
+    isConsentInForce(consent, patientId, now),
+  );
+  if (active.length === 0) {
+    return 'noConsent';
+  }
+  const plan = planDemoConsent(patient, patientId, now);
+  const stored = active.find((consent) => consent.id === plan.consent.id);
+  if (stored === undefined) {
+    return 'notDemoConsent';
+  }
+  if (scanHashOf(stored) === scanHashOf(plan.consent)) {
+    return 'unchanged';
+  }
+  await http.put(plan.binary);
+  await http.put({ ...stored, sourceAttachment: plan.consent['sourceAttachment'] });
+  return 'refreshed';
+}
+
+// seedDemoConsents skips a patient who already has an active consent, so a database seeded earlier keeps its old scan.
+export async function refreshDemoScans(http: FhirHttp, options: { readonly withConsent: readonly PatientDef[]; readonly now: Date }): Promise<RefreshScansSummary> {
+  const groups: Record<RefreshOutcome, string[]> = { refreshed: [], unchanged: [], notDemoConsent: [], noConsent: [], missing: [] };
+  for (const patient of options.withConsent) {
+    groups[await refreshScanOf(http, patient, options.now)].push(patient.emailLocal);
+  }
+  return groups;
+}

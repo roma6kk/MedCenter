@@ -5,7 +5,7 @@ import { loadSeedEnv } from '../shared/load-seed-env';
 import { resolveFhirBaseUrl, runMain } from '../shared/seed-env';
 import { parseCliArgs, readUsersConfig, type CliOptions } from './demo-cli-options';
 import { buildFhirManifest, readManifest, writeManifest, type DemoUsersSection } from './demo-manifest';
-import { DEFAULT_PATIENT_WITHOUT_CONSENT, seedDemoConsents, selectConsentPatients } from './demo-consents';
+import { DEFAULT_PATIENT_WITHOUT_CONSENT, refreshDemoScans, seedDemoConsents, selectConsentPatients } from './demo-consents';
 import { PATIENTS } from './demo-catalog';
 import { attachPatientPhotos } from './demo-patient-photos';
 import { repairDemoData } from './demo-repair';
@@ -67,6 +67,12 @@ async function runConsentsStep(options: CliOptions, now: Date): Promise<void> {
   console.log(`information system consent created: ${summary.created.join(', ') || 'none'}`);
   console.log(`information system consent already active (kept): ${summary.alreadyActive.join(', ') || 'none'}`);
   console.log(`Left WITHOUT consent on purpose (the CONSENT_REQUIRED demo): ${summary.withoutConsent.join(', ') || 'nobody'}`);
+  if (options.refreshScans) {
+    const refresh = await refreshDemoScans(new FhirHttp(baseUrl), { withConsent: selection.withConsent, now });
+    console.log(`consent scans replaced with the watermarked sample: ${refresh.refreshed.join(', ') || 'none'}`);
+    console.log(`consent scans already the sample (kept): ${refresh.unchanged.join(', ') || 'none'}`);
+    console.log(`active consents that are not the demo one (kept): ${refresh.notDemoConsent.join(', ') || 'none'}`);
+  }
   if (summary.missing.length > 0) {
     throw new Error(`No Patient on the server for: ${summary.missing.join(', ')} (register the accounts: --users)`);
   }

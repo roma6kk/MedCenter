@@ -14,7 +14,7 @@ const ADMIN_ENV = { BOOTSTRAP_ADMIN_EMAIL: 'admin@medcenter.test', BOOTSTRAP_ADM
 
 describe('parseCliArgs', () => {
   it('should run the FHIR part for 14 days from today when called without arguments', () => {
-    expect(parseCliArgs([])).toEqual({ runFhir: true, runUsers: false, runRepair: false, runConsents: false, withAdmin: false, days: 14 });
+    expect(parseCliArgs([])).toEqual({ runFhir: true, runUsers: false, runRepair: false, runConsents: false, withAdmin: false, refreshScans: false, days: 14 });
   });
 
   it('should run only the users step for --users', () => {
@@ -44,6 +44,12 @@ describe('parseCliArgs', () => {
 
   it('should reject --consent-except without --consents because the flag belongs to that step', () => {
     expect(() => parseCliArgs(['--consent-except=none'])).toThrow('--consent-except belongs to the consents step');
+  });
+
+  it('should refresh scans only on request and only together with --consents', () => {
+    expect(parseCliArgs(['--consents']).refreshScans).toBe(false);
+    expect(parseCliArgs(['--consents', '--refresh-scans']).refreshScans).toBe(true);
+    expect(() => parseCliArgs(['--refresh-scans'])).toThrow('--refresh-scans belongs to the consents step');
   });
 
   it('should create no demo admin unless --with-admin is given', () => {

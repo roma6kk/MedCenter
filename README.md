@@ -92,6 +92,13 @@ npm run seed:demo                   # demo organisation, doctors, services, room
 - **Free slots run out** after smoke or E2E runs: run `npm run seed:demo` again.
 - After changing a service: `docker compose up -d --build <service> && npm run stack:wait`.
 
+## Обслуживание данных
+
+Две команды для баз, заполненных до перехода на нейтральные причины и образец согласия с водяным знаком. Обе идемпотентны и работают с `SEED_FHIR_BASE_URL` (по умолчанию локальный HAPI).
+
+- `npm run maint:strip-reasons` — пробный прогон: считает записи `Appointment` со свободным `reasonCode` и с `cancelationReason` без кода из `urn:medcenter:appointment-cancel-reason`, ничего не пишет. С `-- --apply` удаляет `reasonCode` и заменяет такую причину отмены кодом `other` (текст отбрасывается), запись идёт под `If-Match` прочитанной версии. Выводятся только счётчики.
+- `npm run seed:demo -- --consents --refresh-scans` — заменяет скан демо-согласий образцом «ОБРАЗЕЦ — вымышленные данные» (Binary и хеш в `Consent`); без флага активные согласия сид пропускает. Согласия, созданные не сидом, не трогаются.
+
 ## Tests and checks
 
 | Check | Command |
