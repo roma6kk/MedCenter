@@ -52,7 +52,7 @@ export function createUsersHarness(options: UsersHarnessOptions = {}): UsersHarn
   const audit = new AuditService(fhir);
   const accounts = new AccountFactory(store, hasher, patients, audit, new RegistrationOutbox(fhir), new DoctorProvisioner(fhir));
   const registration = new RegistrationService(accounts);
-  const users = new UsersService(store, accounts, patients, audit, hasher, {
+  const users = new UsersService(store, accounts, patients, new DoctorProvisioner(fhir), audit, hasher, {
     days: options.retentionDays ?? 1825,
     now: options.now ?? (() => new Date()),
   });

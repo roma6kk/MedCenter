@@ -16,3 +16,9 @@ Note on commit 6a444580: the `passwordChange` messages block landed one line too
 - Frontend: the create form asks for a specialty (options taken from the doctors that already exist, like the catalog filter) and no longer shows the PractitionerRole picker; the edit form keeps the link field. The API path with `practitionerRoleId` is kept.
 - Not done: no cleanup of an orphan Practitioner after an outcome-unknown HAPI timeout (the Patient flow has one); the doctor has no patronymic (account has only first/last name); no Bruno request added (no new route).
 - docs/pz outdated: the description of how a doctor appears (seeder only / link to an existing role).
+
+## Item 3 (Q8) deactivating a doctor hides them in the catalog
+- Deactivation (PATCH `isActive:false` and DELETE) of an account with a PractitionerRole writes `active=false` on the PractitionerRole and on its Practitioner under If-Match; activation writes `true`. A failed HAPI write reverts the account change (same revert as the Patient sync) and answers the HAPI error. Existing appointments are untouched. Audit is the existing `user.deactivated` / `user.updated` event.
+- Why the Practitioner too: the public doctor list is built from Practitioner and keeps a doctor whose only role is inactive (with `practitionerRoleIds: []`), so the role flag alone would not hide them.
+- Read side checked, no change needed: practitioner-service already filters `active:not=false` on Practitioner and PractitionerRole (list, card, `practitionerRoleIds`), and catalog-service's public doctor slots search only roles with `active:not=false`. Not checked/changed: the per-day slot cache in catalog-service may serve a deactivated doctor's free slots until its TTL ends.
+- docs/pz outdated: the account deactivation description (does not mention the catalog).
