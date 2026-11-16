@@ -90,6 +90,7 @@ describe('POST /api/v1/auth/register — validation and response contract', () =
 
     expect(Object.keys(response.body).sort()).toEqual(
       [
+        'accountConsentWithdrawnAt',
         'email',
         'firstName',
         'id',

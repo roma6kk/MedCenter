@@ -183,6 +183,16 @@ export const PROTECTED_ENDPOINTS: ReadonlyArray<ProtectedEndpoint> = [
     scope: null,
     reached: { status: 403, errorCode: 'INVALID_PASSWORD' },
   },
+  {
+    name: 'POST /api/v1/me/password',
+    method: 'post',
+    route: '/api/v1/me/password',
+    path: '/api/v1/me/password',
+    body: { currentPassword: 'not-the-password-of-anyone', newPassword: 'Another-Passw0rd-2026' },
+    role: null,
+    scope: null,
+    reached: { status: 403, errorCode: 'INVALID_PASSWORD' },
+  },
 ];
 
 export const PUBLIC_ROUTES: ReadonlyArray<string> = [
@@ -191,6 +201,7 @@ export const PUBLIC_ROUTES: ReadonlyArray<string> = [
   'GET /.well-known/smart-configuration',
   'GET /.well-known/jwks.json',
   'GET /oauth/authorize',
+  'GET /oauth/assets/fonts/:file',
   'POST /oauth/login',
   'POST /oauth/token',
   'POST /api/v1/auth/register',
