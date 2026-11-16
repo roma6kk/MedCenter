@@ -3,6 +3,7 @@ import { FHIR_CLIENT, type FhirClient } from '@medcenter/fhir';
 
 import { buildUserAuditEvent, type UserAuditParams } from './audit-event.builder';
 import { buildAuthAuditEvent, type AuthAuditParams } from './auth-event.builder';
+import { buildClinicAuditEvent, type ClinicAuditParams } from './clinic-audit.builder';
 import { buildTerminologyImportAuditEvent, type TerminologyImportAuditParams } from './terminology-import-audit.builder';
 
 @Injectable()
@@ -30,6 +31,17 @@ export class AuditService {
       this.logger.error(
         { err: error, kind: params.kind, userId: params.userId, requestId: params.requestId },
         'AuditEvent of the authentication event was not written',
+      );
+    }
+  }
+
+  async recordClinicChange(params: ClinicAuditParams): Promise<void> {
+    try {
+      await this.fhir.create('AuditEvent', buildClinicAuditEvent(params));
+    } catch (error: unknown) {
+      this.logger.error(
+        { err: error, fields: params.changedFields, requestId: params.actor.requestId },
+        'AuditEvent was not written; the committed clinic settings change stands',
       );
     }
   }

@@ -57,6 +57,8 @@ describe('auth-service OpenAPI document (API §10)', () => {
     '/api/v1/me',
     '/api/v1/admin/users',
     '/api/v1/admin/users/{id}',
+    '/api/v1/clinic',
+    '/api/v1/admin/clinic',
     '/api/v1/terminology/value-sets',
     '/api/v1/terminology/value-sets/{url}/$expand',
     '/api/v1/terminology/expand',
@@ -77,6 +79,7 @@ describe('auth-service OpenAPI document (API §10)', () => {
       'POST /oauth/login',
       'POST /oauth/token',
       'POST /api/v1/auth/register',
+      'GET /api/v1/clinic',
     ];
     const operations = operationsOf(document);
     expect(operations.some(({ operation }) => operation.security?.some((entry) => 'bearer' in entry))).toBe(true);

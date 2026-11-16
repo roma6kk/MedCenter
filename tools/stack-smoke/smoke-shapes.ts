@@ -12,6 +12,8 @@ export const DOCTOR_SHAPE: FieldSpec = {
   practitionerRoleIds: 'array',
 };
 
+export const CLINIC_SHAPE: FieldSpec = { name: 'string', phone: 'string', email: 'string', address: 'string', hours: 'string' };
+
 export const SERVICE_SHAPE: FieldSpec = {
   id: 'string',
   name: 'string',

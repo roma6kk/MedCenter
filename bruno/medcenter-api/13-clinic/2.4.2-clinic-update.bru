@@ -1,0 +1,30 @@
+meta {
+  name: 2.4.2 Update clinic details
+  type: http
+  seq: 2
+  tags: [
+    write
+    role-admin
+  ]
+}
+
+patch {
+  url: {{baseUrl}}/api/v1/admin/clinic
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "phone": "+375 17 000-00-00"
+  }
+}
+
+assert {
+  res.status: eq 200
+  res.body.phone: eq +375 17 000-00-00
+}
+
+docs {
+  Spec 2.4.2. ADMIN. Any subset of `name, phone, email, address, hours`; every sent field must be non-empty. The request sends the demo phone, so the details return to the seeded value. A phone other than +375 and nine digits -> 400 `VALIDATION_ERROR`.
+}

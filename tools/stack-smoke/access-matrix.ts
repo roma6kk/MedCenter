@@ -27,6 +27,7 @@ export const PROTECTED_ROUTES: readonly ProtectedRoute[] = [
   route('GET', `/api/v1/admin/users/${UUID}`, ADMIN),
   route('PATCH', `/api/v1/admin/users/${UUID}`, ADMIN),
   route('DELETE', `/api/v1/admin/users/${UUID}`, ADMIN),
+  route('PATCH', '/api/v1/admin/clinic', ADMIN),
   route('GET', '/api/v1/terminology/value-sets', ADMIN),
   route('GET', `/api/v1/terminology/value-sets/${VALUE_SET}/$expand`, STAFF),
   route('GET', `/api/v1/terminology/expand?system=${VALUE_SET}`, STAFF),

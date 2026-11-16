@@ -90,6 +90,16 @@ export const PROTECTED_ENDPOINTS: ReadonlyArray<ProtectedEndpoint> = [
     reached: { status: 404 },
   },
   {
+    name: 'PATCH /api/v1/admin/clinic',
+    method: 'patch',
+    route: '/api/v1/admin/clinic',
+    path: '/api/v1/admin/clinic',
+    body: { phone: '+375 29 123-45-67' },
+    role: Role.ADMIN,
+    scope: 'user/*.write',
+    reached: { status: 200 },
+  },
+  {
     name: 'GET /api/v1/terminology/value-sets',
     method: 'get',
     route: '/api/v1/terminology/value-sets',
@@ -184,4 +194,5 @@ export const PUBLIC_ROUTES: ReadonlyArray<string> = [
   'POST /oauth/login',
   'POST /oauth/token',
   'POST /api/v1/auth/register',
+  'GET /api/v1/clinic',
 ];

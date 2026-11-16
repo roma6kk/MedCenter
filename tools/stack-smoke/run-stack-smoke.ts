@@ -6,6 +6,7 @@ import { adminCatalogChecks } from './checks-admin-catalog';
 import { scheduleRemovalChecks } from './checks-schedule-removal';
 import { authChecks } from './checks-auth';
 import { MIN_FREE_SLOTS, catalogReadChecks, loadFreeSlots } from './checks-catalog-read';
+import { clinicChecks } from './checks-clinic';
 import { chainChecks } from './checks-chain';
 import { consentChecks } from './checks-chain-consent';
 import { compartmentChecks } from './checks-compartment';
@@ -38,6 +39,7 @@ async function runSuite(suite: Suite, tracker: RouteTracker): Promise<void> {
   const slots = await prepareSlots(suite);
   await authChecks(suite);
   await terminologyReadChecks(suite);
+  await clinicChecks(suite);
   await catalogReadChecks(suite);
   await adminCatalogChecks(suite);
   await scheduleRemovalChecks(suite);
