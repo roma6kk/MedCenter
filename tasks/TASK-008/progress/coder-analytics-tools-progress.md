@@ -10,3 +10,13 @@
 - e2e `frontend/e2e`: предположений о числе врачей нет (`findFreeSlot` выбирает врача динамически).
 - docs/pz, вероятно, устарело: число врачей/кабинетов/расписаний в демо-данных, скриншоты каталога врачей.
 - На живом стеке нужно `npm run seed:demo` (и `-- --users` для аккаунта Смирновой); не запускал.
+
+## Q42 — флаг `--visits` (2457366f)
+- `tools/demo-seed/demo-visits.ts`: для patient.kuznetsov одна будущая запись (первый свободный слот ivanova-primary, слот становится busy) и один завершённый приём 3 дня назад (Appointment fulfilled, Encounter finished, Condition J06.9, ClinicalImpression, CarePlan, MedicationRequest N02BE01). Ресурсы строятся мапперами encounter-service и appointment-service; события booked/completed кладутся в outbox, чтобы аналитика их прочитала. Идемпотентно (детерминированные id, пропуск при наличии). Порядок флагов в README: `--users --consents`, затем `--visits`.
+- Не проверено на живом HAPI (запись в стек не выполнялась): транзакция с перекрёстными ссылками Encounter/Condition проверена только на фейке.
+- docs/pz, вероятно, устарело: перечень флагов сида, описание наполнения демо-данных.
+
+## Q40 — CI (коммит см. git log, `ci: lint, typecheck...`)
+- `.github/workflows/ci.yml`: backend (lint, typecheck, npm test, test:tools, lint:tools) и frontend (tsc, lint, jest). Без Docker и секретов; упоминание в README.
+- Локально прогнаны lint (17 проектов) и typecheck — успешно; полный `npm test` не дождался (память), по проектам analytics-service 261 тест прошёл раньше.
+- docs/pz: возможно, описание проверок/CI.
