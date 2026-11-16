@@ -26,13 +26,15 @@ interface EncounterActionBarProps {
   readonly status: DraftStatus;
   readonly onSaveDraft: () => void;
   readonly isCompleting: boolean;
+  readonly onCancelEncounter: () => void;
 }
 
-export function EncounterActionBar({ status, onSaveDraft, isCompleting }: EncounterActionBarProps): ReactNode {
+export function EncounterActionBar({ status, onSaveDraft, isCompleting, onCancelEncounter }: EncounterActionBarProps): ReactNode {
   const t = useT('doctor.encounter');
   return (
     <Card as="section" aria-label={t('actionsLabel')} padding="none" className="no-print sticky bottom-2 z-20 mt-4 flex flex-wrap items-center gap-x-2 gap-y-2 px-3 py-3 shadow-elev-2 sm:gap-x-4 sm:px-4">
       <DraftStatusLine status={status} />
+      <Button variant="quiet-danger" onClick={onCancelEncounter} className="whitespace-nowrap px-2 sm:px-4">{t('cancel')}</Button>
       <Button variant="secondary" onClick={onSaveDraft} className="flex-1 whitespace-nowrap px-2 sm:flex-none sm:px-4">
         <Save aria-hidden="true" className="hidden size-4 sm:block" />
         {t('saveDraft')}

@@ -246,4 +246,28 @@ describe('Complete encounter (API §7.1–7.3)', () => {
     await as(OTHER_DOCTOR).get(`/api/v1/encounters/${encounterId}`).expect(200);
     await as({ ...OTHER_DOCTOR, sub: 'doctor-3', fhirUser: 'PractitionerRole/role-3' }).get(`/api/v1/encounters/${encounterId}`).expect(403);
   });
+
+  it('should cancel an encounter opened by mistake, keep the appointment booked and let the doctor open a new one', async () => {
+    const encounterId = await openEncounter();
+
+    const cancelled = await as(DOCTOR).post(`/api/v1/encounters/${encounterId}/cancel`, {}).expect(200);
+
+    expect(cancelled.body).toMatchObject({ id: encounterId, status: 'cancelled' });
+    expect(harness.hapi.stored('Appointment')[0]).toMatchObject({ status: 'booked' });
+    await as(DOCTOR).post(`/api/v1/encounters/${encounterId}/complete`, completeBody()).expect(409);
+    const reopened = await as(DOCTOR).post('/api/v1/encounters', { appointmentId: APPOINTMENT_ID }).expect(201);
+    expect(reopened.body.id).not.toBe(encounterId);
+    const opened = harness.hapi.stored('AuditEvent').filter((event) => JSON.stringify(event).includes('encounter-opened:'));
+    expect(opened).toHaveLength(2);
+  });
+
+  it('should refuse the cancellation to another doctor and to a finished encounter', async () => {
+    const encounterId = await openEncounter();
+
+    await as(OTHER_DOCTOR).post(`/api/v1/encounters/${encounterId}/cancel`, {}).expect(403);
+    await as(DOCTOR).post(`/api/v1/encounters/${encounterId}/complete`, completeBody()).expect(200);
+    const response = await as(DOCTOR).post(`/api/v1/encounters/${encounterId}/cancel`, {}).expect(409);
+
+    expect(response.body).toMatchObject({ errorCode: 'ENCOUNTER_STATE_INVALID' });
+  });
 });

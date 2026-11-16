@@ -7,6 +7,7 @@ export type MutationKind =
   | 'noshow'
   | 'open-encounter'
   | 'complete-encounter'
+  | 'cancel-encounter'
   | 'read-notification'
   | 'consent-change'
   | 'update-contact'
@@ -38,6 +39,7 @@ export const INVALIDATION: Readonly<Record<MutationKind, ReadonlyArray<QueryKey>
     queryRoots.appointments,
     queryRoots.appointmentDetail,
   ],
+  'cancel-encounter': [queryRoots.encounters, queryRoots.doctorAppointments],
   'read-notification': [queryRoots.notifications],
   'consent-change': [queryRoots.consent],
   'update-contact': [queryKeys.patientProfile],

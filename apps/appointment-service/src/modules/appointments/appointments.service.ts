@@ -169,7 +169,7 @@ export class AppointmentsService {
 
   /** An encounter opened after the search is caught by `If-Match` on the Appointment (encounter-service changes its `meta.tag`). */
   private async assertNoEncounter(appointmentId: string, errorCode: ErrorCode, action: string): Promise<void> {
-    const encounters = await this.fhir.search('Encounter', { appointment: `Appointment/${appointmentId}`, _count: 1 });
+    const encounters = await this.fhir.search('Encounter', { appointment: `Appointment/${appointmentId}`, 'status:not': 'cancelled', _count: 1 });
     if ((encounters.entry ?? []).length > 0) {
       throw new ConflictException({
         errorCode,

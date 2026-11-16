@@ -34,7 +34,7 @@ export function setup(complete: ApiRoute = completeRoute(), draft?: CompleteEnco
     { path: '/api/v1/patients/p-1/history', respond: () => ({ items: [], meta: { page: 1, pageSize: 10, totalItems: 0, totalPages: 0 } }) },
     complete,
   ]);
-  renderWithClient(<EncounterCompleteForm encounterId="enc-1" patientId="p-1" />);
+  renderWithClient(<EncounterCompleteForm encounterId="enc-1" appointmentId="appt-1" patientId="p-1" />);
 }
 
 export function completeCall(): ApiCall | undefined {

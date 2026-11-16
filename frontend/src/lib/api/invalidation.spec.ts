@@ -62,6 +62,14 @@ describe('invalidateFor', () => {
     expect(invalidatedKeys(client)).toEqual(expect.arrayContaining(['appointments', 'doctorAppointments', 'encounter', 'patientHistory', 'prescriptions']));
   });
 
+  it('should refresh the journal and the encounter after an encounter is cancelled', async () => {
+    const client = seededClient();
+
+    await invalidateFor(client, 'cancel-encounter');
+
+    expect(invalidatedKeys(client)).toEqual(expect.arrayContaining(['doctorAppointments', 'encounter']));
+  });
+
   it('should refresh the patient card after the patient edits their phone', async () => {
     const client = seededClient();
     client.setQueryData(queryKeys.patientProfile, {});

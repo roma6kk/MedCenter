@@ -49,7 +49,7 @@ function EncounterBody({ encounter }: { readonly encounter: EncounterDetails }):
     if (encounter.status === 'finished') clearDraft(encounter.id);
   }, [encounter.status, encounter.id]);
   if (encounter.status === 'in-progress' && !isOwnVisit(encounter, ownRoleId)) return <p role="status" className="mt-4 rounded-card border border-border bg-card p-4 text-sm">{t('notYours')}</p>;
-  if (encounter.status === 'in-progress') return <div className="mt-4"><EncounterCompleteForm encounterId={encounter.id} patientId={encounter.patientId} /></div>;
+  if (encounter.status === 'in-progress') return <div className="mt-4"><EncounterCompleteForm encounterId={encounter.id} appointmentId={encounter.appointmentId} patientId={encounter.patientId} /></div>;
   if (encounter.status === 'finished') {
     return (
       <>

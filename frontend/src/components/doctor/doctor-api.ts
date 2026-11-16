@@ -92,6 +92,10 @@ export function postCompleteEncounter(encounterId: string, body: CompleteEncount
   return apiFetch<EncounterSummary>(`/api/v1/encounters/${encodeURIComponent(encounterId)}/complete`, { method: 'POST', body: JSON.stringify(body) });
 }
 
+export function postCancelEncounter(encounterId: string): Promise<EncounterSummary> {
+  return apiFetch<EncounterSummary>(`/api/v1/encounters/${encodeURIComponent(encounterId)}/cancel`, { method: 'POST' });
+}
+
 export function fetchPatient(patientId: string, signal?: AbortSignal): Promise<PatientCard> {
   return apiFetch<PatientCard>(`/api/v1/patients/${encodeURIComponent(patientId)}`, { signal });
 }

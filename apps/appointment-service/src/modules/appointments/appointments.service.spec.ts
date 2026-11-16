@@ -287,7 +287,7 @@ describe('AppointmentsService', () => {
         expect(await errorPayloadOf(service.cancel(patientClaims, 'apt-1', { reason: 'plans-changed' }))).toMatchObject({
           errorCode: 'APPOINTMENT_NOT_CANCELLABLE',
         });
-        expect(fhir.search).toHaveBeenCalledWith('Encounter', { appointment: 'Appointment/apt-1', _count: 1 });
+        expect(fhir.search).toHaveBeenCalledWith('Encounter', { appointment: 'Appointment/apt-1', 'status:not': 'cancelled', _count: 1 });
         expect(fhir.batch).not.toHaveBeenCalled();
       },
     );
@@ -510,7 +510,7 @@ describe('AppointmentsService', () => {
 
       await service.markNoShow(doctorClaims, 'apt-1');
 
-      expect(fhir.search).toHaveBeenCalledWith('Encounter', { appointment: 'Appointment/apt-1', _count: 1 });
+      expect(fhir.search).toHaveBeenCalledWith('Encounter', { appointment: 'Appointment/apt-1', 'status:not': 'cancelled', _count: 1 });
     });
 
     it('should not ask for encounters when another practitioner calls no-show', async () => {

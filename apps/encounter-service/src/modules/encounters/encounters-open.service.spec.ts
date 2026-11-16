@@ -52,7 +52,7 @@ describe('EncounterOpeningService.open / EncountersService.findOne', () => {
     expect(encounterEntry?.request).toEqual({
       method: 'POST',
       url: 'Encounter',
-      ifNoneExist: `appointment=Appointment/${APPOINTMENT_ID}`,
+      ifNoneExist: `appointment=Appointment/${APPOINTMENT_ID}&status:not=cancelled`,
     });
     expect(encounterEntry?.resource).toMatchObject({
       status: 'in-progress',
@@ -70,7 +70,7 @@ describe('EncounterOpeningService.open / EncountersService.findOne', () => {
     await opening.open(doctorClaims, { appointmentId: APPOINTMENT_ID });
 
     const [, auditEntry] = committedEntries(fhir);
-    const name = `encounter-opened:Appointment/${APPOINTMENT_ID}`;
+    const name = `encounter-opened:Appointment/${APPOINTMENT_ID}@2`;
     expect(auditEntry?.request).toEqual({
       method: 'POST',
       url: 'AuditEvent',
@@ -84,7 +84,7 @@ describe('EncounterOpeningService.open / EncountersService.findOne', () => {
 
     const bypass = committedEntries(fhir).find((entry) => entry.resource['action'] === 'E');
     expect(bypass?.request).toMatchObject({
-      ifNoneExist: `AuditEvent?entity-name:exact=${encodeURIComponent(`encounter-emergency-open:Appointment/${APPOINTMENT_ID}`)}`,
+      ifNoneExist: `AuditEvent?entity-name:exact=${encodeURIComponent(`encounter-emergency-open:Appointment/${APPOINTMENT_ID}@2`)}`,
     });
   });
 
@@ -143,6 +143,16 @@ describe('EncounterOpeningService.open / EncountersService.findOne', () => {
       errorCode: 'COMPARTMENT_VIOLATION',
     });
     expect(fhir.read).not.toHaveBeenCalled();
+  });
+
+  it('should not count a cancelled encounter when it looks for the encounter of the appointment', async () => {
+    await opening.open(doctorClaims, { appointmentId: APPOINTMENT_ID });
+
+    expect(fhir.search).toHaveBeenCalledWith('Encounter', {
+      appointment: `Appointment/${APPOINTMENT_ID}`,
+      'status:not': 'cancelled',
+      _count: 10,
+    });
   });
 
   it('should return the open encounter instead of creating a second one when the appointment already has it', async () => {

@@ -65,7 +65,7 @@ Each request lists in its docs which role it needs; a wrong role answers 403 (`F
 | `05-practitioners` | 4 | doctors (public), rooms |
 | `06-catalog` | 5 | services, schedules, slots |
 | `07-appointments` | 6 | booking, list, cancel, doctor view, no-show |
-| `08-encounters` | 7 | open, complete, history, prescriptions |
+| `08-encounters` | 7 | open, complete, cancel, history, prescriptions |
 | `09-notifications` | 8 | in-app notifications |
 | `10-analytics` | 9 | reports and audit log |
 | `11-errors` | 1 | Problem Details catalogue and reproducible error requests |

@@ -905,7 +905,7 @@ export class AppointmentResponseDto {
 409 `APPOINTMENT_NOT_CANCELLABLE`. Пациент после начала записи (`start` не позже текущего момента) → 409
 `APPOINTMENT_ALREADY_STARTED` (проверка после статуса; неявка остаётся учтённой); администратор отменяет и такую запись. Publish `appointment.cancelled.v1`, слот → `free`.
 **6.6 неявка (BR-008):** `Appointment.status=noshow` ставится только для записи со `status=booked`, у которой **нет**
-`Encounter` (`Encounter?appointment=Appointment/{id}`: ни `in-progress`, ни `finished`). Запись не `booked`
+`Encounter` (`Encounter?appointment=Appointment/{id}`: ни `in-progress`, ни `finished`; отменённый приём 7.8 не считается). Запись не `booked`
 (cancelled/noshow/fulfilled) или с приёмом → **409** `ENCOUNTER_STATE_INVALID` (раньше для не-`booked` отвечал `CONFLICT`,
 а для записи с завершённым приёмом — 200). Неявку нельзя поставить до `Appointment.start`: пока время записи не наступило →
 тот же **409** (проверка идёт после статуса и приёма; статус `noshow` не возвращается, слот остаётся `busy`, а приём по такой
@@ -929,6 +929,7 @@ export class AppointmentResponseDto {
 | 7.5 | `GET /api/v1/patients/{id}/prescriptions?page=&encounterId=` | назначения (ServiceRequest/MedicationRequest) | владелец / DOCTOR (ADMIN → 403) |
 | 7.6 | `GET /api/v1/me/history` | своя история (компартмент) | `patient/*.read` |
 | 7.7 | `GET /api/v1/me/prescriptions?encounterId=` | свои назначения (компартмент) | `patient/*.read` |
+| 7.8 | `POST /api/v1/encounters/{id}/cancel` | отменить ошибочно открытый приём (`in-progress` → `cancelled`); запись остаётся `booked` | `user/*.write` (DOCTOR-участник) |
 
 Необязательный параметр `encounterId` (7.5/7.7, FHIR id) оставляет только назначения этого приёма (`MedicationRequest.encounter`, `ServiceRequest.encounter`); ограничение по пациенту сохраняется, чужой приём даёт пустую страницу, не-id — 400 `VALIDATION_ERROR`.
 
@@ -941,6 +942,8 @@ export class AppointmentResponseDto {
 (`emergency-bypass`) фиксирует причину; согласие оформляется при первой возможности. Тот же параметр — у 7.3.
 
 **7.2, 7.3** — читает любой врач с общей записью или приёмом с пациентом (ADR-013), иначе **403** `COMPARTMENT_VIOLATION`; завершает приём (7.3) только ведущий врач (BR-003).
+
+**7.8** — тело пустое, ответ — `EncounterResponseDto` со `status=cancelled`. Только ведущий врач (иначе **403** `COMPARTMENT_VIOLATION`) и только для `in-progress` при `booked`-записи (иначе **409** `ENCOUNTER_STATE_INVALID`). Одна транзакция под `If-Match`: Encounter → `cancelled`, с Appointment снимается флаг `encounter-opened` (меняет версию, так что одновременная неявка или отмена проигрывает), два `AuditEvent`; outbox-события нет. Запись остаётся `booked`: врач начинает приём заново (7.1 не считает отменённый приём, создаёт новый) или ставит неявку (6.6).
 
 **7.3 `CompleteEncounterDto`** — одно тело, атомарное оформление приёма (FR-011…FR-014). Тексты `summary`, `recommendations`, `diagnoses[].display`, `medicationRequests[].dosageText` и заметки обрезаются по краям до проверки длины (пробелы не проходят); повтор кода в `diagnoses[].code` или `medicationRequests[].atcCode` — 400 `VALIDATION_ERROR`:
 

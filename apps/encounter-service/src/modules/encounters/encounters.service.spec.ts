@@ -186,3 +186,59 @@ describe('EncountersService.complete', () => {
     expect(fhir.batch).not.toHaveBeenCalled();
   });
 });
+
+describe('EncountersService.cancel', () => {
+  let service: EncountersService;
+  let fhir: jest.Mocked<FhirClient>;
+
+  beforeEach(() => {
+    fhir = createFhirMock();
+    const flagged = {
+      ...bookedAppointment,
+      meta: { versionId: '2', tag: [{ system: 'https://fhir.by/CodeSystem/medcenter-appointment-flags', code: 'encounter-opened' }] },
+    };
+    fhir.read.mockImplementation(async (type) => (type === 'Encounter' ? inProgressEncounter : flagged));
+    fhir.batch.mockResolvedValue(transactionResponse([`Encounter/${ENCOUNTER_ID}/_history/2`]));
+    service = new EncountersService(fhir, new TerminologyValidatorService(fhir), 'warn', new PatientAccessService(fhir), new PatientReadAudit(fhir));
+  });
+
+  it('should cancel the encounter and keep the appointment booked in one If-Match guarded transaction', async () => {
+    const result = await service.cancel(doctorClaims, ENCOUNTER_ID, 'req-5');
+
+    const entries = committedEntries(fhir);
+    expect(entries.map((entry) => entry.resource.resourceType)).toEqual(['Encounter', 'Appointment', 'AuditEvent', 'AuditEvent']);
+    expect(entries[0]?.request).toEqual({ method: 'PUT', url: `Encounter/${ENCOUNTER_ID}`, ifMatch: 'W/"1"' });
+    expect(entries[0]?.resource['status']).toBe('cancelled');
+    expect(entries[1]?.request).toEqual({ method: 'PUT', url: `Appointment/${APPOINTMENT_ID}`, ifMatch: 'W/"2"' });
+    expect(entries[1]?.resource).toMatchObject({ status: 'booked', meta: { tag: [] } });
+    expect(JSON.stringify(entries[2]?.resource['entity'])).toContain('req-5');
+    expect(result).toMatchObject({ id: ENCOUNTER_ID, status: 'cancelled' });
+  });
+
+  it('should refuse a non-participant doctor before revealing the encounter state', async () => {
+    fhir.read.mockResolvedValue(finishedEncounter);
+
+    expect(await errorPayloadOf(service.cancel(otherDoctorClaims, ENCOUNTER_ID))).toMatchObject({ errorCode: 'COMPARTMENT_VIOLATION' });
+    expect(fhir.batch).not.toHaveBeenCalled();
+  });
+
+  it.each(['finished', 'cancelled'])('should reject cancelling an encounter that is already %s', async (status) => {
+    fhir.read.mockResolvedValue({ ...inProgressEncounter, status });
+
+    expect(await errorPayloadOf(service.cancel(doctorClaims, ENCOUNTER_ID))).toMatchObject({ errorCode: 'ENCOUNTER_STATE_INVALID' });
+    expect(fhir.batch).not.toHaveBeenCalled();
+  });
+
+  it('should reject cancelling when the appointment is no longer booked', async () => {
+    fhir.read.mockImplementation(async (type) => (type === 'Encounter' ? inProgressEncounter : { ...bookedAppointment, status: 'noshow' }));
+
+    await expect(service.cancel(doctorClaims, ENCOUNTER_ID)).rejects.toBeInstanceOf(ConflictException);
+    expect(fhir.batch).not.toHaveBeenCalled();
+  });
+
+  it('should report ENCOUNTER_STATE_INVALID when the appointment changed after it was read', async () => {
+    fhir.batch.mockRejectedValue(new FhirClientError('POST', 'http://hapi/fhir', 412, '{}'));
+
+    expect(await errorPayloadOf(service.cancel(doctorClaims, ENCOUNTER_ID))).toMatchObject({ errorCode: 'ENCOUNTER_STATE_INVALID' });
+  });
+});
