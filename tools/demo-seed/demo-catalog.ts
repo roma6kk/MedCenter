@@ -84,6 +84,7 @@ const WEEKDAYS: readonly DayCode[] = ['MO', 'TU', 'WE', 'TH', 'FR'];
 
 export const ROOMS: readonly RoomDef[] = [
   { key: 'room-101', identifier: '101', name: 'Кабинет 101', floor: 1, description: 'Кабинет терапевта' },
+  { key: 'room-102', identifier: '102', name: 'Кабинет 102', floor: 1, description: 'Кабинет терапевта' },
   { key: 'room-112', identifier: '112', name: 'Кабинет 112', floor: 1, description: 'Хирургический кабинет' },
   { key: 'room-204', identifier: '204', name: 'Кабинет 204', floor: 2, description: 'Кабинет кардиолога' },
   { key: 'room-210', identifier: '210', name: 'Кабинет 210', floor: 2, description: 'Кабинет функциональной диагностики' },
@@ -104,6 +105,7 @@ export const DOCTORS: readonly DoctorDef[] = [
   { key: 'petrov', family: 'Петров', given: 'Алексей', patronymic: 'Николаевич', familyEn: 'Petrov', givenEn: 'Aleksey', patronymicEn: 'Nikolaevich', gender: 'male', specialtyKey: 'cardiology', emailLocal: 'doctor.petrov' },
   { key: 'sidorova', family: 'Сидорова', given: 'Елена', patronymic: 'Викторовна', familyEn: 'Sidorova', givenEn: 'Elena', patronymicEn: 'Viktorovna', gender: 'female', specialtyKey: 'neurology', emailLocal: 'doctor.sidorova' },
   { key: 'kozlov', family: 'Козлов', given: 'Дмитрий', patronymic: 'Андреевич', familyEn: 'Kozlov', givenEn: 'Dmitry', patronymicEn: 'Andreevich', gender: 'male', specialtyKey: 'surgery', emailLocal: 'doctor.kozlov' },
+  { key: 'smirnova', family: 'Смирнова', given: 'Ольга', patronymic: 'Игоревна', familyEn: 'Smirnova', givenEn: 'Olga', patronymicEn: 'Igorevna', gender: 'female', specialtyKey: 'therapy', emailLocal: 'doctor.smirnova' },
 ];
 
 export const SCHEDULES: readonly ScheduleDef[] = [
@@ -113,6 +115,7 @@ export const SCHEDULES: readonly ScheduleDef[] = [
   { key: 'petrov-ecg', doctorKey: 'petrov', serviceKey: 'ecg', roomKey: 'room-210', days: ['TU', 'TH'], localStart: '10:00', localEnd: '13:00', slotDurationMin: 20 },
   { key: 'sidorova-primary', doctorKey: 'sidorova', serviceKey: 'neuro-primary', roomKey: 'room-305', days: WEEKDAYS, localStart: '10:00', localEnd: '16:00', slotDurationMin: 40 },
   { key: 'kozlov-primary', doctorKey: 'kozlov', serviceKey: 'surg-primary', roomKey: 'room-112', days: ['TU', 'WE', 'TH'], localStart: '09:00', localEnd: '15:00', slotDurationMin: 30 },
+  { key: 'smirnova-primary', doctorKey: 'smirnova', serviceKey: 'ter-primary', roomKey: 'room-102', days: WEEKDAYS, localStart: '14:00', localEnd: '18:00', slotDurationMin: 30 },
 ];
 
 export const PATIENTS: readonly PatientDef[] = [

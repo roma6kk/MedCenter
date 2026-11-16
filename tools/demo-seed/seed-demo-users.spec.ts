@@ -44,7 +44,7 @@ describe('planDoctorAccounts', () => {
   it('should create one DOCTOR per catalog doctor through the admin endpoint, linked to the seeded PractitionerRole', () => {
     const accounts = planDoctorAccounts(configOf());
 
-    expect(accounts).toHaveLength(4);
+    expect(accounts).toHaveLength(5);
     expect(accounts.every((account) => account.path === '/api/v1/admin/users' && account.role === 'DOCTOR')).toBe(true);
     expect(accounts[0]?.body).toEqual({
       email: 'doctor.ivanova@medcenter.test',
@@ -64,7 +64,7 @@ describe('planDoctorAccounts', () => {
 
   it('should use the password from the environment when one is configured', () => {
     expect(planDoctorAccounts(configOf({ DEMO_DOCTOR_PASSWORD: 'D0ctor!Pass12' })).map((account) => account.password)).toEqual(
-      Array(4).fill('D0ctor!Pass12'),
+      Array(5).fill('D0ctor!Pass12'),
     );
   });
 
@@ -81,7 +81,7 @@ describe('planDoctorAccounts', () => {
   it('should generate a distinct password per doctor when nothing supplies one', () => {
     const passwords = planDoctorAccounts(configOf()).map((account) => account.password);
 
-    expect(new Set(passwords).size).toBe(4);
+    expect(new Set(passwords).size).toBe(5);
   });
 });
 
@@ -164,7 +164,7 @@ describe('seedDemoUsers', () => {
     expect(section.accounts.map((account) => [account.role, account.status])).toEqual([
       ['ADMIN', 'exists'],
       ['ADMIN', 'created'],
-      ...Array(4).fill(['DOCTOR', 'created']),
+      ...Array(5).fill(['DOCTOR', 'created']),
       ...Array(3).fill(['PATIENT', 'created']),
     ]);
     expect(section.accounts[0]).not.toHaveProperty('password');
@@ -181,7 +181,7 @@ describe('seedDemoUsers', () => {
     const register = service.calls.filter((call) => call.path === '/api/v1/auth/register');
     expect(admin.every((call) => call.authorization === 'Bearer jwt.for.admin@medcenter.test')).toBe(true);
     expect(register.every((call) => call.authorization === undefined)).toBe(true);
-    expect([admin.length, register.length]).toEqual([5, 3]);
+    expect([admin.length, register.length]).toEqual([6, 3]);
   });
 
   it('should record every account as existing and keep every password when the run is repeated', async () => {
@@ -192,7 +192,7 @@ describe('seedDemoUsers', () => {
 
     expect(second.accounts.slice(1).every((account) => account.status === 'exists')).toBe(true);
     expect(second.accounts.map((account) => account.password)).toEqual(first.accounts.map((account) => account.password));
-    expect(service.created).toHaveLength(8);
+    expect(service.created).toHaveLength(9);
   });
 
   it('should keep going after one account fails and report it as failed', async () => {
@@ -205,7 +205,7 @@ describe('seedDemoUsers', () => {
     expect(section.accounts.filter((account) => account.status === 'failed').map((account) => account.email)).toEqual([
       'doctor.petrov@medcenter.test',
     ]);
-    expect(section.accounts.filter((account) => account.status === 'created')).toHaveLength(7);
+    expect(section.accounts.filter((account) => account.status === 'created')).toHaveLength(8);
   });
 
   it('should never print a password', async () => {

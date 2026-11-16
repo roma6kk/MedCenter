@@ -6,7 +6,7 @@ import { addDays, horizonOf, plannedSlots, seedDemoFhir, writeResources, type De
 
 const BASE = 'http://fhir.test/fhir';
 const OPTIONS: DemoSeedOptions = { fromDay: '2026-11-02', days: 14, now: new Date('2026-11-01T00:00:00.000Z') };
-const EXPECTED_SLOTS = 404;
+const EXPECTED_SLOTS = 484;
 const TYPES = ['Organization', 'Location', 'Practitioner', 'PractitionerRole', 'HealthcareService', 'Schedule', 'Slot'] as const;
 
 function counts(server: InMemoryFhirServer): Record<string, number> {
@@ -57,11 +57,11 @@ describe('seedDemoFhir', () => {
 
     expect(counts(server)).toEqual({
       Organization: 1,
-      Location: 5,
-      Practitioner: 4,
-      PractitionerRole: 4,
+      Location: 6,
+      Practitioner: 5,
+      PractitionerRole: 5,
       HealthcareService: 6,
-      Schedule: 6,
+      Schedule: 7,
       Slot: EXPECTED_SLOTS,
     });
     expect(summary.seededCounts).toEqual(counts(server));
