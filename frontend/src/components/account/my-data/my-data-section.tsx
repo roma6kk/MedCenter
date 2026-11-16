@@ -3,6 +3,7 @@
 import { useState, type ReactNode } from 'react';
 import { Download } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { useClinic } from '@/components/catalog/use-clinic';
 import { Card } from '@/components/ui/card';
 import { useT } from '@/lib/i18n/use-t';
 import { useUiStore } from '@/store/use-ui-store';
@@ -26,13 +27,14 @@ type Phase = 'idle' | 'busy' | 'saved' | 'failed';
 export function MyDataSection(): ReactNode {
   const t = useT('myData');
   const locale = useUiStore((state) => state.locale);
+  const clinic = useClinic();
   const [phase, setPhase] = useState<Phase>('idle');
   const download = async (): Promise<void> => {
     if (phase === 'busy') return;
     setPhase('busy');
     try {
       const now = new Date();
-      saveJson(JSON.stringify(buildMyDataExport(await collectMyData(), locale, now), null, 2), myDataFileName(now));
+      saveJson(JSON.stringify(buildMyDataExport(await collectMyData(), locale, now, clinic), null, 2), myDataFileName(now));
       setPhase('saved');
     } catch {
       setPhase('failed');

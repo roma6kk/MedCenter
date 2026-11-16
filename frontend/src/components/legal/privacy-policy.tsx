@@ -1,7 +1,8 @@
 'use client';
 
 import type { ReactNode } from 'react';
-import { CLINIC_CONTACTS, CLINIC_LEGAL } from '@/components/catalog/home-content';
+import { CLINIC_LEGAL } from '@/components/catalog/home-content';
+import { useClinic } from '@/components/catalog/use-clinic';
 import { useDocumentTitle } from '@/hooks/use-document-title';
 import { useT } from '@/lib/i18n/use-t';
 import { POLICY_DATE, POLICY_VERSION } from '@/lib/policy-version';
@@ -24,7 +25,7 @@ const P_CLASS = 'mt-3 text-base leading-relaxed';
 
 export function PrivacyPolicy(): ReactNode {
   const t = useT('privacy');
-  const home = useT('home');
+  const clinic = useClinic();
   useDocumentTitle(t('title'));
 
   const purposes: ReadonlyArray<Purpose> = [
@@ -52,7 +53,7 @@ export function PrivacyPolicy(): ReactNode {
       <section aria-labelledby="privacy-operator">
         <h2 id="privacy-operator" className={H2_CLASS}>{t('operatorTitle')}</h2>
         <p className={P_CLASS}>
-          {t('operatorText', { name: CLINIC_LEGAL.name, unp: CLINIC_LEGAL.unp, address: home('contactAddressValue'), email: CLINIC_CONTACTS.email, phone: CLINIC_CONTACTS.phone })}
+          {t('operatorText', { name: clinic.name, unp: CLINIC_LEGAL.unp, address: clinic.address, email: clinic.email, phone: clinic.phone })}
         </p>
       </section>
 

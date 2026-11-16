@@ -16,7 +16,8 @@ export type MutationKind =
   | 'admin-rooms'
   | 'admin-schedules'
   | 'generate-slots'
-  | 'terminology-import';
+  | 'terminology-import'
+  | 'admin-clinic';
 
 export const INVALIDATION: Readonly<Record<MutationKind, ReadonlyArray<QueryKey>>> = {
   booking: [queryRoots.slots, queryRoots.appointments, queryRoots.doctorAppointments, queryRoots.doctorSchedule, queryKeys.unreadCount],
@@ -49,6 +50,7 @@ export const INVALIDATION: Readonly<Record<MutationKind, ReadonlyArray<QueryKey>
   'admin-schedules': [queryRoots.adminSchedules, queryRoots.roomUsage, queryRoots.doctorSchedule],
   'generate-slots': [queryRoots.adminScheduleSlots, queryRoots.doctorSchedule, queryRoots.slots],
   'terminology-import': [queryRoots.valueSets],
+  'admin-clinic': [queryRoots.clinic],
 };
 
 export async function invalidateFor(client: QueryClient, kind: MutationKind): Promise<void> {

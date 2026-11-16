@@ -12,6 +12,7 @@ import {
   ListChecks,
   Menu,
   ScrollText,
+  Settings,
   Stethoscope,
   Users,
 } from 'lucide-react';
@@ -51,6 +52,7 @@ export const ADMIN_LINKS: ReadonlyArray<StaffLink> = [
   { href: '/admin/appointments', labelKey: 'admin.appointments', icon: ClipboardList },
   { href: '/admin/terminology', labelKey: 'admin.terminology', icon: BookText },
   { href: '/admin/audit', labelKey: 'admin.audit', icon: ScrollText },
+  { href: '/admin/settings', labelKey: 'admin.settings', icon: Settings },
 ];
 
 interface PartsProps {

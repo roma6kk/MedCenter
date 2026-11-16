@@ -591,6 +591,26 @@
         "session-idle": "Session ended by inactivity"
       }
     },
+    "settings": {
+      "title": "Settings",
+      "description": "The clinic's details: visitors see them on the home page, in the footer and in the privacy policy.",
+      "save": "Save",
+      "saving": "Saving…",
+      "fields": {
+        "name": "Clinic name",
+        "phone": "Reception phone",
+        "email": "E-mail",
+        "address": "Address",
+        "hours": "Working hours"
+      },
+      "hints": {
+        "phone": "+375 and nine digits, for example +375 17 000-00-00",
+        "hours": "For example: Mon–Fri 08:00–20:00, Sat 09:00–15:00"
+      },
+      "toast": {
+        "saved": "Clinic details saved"
+      }
+    },
     "terminology": {
       "title": "Terminology",
       "description": "The clinic reference catalogues and the terminology snapshot import.",
@@ -785,6 +805,7 @@
       "schedules": "Schedules",
       "appointments": "Appointments",
       "terminology": "Terminology",
+      "settings": "Settings",
       "audit": "Audit"
     },
     "description": "Appointment booking and clinical records",

@@ -1,13 +1,16 @@
-import { render, screen, within, type RenderResult } from '@testing-library/react';
+import { screen, within, type RenderResult } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
 jest.mock('next/navigation', () => ({ usePathname: () => '/doctors' }));
+jest.mock('@/lib/api/api-fetch');
 
+import { apiFetch } from '@/lib/api/api-fetch';
 import { useSessionStore } from '@/store/use-session-store';
+import { renderWithCatalog } from './catalog-test-utils';
 import { PublicShell } from './public-shell';
 
 function renderShell(): RenderResult {
-  return render(<PublicShell><p>content</p></PublicShell>);
+  return renderWithCatalog(<PublicShell><p>content</p></PublicShell>);
 }
 
 function signInAs(role: 'PATIENT' | 'DOCTOR' | 'ADMIN'): void {
@@ -15,7 +18,10 @@ function signInAs(role: 'PATIENT' | 'DOCTOR' | 'ADMIN'): void {
 }
 
 describe('PublicShell', () => {
-  beforeEach(() => useSessionStore.getState().clearSession());
+  beforeEach(() => {
+    (apiFetch as jest.Mock).mockRejectedValue(new Error('offline'));
+    useSessionStore.getState().clearSession();
+  });
 
   it('should offer sign-in and registration when nobody is signed in', () => {
     renderShell();

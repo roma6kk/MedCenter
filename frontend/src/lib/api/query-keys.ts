@@ -42,6 +42,7 @@ export const queryKeys = {
   relatedPersons: (patientId: string, params?: Params) => ['relatedPersons', patientId, normalise(params)] as const,
   encounterDetail: (encounterId: string) => ['encounter', encounterId] as const,
 
+  clinic: ['clinic'] as const,
   valueSets: (system?: string) => (system === undefined ? (['valueSets'] as const) : (['valueSets', system] as const)),
   terminologyExpand: (system: string, filter: string) => ['valueSets', system, 'expand', filter] as const,
 
@@ -69,6 +70,7 @@ export const queryRoots = {
   doctorSchedule: ['doctorSchedule'],
   encounters: ['encounter'],
   valueSets: ['valueSets'],
+  clinic: ['clinic'],
   adminUsers: ['adminUsers'],
   adminAppointments: ['adminAppointments'],
   adminSchedules: ['adminSchedules'],

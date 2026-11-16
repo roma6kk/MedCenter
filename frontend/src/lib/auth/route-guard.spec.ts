@@ -23,6 +23,7 @@ describe('route-guard', () => {
       ['/admin/users'],
       ['/admin/schedules'],
       ['/admin/terminology'],
+      ['/admin/settings'],
       ['/admin/audit'],
     ])('should protect %s', (path) => {
       expect(isProtectedPath(path)).toBe(true);

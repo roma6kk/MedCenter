@@ -167,6 +167,7 @@ PKCE-обмена и refresh-токен не попадают в JS браузе
 | `/admin/rooms`       | CRUD кабинетов + занятость                                      | `RoomsTable`, `RoomForm`, `RoomUsageDrawer`  | 4.3–4.7     | FR-017 |
 | `/admin/schedules`   | расписания + генерация слотов                            | `ScheduleEditor`, `SlotGenerationDialog`       | 5.2.1–5.2.6 | FR-020 |
 | `/admin/terminology` | ValueSets, импорт снапшота                                          | `ValueSetExplorer`, `TerminologyImportPanel`   | 2.3.1–2.3.4 | FR-018 |
+| `/admin/settings`    | сведения о клинике: название, телефон, e-mail, адрес, часы работы   | `SettingsPanel` (одна форма)                   | 2.4.1–2.4.2 | FR-018 |
 | `/admin/analytics`   | сводки записей/приёмов, топ услуг                     | `AnalyticsDashboard` (KPI-карты + recharts) | 9.1–9.3     | FR-019 |
 | `/admin/audit`       | журнал аудита                                                         | `AuditTable`                                     | 9.4          | FR-021 |
 
@@ -352,7 +353,7 @@ apps/web/src/
 | FR-015 | `/admin/users`                                                        | 2.2.1–2.2.5               |
 | FR-016 | `/admin/services`                                                     | 5.1.3–5.1.5               |
 | FR-017 | `/admin/rooms`                                                        | 4.3–4.7                   |
-| FR-018 | `/admin/terminology`                                                  | 2.3.1–2.3.4               |
+| FR-018 | `/admin/terminology`, `/admin/settings`                               | 2.3.1–2.3.4, 2.4.1–2.4.2  |
 | FR-019 | `/admin/analytics`                                                    | 9.1–9.3                   |
 | FR-020 | `/admin/schedules`                                                    | 5.2.1–5.2.6               |
 | FR-021 | `/admin/audit`                                                        | 9.4                        |

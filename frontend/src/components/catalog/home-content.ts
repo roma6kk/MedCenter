@@ -6,7 +6,6 @@ export const CLINIC_LEGAL = { name: 'ООО «Лайфлайн»', unp: '1000000
 
 export const CLINIC_CONTACTS = {
   phone: '+375 17 000-00-00',
-  phoneHref: 'tel:+375170000000',
   email: 'info@lifeline.example',
 } as const;
 
