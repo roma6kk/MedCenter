@@ -27,6 +27,13 @@ interface DoctorListQuery extends PageQuery {
   readonly patient?: string;
 }
 
+interface AdminListQuery extends PageQuery {
+  readonly from?: string;
+  readonly to?: string;
+  readonly status?: readonly string[];
+  readonly practitionerRoleId?: string;
+}
+
 export type AppointmentPage = PaginatedResponseDto<AppointmentViewDto>;
 
 function searchParams(query: PageQuery): Record<string, unknown> {
@@ -114,6 +121,17 @@ export class AppointmentQueriesService {
       actor: roleRef,
       // A different search parameter than `actor`: FHIR ANDs them, so the compartment from the token still holds.
       ...(query.patient === undefined ? {} : { patient: `Patient/${query.patient}` }),
+      ...statusFilter(query.status),
+      ...dateRange(query.from, query.to),
+      ...searchParams(query),
+    });
+    return this.toPage(result, query, lang);
+  }
+
+  async listForAdmin(query: AdminListQuery, lang?: ContentLanguage): Promise<AppointmentPage> {
+    assertOrderedRange(query.from, query.to);
+    const result = await this.fhir.search('Appointment', {
+      ...(query.practitionerRoleId === undefined ? {} : { actor: `PractitionerRole/${query.practitionerRoleId}` }),
       ...statusFilter(query.status),
       ...dateRange(query.from, query.to),
       ...searchParams(query),

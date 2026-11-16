@@ -1,0 +1,34 @@
+meta {
+  name: 6.7 Admin appointments
+  type: http
+  seq: 7
+  tags: [
+    ro-admin
+  ]
+}
+
+get {
+  url: {{baseUrl}}/api/v1/admin/appointments?page=1&pageSize=20
+  body: none
+  auth: inherit
+}
+
+params:query {
+  ~from: 
+  ~to: 
+  ~status: booked
+  ~practitionerRoleId: 
+  page: 1
+  pageSize: 20
+}
+
+assert {
+  res.status: eq 200
+  res.body.items: isArray
+  res.body.meta.page: isNumber
+  res.body.meta.totalItems: isNumber
+}
+
+docs {
+  Spec 6.7. ADMIN, scope `user/*.read`; appointments of all patients (who, when, which doctor and service, status; no visit reason). `from`/`to` as in 6.5, `practitionerRoleId` a PractitionerRole id, `status` one status or a comma list (malformed value -> 400 `VALIDATION_ERROR`). Every call writes a read AuditEvent per patient shown. Cancel with 6.4 (an admin may cancel after the start).
+}

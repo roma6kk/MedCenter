@@ -91,7 +91,7 @@ http:
       middlewares: [security-headers]
 
     appointments:
-      rule: PathPrefix(`/api/v1/appointments`)
+      rule: PathPrefix(`/api/v1/appointments`) || PathPrefix(`/api/v1/admin/appointments`)
       entryPoints: [websecure, web]
       service: appointment-service
       middlewares: [security-headers]

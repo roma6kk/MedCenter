@@ -66,6 +66,7 @@ export const PROTECTED_ROUTES: readonly ProtectedRoute[] = [
   route('GET', `/api/v1/appointments/${ID}`, 'any'),
   route('POST', `/api/v1/appointments/${ID}/cancel`, ['PATIENT', 'ADMIN']),
   route('GET', '/api/v1/doctor/appointments', DOCTOR),
+  route('GET', '/api/v1/admin/appointments', ADMIN),
   route('POST', `/api/v1/doctor/appointments/${ID}/noshow`, DOCTOR),
   route('POST', '/api/v1/encounters', DOCTOR),
   route('GET', `/api/v1/encounters/${ID}`, STAFF),
