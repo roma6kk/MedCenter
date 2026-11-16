@@ -271,6 +271,10 @@ npm run seed:demo                   # demo organisation, doctors, services, room
 Демо-аккаунты создаются командой `npm run seed:demo -- --users --with-admin`; список учётных записей и
 ручной чек-лист — в [tasks/TASK-001/verify-manual-testing-guide.md](tasks/TASK-001/verify-manual-testing-guide.md).
 
+Необязательный флаг `--visits` наполняет кабинет `patient.kuznetsov`: будущая запись и один завершённый приём с диагнозом
+и назначением (повторный запуск ничего не дублирует). Сначала нужны демо-слоты и согласие пациента на ведение медкарты:
+`npm run seed:demo -- --users --consents`, затем `npm run seed:demo -- --visits`.
+
 ### Обслуживание данных
 
 Две идемпотентные команды для баз, заполненных до перехода на нейтральные причины и образец согласия с водяным

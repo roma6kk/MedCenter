@@ -107,7 +107,7 @@ interface DemoConsentsOptions extends ConsentSelection {
   readonly now: Date;
 }
 
-async function hasConsentInForce(http: FhirHttp, patientId: string, now: Date): Promise<boolean> {
+export async function hasConsentInForce(http: FhirHttp, patientId: string, now: Date): Promise<boolean> {
   const found = await http.search('Consent', {
     patient: `Patient/${patientId}`,
     scope: 'patient-privacy',

@@ -12,6 +12,7 @@ import { repairDemoData } from './demo-repair';
 import { clinicDateOf } from './demo-slots';
 import { seedDemoFhir, type DemoFhirSummary } from './seed-demo-fhir';
 import { seedDemoUsers } from './seed-demo-users';
+import { seedDemoVisits } from './demo-visits';
 
 const MANIFEST_PATH = join(__dirname, 'output', 'demo-manifest.json');
 
@@ -78,6 +79,14 @@ async function runConsentsStep(options: CliOptions, now: Date): Promise<void> {
   }
 }
 
+async function runVisitsStep(now: Date): Promise<void> {
+  const baseUrl = resolveFhirBaseUrl();
+  console.log(`Seeding demo visits of patient.kuznetsov into ${baseUrl}`);
+  const summary = await seedDemoVisits(new FhirHttp(baseUrl), now);
+  console.log(`visits created: ${summary.created.join(', ') || 'none'}`);
+  console.log(`visits already there (kept): ${summary.kept.join(', ') || 'none'}`);
+}
+
 async function runRepairStep(): Promise<void> {
   const baseUrl = resolveFhirBaseUrl();
   console.log(`Repairing demo data in ${baseUrl}`);
@@ -103,6 +112,9 @@ if (require.main === module) {
     }
     if (options.runConsents) {
       await runConsentsStep(options, now);
+    }
+    if (options.runVisits) {
+      await runVisitsStep(now);
     }
     if (options.runRepair) {
       await runRepairStep();
