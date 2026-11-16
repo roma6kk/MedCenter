@@ -18,3 +18,9 @@
 - Specs: 7.8 row and paragraph, 6.6 note; bruno 7.8 (skipped unless `cancelEncounterId` is set); stack-smoke access matrix.
 - docs/pz likely outdated: the encounter lifecycle (no cancelled state), the endpoint list and the access matrix, any text saying an opened encounter cannot be undone.
 - Not done: no stack-smoke chain check for the cancel (only the access matrix); two tools/stack-smoke specs (edge-routing, route-inventory) fail for the new `/clinic` routes of another change, not for 7.8.
+
+## Item 3 (Q23) observation picker label
+
+- The observation list shows «Температура тела (20006)»: name first, code after it. `CodedTermField` got an optional `optionLabel`, only the observations editor passes it; services and the other pickers are unchanged.
+- Not done as asked: the code cannot be muted (grey) because the picker is a native `<select>`, whose options are plain text; the parentheses are the substitute. A custom listbox would be needed for real muting.
+- docs/pz likely outdated: a screenshot or text of the observation picker with «код — название».
