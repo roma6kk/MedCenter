@@ -22,6 +22,7 @@ export const INVALIDATION: Readonly<Record<MutationKind, ReadonlyArray<QueryKey>
   'cancel-appointment': [
     queryRoots.appointments,
     queryRoots.appointmentDetail,
+    queryRoots.adminAppointments,
     queryRoots.doctorAppointments,
     queryRoots.doctorSchedule,
     queryRoots.slots,

@@ -496,6 +496,46 @@
         "details": "Details"
       }
     },
+    "appointments": {
+      "title": "Appointments",
+      "description": "Patient appointments: who, when and with which doctor. The visit reason is not shown here. Viewing the list is written to the audit journal.",
+      "empty": "No appointments",
+      "emptyHint": "Nobody is booked in the chosen period.",
+      "emptyFiltered": "No appointments found",
+      "emptyFilteredHint": "Change the period or the filters.",
+      "total": "Appointments found: {count}",
+      "cancel": "Cancel",
+      "cancelFor": "Cancel the appointment: {patient}, {when}",
+      "filters": {
+        "label": "Appointment filters",
+        "from": "From",
+        "to": "To",
+        "doctor": "Doctor",
+        "anyDoctor": "All doctors",
+        "status": "Status",
+        "anyStatus": "Any status",
+        "reset": "Reset"
+      },
+      "statuses": {
+        "booked": "Booked",
+        "cancelled": "Cancelled",
+        "noshow": "No-show",
+        "fulfilled": "Seen"
+      },
+      "errors": {
+        "invalid": "Enter valid dates",
+        "order": "The start date is after the end date",
+        "span": "The period cannot exceed 366 days"
+      },
+      "columns": {
+        "start": "Time",
+        "patient": "Patient",
+        "doctor": "Doctor",
+        "service": "Service",
+        "status": "Status",
+        "actions": "Actions"
+      }
+    },
     "audit": {
       "title": "Audit journal",
       "description": "Who changed or read what: creation and update of resources, reads of patient data, refused access and emergency bypass of consent.",
@@ -742,6 +782,7 @@
       "services": "Services",
       "rooms": "Rooms",
       "schedules": "Schedules",
+      "appointments": "Appointments",
       "terminology": "Terminology",
       "audit": "Audit"
     },
@@ -944,6 +985,7 @@
       "finishedTitle": "The encounter is completed.",
       "finishedHint": "The record is read-only.",
       "notEditable": "An encounter with the status \"{status}\" cannot be completed.",
+      "notYours": "Another doctor is conducting this encounter: you can only read it.",
       "formLabel": "Complete the encounter",
       "diagnosesLegend": "Diagnoses",
       "summary": "Summary",

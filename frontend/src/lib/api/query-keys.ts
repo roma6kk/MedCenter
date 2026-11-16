@@ -46,6 +46,7 @@ export const queryKeys = {
   terminologyExpand: (system: string, filter: string) => ['valueSets', system, 'expand', filter] as const,
 
   adminUsers: (params?: Params) => ['adminUsers', normalise(params)] as const,
+  adminAppointments: (params?: Params) => ['adminAppointments', normalise(params), locale()] as const,
   adminSchedules: (params?: Params) => ['adminSchedules', normalise(params)] as const,
   adminScheduleSlots: (scheduleId: string, params?: Params) => ['adminScheduleSlots', scheduleId, normalise(params)] as const,
   analytics: (kind: string, params?: Params) => ['analytics', kind, normalise(params), locale()] as const,
@@ -69,6 +70,7 @@ export const queryRoots = {
   encounters: ['encounter'],
   valueSets: ['valueSets'],
   adminUsers: ['adminUsers'],
+  adminAppointments: ['adminAppointments'],
   adminSchedules: ['adminSchedules'],
   adminScheduleSlots: ['adminScheduleSlots'],
 } as const satisfies Readonly<Record<string, QueryKey>>;
