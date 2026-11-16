@@ -268,6 +268,8 @@ npm run seed:demo                   # demo organisation, doctors, services, room
 | Smoke через Traefik | `npm run smoke:stack` |
 | Playwright E2E (сценарии A–F, security) | `cd frontend && E2E_BROWSER_CHANNEL=chrome npx playwright test` |
 
+Те же lint, типы и unit-тесты (без Docker и стека) запускает GitHub Actions при каждом пуше и pull request: [.github/workflows/ci.yml](.github/workflows/ci.yml).
+
 Демо-аккаунты создаются командой `npm run seed:demo -- --users --with-admin`; список учётных записей и
 ручной чек-лист — в [tasks/TASK-001/verify-manual-testing-guide.md](tasks/TASK-001/verify-manual-testing-guide.md).
 
