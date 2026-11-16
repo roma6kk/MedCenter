@@ -13,6 +13,7 @@ import { GenerateSlotsDto } from './dto/generate-slots.dto';
 import type { WeeklyWindowDto } from './dto/create-schedule.dto';
 import { PLANNING_HORIZON_DAYS, SLOT_DURATION_EXT, WEEKLY_WINDOWS_EXT } from './schedule.constants';
 import { writeSlotBatches } from './slot-batch-writer';
+import { removeStaleFreeSlots } from './stale-slots';
 import { planSlots, type PlannedSlot } from './slot-planner';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -57,14 +58,17 @@ export class SlotGeneratorService {
       this.readSlotDuration(schedule),
     );
 
+    const removed = await removeStaleFreeSlots(this.fhirClient, scheduleId, fromMs, toMs, planned);
     const existing = await this.findExistingSlots(scheduleId, fromMs, toMs);
     const overlapping = overlapFilter(existing);
     const fresh = planned.filter((slot) => !overlapping(Date.parse(slot.start), Date.parse(slot.end)));
     this.warnOnUnplannedSlots(scheduleId, planned, existing, planned.length - fresh.length);
     const resources = fresh.map((slot) => this.toSlotResource(scheduleId, schedule, slot));
     const { generated, failures } = await writeSlotBatches(this.fhirClient, resources);
-    if (generated > 0) {
+    if (generated > 0 || removed > 0) {
       await this.cache.invalidate([CACHE_KEYS.SCHEDULE_SLOTS(scheduleId), CACHE_KEYS.ALL_DOCTOR_SLOTS]);
+    }
+    if (generated > 0) {
       await this.auditGeneration(scheduleId, dto, actor, generated, planned.length - generated);
     }
     if (failures.length > 0) {

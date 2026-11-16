@@ -4,7 +4,7 @@ import type { FhirResource } from '@medcenter/fhir';
 import { FHIR_PAGE_SIZE } from '../../common/fhir-search';
 import { CACHE_KEYS, RedisCacheService } from '../cache/redis-cache.service';
 import { batchResponseFor } from './__tests__/batch-echo';
-import { ACTOR, MONDAY_09_10, ONE_DAY, SCHEDULE_ID, generatorFhirMock, scheduleOf } from './__tests__/schedule-fixture';
+import { ACTOR, MONDAY_09_10, ONE_DAY, SCHEDULE_ID, generatorFhirMock, scheduleOf, searchesFor } from './__tests__/schedule-fixture';
 import { EXISTING_SLOT_MAX_PAGES, SlotGeneratorService } from './slot-generator.service';
 
 function slotAt(start: string, status = 'free'): { resource: FhirResource } {
@@ -67,7 +67,7 @@ describe('SlotGeneratorService when HAPI cannot confirm every slot', () => {
 
   it('should report skipped existing slots and no error when every written slot is confirmed', async () => {
     const fhirClient = generatorFhirMock(scheduleOf(MONDAY_09_10));
-    fhirClient.search.mockResolvedValue({ entry: [slotAt('2026-11-02T06:00:00.000Z')] });
+    searchesFor(fhirClient, { entry: [slotAt('2026-11-02T06:00:00.000Z')] });
     const generator = new SlotGeneratorService(fhirClient, new RedisCacheService());
 
     const result = await generator.generate(SCHEDULE_ID, ONE_DAY, ACTOR);
@@ -81,6 +81,9 @@ describe('SlotGeneratorService when the schedule already has many slots', () => 
     const warn = jest.spyOn(Logger.prototype, 'warn').mockImplementation();
     const fhirClient = generatorFhirMock(scheduleOf(MONDAY_09_10));
     fhirClient.search.mockImplementation(async (_type, params) => {
+      if ((params as { status?: string }).status === 'free') {
+        return { entry: [] };
+      }
       const offset = Number((params ?? {})['_offset']);
       return {
         entry: Array.from({ length: FHIR_PAGE_SIZE }, (_, index) =>
@@ -94,7 +97,7 @@ describe('SlotGeneratorService when the schedule already has many slots', () => 
 
     await expect(outcome).rejects.toBeInstanceOf(BadRequestException);
     await expect(outcome).rejects.toMatchObject({ response: { errorCode: 'VALIDATION_ERROR' } });
-    expect(fhirClient.search).toHaveBeenCalledTimes(EXISTING_SLOT_MAX_PAGES);
+    expect(fhirClient.search).toHaveBeenCalledTimes(EXISTING_SLOT_MAX_PAGES + 1);
     expect(fhirClient.batch).not.toHaveBeenCalled();
     warn.mockRestore();
   });
@@ -104,6 +107,9 @@ describe('SlotGeneratorService when the schedule already has many slots', () => 
     const fhirClient = generatorFhirMock(scheduleOf(MONDAY_09_10));
     const rows = 25_920;
     fhirClient.search.mockImplementation(async (_type, params) => {
+      if ((params as { status?: string }).status === 'free') {
+        return { entry: [] };
+      }
       const offset = Number((params ?? {})['_offset']);
       const count = Math.max(0, Math.min(FHIR_PAGE_SIZE, rows - offset));
       return { entry: Array.from({ length: count }, (_, index) => slotAt(new Date(1_700_000_000_000 + (offset + index) * 300_000).toISOString())) };
@@ -112,7 +118,7 @@ describe('SlotGeneratorService when the schedule already has many slots', () => 
 
     const result = await generator.generate(SCHEDULE_ID, ONE_DAY, ACTOR);
 
-    expect(fhirClient.search).toHaveBeenCalledTimes(Math.ceil(rows / FHIR_PAGE_SIZE));
+    expect(fhirClient.search).toHaveBeenCalledTimes(Math.ceil(rows / FHIR_PAGE_SIZE) + 1);
     expect(result.generated).toBe(2);
     warn.mockRestore();
   });

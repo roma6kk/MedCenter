@@ -69,7 +69,7 @@ async function retireSlots(fhirClient: FhirClient, scheduleId: string, slots: re
   logger.log({ scheduleId, retired: slots.length }, 'Slots referenced by appointments were retired instead of deleted');
 }
 
-async function deleteOrRetire(fhirClient: FhirClient, scheduleId: string, slots: readonly FhirResource[]): Promise<void> {
+export async function deleteOrRetire(fhirClient: FhirClient, scheduleId: string, slots: readonly FhirResource[]): Promise<void> {
   const codes = await submitBatch(
     fhirClient,
     scheduleId,

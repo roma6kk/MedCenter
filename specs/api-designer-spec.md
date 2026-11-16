@@ -670,7 +670,7 @@ description?; isActive }`. Инвалидация Redis-кэша `catalog:servic
 | --- | --- | --- | --- |
 | 5.2.1 | `POST /api/v1/admin/schedules` | создать `Schedule` (`planningHorizon` ≤ 90 дней) | `ADMIN` |
 | 5.2.2 | `GET /api/v1/admin/schedules?doctorId=&active=true&page=` | список расписаний; `doctorId` — id **PractitionerRole** | `ADMIN` |
-| 5.2.3 | `PATCH /api/v1/admin/schedules/{id}` | изменить окно/горизонт (проверка `SCHEDULE_OVERLAP`) | `ADMIN` |
+| 5.2.3 | `PATCH /api/v1/admin/schedules/{id}` | изменить окно/горизонт/длительность (проверка `SCHEDULE_OVERLAP`; свободные слоты вне новой сетки или горизонта удаляются, занятые не трогаются) | `ADMIN` |
 | 5.2.4 | `DELETE /api/v1/admin/schedules/{id}` | удалить расписание: busy-слоты защищают его всегда; free-слоты удаляются при `cascade:true`; расписание со слотами, на которые ссылаются записи, деактивируется (см. ниже) | `ADMIN` |
 | 5.2.5 | `POST /api/v1/admin/schedules/{id}/generate` | сгенерировать `Slot` на период | `ADMIN` |
 | 5.2.6 | `GET /api/v1/admin/schedules/{id}/slots?from=&to=&status=` | слоты расписания; `from`/`to` обязательны | `ADMIN` |
@@ -761,8 +761,9 @@ export class CreateScheduleDto {
 `{ from: date; to: date }` (`to-from` ≤ 90 дней, в пределах `planningHorizon` расписания: день вне горизонта → 400
 `VALIDATION_ERROR`; расписание без границы горизонта считается открытым с этой стороны) → **201** с
 `{ generated: number; skipped: number }` (существующие слоты не дублируются). Слот, который пересекается по времени
-с уже существующим слотом этого расписания (сетку изменили `PATCH`ем или слоты остались от старого генератора), не пишется
-и входит в `skipped`: врач и кабинет не получают две свободные записи на одно время. Запуск, создавший слоты, пишет один
+с уже существующим слотом этого расписания (занятым или от старого генератора), не пишется
+и входит в `skipped`. Перед записью **свободные** слоты расписания за этот период, не совпадающие с текущей сеткой (начало и конец),
+удаляются; занятые не трогаются (слот, на который ссылалась отменённая запись, получает статус `entered-in-error`). Запуск, создавший слоты, пишет один
 `AuditEvent` (`create`, `entity=Schedule/{id}`, `outcomeDesc` вида `slots generated: N, skipped: M, from..to`; FR-021).
 Поддерживает `Idempotency-Key` (§0). Для расписания с `active=false` (см. 5.2.4) → 409 `CONFLICT`.
 
