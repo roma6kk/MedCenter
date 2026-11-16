@@ -1098,7 +1098,7 @@ export class CompleteEncounterDto {
 
 Потребитель RabbitMQ (`appointment.booked/cancelled/noshow.v1`, `encounter.completed.v1`,
 `patient.registered.v1` — каталог в §4.4 архитектуры) создаёт `Communication` (recipient=Patient; `sender` не пишется:
-id организации клиники сервису не известен, а HAPI проверяет ссылочную целостность) + email-адаптер (A-3). Компартмент: фильтр по `patientRef` из JWT (ADR-013).
+id организации клиники сервису не известен, а HAPI проверяет ссылочную целостность). Уведомления только внутри приложения, e-mail-канала нет (KDR-7, A-3). Компартмент: фильтр по `patientRef` из JWT (ADR-013).
 Элемент 8.1: `{ id, category, kind?, text, sent, read, start?, appointmentId?, encounterId? }` — `category` ∈ `appointment` |
 `encounter` | `registration` (по ним клиент выбирает значок и фильтр); `kind` — какое это событие, чтобы клиент сам сформулировал
 уведомление на языке интерфейса (NFR-008): `appointment.booked` | `appointment.cancelled` | `appointment.cancelled.by-admin`

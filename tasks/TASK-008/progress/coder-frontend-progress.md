@@ -19,3 +19,10 @@ docs/pz likely outdated: «list state is local» statements for these screens.
 ## Item 5 (Q19, variant B)
 Removed: consenter-type select, representative fields, related-person picker and their validation (consent-record-schema, use-consent-record-form, consent-record-form), `canSelfSign`/`patientIsAdult`, the «Доверенные лица» block (`RelatedPersons`), `fetchRelatedPersons`/`useRelatedPersons`/`RelatedPerson` type and query key, 9 messages in ru/en. The form always sends `consenterType: 'self'`. Backend untouched. Kept on purpose: `consent.view.consenterTypes` and the representative-document line in the status view, so an existing/seeded non-self consent renders as plain text (test in consent-status-view.spec). The `ConsenterType` TS type stays for that reason.
 docs/pz likely outdated: any description of the representative/guardian consent form, the trusted persons block (3.3 on the patient card), minor-patient hint.
+
+## Item 6 (Q26, docs only)
+KDR-7 and A-3 are defined in tasks/TASK-001/requirements-analyst-requirements.md (now in-app only); api-designer-spec §8 no longer promises the e-mail adapter; README line about notifications; coder-m3-booking-spec note about the e-mail adapter. architect-architecture.md had no KDR-7/A-3/e-mail adapter promise, so it is unchanged.
+docs/pz likely outdated: any «in-app и e-mail» notification wording, KDR-7/A-3.
+
+## Not run
+Full `npx jest` skipped on the coordinator's request; Playwright not run. No e2e spec needed changes (no assertions on the touched URLs, banners, or consent form).
