@@ -43,7 +43,7 @@ function ScheduleActions({ schedule, label, onSlots, onGenerate, onEdit, onDelet
       {schedule.isActive ? (
         <button type="button" className={cn(buttonVariants({ variant: 'secondary' }), 'whitespace-nowrap')} onClick={() => onGenerate(schedule)} aria-label={t('actions.generateAria', { label })}>
           <CalendarPlus aria-hidden="true" className="size-4" />
-          {t('actions.generate')}
+          {t('actions.generateShort')}
         </button>
       ) : null}
       <RowActionsMenu name={label} items={items} />

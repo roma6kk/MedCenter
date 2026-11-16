@@ -34,7 +34,7 @@ export function AppointmentActions({ appointment, onCancel, hero = false }: Appo
         {t('open')}
       </Link>
       {onCancel !== undefined && isCancellableByPatient(appointment) ? (
-        <Button variant="quiet-danger" size={size} aria-label={t('cancelFor', { when, doctor })} onClick={() => onCancel(appointment)}>
+        <Button variant="quiet-danger" size={size} aria-label={t('cancelFor', { when, doctor })} onClick={() => onCancel(appointment)} className="whitespace-nowrap px-3">
           <CircleX aria-hidden="true" className="size-4" />
           {hero ? t('cancel') : t('cancelShort')}
         </Button>
