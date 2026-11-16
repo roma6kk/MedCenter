@@ -248,8 +248,7 @@
         "generate": "Сгенерировать слоты",
         "edit": "Изменить",
         "delete": "Удалить",
-        "generateAria": "Сгенерировать слоты: {label}",
-        "generateShort": "Создать слоты"
+        "generateAria": "Сгенерировать слоты: {label}"
       },
       "days": {
         "MO": "Пн",

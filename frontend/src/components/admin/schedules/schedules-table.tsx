@@ -41,9 +41,9 @@ function ScheduleActions({ schedule, label, onSlots, onGenerate, onEdit, onDelet
   return (
     <span className="flex items-center gap-1 whitespace-nowrap">
       {schedule.isActive ? (
-        <button type="button" className={cn(buttonVariants({ variant: 'secondary' }), 'whitespace-nowrap')} onClick={() => onGenerate(schedule)} aria-label={t('actions.generateAria', { label })}>
+        <button type="button" className={cn(buttonVariants({ variant: 'secondary' }), 'whitespace-nowrap')} onClick={() => onGenerate(schedule)} aria-label={t('actions.generateAria', { label })} title={t('actions.generate')}>
           <CalendarPlus aria-hidden="true" className="size-4" />
-          {t('actions.generateShort')}
+          <span className="lg:sr-only">{t('actions.generate')}</span>
         </button>
       ) : null}
       <RowActionsMenu name={label} items={items} />

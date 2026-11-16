@@ -248,8 +248,7 @@
         "generate": "Generate slots",
         "edit": "Edit",
         "delete": "Delete",
-        "generateAria": "Generate slots: {label}",
-        "generateShort": "Generate"
+        "generateAria": "Generate slots: {label}"
       },
       "days": {
         "MO": "Mon",
