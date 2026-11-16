@@ -27,7 +27,7 @@ export function ConsentStatusLine({ patientId, onManage }: ConsentStatusLineProp
   const isActive: boolean = state === 'active';
   return (
     <span className="inline-flex min-w-0 max-w-full flex-wrap items-center gap-x-3">
-      <Badge tone={isActive ? 'success' : 'warning'} icon={isActive ? ShieldCheck : state === 'none' ? ShieldAlert : ShieldOff} data-testid={`consent-line-${state}`} className="max-w-full flex-initial whitespace-normal rounded-2xl text-left">
+      <Badge tone={isActive ? 'success' : 'warning'} icon={isActive ? ShieldCheck : state === 'none' ? ShieldAlert : ShieldOff} data-testid={`consent-line-${state}`} className="max-w-full flex-initial whitespace-normal rounded-card text-left">
         {state === 'active' && since !== undefined ? t('active', { date: numericDate(since) }) : t(state)}
       </Badge>
       {onManage === undefined ? null : (
