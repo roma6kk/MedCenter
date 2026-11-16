@@ -12,6 +12,7 @@ import {
 
 const TOKEN_KEY_PREFIX = 'oauth:token:';
 const SESSION_KEY_PREFIX = 'oauth:session-current:';
+const USER_SESSIONS_PREFIX = 'oauth:user-sessions:';
 
 const COMMAND_TIMEOUT_MS = 2000;
 
@@ -30,6 +31,9 @@ export interface RedisTokenClient {
   get(key: string): Promise<string | null>;
   getdel(key: string): Promise<string | null>;
   del(...keys: string[]): Promise<number>;
+  sadd(key: string, member: string): Promise<number>;
+  smembers(key: string): Promise<string[]>;
+  expire(key: string, seconds: number): Promise<number>;
   exists(...keys: string[]): Promise<number>;
   quit(): Promise<unknown>;
 }
@@ -57,6 +61,8 @@ export class RedisTokenStore implements TokenStore, OnModuleDestroy {
     await this.redis.set(`${TOKEN_KEY_PREFIX}${token.jti}`, JSON.stringify(token), 'EX', ttl);
     if (token.kind === 'refresh' && token.sessionId !== undefined) {
       await this.redis.set(`${SESSION_KEY_PREFIX}${token.sessionId}`, token.jti, 'EX', ttl);
+      await this.redis.sadd(`${USER_SESSIONS_PREFIX}${token.userId}`, token.sessionId);
+      await this.redis.expire(`${USER_SESSIONS_PREFIX}${token.userId}`, ttl);
     }
   }
 
@@ -84,6 +90,10 @@ export class RedisTokenStore implements TokenStore, OnModuleDestroy {
 
   async delete(jti: string): Promise<void> {
     await this.redis.del(`${TOKEN_KEY_PREFIX}${jti}`);
+  }
+
+  async sessionsOf(userId: string): Promise<string[]> {
+    return this.redis.smembers(`${USER_SESSIONS_PREFIX}${userId}`);
   }
 
   async onModuleDestroy(): Promise<void> {

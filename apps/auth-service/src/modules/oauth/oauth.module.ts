@@ -1,6 +1,6 @@
 import { createPrivateKey, createPublicKey } from 'node:crypto';
 
-import { Module } from '@nestjs/common';
+import { forwardRef, Module } from '@nestjs/common';
 import { TOKEN_REVOCATION } from '@medcenter/common';
 import { z } from 'zod';
 
@@ -123,7 +123,7 @@ export function loadRegisteredClients(source: NodeJS.ProcessEnv = process.env): 
 }
 
 @Module({
-  imports: [UsersModule, AuditModule],
+  imports: [forwardRef(() => UsersModule), AuditModule],
   controllers: [OAuthController, AccountDeactivationController, AuthorizeController, LoginController, LoginAssetsController],
   providers: [
     PkceService,
@@ -151,6 +151,6 @@ export function loadRegisteredClients(source: NodeJS.ProcessEnv = process.env): 
     // The issuer answers the guard layer's revocation question; exported so APP_GUARD's JwtAuthGuard sees it.
     { provide: TOKEN_REVOCATION, useExisting: TokenService },
   ],
-  exports: [OAuthService, TOKEN_REVOCATION],
+  exports: [OAuthService, TokenService, TOKEN_REVOCATION],
 })
 export class OAuthModule {}

@@ -55,11 +55,13 @@
         "roles": "Roles",
         "practitionerRoleId": "Practitioner role (PractitionerRole)",
         "password": "Password",
+        "newPassword": "New password",
         "birthDate": "Birth date",
         "gender": "Gender",
         "isActive": "Account is active"
       },
       "hints": {
+        "newPassword": "Leave empty to keep the current one. The user is signed out everywhere. At least 10 characters: lower and upper case Latin letters, a digit and a symbol",
         "password": "At least 10 characters: lower and upper case Latin letters, a digit and a symbol",
         "practitionerRoleId": "The catalog doctor this account is linked to. Without it the doctor sees no schedule.",
         "practitionerRoleIdTyped": "The doctor catalog is unavailable right now — type the PractitionerRole id. Without it the doctor sees no schedule.",
@@ -1973,6 +1975,21 @@
     "crossBorderText": "No cross-border transfer is carried out."
   },
   "accountClosure": {
+  "passwordChange": {
+    "title": "Password",
+    "sectionLead": "Change your password if someone else may know it. You will have to sign in again afterwards.",
+    "open": "Change password",
+    "dialogTitle": "Change password",
+    "lead": "After the change you are signed out on every device and sign in with the new password.",
+    "currentLabel": "Current password",
+    "currentRequired": "Enter your current password",
+    "newLabel": "New password",
+    "newHint": "At least 10 characters: lower and upper case Latin letters, a digit and a symbol",
+    "wrongPassword": "The current password is wrong.",
+    "cancel": "Cancel",
+    "confirm": "Change password",
+    "busy": "Changing…"
+  },
     "title": "Delete account",
     "lead": "You can close your personal cabinet. Sign-in stops, while your medical records stay with the clinic.",
     "open": "Delete account",

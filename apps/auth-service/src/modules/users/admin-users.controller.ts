@@ -17,6 +17,7 @@ import { ApiProblems, GUARD_PROBLEM_STATUSES, RequiresRoles, RequiresScopes } fr
 import { ApiBearerAuth, ApiOperation, ApiParam, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { Role, SMART_SCOPES, type PaginatedResponseDto } from '@medcenter/contracts';
 
+import { TokenService } from '../oauth/token.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { ListUsersQueryDto } from './dto/list-users-query.dto';
 import { RetentionExpiredQueryDto } from './dto/retention-expired-query.dto';
@@ -34,7 +35,10 @@ const USER_ID = new ParseUUIDPipe({ version: '4' });
 @Controller('api/v1/admin/users')
 @UseInterceptors(NoStoreInterceptor)
 export class AdminUsersController {
-  constructor(private readonly users: UsersService) {}
+  constructor(
+    private readonly users: UsersService,
+    private readonly tokens: TokenService,
+  ) {}
 
   @Post()
   @ApiOperation({ summary: '2.2.1 Create a user' })
@@ -86,12 +90,16 @@ export class AdminUsersController {
   })
   @RequiresRoles(Role.ADMIN)
   @RequiresScopes(SMART_SCOPES.USER_WRITE)
-  update(
+  async update(
     @Param('id', USER_ID) id: string,
     @Body() dto: UpdateUserDto,
     @Req() request: AuthenticatedRequest,
   ): Promise<UserDetailsResponseDto> {
-    return this.users.update(id, dto, actorOf(request));
+    const updated = await this.users.update(id, dto, actorOf(request));
+    if (dto.password !== undefined) {
+      await this.tokens.revokeAll(id);
+    }
+    return updated;
   }
 
   @Delete(':id')

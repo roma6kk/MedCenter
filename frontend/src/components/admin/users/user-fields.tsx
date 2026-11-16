@@ -16,6 +16,7 @@ import { USER_ROLES, type UserRole } from './user-types';
 
 export type SharedUserField = 'email' | 'firstName' | 'lastName' | 'roles' | 'practitionerRoleId';
 export type CreateOnlyField = 'password' | 'birthDate' | 'gender';
+export type EditOnlyField = 'password';
 
 export interface RoleNotes {
   readonly patientLocked: boolean;
@@ -153,5 +154,15 @@ export function CreateOnlyUserFields({ register, control, errors, selectedRoles 
         </div>
       ) : null}
     </div>
+  );
+}
+
+export function NewPasswordField({ registration, error }: { readonly registration: UseFormRegisterReturn; readonly error: string | undefined }): ReactNode {
+  const t = useT('admin.users');
+  const hint: string = t('hints.newPassword');
+  return (
+    <Field id="user-new-password" label={t('fields.newPassword')} error={error} hint={hint}>
+      <input {...controlProps('user-new-password', error, hint)} type="password" autoComplete="new-password" className={CONTROL_CLASS} {...registration} />
+    </Field>
   );
 }

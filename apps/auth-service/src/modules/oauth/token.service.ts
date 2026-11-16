@@ -39,6 +39,8 @@ export interface TokenStore {
   // Never creates: a token that was spent or revoked in the meantime stays gone.
   touch(jti: string, lastActivityAt: number): Promise<void>;
   delete(jti: string): Promise<void>;
+  // Session ids of the user's refresh tokens that were saved and have not expired.
+  sessionsOf(userId: string): Promise<string[]>;
 }
 
 export interface TokenDenylist {
@@ -84,6 +86,12 @@ export class InMemoryTokenStore implements TokenStore {
 
   async delete(jti: string): Promise<void> {
     this.tokens.delete(jti);
+  }
+
+  async sessionsOf(userId: string): Promise<string[]> {
+    return [...this.tokens.values()]
+      .filter((token) => token.kind === 'refresh' && token.userId === userId)
+      .map((token) => token.sessionId ?? token.jti);
   }
 }
 
@@ -197,6 +205,12 @@ export class TokenService implements TokenRevocationChecker {
     await this.denylist.add(`${SESSION_PREFIX}${live?.sessionId ?? id}`, ACCESS_TOKEN_TTL_SECONDS);
     if (live?.sessionId !== undefined && live.sessionId !== jti) {
       await this.denylist.add(`${SESSION_PREFIX}${jti}`, ACCESS_TOKEN_TTL_SECONDS);
+    }
+  }
+
+  async revokeAll(userId: string): Promise<void> {
+    for (const sessionId of await this.store.sessionsOf(userId)) {
+      await this.revoke(sessionId);
     }
   }
 }

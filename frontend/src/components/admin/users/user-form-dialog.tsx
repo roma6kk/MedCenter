@@ -15,7 +15,7 @@ import { useFormBanner } from '../shared/use-form-banner';
 import { useFormMessage } from '../shared/use-form-message';
 import { useCreateUser, useUpdateUser } from './use-admin-users';
 import { usePractitionerRoleOptions } from './use-practitioner-role-options';
-import { CreateOnlyUserFields, SharedUserFields, type CreateOnlyField, type RoleNotes, type SharedUserField } from './user-fields';
+import { CreateOnlyUserFields, NewPasswordField, SharedUserFields, type CreateOnlyField, type RoleNotes, type SharedUserField } from './user-fields';
 import {
   createUserSchema,
   editUserSchema,
@@ -29,7 +29,7 @@ import {
 import type { AdminUser } from './user-types';
 
 const CREATE_FIELDS: ReadonlyArray<string> = ['email', 'firstName', 'lastName', 'password', 'roles', 'birthDate', 'gender', 'practitionerRoleId'];
-const EDIT_FIELDS: ReadonlyArray<string> = ['email', 'firstName', 'lastName', 'roles', 'practitionerRoleId', 'isActive'];
+const EDIT_FIELDS: ReadonlyArray<string> = ['email', 'firstName', 'lastName', 'roles', 'practitionerRoleId', 'isActive', 'password'];
 
 function useServerRules(showsRoleField: boolean): Readonly<Record<string, ServerFieldRule>> {
   const t = useT('admin.problems');
@@ -85,10 +85,13 @@ function EditUserForm({ user, onClose }: { readonly user: AdminUser; readonly on
     clear();
     update.mutate({ id: user.id, payload: toUpdatePayload(values, user) }, { onSuccess: onClose, onError: fail });
   }, clear);
-  const errors = messagesOf<SharedUserField, EditUserFormValues>(formState.errors, resolve);
+  const errors = messagesOf<SharedUserField | 'password', EditUserFormValues>(formState.errors, resolve);
   return (
     <form onSubmit={(event) => void submit(event)} noValidate>
       <SharedUserFields register={register} errors={errors} selectedRoles={roles} notes={roleNotesOf(user, roles)} roleChoices={roleChoices} />
+      <div className="mt-3">
+        <NewPasswordField registration={register('password')} error={errors.password} />
+      </div>
       <Switch wrapperClassName="mt-3" disabled={closedByPatient !== null} {...register('isActive')}>
         {t('fields.isActive')}
       </Switch>

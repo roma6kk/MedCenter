@@ -98,6 +98,21 @@ describe('toCreatePayload', () => {
   });
 });
 
+describe('editUserSchema password', () => {
+  it('should accept an empty password and a strong one, and refuse a weak one', () => {
+    const values = editValuesOf(doctor);
+
+    expect(editUserSchema.safeParse(values).success).toBe(true);
+    expect(editUserSchema.safeParse({ ...values, password: 'Str0ng!Pass1' }).success).toBe(true);
+    expect(editUserSchema.safeParse({ ...values, password: 'weak' }).success).toBe(false);
+  });
+
+  it('should send the password only when it was typed', () => {
+    expect(toUpdatePayload({ ...editValuesOf(doctor), password: 'Str0ng!Pass1' }, doctor)).toEqual({ password: 'Str0ng!Pass1' });
+    expect(toUpdatePayload(editValuesOf(doctor), doctor)).toEqual({});
+  });
+});
+
 describe('toUpdatePayload', () => {
   it('should send nothing when nothing changed', () => {
     expect(toUpdatePayload(editValuesOf(doctor), doctor)).toEqual({});

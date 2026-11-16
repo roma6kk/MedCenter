@@ -260,3 +260,19 @@ describe('TokenService', () => {
     });
   });
 });
+
+describe('TokenService.revokeAll', () => {
+  it('should revoke every session of the user and leave other users alone', async () => {
+    const { service } = createService();
+    const first = await service.issue({ ...BASE_PARAMS, kind: 'refresh', ttlSeconds: 60 });
+    const second = await service.issue({ ...BASE_PARAMS, kind: 'refresh', ttlSeconds: 60 });
+    const other = await service.issue({ ...BASE_PARAMS, userId: 'u2', kind: 'refresh', ttlSeconds: 60 });
+
+    await service.revokeAll('u1');
+
+    await expect(service.isRevoked(first.sessionId ?? '')).resolves.toBe(true);
+    await expect(service.isRevoked(second.sessionId ?? '')).resolves.toBe(true);
+    await expect(service.isRevoked(other.sessionId ?? '')).resolves.toBe(false);
+    await expect(service.find(first.jti)).resolves.toBeNull();
+  });
+});

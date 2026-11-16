@@ -42,6 +42,7 @@ export interface UpdateUserPayload {
   readonly lastName?: string;
   readonly roles?: ReadonlyArray<UserRole>;
   readonly isActive?: boolean;
+  readonly password?: string;
   readonly practitionerRoleId?: string | null;
 }
 

@@ -97,7 +97,11 @@ export class UsersService {
     if (typeof dto.practitionerRoleId === 'string') {
       await this.patients.assertPractitionerRoleExists(dto.practitionerRoleId);
     }
-    const changes = effectiveChangesOf(changesOf(dto, current), current);
+    const passwordHash = dto.password === undefined ? undefined : await this.hasher.hash(dto.password);
+    const changes = {
+      ...effectiveChangesOf(changesOf(dto, current), current),
+      ...(passwordHash !== undefined ? { passwordHash } : {}),
+    };
     const demographics = effectiveDemographicsOf(demographicsOf(dto), current);
     if (Object.keys(changes).length === 0 && demographics === null) {
       return toUserDetails(current);
@@ -105,8 +109,19 @@ export class UsersService {
     const closure = changes.isActive === undefined ? {} : changes.isActive ? { closedAt: null, retentionUntil: null } : closureOf(this.retention);
     const updated = await this.applyChanges(id, { ...changes, ...closure });
     await this.syncPatient(current, updated, { ...changes, ...closure }, demographics, actor);
-    await this.recordUpdate(current, updated, actor, changes.isActive === false ? 'user.deactivated' : 'user.updated');
+    const event = changes.isActive === false ? 'user.deactivated' : passwordHash !== undefined ? 'user.password_reset' : 'user.updated';
+    await this.recordUpdate(current, updated, actor, event);
     return toUserDetails(updated);
+  }
+
+  /** The caller closes the sessions afterwards (the token store lives in the OAuth module). */
+  async changePassword(id: string, currentPassword: string, newPassword: string, actor: AuditActor): Promise<void> {
+    const current = await this.require(id);
+    if (!(await this.hasher.verify(currentPassword, current.passwordHash))) {
+      throw invalidPassword();
+    }
+    const updated = await this.applyChanges(id, { passwordHash: await this.hasher.hash(newPassword) });
+    await this.recordUpdate(current, updated, actor, 'user.password_changed');
   }
 
   async deactivate(id: string, actor: AuditActor): Promise<UserDetailsResponseDto> {

@@ -34,6 +34,7 @@ export interface NewUser {
 }
 
 export interface UserChanges {
+  readonly passwordHash?: string;
   readonly email?: string;
   readonly firstName?: string;
   readonly lastName?: string;

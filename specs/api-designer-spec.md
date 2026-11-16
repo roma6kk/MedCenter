@@ -139,7 +139,7 @@ export class PaginatedResponseDto<TItem> {
 | `CONSENT_REQUIRED` | 409 | у пациента нет действующего согласия на электронную медкарту (7.1, 7.3; ADR-019); при `CONSENT_ENFORCEMENT=warn` не возвращается |
 | `CONSENT_ALREADY_ACTIVE` | 409 | 3.8: у пациента уже есть действующее согласие; сначала отзыв (3.9) |
 | `ACCOUNT_CONSENT_WITHDRAWN` | 409 | 2.2.4: `isActive: true` для учётной записи, которую пациент закрыл сам (отозвано согласие, `accountConsentWithdrawnAt`); включить её нельзя |
-| `INVALID_PASSWORD` | 403 | 2.2.8: неверный пароль при закрытии своей учётной записи (или она уже закрыта) |
+| `INVALID_PASSWORD` | 403 | 2.2.8: неверный пароль при закрытии своей учётной записи (или она уже закрыта); 2.2.10: неверный текущий пароль |
 | `APPOINTMENT_NOT_CANCELLABLE` | 409 | BR-002: статус не позволяет отмену |
 | `ENCOUNTER_STATE_INVALID` | 409 | BR-003/BR-008: приём уже оформлен / запись не `booked` (cancelled/noshow/fulfilled); неявка (6.6) для записи, у которой уже есть приём или время которой ещё не наступило |
 | `SCHEDULE_OVERLAP` | 409 | пересечение `Schedule.planningHorizon` и недельных окон одного `PractitionerRole` либо одного кабинета (`roomId`) у разных врачей |
@@ -278,13 +278,14 @@ guard-слоем — **401 `TOKEN_REVOKED`** (см. 2.1.3).
 | 2.2.1 | `POST /api/v1/admin/users` | создать пользователя (`PATIENT` — саморегистрация A-6 см. §7) | `ADMIN` |
 | 2.2.2 | `GET /api/v1/admin/users?role=&search=&page=&pageSize=` | список | `ADMIN` |
 | 2.2.3 | `GET /api/v1/admin/users/{id}` | карточка + `ExternalLink` | `ADMIN` |
-| 2.2.4 | `PATCH /api/v1/admin/users/{id}` | роль, `isActive` | `ADMIN` |
+| 2.2.4 | `PATCH /api/v1/admin/users/{id}` | роль, `isActive`, `password` (сброс пароля) | `ADMIN` |
 | 2.2.5 | `DELETE /api/v1/admin/users/{id}` | деактивация (soft); ответ **200** с карточкой пользователя (не 204) | `ADMIN` |
 | 2.2.6 | `POST /api/v1/auth/register` | саморегистрация пациента (A-6) | public |
 | 2.2.7 | `GET /api/v1/me` | профиль текущего пользователя + `ExternalLink` + `accountConsent` (`{at, version}` или `null`) | любой Bearer |
 | 2.2.8 | `POST /api/v1/me/deactivate` | пациент закрывает свою учётную запись (тело `{password}`); ответ **204** | `PATIENT`, rate-limit 5/мин |
 | 2.2.9 | `GET /api/v1/admin/users/retention-expired?page=&pageSize=` | закрытые учётные записи с истёкшим сроком хранения | `ADMIN` |
 
+| 2.2.10 | `POST /api/v1/me/password` | смена своего пароля (тело `{currentPassword, newPassword}`); ответ **204** | любой Bearer, rate-limit 5/мин |
 **2.2.8 `POST /api/v1/me/deactivate`** — тело `{ "password": "<текущий пароль>" }`. Сервис деактивирует `User` (`isActive=false`,
 вход прекращается), ставит `account_consent_withdrawn_at` (отзыв согласия на учётную запись; `account_consent_at` и версия текста остаются) и
 отзывает сессию вызывающего (refresh-токен по `sid`; остальные refresh-токены не обновляются, т.к. identity перечитывается и неактивная
@@ -369,7 +370,10 @@ patientRef: string | null; practitionerRoleRef: string | null; name: string; rol
 (администратор не может деактивировать или понизить собственную учётную запись).
 
 **2.2.4 `PATCH /api/v1/admin/users/{id}`** — `UpdateUserDto = PartialType(OmitType(RegisterPatientDto, ['password'] as const))`
-+ `@IsOptional() @IsArray() roles?: string[]` + `@IsOptional() @IsBoolean() isActive?: boolean`.
++ `@IsOptional() @IsArray() roles?: string[]` + `@IsOptional() @IsBoolean() isActive?: boolean`
++ необязательный `password` (парольная политика как при создании). С `password` администратор задаёт новый пароль: `AuditEvent` `user.password_reset`, все сессии пользователя закрываются. Почты и ссылок сброса нет.
+
+**2.2.10 `POST /api/v1/me/password`** — `{ currentPassword, newPassword }`; `newPassword` проходит ту же парольную политику. Меняет хеш, пишет `AuditEvent` `user.password_changed` (агент — сам пользователь) и закрывает все сессии пользователя: нужно войти заново. Ответы: **204**; **400**; **403** `INVALID_PASSWORD` — текущий пароль неверный.
 
 ##### 2.3 Терминология (FR-018, ADR-002/016/017)
 

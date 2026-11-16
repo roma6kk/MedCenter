@@ -14,9 +14,11 @@ const baseShape = {
   practitionerRoleId: z.string(),
 };
 
+const passwordRule = z.string().min(PASSWORD_MIN, 'validation.passwordStrength').max(PASSWORD_MAX, 'validation.tooLong').regex(PASSWORD_PATTERN, 'validation.passwordStrength');
+
 const createShape = {
   ...baseShape,
-  password: z.string().min(PASSWORD_MIN, 'validation.passwordStrength').max(PASSWORD_MAX, 'validation.tooLong').regex(PASSWORD_PATTERN, 'validation.passwordStrength'),
+  password: passwordRule,
   birthDate: z.string().refine((value) => value === '' || isCalendarDate(value), 'validation.date'),
   gender: z.enum(['', 'male', 'female']),
 };
@@ -48,7 +50,7 @@ function checkRoleRules(values: RoleValues, ctx: z.RefinementCtx, needsBirthDate
 export const createUserSchema = z.object(createShape).superRefine((values, ctx) => checkRoleRules(values, ctx, true));
 
 export const editUserSchema = z
-  .object({ ...baseShape, isActive: z.boolean() })
+  .object({ ...baseShape, isActive: z.boolean(), password: z.union([z.literal(''), passwordRule]) })
   .superRefine((values, ctx) => checkRoleRules(values, ctx, false));
 
 export type CreateUserFormValues = z.infer<typeof createUserSchema>;
@@ -73,6 +75,7 @@ export function editValuesOf(user: AdminUser): EditUserFormValues {
     roles: [...user.roles],
     practitionerRoleId: referenceId(user.practitionerRoleRef),
     isActive: user.isActive,
+    password: '',
   };
 }
 
@@ -106,6 +109,7 @@ export function toUpdatePayload(values: EditUserFormValues, original: AdminUser)
     ...(values.lastName.trim() === original.lastName ? {} : { lastName: values.lastName.trim() }),
     ...(sameRoles(values.roles, original.roles) ? {} : { roles: values.roles }),
     ...(values.isActive === original.isActive ? {} : { isActive: values.isActive }),
+    ...(values.password === '' ? {} : { password: values.password }),
     ...linkChange(effectiveLink(values), referenceId(original.practitionerRoleRef)),
   };
 }

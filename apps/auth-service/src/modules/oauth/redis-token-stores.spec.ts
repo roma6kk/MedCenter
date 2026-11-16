@@ -3,8 +3,15 @@ import { InMemoryTokenDenylist, InMemoryTokenStore, type StoredToken } from './t
 
 function fakeRedis(): RedisTokenClient & { readonly data: Map<string, { value: string; ttl: number }> } {
   const data = new Map<string, { value: string; ttl: number }>();
+  const sets = new Map<string, Set<string>>();
   return {
     data,
+    sadd: async (key: string, member: string) => {
+      sets.set(key, (sets.get(key) ?? new Set<string>()).add(member));
+      return 1;
+    },
+    smembers: async (key: string) => [...(sets.get(key) ?? [])],
+    expire: async () => 1,
     set: async (key: string, value: string, mode: string, seconds: number | string) => {
       if (mode === 'KEEPTTL') {
         const existing = data.get(key);
@@ -132,5 +139,16 @@ describe('RedisTokenStore session index', () => {
 
     await expect(store.findCurrent('sess-1')).resolves.toBeNull();
     await expect(store.findCurrent('unknown')).resolves.toBeNull();
+  });
+});
+
+describe('RedisTokenStore user sessions', () => {
+  it('should list the sessions of one user only', async () => {
+    const store = new RedisTokenStore(fakeRedis());
+    await store.save({ ...TOKEN, jti: 'jti-1', sessionId: 'sess-1' });
+    await store.save({ ...TOKEN, jti: 'jti-2', sessionId: 'sess-2' });
+    await store.save({ ...TOKEN, jti: 'jti-3', userId: 'u2', sessionId: 'sess-3' });
+
+    await expect(store.sessionsOf('u1')).resolves.toEqual(['sess-1', 'sess-2']);
   });
 });
