@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import type { ReactNode } from 'react';
 import { useSearchParams } from 'next/navigation';
+import { writeUrlQuery } from '@/hooks/use-url-state';
 import { useT } from '@/lib/i18n/use-t';
 import { AdminPageHeader } from '../shared/admin-page-header';
 import { QueryState } from '../shared/query-state';
@@ -10,14 +11,6 @@ import { AuditFiltersForm } from './audit-filters-form';
 import { auditFilterFromParams, auditFilterToQuery, type AuditFilter } from './audit-filter';
 import { AuditTable } from './audit-table';
 import { useAuditEvents } from './use-audit';
-
-const AUDIT_PATH = '/admin/audit';
-
-/** Mirrors the filter into the address bar without a navigation (Next syncs `useSearchParams` with `replaceState`). */
-function writeFilterToUrl(filter: AuditFilter): void {
-  const query: string = auditFilterToQuery(filter);
-  window.history.replaceState(null, '', query === '' ? AUDIT_PATH : `${AUDIT_PATH}?${query}`);
-}
 
 export function AuditPanel(): ReactNode {
   const t = useT('admin.audit');
@@ -28,7 +21,7 @@ export function AuditPanel(): ReactNode {
   return (
     <>
       <AdminPageHeader title={t('title')} description={t('description')} />
-      <AuditFiltersForm filter={filter} onApply={(next) => { setFilter(next); setPage(1); writeFilterToUrl(next); }} />
+      <AuditFiltersForm filter={filter} onApply={(next) => { setFilter(next); setPage(1); writeUrlQuery(auditFilterToQuery(next)); }} />
       <QueryState query={query} isEmpty={(data) => data.items.length === 0} emptyTitle={t('empty')} emptyDescription={t('emptyHint')}>
         {(data) => (
           <>

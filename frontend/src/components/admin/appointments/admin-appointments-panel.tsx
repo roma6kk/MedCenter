@@ -5,6 +5,7 @@ import type { ReactNode } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { CancelAppointmentDialog } from '@/components/appointments/cancel-appointment-dialog';
 import type { AppointmentView } from '@/components/appointments/appointment-types';
+import { writeUrlQuery } from '@/hooks/use-url-state';
 import { useT } from '@/lib/i18n/use-t';
 import { AdminPageHeader } from '../shared/admin-page-header';
 import { QueryState } from '../shared/query-state';
@@ -13,14 +14,6 @@ import { adminAppointmentFilterFromParams, adminAppointmentFilterToQuery, defaul
 import { AdminAppointmentsFilters } from './admin-appointments-filters';
 import { AdminAppointmentsTable } from './admin-appointments-table';
 import { useAdminAppointments } from './use-admin-appointments';
-
-const APPOINTMENTS_PATH = '/admin/appointments';
-
-/** Mirrors the filter into the address bar without a navigation (the same way the audit page does). */
-function writeFilterToUrl(filter: AdminAppointmentFilter): void {
-  const query: string = adminAppointmentFilterToQuery(filter);
-  window.history.replaceState(null, '', query === '' ? APPOINTMENTS_PATH : `${APPOINTMENTS_PATH}?${query}`);
-}
 
 function isFiltered(filter: AdminAppointmentFilter): boolean {
   const initial: AdminAppointmentFilter = defaultAdminAppointmentFilter();
@@ -39,7 +32,7 @@ export function AdminAppointmentsPanel(): ReactNode {
   return (
     <>
       <AdminPageHeader title={t('title')} description={t('description')} />
-      <AdminAppointmentsFilters filter={filter} onApply={(next) => { setFilter(next); setPage(1); writeFilterToUrl(next); }} />
+      <AdminAppointmentsFilters filter={filter} onApply={(next) => { setFilter(next); setPage(1); writeUrlQuery(adminAppointmentFilterToQuery(next)); }} />
       <QueryState query={query} isEmpty={(data) => data.items.length === 0} emptyTitle={t(isFiltered(filter) ? 'emptyFiltered' : 'empty')} emptyDescription={t(isFiltered(filter) ? 'emptyFilteredHint' : 'emptyHint')}>
         {(data) => (
           <>

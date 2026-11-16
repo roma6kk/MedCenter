@@ -7,6 +7,7 @@ import type { UseQueryResult } from '@tanstack/react-query';
 import { ContentSkeleton } from '@/components/feedback/content-skeleton';
 import { QueryFailure } from '@/components/feedback/query-error-state';
 import { useDocumentTitle } from '@/hooks/use-document-title';
+import { writeUrlQuery } from '@/hooks/use-url-state';
 import { useT } from '@/lib/i18n/use-t';
 import { formatDayHeading, isDateKey } from '@/lib/clinic-time';
 import type { DoctorJournalPage, JournalAppointment } from './doctor-types';
@@ -18,14 +19,8 @@ import { JournalWeekView, type DayColumn } from './journal-week-view';
 import { useDoctorJournal, useDoctorWeekJournal } from './use-doctor-queries';
 import { useMinskToday } from './use-minsk-today';
 
-const JOURNAL_PATH = '/doctor/appointments';
-
 function dayFromUrl(raw: string | null): string | null {
   return raw !== null && isDateKey(raw) ? raw : null;
-}
-
-function writeDayToUrl(day: string | null): void {
-  window.history.replaceState(null, '', day === null ? JOURNAL_PATH : `${JOURNAL_PATH}?date=${day}`);
 }
 
 interface JournalState {
@@ -53,7 +48,7 @@ function useSelectedDay(): readonly [string | null, (day: string | null) => void
   }
   const choose = (day: string | null): void => {
     setSelected(day);
-    writeDayToUrl(day);
+    writeUrlQuery(day === null ? '' : `date=${day}`);
   };
   return [selected, choose];
 }
