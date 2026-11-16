@@ -133,6 +133,12 @@ export class AppointmentsService {
       assertPatientOwns(callerRef, appointment);
     }
     assertBooked(appointment, 'APPOINTMENT_NOT_CANCELLABLE', 'cancelled');
+    if (callerRef !== undefined && Date.parse(stringOf(appointment, 'start')) <= Date.now()) {
+      throw new ConflictException({
+        errorCode: 'APPOINTMENT_ALREADY_STARTED',
+        message: 'APPOINTMENT_ALREADY_STARTED: a started appointment can only be cancelled by an administrator',
+      });
+    }
     // A patient who is being seen (an encounter exists) cannot cancel; an encounter opened after this check bumps the version.
     await this.assertNoEncounter(appointmentId, 'APPOINTMENT_NOT_CANCELLABLE', 'cancelled');
     return appointment;

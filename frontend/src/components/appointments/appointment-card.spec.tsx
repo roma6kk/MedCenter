@@ -6,8 +6,14 @@ import { useUiStore } from '@/store/use-ui-store';
 import { AppointmentCard } from './appointment-card';
 import { appointmentFixture } from './appointment-fixtures';
 
+const BEFORE_FIXTURE_START = '2026-10-15T00:00:00Z';
+
 describe('AppointmentCard', () => {
-  beforeEach(resetCabinetState);
+  beforeEach(() => {
+    resetCabinetState();
+    jest.spyOn(Date, 'now').mockReturnValue(Date.parse(BEFORE_FIXTURE_START));
+  });
+  afterEach(() => jest.restoreAllMocks());
 
   it('should show the Minsk time, the doctor, the service and the status stamp', () => {
     render(<AppointmentCard appointment={appointmentFixture()} />);
@@ -41,6 +47,13 @@ describe('AppointmentCard', () => {
     await userEvent.click(screen.getByRole('button', { name: /Отменить запись: .*Иванова Мария Сергеевна/ }));
 
     expect(onCancel).toHaveBeenCalledWith(appointment);
+  });
+
+  it('should not offer the cancel action once the appointment has started', () => {
+    jest.spyOn(Date, 'now').mockReturnValue(Date.parse('2026-10-19T07:00:00Z'));
+    render(<AppointmentCard appointment={appointmentFixture()} onCancel={jest.fn()} />);
+
+    expect(screen.queryByRole('button', { name: /Отменить запись:/ })).not.toBeInTheDocument();
   });
 
   it('should make the cancel action quiet red text with an icon next to «Подробнее», not a filled button (B2)', () => {

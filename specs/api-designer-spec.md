@@ -141,6 +141,7 @@ export class PaginatedResponseDto<TItem> {
 | `ACCOUNT_CONSENT_WITHDRAWN` | 409 | 2.2.4: `isActive: true` для учётной записи, которую пациент закрыл сам (отозвано согласие, `accountConsentWithdrawnAt`); включить её нельзя |
 | `INVALID_PASSWORD` | 403 | 2.2.8: неверный пароль при закрытии своей учётной записи (или она уже закрыта); 2.2.10: неверный текущий пароль |
 | `APPOINTMENT_NOT_CANCELLABLE` | 409 | BR-002: статус не позволяет отмену |
+| `APPOINTMENT_ALREADY_STARTED` | 409 | 6.4: пациент не может отменить запись после её начала (`Appointment.start` не позже текущего момента); администратор может |
 | `ENCOUNTER_STATE_INVALID` | 409 | BR-003/BR-008: приём уже оформлен / запись не `booked` (cancelled/noshow/fulfilled); неявка (6.6) для записи, у которой уже есть приём или время которой ещё не наступило |
 | `SCHEDULE_OVERLAP` | 409 | пересечение `Schedule.planningHorizon` и недельных окон одного `PractitionerRole` либо одного кабинета (`roomId`) у разных врачей |
 | `SERVICE_IN_USE` | 409 | 5.1.5: на услугу ссылается `Schedule` или роль врача (`PractitionerRole.healthcareService`) |
@@ -890,7 +891,8 @@ export class AppointmentResponseDto {
 
 **6.4 `CancelAppointmentDto`:** `{ reason: string (3…500) }` → `statusReason` (BR-002):
 отменять может пациент-владелец или ADMIN; врач не отменяет (использует 6.6). Повторная отмена →
-409 `APPOINTMENT_NOT_CANCELLABLE`. Publish `appointment.cancelled.v1`, слот → `free`.
+409 `APPOINTMENT_NOT_CANCELLABLE`. Пациент после начала записи (`start` не позже текущего момента) → 409
+`APPOINTMENT_ALREADY_STARTED` (проверка после статуса; неявка остаётся учтённой); администратор отменяет и такую запись. Publish `appointment.cancelled.v1`, слот → `free`.
 **6.6 неявка (BR-008):** `Appointment.status=noshow` ставится только для записи со `status=booked`, у которой **нет**
 `Encounter` (`Encounter?appointment=Appointment/{id}`: ни `in-progress`, ни `finished`). Запись не `booked`
 (cancelled/noshow/fulfilled) или с приёмом → **409** `ENCOUNTER_STATE_INVALID` (раньше для не-`booked` отвечал `CONFLICT`,

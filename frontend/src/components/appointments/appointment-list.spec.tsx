@@ -15,11 +15,15 @@ const cancelMock = cancelAppointment as jest.MockedFunction<typeof cancelAppoint
 const BOOKED = appointmentFixture({ id: '1', status: 'booked' });
 const CANCELLED = appointmentFixture({ id: '2', status: 'cancelled', cancelReason: 'Заболел', start: '2026-10-20T07:00:00.000Z' });
 
+const BEFORE_FIXTURE_START = '2026-10-15T00:00:00Z';
+
 describe('AppointmentList', () => {
   beforeEach(() => {
     jest.resetAllMocks();
+    jest.spyOn(Date, 'now').mockReturnValue(Date.parse(BEFORE_FIXTURE_START));
     resetCabinetState();
   });
+  afterEach(() => jest.restoreAllMocks());
 
   it('should show a loading skeleton while the first page is being read', () => {
     listMock.mockReturnValue(new Promise(() => undefined));

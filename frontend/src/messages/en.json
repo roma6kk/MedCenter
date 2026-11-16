@@ -1209,6 +1209,7 @@
     "CONFLICT": "Conflicts with existing data",
     "SLOT_CONFLICT": "The slot is already taken",
     "APPOINTMENT_NOT_CANCELLABLE": "The appointment cannot be cancelled",
+    "APPOINTMENT_ALREADY_STARTED": "The appointment has already started: ask the front desk to cancel it",
     "CONSENT_REQUIRED": "No active consent to entering information into the clinic information system: send the patient to the front desk or record the paper consent",
     "CONSENT_ALREADY_ACTIVE": "The patient already has an active consent: record its revocation first",
     "ENCOUNTER_STATE_INVALID": "The encounter is already completed",
