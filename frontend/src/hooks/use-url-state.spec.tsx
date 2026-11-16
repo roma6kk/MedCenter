@@ -1,5 +1,5 @@
 import { act, renderHook } from '@testing-library/react';
-import { useUrlState, writeUrlQuery } from './use-url-state';
+import { parsePage, useUrlState, writeUrlQuery } from './use-url-state';
 
 jest.mock('next/navigation', () => ({ useSearchParams: () => new URLSearchParams(window.location.search) }));
 
@@ -31,6 +31,12 @@ describe('useUrlState', () => {
 
     act(() => result.current[1]({ tab: 'upcoming', page: '1' }));
     expect(window.location.pathname + window.location.search).toBe('/appointments');
+  });
+});
+
+describe('parsePage', () => {
+  it.each([['3', 3], ['0', 1], ['-2', 1], ['x', 1], ['1.5', 1], ['', 1]])('should read %s as page %s', (raw, page) => {
+    expect(parsePage(raw)).toBe(page);
   });
 });
 

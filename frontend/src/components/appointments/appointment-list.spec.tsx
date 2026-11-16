@@ -5,6 +5,8 @@ import { useToastStore } from '@/store/use-toast-store';
 import { appointmentFixture } from './appointment-fixtures';
 import { AppointmentList } from './appointment-list';
 
+jest.mock('next/navigation', () => ({ useSearchParams: () => new URLSearchParams(window.location.search) }));
+
 jest.mock('./appointment-api', () => ({ cancelAppointment: jest.fn(), fetchAppointments: jest.fn(), fetchAppointment: jest.fn() }));
 
 import { cancelAppointment, fetchAppointments } from './appointment-api';
@@ -22,6 +24,7 @@ describe('AppointmentList', () => {
     jest.resetAllMocks();
     jest.spyOn(Date, 'now').mockReturnValue(Date.parse(BEFORE_FIXTURE_START));
     resetCabinetState();
+    window.history.replaceState(null, '', '/appointments');
   });
   afterEach(() => jest.restoreAllMocks());
 
@@ -71,6 +74,20 @@ describe('AppointmentList', () => {
     await userEvent.click(screen.getByRole('tab', { name: 'Все записи' }));
 
     await waitFor(() => expect(listMock).toHaveBeenCalledWith({ tab: 'all', page: 1, pageSize: 10 }));
+    expect(screen.getByRole('tab', { name: 'Все записи' })).toHaveAttribute('aria-selected', 'true');
+  });
+
+  it('should keep the chosen tab in the address and open from it', async () => {
+    listMock.mockResolvedValue(pageOf([BOOKED]));
+    const { unmount } = renderWithClient(<AppointmentList />);
+    await screen.findByTestId('next-appointment');
+
+    await userEvent.click(screen.getByRole('tab', { name: 'Все записи' }));
+
+    expect(window.location.search).toBe('?tab=all');
+    unmount();
+    renderWithClient(<AppointmentList />);
+    await waitFor(() => expect(listMock).toHaveBeenLastCalledWith({ tab: 'all', page: 1, pageSize: 10 }));
     expect(screen.getByRole('tab', { name: 'Все записи' })).toHaveAttribute('aria-selected', 'true');
   });
 

@@ -7,6 +7,11 @@ export function writeUrlQuery(query: string): void {
   window.history.replaceState(window.history.state, '', query === '' ? pathname : `${pathname}?${query}`);
 }
 
+export function parsePage(value: string): number {
+  const page = Number(value);
+  return Number.isInteger(page) && page >= 1 ? page : 1;
+}
+
 /** String state kept in the address bar: read once from the URL, values equal to the default are left out of it. The page needs a Suspense boundary. */
 export function useUrlState<K extends string>(defaults: Readonly<Record<K, string>>): readonly [Readonly<Record<K, string>>, (patch: Partial<Record<K, string>>) => void] {
   const params = useSearchParams();
