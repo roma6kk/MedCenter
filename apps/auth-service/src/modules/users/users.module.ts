@@ -11,6 +11,7 @@ import { AccountFactory } from './account-factory.service';
 import { AdminUsersController } from './admin-users.controller';
 import { BootstrapAdminService } from './bootstrap-admin.service';
 import { CredentialsService } from './credentials.service';
+import { DoctorProvisioner } from './doctor-provisioner';
 import { PasswordHasher } from './password-hasher';
 import { RegistrationOutbox } from './patient-events';
 import { PatientProvisioner } from './patient-provisioner';
@@ -25,6 +26,7 @@ import { UsersService } from './users.service';
     { provide: PasswordHasher, useFactory: (): PasswordHasher => new PasswordHasher() },
     RegistrationOutbox,
     PatientProvisioner,
+    DoctorProvisioner,
     AccountFactory,
     RegistrationService,
     { provide: ACCOUNT_RETENTION, useFactory: () => accountRetentionFromEnv() },

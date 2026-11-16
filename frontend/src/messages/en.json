@@ -56,11 +56,13 @@
         "practitionerRoleId": "Practitioner role (PractitionerRole)",
         "password": "Password",
         "newPassword": "New password",
+        "specialty": "Specialty",
         "birthDate": "Birth date",
         "gender": "Gender",
         "isActive": "Account is active"
       },
       "hints": {
+        "specialty": "The doctor and the catalog card are created together with the account. The room is set in the schedule.",
         "newPassword": "Leave empty to keep the current one. The user is signed out everywhere. At least 10 characters: lower and upper case Latin letters, a digit and a symbol",
         "password": "At least 10 characters: lower and upper case Latin letters, a digit and a symbol",
         "practitionerRoleId": "The catalog doctor this account is linked to. Without it the doctor sees no schedule.",
@@ -92,11 +94,13 @@
         "deactivated": "Account deactivated"
       },
       "validation": {
+        "specialtyRequired": "Choose the doctor's specialty",
         "rolesRequired": "Choose at least one role",
         "birthDateRequired": "A patient needs a birth date",
         "birthDateFuture": "Date of birth cannot be in the future"
       },
       "roleOptionsLoading": "Loading doctors…",
+      "specialtyChoose": "Choose a specialty",
       "roleNotLinked": "Not linked",
       "roleTakenBy": "linked to {name}",
       "links": {
@@ -1975,7 +1979,6 @@
     "crossBorderTitle": "Cross-border transfer",
     "crossBorderText": "No cross-border transfer is carried out."
   },
-  "accountClosure": {
   "passwordChange": {
     "title": "Password",
     "sectionLead": "Change your password if someone else may know it. You will have to sign in again afterwards.",
@@ -1991,6 +1994,7 @@
     "confirm": "Change password",
     "busy": "Changing…"
   },
+  "accountClosure": {
     "title": "Delete account",
     "lead": "You can close your personal cabinet. Sign-in stops, while your medical records stay with the clinic.",
     "open": "Delete account",

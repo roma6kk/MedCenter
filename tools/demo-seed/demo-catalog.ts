@@ -1,13 +1,6 @@
-export type DayCode = 'MO' | 'TU' | 'WE' | 'TH' | 'FR' | 'SA' | 'SU';
+export { SPECIALTIES, type SpecialtyDef } from '../../libs/terminology/src/lib/specialties';
 
-export interface SpecialtyDef {
-  readonly key: string;
-  readonly code: string;
-  readonly display: string;
-  readonly displayEn: string;
-  readonly profession: string;
-  readonly professionEn: string;
-}
+export type DayCode = 'MO' | 'TU' | 'WE' | 'TH' | 'FR' | 'SA' | 'SU';
 
 export interface RoomDef {
   readonly key: string;
@@ -88,13 +81,6 @@ export const CLINIC = {
 } as const;
 
 const WEEKDAYS: readonly DayCode[] = ['MO', 'TU', 'WE', 'TH', 'FR'];
-
-export const SPECIALTIES: readonly SpecialtyDef[] = [
-  { key: 'therapy', code: '419192003', display: 'Терапия', displayEn: 'Therapy', profession: 'Терапевт', professionEn: 'Therapist' },
-  { key: 'cardiology', code: '394579002', display: 'Кардиология', displayEn: 'Cardiology', profession: 'Кардиолог', professionEn: 'Cardiologist' },
-  { key: 'neurology', code: '394591006', display: 'Неврология', displayEn: 'Neurology', profession: 'Невролог', professionEn: 'Neurologist' },
-  { key: 'surgery', code: '394609007', display: 'Хирургия', displayEn: 'Surgery', profession: 'Хирург', professionEn: 'Surgeon' },
-];
 
 export const ROOMS: readonly RoomDef[] = [
   { key: 'room-101', identifier: '101', name: 'Кабинет 101', floor: 1, description: 'Кабинет терапевта' },

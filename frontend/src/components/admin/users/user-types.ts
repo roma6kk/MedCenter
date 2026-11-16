@@ -33,7 +33,7 @@ export interface CreateUserPayload {
   readonly roles: ReadonlyArray<UserRole>;
   readonly birthDate?: string;
   readonly gender?: 'male' | 'female';
-  readonly practitionerRoleId?: string;
+  readonly specialtyCode?: string;
 }
 
 export interface UpdateUserPayload {

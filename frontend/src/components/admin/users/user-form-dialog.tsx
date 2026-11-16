@@ -15,6 +15,7 @@ import { useFormBanner } from '../shared/use-form-banner';
 import { useFormMessage } from '../shared/use-form-message';
 import { useCreateUser, useUpdateUser } from './use-admin-users';
 import { usePractitionerRoleOptions } from './use-practitioner-role-options';
+import { useSpecialtyOptions } from './use-specialty-options';
 import { CreateOnlyUserFields, NewPasswordField, SharedUserFields, type CreateOnlyField, type RoleNotes, type SharedUserField } from './user-fields';
 import {
   createUserSchema,
@@ -28,7 +29,7 @@ import {
 } from './user-schema';
 import type { AdminUser } from './user-types';
 
-const CREATE_FIELDS: ReadonlyArray<string> = ['email', 'firstName', 'lastName', 'password', 'roles', 'birthDate', 'gender', 'practitionerRoleId'];
+const CREATE_FIELDS: ReadonlyArray<string> = ['email', 'firstName', 'lastName', 'password', 'roles', 'birthDate', 'gender', 'specialtyCode'];
 const EDIT_FIELDS: ReadonlyArray<string> = ['email', 'firstName', 'lastName', 'roles', 'practitionerRoleId', 'isActive', 'password'];
 
 function useServerRules(showsRoleField: boolean): Readonly<Record<string, ServerFieldRule>> {
@@ -47,8 +48,8 @@ function CreateUserForm({ onClose }: { readonly onClose: () => void }): ReactNod
   const form = useForm<CreateUserFormValues>({ resolver: zodResolver(createUserSchema), defaultValues: EMPTY_CREATE_VALUES });
   const { register, control, handleSubmit, watch, formState } = form;
   const roles = watch('roles');
-  const roleChoices = usePractitionerRoleOptions(undefined, watch('practitionerRoleId'));
-  const { banner, fail, clear } = useFormBanner(form, CREATE_FIELDS, useServerRules(roles.includes('DOCTOR')));
+  const specialties = useSpecialtyOptions();
+  const { banner, fail, clear } = useFormBanner(form, CREATE_FIELDS, useServerRules(false));
   const submit = handleSubmit((values) => {
     clear();
     create.mutate(toCreatePayload(values), { onSuccess: onClose, onError: fail });
@@ -56,8 +57,8 @@ function CreateUserForm({ onClose }: { readonly onClose: () => void }): ReactNod
   const errors = messagesOf<SharedUserField | CreateOnlyField, CreateUserFormValues>(formState.errors, resolve);
   return (
     <form onSubmit={(event) => void submit(event)} noValidate>
-      <SharedUserFields register={register} errors={errors} selectedRoles={roles} roleChoices={roleChoices} />
-      <CreateOnlyUserFields register={register} control={control} errors={errors} selectedRoles={roles} />
+      <SharedUserFields register={register} errors={errors} selectedRoles={roles} showRoleLink={false} />
+      <CreateOnlyUserFields register={register} control={control} errors={errors} selectedRoles={roles} specialties={specialties} />
       <FormProblem banner={banner} />
       <FormActions submitLabel={t('create')} isPending={create.isPending} onCancel={onClose} error={create.error} />
     </form>

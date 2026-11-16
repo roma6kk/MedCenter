@@ -2,6 +2,7 @@ import type { FhirClient } from '@medcenter/fhir';
 
 import { AuditService } from '../../audit/audit.service';
 import { AccountFactory } from '../account-factory.service';
+import { DoctorProvisioner } from '../doctor-provisioner';
 import { PasswordHasher } from '../password-hasher';
 import { RegistrationOutbox } from '../patient-events';
 import { PatientProvisioner } from '../patient-provisioner';
@@ -49,7 +50,7 @@ export function createUsersHarness(options: UsersHarnessOptions = {}): UsersHarn
   const hasher = new PasswordHasher({ N: 2 ** 10, r: 8, p: 1 });
   const patients = new PatientProvisioner(fhir);
   const audit = new AuditService(fhir);
-  const accounts = new AccountFactory(store, hasher, patients, audit, new RegistrationOutbox(fhir));
+  const accounts = new AccountFactory(store, hasher, patients, audit, new RegistrationOutbox(fhir), new DoctorProvisioner(fhir));
   const registration = new RegistrationService(accounts);
   const users = new UsersService(store, accounts, patients, audit, hasher, {
     days: options.retentionDays ?? 1825,

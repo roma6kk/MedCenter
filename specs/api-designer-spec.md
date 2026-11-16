@@ -374,6 +374,8 @@ patientRef: string | null; practitionerRoleRef: string | null; name: string; rol
 + `@IsOptional() @IsArray() roles?: string[]` + `@IsOptional() @IsBoolean() isActive?: boolean`
 + необязательный `password` (парольная политика как при создании). С `password` администратор задаёт новый пароль: `AuditEvent` `user.password_reset`, все сессии пользователя закрываются. Почты и ссылок сброса нет.
 
+**2.2.1 `POST /api/v1/admin/users` для врача.** Необязательное поле `specialtyCode` (код SNOMED CT из списка специальностей клиники, `libs/terminology`) только для `DOCTOR` и только без `practitionerRoleId`: auth-service сам создаёт в HAPI `Practitioner` (имя из `firstName`/`lastName`, `qualification` со специальностью, `active: true`) и `PractitionerRole` (`active: true`, та же специальность) в том же виде, что демо-сидер, и привязывает роль к учётной записи. Если привязка не удалась, ресурсы и учётная запись удаляются. Кабинет задаётся в расписании. Привязка к готовой роли (`practitionerRoleId`) остаётся для сидера и ручной правки; интерфейс администратора при создании использует только `specialtyCode`. Неизвестный код — **400**.
+
 **2.2.10 `POST /api/v1/me/password`** — `{ currentPassword, newPassword }`; `newPassword` проходит ту же парольную политику. Меняет хеш, пишет `AuditEvent` `user.password_changed` (агент — сам пользователь) и закрывает все сессии пользователя: нужно войти заново. Ответы: **204**; **400**; **403** `INVALID_PASSWORD` — текущий пароль неверный.
 
 ##### 2.3 Терминология (FR-018, ADR-002/016/017)

@@ -204,4 +204,34 @@ describe('UsersService', () => {
 
     expect(me.accountConsent).toBeNull();
   });
+
+  describe('creating a DOCTOR with a specialty', () => {
+    it('should create the Practitioner and PractitionerRole and link the new account to the role', async () => {
+      const harness = createUsersHarness();
+
+      const user = await harness.users.create(doctorDto({ specialtyCode: '394579002' }), ADMIN);
+
+      expect(createdOf(harness.fhir, 'Practitioner')).toHaveLength(1);
+      expect(createdOf(harness.fhir, 'PractitionerRole')).toHaveLength(1);
+      expect(user.practitionerRoleRef).toMatch(/^PractitionerRole\/practitionerrole-/);
+    });
+
+    it('should delete both FHIR resources and the account when linking fails', async () => {
+      const harness = createUsersHarness();
+      jest.spyOn(harness.store, 'link').mockRejectedValueOnce(new Error('database went away'));
+
+      await expect(harness.users.create(doctorDto({ specialtyCode: '394579002' }), ADMIN)).rejects.toThrow('database went away');
+
+      expect(harness.fhir.delete).toHaveBeenCalledWith('PractitionerRole', expect.any(String));
+      expect(harness.fhir.delete).toHaveBeenCalledWith('Practitioner', expect.any(String));
+      expect(await harness.store.findByEmail('petrov@example.by')).toBeNull();
+    });
+
+    it('should refuse a specialty together with an existing PractitionerRole and for a non-doctor', async () => {
+      const harness = createUsersHarness();
+
+      await expect(harness.users.create(doctorDto({ specialtyCode: '394579002', practitionerRoleId: 'role-1' }), ADMIN)).rejects.toMatchObject({ status: 400 });
+      await expect(harness.users.create(doctorDto({ roles: [Role.ADMIN], specialtyCode: '394579002' }), ADMIN)).rejects.toMatchObject({ status: 400 });
+    });
+  });
 });

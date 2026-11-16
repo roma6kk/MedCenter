@@ -84,4 +84,9 @@ export class CreateUserDto {
   @ValidateIf(isPresent)
   @Matches(FHIR_ID_PATTERN, { message: '$property must be a FHIR resource id' })
   practitionerRoleId?: string;
+
+  @ApiPropertyOptional({ example: '394579002', description: 'SNOMED CT code of a clinic specialty; only valid for a DOCTOR without practitionerRoleId. The Practitioner and PractitionerRole are created in HAPI and linked' })
+  @ValidateIf(isPresent)
+  @Matches(/^\d{6,18}$/, { message: '$property must be a SNOMED CT code' })
+  specialtyCode?: string;
 }

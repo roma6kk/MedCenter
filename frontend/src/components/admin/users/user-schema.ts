@@ -21,6 +21,7 @@ const createShape = {
   password: passwordRule,
   birthDate: z.string().refine((value) => value === '' || isCalendarDate(value), 'validation.date'),
   gender: z.enum(['', 'male', 'female']),
+  specialtyCode: z.string(),
 };
 
 type CreateValues = z.infer<z.ZodObject<typeof createShape>>;
@@ -47,7 +48,12 @@ function checkRoleRules(values: RoleValues, ctx: z.RefinementCtx, needsBirthDate
   }
 }
 
-export const createUserSchema = z.object(createShape).superRefine((values, ctx) => checkRoleRules(values, ctx, true));
+export const createUserSchema = z.object(createShape).superRefine((values, ctx) => {
+  checkRoleRules(values, ctx, true);
+  if (values.roles.includes('DOCTOR') && values.specialtyCode === '') {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['specialtyCode'], message: 'admin.users.validation.specialtyRequired' });
+  }
+});
 
 export const editUserSchema = z
   .object({ ...baseShape, isActive: z.boolean(), password: z.union([z.literal(''), passwordRule]) })
@@ -65,6 +71,7 @@ export const EMPTY_CREATE_VALUES: CreateUserFormValues = {
   birthDate: '',
   gender: '',
   practitionerRoleId: '',
+  specialtyCode: '',
 };
 
 export function editValuesOf(user: AdminUser): EditUserFormValues {
@@ -88,7 +95,7 @@ export function toCreatePayload(values: CreateUserFormValues): CreateUserPayload
     roles: values.roles,
     ...(values.birthDate === '' ? {} : { birthDate: values.birthDate }),
     ...(values.gender === '' ? {} : { gender: values.gender }),
-    ...(effectiveLink(values) === '' ? {} : { practitionerRoleId: effectiveLink(values) }),
+    ...(values.roles.includes('DOCTOR') && values.specialtyCode !== '' ? { specialtyCode: values.specialtyCode } : {}),
   };
 }
 

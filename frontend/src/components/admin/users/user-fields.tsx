@@ -10,12 +10,13 @@ import { useT } from '@/lib/i18n/use-t';
 import { CONTROL_CLASS } from '../shared/admin-styles';
 import type { FieldMessages } from '../shared/form-errors';
 import { controlProps, Field, Fieldset } from '../shared/form-field';
+import type { SpecialtyOption } from '@/components/catalog/doctor-directory';
 import type { PractitionerRoleChoices } from './use-practitioner-role-options';
 import type { CreateUserFormValues } from './user-schema';
 import { USER_ROLES, type UserRole } from './user-types';
 
 export type SharedUserField = 'email' | 'firstName' | 'lastName' | 'roles' | 'practitionerRoleId';
-export type CreateOnlyField = 'password' | 'birthDate' | 'gender';
+export type CreateOnlyField = 'password' | 'birthDate' | 'gender' | 'specialtyCode';
 export type EditOnlyField = 'password';
 
 export interface RoleNotes {
@@ -31,6 +32,8 @@ interface SharedFieldsProps {
   readonly selectedRoles: ReadonlyArray<UserRole>;
   readonly notes?: RoleNotes;
   readonly roleChoices?: PractitionerRoleChoices;
+  // Create asks for a specialty instead: the PractitionerRole is made by the server.
+  readonly showRoleLink?: boolean;
 }
 
 type Registrations = Readonly<Record<SharedUserField, UseFormRegisterReturn>>;
@@ -101,7 +104,7 @@ function NameFields({ registrations, errors }: { readonly registrations: Registr
   );
 }
 
-export function SharedUserFields({ register, errors, selectedRoles, notes = NO_ROLE_NOTES, roleChoices = { state: 'unavailable' } }: SharedFieldsProps): ReactNode {
+export function SharedUserFields({ register, errors, selectedRoles, notes = NO_ROLE_NOTES, roleChoices = { state: 'unavailable' }, showRoleLink = true }: SharedFieldsProps): ReactNode {
   const t = useT('admin.users');
   // Registered in screen order here: react-hook-form focuses the first invalid field in the order they were registered.
   const registrations: Registrations = {
@@ -118,7 +121,7 @@ export function SharedUserFields({ register, errors, selectedRoles, notes = NO_R
         <input {...controlProps('user-email', errors.email)} type="email" autoComplete="off" className={CONTROL_CLASS} {...registrations.email} />
       </Field>
       <RoleCheckboxes registration={registrations.roles} error={errors.roles} notes={notes} />
-      {selectedRoles.includes('DOCTOR') ? <PractitionerRoleField registration={registrations.practitionerRoleId} error={errors.practitionerRoleId} choices={roleChoices} /> : null}
+      {showRoleLink && selectedRoles.includes('DOCTOR') ? <PractitionerRoleField registration={registrations.practitionerRoleId} error={errors.practitionerRoleId} choices={roleChoices} /> : null}
       {notes.releasesLink ? <p className="text-sm text-[var(--muted-foreground)]">{t('hints.linkReleased')}</p> : null}
     </div>
   );
@@ -129,9 +132,10 @@ interface CreateOnlyProps {
   readonly control: Control<CreateUserFormValues>;
   readonly errors: FieldMessages<CreateOnlyField>;
   readonly selectedRoles: ReadonlyArray<UserRole>;
+  readonly specialties: ReadonlyArray<SpecialtyOption>;
 }
 
-export function CreateOnlyUserFields({ register, control, errors, selectedRoles }: CreateOnlyProps): ReactNode {
+export function CreateOnlyUserFields({ register, control, errors, selectedRoles, specialties }: CreateOnlyProps): ReactNode {
   const t = useT('admin.users');
   const passwordHint: string = t('hints.password');
   return (
@@ -139,6 +143,14 @@ export function CreateOnlyUserFields({ register, control, errors, selectedRoles 
       <Field id="user-password" label={t('fields.password')} error={errors.password} hint={passwordHint} required>
         <input {...controlProps('user-password', errors.password, passwordHint)} type="password" autoComplete="new-password" className={CONTROL_CLASS} {...register('password')} />
       </Field>
+      {selectedRoles.includes('DOCTOR') ? (
+        <Field id="user-specialty" label={t('fields.specialty')} error={errors.specialtyCode} hint={t('hints.specialty')} required>
+          <Select {...controlProps('user-specialty', errors.specialtyCode, t('hints.specialty'))} {...register('specialtyCode')}>
+            <option value="">{t('specialtyChoose')}</option>
+            {specialties.map((specialty) => <option key={specialty.code} value={specialty.code}>{specialty.label}</option>)}
+          </Select>
+        </Field>
+      ) : null}
       {selectedRoles.includes('PATIENT') ? (
         <div className="grid gap-3 sm:grid-cols-2">
           <Field id="user-birth-date" label={t('fields.birthDate')} error={errors.birthDate} required>

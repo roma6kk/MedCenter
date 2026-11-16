@@ -7,6 +7,7 @@ interface AccountShape {
   readonly roles: ReadonlyArray<Role>;
   readonly birthDate?: string;
   readonly practitionerRoleId?: string;
+  readonly specialtyCode?: string;
 }
 
 export function assertCreatable(shape: AccountShape): void {
@@ -14,6 +15,9 @@ export function assertCreatable(shape: AccountShape): void {
     throw invalidUserInput('birthDate: required for a PATIENT account');
   }
   assertPractitionerRoleFits(shape.roles, shape.practitionerRoleId);
+  if (shape.specialtyCode !== undefined && (!shape.roles.includes(Role.DOCTOR) || shape.practitionerRoleId !== undefined)) {
+    throw invalidUserInput('specialtyCode: only valid for a DOCTOR account without practitionerRoleId');
+  }
 }
 
 function assertPractitionerRoleFits(roles: ReadonlyArray<Role>, practitionerRoleId: string | null | undefined): void {

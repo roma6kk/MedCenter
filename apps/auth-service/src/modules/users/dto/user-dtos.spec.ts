@@ -330,3 +330,11 @@ describe('UpdateUserDto password', () => {
     expect(violations.some((message) => message.startsWith('password'))).toBe(true);
   });
 });
+
+describe('CreateUserDto specialtyCode', () => {
+  it('should accept a numeric code and reject other shapes', async () => {
+    await expect(violationsOf(CreateUserDto, { ...CREATE, specialtyCode: '394579002' })).resolves.toEqual([]);
+    const violations = await violationsOf(CreateUserDto, { ...CREATE, specialtyCode: 'cardio; drop' });
+    expect(violations.some((message) => message.startsWith('specialtyCode'))).toBe(true);
+  });
+});

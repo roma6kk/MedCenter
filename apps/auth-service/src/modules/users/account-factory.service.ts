@@ -6,6 +6,7 @@ import { normaliseEmail } from '../../config/auth-env';
 import type { AuditActor } from '../audit/audit-event.builder';
 import { AuditService } from '../audit/audit.service';
 import { assertCreatable } from './account-rules';
+import { DoctorProvisioner, type DoctorIds } from './doctor-provisioner';
 import { PasswordHasher } from './password-hasher';
 import { registeredEvent, RegistrationOutbox } from './patient-events';
 import { PatientProvisioner, type PatientGender } from './patient-provisioner';
@@ -23,6 +24,7 @@ interface NewAccount {
   readonly gender?: PatientGender;
   readonly phone?: string;
   readonly practitionerRoleId?: string;
+  readonly specialtyCode?: string;
   readonly accountConsentVersion?: string;
 }
 
@@ -47,6 +49,7 @@ export class AccountFactory {
     private readonly patients: PatientProvisioner,
     private readonly audit: AuditService,
     private readonly outbox: RegistrationOutbox,
+    private readonly doctors: DoctorProvisioner,
   ) {}
 
   async create(input: NewAccount, context: AccountContext): Promise<UserRecord> {
@@ -126,24 +129,41 @@ export class AccountFactory {
 
   private async linkResources(user: UserRecord, input: NewAccount): Promise<UserRecord> {
     let patientId: string | undefined;
+    let doctor: DoctorIds | undefined;
+    let practitionerRoleId = input.practitionerRoleId;
     try {
       if (user.roles.includes(Role.PATIENT)) {
         patientId = await this.provisionPatient(user, input);
       }
-      if (input.practitionerRoleId !== undefined) {
-        await this.store.link(user.id, 'PractitionerRole', input.practitionerRoleId);
+      if (input.specialtyCode !== undefined) {
+        doctor = await this.doctors.create({ userId: user.id, firstName: user.firstName, lastName: user.lastName, specialtyCode: input.specialtyCode });
+        practitionerRoleId = doctor.practitionerRoleId;
+      }
+      if (practitionerRoleId !== undefined) {
+        await this.store.link(user.id, 'PractitionerRole', practitionerRoleId);
       }
     } catch (error: unknown) {
       await this.compensate(user.id, patientId, isOutcomeUnknown(error));
+      if (doctor !== undefined) {
+        await this.removeDoctor(doctor);
+      }
       throw conflictOf(error);
     }
     return {
       ...user,
       links: {
         ...(patientId !== undefined ? { patientId } : {}),
-        ...(input.practitionerRoleId !== undefined ? { practitionerRoleId: input.practitionerRoleId } : {}),
+        ...(practitionerRoleId !== undefined ? { practitionerRoleId } : {}),
       },
     };
+  }
+
+  private async removeDoctor(doctor: DoctorIds): Promise<void> {
+    try {
+      await this.doctors.remove(doctor);
+    } catch (error: unknown) {
+      this.logger.error({ err: error, ...doctor }, 'Compensation failed: an orphan FHIR Practitioner may remain');
+    }
   }
 
   private async provisionPatient(user: UserRecord, input: NewAccount): Promise<string> {
