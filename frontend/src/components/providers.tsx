@@ -22,7 +22,7 @@ function SessionHydrator(): null {
   return null;
 }
 
-// Reading storage during render would mismatch the server HTML, so the saved locale is restored after hydration.
+// Reading storage during render would mismatch the server HTML, so the saved locale is restored after hydration (<html lang> is already set before paint by LOCALE_INIT_SCRIPT).
 function LocaleSync(): null {
   const locale = useUiStore((state) => state.locale);
   useEffect(() => {

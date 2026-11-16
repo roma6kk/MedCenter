@@ -37,3 +37,6 @@ export function readLocaleCookie(): Locale | null {
 export function writeLocaleCookie(locale: Locale): void {
   document.cookie = `${LOCALE_COOKIE}=${locale}; path=/; max-age=${LOCALE_COOKIE_MAX_AGE_SECONDS}; samesite=lax`;
 }
+
+// Runs before first paint with no shared code (like THEME_INIT_SCRIPT): sets <html lang> from the cookie, else from localStorage as LocaleSync does.
+export const LOCALE_INIT_SCRIPT = `(function(){try{var m=document.cookie.match(/(?:^|; )${LOCALE_COOKIE}=(ru|en)(?:;|$)/);var l=m?m[1]:null;if(!l){try{l=window.localStorage.getItem(${JSON.stringify(LOCALE_STORAGE_KEY)});}catch(e){}}if(l==='ru'||l==='en')document.documentElement.lang=l;}catch(e){}})();`;

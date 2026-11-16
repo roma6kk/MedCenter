@@ -293,7 +293,7 @@ cd frontend && npx playwright test                              # после `np
 
 - **next-intl**, `ru-BY` по умолчанию (NFR-008, A-8), `en` — задел: `messages/{ru,en}.json`,
   namespace `common/booking/doctor/admin/errors`; переключатель в шапке. Названия услуг/диагнозов —
-  display из сервера (терминология), не переводим клиентом.
+  display из сервера (терминология), не переводим клиентом. Язык интерфейса применяется после гидратации; `lang` у `<html>` выставляет inline-скрипт в `<head>` по cookie `mc-locale` до первой отрисовки.
 - Даты: хранение RFC 3339 UTC (API §0) → отображение `Europe/Minsk` через `Intl.DateTimeFormat`;
   ввод — локальное время (как в `WeeklyWindowDto`).
 - Локализация ошибок: `errorCode` → ключ `errors.<errorCode>` (текст из каталога §1).
