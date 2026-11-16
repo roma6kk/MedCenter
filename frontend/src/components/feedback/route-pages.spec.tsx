@@ -12,7 +12,7 @@ describe('route pages', () => {
   describe.each([
     ['NotFoundPage', <NotFoundPage key="nf" />],
     ['ForbiddenPage', <ForbiddenPage key="fb" />],
-    ['RouteErrorPage', <RouteErrorPage key="er" error={new Error('boom')} reset={jest.fn()} />],
+    ['RouteErrorPage', <RouteErrorPage key="er" reset={jest.fn()} />],
   ])('%s', (_name, page) => {
     it('should render exactly one skip link that targets the main landmark when it is shown', () => {
       render(page);
@@ -59,10 +59,9 @@ describe('route pages', () => {
 
   it('should show the crash and let the user try again when the page failed', async () => {
     const reset = jest.fn();
-    render(<RouteErrorPage error={new Error('boom')} reset={reset} />);
+    render(<RouteErrorPage reset={reset} />);
 
     expect(screen.getByTestId('problem-banner')).toHaveTextContent('Что-то пошло не так');
-    expect(screen.getByTestId('problem-banner')).toHaveTextContent('boom');
     await userEvent.click(screen.getByRole('button', { name: 'Повторить' }));
 
     expect(reset).toHaveBeenCalledTimes(1);

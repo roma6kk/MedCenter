@@ -24,10 +24,10 @@ describe('ProblemBanner', () => {
     expect(screen.queryByText('Slot conflict')).not.toBeInTheDocument();
   });
 
-  it('should show the server detail, the code chip and the request id', () => {
+  it('should show the code chip and the request id and not the raw server detail', () => {
     render(<ProblemBanner problem={CONFLICT} />);
 
-    expect(screen.getByText('Slot 7c9e is busy')).toBeInTheDocument();
+    expect(screen.queryByText('Slot 7c9e is busy')).not.toBeInTheDocument();
     expect(screen.getByTestId('code-chip')).toHaveTextContent('SLOT_CONFLICT');
     expect(screen.getByTestId('copy-request-id')).toHaveTextContent('01J9ZK3M8Q');
   });
@@ -156,14 +156,6 @@ describe('ProblemBanner', () => {
       render(<ProblemBanner problem={UNHANDLED} detail="Повторите позже" />);
 
       expect(screen.getByText('Повторите позже')).toBeInTheDocument();
-    });
-
-    it('should keep the detail of a 502 under the same code: there the server says what to do', () => {
-      const partial: ProblemDetails = { title: 'Bad Gateway', status: 502, errorCode: 'INTERNAL', detail: '3 slots were not written (17 were); run the same range again to write the rest' };
-
-      render(<ProblemBanner problem={partial} />);
-
-      expect(screen.getByText(/run the same range again/)).toBeInTheDocument();
     });
   });
 });

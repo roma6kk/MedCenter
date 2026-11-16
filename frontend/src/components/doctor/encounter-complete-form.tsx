@@ -40,7 +40,7 @@ interface FailureProps {
 
 function CompletionFailure({ problem, foreignMessages, isMarked }: FailureProps): ReactNode {
   const t = useT('doctor.encounter');
-  const detail: string | undefined = isMarked ? t('fixMarkedFields') : foreignMessages.length > 0 ? foreignMessages.join('. ') : problem.detail;
+  const detail: string | undefined = isMarked ? t('fixMarkedFields') : foreignMessages.length > 0 ? foreignMessages.join('. ') : undefined;
   return (
     <ScrollToFailure isActive={!isMarked} className="mt-4">
       <ProblemBanner problem={problem} detail={detail} />

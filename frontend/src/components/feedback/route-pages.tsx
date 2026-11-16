@@ -86,11 +86,10 @@ export function ForbiddenPage(): ReactNode {
 }
 
 interface RouteErrorPageProps {
-  readonly error: Error;
   readonly reset: () => void;
 }
 
-export function RouteErrorPage({ error, reset }: RouteErrorPageProps): ReactNode {
+export function RouteErrorPage({ reset }: RouteErrorPageProps): ReactNode {
   const t = useT('feedback');
   const tCommon = useT('common');
   useDocumentTitle(t('errorTitle'));
@@ -99,7 +98,7 @@ export function RouteErrorPage({ error, reset }: RouteErrorPageProps): ReactNode
       <div className="w-full rounded-panel border border-border bg-card p-8 sm:p-10">
         <div className="text-center"><IconTile icon={TriangleAlert} tone="destructive" /></div>
         <div className="mt-5 text-left">
-          <ProblemBanner title={t('errorTitle')} detail={error.message} errorCode="INTERNAL" />
+          <ProblemBanner title={t('errorTitle')} errorCode="INTERNAL" />
         </div>
         <div className="mt-6 flex flex-wrap justify-center gap-3">
           <Button size="lg" onClick={reset}><RefreshCw aria-hidden="true" className="h-4 w-4" />{tCommon('retry')}</Button>
