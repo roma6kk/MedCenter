@@ -12,7 +12,6 @@ import type { PatientCard } from './doctor-types';
 import { initialsOf } from './journal-model';
 import { ContentSkeleton } from '@/components/feedback/content-skeleton';
 import { QueryFailure } from '@/components/feedback/query-error-state';
-import { RelatedPersons } from './related-persons';
 import { usePatient } from './use-doctor-queries';
 
 function Fact({ label, children, className }: { readonly label: string; readonly children: ReactNode; readonly className?: string }): ReactNode {
@@ -62,7 +61,6 @@ export function PatientHeader({ patientId, onManageConsent }: PatientHeaderProps
       <PatientFacts patient={patient.data} />
       <div className="flex flex-col gap-1 border-t border-border-soft pt-3">
         <ConsentStatusLine patientId={patientId} onManage={onManageConsent} />
-        <RelatedPersons patientId={patientId} />
       </div>
     </Card>
   );

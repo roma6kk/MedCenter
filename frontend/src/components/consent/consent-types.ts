@@ -4,8 +4,6 @@ type ConsentStatus = 'active' | 'inactive' | 'rejected' | 'entered-in-error';
 export type ConsentEntryStatus = 'active' | 'rejected';
 export type ConsenterType = 'self' | 'legal-representative' | 'guardian' | 'relative';
 
-export const CONSENTER_TYPES: ReadonlyArray<ConsenterType> = ['self', 'legal-representative', 'guardian', 'relative'];
-
 export interface ConsentScanRef {
   readonly id: string;
   readonly contentType: string;
@@ -34,7 +32,6 @@ export interface ConsentRecord {
 export interface PatientConsent {
   readonly active: ConsentRecord | null;
   readonly history: ReadonlyArray<ConsentRecord>;
-  readonly patientIsAdult?: boolean;
 }
 
 export interface ScanUpload {

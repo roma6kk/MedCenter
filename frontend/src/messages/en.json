@@ -1163,8 +1163,6 @@
       "unknown": "Not specified",
       "contacts": "Contacts",
       "noContacts": "No contacts on file",
-      "relatedTitle": "Trusted persons",
-      "relatedUnavailable": "Trusted persons are unavailable",
       "telecom": {
         "phone": "Phone",
         "email": "Email",
@@ -1267,8 +1265,7 @@
     "scanRequired": "Attach the scan of the signed form",
     "scanType": "The scan must be a PDF, JPEG or PNG file",
     "scanSize": "The file is larger than 10 MB",
-    "futureDate": "The signing date cannot be in the future",
-    "relatedRequired": "Choose the patient's trusted person"
+    "futureDate": "The signing date cannot be in the future"
   },
   "errors": {
     "VALIDATION_ERROR": "Check the highlighted fields",
@@ -1880,13 +1877,6 @@
         "active": "Consent",
         "rejected": "Written refusal"
       },
-      "consenterType": "Signed by",
-      "minorHint": "The patient is under 18: a legal representative or guardian signs the consent.",
-      "relatedPerson": "Patient's trusted person",
-      "relatedPlaceholder": "Choose…",
-      "relatedNone": "The patient has no trusted persons on file: record a consent signed by the patient, or add the trusted person first.",
-      "representativeDocument": "Document proving authority",
-      "representativeHint": "For example: power of attorney, guardianship decision.",
       "signedByName": "Name of the staff member who handled the form",
       "signedByDoctorHint": "Filled in from your account.",
       "file": "Scan of the signed form",

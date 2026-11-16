@@ -2,8 +2,6 @@
 
 import type { ReactNode } from 'react';
 import { Controller, useWatch } from 'react-hook-form';
-import type { RelatedPerson } from '@/components/doctor/doctor-types';
-import { useRelatedPersons } from '@/components/doctor/use-doctor-queries';
 import { ProblemBanner } from '@/components/feedback/problem-banner';
 import { Button } from '@/components/ui/button';
 import { DatePicker } from '@/components/ui/date-picker';
@@ -13,39 +11,10 @@ import { FormField, INPUT_CLASS } from '@/components/patient/form-field';
 import { clinicDateKey } from '@/lib/clinic-time';
 import { CONSENT_SCAN_CONTENT_TYPES, CONSENT_SCAN_MAX_BYTES } from '@/lib/contracts';
 import { useT } from '@/lib/i18n/use-t';
-import { CONSENTER_TYPES } from './consent-types';
 import { useConsentRecordForm, type ConsentRecordFormState } from './use-consent-record-form';
 import { Select } from '@/components/ui/select';
 
 type Role = 'ADMIN' | 'DOCTOR';
-
-function relatedLabel(person: RelatedPerson): string {
-  const relationship: string | undefined = person.relationship.map((coding) => coding.display ?? coding.code).find((text) => text !== undefined && text !== '');
-  return relationship === undefined ? person.fullName : `${person.fullName} (${relationship})`;
-}
-
-function RepresentativeFields({ state, patientId }: { readonly state: ConsentRecordFormState; readonly patientId: string }): ReactNode {
-  const t = useT('consent.staff');
-  const related = useRelatedPersons(patientId, 1);
-  const { register, formState: { errors } } = state.form;
-  const persons: ReadonlyArray<RelatedPerson> = related.data?.items ?? [];
-  return (
-    <>
-      {related.data !== undefined && persons.length === 0 ? <p className="mt-3 text-sm text-muted-foreground">{t('relatedNone')}</p> : null}
-      <FormField id="consent-related" label={t('relatedPerson')} error={errors.relatedPersonId?.message}>
-        {(control) => (
-          <Select {...control} {...register('relatedPersonId')}>
-            <option value="">{t('relatedPlaceholder')}</option>
-            {persons.map((person) => <option key={person.id} value={person.id}>{relatedLabel(person)}</option>)}
-          </Select>
-        )}
-      </FormField>
-      <FormField id="consent-document" label={t('representativeDocument')} hint={t('representativeHint')} error={errors.representativeDocument?.message}>
-        {(control) => <input {...control} type="text" {...register('representativeDocument')} className={INPUT_CLASS} />}
-      </FormField>
-    </>
-  );
-}
 
 function ScanField({ state }: { readonly state: ConsentRecordFormState }): ReactNode {
   const t = useT('consent.staff');
@@ -77,11 +46,9 @@ function SignerField({ state, role }: { readonly state: ConsentRecordFormState; 
   );
 }
 
-function EntryFields({ state, role, patientId, canSelfSign }: { readonly state: ConsentRecordFormState; readonly role: Role; readonly patientId: string; readonly canSelfSign: boolean }): ReactNode {
+function EntryFields({ state, role }: { readonly state: ConsentRecordFormState; readonly role: Role }): ReactNode {
   const t = useT('consent.staff');
-  const tType = useT('consent.view.consenterTypes');
   const { register, control, formState: { errors } } = state.form;
-  const consenterType = useWatch({ control, name: 'consenterType' });
   return (
     <>
       <FormField id="consent-form-number" label={t('formNumber')} error={errors.formNumber?.message}>
@@ -98,14 +65,6 @@ function EntryFields({ state, role, patientId, canSelfSign }: { readonly state: 
           </Select>
         )}
       </FormField>
-      <FormField id="consent-consenter" label={t('consenterType')} error={errors.consenterType?.message} hint={canSelfSign ? undefined : t('minorHint')}>
-        {(controlProps) => (
-          <Select {...controlProps} {...register('consenterType')} wrapperClassName="max-w-xs">
-            {CONSENTER_TYPES.filter((type) => canSelfSign || type !== 'self').map((type) => <option key={type} value={type}>{tType(type)}</option>)}
-          </Select>
-        )}
-      </FormField>
-      {consenterType === 'self' ? null : <RepresentativeFields state={state} patientId={patientId} />}
       <SignerField state={state} role={role} />
       <ScanField state={state} />
     </>
@@ -115,16 +74,15 @@ function EntryFields({ state, role, patientId, canSelfSign }: { readonly state: 
 interface ConsentRecordFormProps {
   readonly patientId: string;
   readonly role: Role;
-  readonly canSelfSign?: boolean;
 }
 
-export function ConsentRecordForm({ patientId, role, canSelfSign = true }: ConsentRecordFormProps): ReactNode {
+export function ConsentRecordForm({ patientId, role }: ConsentRecordFormProps): ReactNode {
   const t = useT('consent.staff');
-  const state: ConsentRecordFormState = useConsentRecordForm(patientId, role, canSelfSign);
+  const state: ConsentRecordFormState = useConsentRecordForm(patientId, role);
   return (
     <form onSubmit={state.submit} noValidate aria-labelledby="consent-record-title" className="mt-2">
       <h3 id="consent-record-title" className="text-base font-bold">{t('recordTitle')}</h3>
-      <EntryFields state={state} role={role} patientId={patientId} canSelfSign={canSelfSign} />
+      <EntryFields state={state} role={role} />
       {state.isAlreadyActive ? <p role="alert" className="mt-3 rounded-card bg-warning-soft p-3 text-sm">{t('alreadyActive')}</p> : null}
       {state.problem !== null ? <div className="mt-3"><ProblemBanner problem={state.problem} /></div> : null}
       <Button type="submit" aria-disabled={state.isPending ? true : undefined} aria-busy={state.isPending} className="mt-4">

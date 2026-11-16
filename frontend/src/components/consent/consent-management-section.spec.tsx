@@ -1,6 +1,6 @@
 import { act, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { pageOf, renderWithClient, resetCabinetState } from '@/components/patient/cabinet-test-utils';
+import { renderWithClient, resetCabinetState } from '@/components/patient/cabinet-test-utils';
 import * as doctorApi from '@/components/doctor/doctor-api';
 import * as api from './consent-api';
 import { NONE, WITH_ACTIVE } from './consent-fixtures';
@@ -25,7 +25,6 @@ describe('ConsentManagementSection', () => {
     resetCabinetState();
     window.location.hash = '';
     jest.mocked(api.fetchPatientConsent).mockResolvedValue(WITH_ACTIVE);
-    jest.mocked(doctorApi.fetchRelatedPersons).mockResolvedValue(pageOf([]));
   });
 
   it('should be folded by default: no forms and no consent request until it is opened', async () => {

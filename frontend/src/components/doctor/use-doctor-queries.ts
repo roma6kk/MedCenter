@@ -17,7 +17,6 @@ import {
   fetchPatient,
   fetchPatientHistory,
   fetchPatientPrescriptions,
-  fetchRelatedPersons,
   JOURNAL_MAX_PAGE_SIZE,
   type JournalRange,
 } from './doctor-api';
@@ -32,7 +31,6 @@ import type {
   JournalAppointment,
   PatientCard,
   Prescription,
-  RelatedPerson,
   Term,
 } from './doctor-types';
 
@@ -108,15 +106,6 @@ export function usePatient(patientId: string): UseQueryResult<PatientCard> {
     queryKey: queryKeys.patientCard(patientId),
     queryFn: ({ signal }) => fetchPatient(patientId, signal),
     staleTime: DEFAULT_STALE_TIME_MS,
-  });
-}
-
-export function useRelatedPersons(patientId: string, page: number): UseQueryResult<PaginatedResponse<RelatedPerson>> {
-  return useQuery({
-    queryKey: queryKeys.relatedPersons(patientId, { page, pageSize: CARD_PAGE_SIZE }),
-    queryFn: ({ signal }) => fetchRelatedPersons(patientId, { page, pageSize: CARD_PAGE_SIZE }, signal),
-    staleTime: DEFAULT_STALE_TIME_MS,
-    placeholderData: keepPreviousData,
   });
 }
 

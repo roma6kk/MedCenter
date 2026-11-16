@@ -11,7 +11,6 @@ import type {
   JournalAppointment,
   PatientCard,
   Prescription,
-  RelatedPerson,
 } from './doctor-types';
 import type { CompleteEncounterForm } from '@/lib/contracts';
 
@@ -98,11 +97,6 @@ export function postCancelEncounter(encounterId: string): Promise<EncounterSumma
 
 export function fetchPatient(patientId: string, signal?: AbortSignal): Promise<PatientCard> {
   return apiFetch<PatientCard>(`/api/v1/patients/${encodeURIComponent(patientId)}`, { signal });
-}
-
-export function fetchRelatedPersons(patientId: string, request: PageRequest, signal?: AbortSignal): Promise<PaginatedResponse<RelatedPerson>> {
-  const path = withQuery(`/api/v1/patients/${encodeURIComponent(patientId)}/related`, { page: request.page, pageSize: request.pageSize });
-  return apiFetch<PaginatedResponse<RelatedPerson>>(path, { signal });
 }
 
 export function fetchPatientHistory(patientId: string, request: PageRequest, signal?: AbortSignal): Promise<PaginatedResponse<HistoryItem>> {

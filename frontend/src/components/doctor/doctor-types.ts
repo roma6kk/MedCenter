@@ -47,17 +47,6 @@ export interface PatientCard {
   readonly telecom: ReadonlyArray<Telecom>;
 }
 
-export interface RelatedPerson {
-  readonly id: string;
-  readonly patientId: string;
-  readonly active: boolean;
-  readonly fullName: string;
-  readonly relationship: ReadonlyArray<Coding>;
-  readonly gender?: Gender;
-  readonly birthDate?: string;
-  readonly telecom: ReadonlyArray<Telecom>;
-}
-
 export type VerificationStatus = 'working' | 'provisional' | 'confirmed';
 
 export interface DiagnosisView {

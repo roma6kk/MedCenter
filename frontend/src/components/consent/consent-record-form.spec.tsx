@@ -1,18 +1,14 @@
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { apiProblem, newQueryClient, pageOf, renderWithClient, resetCabinetState } from '@/components/patient/cabinet-test-utils';
+import { apiProblem, newQueryClient, renderWithClient, resetCabinetState } from '@/components/patient/cabinet-test-utils';
 import { useToastStore } from '@/store/use-toast-store';
-import * as doctorApi from '@/components/doctor/doctor-api';
 import * as api from './consent-api';
 import { ACTIVE_RECORD } from './consent-fixtures';
 import { ConsentRecordForm } from './consent-record-form';
 
 jest.mock('./consent-api');
-jest.mock('@/components/doctor/doctor-api');
 const mocked = jest.mocked(api);
-const doctorMocked = jest.mocked(doctorApi);
 
-const RELATED = { id: 'rp1', patientId: 'p1', active: true, fullName: 'Иванова Мария', relationship: [{ code: 'MTH', display: 'Мать' }], telecom: [] };
 const PDF = new File(['%PDF-1.4'], 'form.pdf', { type: 'application/pdf' });
 
 function setFileSize(file: File, size: number): File {
@@ -42,18 +38,15 @@ describe('ConsentRecordForm', () => {
   beforeEach(() => {
     jest.resetAllMocks();
     resetCabinetState();
-    doctorMocked.fetchRelatedPersons.mockResolvedValue(pageOf([RELATED]));
     mocked.postConsentScan.mockResolvedValue({ scanId: 's1', contentType: 'application/pdf', size: 8, hash: 'h' });
     mocked.postPatientConsent.mockResolvedValue(ACTIVE_RECORD);
   });
 
-  it('should offer no self signer and default to the legal representative for a minor patient', () => {
-    renderWithClient(<ConsentRecordForm patientId="p1" role="DOCTOR" canSelfSign={false} />, newQueryClient());
+  it('should have no field for who signed: the patient signs personally', () => {
+    renderForm();
 
-    const select = screen.getByLabelText('Кто подписал');
-    expect(within(select).queryByRole('option', { name: 'сам пациент' })).not.toBeInTheDocument();
-    expect(select).toHaveValue('legal-representative');
-    expect(screen.getByText(/нет 18 лет/)).toBeInTheDocument();
+    expect(screen.queryByLabelText('Кто подписал')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Доверенное лицо пациента')).not.toBeInTheDocument();
   });
 
   it('should leave the signing clerk to the server for a doctor and ask for the name from an administrator', () => {
@@ -134,34 +127,6 @@ describe('ConsentRecordForm', () => {
 
     expect(await screen.findByText(/^Дата не позже \d{2}\.\d{2}\.\d{4}$/)).toBeInTheDocument();
     expect(mocked.postConsentScan).not.toHaveBeenCalled();
-  });
-
-  it('should ask for a trusted person and the authority document when someone other than the patient signed', async () => {
-    renderForm();
-
-    expect(screen.queryByLabelText('Доверенное лицо пациента')).not.toBeInTheDocument();
-    await fillSelf();
-    await userEvent.selectOptions(screen.getByLabelText('Кто подписал'), 'опекун');
-    await submit();
-
-    expect(await screen.findByText('Выберите доверенное лицо пациента')).toBeInTheDocument();
-    expect(mocked.postConsentScan).not.toHaveBeenCalled();
-
-    await userEvent.selectOptions(await screen.findByLabelText('Доверенное лицо пациента'), 'Иванова Мария (Мать)');
-    await userEvent.type(screen.getByLabelText('Документ, подтверждающий полномочия'), 'Решение об опеке № 5');
-    await submit();
-
-    await waitFor(() => expect(mocked.postPatientConsent).toHaveBeenCalled());
-    expect(mocked.postPatientConsent).toHaveBeenCalledWith('p1', expect.objectContaining({ consenterType: 'guardian', relatedPersonId: 'rp1', representativeDocument: 'Решение об опеке № 5' }));
-  });
-
-  it('should say there is nobody to choose when the patient has no trusted persons', async () => {
-    doctorMocked.fetchRelatedPersons.mockResolvedValue(pageOf([]));
-    renderForm();
-
-    await userEvent.selectOptions(screen.getByLabelText('Кто подписал'), 'родственник');
-
-    expect(await screen.findByText(/нет доверенных лиц в системе/)).toBeInTheDocument();
   });
 
   it('should say to revoke first when the patient already has an active consent (409 CONSENT_ALREADY_ACTIVE)', async () => {

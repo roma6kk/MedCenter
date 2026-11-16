@@ -11,9 +11,6 @@ const SELF: ConsentRecordValues = {
   formNumber: ' Ф-12 ',
   signedAt: '2026-10-20',
   status: 'active',
-  consenterType: 'self',
-  relatedPersonId: '',
-  representativeDocument: '',
   signedByName: '',
   file: PDF,
 };
@@ -74,33 +71,22 @@ describe('consentRecordSchema', () => {
     expect(messagesOf({ ...SELF, signedByName: 'Петрова А. И.' }, 'ADMIN')).toEqual({});
     expect(messagesOf({ ...SELF, signedByName: 'я'.repeat(201) }, 'ADMIN')['signedByName']).toBe('validation.tooLong');
   });
-
-  it.each(['legal-representative', 'guardian', 'relative'] as const)('should require the person and the authority document when %s signed', (consenterType) => {
-    expect(messagesOf({ ...SELF, consenterType })).toMatchObject({ relatedPersonId: 'validation.relatedRequired', representativeDocument: 'validation.required' });
-    expect(messagesOf({ ...SELF, consenterType, relatedPersonId: 'rp1', representativeDocument: 'Доверенность № 5' })).toEqual({});
-  });
-
-  it('should refuse an authority document longer than 500 characters', () => {
-    expect(messagesOf({ ...SELF, consenterType: 'guardian', relatedPersonId: 'rp1', representativeDocument: 'я'.repeat(501) })['representativeDocument']).toBe('validation.tooLong');
-  });
 });
 
 describe('toConsentEntry', () => {
-  it('should trim the text and leave out what a self-signed consent does not have', () => {
+  it('should trim the text and always send the patient as the signer', () => {
     expect(toConsentEntry({ ...SELF, signedByName: ' Петрова ' })).toEqual({
       file: PDF,
       body: { status: 'active', formNumber: 'Ф-12', signedAt: '2026-10-20', consenterType: 'self', signedByName: 'Петрова' },
     });
   });
 
-  it('should carry the related person and the document for a representative and the written refusal status', () => {
-    expect(toConsentEntry({ ...SELF, status: 'rejected', consenterType: 'guardian', relatedPersonId: 'rp1', representativeDocument: ' Решение суда ' }).body).toEqual({
+  it('should carry the written refusal status', () => {
+    expect(toConsentEntry({ ...SELF, status: 'rejected' }).body).toEqual({
       status: 'rejected',
       formNumber: 'Ф-12',
       signedAt: '2026-10-20',
-      consenterType: 'guardian',
-      relatedPersonId: 'rp1',
-      representativeDocument: 'Решение суда',
+      consenterType: 'self',
     });
   });
 });

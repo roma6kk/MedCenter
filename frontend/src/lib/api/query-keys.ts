@@ -39,7 +39,6 @@ export const queryKeys = {
   doctorSchedule: ['doctorSchedule'] as const,
   doctorScheduleRange: (params?: Params) => ['doctorSchedule', normalise(params), locale()] as const,
   patientCard: (patientId: string) => ['patientCard', patientId] as const,
-  relatedPersons: (patientId: string, params?: Params) => ['relatedPersons', patientId, normalise(params)] as const,
   encounterDetail: (encounterId: string) => ['encounter', encounterId] as const,
 
   clinic: ['clinic'] as const,
