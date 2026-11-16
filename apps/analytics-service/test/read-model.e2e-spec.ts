@@ -164,7 +164,7 @@ describeWithDocker('analytics read-model (PostgreSQL, Testcontainers)', () => {
     });
   });
 
-  it('should rank services by bookings excluding cancellations when a limit is given', async () => {
+  it('should rank services by bookings excluding cancellations when the period is queried', async () => {
     await writer.applyBooked(meta('s1'), booking('b1', 'svc-a', '2026-10-05T09:00:00Z'));
     await writer.applyBooked(meta('s2'), booking('b2', 'svc-b', '2026-10-05T10:00:00Z'));
     await writer.applyBooked(meta('s3'), booking('b3', 'svc-b', '2026-10-05T11:00:00Z'));
@@ -176,7 +176,7 @@ describeWithDocker('analytics read-model (PostgreSQL, Testcontainers)', () => {
       actorType: 'ADMIN',
     });
 
-    expect(await reports.countBookingsByService(OCTOBER, 2)).toEqual([
+    expect(await reports.countBookingsByService(OCTOBER)).toEqual([
       { serviceId: 'svc-b', count: '2' },
       { serviceId: 'svc-a', count: '1' },
     ]);

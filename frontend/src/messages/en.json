@@ -464,6 +464,7 @@
         "title": "Top {top} services by bookings",
         "service": "Service",
         "count": "Bookings",
+        "others": "Other services",
         "unknown": "Service deleted or unavailable",
         "unknownMany": "Deleted or unavailable services ({count})",
         "unknownNote": "These services were removed from the catalogue, so the appointments kept only an identifier. The identifiers are below."

@@ -98,7 +98,7 @@ export function AnalyticsPanel(): ReactNode {
             {(report) => <GroupBars report={report} caption={t('encounters.title')} />}
           </ReportSection>
           <ReportSection title={t('services.title', { top })} query={services} emptyTitle={t('empty')}>
-            {(report) => <GroupTable report={report} caption={t('services.title', { top })} nameHeader={t('services.service')} countHeader={t('services.count')} kind="services" />}
+            {(report) => <GroupTable report={report} caption={t('services.title', { top })} nameHeader={t('services.service')} countHeader={t('services.count')} kind="services" others={report.others} />}
           </ReportSection>
         </div>
         <InsightCards appointments={appointments.data} encounters={encounters.data} />

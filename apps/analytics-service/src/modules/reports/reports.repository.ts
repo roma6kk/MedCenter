@@ -32,7 +32,7 @@ export interface ReportsRepository {
     fulfilledIds: ReadonlyArray<string>,
   ): Promise<ReadonlyArray<StatusCountRow>>;
   countEncountersBySpecialty(range: DateRange): Promise<ReadonlyArray<SpecialtyCountRow>>;
-  countBookingsByService(range: DateRange, limit: number): Promise<ReadonlyArray<ServiceCountRow>>;
+  countBookingsByService(range: DateRange): Promise<ReadonlyArray<ServiceCountRow>>;
 }
 
 export const REPORTS_REPOSITORY = Symbol('REPORTS_REPOSITORY');
@@ -78,7 +78,7 @@ export class TypeOrmReportsRepository implements ReportsRepository {
       .getRawMany<SpecialtyCountRow>();
   }
 
-  countBookingsByService(range: DateRange, limit: number): Promise<ReadonlyArray<ServiceCountRow>> {
+  countBookingsByService(range: DateRange): Promise<ReadonlyArray<ServiceCountRow>> {
     return this.dataSource
       .getRepository(AppointmentFactEntity)
       .createQueryBuilder('fact')
@@ -90,7 +90,6 @@ export class TypeOrmReportsRepository implements ReportsRepository {
       .groupBy('fact.serviceId')
       .orderBy('count', 'DESC')
       .addOrderBy('"serviceId"', 'ASC')
-      .limit(limit)
       .getRawMany<ServiceCountRow>();
   }
 }

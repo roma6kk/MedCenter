@@ -13,6 +13,10 @@ export interface MeasureReport {
   readonly groups: ReadonlyArray<MeasureGroup>;
 }
 
+export interface ServicesReport extends MeasureReport {
+  readonly others?: number;
+}
+
 export interface AppointmentsReport extends MeasureReport {
   readonly booked?: number;
   readonly fulfilled?: number;
