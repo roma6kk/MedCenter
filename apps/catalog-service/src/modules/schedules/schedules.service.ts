@@ -41,6 +41,7 @@ export class SchedulesService {
     await this.assertActorsExist(dto);
     await assertNoScheduleOverlap(this.fhirClient, {
       practitionerRoleId: dto.practitionerRoleId,
+      roomId: dto.roomId,
       windows: dto.windows,
       horizon: { start: dto.horizonFrom, end: dto.horizonTo },
     });
@@ -98,6 +99,7 @@ export class SchedulesService {
       const current = toScheduleSummaryDto(existing);
       await assertNoScheduleOverlap(this.fhirClient, {
         practitionerRoleId: current.practitionerRoleId ?? '',
+        roomId: current.roomId ?? '',
         windows: dto.windows ?? current.windows,
         horizon: { start, end },
         excludeScheduleId: id,

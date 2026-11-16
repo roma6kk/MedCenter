@@ -142,7 +142,7 @@ export class PaginatedResponseDto<TItem> {
 | `INVALID_PASSWORD` | 403 | 2.2.8: неверный пароль при закрытии своей учётной записи (или она уже закрыта) |
 | `APPOINTMENT_NOT_CANCELLABLE` | 409 | BR-002: статус не позволяет отмену |
 | `ENCOUNTER_STATE_INVALID` | 409 | BR-003/BR-008: приём уже оформлен / запись не `booked` (cancelled/noshow/fulfilled); неявка (6.6) для записи, у которой уже есть приём или время которой ещё не наступило |
-| `SCHEDULE_OVERLAP` | 409 | пересечение `Schedule.planningHorizon` одного `PractitionerRole` |
+| `SCHEDULE_OVERLAP` | 409 | пересечение `Schedule.planningHorizon` и недельных окон одного `PractitionerRole` либо одного кабинета (`roomId`) у разных врачей |
 | `SERVICE_IN_USE` | 409 | 5.1.5: на услугу ссылается `Schedule` или роль врача (`PractitionerRole.healthcareService`) |
 | `SCHEDULE_IN_USE` | 409 | 5.2.4: расписание нельзя удалить — есть слоты или busy-слот (таблица 5.2.4) |
 | `ROOM_IN_USE` | 409 | 4.6: на кабинет ссылается `Schedule` (активное или нет), роль врача (`PractitionerRole.location`) или услуга (`HealthcareService.location`) |
