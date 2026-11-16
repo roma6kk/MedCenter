@@ -19,7 +19,7 @@ const active: AdminSchedule = {
   roomId: 'room-1',
   serviceId: 'svc-1',
   horizonFrom: '2026-10-16',
-  horizonTo: '2026-11-15',
+  horizonTo: '2099-12-31',
   slotDurationMin: 25,
   windows: [{ dayOfWeek: 'SU', startTime: '22:00', endTime: '23:00' }],
 };
