@@ -5,6 +5,10 @@ import { chooseRowAction, firstButton, pageOf, renderWithClient } from '../share
 import type { AdminSchedule } from './schedule-types';
 import { SchedulesPanel } from './schedules-panel';
 
+jest.mock('next/navigation', () => ({ useSearchParams: () => new URLSearchParams(window.location.search) }));
+
+beforeEach(() => window.history.replaceState(null, '', '/'));
+
 jest.mock('@/lib/api/api-fetch', () => {
   const actual = jest.requireActual('@/lib/api/api-fetch');
   return { ...actual, apiFetch: jest.fn() };

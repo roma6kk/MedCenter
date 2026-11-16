@@ -224,6 +224,7 @@ PKCE-обмена и refresh-токен не попадают в JS браузе
 `useSessionStore` (сессия из broker: role, scope, patientRef, fhirUser, expiresAt; hydrated-флаг) ·
 `useUiStore` (locale, sidebar, активные фильтры) · `useBookingDraftStore` (черновик мастера,
 persist → sessionStorage; если во вкладке сохранены врач или слот, ссылки «Войти» ведут после входа на `/booking`, иначе на `/home`). Серверные данные — **только** TanStack Query.
+Вкладка, фильтр и страница списков («Мои записи», «Уведомления», пользователи, услуги, кабинеты, расписания) хранятся в адресе: `useUrlState` / `writeUrlQuery` (`hooks/use-url-state.ts`), `history.replaceState` без навигации; значения по умолчанию в адрес не пишутся.
 
 ##### 5.3 Формы: react-hook-form + zod, паритет с class-validator
 

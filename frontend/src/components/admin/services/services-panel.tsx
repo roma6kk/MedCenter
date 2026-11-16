@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import type { ReactNode } from 'react';
+import { parsePage, useUrlState } from '@/hooks/use-url-state';
 import { useT } from '@/lib/i18n/use-t';
 import { ServiceFormDialog } from './service-form-dialog';
 import { ServicesTable } from './services-table';
@@ -40,20 +41,21 @@ function ServiceDialogs({ dialog, onClose }: { readonly dialog: DialogState; rea
 
 export function ServicesPanel(): ReactNode {
   const t = useT('admin.services');
-  const [filter, setFilter] = useState<ServicesFilter>({ page: 1, search: '' });
+  const [url, setUrl] = useUrlState({ search: '', page: '1' });
+  const filter: ServicesFilter = { page: parsePage(url.page), search: url.search };
   const [dialog, setDialog] = useState<DialogState>({ kind: 'none' });
   const query = useAdminServices(filter);
-  useStepBackWhenPageEmpty(query.data, filter.page, (page) => setFilter({ ...filter, page }));
+  useStepBackWhenPageEmpty(query.data, filter.page, (page) => setUrl({ page: String(page) }));
   return (
     <>
       <AdminPageHeader title={t('title')} description={t('description')} action={<CreateButton label={t('create')} onClick={() => setDialog({ kind: 'create' })} />} />
-      <LiveSearch label={t('searchLabel')} value={filter.search} onChange={(search) => setFilter({ page: 1, search })} />
+      <LiveSearch label={t('searchLabel')} value={filter.search} onChange={(search) => setUrl({ search, page: '1' })} />
       <QueryState query={query} isEmpty={(data) => data.items.length === 0} emptyTitle={t('empty')} emptyDescription={t('emptyHint')}>
         {(data) => (
           <ServicesTable
             rows={data.items}
             meta={data.meta}
-            onPage={(page) => setFilter({ ...filter, page })}
+            onPage={(page) => setUrl({ page: String(page) })}
             onEdit={(service) => setDialog({ kind: 'edit', service })}
             onDelete={(service) => setDialog({ kind: 'delete', service })}
           />

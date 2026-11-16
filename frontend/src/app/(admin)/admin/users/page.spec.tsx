@@ -8,6 +8,10 @@ import type { PaginatedResponse } from '@/lib/api/pagination';
 import type { AdminUser } from '@/components/admin/users/user-types';
 import AdminUsersPage from './page';
 
+jest.mock('next/navigation', () => ({ useSearchParams: () => new URLSearchParams(window.location.search) }));
+
+beforeEach(() => window.history.replaceState(null, '', '/'));
+
 jest.mock('@/lib/api/api-fetch', () => {
   const actual = jest.requireActual('@/lib/api/api-fetch');
   return { ...actual, apiFetch: jest.fn() };
@@ -92,6 +96,16 @@ describe('AdminUsersPage', () => {
     expect((await screen.findAllByText('Пациент 3')).length).toBeGreaterThan(0);
     expect(screen.getByRole('button', { name: 'Пациент' })).toHaveAttribute('aria-pressed', 'true');
     expect(screen.queryByRole('button', { name: 'Применить' })).not.toBeInTheDocument();
+  });
+
+  it('should keep the page and role in the address and open from them', async () => {
+    window.history.replaceState(null, '', '/admin/users?role=PATIENT');
+
+    renderPage();
+
+    expect((await screen.findAllByText('Пациент 3')).length).toBeGreaterThan(0);
+    await userEvent.click(screen.getByRole('button', { name: 'Все' }));
+    await waitFor(() => expect(window.location.search).toBe(''));
   });
 
   it('should drop the role filter when the chip «Все» is pressed', async () => {

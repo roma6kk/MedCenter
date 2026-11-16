@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import type { ReactNode } from 'react';
+import { parsePage, useUrlState } from '@/hooks/use-url-state';
 import { useT } from '@/lib/i18n/use-t';
 import { RoomFormDialog } from './room-form-dialog';
 import { RoomUsageDrawer } from './room-usage-drawer';
@@ -39,7 +40,9 @@ function RoomDialogs({ dialog, onClose }: { readonly dialog: DialogState; readon
 
 export function RoomsPanel(): ReactNode {
   const t = useT('admin.rooms');
-  const [page, setPage] = useState(1);
+  const [url, setUrl] = useUrlState({ page: '1' });
+  const page: number = parsePage(url.page);
+  const setPage = (next: number): void => setUrl({ page: String(next) });
   const [dialog, setDialog] = useState<DialogState>({ kind: 'none' });
   const query = useAdminRooms(page);
   useStepBackWhenPageEmpty(query.data, page, setPage);

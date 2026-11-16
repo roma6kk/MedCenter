@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import type { ReactNode } from 'react';
+import { parsePage, useUrlState } from '@/hooks/use-url-state';
 import { useT } from '@/lib/i18n/use-t';
 import { DeleteScheduleDialog } from './delete-schedule-dialog';
 import { ScheduleFormDialog } from './schedule-form-dialog';
@@ -118,8 +119,10 @@ function SchedulesWeekView({ filter, pickers }: Omit<ViewProps, 'onFilter'>): Re
 
 export function SchedulesPanel(): ReactNode {
   const t = useT('admin.schedules');
-  const [filter, setFilter] = useState<SchedulesFilter>({ page: 1, doctorId: '', active: DEFAULT_ACTIVE });
-  const [view, setView] = useState<ScheduleView>('list');
+  const [url, setUrl] = useUrlState({ doctorId: '', active: DEFAULT_ACTIVE, page: '1', view: 'list' });
+  const filter: SchedulesFilter = { page: parsePage(url.page), doctorId: url.doctorId, active: url.active === 'true' || url.active === 'false' ? url.active : '' };
+  const view: ScheduleView = url.view === 'week' ? 'week' : 'list';
+  const setFilter = (next: SchedulesFilter): void => setUrl({ doctorId: next.doctorId, active: next.active, page: String(next.page) });
   const { dialog, openCreate, openFor, close } = useScheduleDialogs();
   const pickers = useSchedulePickers();
   return (
@@ -135,7 +138,7 @@ export function SchedulesPanel(): ReactNode {
             { value: 'week', label: t('view.week') },
           ]}
           value={view}
-          onChange={setView}
+          onChange={(next) => setUrl({ view: next })}
         />
       </div>
       {view === 'list' ? (
