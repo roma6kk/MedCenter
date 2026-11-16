@@ -10,7 +10,6 @@ export interface DoctorResponseDto {
   readonly specialty?: string;
   readonly specialtyCode?: string;
   readonly specialtySystem?: string;
-  readonly roomId?: string;
   readonly photoUrl?: string;
 }
 

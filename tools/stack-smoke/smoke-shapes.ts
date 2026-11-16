@@ -9,7 +9,6 @@ export const DOCTOR_SHAPE: FieldSpec = {
   specialty: 'string?',
   specialtyCode: 'string?',
   specialtySystem: 'string?',
-  roomId: 'string?',
   practitionerRoleIds: 'array',
 };
 

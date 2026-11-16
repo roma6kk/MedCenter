@@ -28,9 +28,6 @@ export class DoctorResponseDoc implements DoctorResponseDto {
   @ApiPropertyOptional({ description: 'Specialty code system', example: 'http://snomed.info/sct' })
   readonly specialtySystem?: string;
 
-  @ApiPropertyOptional({ description: 'Location id of the doctor room' })
-  readonly roomId?: string;
-
   @ApiProperty({ type: String, isArray: true, description: 'Ids of the active PractitionerRoles, ascending; empty if none' })
   readonly practitionerRoleIds!: readonly string[];
 }

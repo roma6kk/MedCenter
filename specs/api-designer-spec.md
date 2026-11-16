@@ -479,7 +479,7 @@ export class PatientConsentDto {         // 3.4, 3.7
 | # | Метод и путь | Назначение | Доступ |
 | --- | --- | --- | --- |
 | 4.1 | `GET /api/v1/doctors?serviceId=&specialty=&search=&page=&pageSize=` | каталог врачей | public (см. §0) |
-| 4.2 | `GET /api/v1/doctors/{id}` | карточка врача + специальность + кабинет | public |
+| 4.2 | `GET /api/v1/doctors/{id}` | карточка врача + специальность | public |
 | 4.3 | `GET /api/v1/rooms?page=&pageSize=` | кабинеты (`Location.physicalType=room`) | `user/*.read` |
 | 4.4 | `POST /api/v1/admin/rooms` | создать кабинет | `ADMIN` |
 | 4.5 | `PATCH /api/v1/admin/rooms/{id}` | обновить кабинет | `ADMIN` |
@@ -499,7 +499,6 @@ export interface DoctorResponseDto {
   specialtyCode?: string;          // код специальности — значение для ?specialty= (4.1): `419192003`
   specialtySystem?: string;        // система кода: `http://snomed.info/sct`; ?specialty=system|code
   photoUrl?: string;               // фото врача (4.1 и 4.2)
-  roomId?: string;
   practitionerRoleIds: string[];   // id активных PractitionerRole врача по возрастанию; [] если ролей нет
 }
 ```

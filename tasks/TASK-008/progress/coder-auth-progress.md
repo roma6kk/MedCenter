@@ -22,3 +22,7 @@ Note on commit 6a444580: the `passwordChange` messages block landed one line too
 - Why the Practitioner too: the public doctor list is built from Practitioner and keeps a doctor whose only role is inactive (with `practitionerRoleIds: []`), so the role flag alone would not hide them.
 - Read side checked, no change needed: practitioner-service already filters `active:not=false` on Practitioner and PractitionerRole (list, card, `practitionerRoleIds`), and catalog-service's public doctor slots search only roles with `active:not=false`. Not checked/changed: the per-day slot cache in catalog-service may serve a deactivated doctor's free slots until its TTL ends.
 - docs/pz outdated: the account deactivation description (does not mention the catalog).
+
+## Item 4 (Q13/Q29) dead `roomId` on the doctor
+- Removed `roomId` from the doctor DTO and Swagger doc (practitioner-service), the shared `DoctorResponseDto` in libs/fhir-mappers, the smoke response shape, the Bruno 4.2 post-response script and spec 4.1/4.2 (row text and DTO block). Frontend types had no such field. A swagger spec test guards it. Room stays set in the schedule only.
+- docs/pz outdated: any description of the doctor card with a room (4.2 "карточка врача + специальность + кабинет").

@@ -41,6 +41,13 @@ describe('practitioner-service OpenAPI document', () => {
     expect(document.components?.schemas?.['problemDetails']).toBeDefined();
   });
 
+  it('does not document a room on the doctor card: nothing fills it', () => {
+    const doctor = document.components?.schemas?.['DoctorResponseDoc'] as { properties?: Record<string, unknown> } | undefined;
+
+    expect(doctor?.properties).toBeDefined();
+    expect(doctor?.properties).not.toHaveProperty('roomId');
+  });
+
   it('documents every operation with a tag, a summary and a success response', () => {
     expect(findUndocumentedOperations(document)).toEqual([]);
   });
