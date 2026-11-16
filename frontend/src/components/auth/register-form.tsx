@@ -11,15 +11,16 @@ import { Select } from '@/components/ui/select';
 import { ProblemBanner } from '@/components/feedback/problem-banner';
 import type { Translate } from '@/lib/i18n/translate';
 import { useDocumentTitle } from '@/hooks/use-document-title';
-import { AUTHORIZE_PATH } from '@/lib/auth/authorize-href';
 import { useT } from '@/lib/i18n/use-t';
 import { clinicDateKey } from '@/lib/clinic-time';
 import { AUTH_INPUT_CLASS, AuthField } from './auth-field';
+import { useSignInHref } from './use-sign-in-href';
 import { useRegisterForm, type RegisterFormState } from './use-register-form';
 
 // Sign-in is a plain `<a>`: the target redirects to another origin, which `next/link` must not prefetch.
 function SignInLink({ className, children }: { readonly className: string; readonly children: ReactNode }): ReactNode {
-  return <a href={AUTHORIZE_PATH} className={className}>{children}</a>;
+  const href = useSignInHref();
+  return <a href={href} className={className}>{children}</a>;
 }
 
 function RegisterSuccess(): ReactNode {

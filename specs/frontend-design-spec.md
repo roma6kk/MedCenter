@@ -223,7 +223,7 @@ PKCE-обмена и refresh-токен не попадают в JS браузе
 
 `useSessionStore` (сессия из broker: role, scope, patientRef, fhirUser, expiresAt; hydrated-флаг) ·
 `useUiStore` (locale, sidebar, активные фильтры) · `useBookingDraftStore` (черновик мастера,
-persist → sessionStorage). Серверные данные — **только** TanStack Query.
+persist → sessionStorage; если во вкладке сохранены врач или слот, ссылки «Войти» ведут после входа на `/booking`, иначе на `/home`). Серверные данные — **только** TanStack Query.
 
 ##### 5.3 Формы: react-hook-form + zod, паритет с class-validator
 

@@ -1,7 +1,18 @@
 import { render, screen } from '@testing-library/react';
+import { useBookingDraftStore } from '@/store/use-booking-draft-store';
 import { LoginEntry } from './login-entry';
 
 describe('LoginEntry', () => {
+  afterEach(() => useBookingDraftStore.getState().clearDraft());
+
+  it('should lead to the booking wizard when this tab has a saved doctor', () => {
+    useBookingDraftStore.getState().updateDraft({ doctorId: 'doc-1' });
+
+    render(<LoginEntry returnTo="" />);
+
+    expect(screen.getByRole('link', { name: 'Войти' })).toHaveAttribute('href', '/api/auth/authorize?returnTo=%2Fbooking');
+  });
+
   it('should start the sign-in flow towards the requested page when a returnTo is given', () => {
     render(<LoginEntry returnTo="/appointments?page=2" />);
 

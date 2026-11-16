@@ -286,8 +286,8 @@ guard-слоем — **401 `TOKEN_REVOKED`** (см. 2.1.3).
 | 2.2.7 | `GET /api/v1/me` | профиль текущего пользователя + `ExternalLink` + `accountConsent` (`{at, version}` или `null`) | любой Bearer |
 | 2.2.8 | `POST /api/v1/me/deactivate` | пациент закрывает свою учётную запись (тело `{password}`); ответ **204** | `PATIENT`, rate-limit 5/мин |
 | 2.2.9 | `GET /api/v1/admin/users/retention-expired?page=&pageSize=` | закрытые учётные записи с истёкшим сроком хранения | `ADMIN` |
-
 | 2.2.10 | `POST /api/v1/me/password` | смена своего пароля (тело `{currentPassword, newPassword}`); ответ **204** | любой Bearer, rate-limit 5/мин |
+
 **2.2.8 `POST /api/v1/me/deactivate`** — тело `{ "password": "<текущий пароль>" }`. Сервис деактивирует `User` (`isActive=false`,
 вход прекращается), ставит `account_consent_withdrawn_at` (отзыв согласия на учётную запись; `account_consent_at` и версия текста остаются) и
 отзывает сессию вызывающего (refresh-токен по `sid`; остальные refresh-токены не обновляются, т.к. identity перечитывается и неактивная
