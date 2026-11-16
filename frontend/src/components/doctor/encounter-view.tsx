@@ -16,6 +16,7 @@ import { PatientSummary } from './patient-summary';
 import { EncounterReadOnly } from './encounter-readonly';
 import { QueryFailure } from '@/components/feedback/query-error-state';
 import { useEncounter } from './use-doctor-queries';
+import { isOwnVisit, useOwnRoleId } from './use-own-role';
 
 function useFocusBannerOnFinish(status: EncounterDetails['status']): RefObject<HTMLParagraphElement> {
   const bannerRef = useRef<HTMLParagraphElement>(null);
@@ -42,10 +43,12 @@ function FinishedBanner({ bannerRef }: { readonly bannerRef: RefObject<HTMLParag
 function EncounterBody({ encounter }: { readonly encounter: EncounterDetails }): ReactNode {
   const t = useT('doctor.encounter');
   const bannerRef = useFocusBannerOnFinish(encounter.status);
+  const ownRoleId = useOwnRoleId();
   // A visit finished elsewhere (replay 409) never ran this form's success path: clear its stale local draft here.
   useEffect(() => {
     if (encounter.status === 'finished') clearDraft(encounter.id);
   }, [encounter.status, encounter.id]);
+  if (encounter.status === 'in-progress' && !isOwnVisit(encounter, ownRoleId)) return <p role="status" className="mt-4 rounded-card border border-border bg-card p-4 text-sm">{t('notYours')}</p>;
   if (encounter.status === 'in-progress') return <div className="mt-4"><EncounterCompleteForm encounterId={encounter.id} patientId={encounter.patientId} /></div>;
   if (encounter.status === 'finished') {
     return (

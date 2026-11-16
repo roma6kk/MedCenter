@@ -1,5 +1,6 @@
-import { FhirClientError, type FhirClient, type FhirResource } from '@medcenter/fhir';
+import { FhirClientError, PatientReadAudit, type FhirClient, type FhirResource } from '@medcenter/fhir';
 
+import { PatientAccessService } from '../history/patient-access.service';
 import { TerminologyValidatorService } from '../terminology/terminology-validator.service';
 import {
   APPOINTMENT_ID,
@@ -33,7 +34,7 @@ describe('EncounterOpeningService.open / EncountersService.findOne', () => {
     fhir.read.mockImplementation(async (type) => (type === 'Appointment' ? bookedAppointment : healthcareService));
     fhir.search.mockResolvedValue(searchResult());
     fhir.batch.mockResolvedValue(transactionResponse([`Encounter/${ENCOUNTER_ID}/_history/1`, 'AuditEvent/ae-1/_history/1']));
-    service = new EncountersService(fhir, new TerminologyValidatorService(fhir), 'warn');
+    service = new EncountersService(fhir, new TerminologyValidatorService(fhir), 'warn', new PatientAccessService(fhir), new PatientReadAudit(fhir));
     opening = new EncounterOpeningService(fhir, 'warn');
   });
 
@@ -216,12 +217,36 @@ describe('EncounterOpeningService.open / EncountersService.findOne', () => {
     });
   });
 
-  it('should refuse a doctor who does not participate in the encounter', async () => {
-    fhir.search.mockResolvedValue(searchResult(inProgressEncounter));
+  it('should let a colleague with a shared appointment read the encounter and audit the read', async () => {
+    const sharedAppointment = {
+      ...bookedAppointment,
+      participant: [{ actor: { reference: 'Patient/pat-1' } }, { actor: { reference: 'PractitionerRole/role-9' } }],
+    };
+    fhir.search
+      .mockResolvedValueOnce(searchResult(inProgressEncounter))
+      .mockResolvedValueOnce(searchResult())
+      .mockResolvedValueOnce(searchResult(sharedAppointment));
+    fhir.create.mockResolvedValue({ resourceType: 'AuditEvent' });
+
+    await expect(service.findOne(otherDoctorClaims, ENCOUNTER_ID, 'req-1')).resolves.toMatchObject({ id: ENCOUNTER_ID });
+    expect(fhir.create).toHaveBeenCalledWith(
+      'AuditEvent',
+      expect.objectContaining({
+        action: 'R',
+        outcome: '0',
+        agent: [expect.objectContaining({ who: { identifier: { value: 'other-doctor' } } })],
+      }),
+    );
+  });
+
+  it('should refuse a doctor who shares no appointment or encounter with the patient and audit the refusal', async () => {
+    fhir.search.mockResolvedValueOnce(searchResult(inProgressEncounter)).mockResolvedValue(searchResult());
+    fhir.create.mockResolvedValue({ resourceType: 'AuditEvent' });
 
     expect(await errorPayloadOf(service.findOne(otherDoctorClaims, ENCOUNTER_ID))).toMatchObject({
       errorCode: 'COMPARTMENT_VIOLATION',
     });
+    expect(fhir.create).toHaveBeenCalledWith('AuditEvent', expect.objectContaining({ outcome: '4' }));
   });
 
   it('should refuse an ADMIN before any FHIR call (ADR-018)', async () => {

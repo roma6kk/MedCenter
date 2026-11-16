@@ -234,4 +234,16 @@ describe('Complete encounter (API §7.1–7.3)', () => {
       medicationRequests: [{ atcCode: 'J01FA10', dosageText: '1 таб 1 раз в день 3 дня' }],
     });
   });
+
+  it('should let a colleague with a shared appointment read the visit and refuse a doctor with none', async () => {
+    const encounterId = await openEncounter();
+    harness.hapi.seed({
+      ...bookedAppointment(),
+      id: 'apt-2',
+      participant: [{ actor: { reference: 'Patient/pat-1' } }, { actor: { reference: 'PractitionerRole/role-9' } }],
+    });
+
+    await as(OTHER_DOCTOR).get(`/api/v1/encounters/${encounterId}`).expect(200);
+    await as({ ...OTHER_DOCTOR, sub: 'doctor-3', fhirUser: 'PractitionerRole/role-3' }).get(`/api/v1/encounters/${encounterId}`).expect(403);
+  });
 });

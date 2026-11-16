@@ -5,7 +5,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import type { JwtClaims } from '@medcenter/common';
-import { FHIR_CLIENT, outboxWrite, type FhirClient, type FhirResource } from '@medcenter/fhir';
+import { FHIR_CLIENT, outboxWrite, PatientReadAudit, type FhirClient, type FhirResource } from '@medcenter/fhir';
 
 import { practitionerRoleRefFromClaims } from '../../common/access/claims-identity';
 import {
@@ -14,11 +14,12 @@ import {
   type ConsentEnforcement,
 } from '../../common/consent/consent-gate';
 import { referenceField } from '../../common/fhir/fhir-read';
-import { canonicalReference } from '../../common/fhir/fhir-reference';
+import { canonicalReference, referenceIdOf } from '../../common/fhir/fhir-reference';
 import { resourcesOf } from '../../common/fhir/fhir-search';
 import { commitTransaction } from '../../common/fhir/fhir-transaction';
 import { internal, stateInvalid } from './encounter-errors';
 import { emergencyBypassWrite } from './emergency-bypass';
+import { PatientAccessService } from '../history/patient-access.service';
 import { completedEvent } from '../events/encounter-events';
 import {
   TerminologyValidatorService,
@@ -90,10 +91,12 @@ export class EncountersService {
     @Inject(FHIR_CLIENT) private readonly fhir: FhirClient,
     private readonly terminology: TerminologyValidatorService,
     @Inject(CONSENT_ENFORCEMENT_MODE) private readonly consentEnforcement: ConsentEnforcement,
+    private readonly access: PatientAccessService,
+    private readonly readAudit: PatientReadAudit,
   ) {}
 
-  async findOne(claims: JwtClaims, encounterId: string): Promise<EncounterDetailsDto> {
-    const roleRef = resolveEncounterReaderRoleRef(claims);
+  async findOne(claims: JwtClaims, encounterId: string, requestId?: string): Promise<EncounterDetailsDto> {
+    resolveEncounterReaderRoleRef(claims);
     const result = await this.fhir.search('Encounter', {
       _id: encounterId,
       _revinclude: ENCOUNTER_REVINCLUDES,
@@ -108,8 +111,12 @@ export class EncountersService {
         message: `NOT_FOUND: Encounter ${encounterId} does not exist`,
       });
     }
-    assertEncounterParticipant(roleRef, encounter);
-    return toEncounterDetails(encounter, resources);
+    const patientId = referenceIdOf(referenceField(encounter, 'subject'), 'Patient') ?? '';
+    // Same rule and audit as the patient history (7.4): any doctor who shares care with the patient may read.
+    return this.readAudit.audited(claims, patientId, { interaction: 'read', source: 'encounter-service', requestId }, async () => {
+      await this.access.resolveReadablePatient(claims, patientId);
+      return toEncounterDetails(encounter, resources);
+    });
   }
 
   async complete(

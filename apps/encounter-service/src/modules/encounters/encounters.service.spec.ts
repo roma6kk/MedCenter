@@ -1,6 +1,7 @@
 import { ConflictException } from '@nestjs/common';
-import { FhirClientError, type FhirClient, type FhirResource } from '@medcenter/fhir';
+import { FhirClientError, PatientReadAudit, type FhirClient, type FhirResource } from '@medcenter/fhir';
 
+import { PatientAccessService } from '../history/patient-access.service';
 import { TerminologyValidatorService } from '../terminology/terminology-validator.service';
 import {
   APPOINTMENT_ID,
@@ -44,7 +45,7 @@ describe('EncountersService.complete', () => {
     );
     fhir.search.mockResolvedValue({ total: 0 });
     fhir.batch.mockResolvedValue(transactionResponse([`Encounter/${ENCOUNTER_ID}/_history/2`]));
-    service = new EncountersService(fhir, new TerminologyValidatorService(fhir), 'warn');
+    service = new EncountersService(fhir, new TerminologyValidatorService(fhir), 'warn', new PatientAccessService(fhir), new PatientReadAudit(fhir));
   });
 
   it('should reject completing an encounter twice when it is already finished', async () => {

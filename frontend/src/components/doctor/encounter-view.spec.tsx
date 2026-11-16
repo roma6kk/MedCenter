@@ -13,6 +13,7 @@ import { encounter, FINISHED_CONTENT, pageOf, problem, renderWithClient, routeAp
 import { ACTIVE_RECORD } from '@/components/consent/consent-fixtures';
 import { readDraft, writeDraft } from '@/lib/encounter-draft';
 import { EMPTY_DIAGNOSIS } from './encounter-form-defaults';
+import { useSessionStore } from '@/store/use-session-store';
 import { EncounterView } from './encounter-view';
 import type { EncounterDetails } from './doctor-types';
 
@@ -119,6 +120,15 @@ describe('EncounterView', () => {
 
     expect(await screen.findByText(/оформить нельзя/)).toBeInTheDocument();
     expect(screen.queryByRole('form', { name: 'Оформление приёма' })).toBeNull();
+  });
+
+  it('should open an in-progress visit of a colleague read-only, without the completion form', async () => {
+    useSessionStore.setState({ fhirUser: 'PractitionerRole/role-2' });
+    setup([encounterRoute(() => encounter())]);
+
+    expect(await screen.findByText(/ведёт другой врач/)).toBeInTheDocument();
+    expect(screen.queryByRole('form', { name: 'Оформление приёма' })).toBeNull();
+    useSessionStore.setState({ fhirUser: null });
   });
 
   it('should show the not-found state when the service answers 404', async () => {

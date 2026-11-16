@@ -48,11 +48,14 @@ export class EncountersController {
   @ApiOperation({ summary: '7.2 Get encounter details' })
   @ApiParam({ name: 'id', description: 'Encounter id (FHIR id)' })
   @ApiResponse({ status: 200, description: 'Encounter with its clinical content once finished', type: EncounterDetailsDoc })
-  @ApiProblems([400, ...GUARD_PROBLEM_STATUSES, 404], { 404: 'NOT_FOUND: encounter not found' })
+  @ApiProblems([400, ...GUARD_PROBLEM_STATUSES, 404], {
+    403: 'COMPARTMENT_VIOLATION: the doctor has no appointment or encounter with the patient of this encounter',
+    404: 'NOT_FOUND: encounter not found',
+  })
   @RequiresRoles(Role.DOCTOR)
   @RequiresScopes(SMART_SCOPES.USER_READ)
-  async findOne(@Req() request: RequestWithClaims, @Param('id', FhirIdPipe) id: string): Promise<EncounterDetailsDto> {
-    return this.encounters.findOne(claimsOf(request), id);
+  async findOne(@Req() request: AuditedRequest, @Param('id', FhirIdPipe) id: string): Promise<EncounterDetailsDto> {
+    return this.encounters.findOne(claimsOf(request), id, request.requestId);
   }
 
   @Post(':id/complete')
