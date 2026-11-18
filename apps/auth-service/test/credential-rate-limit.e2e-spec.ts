@@ -10,18 +10,15 @@ import { THROTTLED_MESSAGE, UNAVAILABLE_MESSAGE } from '../src/modules/oauth/log
 import { startAuthApp, type AuthApp } from './app-harness';
 import { PATIENT_PASSWORD, openLoginForm, type LoginForm } from './auth-flow-helpers';
 
-// `jose` is pure ESM and Jest's CJS runtime cannot load it (see `oauth.e2e-spec.ts`).
 jest.mock('jose', () => ({
   createRemoteJWKSet: () => 'mocked-jwks',
   jwtVerify: async () => ({ payload: {}, protectedHeader: { alg: 'RS256' } }),
 }));
 
-/** `@RateLimit(10)` on `POST /oauth/login` and on `POST /api/v1/auth/register`. */
 const IP_LIMIT = 10;
 
 const OWNER = { email: 'owner@example.by', password: PATIENT_PASSWORD } as const;
 
-/** One bucket per `identity:method:path` — the `:<minute>` suffix is dropped so a slow run cannot split it. */
 class MemoryRateLimitStore implements RateLimitStore {
   private readonly hits = new Map<string, number>();
 
@@ -73,7 +70,6 @@ function postRegistration(app: INestApplication, index: number, extra: Record<st
     });
 }
 
-/** The brute-force ceilings of the two credential routes, over real HTTP and the real guard stack. */
 describe('Credential routes rate limit (POST /oauth/login, POST /api/v1/auth/register)', () => {
   let started: AuthApp;
   let app: INestApplication;

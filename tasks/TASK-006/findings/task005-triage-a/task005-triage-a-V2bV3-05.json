@@ -1,0 +1,17 @@
+{
+  "id": "task005-triage-a-V2bV3-05",
+  "unit": "task005-triage-a",
+  "kind": "test",
+  "severity": "low",
+  "title": "Frontend jest: нет глобального testTimeout, тесты на userEvent под нагрузкой падают по таймауту 5 с — поднять",
+  "description": "В frontend/jest.config.ts testTimeout не задан, то есть действует умолчание jest — 5 с. Десять тяжёлых spec-файлов врача уже вручную поднимают таймаут до 30 с через `jest.setTimeout(30_000)`, но ещё 78 spec-файлов с userEvent (из 136) полагаются на 5 с и под нагрузкой параллельных воркеров иногда падают, проходя при повторе (отмечено при разработке TASK-005). Это плавающие тесты, а не дефект кода.",
+  "evidence": "frontend/jest.config.ts:7-11 has testEnvironment, setupFilesAfterEnv, moduleNameMapper, testMatch and no testTimeout; grep -rl 'jest.setTimeout' frontend/src = 10 files (doctor-journal.spec.tsx:55, encounter-complete-form*.spec.tsx, patient-card-view.spec.tsx, ...), all 30_000.",
+  "files": [
+    "frontend/jest.config.ts"
+  ],
+  "proposedFix": "Add `testTimeout: 15_000,` to the config object in frontend/jest.config.ts (keeps real hangs failing within seconds, absorbs load spikes). Leave the 30 s overrides of the ten heavy doctor specs as they are. No other change; verify with one targeted run, for example `cd frontend && npx jest src/components/ui/date-picker.spec.tsx`.",
+  "needsDecision": false,
+  "decisionQuestion": "",
+  "tzRef": "NFR: тестируемость",
+  "confidence": "confirmed"
+}

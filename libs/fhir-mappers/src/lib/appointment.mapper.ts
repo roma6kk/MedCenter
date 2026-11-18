@@ -1,3 +1,4 @@
+import { APPOINTMENT_CANCEL_REASON_SYSTEM, isAppointmentCancelReasonCode, type AppointmentCancelReasonCode } from '@medcenter/contracts';
 import type { FhirResource } from '@medcenter/fhir';
 
 export interface AppointmentResponseDto {
@@ -10,8 +11,7 @@ export interface AppointmentResponseDto {
   readonly doctorId: string;
   readonly practitionerRoleId: string;
   readonly serviceId: string;
-  readonly reason?: string;
-  readonly cancelReason?: string;
+  readonly cancelReason?: AppointmentCancelReasonCode;
   readonly createdAt: string;
 }
 
@@ -28,7 +28,6 @@ function readString(resource: FhirResource, key: string): string | undefined {
   return typeof value === 'string' ? value : undefined;
 }
 
-/** Id of the first participant whose actor is of the given resource type (`Patient`, `PractitionerRole`, …). */
 function participantId(appointment: FhirResource, resourceType: string): string {
   const participants = (appointment['participant'] as Participant[] | undefined) ?? [];
   const match = participants.find((p) => {
@@ -38,13 +37,18 @@ function participantId(appointment: FhirResource, resourceType: string): string 
   return idOf(match?.actor?.reference);
 }
 
-/** FHIR `Appointment` -> `AppointmentResponseDto` (ADR-002 mapper pair). */
+/** Free text written before the codes existed is never passed on: it reads as `other`. */
+function cancelReasonOf(appointment: FhirResource): AppointmentCancelReasonCode | undefined {
+  const cancelation = appointment['cancelationReason'] as { coding?: Array<{ system?: unknown; code?: unknown }> } | undefined;
+  if (cancelation === undefined || cancelation === null) {
+    return undefined;
+  }
+  const code = cancelation.coding?.find((coding) => coding.system === APPOINTMENT_CANCEL_REASON_SYSTEM)?.code;
+  return isAppointmentCancelReasonCode(code) ? code : 'other';
+}
+
 export function toAppointmentResponseDto(appointment: FhirResource): AppointmentResponseDto {
   const slots = (appointment['slot'] as Array<{ reference?: unknown }> | undefined) ?? [];
-  const reasons = (appointment['reasonCode'] as Array<{ text?: unknown }> | undefined) ?? [];
-  const cancelation = appointment['cancelationReason'] as { text?: unknown } | undefined;
-  const reasonText = reasons[0]?.text;
-  const cancelText = cancelation?.text;
 
   return {
     id: appointment.id ?? '',
@@ -56,8 +60,7 @@ export function toAppointmentResponseDto(appointment: FhirResource): Appointment
     doctorId: participantId(appointment, 'Practitioner'),
     practitionerRoleId: participantId(appointment, 'PractitionerRole'),
     serviceId: participantId(appointment, 'HealthcareService'),
-    reason: typeof reasonText === 'string' ? reasonText : undefined,
-    cancelReason: typeof cancelText === 'string' ? cancelText : undefined,
+    cancelReason: cancelReasonOf(appointment),
     createdAt: readString(appointment, 'created') ?? '',
   };
 }

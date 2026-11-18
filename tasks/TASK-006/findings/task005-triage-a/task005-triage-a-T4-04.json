@@ -1,0 +1,19 @@
+{
+  "id": "task005-triage-a-T4-04",
+  "unit": "task005-triage-a",
+  "kind": "question",
+  "severity": "low",
+  "title": "RESOLVED: группа подсказок диагнозов подписана «Из истории пациента», а не «недавние диагнозы врача» — формулировка честная",
+  "description": "Подсказки в поле диагноза строятся по истории выбранного пациента (buildRecentDiagnoses: каждый код один раз, с датой и статусом верификации последнего визита), и заголовок группы так и называется: «Из истории пациента». Расхождения между названием и содержимым нет. Список «часто используемых диагнозов врача» — это другая функция: ей нужен серверный агрегат по приёмам врача, ТЗ его не требует, поэтому добавлять не нужно.",
+  "evidence": "frontend/src/components/doctor/diagnoses-editor.tsx:146 shortcutsLabel={t('recentDiagnoses')}; frontend/src/messages/ru.json:957 \"recentDiagnoses\": \"Из истории пациента\"; frontend/src/components/doctor/patient-summary-model.ts:16-18 builds the list from the patient's history.",
+  "files": [
+    "frontend/src/components/doctor/diagnoses-editor.tsx",
+    "frontend/src/components/doctor/patient-summary-model.ts",
+    "frontend/src/messages/ru.json"
+  ],
+  "proposedFix": "None.",
+  "needsDecision": false,
+  "decisionQuestion": "",
+  "tzRef": "Врач: постановка диагноза; FR-012",
+  "confidence": "confirmed"
+}

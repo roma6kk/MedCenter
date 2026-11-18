@@ -1,0 +1,24 @@
+{
+  "id": "be-patient-01",
+  "unit": "be-patient",
+  "kind": "gap",
+  "severity": "medium",
+  "title": "Доверенных лиц (RelatedPerson) нечем создать: согласие от представителя пациента (опекун, родитель, родственник) внести невозможно",
+  "description": "Согласие на ЭМК для несовершеннолетних и недееспособных должен подписывать представитель (ADR-019, ответ 7: «для всех младше 18 лет»). Для этого в 3.8 нужен relatedPersonId существующего RelatedPerson этого пациента, а форма «Внести бумажное согласие» у врача и администратора показывает выпадающий список таких лиц. Но в системе нет ни одного способа их завести: patient-service даёт только GET /patients/{id}/related (3.3), POST/PATCH нет, демо-сид RelatedPerson не создаёт, в интерфейсе нет формы. Список всегда пуст, поэтому consenterType ≠ self всегда заканчивается 400 «no such related person» (или в форме нечего выбрать), а сообщение интерфейса «сначала добавьте доверенное лицо» указывает на действие, которого не существует. Блок «Доверенные лица» в карточке пациента у врача и эндпоинт 3.3 при этом тоже никогда ничего не показывают.",
+  "evidence": "apps/patient-service/src/modules/related-persons/related-persons.controller.ts:15-38 (единственный маршрут @Get(':id/related')); grep -rn RelatedPerson tools/ -> 0 совпадений (в сиде нет); apps/patient-service/src/modules/consents/consents.service.ts:performerOf (fhir.read('RelatedPerson', dto.relatedPersonId) -> 404 -> invalid('relatedPersonId','no such related person')); frontend/src/messages/ru.json:1772 consent.record.relatedNone = «...или сначала добавьте доверенное лицо.»; frontend/src/components/consent/consent-record-form.tsx:30-40 (select из useRelatedPersons). Сценарий: врач открывает карточку матери ребёнка-пациента -> «Внести согласие» -> «Подписал: законный представитель» -> список пуст; POST /patients/{id}/consent с relatedPersonId любого значения -> 400.",
+  "files": [
+    "apps/patient-service/src/modules/related-persons/related-persons.controller.ts",
+    "apps/patient-service/src/modules/related-persons/related-persons.service.ts",
+    "apps/patient-service/src/modules/consents/consents.service.ts",
+    "frontend/src/components/consent/consent-record-form.tsx",
+    "frontend/src/components/doctor/related-persons.tsx",
+    "frontend/src/messages/ru.json",
+    "tools/demo-seed/demo-resources.ts",
+    "specs/api-designer-spec.md"
+  ],
+  "proposedFix": "Minimal additive change following the existing consent patterns: (1) POST /api/v1/patients/{id}/related in patient-service (ADMIN, or DOCTOR with shared care via PatientAccessService.assertCanWrite), body {lastName, firstName, middleName?, relationship (v3-RoleCode GUARD|PRN|FAMMEMB|... or the ConsenterType values), birthDate?, phone?}; build a RelatedPerson with patient=Patient/{id} and write it together with an AuditEvent via commitTransaction (same as consents.service create); add 3.3a to specs §3 and a bruno request. (2) A small «Добавить доверенное лицо» form next to the select in consent-record-form.tsx and the related-persons.tsx block (react-hook-form + zod like the other consent forms), ru/en messages. (3) Seed one minor patient with a RelatedPerson in tools/demo-seed so the representative branch can be shown. Alternative without a new endpoint: hide the non-self consenterType choices and the related block until the feature exists.",
+  "needsDecision": true,
+  "decisionQuestion": "Добавлять ли заведение доверенных лиц (POST /patients/{id}/related + форма у врача/администратора + демо-представитель в сиде), чтобы согласие от законного представителя было реально внесимо? Варианты: (A) добавить эндпоинт, форму и сид (рекомендую, примерно полдня, аддитивно, ничего не ломает); (B) не делать, а скрыть варианты «представитель/опекун/родственник» и блок «Доверенные лица» и записать ограничение в ПЗ; (C) оставить как есть. Рекомендация: A, потому что ADR-019 прямо называет представителей, а без них раздел согласия не соответствует собственному правовому обоснованию.",
+  "tzRef": "FR-001 / FR-002; ADR-019, API §3.3 и §3.8 (consenterType, relatedPersonId)",
+  "confidence": "confirmed"
+}

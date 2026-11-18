@@ -1,20 +1,12 @@
-/**
- * E2E — scenario E of the frontend design spec §6 (FR-008, API 8.1–8.4): the bell polls the unread counter, one
- * notification is marked read, then all of them.
- *
- * Notifications are produced at run time: a booking that is cancelled right away (the slot is free again, so the data
- * cleans itself) makes the notification service write an in-app notification asynchronously (RabbitMQ). Other specs
- * create notifications for the same demo patients, so nothing here asserts absolute counts: every check follows the
- * notification of this run, found by the link to its appointment (the text carries no reason).
- */
-import { expect, test, type BrowserContext, type Locator, type Page } from '@playwright/test';
+import { expect, test, type BrowserContext, type Page } from '@playwright/test';
 import { bookAnyFreeSlotAs, cancelAppointmentAs } from './fixtures/booking-api';
 import { hasDemoManifest } from './fixtures/demo-accounts';
+import { isPostTo } from './fixtures/network';
+import { cancelledNotificationRow, openNotificationsUntilCancelled } from './fixtures/notifications';
 import { openStoredSession } from './fixtures/session-state';
 
 test.skip(!hasDemoManifest(), 'demo seed manifest not found');
 
-/** The unread counter is polled every 30 s (ADR-015) and the notification arrives through the broker: allow both. */
 const POLL_TIMEOUT_MS = 100_000;
 const BELL = /Уведомления, непрочитанных: (\d+)/;
 
@@ -23,28 +15,10 @@ test.describe('patient notifications', () => {
   let context: BrowserContext;
   let page: Page;
 
-  /** Books a free slot and cancels it; resolves with the appointment id. */
   async function bookAndCancel(): Promise<{ readonly appointmentId: string }> {
     const { id: appointmentId } = await bookAnyFreeSlotAs(page);
     await cancelAppointmentAs(page, appointmentId);
     return { appointmentId };
-  }
-
-  function rowOf(appointmentId: string): Locator {
-    return page
-      .getByRole('group', { name: 'Список уведомлений' })
-      .getByRole('listitem')
-      .filter({ has: page.locator(`a[href="/appointments/${appointmentId}"]`), hasText: 'Запись на приём отменена.' });
-  }
-
-  /** Re-reads the list until the notification of the cancellation has arrived. */
-  async function openUntilArrived(appointmentId: string): Promise<Locator> {
-    const row = rowOf(appointmentId);
-    await expect(async () => {
-      await page.goto('/notifications');
-      await expect(row).toBeVisible({ timeout: 3_000 });
-    }).toPass({ timeout: POLL_TIMEOUT_MS, intervals: [2_000, 3_000, 5_000] });
-    return row;
   }
 
   test.beforeAll(async ({ browser, baseURL }) => {
@@ -57,13 +31,13 @@ test.describe('patient notifications', () => {
 
   test('should raise the unread counter of the bell by polling when a notification arrives while the page stays open', async () => {
     await page.goto('/booking');
-    const bell = page.getByRole('link', { name: BELL });
+    const bell = page.getByRole('button', { name: BELL });
     await expect(bell).toBeVisible();
     const before = Number(BELL.exec((await bell.getAttribute('aria-label')) ?? '')?.[1]);
 
     await bookAndCancel();
 
-    // No reload and no navigation: only the 30 s refetch of `GET /api/v1/notifications/unread-count` can change the bell.
+    // No reload: only the 30 s refetch of the unread counter can change the bell.
     await expect
       .poll(async () => Number(BELL.exec((await bell.getAttribute('aria-label')) ?? '')?.[1]), { timeout: POLL_TIMEOUT_MS, intervals: [5_000] })
       .toBeGreaterThan(before);
@@ -72,27 +46,26 @@ test.describe('patient notifications', () => {
 
   test('should mark one notification read and keep it in the list without the «Новое» marker', async () => {
     const { appointmentId } = await bookAndCancel();
-    const row = await openUntilArrived(appointmentId);
+    const row = await openNotificationsUntilCancelled(page, appointmentId, POLL_TIMEOUT_MS);
     await expect(row.getByText('Новое', { exact: true })).toBeVisible();
 
-    const marked = page.waitForResponse((response) => /\/api\/v1\/notifications\/[^/]+\/read$/.test(response.url()) && response.request().method() === 'POST');
+    const marked = page.waitForResponse(isPostTo(/\/api\/v1\/notifications\/[^/]+\/read$/));
     await row.getByRole('button', { name: 'Отметить прочитанным' }).click();
     expect((await marked).status()).toBe(204);
 
     await expect(page.getByText('Уведомление отмечено прочитанным')).toBeVisible();
     await expect(row.getByText('Новое', { exact: true })).toHaveCount(0);
     await expect(row.getByRole('button', { name: 'Отметить прочитанным' })).toHaveCount(0);
-    // The unread filter (API 8.1 `unread=true`) no longer lists it.
     await page.getByRole('tab', { name: 'Непрочитанные' }).click();
-    await expect(rowOf(appointmentId)).toHaveCount(0);
+    await expect(cancelledNotificationRow(page, appointmentId)).toHaveCount(0);
   });
 
   test('should mark every notification read with one action', async () => {
     const { appointmentId } = await bookAndCancel();
-    const row = await openUntilArrived(appointmentId);
+    const row = await openNotificationsUntilCancelled(page, appointmentId, POLL_TIMEOUT_MS);
     await expect(row.getByText('Новое', { exact: true })).toBeVisible();
 
-    const markedAll = page.waitForResponse((response) => response.url().endsWith('/api/v1/notifications/read-all') && response.request().method() === 'POST');
+    const markedAll = page.waitForResponse(isPostTo('/api/v1/notifications/read-all'));
     await page.getByRole('button', { name: 'Отметить все прочитанными' }).click();
     const response = await markedAll;
     expect(response.status()).toBe(200);

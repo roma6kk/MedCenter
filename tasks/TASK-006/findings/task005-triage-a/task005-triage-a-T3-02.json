@@ -1,0 +1,19 @@
+{
+  "id": "task005-triage-a-T3-02",
+  "unit": "task005-triage-a",
+  "kind": "question",
+  "severity": "low",
+  "title": "RESOLVED (не дефект): LOCATION в .ics на английском интерфейсе — осознанно того же языка, что SUMMARY и DESCRIPTION",
+  "description": "Адрес клиники в .ics берётся из тех же i18n-строк, что и адрес, который пациент только что видел на экране «Запись подтверждена»; SUMMARY («Appointment at the Lifeline clinic») и подписи в DESCRIPTION тоже на языке интерфейса. Так календарь пациента целиком читается на выбранном им языке, а адрес на латинице («12 Zdorovya St., Minsk») нормально находится картографическими сервисами. Разный язык у полей внутри одного события выглядел бы хуже. Сами адреса — демонстрационные данные (решение владельца: home.demoNote), при подстановке настоящего адреса достаточно заменить обе строки каталогов.",
+  "evidence": "frontend/src/components/booking/booking-success.tsx:58 const address = home('contactAddressValue'); :69-77 buildIcs({ summary: t('calendarTitle', ...), location: address, description }); frontend/src/messages/ru.json:1293 «г. Минск, ул. Здоровья, 12», frontend/src/messages/en.json:1293 «12 Zdorovya St., Minsk»; frontend/src/lib/ics.ts:82 LOCATION built with escapeText.",
+  "files": [
+    "frontend/src/components/booking/booking-success.tsx",
+    "frontend/src/lib/ics.ts",
+    "frontend/src/messages/en.json"
+  ],
+  "proposedFix": "None.",
+  "needsDecision": false,
+  "decisionQuestion": "",
+  "tzRef": "Пациент: создание записи",
+  "confidence": "confirmed"
+}

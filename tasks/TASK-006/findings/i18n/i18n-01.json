@@ -1,0 +1,19 @@
+{
+  "id": "i18n-01",
+  "unit": "i18n",
+  "kind": "i18n",
+  "severity": "low",
+  "title": "Поле даты в расписании врача подписано сырым ключом «doctor.schedule.from»: такого сообщения нет ни в ru.json, ни в en.json",
+  "description": "В ScheduleWeekControls невидимая подпись поля даты (`<label htmlFor=\"schedule-date\" className=\"sr-only\">`) берёт текст из `t('from')` в пространстве `doctor.schedule`. Ключа `doctor.schedule.from` в каталогах нет (есть `doctor.schedule.date` = «Дата» / «Date»), а createTranslate намеренно подавляет ошибки и подставляет путь ключа, поэтому ни тесты паритета, ни консоль ничего не показывают. Итог: у пользователя скринридера главный элемент управления страницы «Расписание» (выбор недели по любой дате) называется «doctor.schedule.from» и в русском, и в английском интерфейсе (WCAG 1.3.1 / 4.1.2: у поля нет понятного имени). Это единственный такой случай: статический обход всех вызовов t('…') / translate('…') / useT('ns') по AST и всех строковых литералов вида «namespace.key» нашёл только его (остальные совпадения — относительные ключи в пространстве имён и labelKey, которые разрешаются с префиксом layout.).",
+  "evidence": "frontend/src/components/doctor/schedule-week-controls.tsx:43 `<label htmlFor=\"schedule-date\" className=\"sr-only\">{t('from')}</label>` with `const t = useT('doctor.schedule')` (line 33). `node -e \"require('./src/messages/ru.json').doctor.schedule.from\"` -> undefined, same for en.json; the keys of doctor.schedule are title, date, periodLabel, previousWeek, nextWeek, today, ... (no `from`). The journal's twin control uses an existing key: journal-controls.tsx:48 `t(view === 'day' ? 'date' : 'weekStart')`. Scenario: a screen-reader user opens /doctor/schedule and focuses the date field -> hears «doctor.schedule.from, edit text».",
+  "files": [
+    "frontend/src/components/doctor/schedule-week-controls.tsx",
+    "frontend/src/messages/ru.json",
+    "frontend/src/messages/en.json"
+  ],
+  "proposedFix": "In schedule-week-controls.tsx:43 use the existing key: `{t('date')}` (ru «Дата», en «Date»), or add a more precise `doctor.schedule.weekOf` («Неделя, в которую входит день» / «Week containing the day») to both catalogues and use it, because the field jumps to the week of any day. Add a guard so this cannot recur: a jest spec that walks `src/**/*.tsx` with the TypeScript AST (as translate.spec.ts already does for parity) and asserts that every `t('literal')` of a `const t = useT('ns')` resolves to a key present in ru.json and en.json. A small render spec for ScheduleWeekControls (getByLabelText of the date field) also pins the accessible name.",
+  "needsDecision": false,
+  "decisionQuestion": "",
+  "tzRef": "NFR-008 (локализация), WCAG 2.2 SC 1.3.1 / 4.1.2",
+  "confidence": "confirmed"
+}

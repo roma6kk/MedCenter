@@ -1,4 +1,3 @@
-/** cabinet-fixtures — realistic answers of the patient's read endpoints for the specs (never imported by application code). */
 import type { AccountProfile, HistoryEntry, MedicationPrescription, PatientProfile, ServicePrescription } from './patient-types';
 
 export function historyFixture(overrides: Partial<HistoryEntry> = {}): HistoryEntry {
@@ -45,5 +44,4 @@ export function patientProfileFixture(overrides: Partial<PatientProfile> = {}): 
   };
 }
 
-/** What a patient can type into a free-text field: 500 characters and not one place to break the line. */
 export const LONG_UNBROKEN_TEXT: string = 'W'.repeat(500);

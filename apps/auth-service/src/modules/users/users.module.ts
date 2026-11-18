@@ -5,6 +5,7 @@ import { AuditModule } from '../audit/audit.module';
 import { FhirModule } from '../fhir/fhir.module';
 import { IDENTITY_RESOLVER } from '../oauth/identity';
 import { AccountController } from './account.controller';
+import { ACCOUNT_RETENTION, accountRetentionFromEnv } from './account-retention';
 import { AccountFactory } from './account-factory.service';
 import { AdminUsersController } from './admin-users.controller';
 import { BootstrapAdminService } from './bootstrap-admin.service';
@@ -16,27 +17,22 @@ import { RegistrationService } from './registration.service';
 import { UserIdentityResolver } from './user-identity.resolver';
 import { UsersService } from './users.service';
 
-/**
- * Accounts of the `auth` schema (API §2.2) and the two answers the OAuth
- * surface needs from them: "are these credentials valid?"
- * (`CredentialsService`) and "who is this token for?" (`IDENTITY_RESOLVER`).
- */
 @Module({
   imports: [DatabaseModule, FhirModule, AuditModule],
   controllers: [AdminUsersController, AccountController],
   providers: [
-    // Built by a factory: the scrypt parameters are a plain object, not a DI token.
     { provide: PasswordHasher, useFactory: (): PasswordHasher => new PasswordHasher() },
     RegistrationOutbox,
     PatientProvisioner,
     AccountFactory,
     RegistrationService,
+    { provide: ACCOUNT_RETENTION, useFactory: () => accountRetentionFromEnv() },
     UsersService,
     CredentialsService,
     BootstrapAdminService,
     UserIdentityResolver,
     { provide: IDENTITY_RESOLVER, useExisting: UserIdentityResolver },
   ],
-  exports: [CredentialsService, IDENTITY_RESOLVER],
+  exports: [CredentialsService, IDENTITY_RESOLVER, UsersService],
 })
 export class UsersModule {}

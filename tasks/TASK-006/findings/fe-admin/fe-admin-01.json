@@ -1,0 +1,18 @@
+{
+  "id": "fe-admin-01",
+  "unit": "fe-admin",
+  "kind": "bug",
+  "severity": "low",
+  "title": "Журнал аудита: ошибка фильтра («Ресурс», «Пользователь», период) остаётся на экране, когда поле возвращено к применённому значению",
+  "description": "Фильтры журнала аудита применяются сами после паузы набора. Ошибка проверки (неверный формат ресурса, перевёрнутый период) записывается в состояние errors только внутри колбэка useDebouncedCommit, а колбэк вызывается лишь пока черновик отличается от применённого фильтра. Если пользователь ввёл неверное значение, увидел ошибку и стёр текст (или вернул прежнюю дату), черновик снова равен применённому фильтру, таймер не запускается, и красная ошибка с aria-invalid остаётся на пустом, заведомо верном поле. Она исчезает только после нового ввода с паузой или кнопки «Сбросить».",
+  "evidence": "frontend/src/components/admin/audit/audit-filters-form.tsx:35-45 (setErrors вызывается только из commit) и frontend/src/components/admin/shared/use-debounced-commit.ts:18-23 (при same === true эффект выходит без таймера). Сценарий: открыть /admin/audit, в «Ресурс» набрать «x» и подождать 300 мс -> под полем «Ресурс должен быть…», aria-invalid; стереть «x» -> черновик entity '' равен применённому '' -> ошибка остаётся, хотя поле пустое и список не фильтруется. Аналогично для периода: поставить «По» раньше «С», дождаться ошибки, вернуть прежнюю дату -> ошибка периода остаётся.",
+  "files": [
+    "frontend/src/components/admin/audit/audit-filters-form.tsx",
+    "frontend/src/components/admin/shared/use-debounced-commit.ts"
+  ],
+  "proposedFix": "In useFilterDraft derive the error from the draft instead of storing it as a side effect of the commit: keep a second state `checkedDraft` that is set by the debounced callback, and compute `errors = sameFilter(draft, filter) ? {} : validateAuditFilter(checkedDraft ?? draft)` (or call setErrors({}) in a useEffect when sameFilter(draft, filter) becomes true). Add a case to audit-panel.spec.tsx: type an invalid entity, wait for the error, clear the field, expect the error to be gone.",
+  "needsDecision": false,
+  "decisionQuestion": "",
+  "tzRef": "FR-021",
+  "confidence": "confirmed"
+}

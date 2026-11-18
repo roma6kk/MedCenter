@@ -1,7 +1,7 @@
 import type { SmokeAccounts } from './smoke-accounts';
 import { SmokeAssertionError, expectEqual, expectTrue } from './smoke-assert';
 import type { SmokeRunner } from './smoke-runner';
-import { signIn } from './smoke-session';
+import { signIn, withLoginHint } from './smoke-session';
 import type { Session, SmokeAccount, SmokeConfig, SmokeRole } from './smoke-types';
 import type { SmokeSessions } from './suite';
 
@@ -13,7 +13,6 @@ const EXPECTED_SCOPES: Readonly<Record<SmokeRole, { readonly has: readonly strin
   PATIENT: { has: ['launch', 'patient/*.read', 'patient/*.write'], lacks: ['user/*.read', 'user/*.write'] },
 };
 
-/** The token says what the role may do (API §0 scope matrix) and carries the right identity claims. */
 function assertGrant(session: Session, account: SmokeAccount): void {
   const granted = session.grantedScope.split(' ');
   const expected = EXPECTED_SCOPES[account.role];
@@ -36,13 +35,14 @@ function assertGrant(session: Session, account: SmokeAccount): void {
 async function login(runner: SmokeRunner, config: SmokeConfig, label: string, account: SmokeAccount): Promise<Session | undefined> {
   let session: Session | undefined;
   await runner.check(GROUP, `${label}: authorize -> login form -> code -> token`, async () => {
-    session = await signIn(config, account);
+    session = await signIn(config, account).catch((error: unknown) => {
+      throw withLoginHint(error);
+    });
     assertGrant(session, account);
   });
   return session;
 }
 
-/** The three roles log in through the real browser flow; one wrong password proves the form refuses it. */
 export async function loginAll(runner: SmokeRunner, config: SmokeConfig, accounts: SmokeAccounts): Promise<SmokeSessions | undefined> {
   const admin = await login(runner, config, 'admin', accounts.admin);
   const doctor = await login(runner, config, 'doctor', accounts.doctor);

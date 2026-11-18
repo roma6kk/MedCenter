@@ -9,7 +9,6 @@ import { RelatedPersonPageDoc } from './dto/related-person-response.doc';
 import type { RelatedPersonResponseDto } from './dto/related-person-response.dto';
 import { RelatedPersonsService } from './related-persons.service';
 
-/** API §3.3 — trusted persons (`RelatedPerson`) of a patient; access rules as for §3.2. */
 @ApiTags('patient')
 @ApiBearerAuth()
 @Controller('api/v1/patients')

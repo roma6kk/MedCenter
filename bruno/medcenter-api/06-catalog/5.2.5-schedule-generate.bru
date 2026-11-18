@@ -37,5 +37,5 @@ assert {
 }
 
 docs {
-  Spec 5.2.5. ADMIN. Body `{ from, to }` (<= 90 days, inside the horizon); 201 `{ generated, skipped }`, existing slots are not duplicated. Supports `Idempotency-Key` (UUID, 24 h): a repeat returns the cached answer. 409 `CONFLICT` for a deactivated schedule.
+  Spec 5.2.5. ADMIN. Body `{ from, to }` (<= 90 days, calendar dates YYYY-MM-DD, inside the schedule's planning horizon: a day outside it -> 400 `VALIDATION_ERROR`); 201 `{ generated, skipped }`, existing slots and slots that overlap an existing one are not written (counted in `skipped`). A run that wrote slots adds one `AuditEvent` (`create`, `Schedule/{id}`). Supports `Idempotency-Key` (UUID, 24 h): a repeat returns the cached answer, a repeat sent while the first request still runs -> 409 `CONFLICT`. 409 `CONFLICT` also for a deactivated schedule.
 }

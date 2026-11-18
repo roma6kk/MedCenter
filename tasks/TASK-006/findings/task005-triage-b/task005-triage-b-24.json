@@ -1,0 +1,20 @@
+{
+  "id": "task005-triage-b-24",
+  "unit": "task005-triage-b",
+  "kind": "bug",
+  "severity": "low",
+  "title": "Даты периода в аналитике и журнале аудита уходят на сервер как «дата без времени» и читаются как сутки UTC, а интерфейс показывает сутки по Минску",
+  "description": "Вопрос из T8 «API читает даты в UTC, клиника в UTC+3» это ошибка клиента, а не API. API принимает RFC 3339 date-time со смещением, и именно так уже работает журнал врача (clinicDayBounds). Аналитика (9.1-9.3) и журнал аудита шлют ключи YYYY-MM-DD, сервер читает «дату без времени» как сутки UTC. Следствие: событие аудита в 01:30 по Минску показывается в таблице как 03.11 01:30, но находится фильтром по 02.11, а фильтр по 03.11 его не содержит (так 3 часа каждых суток). Для отчётов по записям сдвиг не виден, потому что приёмы идут в рабочие часы (05:00-17:00 UTC), но по смыслу границы тоже неверные. Заодно у clinicDayBounds верхняя граница `T23:59:59` включительно, и сервер добавляет только 1 мс, поэтому событие в 23:59:59.5 не попадает ни в этот день, ни в следующий. e2e admin-reports.spec.ts уже обходит это, считая «сегодня» по UTC.",
+  "evidence": "apps/analytics-service/src/modules/shared/date-range.ts:41-52 date-only `to` = whole UTC day, date-time accepted with offset; frontend/src/components/admin/analytics/use-analytics.ts appointmentsQuery / useEncountersReport / useServicesPopularity send {from,to} day keys; frontend/src/components/admin/audit/audit-filter.ts:50-51 `from: filter.from, to: filter.to`; frontend/src/lib/clinic-time.ts:128-132 clinicDayBounds gives `${key}T00:00:00+03:00` / `${key}T23:59:59+03:00`; frontend/e2e/admin-reports.spec.ts:232-235 comment about the UTC day. Scenario: audit event at 2026-11-02T22:30Z (= 03.11 01:30 Minsk); filter 03.11..03.11 sends from=2026-11-03,to=2026-11-03 -> UTC day, the event is missing.",
+  "files": [
+    "frontend/src/components/admin/analytics/use-analytics.ts",
+    "frontend/src/components/admin/audit/audit-filter.ts",
+    "frontend/src/lib/clinic-time.ts",
+    "frontend/e2e/admin-reports.spec.ts"
+  ],
+  "proposedFix": "Convert at the request boundary with the existing helper: from = clinicDayBounds(range.from).from, to = clinicDayBounds(range.to).to in appointmentsQuery, useEncountersReport, useServicesPopularity and toAuditParams (keep keys in the UI state and query keys). Make the upper bound `.999` (`${key}T23:59:59.999${offset}`) so no millisecond hole is left (check the doctor journal specs that assert the old string). Update the e2e day helper to the clinic day and the unit specs of audit-filter and use-analytics. No API change.",
+  "needsDecision": false,
+  "decisionQuestion": "",
+  "tzRef": "FR-019, FR-021; clinic time zone Europe/Minsk (context rule)",
+  "confidence": "confirmed"
+}

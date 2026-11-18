@@ -1,0 +1,22 @@
+{
+  "id": "tz-matrix-09",
+  "unit": "tz-matrix",
+  "kind": "gap",
+  "severity": "medium",
+  "title": "BR-002: администратор может отменить запись только прямым вызовом API — в интерфейсе администратора нет ни списка записей, ни кнопки отмены; расписание с busy-слотами нельзя удалить без ручных вызовов",
+  "description": "BR-002: «Отменять запись может пациент (свою) или администратор». Бэкенд это поддерживает (POST /appointments/{id}/cancel допускает ADMIN, actorType=ADMIN уходит в событие), но у администратора нет способа найти запись: GET /appointments — только PATIENT (6.2), GET /doctor/appointments — только DOCTOR (6.5), эндпоинта списка записей для ADMIN нет, в frontend/src/app/(admin) нет страницы записей (есть analytics, audit, patients/[id]/consent, rooms, schedules, services, terminology, users). Практический тупик: удаление расписания с занятыми слотами всегда даёт 409 SCHEDULE_IN_USE (5.2.4, busy-слоты защищены даже при cascade), а освободить слоты администратор в UI не может — врач ушёл на больничный, и записи на его смены можно снять только curl-ом по известным id. Из-за этого же сценарий «отмена администратором» из FR-008 в интерфейсе недостижим.",
+  "evidence": "apps/appointment-service/src/modules/appointments/appointments.controller.ts: @Get() list `@RequiresRoles(Role.PATIENT)`, @Post(':id/cancel') `@RequiresRoles(Role.PATIENT, Role.ADMIN)`; doctor-appointments.controller.ts `@RequiresRoles(Role.DOCTOR)`; `find frontend/src/app -name page.tsx` shows no admin appointments page; grep for 'cancel' under frontend/src/components/admin finds only generic dialogs and analytics labels; specs/api-designer-spec.md 5.2.4 table (busy slot -> 409 SCHEDULE_IN_USE even with cascade:true).",
+  "files": [
+    "apps/appointment-service/src/modules/appointments/appointments.controller.ts",
+    "apps/appointment-service/src/modules/appointments/appointment-queries.service.ts",
+    "apps/catalog-service/src/modules/schedules/schedule-removal.ts",
+    "frontend/src/app/(admin)/admin",
+    "frontend/src/components/layout/staff-shell.tsx",
+    "frontend/src/components/admin/schedules/delete-schedule-dialog.tsx"
+  ],
+  "proposedFix": "Smallest complete shape: (1) appointment-service `GET /api/v1/admin/appointments?from&to&doctorId&patientId&status&page&pageSize` (ADMIN, user/*.read) reusing AppointmentQueriesService + the 6.5 view mapper, WITHOUT the free-text `reason` (health data, ADR-021) and with the patient's display name (identification is allowed to ADMIN by the access matrix); (2) journal each call as a `read` AuditEvent through PatientReadAudit/readAudit (ADR-018 treats reads of other people's data by ADMIN as auditable) or document why list metadata is exempt; (3) page `/admin/appointments` (+ nav item) with date/doctor/status filters and a row action «Отменить» that opens the existing ConfirmDialog with a reason field (3..500) and calls POST /appointments/{id}/cancel; (4) in delete-schedule-dialog show the busy-slot conflict with a link to the filtered list. Add the endpoint to spec §6 and the Bruno collection.",
+  "needsDecision": true,
+  "decisionQuestion": "BR-002 разрешает администратору отменять записи, но в интерфейсе у него нет ни списка записей, ни кнопки отмены, и расписание с занятыми слотами не удалить без ручных вызовов API. Делаем? (а) РЕКОМЕНДУЮ: страница «Записи» в админке (фильтры по дате/врачу/статусу, отмена с причиной) + новый эндпоинт GET /admin/appointments без текста причины визита, с записью чтения в аудит; (б) минимум: в диалоге удаления расписания показывать занятые слоты и кнопку «Отменить записи этого расписания» (массовая отмена, без отдельной страницы); (в) не делать — зафиксировать в ПЗ, что отмена администратором доступна как функция API. Выбор влияет на приватность (администратор увидит, кто и когда записан), поэтому нужно ваше решение.",
+  "tzRef": "BR-002; FR-005; FR-008 (отмена администратором); api-designer-spec §6.4",
+  "confidence": "confirmed"
+}

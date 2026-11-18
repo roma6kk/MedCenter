@@ -1,36 +1,17 @@
-/**
- * Canonical URLs of Lifeline's own FHIR extensions.
- *
- * FHIR R4 `Extension.url` identifies the StructureDefinition of the extension
- * and must be an absolute URL — bare names such as `floor` are rejected by a
- * validating HAPI. Every service reads and writes extensions only through
- * these constants so a URL never drifts between the writer and the reader.
- */
 const EXTENSION_BASE = 'https://api.medcenter.by/fhir/StructureDefinition';
 
 export const MEDCENTER_EXT = {
-  /** `Location` (room) floor — valueInteger. */
   ROOM_FLOOR: `${EXTENSION_BASE}/room-floor`,
-  /** `HealthcareService` default visit duration in minutes — valueInteger. */
   SERVICE_DEFAULT_DURATION: `${EXTENSION_BASE}/service-default-duration`,
-  /** `Schedule` slot duration in minutes — valueInteger. */
   SCHEDULE_SLOT_DURATION: `${EXTENSION_BASE}/schedule-slot-duration`,
-  /** `Schedule` weekly working windows — valueString (JSON array). */
   SCHEDULE_WEEKLY_WINDOWS: `${EXTENSION_BASE}/schedule-weekly-windows`,
-  /** `Schedule` planning horizon — valuePeriod. */
   SCHEDULE_PLANNING_HORIZON: `${EXTENSION_BASE}/schedule-planning-horizon`,
-  /** `Slot` copy of the schedule actors — valueString (JSON array). */
   SLOT_ACTORS: `${EXTENSION_BASE}/slot-actors`,
-  /** `Consent` who signed the paper form: self / legal-representative / guardian / relative — valueCode (ADR-019). */
   CONSENT_CONSENTER_TYPE: `${EXTENSION_BASE}/consent-consenter-type`,
-  /** `Consent` document proving the representative's authority — valueString (ADR-019). */
   CONSENT_REPRESENTATIVE_DOCUMENT: `${EXTENSION_BASE}/consent-representative-document`,
-  /** `Consent` number of the written application that revoked it — valueString (ADR-019). */
   CONSENT_REVOCATION_NUMBER: `${EXTENSION_BASE}/consent-revocation-number`,
-  /** Outbox `Basic` routing key of the event, e.g. `appointment.booked.v1` — valueCode (ADR-021). */
+  NOTIFICATION_APPOINTMENT_START: `${EXTENSION_BASE}/notification-appointment-start`,
   OUTBOX_EVENT_TYPE: `${EXTENSION_BASE}/outbox-event-type`,
-  /** Outbox `Basic` id of the event, the broker `messageId` and the consumers' dedup key — valueString (ADR-021). */
   OUTBOX_EVENT_ID: `${EXTENSION_BASE}/outbox-event-id`,
-  /** Outbox `Basic` the whole event envelope as JSON, opaque to the relay — valueString (ADR-021). */
   OUTBOX_PAYLOAD: `${EXTENSION_BASE}/outbox-payload`,
 } as const;

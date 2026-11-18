@@ -9,12 +9,6 @@ export interface HealthResponseDto {
   readonly service: string;
 }
 
-/**
- * Liveness probe for the container runtime (architect §7, compose
- * `x-bff-healthcheck`). Not routed by Traefik (only `/api/v1/**` is) and
- * carries no data, hence `@Public()`. `@nestjs/terminus` is not installed, so
- * HAPI/Redis readiness is not probed here.
- */
 @ApiTags('appointment')
 @Controller('health')
 export class HealthController {

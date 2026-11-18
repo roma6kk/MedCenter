@@ -1,0 +1,17 @@
+{
+  "id": "task005-triage-b-11",
+  "unit": "task005-triage-b",
+  "kind": "question",
+  "severity": "low",
+  "title": "RESOLVED: компактные мобильные карточки таблиц админки уже сделаны в общем PaginatedTable",
+  "description": "Пункт из T5 («компактные карточки … не сделаны») устарел: PaginatedTable на ширине меньше xl показывает список карточек вместо таблицы, а колонки задают свою роль на телефоне (title, badge, actions, hidden): имя, роль или статус чипом и меню «⋯» в углу. Роли проставлены в таблицах пользователей, услуг и аудита. Остаётся только то, что таблицы аналитики (group-table) и недельного плана расписания остаются прокручиваемыми таблицами: для них карточки не нужны.",
+  "evidence": "frontend/src/components/data-display/paginated-table.tsx:31-34 `mobile?: title|badge|actions|hidden`; :126 desktop table `max-xl:hidden`; :164 `<ul data-testid=\"table-cards\" className=... xl:hidden>`; frontend/src/components/admin/users/users-table.tsx:122-127, services/services-table.tsx:44-45, audit/audit-table.tsx:75 use `mobile:`.",
+  "files": [
+    "frontend/src/components/data-display/paginated-table.tsx"
+  ],
+  "proposedFix": "No change.",
+  "needsDecision": false,
+  "decisionQuestion": "",
+  "tzRef": "",
+  "confidence": "confirmed"
+}

@@ -10,10 +10,8 @@ export function isoDay(offsetDays: number, now: number = Date.now()): string {
   return new Date(now + offsetDays * DAY_MS).toISOString().slice(0, 10);
 }
 
-/** Slots 0-2 go to the clinical chain, the race and the no-show; 3-5 to the consent chain. */
 export const MIN_FREE_SLOTS = 6;
 
-/** The free slots of the suite's doctor in the next two weeks, soonest first (public, no token). */
 export async function loadFreeSlots(suite: Suite): Promise<readonly JsonObject[]> {
   const response = await suite.api.get(`/api/v1/doctors/${suite.accounts.doctorId}/slots`, { query: { from: isoDay(1), to: isoDay(14) } });
   expectStatus(response, 200);

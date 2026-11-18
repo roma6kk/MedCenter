@@ -4,18 +4,15 @@ import type {
   EncounterCompletedEvent,
 } from '@medcenter/contracts';
 
-/** The three domain events the analytics worker consumes (architect §4.4). */
 export type AnalyticsEvent = AppointmentBookedEvent | AppointmentCancelledEvent | EncounterCompletedEvent;
 
 type Json = Readonly<Record<string, unknown>>;
 
-/** Column widths of the read-model (migration `AnalyticsInit`). */
 const REF_MAX = 128;
 const EVENT_ID_MAX = 128;
-/** `diagnosis_count` is an `integer` column. */
 const COUNT_MAX = 2_147_483_647;
 
-/** FHIR `id`: `[A-Za-z0-9\-.]{1,64}`. Ids go into `_id=` searches, so a comma or space must never get through. */
+// Ids go into _id= searches, so a comma or space must never get through.
 const FHIR_ID = /^[A-Za-z0-9\-.]{1,64}$/;
 
 function isText(value: unknown, max: number): value is string {
@@ -63,7 +60,6 @@ function isCompleted(event: Json): boolean {
     isFhirId(event['encounterId']) &&
     isText(event['patientRef'], REF_MAX) &&
     isText(event['practitionerRef'], REF_MAX) &&
-    // New events carry `diagnosisCount`; events published before the payload was minimised carry `diagnoses`.
     (isCount(event['diagnosisCount']) || (event['diagnosisCount'] === undefined && Array.isArray(event['diagnoses'])))
   );
 }
@@ -87,16 +83,10 @@ function parseJson(content: Buffer): Json | undefined {
   }
 }
 
-/** The diagnosis count of a validated completed event: the explicit value, else the length of the legacy list. */
 export function diagnosisCountOf(event: EncounterCompletedEvent): number {
   return event.diagnosisCount ?? event.diagnoses?.length ?? 0;
 }
 
-/**
- * Boundary validation of a broker delivery (AGENTS.md: validate external
- * input). Anything that does not match the `libs/contracts` event shape —
- * or would not fit the read-model columns — is `undefined` and goes to the DLQ.
- */
 export function parseAnalyticsEvent(content: Buffer): AnalyticsEvent | undefined {
   const event = parseJson(content);
   const type = event?.['type'];

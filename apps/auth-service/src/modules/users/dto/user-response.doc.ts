@@ -2,9 +2,9 @@ import { Role } from '@medcenter/contracts';
 import { ApiProperty } from '@nestjs/swagger';
 
 import { PageMetaDoc } from './page-meta.doc';
-import type { ExternalLinkDto, UserDetailsResponseDto, UserResponseDto } from './user-response.dto';
+import type { AccountConsentDto, MeResponseDto } from './me-response.dto';
+import type { ExternalLinkDto, RetentionExpiredItemDto, UserDetailsResponseDto, UserResponseDto } from './user-response.dto';
 
-/** OpenAPI description of `UserResponseDto` (an interface cannot be reflected by Swagger). */
 export class UserResponseDoc implements UserResponseDto {
   @ApiProperty({ format: 'uuid' })
   id!: string;
@@ -35,9 +35,17 @@ export class UserResponseDoc implements UserResponseDto {
 
   @ApiProperty({ enum: Role, enumName: 'Role', nullable: true, description: 'The role a token of this account carries (ADMIN > DOCTOR > PATIENT)' })
   role!: Role | null;
+
+  @ApiProperty({
+    type: String,
+    format: 'date-time',
+    nullable: true,
+    description: 'When the patient closed the account and withdrew the account consent, or null; such an account cannot be reactivated',
+  })
+  accountConsentWithdrawnAt!: string | null;
 }
 
-export class ExternalLinkDoc implements ExternalLinkDto {
+class ExternalLinkDoc implements ExternalLinkDto {
   @ApiProperty({ enum: ['Patient', 'PractitionerRole'] })
   resourceType!: 'Patient' | 'PractitionerRole';
 
@@ -48,7 +56,6 @@ export class ExternalLinkDoc implements ExternalLinkDto {
   reference!: string;
 }
 
-/** The user plus its `ExternalLink` rows (API 2.2.3, 2.2.7). */
 export class UserDetailsResponseDoc extends UserResponseDoc implements UserDetailsResponseDto {
   @ApiProperty({ type: [ExternalLinkDoc] })
   externalLinks!: ExternalLinkDoc[];
@@ -57,10 +64,44 @@ export class UserDetailsResponseDoc extends UserResponseDoc implements UserDetai
   createdAt!: string;
 }
 
-/** Page of users (API 2.2.2). */
+class AccountConsentDoc implements AccountConsentDto {
+  @ApiProperty({ type: String, format: 'date-time', description: 'When the registration form with the consent box was accepted' })
+  at!: string;
+
+  @ApiProperty({ example: '2026-11', description: 'Version of the consent text and policy the patient accepted' })
+  version!: string;
+}
+
+export class MeResponseDoc extends UserDetailsResponseDoc implements MeResponseDto {
+  @ApiProperty({ type: AccountConsentDoc, nullable: true, description: 'Null for accounts made by an administrator or before the consent was recorded' })
+  accountConsent!: AccountConsentDoc | null;
+}
+
 export class UserPageDoc {
   @ApiProperty({ type: [UserResponseDoc] })
   items!: UserResponseDoc[];
+
+  @ApiProperty({ type: PageMetaDoc })
+  meta!: PageMetaDoc;
+}
+
+export class RetentionExpiredItemDoc implements RetentionExpiredItemDto {
+  @ApiProperty({ format: 'uuid' })
+  id!: string;
+
+  @ApiProperty({ example: 'Иванов Иван', description: 'Display name, last name first' })
+  name!: string;
+
+  @ApiProperty({ type: String, format: 'date-time', description: 'When the account was deactivated' })
+  closedAt!: string;
+
+  @ApiProperty({ type: String, format: 'date-time', description: 'closedAt plus RETENTION_ACCOUNT_DAYS; the operator reviews the account after it' })
+  retentionUntil!: string;
+}
+
+export class RetentionExpiredPageDoc {
+  @ApiProperty({ type: [RetentionExpiredItemDoc] })
+  items!: RetentionExpiredItemDoc[];
 
   @ApiProperty({ type: PageMetaDoc })
   meta!: PageMetaDoc;

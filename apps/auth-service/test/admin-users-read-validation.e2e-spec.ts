@@ -11,7 +11,6 @@ jest.mock(
   () => jest.requireActual<typeof import('./synthetic-token')>('./synthetic-token').joseStub,
 );
 
-/** API §2.2.1–2.2.5: the request validation, the error mapping and the response contract of the admin CRUD. */
 describe('Admin users API — delete and list validation', () => {
   let fixture: AdminFixture;
   let app: INestApplication;

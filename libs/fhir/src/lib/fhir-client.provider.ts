@@ -1,45 +1,23 @@
 import { HttpException, HttpStatus, Logger, type Provider } from '@nestjs/common';
 import type { ErrorCode } from '@medcenter/contracts';
 
-/**
- * Minimal FHIR client contract every catalog/clinical service depends on.
- *
- * Kept intentionally narrow: the services only need `search`, `read`,
- * `update`, `create`, `delete`, `batch` and type-level `operation` calls. A
- * concrete implementation backed by `fhir-kit-client` (or any HTTP client)
- * can be swapped in through the `FHIR_CLIENT` token without touching any
- * consumer.
- */
 export interface FhirClient {
   search(resourceType: string, params?: Record<string, unknown>): Promise<FhirSearchResult>;
   read(resourceType: string, id: string): Promise<FhirResource>;
   create(resourceType: string, resource: FhirResource): Promise<FhirResource>;
   update(resourceType: string, id: string, resource: FhirResource): Promise<FhirResource>;
   delete(resourceType: string, id: string): Promise<void>;
-  /**
-   * Invokes a type-level FHIR operation via GET, e.g.
-   * `CodeSystem/$lookup?system=...&code=...` or `ValueSet/$expand?url=...`.
-   * Returns the `Parameters` (or other) resource the operation responds with.
-   */
   operation(
     resourceType: string,
     operation: string,
     params?: Record<string, unknown>,
     options?: FhirOperationOptions,
   ): Promise<FhirResource>;
-  /**
-   * Submits a FHIR Bundle (batch/transaction) in one HTTP request.
-   * Returns the response Bundle whose `entry[].response.status` carries the
-   * per-entry outcome (e.g. `201 Created`) for callers to inspect.
-   */
   batch(bundle: FhirResource): Promise<FhirResource>;
 }
 
-/** How an operation is invoked when the default type-level `GET` does not fit. */
 export interface FhirOperationOptions {
-  /** `POST` sends `params` as a `Parameters` body, as non-idempotent operations such as `$expunge` require. */
   readonly method?: 'GET' | 'POST';
-  /** Makes the call instance-level: `<resourceType>/<id>/<operation>`. */
   readonly id?: string;
 }
 
@@ -48,10 +26,7 @@ export interface FhirSearchResult {
   readonly entry?: ReadonlyArray<FhirBundleEntry>;
 }
 
-/** Common shape for `Bundle.entry` (search results and batch responses). */
 export interface FhirBundleEntry {
-  /** Present in search results and for PUT batch entries; batch responses
-   *  expose the per-entry outcome through `response` instead. */
   readonly resource: FhirResource;
   readonly response?: {
     readonly status: string;
@@ -68,9 +43,7 @@ export interface FhirResource {
 
 export const FHIR_CLIENT = Symbol('FHIR_CLIENT');
 
-/** What one request asks of the HTTP layer beyond method, path and body. */
 interface RequestOptions {
-  /** Send `Cache-Control: no-cache` so HAPI answers a search from live data, not from its result cache. */
   readonly bypassSearchCache?: boolean;
 }
 
@@ -78,22 +51,11 @@ export interface FhirClientConfig {
   readonly baseUrl: string;
   readonly clientId?: string;
   readonly clientSecret?: string;
-  /** Per-request timeout in milliseconds (default: {@link DEFAULT_FHIR_TIMEOUT_MS}). */
   readonly timeoutMs?: number;
 }
 
-/** NFR-005: a hung HAPI must not hold a request worker forever. */
 export const DEFAULT_FHIR_TIMEOUT_MS = 10_000;
 
-/**
- * One `HttpClient` per service, pointed at the internal HAPI URL (ADR-015:
- * our HAPI is the single source of clinical truth). Credentials come from the
- * environment only — never hard-coded, never committed.
- *
- * `fetch` is used instead of a third-party client so the provider stays
- * dependency-free and testable; the FHIR JSON envelope is all the catalog
- * read/write path needs.
- */
 export class HttpClient implements FhirClient {
   private readonly logger = new Logger(HttpClient.name);
 
@@ -155,11 +117,7 @@ export class HttpClient implements FhirClient {
   private headersFor(options: RequestOptions, hasBody: boolean): Record<string, string> {
     const headers: Record<string, string> = { Accept: 'application/fhir+json' };
     if (options.bypassSearchCache === true) {
-      // HAPI serves an identical search from its own result cache for a minute. A service that
-      // decides "does this exist yet?" before writing (replayed `POST /encounters`, slot lookups)
-      // must see the live state, so every search opts out of that cache. Only searches: a read by
-      // id, an operation and a write never touch the search cache. (Alternative: the HAPI server
-      // setting `reuse_cached_search_results_millis`, which would change it for every client.)
+      // HAPI serves an identical search from its result cache for a minute; callers that decide 'does it exist yet?' need live data, so searches opt out.
       headers['Cache-Control'] = 'no-cache';
     }
     if (hasBody) {
@@ -181,18 +139,13 @@ export class HttpClient implements FhirClient {
         signal: AbortSignal.timeout(this.config.timeoutMs ?? DEFAULT_FHIR_TIMEOUT_MS),
       });
     } catch (error) {
-      // Network failure or the AbortSignal timeout (DOMException `TimeoutError`).
       const timedOut = isTimeoutError(error);
       this.logger.warn({ method, url, timedOut, err: error }, 'FHIR request failed');
       throw new FhirClientError(method, url, undefined, undefined, { timedOut, cause: error });
     }
   }
 
-  /**
-   * Keeps the response body (usually an OperationOutcome) for diagnostics. The same timeout
-   * signal covers this read, so a stalled error body is a timeout (504), not a silently
-   * dropped body.
-   */
+  /** The same timeout covers the error body: a stalled body is a 504, not a dropped one. */
   private async failureOf(method: string, url: string, response: Response): Promise<FhirClientError> {
     let detail: string | undefined;
     let bodyTimedOut = false;
@@ -224,7 +177,6 @@ function isTimeoutError(error: unknown): boolean {
   return error instanceof Error && error.name === 'TimeoutError';
 }
 
-/** `Parameters` body of a `POST` operation; booleans, integers and strings are the only value types the callers need. */
 function toParameters(params: Record<string, unknown>): FhirResource {
   const parameter = Object.entries(params)
     .filter(([, value]) => value !== undefined && value !== null)
@@ -240,9 +192,7 @@ function toParameters(params: Record<string, unknown>): FhirResource {
   return { resourceType: 'Parameters', parameter };
 }
 
-/** Builds `<path>?<query>`, skipping empty values. Array values become
- *  repeated parameters (`start=ge…&start=le…`) — FHIR ANDs repeated search
- *  parameters, while a single comma-joined value would mean OR. */
+/** Array values become repeated parameters: FHIR ANDs those, while one comma-joined value would be an OR. */
 function withQuery(path: string, params: Record<string, unknown>): string {
   const query = new URLSearchParams();
   for (const [key, value] of Object.entries(params)) {
@@ -256,32 +206,14 @@ function withQuery(path: string, params: Record<string, unknown>): string {
   return suffix ? `${path}?${suffix}` : path;
 }
 
-/**
- * Upstream FHIR failure, already shaped as an API error so it leaves the
- * service through `ProblemDetailsFilter` with a catalogued `errorCode`
- * instead of an anonymous 500:
- * - HAPI 404/410 → `404 NOT_FOUND` (the requested resource does not exist);
- * - HAPI 409/412 → `409 CONFLICT` (version or duplicate conflict on write);
- * - HAPI 400/422 → `500 INTERNAL`: HAPI rejected a request this service built,
- *   so the defect is in our mapping, not in the client's input or in HAPI's
- *   availability;
- * - timeout (headers or body) → `504`, any other failure → `502` (both
- *   `INTERNAL`: the client cannot fix them, and the contract has no dedicated
- *   upstream code).
- *
- * The HAPI URL and the OperationOutcome stay on the error for logs and
- * callers (`upstreamStatus`, `body`) — they are never sent to the client.
- */
+/** HAPI failure shaped as an API error: 404/410 -> 404, 409/412 -> 409, 400/422 -> 500 (our mapping is at fault), timeout -> 504, other -> 502. The HAPI URL and body are never sent to the client. */
 export class FhirClientError extends HttpException {
-  /** `true` when the request was aborted by the per-request timeout. */
   readonly timedOut: boolean;
 
   constructor(
     readonly method: string,
     readonly url: string,
-    /** HTTP status HAPI answered with; `undefined` when no response arrived. */
     readonly upstreamStatus: number | undefined,
-    /** Response body — an OperationOutcome on FHIR error responses. */
     readonly body?: string,
     options: { readonly timedOut?: boolean; readonly cause?: unknown } = {},
   ) {
@@ -320,37 +252,25 @@ function toApiStatus(upstreamStatus: number | undefined, timedOut: boolean): Htt
   return HttpStatus.BAD_GATEWAY;
 }
 
-/** Each status has exactly one catalogued code, so status and errorCode never disagree. */
+const ERROR_CODE_BY_STATUS: Partial<Record<HttpStatus, ErrorCode>> = {
+  [HttpStatus.NOT_FOUND]: 'NOT_FOUND',
+  [HttpStatus.CONFLICT]: 'CONFLICT',
+};
+
 function toErrorCode(status: HttpStatus): ErrorCode {
-  switch (status) {
-    case HttpStatus.NOT_FOUND:
-      return 'NOT_FOUND';
-    case HttpStatus.CONFLICT:
-      return 'CONFLICT';
-    default:
-      return 'INTERNAL';
-  }
+  return ERROR_CODE_BY_STATUS[status] ?? 'INTERNAL';
 }
 
-/** Client-facing message; the HAPI URL and OperationOutcome never appear here. */
+const CLIENT_MESSAGES: Partial<Record<HttpStatus, string>> = {
+  [HttpStatus.NOT_FOUND]: 'NOT_FOUND: requested resource does not exist',
+  [HttpStatus.CONFLICT]: 'CONFLICT: resource was changed or already exists',
+  [HttpStatus.INTERNAL_SERVER_ERROR]: 'Внутренняя ошибка сервера',
+};
+
 function clientMessage(status: HttpStatus): string {
-  switch (status) {
-    case HttpStatus.NOT_FOUND:
-      return 'NOT_FOUND: requested resource does not exist';
-    case HttpStatus.CONFLICT:
-      return 'CONFLICT: resource was changed or already exists';
-    case HttpStatus.INTERNAL_SERVER_ERROR:
-      return 'Внутренняя ошибка сервера';
-    default:
-      return 'FHIR server is unavailable';
-  }
+  return CLIENT_MESSAGES[status] ?? 'FHIR server is unavailable';
 }
 
-/**
- * NestJS provider factory: reads the HAPI base URL and the service's client
- * credentials from the environment (`FHIR_BASE_URL`, `FHIR_CLIENT_ID`,
- * `FHIR_CLIENT_SECRET`) — never from source.
- */
 export function createFhirClientProvider(env: NodeJS.ProcessEnv = process.env): Provider {
   return {
     provide: FHIR_CLIENT,
@@ -363,17 +283,19 @@ export function createFhirClientProvider(env: NodeJS.ProcessEnv = process.env): 
       }
       return new HttpClient({
         baseUrl,
-        clientId: env['FHIR_CLIENT_ID'],
-        clientSecret: env['FHIR_CLIENT_SECRET'],
+        clientId: nonBlank(env['FHIR_CLIENT_ID']),
+        clientSecret: nonBlank(env['FHIR_CLIENT_SECRET']),
         timeoutMs: parseTimeout(env['FHIR_TIMEOUT_MS']),
       });
     },
   };
 }
 
-/** `FHIR_TIMEOUT_MS` must be a positive integer: `Number('abc')` is NaN and
- *  `AbortSignal.timeout(NaN)` would throw on every request, so a bad value
- *  fails the service at startup instead. */
+function nonBlank(value: string | undefined): string | undefined {
+  return value === undefined || value === '' ? undefined : value;
+}
+
+/** A non-numeric value would make `AbortSignal.timeout(NaN)` throw on every request, so it fails at startup. */
 function parseTimeout(raw: string | undefined): number | undefined {
   if (raw === undefined || raw === '') {
     return undefined;

@@ -6,11 +6,11 @@ import { apiProblem } from '@/components/patient/cabinet-test-utils';
 import { isMissingError, QueryErrorState, QueryFailure } from './query-error-state';
 import { useUiStore } from '@/store/use-ui-store';
 
-describe('QueryErrorState', () => {
-  beforeEach(() => {
-    useUiStore.setState({ locale: 'ru' });
-  });
+beforeEach(() => {
+  useUiStore.setState({ locale: 'ru' });
+});
 
+describe('QueryErrorState', () => {
   it('should show the not-found screen when the service answers 404', () => {
     render(<QueryErrorState error={apiProblem(404, 'NOT_FOUND')} notFoundText="Запись не найдена" />);
 
@@ -65,10 +65,6 @@ describe('QueryErrorState', () => {
 });
 
 describe('QueryErrorState (embedded)', () => {
-  beforeEach(() => {
-    useUiStore.setState({ locale: 'ru' });
-  });
-
   it('should show a banner with the request id and a retry, not a screen with its own heading, when the record is missing', async () => {
     const onRetry = jest.fn();
     render(<QueryErrorState error={apiProblem(404, 'NOT_FOUND', { requestId: 'req-50' })} embedded onRetry={onRetry} />);
@@ -123,10 +119,6 @@ describe('isMissingError', () => {
 });
 
 describe('QueryErrorState while the read is repeated', () => {
-  beforeEach(() => {
-    useUiStore.setState({ locale: 'ru' });
-  });
-
   it('should keep the banner and close the button, saying it retries, when isRetrying is set', () => {
     render(<QueryErrorState error={apiProblem(500, 'INTERNAL', { requestId: 'req-70' })} isRetrying onRetry={jest.fn()} />);
 
@@ -161,10 +153,6 @@ describe('QueryErrorState while the read is repeated', () => {
 });
 
 describe('QueryFailure', () => {
-  beforeEach(() => {
-    useUiStore.setState({ locale: 'ru' });
-  });
-
   interface HarnessProps {
     readonly fetcher: () => Promise<string>;
   }

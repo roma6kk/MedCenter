@@ -89,11 +89,13 @@ export class PaginatedResponseDto<TItem> {
 ```
 
 **Rate-limit** (NFR-006, Redis-счётчики, guard `libs/common`): `120 req/min` на пользователя
-на сервис; `20 req/min` на `POST /oauth/token` (по `clientId`+IP); превышение → `429` с
+на сервис; `20 req/min` на `POST /oauth/token` (на один `code`/`refresh_token`: ключ `client_id`+`grant_type`+sha256 токена, плюс щедрый потолок 600 req/min на адрес; запрос без токена — по `client_id`+IP); превышение → `429` с
 заголовками `Retry-After`. Аудит (`AuditEvent`) пишется на create/update/delete (FR-021, ADR-014) и на чтение данных пациента врачом или администратором (3.2, 3.3, 7.4, 7.5) вместе с отказами 403 `COMPARTMENT_VIOLATION` (ADR-018).
 
 **Идемпотентность.** `POST /appointments` и `POST /admin/schedules/generate` принимают
-заголовок `Idempotency-Key: <uuid>` (хранится в Redis, TTL 24 h, ответ повторяется из кэша).
+заголовок `Idempotency-Key: <uuid>` (хранится в Redis, TTL 24 h, ответ повторяется из кэша). Повтор с тем же ключом, пока первый запрос
+ещё выполняется (метка «в работе» на 30 с, снимается по окончании запроса), → **409** `CONFLICT`: повторить позже, операция
+не запускается второй раз; ключ с другим телом запроса → тот же **409**.
 
 #### 1. Модель ошибок
 
@@ -112,6 +114,12 @@ export class PaginatedResponseDto<TItem> {
 }
 ```
 
+`title` задаётся кодом ошибки (не именем исключения). Ответ `401` несёт `WWW-Authenticate: Bearer`
+(`Bearer error="invalid_token"`, если токен был предъявлен и отвергнут или отозван). Тело запроса больше 100 КБ или нечитаемое
+(битый gzip, JSON) → **400** `VALIDATION_ERROR`. Каждый ответ BFF по умолчанию идёт с `Cache-Control: no-store` (данные пациентов
+не оседают в кэше общего браузера); маршрут, безопасный для кэша, задаёт свой заголовок. Счётчик лимита запросов (`RATE_LIMIT_PER_MINUTE`)
+ведётся на маршрут по шаблону пути (`/doctors/:id`), а не по значению параметра.
+
 **FHIR-эндпоинты (HAPI) → `OperationOutcome`** — см. `architect-architecture.md` §4.5.
 
 Каталог кодов ошибок (`errorCode` / HTTP / условие):
@@ -126,16 +134,19 @@ export class PaginatedResponseDto<TItem> {
 | `COMPARTMENT_VIOLATION` | 403 | обращение к чужим данным (ADR-013) |
 | `NOT_FOUND` | 404 | ресурс не найден |
 | `METHOD_NOT_ALLOWED` | 405 | не используется: неизвестный метод или маршрут даёт 404 `NOT_FOUND` |
-| `CONFLICT` | 409 | конфликт версии или дубликат при записи в FHIR-хранилище (HAPI 409/412); дубликат e-mail (`EMAIL_TAKEN` в `detail`, 2.2.1/2.2.6) и дубликат `identifier` кабинета (4.4/4.5) — причина в `detail` |
-| `SLOT_CONFLICT` | 409 | BR-001: слот уже занят (гонка, ADR-012) |
+| `CONFLICT` | 409 | конфликт версии или дубликат при записи в FHIR-хранилище (HAPI 409/412); дубликат e-mail (`EMAIL_TAKEN` в `detail`, 2.2.1/2.2.6) и дубликат `identifier` кабинета (4.4/4.5), `Idempotency-Key` незавершённого запроса или с другим телом — причина в `detail` |
+| `SLOT_CONFLICT` | 409 | BR-001: слот уже занят (гонка, ADR-012) или уже начался, или расписание/роль врача деактивированы (6.1) |
 | `CONSENT_REQUIRED` | 409 | у пациента нет действующего согласия на электронную медкарту (7.1, 7.3; ADR-019); при `CONSENT_ENFORCEMENT=warn` не возвращается |
 | `CONSENT_ALREADY_ACTIVE` | 409 | 3.8: у пациента уже есть действующее согласие; сначала отзыв (3.9) |
+| `ACCOUNT_CONSENT_WITHDRAWN` | 409 | 2.2.4: `isActive: true` для учётной записи, которую пациент закрыл сам (отозвано согласие, `accountConsentWithdrawnAt`); включить её нельзя |
+| `INVALID_PASSWORD` | 403 | 2.2.8: неверный пароль при закрытии своей учётной записи (или она уже закрыта) |
 | `APPOINTMENT_NOT_CANCELLABLE` | 409 | BR-002: статус не позволяет отмену |
-| `ENCOUNTER_STATE_INVALID` | 409 | BR-003/BR-008: приём уже оформлен / запись не `booked` (cancelled/noshow/fulfilled); неявка (6.6) для записи, у которой уже есть приём |
+| `ENCOUNTER_STATE_INVALID` | 409 | BR-003/BR-008: приём уже оформлен / запись не `booked` (cancelled/noshow/fulfilled); неявка (6.6) для записи, у которой уже есть приём или время которой ещё не наступило |
 | `SCHEDULE_OVERLAP` | 409 | пересечение `Schedule.planningHorizon` одного `PractitionerRole` |
-| `SERVICE_IN_USE` | 409 | 5.1.5: на услугу ссылается активное `Schedule` |
+| `SERVICE_IN_USE` | 409 | 5.1.5: на услугу ссылается `Schedule` или роль врача (`PractitionerRole.healthcareService`) |
 | `SCHEDULE_IN_USE` | 409 | 5.2.4: расписание нельзя удалить — есть слоты или busy-слот (таблица 5.2.4) |
-| `ROOM_IN_USE` | 409 | 4.6: на кабинет ссылается активное `Schedule` |
+| `ROOM_IN_USE` | 409 | 4.6: на кабинет ссылается `Schedule` (активное или нет), роль врача (`PractitionerRole.location`) или услуга (`HealthcareService.location`) |
+| `AGE_RESTRICTED` | 422 | 2.2.6: саморегистрация пациента младше 18 лет на дату регистрации (часовой пояс клиники) |
 | `INVALID_ICD10_CODE` | 422 | код не входит в ValueSet `https://fhir.by/ValueSet/InternClassificDiseases10`; `details[]` называет поля запроса (`diagnoses.1.code`), `detail` сохраняет список кодов |
 | `TERMINOLOGY_NOT_FOUND` | 422 | код отсутствует в локальном seed НСИ (ADR-002/016); `details[]` называет поля запроса (`medicationRequests.0.atcCode`, `observations.0.unit`), `detail` сохраняет список кодов |
 | `RATE_LIMITED` | 429 | превышение лимита |
@@ -158,7 +169,8 @@ export class PaginatedResponseDto<TItem> {
 | 2.1.6 | `POST /oauth/login` | шаг ввода учётных данных (`application/x-www-form-urlencoded`) серверной формы входа | public, rate-limit |
 
 **2.1.2 `GET /oauth/authorize`** — параметры: `response_type=code`, `client_id`, `redirect_uri`,
-`scope` (пробел-разделённые), `state`, `code_challenge`, `code_challenge_method=S256`, `launch?`.
+`scope` (пробел-разделённые), `state`, `code_challenge`, `code_challenge_method=S256`, `launch?`, `ui_locales?` (`ru`|`en`, OIDC Core §3.1.2.1: язык формы входа и её сообщений,
+по умолчанию `ru`; берётся первый поддерживаемый тег списка, остальные игнорируются; переходит в `authorize_query`).
 `redirect_uri` необязателен: если не передан, берётся первый зарегистрированный URI клиента; он обязан входить в
 зарегистрированные для `client_id`. Поведение (UI-1: форма входа — на стороне authorization server):
 
@@ -168,14 +180,16 @@ export class PaginatedResponseDto<TItem> {
   `redirect_uri?error=<код>&state=…` на **зарегистрированный** URI;
 - до того как известен адрес возврата (неизвестный `client_id` → **401** `invalid_client`; негодный `client_id`,
   `redirect_uri`, `response_type`, `code_challenge`, `code_challenge_method` → **400** `invalid_request`) — конверт RFC 6749 §5.2,
-  не Problem Details; **429** `RATE_LIMITED`, **500** — Problem Details.
+  не Problem Details; **429** `RATE_LIMITED`, **500** — Problem Details. Запрос, где `Accept` содержит `text/html` (браузер),
+  вместо конверта/Problem Details получает HTML-страницу ошибки входа с тем же статусом (неожиданный сбой, например недоступна
+  БД, — **503**); клиент без `text/html` в `Accept` получает JSON, как описано выше.
 
 **2.1.6 `POST /oauth/login`** — тело `email`, `password`, `csrf` (токен формы, дублируется cookie), `authorize_query`
 (санированный query исходного запроса 2.1.2). Принят вход → **302** на `GET /oauth/authorize?…` с исходным запросом и
 cookie сессии входа (затем 2.1.2 выдаёт код). Ответы-страницы (`text/html`, не JSON): **200** — неверные учётные данные
 (форма с сообщением); **400** — негодный исходный запрос; **403** — устаревшая форма (CSRF не совпал); **429** — лимит
 попыток (по IP — 10/мин, по учётной записи — 10 за 15 мин; `Retry-After`); **503** — счётчик попыток недоступен
-(вход закрывается: fail-closed). Ошибка валидации ввода (слишком длинное поле) — 400 `problem+json`.
+(вход закрывается: fail-closed), он же — неожиданный сбой (например, недоступна БД) для браузера. Ошибка валидации ввода (слишком длинное поле) — 400 `problem+json`.
 
 ##### 2.1.1 `GET /.well-known/smart-configuration`
 
@@ -206,7 +220,7 @@ refresh_token=…                                                 (refresh_token
 адрес возврата проверяется только на шаге 2.1.2 (зарегистрированный URI клиента), код привязан к `client_id` и PKCE-вызову.
 Обязательны `code`, `client_id`, `code_verifier` (иначе 400 `invalid_request`).
 
-**Response 200** (JWT claims: `sub` (userId), `patient?` (PatientRef), `encounter?`,
+**Response 200** (JWT claims: `sub` (userId), `patient?` (голый id Patient, напр. `9f2c…`; FHIR-ссылка — в `fhirUser`), `encounter?`,
 `scope`, `role` (`PATIENT`|`DOCTOR`|`ADMIN`), `fhirUser?` (PractitionerRoleRef), `jti`,
 `sid` (session id: `jti` парного refresh-токена), `iss`, `iat`, `exp`):
 
@@ -217,7 +231,7 @@ refresh_token=…                                                 (refresh_token
   "expires_in": 900,
   "refresh_token": "…",
   "scope": "patient/*.read patient/*.write launch",
-  "patient": "Patient/9f2c…"
+  "patient": "9f2c…"
 }
 ```
 
@@ -267,7 +281,25 @@ guard-слоем — **401 `TOKEN_REVOKED`** (см. 2.1.3).
 | 2.2.4 | `PATCH /api/v1/admin/users/{id}` | роль, `isActive` | `ADMIN` |
 | 2.2.5 | `DELETE /api/v1/admin/users/{id}` | деактивация (soft); ответ **200** с карточкой пользователя (не 204) | `ADMIN` |
 | 2.2.6 | `POST /api/v1/auth/register` | саморегистрация пациента (A-6) | public |
-| 2.2.7 | `GET /api/v1/me` | профиль текущего пользователя + `ExternalLink` | любой Bearer |
+| 2.2.7 | `GET /api/v1/me` | профиль текущего пользователя + `ExternalLink` + `accountConsent` (`{at, version}` или `null`) | любой Bearer |
+| 2.2.8 | `POST /api/v1/me/deactivate` | пациент закрывает свою учётную запись (тело `{password}`); ответ **204** | `PATIENT`, rate-limit 5/мин |
+| 2.2.9 | `GET /api/v1/admin/users/retention-expired?page=&pageSize=` | закрытые учётные записи с истёкшим сроком хранения | `ADMIN` |
+
+**2.2.8 `POST /api/v1/me/deactivate`** — тело `{ "password": "<текущий пароль>" }`. Сервис деактивирует `User` (`isActive=false`,
+вход прекращается), ставит `account_consent_withdrawn_at` (отзыв согласия на учётную запись; `account_consent_at` и версия текста остаются) и
+отзывает сессию вызывающего (refresh-токен по `sid`; остальные refresh-токены не обновляются, т.к. identity перечитывается и неактивная
+запись отказывает). Пишет `AuditEvent` `user.deactivated` (агент — сам пациент). `Patient` в HAPI и мед. ресурсы не изменяются и не удаляются.
+Ответы: **204**; **400** — пустой пароль; **403** `INVALID_PASSWORD` — пароль неверный или запись уже закрыта (один ответ на оба случая);
+**429**.
+
+**Срок хранения закрытой учётной записи.** При деактивации (2.2.5, `PATCH` с `isActive: false`, 2.2.8) `User` получает `closedAt` и
+`retentionUntil = closedAt + RETENTION_ACCOUNT_DAYS` (переменная окружения auth-service, по умолчанию 1825; значение — по номенклатуре дел
+оператора, подлежит подтверждению); при повторной активации (2.2.4 `isActive: true`) оба поля сбрасываются. Миграция `AccountRetention1700000000004`
+добавляет колонки `closed_at`, `retention_until` и проставляет их уже закрытым записям (по умолчанию 1825 суток).
+
+**2.2.9 `GET /api/v1/admin/users/retention-expired`** — страница (`page`, `pageSize`, как в 2.2.2) закрытых записей с `retentionUntil` ≤ сейчас,
+по возрастанию `retentionUntil`. Элемент: `{ id, name, closedAt, retentionUntil }` (без e-mail и ролей). Автоматического удаления нет: отчёт
+для решения оператора; `Patient` и мед. ресурсы в HAPI не затрагиваются. Ответы: **200**, **400** (параметры страницы), **401**, **403**.
 
 **2.2.6 `POST /api/v1/auth/register`** — после создания `User` сервис создаёт `Patient` в HAPI
 через `fhir-kit-client` и сохраняет `ExternalLink`; событие `patient.registered.v1` (§4.4
@@ -326,7 +358,7 @@ export class AccountConsentDto {
 столбца: `account_consent_at` (момент приёма запроса, `timestamptz`) и `account_consent_version` (`varchar(64)`, `textVersion`); оба `NULL` у записей,
 созданных администратором (2.2.1) и до миграции `AccountConsent1700000000002`. `FHIR Consent` при регистрации **не создаётся**: согласие на
 электронную медкарту даётся отдельно (3.8) и без него 7.1/7.3 блокируются. В `UserResponseDto` эти поля не возвращаются; `accountConsent`
-отсутствует в 2.2.1 и 2.2.4. Карточка 2.2.3 дополнительно содержит `externalLinks` и `createdAt`.
+отсутствует в 2.2.1 и 2.2.4; 2.2.7 возвращает `accountConsent: {at, version} | null` (для выгрузки «Скачать мои данные», ст. 11 п. 1 Закона № 99-З). Карточка 2.2.3 дополнительно содержит `externalLinks` и `createdAt`.
 
 **Response 201** `UserResponseDto`: `{ id: UUID; email; firstName; lastName; roles: string[];
 patientRef: string | null; practitionerRoleRef: string | null; name: string; role: string; isActive: boolean }` · **409** email занят: `errorCode=CONFLICT`, код
@@ -389,11 +421,11 @@ export class CreateConsentDto {
   consenterType: 'self' | 'legal-representative' | 'guardian' | 'relative';
   relatedPersonId?: string;              // обязателен при consenterType ≠ self → performer=RelatedPerson
   representativeDocument?: string;       // ≤ 500, обязателен при consenterType ≠ self (документ полномочий)
-  signedByName?: string;                 // ≤ 200, ФИО медработника; обязателен для ADMIN, у DOCTOR берётся из токена
+  signedByName?: string;                 // ≤ 200, ФИО медработника; обязателен для ADMIN, у DOCTOR сервис читает «Фамилия И. О.» врача по PractitionerRole токена и пишет рядом со ссылкой
 }
 export class RevokeConsentDto {          // 3.9; для 3.6 тело пустое
   applicationNumber: string;             // 1…64, номер письменного заявления
-  revokedAt?: string;                    // по умолчанию сегодня
+  revokedAt?: string;                    // YYYY-MM-DD или RFC 3339 с поясом, по умолчанию сегодня
 }
 export class ConsentResponseDto {
   id: string; status: 'active' | 'inactive' | 'rejected' | 'entered-in-error';
@@ -413,7 +445,7 @@ export class PatientConsentDto {         // 3.4, 3.7
 - **3.8** → 201 `ConsentResponseDto`. Второе действующее согласие (или отказ при действующем) → **409** `CONSENT_ALREADY_ACTIVE`;
   чужой или неизвестный `scanId` → 400; `relatedPersonId` не этого пациента → 400. `Consent` и `AuditEvent` (`create`, `entity=Consent/{id}`)
   пишутся одной `transaction` Bundle. После `rejected` новое согласие вносится как обычно.
-- **3.6 / 3.9** → 200 `ConsentResponseDto` (`status=inactive`, `provision.period.end`=дата отзыва); без действующего согласия → **404** `NOT_FOUND`.
+- **3.6 / 3.9** → 200 `ConsentResponseDto` (`status=inactive`, `provision.period.end`=дата отзыва); без действующего согласия → **404** `NOT_FOUND`. Закрываются все действующие согласия пациента (при дубле от гонки ни одно не остаётся).
   `Consent` обновляется с `If-Match`, `AuditEvent` (`update`) — в той же Bundle. Данные пациента не удаляются, блокируются только новые записи.
 - **3.10** → 201 `{ scanId, contentType, size, hash }`. Типы `application/pdf`, `image/jpeg`, `image/png`, до **10 МБ**; тип проверяется
   по сигнатуре файла, а не по заголовку; `hash` — SHA-1 в base64 (`Consent.sourceAttachment.hash`). Нарушение → **400** `VALIDATION_ERROR`.
@@ -441,8 +473,8 @@ export class PatientConsentDto {         // 3.4, 3.7
 | 4.3 | `GET /api/v1/rooms?page=&pageSize=` | кабинеты (`Location.physicalType=room`) | `user/*.read` |
 | 4.4 | `POST /api/v1/admin/rooms` | создать кабинет | `ADMIN` |
 | 4.5 | `PATCH /api/v1/admin/rooms/{id}` | обновить кабинет | `ADMIN` |
-| 4.6 | `DELETE /api/v1/admin/rooms/{id}` | удалить (если нет активных `Schedule`) → иначе 409 `ROOM_IN_USE` | `ADMIN` |
-| 4.7 | `GET /api/v1/admin/rooms/{id}/usage` | занятость кабинета (`Schedule`/`Slot` references); только чтение | `ADMIN` + `user/*.read` |
+| 4.6 | `DELETE /api/v1/admin/rooms/{id}` | удалить (если на кабинет не ссылается ни одно `Schedule`, активное или нет, ни роль врача, ни услуга) → иначе 409 `ROOM_IN_USE` | `ADMIN` |
+| 4.7 | `GET /api/v1/admin/rooms/{id}/usage` | занятость кабинета (`Schedule`, `PractitionerRole`, `HealthcareService` и ближайшие занятые `Slot`); только чтение; названия по `Accept-Language` | `ADMIN` + `user/*.read` |
 
 **4.1/4.2 `DoctorResponseDto`** (`apps/practitioner-service/src/modules/doctors/dto/doctor-response.dto.ts`):
 
@@ -452,6 +484,7 @@ export interface DoctorResponseDto {
   name: string;                    // «Имя Фамилия»
   firstName: string;
   lastName: string;
+  middleName?: string;             // отчество — второй `given` имени; нет, если у врача его нет (4.1 и 4.2)
   specialty?: string;              // отображаемый текст специальности («Терапевт»)
   specialtyCode?: string;          // код специальности — значение для ?specialty= (4.1): `419192003`
   specialtySystem?: string;        // система кода: `http://snomed.info/sct`; ?specialty=system|code
@@ -460,6 +493,10 @@ export interface DoctorResponseDto {
   practitionerRoleIds: string[];   // id активных PractitionerRole врача по возрастанию; [] если ролей нет
 }
 ```
+
+`name` остаётся «Имя Фамилия» (как раньше); клиент, который пишет врача как «Фамилия Имя Отчество» (так же, как запись о приёме),
+собирает имя из `lastName`, `firstName` и `middleName`. `middleName` — второй `given` имени врача, переводится по `Accept-Language`
+так же, как `firstName` (без перевода остаётся русский текст); поле добавлено без изменения прежних.
 
 `specialtyCode`/`specialtySystem` — первый `coding` с `code` из `Practitioner.qualification[0].code` (тот же концепт,
 что хранит `PractitionerRole.specialty`, по которому фильтрует `?specialty=`); без кодированной квалификации (только
@@ -470,12 +507,51 @@ export interface DoctorResponseDto {
 Пагинация 4.1 считает **врачей**: `totalItems`/`totalPages` — число различных врачей, подошедших под `serviceId`/`specialty`/`search`
 (врач с двумя подходящими ролями учитывается один раз и не укорачивает страницу).
 
+**Фильтр `serviceId` (4.1):** врачи услуги — это врачи, чьи роли указаны актёром в активном расписании этой услуги
+(`Schedule?actor=HealthcareService/{id}`, `active != false`). Поле `PractitionerRole.healthcareService` не читается: его пишет только
+демо-сид, поэтому услуга, созданная администратором, иначе осталась бы без врачей. Услуга без активного расписания даёт пустой список.
+
+**Поиск `search` (4.1)** сопоставляется сервисом, а не параметром `name` HAPI (тот видит только сохранённый русский текст и
+только начало одного поля): каждое слово строки должно быть началом слова из фамилии, имени или отчества врача — на русском
+**или** на английском (перевод из расширения `translation`), в любом порядке и регистре, `ё` = `е`. Находят врача
+«Иванова Мария Сергеевна»: `Иванова`, `Мария Иванова`, `Иванова Мар`, `Maria Ivanova`, `ivanova`. Язык интерфейса
+(`Accept-Language`) на поиск не влияет. Просматривается не более 1000 врачей; без `search` страницу режет HAPI.
+
+**Скрытые врачи:** `Practitioner.active=false` убирает врача из 4.1 и делает его карточку 4.2 такой же **404** `NOT_FOUND`,
+как для неизвестного id (скрытого врача нельзя отличить от несуществующего). `PractitionerRole.active=false` не приводит
+врача в результат фильтра `serviceId`/`specialty` (роль считается отсутствующей, как и в `practitionerRoleIds`); врач без
+активных ролей остаётся в списке без фильтров с `practitionerRoleIds: []`. Отсутствие `active` означает «активен».
+
 **4.4/4.5 — уникальность `identifier`:** `identifier` кабинета уникален среди кабинетов
 (`Location.physicalType=ro`); он сравнивается без учёта регистра и крайних пробелов. Создание (4.4) с занятым
 `identifier` или переименование (4.5) в занятый → **409** `CONFLICT`, в `detail`:
 `CONFLICT: room identifier "204-Х" is already used by room {id}`. PATCH с `identifier`, равным собственному, допустим.
 HAPI не имеет unique-ограничения, проверка выполняется сервисом перед записью; гонка двух одновременных `POST` с
 одинаковым идентификатором не отслеживается (админские записи, низкая частота).
+
+**4.5 — отсутствующие и пустые значения:** поле, которого нет в теле, не меняется. Необязательные элементы кабинета
+убираются явно: `description` пустой или из одних пробелов (и `null`) удаляет описание, `floor: null` удаляет этаж; в HAPI
+пустая строка не отправляется (FHIR JSON её не допускает).
+В 4.4 необязательный элемент со значением `null` или из пробелов равносилен отсутствующему. `identifier` и `name`
+обязательны: `null` или текст из одних пробелов — **400** `VALIDATION_ERROR` (4.4 и 4.5); `identifier`, `name` и
+`description` сохраняются без крайних пробелов. PATCH, который ничего не меняет (`{}` или прежние значения), отвечает **200**
+с текущим кабинетом и не пишет ни новую версию ресурса, ни `AuditEvent` (FR-021).
+
+**4.5–4.7 — только кабинеты:** `{id}` должен быть `Location` с `physicalType=ro`, как в списке 4.3. `Location` другого типа
+(здание, отделение) для 4.5, 4.6 и 4.7 — **404** `NOT_FOUND`, как неизвестный id: PATCH не превращает его в кабинет, DELETE не удаляет.
+
+**4.6/4.7 — что значит «кабинет занят»:** HAPI не удаляет `Location`, на который есть ссылка, поэтому кабинет держат
+`Schedule` (`actor`; любое, активное или нет), роль врача (`PractitionerRole.location`) и услуга (`HealthcareService.location`;
+эти две ссылки пишет демо-сид, через API они не создаются). Для 4.6 и 4.7 это одно правило: 4.6 ищет по одному ресурсу каждого
+типа и при любой находке отвечает **409** `ROOM_IN_USE` (в `detail` названо, кто держит: «a schedule», «a doctor role»,
+«a service»), а 4.7 даёт `inUse: true` ровно тогда же. Если HAPI всё же отказал в удалении ссылкой, которой проверка не видела
+(ресурс создан между проверкой и записью), ответ тот же — 409 `ROOM_IN_USE` («another resource»), а не общий `CONFLICT`: у
+удаления нет `If-Match`, поэтому его 409 — это ссылочная целостность, а не параллельная правка.
+Ответ 4.7: `items` — сначала `Schedule`, `PractitionerRole`, `HealthcareService`, затем ближайшие занятые `Slot` (до 50,
+`truncated`); `resourceType` ∈ `Schedule | PractitionerRole | HealthcareService | Slot`; `isActive: false` — деактивированный
+ресурс, который всё ещё держит кабинет. Строка `display` — имена и период по `Accept-Language` (`en`, иначе `ru`: имя врача и
+название услуги берутся из `translation`-расширения, без перевода остаётся русский текст); слов «активно/неактивно» в ней нет,
+состояние — в `isActive`; в строке слота одно слово — «запись» / «booking».
 
 ```typescript
 // apps/practitioner-service/src/modules/rooms/dto/create-room.dto.ts
@@ -525,7 +601,8 @@ export class UpdateRoomDto extends PartialType(CreateRoomDto) {}
 | 5.1.2 | `GET /api/v1/services/{id}` | карточка услуги +specialty | public |
 | 5.1.3 | `POST /api/v1/admin/services` | создать услугу | `ADMIN` |
 | 5.1.4 | `PATCH /api/v1/admin/services/{id}` | обновить услугу | `ADMIN` |
-| 5.1.5 | `DELETE /api/v1/admin/services/{id}` | удалить (нет активных `Schedule` → иначе 409 `SERVICE_IN_USE`) | `ADMIN` |
+| 5.1.5 | `DELETE /api/v1/admin/services/{id}` | удалить (нет `Schedule` и роли врача, что на неё ссылаются → иначе 409 `SERVICE_IN_USE`) | `ADMIN` |
+| 5.1.6 | `GET /api/v1/admin/services?page=&pageSize=&search=` | каталог услуг для администратора, **с** отключёнными; без кэша | `ADMIN` |
 
 **5.1.3 `CreateServiceDto`** (маппинг → `HealthcareService`; `type` биндится на НСИ ЦИСЗ через
 canonical `https://fhir.by/...`, ADR-002):
@@ -571,8 +648,18 @@ export class CreateServiceDto {
   @IsArray()
   @IsString({ each: true })
   specialtyCodes?: string[]; // ссылки на PractitionerRole.specialty
+
+  @ApiPropertyOptional({ description: 'false убирает услугу из публичного каталога' })
+  @IsOptional()
+  @IsBoolean()
+  isActive?: boolean; // по умолчанию true; PATCH 5.1.4 принимает его же
 }
 ```
+
+**Отключение услуги (5.1.3, 5.1.4, 5.1.6):** `isActive: false` пишет `HealthcareService.active=false`. Услугу, которой уже
+пользовались, нельзя удалить (5.1.5 → `SERVICE_IN_USE`), поэтому её отключают. Публичные 5.1.1 и 5.1.2 не показывают отключённую
+услугу (`active:not=false`; 5.1.2 отвечает **404** `NOT_FOUND`, как для неизвестного id); `totalItems` публичной выдачи не считает
+отключённые. 5.1.6 отдаёт те же страницы без этого фильтра. Пустое `description` в 5.1.4 очищает описание (и английский текст к нему).
 
 **ServiceResponseDto:** `{ id; name; typeSystem; typeCode; typeDisplay; defaultDurationMin;
 description?; isActive }`. Инвалидация Redis-кэша `catalog:services` при 5.1.3–5.1.5.
@@ -663,37 +750,52 @@ export class CreateScheduleDto {
 }
 ```
 
+**Проверки 5.2.1/5.2.3.** `horizonFrom`/`horizonTo` и `from`/`to` слотов — календарные даты `YYYY-MM-DD` (несуществующий день,
+недельная и порядковая формы, дата-время → 400 `VALIDATION_ERROR`). `horizonTo` не раньше `horizonFrom` и не позже чем через
+90 дней — это проверяет и создание, а не только `PATCH`. `windows[].endTime` позже `startTime`, иначе 400 с
+`details[{ field: 'windows.0.endTime' }]`. `practitionerRoleId`, `roomId`, `serviceId` должны существовать: неизвестный
+ресурс → 404 `NOT_FOUND` с именем поля в `message` (вместо 500 от HAPI). Список 5.2.2 отсортирован по времени изменения,
+новые и только что правленные расписания — первыми.
+
 **5.2.5 `POST /admin/schedules/{id}/generate`** — тело `GenerateSlotsDto`:
-`{ from: date; to: date }` (`to-from` ≤ 90 дней, в пределах `planningHorizon`) → **201** с
-`{ generated: number; skipped: number }` (существующие слоты не дублируются). Поддерживает
-`Idempotency-Key` (§0). Для расписания с `active=false` (см. 5.2.4) → 409 `CONFLICT`.
+`{ from: date; to: date }` (`to-from` ≤ 90 дней, в пределах `planningHorizon` расписания: день вне горизонта → 400
+`VALIDATION_ERROR`; расписание без границы горизонта считается открытым с этой стороны) → **201** с
+`{ generated: number; skipped: number }` (существующие слоты не дублируются). Слот, который пересекается по времени
+с уже существующим слотом этого расписания (сетку изменили `PATCH`ем или слоты остались от старого генератора), не пишется
+и входит в `skipped`: врач и кабинет не получают две свободные записи на одно время. Запуск, создавший слоты, пишет один
+`AuditEvent` (`create`, `entity=Schedule/{id}`, `outcomeDesc` вида `slots generated: N, skipped: M, from..to`; FR-021).
+Поддерживает `Idempotency-Key` (§0). Для расписания с `active=false` (см. 5.2.4) → 409 `CONFLICT`.
 
 **5.2.4** — тело `{ "cascade": false }` (по умолчанию). Фактическая семантика (live-стенд, 2026-10-15):
 
 | Состояние расписания | `cascade:false` | `cascade:true` |
 | --- | --- | --- |
-| нет слотов | 204, расписание удалено | 204, расписание удалено |
+| нет слотов | 200 `{"deactivated":false}`, расписание удалено | 200 `{"deactivated":false}`, расписание удалено |
 | есть любые слоты | 409 `SCHEDULE_IN_USE` | см. ниже |
-| есть `busy`-слот (живая запись, BR-001) | 409 `SCHEDULE_IN_USE` | **409 `SCHEDULE_IN_USE`** (а не 204: busy-слоты защищены всегда) |
-| только `free`-слоты | 409 `SCHEDULE_IN_USE` | 204, слоты и расписание удалены |
-| `free`-слот, на который ссылается отменённая запись | 409 `SCHEDULE_IN_USE` | 204, см. ниже |
+| есть `busy`-слот (живая запись, BR-001) | 409 `SCHEDULE_IN_USE` | **409 `SCHEDULE_IN_USE`** (busy-слоты защищены всегда) |
+| только `free`-слоты | 409 `SCHEDULE_IN_USE` | 200 `{"deactivated":false}`, слоты и расписание удалены |
+| `free`-слот, на который ссылается отменённая запись | 409 `SCHEDULE_IN_USE` | 200 `{"deactivated":true}`, см. ниже |
 
 Отмена записи возвращает слот в `free`, но `Appointment.slot` остаётся (история приёма), а HAPI по умолчанию
 проверяет ссылочную целостность и отвечает `409` на `DELETE Slot` (проверено на стенде). Такой слот не удаляется:
 он переводится в `entered-in-error` (запись с `If-Match` на прочитанную версию: если запись успела забронировать
 слот, запись проваливается и ответ — 409 `SCHEDULE_IN_USE`), а `Schedule` деактивируется (`active=false`) вместо
 физического удаления: слот ссылается на расписание, расписание — на кабинет и услугу, поэтому их `DELETE` тоже
-остаётся `ROOM_IN_USE`/`SERVICE_IN_USE`. Ответ тот же 204, повторный `DELETE` безопасен (204). Деактивированное
+остаётся `ROOM_IN_USE`/`SERVICE_IN_USE`. Ответ — 200 `{"deactivated":true}` (при физическом удалении `{"deactivated":false}`; раньше было 204 без тела), повторный `DELETE` безопасен (200 `{"deactivated":true}`). Деактивированное
 расписание не участвует в проверке `SCHEDULE_OVERLAP`, в `GET /doctors/{id}/slots` и `GET /doctor/schedule`, виден
 администратору как `isActive=false` (`GET /admin/schedules?active=false`) и не принимает `generate`.
 
 **5.2.7** — расписание берётся по `PractitionerRole` из токена; токен врача без `PractitionerRole` → **403**
 `COMPARTMENT_VIOLATION` (проверка идёт раньше правил диапазона `from`/`to`).
 
-**5.2.8 `SlotResponseDto`:** `{ id; scheduleId; start; end; status: 'free' | 'busy' | 'entered-in-error' }` —
+**5.2.8 `SlotResponseDto`:** `{ id; scheduleId; start; end; status: 'free' | 'busy' | 'entered-in-error'; serviceId? }` —
 пагинация отключена (данные компактны), сортировка по `start` обязательна. `entered-in-error` — слот, снятый при
 удалении расписания (5.2.4); он виден только в `GET /admin/schedules/{id}/slots?status=entered-in-error`:
-без `status` этот эндпоинт отдаёт только `free` и `busy`.
+без `status` этот эндпоинт отдаёт только `free` и `busy`. `serviceId` (аддитивное необязательное поле) — `HealthcareService`
+расписания слота; есть в 5.2.7 и 5.2.8. Расписание принадлежит услуге, а `POST /appointments` отвечает 400, если услуга запроса
+не совпала с услугой расписания слота, поэтому клиент выбирает слоты услуги по `serviceId`, а не по равной длительности.
+5.2.6 читает все страницы HAPI; период, в котором больше 10 000 слотов → 400 `VALIDATION_ERROR` («запросите период короче»);
+неизвестное расписание → 404 `NOT_FOUND`; `from`/`to` без времени — календарные дни клиники (Europe/Minsk).
 
 #### 6. `appointment-service` — Запись на приём (FR-004/005/006, BR-001/002, ADR-012)
 
@@ -703,8 +805,8 @@ export class CreateScheduleDto {
 | 6.2 | `GET /api/v1/appointments?upcoming=true&status=booked,noshow&page=` | свои записи (компартмент); `status` — фильтр по статусу (см. ниже) | `patient/*.read` |
 | 6.3 | `GET /api/v1/appointments/{id}` | детали записи | владелец / DOCTOR / ADMIN |
 | 6.4 | `POST /api/v1/appointments/{id}/cancel` | отмена: `status=cancelled` + `statusReason` | владелец-пациент / ADMIN |
-| 6.5 | `GET /api/v1/doctor/appointments?from=&to=&page=` | записи врача как участника | `user/*.read` (DOCTOR) |
-| 6.6 | `POST /api/v1/doctor/appointments/{id}/noshow` | пометить неявку (`status=noshow`); только `booked` без приёма, иначе 409 `ENCOUNTER_STATE_INVALID` | `user/*.write` (DOCTOR) |
+| 6.5 | `GET /api/v1/doctor/appointments?from=&to=&status=&patient=&page=` | записи врача как участника; `status` и `patient` — необязательные фильтры (см. ниже) | `user/*.read` (DOCTOR) |
+| 6.6 | `POST /api/v1/doctor/appointments/{id}/noshow` | пометить неявку (`status=noshow`); только `booked` без приёма и не раньше начала записи, иначе 409 `ENCOUNTER_STATE_INVALID` | `user/*.write` (DOCTOR) |
 
 **6.2 фильтр `status`:** необязательный параметр `status` — один статус или список через запятую
 (`booked|cancelled|noshow|fulfilled`; допустим и повтор параметра `?status=a&status=b`), ИЛИ между значениями;
@@ -712,6 +814,21 @@ export class CreateScheduleDto {
 `VALIDATION_ERROR` (`details[{field:'status'}]`). Соединяется по И с `upcoming` и компартментом; семантика
 `upcoming=true` (`start >= now`) не меняется — без `status` он по-прежнему отдаёт и отменённые записи, поэтому для
 «предстоящих активных» нужно `upcoming=true&status=booked`. Поиск идёт токеном `Appointment?status=booked,noshow`.
+
+**6.5 границы `from`/`to`:** включительные, по `Appointment.start`; RFC 3339 дата-время с зоной берётся как есть, а дата без
+времени — календарный день клиники (`Europe/Minsk`, как в 5.2): `from` — его первое мгновение, `to` — последнее (HAPI читал бы
+голую дату по UTC, со сдвигом на 3 часа). `from` позже `to` → **400** `VALIDATION_ERROR`.
+
+**6.2, 6.3, 6.5 язык ответа:** необязательный заголовок `Accept-Language`; при `en` поля `doctorName`, `serviceName` и `patientName`
+отдаются английским переводом из HL7-расширения `translation` ресурсов Practitioner (`_family`, `_given[i]`, `_text`), HealthcareService
+(`_name`) и Patient; без перевода и при любом другом значении (по умолчанию) остаётся русский оригинал. Форма ответа не меняется
+(как в 4.1/4.2 и 5.1.x).
+
+**6.5 фильтры `status` и `patient`:** необязательные; `status` — как в 6.2 (один статус или список через запятую, ИЛИ между
+значениями, неизвестное значение → **400** `VALIDATION_ERROR`), `patient` — id пациента (FHIR `id`, иначе **400**). Оба сужают
+список врача и соединяются по И с компартментом из токена (`actor=PractitionerRole/{id}`) и с `from`/`to`, поэтому чужие записи
+не попадают в ответ; поиск идёт параметрами `Appointment?actor=…&patient=Patient/{id}&status=…`. Нужны карточке пациента:
+ближайшая запись пациента у этого врача — `patient=…&status=booked&pageSize=1` в порядке возрастания `start`.
 
 **6.1 `CreateAppointmentDto`** — плюс заголовок `Idempotency-Key` (§0):
 
@@ -739,7 +856,7 @@ export class CreateAppointmentDto {
 }
 ```
 
-**Транзакция 6.1** (ADR-012, оптимистичная блокировка `If-Match` на версию `Slot`): re-read `Slot` → `status=free`? `serviceId` не совпал с услугой расписания слота → **400**.
+**Транзакция 6.1** (ADR-012, оптимистичная блокировка `If-Match` на версию `Slot`): re-read `Slot` → `status=free` и `start` позже текущего момента (как в публичной выдаче слотов; начавшийся слот → **409** `SLOT_CONFLICT`); `Schedule` или `PractitionerRole` с явным `active=false` (как скрывает публичная выдача) → тот же **409**? `serviceId` не совпал с услугой расписания слота → **400**.
 → создать `Appointment` (participants: Patient + PractitionerRole; `slot` reference) →
 `Slot.status=busy` → publish `appointment.booked.v1` → `AuditEvent(create)` → **201**
 `AppointmentResponseDto`. Гонка → **409** `SLOT_CONFLICT`.
@@ -772,10 +889,14 @@ export class AppointmentResponseDto {
 **6.6 неявка (BR-008):** `Appointment.status=noshow` ставится только для записи со `status=booked`, у которой **нет**
 `Encounter` (`Encounter?appointment=Appointment/{id}`: ни `in-progress`, ни `finished`). Запись не `booked`
 (cancelled/noshow/fulfilled) или с приёмом → **409** `ENCOUNTER_STATE_INVALID` (раньше для не-`booked` отвечал `CONFLICT`,
-а для записи с завершённым приёмом — 200). Проверка владельца (403 `COMPARTMENT_VIOLATION`) идёт раньше проверки
+а для записи с завершённым приёмом — 200). Неявку нельзя поставить до `Appointment.start`: пока время записи не наступило →
+тот же **409** (проверка идёт после статуса и приёма; статус `noshow` не возвращается, слот остаётся `busy`, а приём по такой
+записи уже не открыть). Проверка владельца (403 `COMPARTMENT_VIOLATION`) идёт раньше проверки
 состояния. Приём, открытый в тот же момент между проверкой и коммитом, тоже исключён: открытие (7.1) меняет Appointment
 (`meta.tag` `encounter-opened`) под `If-Match`, и проигравший гонку получает 409 `ENCOUNTER_STATE_INVALID`.
 Отмена (6.4) записи с приёмом → 409 `APPOINTMENT_NOT_CANCELLABLE` (так же при проигрыше гонки).
+Успешная неявка публикует `appointment.noshow.v1` (запись outbox в той же транзакции, ADR-021): пациент получает уведомление 8.1
+категории `appointment` со ссылкой на запись.
 
 **Status:** 201 (6.1) · 200 (6.2–6.6) · 400/401/403/404/409 — §1.
 
@@ -784,12 +905,14 @@ export class AppointmentResponseDto {
 | # | Метод и путь | Назначение | Доступ |
 | --- | --- | --- | --- |
 | 7.1 | `POST /api/v1/encounters` | открыть приём по booked-записи (врач) | `user/*.write` (DOCTOR) |
-| 7.2 | `GET /api/v1/encounters/{id}` | детали приёма | участник / ADMIN |
+| 7.2 | `GET /api/v1/encounters/{id}` | детали приёма | участник-врач (ADMIN: 403, ADR-018) |
 | 7.3 | `POST /api/v1/encounters/{id}/complete` | завершить приём: диагноз/план/назначения | `user/*.write` (DOCTOR) |
-| 7.4 | `GET /api/v1/patients/{id}/history?page=` | история обращений | владелец / DOCTOR (ADMIN → 403) |
-| 7.5 | `GET /api/v1/patients/{id}/prescriptions?page=` | назначения (ServiceRequest/MedicationRequest) | владелец / DOCTOR (ADMIN → 403) |
+| 7.4 | `GET /api/v1/patients/{id}/history?page=` | история обращений (`doctorName` по `Accept-Language`: `en`/`ru`; неизвестный пациент — 403, как чужой) | владелец / DOCTOR (ADMIN → 403) |
+| 7.5 | `GET /api/v1/patients/{id}/prescriptions?page=&encounterId=` | назначения (ServiceRequest/MedicationRequest) | владелец / DOCTOR (ADMIN → 403) |
 | 7.6 | `GET /api/v1/me/history` | своя история (компартмент) | `patient/*.read` |
-| 7.7 | `GET /api/v1/me/prescriptions` | свои назначения (компартмент) | `patient/*.read` |
+| 7.7 | `GET /api/v1/me/prescriptions?encounterId=` | свои назначения (компартмент) | `patient/*.read` |
+
+Необязательный параметр `encounterId` (7.5/7.7, FHIR id) оставляет только назначения этого приёма (`MedicationRequest.encounter`, `ServiceRequest.encounter`); ограничение по пациенту сохраняется, чужой приём даёт пустую страницу, не-id — 400 `VALIDATION_ERROR`.
 
 Элементы истории (7.4/7.6) несут `practitionerRoleId` и `doctorName` (ФИО врача: `Practitioner.name`, фамилия первой; поле опускается, если врача не удалось определить) — имя берётся из того же Bundle (`_include` Encounter→PractitionerRole→Practitioner).
 
@@ -799,7 +922,7 @@ export class AppointmentResponseDto {
 `emergencyReason: string` (10…500): пациент не может дать согласие, приём открывается без него, и отдельный `AuditEvent`
 (`emergency-bypass`) фиксирует причину; согласие оформляется при первой возможности. Тот же параметр — у 7.3.
 
-**7.3 `CompleteEncounterDto`** — одно тело, атомарное оформление приёма (FR-011…FR-014):
+**7.3 `CompleteEncounterDto`** — одно тело, атомарное оформление приёма (FR-011…FR-014). Тексты `summary`, `recommendations`, `diagnoses[].display`, `medicationRequests[].dosageText` и заметки обрезаются по краям до проверки длины (пробелы не проходят); повтор кода в `diagnoses[].code` или `medicationRequests[].atcCode` — 400 `VALIDATION_ERROR`:
 
 ```typescript
 // apps/encounter-service/src/modules/encounters/dto/complete-encounter.dto.ts
@@ -827,7 +950,7 @@ export class ConditionDto {
 
 export class ObservationDto {
   @ApiProperty({ example: 'https://fhir.by/CodeSystem/nsi-observations' })
-  @IsString() @IsNotEmpty() @MaxLength(255)
+  @IsIn(['https://fhir.by/CodeSystem/nsi-observations'])   // другая система → 400 VALIDATION_ERROR
   codeSystem: string;
 
   @ApiProperty({ example: '50849' })
@@ -845,7 +968,7 @@ export class ObservationDto {
 
 export class ServiceRequestDto {
   @ApiProperty({ example: 'https://fhir.by/CodeSystem/nsi-services' })
-  @IsString() @IsNotEmpty() @MaxLength(255)
+  @IsIn(['https://fhir.by/CodeSystem/nsi-services'])       // другая система → 400 VALIDATION_ERROR
   codeSystem: string;                   // НСИ ЦИСЗ (ADR-002)
 
   @ApiProperty() @IsString() @IsNotEmpty() @MaxLength(50)
@@ -937,15 +1060,24 @@ export class CompleteEncounterDto {
 | 8.3 | `POST /api/v1/notifications/{id}/read` | отметить прочитанным | `PATIENT`, `patient/*.write`, владелец |
 | 8.4 | `POST /api/v1/notifications/read-all` | отметить прочитанными все свои непрочитанные (до 200 за вызов), ответ `{ "updated": n }` | `PATIENT`, `patient/*.write`, владелец |
 
-Потребитель RabbitMQ (`appointment.booked/cancelled.v1`, `encounter.completed.v1`,
-`patient.registered.v1` — каталог в §4.4 архитектуры) создаёт `Communication` (recipient=Patient,
-sender=Organization) + email-адаптер (A-3). Компартмент: фильтр по `patientRef` из JWT (ADR-013).
-Элемент 8.1: `{ id, category, text, sent, read, appointmentId?, encounterId? }` — `appointmentId`/`encounterId`
+Потребитель RabbitMQ (`appointment.booked/cancelled/noshow.v1`, `encounter.completed.v1`,
+`patient.registered.v1` — каталог в §4.4 архитектуры) создаёт `Communication` (recipient=Patient; `sender` не пишется:
+id организации клиники сервису не известен, а HAPI проверяет ссылочную целостность) + email-адаптер (A-3). Компартмент: фильтр по `patientRef` из JWT (ADR-013).
+Элемент 8.1: `{ id, category, kind?, text, sent, read, start?, appointmentId?, encounterId? }` — `category` ∈ `appointment` |
+`encounter` | `registration` (по ним клиент выбирает значок и фильтр); `kind` — какое это событие, чтобы клиент сам сформулировал
+уведомление на языке интерфейса (NFR-008): `appointment.booked` | `appointment.cancelled` | `appointment.cancelled.by-admin`
+(отмена клиникой, BR-002) | `appointment.noshow` | `encounter.completed` | `patient.registered`; `start` — начало записи в UTC
+(только у `appointment.booked`, чтобы клиент показал время по Минску); `text` — русский текст сервера, запасной вариант для
+уведомлений без `kind` (созданных до его появления). `kind` хранится в `Communication.topic`
+(`https://fhir.by/CodeSystem/notification-kind`), `start` — в расширении `notification-appointment-start`; поля необязательные,
+контракт аддитивный. `appointmentId`/`encounterId`
 берутся из `Communication.about` (`Appointment/{id}` у `appointment.*`, `Encounter/{id}` у `encounter.completed.v1`);
 у уведомлений, созданных до этого поля, их нет. Время начала в тексте `appointment.booked.v1` — по Минску
 (`ДД.ММ.ГГГГ ЧЧ:ММ (время Минска)`). 8.4 пишет одним FHIR `batch` с `If-Match`; изменённое за это время уведомление
 остаётся как есть.
-**Status:** 200 (8.1, 8.2, 8.4) · 204 (8.3) · 404 `NOT_FOUND` (8.3: нет такого уведомления у вызывающего). Отказы 401/403 — только guard-слоя (§0).
+**Status:** 200 (8.1, 8.2, 8.4) · 204 (8.3) · 400 `VALIDATION_ERROR` (8.1: `page`, `pageSize`, `unread` вне допустимых значений,
+`unread` — только `true` или `false`; 8.3: `id` не FHIR id) · 403 `COMPARTMENT_VIOLATION` (8.3: уведомление другого пациента;
+ADR-013) · 404 `NOT_FOUND` (8.3: нет такого уведомления). Прочие отказы 401/403 (роль, scope) — guard-слоя (§0).
 
 #### 9. `analytics-service` — Отчёты и аудит (FR-019, FR-021, ADR-014)
 
@@ -954,7 +1086,12 @@ sender=Organization) + email-адаптер (A-3). Компартмент: фи�
 | 9.1 | `GET /api/v1/admin/analytics/appointments?from=&to=` (`from`/`to` необязательны, по умолчанию последние 30 дней) | сводка записей (booked/fulfilled/cancelled/noshow) | `ADMIN` |
 | 9.2 | `GET /api/v1/admin/analytics/encounters?from=&to=` | сводка приёмов по специальностям | `ADMIN` |
 | 9.3 | `GET /api/v1/admin/analytics/services-popularity?from=&to=&top=` | топ услуг | `ADMIN` |
-| 9.4 | `GET /api/v1/admin/audit?from=&to=&entity=&userId=&page=` | журнал `AuditEvent` (read-model) | `ADMIN` |
+| 9.4 | `GET /api/v1/admin/audit?from=&to=&entity=&userId=&action=&page=` | журнал `AuditEvent` (read-model) | `ADMIN` |
+
+`from`/`to` (9.1–9.4): дата без времени — календарный день клиники (`Europe/Minsk`, как в 5.2): `from` — его первое мгновение, `to` — последнее;
+дата-время берётся как есть (без смещения — UTC), `to` включительно. Без `to` период кончается концом сегодняшнего дня клиники.
+Ответ 9.3 следует `Accept-Language`: название услуги по `en` — перевод из `HealthcareService._name`, иначе русское. В группе 9.2/9.3 без
+названия в клиническом хранилище поле `display` отсутствует (клиент подписывает её сам).
 
 Ответ 9.1–9.3 — `MeasureReport`-производный DTO (группировка `measureScoring`), из read-model
 PostgreSQL (worker наполняет по событиям). 9.1 разбивает записи периода по текущему `Appointment.status`: группы `booked` («Записано»), `fulfilled`
@@ -966,7 +1103,7 @@ PostgreSQL (worker наполняет по событиям). 9.1 разбива
 requestId; reason? }`. `read` — чтение данных пациента врачом или администратором, `denied` — отказ в нём (ADR-018);
 чтение пациентом своей карты в журнал не попадает. `emergency-bypass` — приём открыт или завершён без согласия пациента по
 `emergencyReason` (7.1/7.3, ADR-019): `userId` — врач, `resourceType/resourceId` — пациент, `reason` — указанная причина
-(только у этого действия); UI: «Экстренный обход согласия». Изменения услуг, кабинетов и расписаний (`create`/`update`/`delete`) пишутся в той же транзакции; ресурс в `resourceType/resourceId` определяется по логической ссылке (ADR-020). **Status:** 200 · 400 (диапазон > 366 дней).
+(только у этого действия); UI: «Экстренный обход согласия». Изменения услуг, кабинетов и расписаний (`create`/`update`/`delete`) пишутся в той же транзакции; генерация слотов расписания (5.2.5) пишет одно событие `create` с `resourceType=Schedule`; ресурс в `resourceType/resourceId` определяется по логической ссылке (ADR-020). Фильтр `action` — одно или несколько значений перечисления `AuditAction` (`create`, `update`, `delete`, `read`, `denied`, `emergency-bypass`, `login`, `login-failed`, `login-throttled`, `logout`, `session-idle`): список через запятую (`action=login,logout`) или повторяющийся параметр, условия объединяются по ИЛИ; без параметра — все действия. Неизвестное значение — 400 `VALIDATION_ERROR`. UI: сегменты «Тип события» (Все · Вход и выход · Чтение данных · Изменения · Экстренный доступ) сопоставлены группам действий и хранятся в адресной строке (`?type=auth|read|changes|emergency`). **Status:** 200 · 400 (диапазон > 366 дней, неизвестный `action`).
 
 #### 10. Swagger / OpenAPI
 

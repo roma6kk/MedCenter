@@ -1,6 +1,6 @@
 import { Inject, Injectable, Logger, type OnModuleDestroy, type OnModuleInit } from '@nestjs/common';
 import { connect, type Channel, type ChannelModel, type ConsumeMessage } from 'amqplib';
-import { bindQueueWithDlq, retryQueueOf } from '@medcenter/messaging';
+import { bindQueueWithDlq, deferDelivery } from '@medcenter/messaging';
 
 import { WORKER_CONFIG, type WorkerConfig } from '../../config/analytics-env';
 import { ANALYTICS_BINDINGS } from './analytics.bindings';
@@ -16,16 +16,6 @@ function sleep(ms: number): Promise<void> {
   });
 }
 
-/**
- * RabbitMQ worker of the analytics read-model (FR-019, architect §4.4). Own
- * queues (`analytics.*`) with a DLQ each; prefetch-bounded; a message is acked
- * only after its read-model transaction committed (`DeliveryProcessor`).
- *
- * Like notification-service's consumer it runs a reconnect loop: whenever the
- * connection ends it waits {@link RECONNECT_DELAY_MS} and connects again, so a
- * broker outage never stops the HTTP endpoints. `CONSUMER_ENABLED=false`
- * switches it off (e2e suites). Every promise started here has a handler.
- */
 @Injectable()
 export class AnalyticsWorker implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(AnalyticsWorker.name);
@@ -68,7 +58,6 @@ export class AnalyticsWorker implements OnModuleInit, OnModuleDestroy {
     }
   }
 
-  /** Resolves when the connection ends (the caller reconnects); rejects only if setup fails. */
   private async consumeUntilClosed(url: string): Promise<void> {
     const connection = await connect(url);
     if (this.stopped) {
@@ -106,7 +95,6 @@ export class AnalyticsWorker implements OnModuleInit, OnModuleDestroy {
       await bindQueueWithDlq(channel, binding.queue, binding.routingKey);
       await channel.consume(binding.queue, (message) => {
         if (message === null) {
-          // Broker cancelled this consumer: end the connection so the loop binds again.
           connection.close().catch(() => undefined);
           return;
         }
@@ -121,7 +109,11 @@ export class AnalyticsWorker implements OnModuleInit, OnModuleDestroy {
   private async onMessage(channel: Channel, queue: string, message: ConsumeMessage): Promise<void> {
     const attempt = attemptOf(message.properties.headers);
     const disposition = await this.processor.process(message.content, attempt);
-    this.settle(() => this.dispatch(channel, queue, message, disposition, attempt), disposition);
+    try {
+      this.dispatch(channel, queue, message, disposition, attempt);
+    } catch (error) {
+      this.logger.warn({ err: error, action: disposition }, 'could not settle message; broker will redeliver it');
+    }
   }
 
   private dispatch(channel: Channel, queue: string, message: ConsumeMessage, disposition: Disposition, attempt: number): void {
@@ -134,21 +126,6 @@ export class AnalyticsWorker implements OnModuleInit, OnModuleDestroy {
       return;
     }
     // A plain requeue would bounce straight back; the retry queue delays it, then dead-letters it home.
-    channel.sendToQueue(retryQueueOf(queue), message.content, {
-      persistent: true,
-      contentType: 'application/json',
-      messageId: message.properties.messageId,
-      headers: { ...message.properties.headers, [ATTEMPT_HEADER]: attempt + 1 },
-    });
-    channel.ack(message);
-  }
-
-  /** `ack`/`nack` throw on a closed channel; the broker then redelivers the unsettled message. */
-  private settle(action: () => void, label: string): void {
-    try {
-      action();
-    } catch (error) {
-      this.logger.warn({ err: error, action: label }, 'could not settle message; broker will redeliver it');
-    }
+    deferDelivery(channel, queue, message, { ...message.properties.headers, [ATTEMPT_HEADER]: attempt + 1 });
   }
 }

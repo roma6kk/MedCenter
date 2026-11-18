@@ -1,0 +1,21 @@
+{
+  "id": "fe-doctor-07",
+  "unit": "fe-doctor",
+  "kind": "a11y",
+  "severity": "low",
+  "title": "После удаления строки в форме приёма (диагноз, наблюдение, услуга, препарат) фокус пропадает: кнопка «Удалить» исчезает вместе со строкой",
+  "description": "Добавление строки аккуратно переводит фокус на её первое поле (append с focusName), а удаление — нет: RemoveRowButton просто вызывает remove(index), нажатая кнопка уничтожается, и document.activeElement становится <body>. Пользователь клавиатуры или скринридера теряет место в длинной форме и не слышит, что строка удалена (в современных браузерах Tab продолжает от места удалённого узла, но фокус всё равно не объявляется). Кнопка в форме единственная разрушающая операция, поэтому потеря контекста заметна. Тесты проверяют фокус после добавления и после ошибок, но не после удаления.",
+  "evidence": "frontend/src/components/doctor/diagnoses-editor.tsx:229, observations-editor.tsx:63, service-requests-editor.tsx:43, medications-editor.tsx:74 pass `onRemove={() => remove(index)}`; encounter-form-fields.tsx:26-33 RemoveRowButton has no focus handling; encounter-complete-form-server.spec.tsx:79-110 covers focus of added rows only; encounter-complete-form.spec.tsx:216-219 removes a diagnosis and asserts only that the button is gone.",
+  "files": [
+    "frontend/src/components/doctor/encounter-form-fields.tsx",
+    "frontend/src/components/doctor/diagnoses-editor.tsx",
+    "frontend/src/components/doctor/observations-editor.tsx",
+    "frontend/src/components/doctor/service-requests-editor.tsx",
+    "frontend/src/components/doctor/medications-editor.tsx"
+  ],
+  "proposedFix": "Introduce a small helper (e.g. useRemoveWithFocus in encounter-form-helpers.ts) that wraps remove(index) and, after the render (queueMicrotask / requestAnimationFrame like the noshow dialog does), focuses the first field of the row that now sits at the same index, else the previous row's remove button, else the section's «Добавить» button; announce the removal through the existing role=status pattern or by moving focus to the section heading (tabIndex -1) when the list becomes empty. Add a spec per editor asserting document.activeElement after removal.",
+  "needsDecision": false,
+  "decisionQuestion": "",
+  "tzRef": "WCAG 2.4.3 (порядок фокуса), NFR (доступность)",
+  "confidence": "likely"
+}

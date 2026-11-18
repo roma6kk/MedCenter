@@ -10,13 +10,11 @@ import type { ConsentScanRef } from './consent-types';
 
 const EXTENSIONS: Readonly<Record<string, string>> = { 'application/pdf': 'pdf', 'image/jpeg': 'jpg', 'image/png': 'png' };
 
-/** `consent-scan-Ф-12.pdf`: the form number tells the file apart, anything a file system dislikes becomes a hyphen. */
 function fileNameOf(formNumber: string | undefined, contentType: string): string {
   const label: string = (formNumber ?? '').replace(/[\\/:*?"<>|\s]+/g, '-');
   return `consent-scan${label === '' ? '' : `-${label}`}.${EXTENSIONS[contentType] ?? 'bin'}`;
 }
 
-/** Hands the bytes to the browser as a download and releases the temporary address at once. */
 function saveBlob(blob: Blob, fileName: string): void {
   const address: string = URL.createObjectURL(blob);
   const anchor: HTMLAnchorElement = document.createElement('a');
@@ -32,11 +30,7 @@ interface ScanDownloadButtonProps {
   readonly formNumber?: string;
 }
 
-/**
- * Downloads the scan of a consent form (API 3.11). A plain link cannot carry the Bearer token, so the bytes are fetched with
- * the session and saved from memory; the read is audited by the server. While it runs the button is `aria-disabled`, not
- * `disabled` (keeps the keyboard focus); a failure is said next to it and the button stays usable.
- */
+// A plain link cannot carry the Bearer token: fetch the bytes with the session; `aria-disabled` keeps the focus.
 export function ScanDownloadButton({ patientId, scan, formNumber }: ScanDownloadButtonProps): ReactNode {
   const t = useT('consent.staff');
   const [isBusy, setIsBusy] = useState(false);

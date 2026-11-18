@@ -1,7 +1,7 @@
 import { BadRequestException, ForbiddenException, UnauthorizedException } from '@nestjs/common';
-import type { JwtClaims, RequestWithClaims } from '@medcenter/common';
+import { FHIR_ID_PATTERN, type JwtClaims, type RequestWithClaims } from '@medcenter/common';
 
-import { FHIR_ID_PATTERN, FhirIdPipe, patientReferenceOf } from './patient-reference';
+import { FhirIdPipe, patientReferenceOf } from './patient-reference';
 
 function requestWith(patient?: string): RequestWithClaims {
   const claims: JwtClaims = {
@@ -14,7 +14,6 @@ function requestWith(patient?: string): RequestWithClaims {
   return { user: claims };
 }
 
-/** The error `act` throws; fails the test when it does not throw. */
 function thrownBy(act: () => unknown): unknown {
   try {
     act();
@@ -47,10 +46,8 @@ describe('patientReferenceOf', () => {
     ['http://hapi:8080/fhir/Patient/9f2c'],
     ['x'.repeat(65)],
   ])('should refuse with COMPARTMENT_VIOLATION when the claim is %p', (claim) => {
-    // Act
     const error = thrownBy(() => patientReferenceOf(requestWith(claim)));
 
-    // Assert
     expect(error).toBeInstanceOf(ForbiddenException);
     expect((error as ForbiddenException).getResponse()).toMatchObject({ errorCode: 'COMPARTMENT_VIOLATION' });
   });
@@ -75,10 +72,8 @@ describe('FhirIdPipe', () => {
   );
 
   it.each(['', 'a,b', '..', '.', 'a b', 'a/b', 'x'.repeat(65)])('should reject %p with VALIDATION_ERROR when it is not a FHIR id', (id) => {
-    // Act
     const act = (): string => pipe.transform(id);
 
-    // Assert
     expect(act).toThrow(BadRequestException);
     expect(FHIR_ID_PATTERN.test(id)).toBe(false);
   });

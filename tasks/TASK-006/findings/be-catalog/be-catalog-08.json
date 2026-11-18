@@ -1,0 +1,21 @@
+{
+  "id": "be-catalog-08",
+  "unit": "be-catalog",
+  "kind": "bug",
+  "severity": "high",
+  "title": "GET /admin/schedules/{id}/slots читает слоты одной страницей HAPI без _count и пагинации — админ видит лишь первые ~20 слотов периода",
+  "description": "Админская сетка слотов (API §5.2.6, «пагинация отключена») обязана вернуть все слоты расписания за период. SchedulesService.listSlots делает один fhirClient.search('Slot', …) без _count, без _offset-цикла и без обхода next-ссылок. HAPI без _count отдаёт страницу размера default_page_size (20 в hapi-fhir-jpaserver-starter; в docker-compose параметр не переопределён), остальные слоты теряются молча, без признака обрезки. Для расписания «пн-пт 09:00-13:00 по 30 минут» это 40 слотов в неделю: админская сетка и счётчики показывают только первые ~20, остальные выглядят «не сгенерированными», и администратор повторно запускает генерацию. Остальные поиски слотов в сервисе (публичные, расписание врача, удаление, генерация) уже ходят через searchPages с явным _count и _sort, этот остался единственным; smoke проверяет только slots.length > 0 (tools/stack-smoke/checks-admin-catalog.ts:143), поэтому дефект не виден. Попутно границы from/to передаются в HAPI как есть: date-only значение HAPI читает в своём часовом поясе (UTC), а не по Минску, как требует спецификация (§5.2: from/to интерпретируются по минскому времени) — публичный поиск и генератор переводят дату в явный UTC-момент границ клинического дня.",
+  "evidence": "apps/catalog-service/src/modules/schedules/schedules.service.ts:199-216 (listSlots): `fhirClient.search('Slot', { schedule, start: [`ge${from}`, `le${to}`], status })` — нет _count/_sort/цикла; libs/fhir/src/lib/fhir-client.provider.ts:102-104 (search): один GET, _count не подставляется, next-ссылки не читаются; apps/catalog-service/src/common/fhir-search.ts:30-60 (searchPages) — штатный способ, которым пользуются slot-search.ts, slot-generator.service.ts, schedule-removal.ts. Сценарий: расписание с 40 слотами в неделе, GET /api/v1/admin/schedules/{id}/slots?from=2026-11-02&to=2026-11-08 -> массив из ≤ 20 слотов (первые по порядку HAPI), хотя в HAPI их 40. schedules.service.list-slots.spec.ts проверяет только параметр status, а не полноту. Не проверено на живом HAPI (стек остановлен): вывод основан на поведении HAPI без _count.",
+  "files": [
+    "apps/catalog-service/src/modules/schedules/schedules.service.ts",
+    "apps/catalog-service/src/modules/slots/slot-search.ts",
+    "apps/catalog-service/src/modules/slots/slot-range.ts",
+    "apps/catalog-service/src/modules/schedules/schedules.service.list-slots.spec.ts",
+    "tools/stack-smoke/checks-admin-catalog.ts"
+  ],
+  "proposedFix": "Rewrite listSlots on top of searchScheduleSlots(this.fhirClient, [scheduleId], { fromMs, toMs }, status ?? 'free,busy') from slots/slot-search.ts (paged, _sort=start,_id, de-duplicated, sorted, explicit UTC instants). Export one helper from slots/slot-range.ts that turns the validated `from`/`to` into instants (date-only = clinic day start / end — startInstant/endInstant already exist there but are not exported) and use it here. The endpoint returns a bare array, so when `truncated` is true (10 000 slots, SLOT_SEARCH_MAX_PAGES) answer 400 VALIDATION_ERROR 'range: too many slots, ask for a shorter period' instead of a silent cut. Also read the Schedule first (fhirClient.read('Schedule', id)) so an unknown id answers 404 NOT_FOUND as the Swagger of the route declares (today a HAPI search on an unknown reference quietly returns an empty list and the answer is 200 []). Keep the cache key and invalidation as they are. Tests: unit — two full pages of 200 + a partial one are all returned, bounds are sent as UTC instants of the clinic day; e2e — 250 slots come back whole. Extend the smoke check to compare the count with `generated`.",
+  "needsDecision": false,
+  "decisionQuestion": "",
+  "tzRef": "api-designer-spec §5.2.6 (слоты расписания, пагинация отключена); §5.2 (часовой пояс клиники); FR-020",
+  "confidence": "likely"
+}

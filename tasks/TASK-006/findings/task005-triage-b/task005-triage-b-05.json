@@ -1,0 +1,17 @@
+{
+  "id": "task005-triage-b-05",
+  "unit": "task005-triage-b",
+  "kind": "docs",
+  "severity": "low",
+  "title": "frontend-design-spec.md описывает старые адреса кабинета пациента (/profile, /history, /prescriptions, вход в /booking)",
+  "description": "Вопрос из T6 «Новые адреса /home и /medcard устраивают?» решается без владельца (C): старые адреса /profile, /history, /prescriptions редиректят на /home и /medcard (вкладка назначений), в коде на старые адреса никто не ссылается, middleware и ROLE_PREFIXES знают оба набора, ТЗ адреса не фиксирует. Но спецификация экранов осталась прежней: в таблице групп маршрутов (строка 85) группа (patient) перечислена со старыми адресами и «посадкой» /booking, в таблице экранов (139-141) и матрице FR (336-337, 408) тоже старые адреса, а /home и /medcard в спецификации не упомянуты вовсе. Проверяющему по курсовому спецификация расскажет не то, что в коде.",
+  "evidence": "specs/frontend-design-spec.md:85 `(patient) ... /booking, /appointments, ..., /history, /prescriptions, /profile, /notifications | landing /booking`; :139-141 table rows for /history, /prescriptions, /profile; :336-337, :408, :527, :556. frontend/src/lib/auth/user-role.ts:11 PATIENT landing '/home'; :18 prefixes include '/home','/medcard'. frontend/src/app/(patient)/history/page.tsx, prescriptions/page.tsx, profile/page.tsx are redirects.",
+  "files": [
+    "specs/frontend-design-spec.md"
+  ],
+  "proposedFix": "Update specs/frontend-design-spec.md (without adding new spec files, per AGENTS.md): in the route-group table list /home, /medcard (tabs «История» and «Назначения», ?tab=prescriptions) and set landing to /home; mark /profile, /history, /prescriptions as legacy redirects; adjust the FR-006/FR-007 matrix rows and the sections at :408, :527, :556 to the new names (profile content now lives on /home). Keep MANIFEST.md in sync if it indexes routes.",
+  "needsDecision": false,
+  "decisionQuestion": "",
+  "tzRef": "specs/frontend-design-spec.md; FR-006, FR-007, FR-001",
+  "confidence": "confirmed"
+}

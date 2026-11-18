@@ -1,0 +1,19 @@
+{
+  "id": "task005-triage-a-V2bV3-02",
+  "unit": "task005-triage-a",
+  "kind": "a11y",
+  "severity": "low",
+  "title": "Нераспознанная дата помечается только красной рамкой и aria-invalid, без текстового пояснения (WCAG 3.3.1)",
+  "description": "Само поведение (поле для формы пустеет, введённый текст остаётся и подсвечивается, а не откатывается к прошлой дате) — осознанное и корректное: посетитель видит, что именно отвергнуто. Но состояние «не распознано» выражено только цветом рамки и `aria-invalid`; текста «что не так и какой формат нужен» нет. Если поле необязательное (фильтры «С/По» журнала аудита, отчётов), форма не выдаёт собственной ошибки, и пользователь скринридера слышит только «недопустимое значение». Это нарушает WCAG 3.3.1 (описание ошибки текстом) и 1.4.1 (не только цвет).",
+  "evidence": "frontend/src/components/ui/date-picker.tsx:317 isUnreadable = draft.trim() !== '' && parseTypedDate(draft) === null; :339 aria-invalid={... || isUnreadable ? true : undefined}; :299 handleChange reports parseTypedDate(text) ?? '' (value becomes ''); no message or aria-describedby is rendered for the unreadable state. Scenario: audit filters, type '31.02.2026' in «С» -> field turns red, filter treated as empty, nothing says why.",
+  "files": [
+    "frontend/src/components/ui/date-picker.tsx",
+    "frontend/src/messages/ru.json",
+    "frontend/src/messages/en.json"
+  ],
+  "proposedFix": "In DatePicker, when isUnreadable, render a short `<p id={`${popoverId}-unreadable`} className=\"mt-1 text-xs text-[var(--destructive)]\">{t('unreadable')}</p>` and add that id to aria-describedby (merge with rest['aria-describedby']). Because the calendar button is absolutely centred with top-1/2 of the wrapper, put the input and the button in an inner `relative` div and the message outside it, so the button does not slide down. New keys datePicker.unreadable: ru «Не похоже на дату. Формат: дд.мм.гггг», en «Not a valid date. Format: dd.mm.yyyy». Extend date-picker.spec.tsx with a case for an unreadable draft.",
+  "needsDecision": false,
+  "decisionQuestion": "",
+  "tzRef": "NFR: доступность (WCAG 2.1 AA)",
+  "confidence": "likely"
+}

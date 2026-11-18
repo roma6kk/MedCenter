@@ -8,12 +8,7 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { CONSENT_SCAN_MAX_BYTES } from '@medcenter/contracts';
 import type { Observable } from 'rxjs';
 
-/**
- * Reads the multipart field `file` into memory, never more than the scan limit
- * (+1 byte, so that a file over it is seen as oversized rather than cut). An
- * oversized or malformed upload becomes the API's `400 VALIDATION_ERROR`
- * instead of multer's 413, which the error catalogue has no code for.
- */
+// Oversized or malformed uploads become 400 VALIDATION_ERROR (the error catalogue has no code for multer's 413).
 export class ScanUploadInterceptor extends FileInterceptor('file', {
   limits: { fileSize: CONSENT_SCAN_MAX_BYTES + 1, files: 1 },
 }) {

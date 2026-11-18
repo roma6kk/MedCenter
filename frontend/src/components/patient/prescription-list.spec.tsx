@@ -96,7 +96,9 @@ describe('PrescriptionList', () => {
 
     renderWithClient(<PrescriptionList />);
 
-    expect(await screen.findByText('Назначений нет')).toBeInTheDocument();
+    expect(await screen.findByText('Назначений пока нет')).toBeInTheDocument();
+    expect(screen.getByTestId('empty-state-icon')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Записаться' })).toHaveAttribute('href', '/booking');
     expect(screen.queryByRole('button', { name: 'Распечатать для аптеки' })).not.toBeInTheDocument();
   });
 
@@ -105,7 +107,7 @@ describe('PrescriptionList', () => {
 
     renderWithClient(<PrescriptionList />);
 
-    expect(screen.getByTestId('table-skeleton')).toBeInTheDocument();
+    expect(screen.getByTestId('content-skeleton-cards')).toBeInTheDocument();
   });
 
   it('should show a banner with the request id and retry when the service fails', async () => {
@@ -176,7 +178,7 @@ describe('PrescriptionList', () => {
 
     expect(await screen.findByTestId('problem-banner')).toHaveTextContent('req-22');
     expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
-    expect(screen.queryByText('Назначений нет')).not.toBeInTheDocument();
+    expect(screen.queryByText('Назначений пока нет')).not.toBeInTheDocument();
   });
 
   it('should show only running items on the active tab and only closed ones on the completed tab', async () => {

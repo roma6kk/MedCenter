@@ -3,28 +3,57 @@ import { ERROR_CODES } from '@medcenter/contracts';
 import { FhirClientError, type FhirClient, type FhirResource } from '@medcenter/fhir';
 import { MEDCENTER_EXT } from '@medcenter/terminology';
 
-import { auditedResource, committedAudit, committedEntries, transactionResponder } from '../../common/__tests__/audited-transactions';
+import { auditedResource, committedAudit, committedEntries, transactionResponder } from '@medcenter/testing';
+import { ACTOR, fhirClientMock, IS_ROOM, PHYSICAL_TYPE_SYSTEM } from '../../__tests__/fhir-fixture';
 import { RoomsService } from './rooms.service';
 
-const ACTOR = { sub: 'admin-1', requestId: 'req-1' };
-
 const FLOOR = MEDCENTER_EXT.ROOM_FLOOR;
+
+const OTHER_EXTENSION = { url: 'https://example.org/StructureDefinition/other', valueString: 'keep-me' };
+
+function rejectionOf<E = unknown>(promise: Promise<unknown>): Promise<E | undefined> {
+  return promise.then(
+    () => undefined,
+    (error: unknown) => error as E,
+  );
+}
 
 describe('RoomsService', () => {
   let roomsService: RoomsService;
   let fhirClient: jest.Mocked<FhirClient>;
   const roomId = 'room-204';
 
+  function committedResource(): FhirResource {
+    return (committedEntries(fhirClient)[0]?.resource ?? {}) as FhirResource;
+  }
+
   beforeEach(() => {
-    fhirClient = {
-      search: jest.fn(),
-      read: jest.fn(),
-      create: jest.fn(),
-      update: jest.fn(),
-      delete: jest.fn(),
-      batch: jest.fn().mockImplementation(transactionResponder()),
-    } as unknown as jest.Mocked<FhirClient>;
+    fhirClient = fhirClientMock();
+    fhirClient.batch.mockImplementation(transactionResponder());
     roomsService = new RoomsService(fhirClient);
+    fhirClient.read.mockResolvedValue({ resourceType: 'Location', ...IS_ROOM, id: roomId });
+  });
+
+  describe('a Location that is not a room', () => {
+    const building = { resourceType: 'Location', id: 'building-1', name: 'Main building', physicalType: { coding: [{ system: PHYSICAL_TYPE_SYSTEM, code: 'bu' }] } };
+
+    beforeEach(() => {
+      fhirClient.read.mockResolvedValue(building);
+    });
+
+    it.each([
+      ['update', (): Promise<unknown> => roomsService.update('building-1', { name: 'Renamed' }, ACTOR)],
+      ['remove', (): Promise<unknown> => roomsService.remove('building-1', ACTOR)],
+      ['findById', (): Promise<unknown> => roomsService.findById('building-1')],
+    ])('answers 404 NOT_FOUND like an unknown id and writes nothing when %s is asked for it', async (_label, call) => {
+      const error = await rejectionOf<FhirClientError>(call());
+
+      expect(error).toBeInstanceOf(FhirClientError);
+      expect(error?.getStatus()).toBe(404);
+      expect(error?.getResponse()).toMatchObject({ errorCode: 'NOT_FOUND' });
+      expect(fhirClient.batch).not.toHaveBeenCalled();
+      expect(fhirClient.search).not.toHaveBeenCalled();
+    });
   });
 
   it('should refuse to delete a room referenced by an active schedule', async () => {
@@ -36,10 +65,7 @@ describe('RoomsService', () => {
   it('should mark the conflict with the ROOM_IN_USE error code', async () => {
     fhirClient.search.mockResolvedValue({ entry: [{ resource: { resourceType: 'Schedule' } }] });
 
-    const error = await roomsService.remove(roomId, ACTOR).then(
-      () => undefined,
-      (e: unknown) => e,
-    );
+    const error = await rejectionOf(roomsService.remove(roomId, ACTOR));
 
     expect(error).toBeInstanceOf(ConflictException);
     expect((error as ConflictException).getResponse()).toMatchObject({ errorCode: 'ROOM_IN_USE' });
@@ -48,19 +74,15 @@ describe('RoomsService', () => {
   it('should throw an error code the contract catalogues when the room is in use', async () => {
     fhirClient.search.mockResolvedValue({ entry: [{ resource: { resourceType: 'Schedule' } }] });
 
-    const error = await roomsService.remove(roomId, ACTOR).then(
-      () => undefined,
-      (e: unknown) => e as ConflictException,
-    );
+    const error = await rejectionOf<ConflictException>(roomsService.remove(roomId, ACTOR));
 
-    // ProblemDetailsFilter only promotes catalogued codes; an unknown one degrades to CONFLICT.
     const { errorCode } = error?.getResponse() as { errorCode: string };
     expect(ERROR_CODES).toContain(errorCode);
   });
 
   it('should delete a Location when no schedule references it', async () => {
     fhirClient.search.mockResolvedValue({ entry: [] });
-    fhirClient.read.mockResolvedValue({ resourceType: 'Location', id: roomId });
+    fhirClient.read.mockResolvedValue({ resourceType: 'Location', ...IS_ROOM, id: roomId });
 
     await expect(roomsService.remove(roomId, ACTOR)).resolves.toBeUndefined();
     expect(committedEntries(fhirClient).map((entry) => `${entry.request.method} ${entry.request.url}`)).toEqual([`DELETE Location/${roomId}`, 'POST AuditEvent']);
@@ -79,43 +101,95 @@ describe('RoomsService', () => {
       new FhirClientError('GET', 'http://hapi/Location/missing', 404, '{}'),
     );
 
-    const error = await roomsService.remove('missing', ACTOR).then(
-      () => undefined,
-      (e: unknown) => e as FhirClientError,
-    );
+    const error = await rejectionOf<FhirClientError>(roomsService.remove('missing', ACTOR));
     expect(error?.getStatus()).toBe(404);
     expect(fhirClient.search).not.toHaveBeenCalled();
     expect(fhirClient.batch).not.toHaveBeenCalled();
   });
 
   it('should look up referencing schedules through Schedule.actor when the delete is checked', async () => {
-    // Arrange
-    fhirClient.read.mockResolvedValue({ resourceType: 'Location', id: roomId });
+    fhirClient.read.mockResolvedValue({ resourceType: 'Location', ...IS_ROOM, id: roomId });
     fhirClient.search.mockResolvedValue({ entry: [] });
 
-    // Act
     await roomsService.remove(roomId, ACTOR);
 
-    // Assert — R4 `Schedule` has no `location` search parameter (HAPI answers
-    // 400 → 500 INTERNAL); the room is one of the schedule's actors.
     expect(fhirClient.search).toHaveBeenCalledWith('Schedule', {
       actor: `Location/${roomId}`,
       _count: 1,
     });
   });
 
+  describe('what pins a room', () => {
+    function referencedOnlyBy(type: string): void {
+      fhirClient.search.mockImplementation(async (resourceType) => ({
+        entry: resourceType === type ? [{ resource: { resourceType: type, id: 'ref-1' } }] : [],
+      }));
+    }
+
+    it.each([
+      ['Schedule', 'a schedule'],
+      ['PractitionerRole', 'a doctor role'],
+      ['HealthcareService', 'a service'],
+    ])('should refuse with ROOM_IN_USE and delete nothing when only a %s references the room', async (type, referrer) => {
+      referencedOnlyBy(type);
+
+      const error = await rejectionOf<ConflictException>(roomsService.remove(roomId, ACTOR));
+
+      expect(error).toBeInstanceOf(ConflictException);
+      expect(error?.getResponse()).toMatchObject({ errorCode: 'ROOM_IN_USE', message: `ROOM_IN_USE: room ${roomId} is referenced by ${referrer}` });
+      expect(fhirClient.batch).not.toHaveBeenCalled();
+    });
+
+    it('should probe the three referrers with the search parameter each type has, one hit being enough', async () => {
+      fhirClient.search.mockResolvedValue({ entry: [] });
+
+      await roomsService.remove(roomId, ACTOR);
+
+      expect(fhirClient.search).toHaveBeenCalledWith('Schedule', { actor: `Location/${roomId}`, _count: 1 });
+      expect(fhirClient.search).toHaveBeenCalledWith('PractitionerRole', { location: `Location/${roomId}`, _count: 1 });
+      expect(fhirClient.search).toHaveBeenCalledWith('HealthcareService', { location: `Location/${roomId}`, _count: 1 });
+      expect(fhirClient.search).toHaveBeenCalledTimes(3);
+    });
+
+    it('should name the schedule when a schedule and a doctor role both reference the room', async () => {
+      fhirClient.search.mockImplementation(async (resourceType) => ({ entry: [{ resource: { resourceType, id: 'ref-1' } }] }));
+
+      await expect(roomsService.remove(roomId, ACTOR)).rejects.toThrow('referenced by a schedule');
+    });
+
+    it('should not count an entry that is not of the probed type, such as the OperationOutcome of a warning', async () => {
+      fhirClient.search.mockResolvedValue({ entry: [{ resource: { resourceType: 'OperationOutcome' } }] });
+
+      await expect(roomsService.remove(roomId, ACTOR)).resolves.toBeUndefined();
+      expect(fhirClient.batch).toHaveBeenCalledTimes(1);
+    });
+
+    it('should answer ROOM_IN_USE, not the generic CONFLICT, when HAPI refuses the delete on a reference', async () => {
+      fhirClient.search.mockResolvedValue({ entry: [] });
+      fhirClient.batch.mockRejectedValue(new FhirClientError('POST', 'http://hapi/fhir', 409, '{}'));
+
+      const error = await rejectionOf<ConflictException>(roomsService.remove(roomId, ACTOR));
+
+      expect(error).toBeInstanceOf(ConflictException);
+      expect(error?.getResponse()).toMatchObject({ errorCode: 'ROOM_IN_USE', message: `ROOM_IN_USE: room ${roomId} is referenced by another resource` });
+    });
+
+    it('should let any other failure of the delete through unchanged', async () => {
+      fhirClient.search.mockResolvedValue({ entry: [] });
+      const failure = new FhirClientError('POST', 'http://hapi/fhir', 500, '{}');
+      fhirClient.batch.mockRejectedValue(failure);
+
+      await expect(roomsService.remove(roomId, ACTOR)).rejects.toBe(failure);
+    });
+  });
+
   describe('update', () => {
     const existing = {
-      resourceType: 'Location',
+      resourceType: 'Location', ...IS_ROOM,
       id: roomId,
       name: 'Cabinet 204',
       description: 'Old description',
       identifier: [{ value: '204' }],
-      physicalType: {
-        coding: [
-          { system: 'http://terminology.hl7.org/CodeSystem/location-physical-type', code: 'ro' },
-        ],
-      },
     };
 
     it('does not blank stored fields omitted from the partial DTO', async () => {
@@ -123,7 +197,7 @@ describe('RoomsService', () => {
 
       await roomsService.update(roomId, { name: 'Renamed 204' }, ACTOR);
 
-      const merged = (committedEntries(fhirClient)[0]?.resource ?? {}) as FhirResource;
+      const merged = committedResource();
       expect(merged['name']).toBe('Renamed 204');
       expect(merged['description']).toBe('Old description');
       expect(merged['identifier']).toEqual([{ value: '204' }]);
@@ -134,9 +208,106 @@ describe('RoomsService', () => {
 
       await roomsService.update(roomId, { description: 'Freshly painted' }, ACTOR);
 
-      const merged = (committedEntries(fhirClient)[0]?.resource ?? {}) as FhirResource;
+      const merged = committedResource();
       expect(merged['description']).toBe('Freshly painted');
       expect(merged['name']).toBe('Cabinet 204');
+    });
+
+    it('writes no description when the PATCH empties the text of a room that has one', async () => {
+      fhirClient.read.mockResolvedValue(existing);
+
+      await roomsService.update(roomId, { description: '' }, ACTOR);
+
+      const merged = committedResource();
+      expect(merged).not.toHaveProperty('description');
+      expect(merged['name']).toBe('Cabinet 204');
+    });
+
+    it('writes no description when a rename of a room without one carries an empty text', async () => {
+      fhirClient.read.mockResolvedValue({ resourceType: 'Location', ...IS_ROOM, id: roomId, name: 'Cabinet 204', identifier: [{ value: '204' }] });
+
+      await roomsService.update(roomId, { name: 'Renamed 204', description: '' }, ACTOR);
+
+      const merged = committedResource();
+      expect(merged['name']).toBe('Renamed 204');
+      expect(merged).not.toHaveProperty('description');
+    });
+
+    it.each([['null', null], ['a blank text', '  \t ']])('removes the description when the PATCH carries %s', async (_label, description) => {
+      fhirClient.read.mockResolvedValue(existing);
+
+      await roomsService.update(roomId, { name: 'Renamed 204', description }, ACTOR);
+
+      const merged = committedResource();
+      expect(merged).not.toHaveProperty('description');
+    });
+
+    describe('a patch that changes nothing', () => {
+      const seeded = {
+        resourceType: 'Location', ...IS_ROOM,
+        id: roomId,
+        name: 'Cabinet 204',
+        identifier: [{ system: 'https://example.org/room-ids', value: '204' }],
+        extension: [
+          { url: FLOOR, valueInteger: 2 },
+          OTHER_EXTENSION,
+        ],
+      };
+
+      const withoutDescription = { resourceType: 'Location', ...IS_ROOM, id: roomId, name: 'Cabinet 204', identifier: [{ value: '204' }] };
+
+      it.each([
+        ['an empty body', existing, {}],
+        ['the stored values', existing, { name: 'Cabinet 204', description: 'Old description' }],
+        ['an empty description for a room that has none', withoutDescription, { description: '' }],
+      ])('writes no version and no AuditEvent when the PATCH is %s', async (_label, stored, patch) => {
+        fhirClient.read.mockResolvedValue(stored);
+
+        const room = await roomsService.update(roomId, patch, ACTOR);
+
+        expect(fhirClient.batch).not.toHaveBeenCalled();
+        expect(room).toMatchObject({ id: roomId, name: 'Cabinet 204' });
+      });
+
+      it('writes nothing when a seeded room gets its identifier, name and floor again', async () => {
+        fhirClient.read.mockResolvedValue(seeded);
+        fhirClient.search.mockResolvedValue({ entry: [] });
+
+        await roomsService.update(roomId, { identifier: '204', name: 'Cabinet 204', floor: 2 }, ACTOR);
+
+        expect(fhirClient.batch).not.toHaveBeenCalled();
+      });
+
+      it('keeps the identifier entry of a seeded room, with its system, when only the name changes', async () => {
+        fhirClient.read.mockResolvedValue(seeded);
+        fhirClient.search.mockResolvedValue({ entry: [] });
+
+        await roomsService.update(roomId, { identifier: '204', name: 'Renamed' }, ACTOR);
+
+        const merged = committedResource();
+        expect(merged['identifier']).toEqual(seeded.identifier);
+        expect(merged['name']).toBe('Renamed');
+      });
+    });
+  });
+
+  describe('create', () => {
+    beforeEach(() => {
+      fhirClient.search.mockResolvedValue({ entry: [] });
+    });
+
+    it.each([['an empty text', ''], ['a blank text', '   '], ['null', null]])('leaves the description out of the Location when it is %s', async (_label, description) => {
+      await roomsService.create({ identifier: '204', name: 'Cabinet 204', description }, ACTOR);
+
+      const created = committedResource();
+      expect(created).not.toHaveProperty('description');
+    });
+
+    it('leaves the extension out of the Location when the floor is null', async () => {
+      await roomsService.create({ identifier: '204', name: 'Cabinet 204', floor: null }, ACTOR);
+
+      const created = committedResource();
+      expect(created).not.toHaveProperty('extension');
     });
   });
 
@@ -146,13 +317,13 @@ describe('RoomsService', () => {
 
       await roomsService.create({ identifier: '204', name: 'Cabinet 204', floor: 2 }, ACTOR);
 
-      const created = (committedEntries(fhirClient)[0]?.resource ?? {}) as FhirResource;
+      const created = committedResource();
       expect(created['extension']).toEqual([{ url: FLOOR, valueInteger: 2 }]);
     });
 
     it('reads floor back from the extension into the response DTO', async () => {
       fhirClient.read.mockResolvedValue({
-        resourceType: 'Location',
+        resourceType: 'Location', ...IS_ROOM,
         id: roomId,
         name: 'Cabinet 204',
         extension: [{ url: FLOOR, valueInteger: 3 }],
@@ -165,21 +336,21 @@ describe('RoomsService', () => {
 
     it('replaces the stored floor extension on a floor PATCH without blanking others', async () => {
       fhirClient.read.mockResolvedValue({
-        resourceType: 'Location',
+        resourceType: 'Location', ...IS_ROOM,
         id: roomId,
         name: 'Cabinet 204',
         description: 'Old description',
         extension: [
           { url: FLOOR, valueInteger: 2 },
-          { url: 'https://example.org/StructureDefinition/other', valueString: 'keep-me' },
+          OTHER_EXTENSION,
         ],
       });
 
       await roomsService.update(roomId, { floor: 5 }, ACTOR);
 
-      const merged = (committedEntries(fhirClient)[0]?.resource ?? {}) as FhirResource;
+      const merged = committedResource();
       expect(merged['extension']).toEqual([
-        { url: 'https://example.org/StructureDefinition/other', valueString: 'keep-me' },
+        OTHER_EXTENSION,
         { url: FLOOR, valueInteger: 5 },
       ]);
       expect(merged['description']).toBe('Old description');
@@ -187,7 +358,7 @@ describe('RoomsService', () => {
 
     it('keeps the stored floor when the PATCH omits it', async () => {
       fhirClient.read.mockResolvedValue({
-        resourceType: 'Location',
+        resourceType: 'Location', ...IS_ROOM,
         id: roomId,
         name: 'Cabinet 204',
         extension: [{ url: FLOOR, valueInteger: 2 }],
@@ -195,8 +366,57 @@ describe('RoomsService', () => {
 
       await roomsService.update(roomId, { name: 'Renamed' }, ACTOR);
 
-      const merged = (committedEntries(fhirClient)[0]?.resource ?? {}) as FhirResource;
+      const merged = committedResource();
       expect(merged['extension']).toEqual([{ url: FLOOR, valueInteger: 2 }]);
+    });
+
+    it('removes only the floor entry when the PATCH carries a null floor', async () => {
+      fhirClient.read.mockResolvedValue({
+        resourceType: 'Location', ...IS_ROOM,
+        id: roomId,
+        name: 'Cabinet 204',
+        extension: [
+          { url: FLOOR, valueInteger: 2 },
+          OTHER_EXTENSION,
+        ],
+      });
+
+      await roomsService.update(roomId, { floor: null }, ACTOR);
+
+      const merged = committedResource();
+      expect(merged['extension']).toEqual([OTHER_EXTENSION]);
+    });
+
+    it('drops the extension array when the floor was its only entry, as FHIR JSON has no empty array', async () => {
+      fhirClient.read.mockResolvedValue({
+        resourceType: 'Location', ...IS_ROOM,
+        id: roomId,
+        name: 'Cabinet 204',
+        extension: [{ url: FLOOR, valueInteger: 2 }],
+      });
+
+      await roomsService.update(roomId, { name: 'Renamed', floor: null }, ACTOR);
+
+      const merged = committedResource();
+      expect(merged).not.toHaveProperty('extension');
+      expect(merged['name']).toBe('Renamed');
+    });
+
+    it('adds no extension when a null floor meets a room that has none', async () => {
+      fhirClient.read.mockResolvedValue({ resourceType: 'Location', ...IS_ROOM, id: roomId, name: 'Cabinet 204' });
+
+      await roomsService.update(roomId, { name: 'Renamed', floor: null }, ACTOR);
+
+      const merged = committedResource();
+      expect(merged).not.toHaveProperty('extension');
+    });
+
+    it('answers the room without a floor after a null floor', async () => {
+      fhirClient.read.mockResolvedValue({ resourceType: 'Location', ...IS_ROOM, id: roomId, name: 'Cabinet 204', extension: [{ url: FLOOR, valueInteger: 2 }] });
+
+      const room = await roomsService.update(roomId, { floor: null }, ACTOR);
+
+      expect(room.floor).toBeUndefined();
     });
   });
 });

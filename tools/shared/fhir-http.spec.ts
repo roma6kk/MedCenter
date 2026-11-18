@@ -79,6 +79,35 @@ describe('FhirHttp requests', () => {
     expect(calls).toEqual([{ url: `${BASE}/Slot/a`, method: 'PUT', body: '{"resourceType":"Slot","id":"a","status":"free"}' }]);
   });
 
+  it('should send If-Match with a PUT when asked to', async () => {
+    const calls: Array<{ headers: Record<string, string> }> = [];
+    const fetchImpl: FetchLike = async (_url, init) => {
+      calls.push({ headers: init?.headers as Record<string, string> });
+      return json({ resourceType: 'Slot', id: 'a' });
+    };
+
+    await new FhirHttp(BASE, fetchImpl).put({ resourceType: 'Slot', id: 'a' }, { ifMatch: 'W/"3"' });
+
+    expect(calls[0]?.headers['if-match']).toBe('W/"3"');
+    expect(calls[0]?.headers['content-type']).toBe('application/fhir+json');
+  });
+
+  it('should POST $expunge with expungePreviousVersions=true to the resource instance', async () => {
+    const calls: Array<{ url: string; method?: string; body?: string }> = [];
+    const fetchImpl: FetchLike = async (url, init) => {
+      calls.push({ url, method: init?.method, body: init?.body as string });
+      return json({ resourceType: 'Parameters' });
+    };
+
+    await new FhirHttp(BASE, fetchImpl).expungePreviousVersions('Binary', 'b1');
+
+    expect(calls[0]).toMatchObject({ url: `${BASE}/Binary/b1/$expunge`, method: 'POST' });
+    expect(JSON.parse(calls[0]?.body ?? '{}')).toEqual({
+      resourceType: 'Parameters',
+      parameter: [{ name: 'expungePreviousVersions', valueBoolean: true }],
+    });
+  });
+
   it('should post a transaction Bundle with one request entry per resource', async () => {
     let body: { type?: string; entry?: Array<{ request: { method: string; url: string } }> } = {};
     const fetchImpl: FetchLike = async (_url, init) => {

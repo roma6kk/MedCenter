@@ -1,6 +1,7 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import type { ReactNode } from 'react';
 import { SlotPeriodControl } from './slot-period-control';
+import { formatTypedDate } from '@/lib/calendar-grid';
 import { clinicDateKey, shiftDateKey } from '@/lib/clinic-time';
 import { useSlotWindow } from './use-slot-window';
 
@@ -48,7 +49,7 @@ describe('SlotPeriodControl date field', () => {
     fireEvent.change(dateField(), { target: { value: shiftDateKey(TODAY, -3) } });
     fireEvent.blur(dateField());
 
-    expect(dateField().value).toBe(TODAY);
+    expect(dateField().value).toBe(formatTypedDate(TODAY));
   });
 
   it('should follow the period when the visitor moves it with the later button', () => {
@@ -56,6 +57,6 @@ describe('SlotPeriodControl date field', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Позже' }));
 
-    expect(dateField().value).toBe(shiftDateKey(TODAY, 14));
+    expect(dateField().value).toBe(formatTypedDate(shiftDateKey(TODAY, 14)));
   });
 });

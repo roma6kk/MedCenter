@@ -9,6 +9,7 @@ import { ProcessedEventEntity } from './entities/processed-event.entity';
 import { SyncCursorEntity } from './entities/sync-cursor.entity';
 import { AnalyticsInit1760342400000 } from './migrations/1760342400000-AnalyticsInit';
 import { AuditReadActions1761120000000 } from './migrations/1761120000000-AuditReadActions';
+import { AuditAuthenticationActions1763078400000 } from './migrations/1763078400000-AuditAuthenticationActions';
 import { AuditEmergencyBypass1761206400000 } from './migrations/1761206400000-AuditEmergencyBypass';
 
 export const ANALYTICS_ENTITIES = [
@@ -19,29 +20,20 @@ export const ANALYTICS_ENTITIES = [
   SyncCursorEntity,
 ];
 
-/** Arbitrary but fixed key of the session-level advisory lock that serialises migrations. */
 const MIGRATION_LOCK_KEY = 4_200_008;
 
-/**
- * Same entities and migrations for runtime and tests. `synchronize` is never
- * on: the schema changes only through migrations (as in auth-service).
- */
 export function buildAnalyticsDataSource(connection: DatabaseConnection): DataSource {
   return new DataSource({
     type: 'postgres',
     ...connection,
     schema: ANALYTICS_SCHEMA,
     entities: ANALYTICS_ENTITIES,
-    migrations: [AnalyticsInit1760342400000, AuditReadActions1761120000000, AuditEmergencyBypass1761206400000],
+    migrations: [AnalyticsInit1760342400000, AuditReadActions1761120000000, AuditEmergencyBypass1761206400000, AuditAuthenticationActions1763078400000],
     synchronize: false,
   });
 }
 
-/**
- * Runs the pending migrations. The schema must exist before `runMigrations`
- * because TypeORM keeps its `migrations` table in the DataSource `schema`. Two
- * replicas booting together are serialised by a PostgreSQL advisory lock.
- */
+// The schema must exist before runMigrations (the migrations table lives in it); replicas are serialised by an advisory lock.
 export async function migrateAnalyticsSchema(dataSource: DataSource): Promise<void> {
   const runner = dataSource.createQueryRunner();
   await runner.connect();
@@ -58,7 +50,6 @@ export async function migrateAnalyticsSchema(dataSource: DataSource): Promise<vo
   }
 }
 
-/** Opens and migrates the read-model; used by the Nest provider and the Testcontainers suite. */
 export async function openAnalyticsDataSource(connection: DatabaseConnection): Promise<DataSource> {
   const dataSource = await buildAnalyticsDataSource(connection).initialize();
   try {

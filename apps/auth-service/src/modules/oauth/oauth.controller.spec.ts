@@ -1,3 +1,4 @@
+import type { AuditService } from '../audit/audit.service';
 import { JwtService } from './jwt.service';
 import { JwksService } from './jwks.service';
 import { OAuthController, readFhirBaseUrl } from './oauth.controller';
@@ -27,7 +28,7 @@ function createHarness(): ControllerHarness {
   const keys = createTestKeys();
   const tokens = new TokenService(new InMemoryTokenStore(), new InMemoryTokenDenylist());
   const pkce = new PkceService();
-  const oauth = new OAuthService(pkce, new JwtService(keys), tokens, new StubIdentityResolver());
+  const oauth = new OAuthService(pkce, new JwtService(keys), tokens, new StubIdentityResolver(), { recordAuthEvent: jest.fn() } as unknown as AuditService);
 
   return {
     controller: new OAuthController(oauth, new JwksService(keys), keys),
@@ -50,8 +51,6 @@ describe('OAuthController', () => {
   const savedFhirBaseUrl = process.env['FHIR_BASE_URL'];
 
   afterEach(() => {
-    // N5: the first test in this suite used to mutate `process.env` in place
-    // without restoring it, leaking into every suite sharing the Jest worker.
     if (savedFhirBaseUrl === undefined) {
       delete process.env['FHIR_BASE_URL'];
     } else {
@@ -85,9 +84,6 @@ describe('OAuthController', () => {
 
     const config = controller.smartConfiguration();
 
-    // A PKCE-only public client authenticates with `none`; the confidential client
-    // posts its secret in the request body, which is what `TokenClientGuard`
-    // accepts. Clients discover both through this document.
     expect(config.token_endpoint_auth_methods_supported).toEqual(['client_secret_post', 'none']);
     expect(config.grant_types_supported).toEqual(['authorization_code', 'refresh_token']);
   });
@@ -164,5 +160,21 @@ describe('OAuthController', () => {
       controller.revoke({ refreshToken: issued.jti }, revokeRequest('intruder-2')),
     ).resolves.toEqual({ revoked: false });
     await expect(tokens.isDenied(issued.jti)).resolves.toBe(false);
+  });
+
+  it('should record activity for the session named by the access token', async () => {
+    const { controller, tokens } = createHarness();
+    const issued = await tokens.issue({ userId: 'u1', clientId: 'medcenter-web', scope: 'launch', kind: 'refresh', ttlSeconds: 60, lastActivityAt: Date.now() - 60_000 });
+
+    const request = { user: { sub: 'u1', sid: issued.jti } } as unknown as RevokeRequest;
+
+    await expect(controller.activity(request)).resolves.toEqual({ recorded: true });
+    expect((await tokens.find(issued.jti))?.lastActivityAt).toBeGreaterThan(Date.now() - 30_000);
+  });
+
+  it('should not record activity for a token without a session id', async () => {
+    const { controller } = createHarness();
+
+    await expect(controller.activity({ user: { sub: 'u1' } } as unknown as RevokeRequest)).resolves.toEqual({ recorded: false });
   });
 });

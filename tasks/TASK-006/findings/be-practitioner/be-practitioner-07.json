@@ -1,0 +1,19 @@
+{
+  "id": "be-practitioner-07",
+  "unit": "be-practitioner",
+  "kind": "robustness",
+  "severity": "low",
+  "title": "PATCH, DELETE и «Занятость» по /admin/rooms/{id} принимают id любого Location, а не только кабинета: список фильтрует по physicalType=ro, остальные операции нет",
+  "description": "GET /rooms отбирает только Location с кодом physicalType `ro` (isRoom в room-search.ts; комментарий прямо ожидает в хранилище другие Location, например здание). Но update(), remove() и usage() читают `Location/{id}` напрямую и не проверяют тип. PATCH с id не-кабинета перепишет его: toLocation всегда подставляет physicalType=room, то есть здание или другой Location превратится в «кабинет» и появится в списке; DELETE удалит такой Location как кабинет (с записью аудита про кабинет). Сейчас в системе другие Location никто не создаёт (сид и сервис пишут только кабинеты), поэтому проблема пока теоретическая; но три операции расходятся с четвёртой в самом определении «кабинет», а RoomsService.findById (тоже без проверки) нигде не используется контроллером.",
+  "evidence": "apps/practitioner-service/src/modules/rooms/room-search.ts:12 isRoom used only by findAllRooms (:37); apps/practitioner-service/src/modules/rooms/rooms.service.ts:83 `await this.fhirClient.read('Location', id)` in update, :124 in remove, apps/practitioner-service/src/modules/rooms/room-usage.service.ts:31 in usage(); rooms.service.ts:55-58 findById has no production caller (only the unit specs). Scenario: Location/building-1 (physicalType `bu`) exists in HAPI -> PATCH /api/v1/admin/rooms/building-1 {name:'X'} -> 200 and the building now carries physicalType `ro` and is listed as a room; DELETE /api/v1/admin/rooms/building-1 -> 204.",
+  "files": [
+    "apps/practitioner-service/src/modules/rooms/rooms.service.ts",
+    "apps/practitioner-service/src/modules/rooms/room-usage.service.ts",
+    "apps/practitioner-service/src/modules/rooms/room-search.ts"
+  ],
+  "proposedFix": "Add one private helper in RoomsService (and reuse it in RoomUsageService), e.g. `readRoom(id)`: read the Location, and when `!isRoom(location)` throw NotFoundException({ errorCode: 'NOT_FOUND', message: `NOT_FOUND: room ${id} not found` }) — same body as an unknown id. Use it in update, remove, usage and findById (or delete the unused findById). Add unit cases: a Location with another physicalType gives 404 and no write for PATCH/DELETE/usage.",
+  "needsDecision": false,
+  "decisionQuestion": "",
+  "tzRef": "FR-017; api-designer-spec 4.3-4.7 (Location.physicalType=room)",
+  "confidence": "confirmed"
+}

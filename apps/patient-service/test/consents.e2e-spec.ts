@@ -55,10 +55,6 @@ function bundleOf(...resources: FhirResource[]): FhirSearchResult {
   return { total: resources.length, entry: resources.map((resource) => ({ resource })) };
 }
 
-/**
- * API §3.4–3.11 end to end: roles, scopes, DTO validation, multipart upload and
- * the download headers through the real guard stack; HAPI is mocked behind `FHIR_CLIENT`.
- */
 describe('patient consent endpoints (e2e)', () => {
   let booted: BootedApp;
   let consents: FhirResource[];
@@ -108,15 +104,14 @@ describe('patient consent endpoints (e2e)', () => {
   const patientToken = (scope = 'patient/*.read patient/*.write launch'): string =>
     booted.issuer.sign({ role: 'PATIENT', scope, patient: '9f2c', fhirUser: 'Patient/9f2c' });
   const http = (): ReturnType<typeof request> => request(booted.app.getHttpServer());
+  const get = (path: string, token: string): request.Test => http().get(path).set('Authorization', `Bearer ${token}`);
+  const post = (path: string, token: string): request.Test => http().post(path).set('Authorization', `Bearer ${token}`);
 
   describe('GET /me/consent (3.4) and POST /me/consent/revoke (3.6)', () => {
     it('should return the own consent and history to the patient', async () => {
       consents = [consent];
 
-      const response = await http()
-        .get('/api/v1/me/consent')
-        .set('Authorization', `Bearer ${patientToken()}`)
-        .expect(200);
+      const response = await get('/api/v1/me/consent', patientToken()).expect(200);
 
       expect(response.body).toMatchObject({
         active: { id: 'c-1', status: 'active' },
@@ -130,19 +125,13 @@ describe('patient consent endpoints (e2e)', () => {
         scope: 'user/*.read patient/*.read',
         fhirUser: 'PractitionerRole/role-1',
       });
-      const response = await http()
-        .get('/api/v1/me/consent')
-        .set('Authorization', `Bearer ${token}`)
-        .expect(403);
+      const response = await get('/api/v1/me/consent', token).expect(403);
 
       expect(response.body).toMatchObject({ errorCode: 'FORBIDDEN_ROLE' });
     });
 
     it('should answer 403 FORBIDDEN_SCOPE when the patient token cannot write', async () => {
-      const response = await http()
-        .post('/api/v1/me/consent/revoke')
-        .set('Authorization', `Bearer ${patientToken('patient/*.read')}`)
-        .expect(403);
+      const response = await post('/api/v1/me/consent/revoke', patientToken('patient/*.read')).expect(403);
 
       expect(response.body).toMatchObject({ errorCode: 'FORBIDDEN_SCOPE' });
     });
@@ -150,19 +139,13 @@ describe('patient consent endpoints (e2e)', () => {
     it('should revoke the own consent and answer 200 with the inactive consent', async () => {
       consents = [consent];
 
-      const response = await http()
-        .post('/api/v1/me/consent/revoke')
-        .set('Authorization', `Bearer ${patientToken()}`)
-        .expect(200);
+      const response = await post('/api/v1/me/consent/revoke', patientToken()).expect(200);
 
       expect(response.body).toMatchObject({ id: 'c-1', status: 'inactive' });
     });
 
     it('should answer 404 NOT_FOUND when there is nothing to revoke', async () => {
-      const response = await http()
-        .post('/api/v1/me/consent/revoke')
-        .set('Authorization', `Bearer ${patientToken()}`)
-        .expect(404);
+      const response = await post('/api/v1/me/consent/revoke', patientToken()).expect(404);
 
       expect(response.body).toMatchObject({ errorCode: 'NOT_FOUND' });
     });
@@ -170,52 +153,35 @@ describe('patient consent endpoints (e2e)', () => {
 
   describe('GET /patients/{id}/consent (3.7)', () => {
     it('should answer an administrator and a linked doctor', async () => {
-      await http()
-        .get('/api/v1/patients/9f2c/consent')
-        .set('Authorization', `Bearer ${adminToken()}`)
-        .expect(200);
-      await http()
-        .get('/api/v1/patients/9f2c/consent')
-        .set('Authorization', `Bearer ${doctorToken()}`)
-        .expect(200);
+      await get('/api/v1/patients/9f2c/consent', adminToken()).expect(200);
+      await get('/api/v1/patients/9f2c/consent', doctorToken()).expect(200);
     });
 
     it('should answer 403 COMPARTMENT_VIOLATION to a doctor without a care link', async () => {
       booted.fhir.search.mockImplementation(async () => bundleOf());
 
-      const response = await http()
-        .get('/api/v1/patients/9f2c/consent')
-        .set('Authorization', `Bearer ${doctorToken()}`)
-        .expect(403);
+      const response = await get('/api/v1/patients/9f2c/consent', doctorToken()).expect(403);
 
       expect(response.body).toMatchObject({ errorCode: 'COMPARTMENT_VIOLATION' });
     });
 
     it('should answer 403 FORBIDDEN_ROLE when a patient reads by patient id', async () => {
-      await http()
-        .get('/api/v1/patients/9f2c/consent')
-        .set('Authorization', `Bearer ${patientToken()}`)
-        .expect(403);
+      await get('/api/v1/patients/9f2c/consent', patientToken()).expect(403);
     });
 
     it('should answer 400 VALIDATION_ERROR when the id is not a FHIR id', async () => {
-      const response = await http()
-        .get('/api/v1/patients/%2E%2E/consent')
-        .set('Authorization', `Bearer ${adminToken()}`);
+      const response = await get('/api/v1/patients/%2E%2E/consent', adminToken());
 
       expect([400, 404]).toContain(response.status);
     });
   });
 
   describe('POST /patients/{id}/consent (3.8)', () => {
-    const post = (token: string, body: object): request.Test =>
-      http()
-        .post('/api/v1/patients/9f2c/consent')
-        .set('Authorization', `Bearer ${token}`)
-        .send(body);
+    const createConsent = (token: string, body: object): request.Test =>
+      post('/api/v1/patients/9f2c/consent', token).send(body);
 
     it('should create the consent as an administrator and answer 201', async () => {
-      const response = await post(adminToken(), validBody).expect(201);
+      const response = await createConsent(adminToken(), validBody).expect(201);
 
       expect(response.body).toMatchObject({
         id: 'c-new',
@@ -227,13 +193,13 @@ describe('patient consent endpoints (e2e)', () => {
     });
 
     it('should create it as a linked doctor', async () => {
-      await post(doctorToken(), { ...validBody, signedByName: undefined }).expect(201);
+      await createConsent(doctorToken(), { ...validBody, signedByName: undefined }).expect(201);
     });
 
     it('should answer 409 CONSENT_ALREADY_ACTIVE when a consent is in force', async () => {
       consents = [consent];
 
-      const response = await post(adminToken(), validBody).expect(409);
+      const response = await createConsent(adminToken(), validBody).expect(409);
 
       expect(response.body).toMatchObject({ errorCode: 'CONSENT_ALREADY_ACTIVE' });
     });
@@ -241,7 +207,7 @@ describe('patient consent endpoints (e2e)', () => {
     it('should answer 403 to a doctor without a care link and write nothing', async () => {
       booted.fhir.search.mockImplementation(async () => bundleOf());
 
-      await post(doctorToken(), validBody).expect(403);
+      await createConsent(doctorToken(), validBody).expect(403);
 
       expect(booted.fhir.batch).not.toHaveBeenCalled();
     });
@@ -255,7 +221,7 @@ describe('patient consent endpoints (e2e)', () => {
       ['a missing scan', { ...validBody, scanId: undefined }],
       ['a scan id that is not a FHIR id', { ...validBody, scanId: '../x' }],
     ])('should answer 400 VALIDATION_ERROR for %s', async (_name, body) => {
-      const response = await post(adminToken(), body).expect(400);
+      const response = await createConsent(adminToken(), body).expect(400);
 
       expect(response.body).toMatchObject({ errorCode: 'VALIDATION_ERROR' });
       expect(booted.fhir.batch).not.toHaveBeenCalled();
@@ -266,9 +232,7 @@ describe('patient consent endpoints (e2e)', () => {
     it('should revoke with the application number and answer 200', async () => {
       consents = [consent];
 
-      const response = await http()
-        .post('/api/v1/patients/9f2c/consent/revoke')
-        .set('Authorization', `Bearer ${adminToken()}`)
+      const response = await post('/api/v1/patients/9f2c/consent/revoke', adminToken())
         .send({ applicationNumber: 'ЗАЯВ-7' })
         .expect(200);
 
@@ -276,9 +240,7 @@ describe('patient consent endpoints (e2e)', () => {
     });
 
     it('should answer 400 when the application number is missing', async () => {
-      await http()
-        .post('/api/v1/patients/9f2c/consent/revoke')
-        .set('Authorization', `Bearer ${adminToken()}`)
+      await post('/api/v1/patients/9f2c/consent/revoke', adminToken())
         .send({})
         .expect(400);
     });
@@ -296,9 +258,7 @@ describe('patient consent endpoints (e2e)', () => {
     });
 
     const upload = (token: string, file: Buffer, contentType: string): request.Test =>
-      http()
-        .post('/api/v1/patients/9f2c/consent/scan')
-        .set('Authorization', `Bearer ${token}`)
+      post('/api/v1/patients/9f2c/consent/scan', token)
         .attach('file', file, { filename: 'form.bin', contentType });
 
     it('should store a PDF and answer 201 with the scan id and sha1 hash', async () => {
@@ -335,10 +295,7 @@ describe('patient consent endpoints (e2e)', () => {
     });
 
     it('should answer 400 VALIDATION_ERROR when no file is sent', async () => {
-      await http()
-        .post('/api/v1/patients/9f2c/consent/scan')
-        .set('Authorization', `Bearer ${adminToken()}`)
-        .expect(400);
+      await post('/api/v1/patients/9f2c/consent/scan', adminToken()).expect(400);
     });
 
     it('should answer 403 to a doctor without a care link', async () => {
@@ -350,9 +307,7 @@ describe('patient consent endpoints (e2e)', () => {
 
   describe('GET /patients/{id}/consent/scan/{scanId} (3.11)', () => {
     it('should return the bytes as a no-store, no-sniff download and journal the read', async () => {
-      const response = await http()
-        .get('/api/v1/patients/9f2c/consent/scan/bin-1')
-        .set('Authorization', `Bearer ${doctorToken()}`)
+      const response = await get('/api/v1/patients/9f2c/consent/scan/bin-1', doctorToken())
         .buffer(true)
         .parse((res, done) => {
           const chunks: Buffer[] = [];
@@ -373,10 +328,7 @@ describe('patient consent endpoints (e2e)', () => {
     });
 
     it('should answer 403 FORBIDDEN_ROLE when a patient asks for a scan by patient id', async () => {
-      await http()
-        .get('/api/v1/patients/9f2c/consent/scan/bin-1')
-        .set('Authorization', `Bearer ${patientToken()}`)
-        .expect(403);
+      await get('/api/v1/patients/9f2c/consent/scan/bin-1', patientToken()).expect(403);
     });
 
     it('should answer 404 NOT_FOUND for a scan of another patient', async () => {
@@ -386,10 +338,7 @@ describe('patient consent endpoints (e2e)', () => {
           : patient,
       );
 
-      const response = await http()
-        .get('/api/v1/patients/9f2c/consent/scan/bin-1')
-        .set('Authorization', `Bearer ${adminToken()}`)
-        .expect(404);
+      const response = await get('/api/v1/patients/9f2c/consent/scan/bin-1', adminToken()).expect(404);
 
       expect(response.body).toMatchObject({ errorCode: 'NOT_FOUND' });
     });

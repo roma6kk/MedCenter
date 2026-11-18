@@ -1,12 +1,7 @@
-/**
- * E2E — scenario A of the frontend design spec §6 (FR-003/004): a guest finds a doctor and a free slot, presses
- * «Записаться», signs in through the real PKCE flow, gets the booking draft back on the confirmation step and confirms.
- *
- * The doctor and the slot are found at run time from the public catalog; the booking is cancelled afterwards.
- */
 import { expect, test } from '@playwright/test';
-import { continueFromLoginScreen } from './fixtures/auth';
-import { cancelAppointmentAs, findFreeSlots, type FreeSlot } from './fixtures/booking-api';
+import { fillAuthServiceForm, returnToOfAuthorizeUrl } from './fixtures/auth';
+import { cancelAppointmentAs, findFreeSlot, revealSlotOnDoctorPage } from './fixtures/booking-api';
+import { isPostTo } from './fixtures/network';
 import { hasDemoManifest, loadDemoAccount } from './fixtures/demo-accounts';
 
 test.skip(!hasDemoManifest(), 'demo seed manifest not found');
@@ -19,25 +14,27 @@ test('should render the public doctor catalog shell when the app is served', asy
 });
 
 test('should book an appointment through the login with the draft restored when a guest picks a slot', async ({ page, request, baseURL }) => {
-  const [target] = (await findFreeSlots(request, 1)) as [FreeSlot];
+  const target = await findFreeSlot(request);
   const webOrigin = new URL(baseURL ?? DEFAULT_ORIGIN).origin;
 
   await test.step('guest opens the doctor from the catalog and picks a free slot', async () => {
     await page.goto('/doctors');
     const card = page.getByTestId('doctor-card').filter({ hasText: target.doctorName });
-    await card.getByRole('link', { name: 'Профиль' }).click();
+    await card.getByRole('link', { name: /^Профиль/ }).click();
     await expect(page).toHaveURL(/\/doctors\/[^/]+$/);
+    await revealSlotOnDoctorPage(page, target);
     await page.getByTestId(`slot-${target.slotId}`).click();
     await expect(page.getByTestId(`slot-${target.slotId}`)).toHaveAttribute('aria-pressed', 'true');
   });
 
-  await test.step('«Записаться» sends the guest to the login with returnTo=/booking', async () => {
+  await test.step('«Записаться» sends the guest straight to the auth-service form with returnTo=/booking', async () => {
     await page.getByRole('button', { name: /^Записаться на / }).click();
-    await expect(page).toHaveURL(/\/login\?returnTo=%2Fbooking$/);
+    await expect(page.locator('input[name="email"]')).toBeVisible();
+    expect(returnToOfAuthorizeUrl(page.url())).toBe('/booking');
   });
 
   await test.step('after the sign-in the draft is restored on the confirmation step', async () => {
-    await continueFromLoginScreen(page, loadDemoAccount('PATIENT', 2), webOrigin);
+    await fillAuthServiceForm(page, loadDemoAccount('PATIENT', 2), webOrigin);
     await expect(page).toHaveURL(/\/booking(\?.*)?$/);
     await expect(page.getByText('Черновик записи восстановлен')).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Проверьте данные записи' })).toBeVisible();
@@ -45,7 +42,7 @@ test('should book an appointment through the login with the draft restored when 
   });
 
   const created = await test.step('confirming sends one POST with an Idempotency-Key and gets 201', async () => {
-    const posted = page.waitForResponse((response) => response.url().endsWith('/api/v1/appointments') && response.request().method() === 'POST');
+    const posted = page.waitForResponse(isPostTo('/api/v1/appointments'));
     await page.getByTestId('booking-confirm').click();
     const response = await posted;
     expect(response.status()).toBe(201);
@@ -54,7 +51,10 @@ test('should book an appointment through the login with the draft restored when 
   });
 
   try {
-    await expect(page).toHaveURL(new RegExp(`/appointments/${created.id}$`));
+    await expect(page.getByRole('heading', { name: 'Вы записаны на приём' })).toBeVisible();
+    await expect(page.getByRole('main')).toContainText(target.doctorName);
+    await expect(page.getByRole('link', { name: 'Отменить запись' })).toHaveAttribute('href', `/appointments/${created.id}`);
+    await page.goto(`/appointments/${created.id}`);
     await expect(page.getByTestId('stamp-booked')).toBeVisible();
   } finally {
     await cancelAppointmentAs(page, created.id);

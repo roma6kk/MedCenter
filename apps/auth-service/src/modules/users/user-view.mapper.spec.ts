@@ -28,6 +28,7 @@ describe('toUserResponse', () => {
       isActive: true,
       name: 'Петров Пётр',
       role: Role.DOCTOR,
+      accountConsentWithdrawnAt: null,
     });
   });
 
@@ -37,6 +38,12 @@ describe('toUserResponse', () => {
 });
 
 describe('toUserDetails', () => {
+  it('should give the withdrawal moment as ISO text when the patient closed the account', () => {
+    const closed = toUserResponse({ ...DOCTOR, isActive: false, accountConsentWithdrawnAt: new Date('2026-11-01T09:30:00.000Z') });
+
+    expect(closed.accountConsentWithdrawnAt).toBe('2026-11-01T09:30:00.000Z');
+  });
+
   it('should list every ExternalLink as a relative reference when the user has both links', () => {
     const details = toUserDetails({ ...DOCTOR, links: { patientId: 'pat-1', practitionerRoleId: 'role-7' } });
 

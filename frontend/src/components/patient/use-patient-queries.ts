@@ -1,6 +1,5 @@
 'use client';
 
-/** Read hooks of the patient's own record (history, prescriptions, account, FHIR profile), keyed per §5.1 (`'me'`, not an id). */
 import { keepPreviousData, useMutation, useQuery, useQueryClient, type UseMutationResult, type UseQueryResult } from '@tanstack/react-query';
 import { isApiError } from '@/lib/api/api-fetch';
 import { invalidateFor } from '@/lib/api/invalidation';
@@ -31,11 +30,7 @@ export function usePatientProfile(): UseQueryResult<PatientProfile> {
   return useQuery({ queryKey: queryKeys.patientProfile, queryFn: () => fetchPatientProfile() });
 }
 
-/**
- * 3.12 — resolves after the refreshed card is back, so a form that closes on success shows the new number. A 409 means the
- * card changed under the form: the card is reloaded too (its new `version` is what the next save sends), and the caller
- * tells the patient.
- */
+// A 409 means the card changed under the form: reload it too, its new `version` is what the next save sends.
 export function useUpdateMyPhone(): UseMutationResult<PatientProfile, Error, PhoneChange> {
   const client = useQueryClient();
   return useMutation({

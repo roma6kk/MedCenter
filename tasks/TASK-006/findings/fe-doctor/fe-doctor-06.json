@@ -1,0 +1,23 @@
+{
+  "id": "fe-doctor-06",
+  "unit": "fe-doctor",
+  "kind": "bug",
+  "severity": "medium",
+  "title": "В истории пациента у врача визиты коллег выглядят как свои и ведут по ссылке «Открыть приём» на экран «Приём не найден»",
+  "description": "GET /patients/{id}/history (7.4) возвращает завершённые приёмы пациента у ВСЕХ врачей, с которыми у вызывающего врача есть связь по записи, а GET /encounters/{id} (7.2) открывает приём только его участнику (assertViewerSeesEncounter). Лента истории на карточке пациента показывает у каждого визита ссылку «Открыть приём» и не показывает, какой врач его вёл: поля practitionerRoleId и doctorName есть в ответе, но тип HistoryItem на фронтенде doctorName не знает, а practitionerRoleId не используется. Пациент, которого видят терапевт и кардиолог (обычный случай для клиники), даёт каждому из них ссылки на приёмы коллеги; переход по ней показывает «Приём не найден» (COMPARTMENT_VIOLATION в карте кодов — not-found). То же с блоком «Последние показатели» в сводке: он читает полную запись самого свежего приёма, и если тот принадлежит коллеге, пишет «Показателей пока нет» (пункт T1 в verify-open-questions.md известен, но здесь причина шире) и со ссылкой «Открыть приём» у назначений (patient-prescriptions.tsx:59). Врач не понимает, почему чужая запись «не найдена», и не видит, чьё это заключение.",
+  "evidence": "frontend/src/components/doctor/patient-history-timeline.tsx:83 always renders <Link href=/encounters/{item.id}>; doctor-types.ts:78-91 HistoryItem has practitionerRoleId but no doctorName; apps/encounter-service/src/modules/history/dto/history-item.dto.ts:23-25 returns both; apps/encounter-service/src/modules/encounters/encounters.service.ts:112 findOne is participant/ADMIN only; frontend/src/lib/api/error-code-map.ts:101 COMPARTMENT_VIOLATION -> not-found. frontend/src/components/layout/use-staff-profile.ts:19-35 already derives the signed-in doctor's PractitionerRole id from session.fhirUser. Scenario: patient had a finished visit with doctor B; doctor A (has a booked visit with the patient) opens the card, expands B's visit, presses «Открыть приём» -> «Приём не найден».",
+  "files": [
+    "frontend/src/components/doctor/patient-history-timeline.tsx",
+    "frontend/src/components/doctor/doctor-types.ts",
+    "frontend/src/components/doctor/patient-prescriptions.tsx",
+    "frontend/src/components/doctor/patient-summary.tsx",
+    "frontend/src/components/layout/use-staff-profile.ts",
+    "frontend/src/messages/ru.json",
+    "frontend/src/messages/en.json"
+  ],
+  "proposedFix": "Add `doctorName?: string` to HistoryItem and show it on each timeline entry (new key doctor.history.doctor). Read the own role id (roleIdOf(useSessionStore fhirUser), extracted into a small shared helper) and render the «Открыть приём» link only when item.practitionerRoleId equals it; for a colleague's visit show «Приём другого врача» instead (the inline summary, diagnoses and orders stay visible, the backend allows them). In patient-prescriptions.tsx hide the encounter link when the encounter is not among the doctor's own history items already loaded. In LastVitals pick the newest history item of the signed-in doctor (or say «Показатели ведёт другой врач» for a 403) instead of reporting «Показателей пока нет». Add specs for a two-doctor history.",
+  "needsDecision": false,
+  "decisionQuestion": "",
+  "tzRef": "FR-010 (история обращений пациента), BR-006; verify-open-questions.md T1 (последние показатели, 403)",
+  "confidence": "confirmed"
+}

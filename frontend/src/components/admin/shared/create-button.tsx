@@ -6,7 +6,6 @@ interface CreateButtonProps {
   readonly onClick: () => void;
 }
 
-/** The primary call to action of an admin list («Создать …»), the `action` of `AdminPageHeader`. */
 export function CreateButton({ label, onClick }: CreateButtonProps): ReactNode {
   return (
     <button type="button" onClick={onClick} className={PRIMARY_BUTTON_CLASS}>

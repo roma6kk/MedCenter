@@ -3,12 +3,14 @@
 import type { ReactNode } from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
+import { formatClinicDateTime } from '@/lib/clinic-time';
 import { useT } from '@/lib/i18n/use-t';
 import { FormProblem } from '../shared/admin-problem';
 import type { ServerFieldRule } from '../shared/apply-server-error';
 import { FormActions } from '../shared/form-actions';
 import { messagesOf } from '../shared/form-errors';
-import { Modal } from '../shared/modal';
+import { Dialog } from '@/components/ui/dialog';
+import { Switch } from '@/components/ui/switch';
 import { useFormBanner } from '../shared/use-form-banner';
 import { useFormMessage } from '../shared/use-form-message';
 import { useCreateUser, useUpdateUser } from './use-admin-users';
@@ -29,10 +31,6 @@ import type { AdminUser } from './user-types';
 const CREATE_FIELDS: ReadonlyArray<string> = ['email', 'firstName', 'lastName', 'password', 'roles', 'birthDate', 'gender', 'practitionerRoleId'];
 const EDIT_FIELDS: ReadonlyArray<string> = ['email', 'firstName', 'lastName', 'roles', 'practitionerRoleId', 'isActive'];
 
-/**
- * Server reasons that belong to one field. A 404 can only mean an unknown PractitionerRole (the account is the one being
- * edited, a new account has no id yet), so it goes to the role field, but only while that field is shown.
- */
 function useServerRules(showsRoleField: boolean): Readonly<Record<string, ServerFieldRule>> {
   const t = useT('admin.problems');
   return {
@@ -47,7 +45,7 @@ function CreateUserForm({ onClose }: { readonly onClose: () => void }): ReactNod
   const resolve = useFormMessage();
   const create = useCreateUser();
   const form = useForm<CreateUserFormValues>({ resolver: zodResolver(createUserSchema), defaultValues: EMPTY_CREATE_VALUES });
-  const { register, handleSubmit, watch, formState } = form;
+  const { register, control, handleSubmit, watch, formState } = form;
   const roles = watch('roles');
   const roleChoices = usePractitionerRoleOptions(undefined, watch('practitionerRoleId'));
   const { banner, fail, clear } = useFormBanner(form, CREATE_FIELDS, useServerRules(roles.includes('DOCTOR')));
@@ -59,14 +57,13 @@ function CreateUserForm({ onClose }: { readonly onClose: () => void }): ReactNod
   return (
     <form onSubmit={(event) => void submit(event)} noValidate>
       <SharedUserFields register={register} errors={errors} selectedRoles={roles} roleChoices={roleChoices} />
-      <CreateOnlyUserFields register={register} errors={errors} selectedRoles={roles} />
+      <CreateOnlyUserFields register={register} control={control} errors={errors} selectedRoles={roles} />
       <FormProblem banner={banner} />
       <FormActions submitLabel={t('create')} isPending={create.isPending} onCancel={onClose} error={create.error} />
     </form>
   );
 }
 
-/** What the roles of an existing account allow: PATIENT needs a FHIR Patient it may not have, and a link needs DOCTOR. */
 function roleNotesOf(user: AdminUser, selectedRoles: ReadonlyArray<string>): RoleNotes {
   return {
     patientLocked: user.patientRef === null && !user.roles.includes('PATIENT'),
@@ -78,6 +75,7 @@ function EditUserForm({ user, onClose }: { readonly user: AdminUser; readonly on
   const t = useT('admin.users');
   const resolve = useFormMessage();
   const update = useUpdateUser();
+  const closedByPatient = user.accountConsentWithdrawnAt ?? null;
   const form = useForm<EditUserFormValues>({ resolver: zodResolver(editUserSchema), defaultValues: editValuesOf(user) });
   const { register, handleSubmit, watch, formState } = form;
   const roles = watch('roles');
@@ -91,10 +89,12 @@ function EditUserForm({ user, onClose }: { readonly user: AdminUser; readonly on
   return (
     <form onSubmit={(event) => void submit(event)} noValidate>
       <SharedUserFields register={register} errors={errors} selectedRoles={roles} notes={roleNotesOf(user, roles)} roleChoices={roleChoices} />
-      <label className="mt-3 flex min-h-[44px] items-center gap-2 text-sm">
-        <input type="checkbox" {...register('isActive')} />
+      <Switch wrapperClassName="mt-3" disabled={closedByPatient !== null} {...register('isActive')}>
         {t('fields.isActive')}
-      </label>
+      </Switch>
+      {closedByPatient === null ? null : (
+        <p className="text-sm text-[var(--muted-foreground)]">{t('hints.closedByPatient', { date: formatClinicDateTime(closedByPatient) })}</p>
+      )}
       <FormProblem banner={banner} />
       <FormActions submitLabel={t('save')} isPending={update.isPending} onCancel={onClose} error={update.error} />
     </form>
@@ -102,17 +102,15 @@ function EditUserForm({ user, onClose }: { readonly user: AdminUser; readonly on
 }
 
 interface UserFormDialogProps {
-  /** The account to edit; omitted → the «create user» form. */
   readonly user?: AdminUser;
   readonly onClose: () => void;
 }
 
-/** Create (`POST /admin/users`) or edit (`PATCH /admin/users/{id}`) dialog of an account (FR-015). */
 export function UserFormDialog({ user, onClose }: UserFormDialogProps): ReactNode {
   const t = useT('admin.users');
   return (
-    <Modal title={user === undefined ? t('createTitle') : t('editTitle')} onClose={onClose}>
+    <Dialog title={user === undefined ? t('createTitle') : t('editTitle')} onClose={onClose}>
       {user === undefined ? <CreateUserForm onClose={onClose} /> : <EditUserForm user={user} onClose={onClose} />}
-    </Modal>
+    </Dialog>
   );
 }

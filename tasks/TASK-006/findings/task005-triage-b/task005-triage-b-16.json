@@ -1,0 +1,17 @@
+{
+  "id": "task005-triage-b-16",
+  "unit": "task005-triage-b",
+  "kind": "question",
+  "severity": "low",
+  "title": "RESOLVED: выход ведёт на главную `/`, а не на `/login` — так и должно быть",
+  "description": "Вопрос из T7. `/login` теперь сразу перенаправляет на форму входа auth-service (C2), то есть после выхода человек увидел бы форму входа, а не сайт. Главная страница публична и спокойно завершает сессию. Код и комментарий это фиксируют, при выходе также очищаются черновик записи и черновики приёма (данные о здоровье).",
+  "evidence": "frontend/src/lib/auth/session-client.ts:113-121 logout(): endSession, clearDraft, clearAllDrafts, window.location.assign('/') with the comment about /login leading straight into the sign-in form.",
+  "files": [
+    "frontend/src/lib/auth/session-client.ts"
+  ],
+  "proposedFix": "No change.",
+  "needsDecision": false,
+  "decisionQuestion": "",
+  "tzRef": "",
+  "confidence": "confirmed"
+}

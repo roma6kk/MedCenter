@@ -8,35 +8,14 @@ import { parseLoginForm, type LoginForm } from './oauth-login-form';
 
 export { OAuthFlowError };
 
-/**
- * Programmatic SMART / OAuth2 Authorization Code + PKCE login against
- * auth-service (API §2.1), replaying the browser round trip by hand:
- *
- *  1. `GET /oauth/authorize?...`  — no session yet, so the server answers its
- *     login page (200 HTML) and sets the `mc_as_csrf` cookie;
- *  2. `POST /oauth/login`          — form-encoded `email`, `password`, `csrf`,
- *     `authorize_query` plus the CSRF cookie; `302` back to `/oauth/authorize`
- *     with the single-use `mc_as_session` cookie;
- *  3. `GET /oauth/authorize?...`   — with the session cookie; `302` to the
- *     registered `redirect_uri?code=...&state=...`;
- *  4. `POST /oauth/token`          — `authorization_code` + `code_verifier`.
- *
- * Redirects are read, never followed: the final hop goes to the client's own
- * `redirect_uri` (the web app), which this tool never requests. The shapes
- * mirror `apps/auth-service/src/modules/oauth/login` and are pinned by a
- * contract test that renders the real login page.
- */
-
 export interface OAuthConfig {
-  /** Origin of the auth endpoints, e.g. the Traefik dev edge `http://localhost:8081`. */
   readonly authBaseUrl: string;
   readonly clientId: string;
-  /** Must be one of the client's registered redirect URIs; it is never requested. */
   readonly redirectUri: string;
   readonly scope: string;
 }
 
-export interface LoginCredentials {
+interface LoginCredentials {
   readonly email: string;
   readonly password: string;
 }
@@ -58,7 +37,6 @@ interface FlowContext {
   readonly fetchImpl: FetchLike;
 }
 
-/** RFC 7636: `challenge = BASE64URL(SHA256(verifier))`, method S256. */
 export function createPkcePair(random: (size: number) => Buffer = randomBytes): PkcePair {
   const verifier = random(VERIFIER_BYTES).toString('base64url');
   return { verifier, challenge: createHash('sha256').update(verifier).digest('base64url') };
@@ -77,10 +55,6 @@ export function buildAuthorizeUrl(config: OAuthConfig, pkce: PkcePair, state: st
   return `${config.authBaseUrl}/oauth/authorize?${params.toString()}`;
 }
 
-/**
- * The `code` of a redirect to `redirect_uri`. An `error` parameter, a foreign
- * target, a `state` mismatch (CSRF) or a missing code are all failures.
- */
 export function readAuthorizationCode(location: string, redirectUri: string, expectedState: string): string {
   const target = new URL(location, redirectUri);
   if (`${target.origin}${target.pathname}` !== redirectUri.split('?')[0]) {
@@ -133,7 +107,7 @@ async function openLoginPage(context: FlowContext): Promise<LoginForm> {
   return parseLoginForm(text);
 }
 
-/** Why the login form did not lead to a redirect — never echoes the page body, which repeats the email. */
+// Never echoes the page body, which repeats the email.
 function describeLoginRefusal(status: number): string {
   switch (status) {
     case 200:
@@ -157,7 +131,6 @@ async function submitCredentials(context: FlowContext, form: LoginForm, credenti
       'content-type': 'application/x-www-form-urlencoded',
       ...(cookie.length === 0 ? {} : { cookie }),
     },
-    // Exactly the four fields of the form (`LoginFormDto`): the DTO is validated against that whitelist.
     body: new URLSearchParams({
       csrf: form.csrf,
       authorize_query: form.authorizeQuery,
@@ -183,10 +156,8 @@ async function resumeAuthorization(context: FlowContext, location: string): Prom
   return readAuthorizationCode(redirectLocation(response, 'authorize'), config.redirectUri, state);
 }
 
-/** The access token and the scope the server actually granted (it may be narrower than the one requested). */
-export interface TokenGrant {
+interface TokenGrant {
   readonly accessToken: string;
-  /** Space-separated granted scope; `undefined` when the token response does not report one. */
   readonly scope?: string;
 }
 
@@ -214,7 +185,6 @@ async function exchangeCode(context: FlowContext, code: string): Promise<TokenGr
   return { accessToken: body.access_token, ...(typeof body.scope === 'string' ? { scope: body.scope } : {}) };
 }
 
-/** Runs the whole flow and returns the access token plus its granted scope. The password is never logged. */
 export async function obtainTokenGrant(
   config: OAuthConfig,
   credentials: LoginCredentials,
@@ -233,7 +203,6 @@ export async function obtainTokenGrant(
   return exchangeCode(context, code);
 }
 
-/** Runs the whole flow and returns the access token (a Bearer JWT). The password is never logged. */
 export async function obtainAccessToken(
   config: OAuthConfig,
   credentials: LoginCredentials,

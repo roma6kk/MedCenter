@@ -1,0 +1,23 @@
+{
+  "id": "task005-triage-b-18",
+  "unit": "task005-triage-b",
+  "kind": "bug",
+  "severity": "medium",
+  "title": "Слоты врача фильтруются по длительности, а не по услуге: у врача с двумя услугами одной длительности предлагается время чужой услуги",
+  "description": "Вопрос из T7 («две услуги 30/30 в списке слотов не различимы») на деле является ошибкой выбора слота. Расписание принадлежит услуге (Schedule.actor HealthcareService), а appointment-service отвечает 400 VALIDATION_ERROR, если serviceId в запросе не совпал с услугой расписания слота. Но GET /doctors/{id}/slots не говорит, какой услуге принадлежит слот, и клиент подбирает слоты услуги по равенству длительности (slotsForDuration). Если у врача две услуги по 30 минут с разными расписаниями, при выбранной услуге B гость видит и слоты расписания A; выбрав такой слот, получает на шаге подтверждения «Это время относится к другой услуге врача. Выберите другое время.», не имея способа понять, какое время подойдёт. То же верно для ближайшего окна на карточке врача и в hero (nearestFreeSlots).",
+  "evidence": "frontend/src/components/booking/slot-list.ts:12-14 slotsForDuration filters by slotDurationMin(slot) === durationMin; frontend/src/components/catalog/doctor-slots-booking.tsx:107 `durationMin={service?.defaultDurationMin}`; frontend/src/components/catalog/catalog-types.ts:38-45 Slot has optional scheduleId only; apps/appointment-service/src/modules/appointments/appointments.service.ts:218-224 rejects serviceId !== schedule actor service with 400; frontend/src/messages/ru.json:622 «mismatch» text; apps/catalog-service/src/modules/slots/schedule-summary.mapper.ts:93 already derives serviceId of a schedule. Scenario: doctor with services A (30 min) and B (30 min) on separate schedules; chip B chosen; the list shows both schedules' times; a time of A is selected -> POST /appointments {slotId, serviceId: B} -> 400.",
+  "files": [
+    "apps/catalog-service/src/modules/slots/dto/slot-response.doc.ts",
+    "apps/catalog-service/src/modules/slots/slot-search.ts",
+    "libs/fhir-mappers/src/lib/slot.mapper.ts",
+    "frontend/src/components/catalog/catalog-types.ts",
+    "frontend/src/components/booking/slot-list.ts",
+    "frontend/src/components/booking/slot-picker.tsx",
+    "specs/api-designer-spec.md"
+  ],
+  "proposedFix": "Additive field: catalog-service adds `serviceId` (from the slot's Schedule.actor HealthcareService, it already loads the schedules for the search) to every item of GET /doctors/{id}/slots and to the doctor schedule items; mirror it in SlotResponseDoc, spec §5.2.8 and Bruno. Frontend: Slot.serviceId?: string; slotsForDuration becomes slotsForService(slots, service) that filters by serviceId when the slot has it and falls back to the duration for old cached payloads; use it in slot-picker, nearestFreeSlots (hero windows, doctor option) and the wizard. Add a spec with two same-duration services on two schedules.",
+  "needsDecision": false,
+  "decisionQuestion": "",
+  "tzRef": "FR-003, FR-004, BR-001",
+  "confidence": "likely"
+}

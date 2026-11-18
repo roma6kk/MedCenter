@@ -1,30 +1,16 @@
 import type { Bundle, FhirHttp, FhirResource } from '../shared/fhir-http';
 
-/**
- * `seed:demo -- --repair`: puts right what the stack recorded before BR-008 was enforced.
- *
- * Encounters completed before `e13a59c` left their Appointment `booked`; the encounter-service now writes `fulfilled` in
- * the completion transaction, so such rows never fix themselves. Each one is updated exactly as that transaction does it
- * (`PUT` with `If-Match` on the version read), in a `batch`, so a row someone changed in the meantime fails alone.
- * Leftovers of manual and agent checks are only reported: deleting them is a decision for the owner.
- */
-
-export interface RepairSummary {
-  /** Booked appointments with a finished encounter that are now `fulfilled`. */
+interface RepairSummary {
   readonly fulfilled: readonly string[];
-  /** Those whose update was refused (changed since it was read), with the status HAPI answered. */
   readonly failed: ReadonlyArray<{ readonly id: string; readonly status: string }>;
   readonly leftovers: Leftovers;
 }
 
-export interface Leftovers {
-  /** Inactive schedules: kept because slots and appointments may still point at them. */
+interface Leftovers {
   readonly inactiveSchedules: number;
-  /** Rooms and services named like a check (`E2E-check…`, `zz-…`). */
   readonly checkResources: readonly string[];
 }
 
-/** How a check names what it creates (verify-manual-testing-guide §4.3, agent repros). */
 const CHECK_NAME = /^(e2e-check|zz-)/i;
 const ID_CHUNK = 50;
 

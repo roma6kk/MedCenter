@@ -1,13 +1,6 @@
-/**
- * session-client — the browser side of the token broker.
- *
- * The broker (`/api/auth/session`, `/api/auth/refresh`) reads the httpOnly `mc_rt` refresh cookie, rotates it and
- * returns a short-lived access token plus the derived claims. The access token lives in memory only (never in Web
- * Storage); the user-facing session is mirrored into the Zustand store.
- *
- * Refresh tokens are single-use, so every exchange in this tab goes through ONE in-flight request: a mount-time
- * `loadSession`, a React StrictMode double effect and a 401-triggered refresh share a result instead of racing.
- */
+// Refresh tokens are single-use: every exchange in this tab goes through ONE in-flight request.
+import { clearAllDrafts } from '@/lib/encounter-draft';
+import { SESSION_ENDED_REASON, SESSION_IDLE_REASON } from './authorize-href';
 import { setAccessToken, clearAccessToken, getAccessToken } from './access-token';
 import { parseUserRole } from './user-role';
 import { setFlash } from '@/lib/ui/flash-message';
@@ -23,16 +16,18 @@ interface SessionResponse {
   readonly fhirUser?: string | null;
 }
 
-let exchangeInFlight: Promise<boolean> | null = null;
+export type ExchangeOutcome = 'ok' | 'ended' | 'unavailable';
+
+let exchangeInFlight: Promise<ExchangeOutcome> | null = null;
 
 function signOutLocally(): void {
   clearAccessToken();
   useSessionStore.getState().clearSession();
 }
 
-function applySession(data: SessionResponse): void {
-  if (data.accessToken === undefined) return;
-  const token: string | null = typeof data.accessToken === 'string' ? data.accessToken : null;
+function applySession(data: SessionResponse): ExchangeOutcome {
+  if (data.accessToken === undefined) return 'ok';
+  const token = typeof data.accessToken === 'string' ? data.accessToken : null;
   setAccessToken(token);
   useSessionStore.getState().setSession({
     accessToken: token,
@@ -42,64 +37,64 @@ function applySession(data: SessionResponse): void {
     patientRef: data.patientRef ?? null,
     fhirUser: data.fhirUser ?? null,
   });
+  return token === null ? 'ended' : 'ok';
 }
 
-async function runExchange(url: string, init: RequestInit): Promise<boolean> {
+function markUnavailable(): ExchangeOutcome {
+  useSessionStore.getState().markUnavailable();
+  return 'unavailable';
+}
+
+async function runExchange(url: string, init: RequestInit): Promise<ExchangeOutcome> {
   try {
-    const response: Response = await fetch(url, { ...init, credentials: 'same-origin' });
+    const response = await fetch(url, { ...init, credentials: 'same-origin' });
+    if (response.status === 429 || response.status >= 500) return markUnavailable();
     if (!response.ok) {
       signOutLocally();
-      return false;
+      return 'ended';
     }
-    applySession((await response.json()) as SessionResponse);
-    return true;
+    return applySession((await response.json()) as SessionResponse);
   } catch (error: unknown) {
     console.error(`[session] ${url} failed`, error);
-    signOutLocally();
-    return false;
+    return markUnavailable();
   }
 }
 
-function exchange(url: string, init: RequestInit): Promise<boolean> {
+function exchange(url: string, init: RequestInit): Promise<ExchangeOutcome> {
   if (exchangeInFlight !== null) return exchangeInFlight;
-  const attempt: Promise<boolean> = runExchange(url, init).finally(() => {
+  const attempt = runExchange(url, init).finally(() => {
     exchangeInFlight = null;
   });
   exchangeInFlight = attempt;
   return attempt;
 }
 
-/** Hydrates the store from `GET /api/auth/session`; an anonymous visitor ends up hydrated with no role. */
 export async function loadSession(): Promise<void> {
   await exchange('/api/auth/session', {});
 }
 
 const SESSION_REUSE_MARGIN_MS = 60_000;
 
-/**
- * Hydrates the store once per page load: a second route group mounting its own `Providers` reuses the live session
- * instead of rotating the refresh token again. An expired or missing token is exchanged.
- */
 export async function ensureSession(now: number = Date.now()): Promise<void> {
   const { hydrated, accessToken, expiresAt } = useSessionStore.getState();
-  const isLive: boolean = accessToken !== null && expiresAt !== null && Date.parse(expiresAt) - now > SESSION_REUSE_MARGIN_MS;
+  const isLive = accessToken !== null && expiresAt !== null && Date.parse(expiresAt) - now > SESSION_REUSE_MARGIN_MS;
   if (hydrated && isLive) return;
   await loadSession();
 }
 
-/** Silent refresh (`POST /api/auth/refresh`). Resolves `false` when the session cannot be renewed. */
-export function refreshSession(): Promise<boolean> {
+export function refreshSession(): Promise<ExchangeOutcome> {
   return exchange('/api/auth/refresh', { method: 'POST' });
 }
 
-/** Revokes the refresh token server-side and forgets the session in this tab. Never throws. */
-export async function endSession(): Promise<void> {
-  const token: string | null = getAccessToken();
+export async function endSession(reason?: 'idle'): Promise<void> {
+  const token = getAccessToken();
+  const headers: Record<string, string> = token === null ? {} : { Authorization: `Bearer ${token}` };
   try {
     await fetch('/api/auth/logout', {
       method: 'POST',
       credentials: 'same-origin',
-      headers: token === null ? {} : { Authorization: `Bearer ${token}` },
+      headers: reason === undefined ? headers : { ...headers, 'Content-Type': 'application/json' },
+      ...(reason !== undefined ? { body: JSON.stringify({ reason }) } : {}),
     });
   } catch (error: unknown) {
     console.error('[session] logout request failed; the local session is cleared anyway', error);
@@ -108,24 +103,42 @@ export async function endSession(): Promise<void> {
   }
 }
 
-/** User-initiated sign-out: ends the session and returns to the login screen with a clean in-memory state. */
 export async function logout(): Promise<void> {
   await endSession();
-  // The booking draft carries the visit reason (health data) in this tab's sessionStorage: it must not outlive a sign-out.
+  // The booking draft (visit reason) and the encounter drafts (clinical text) must not outlive a sign-out.
   useBookingDraftStore.getState().clearDraft();
-  window.location.assign('/login');
+  clearAllDrafts();
+  window.location.assign('/');
 }
 
-/** The session died on the server (revoked token): leave a toast for the login page and go there with `returnTo`. */
+export function currentReturnTo(): string {
+  return window.location.pathname + window.location.search;
+}
+
 export async function endRevokedSession(): Promise<void> {
   await endSession();
   setFlash('session-ended');
-  const returnTo: string = window.location.pathname + window.location.search;
-  window.location.assign(`/login?returnTo=${encodeURIComponent(returnTo)}`);
+  window.location.assign(`/login?returnTo=${encodeURIComponent(currentReturnTo())}&reason=${SESSION_ENDED_REASON}`);
 }
 
-/** The session can not be renewed: go to login and come back to the current page afterwards. */
+// Same clean-up as a manual logout: an unattended screen must not leave booking or clinical drafts behind.
+export async function endIdleSession(): Promise<void> {
+  const returnTo = currentReturnTo();
+  await endSession('idle');
+  useBookingDraftStore.getState().clearDraft();
+  clearAllDrafts();
+  setFlash('session-idle');
+  window.location.assign(`/login?returnTo=${encodeURIComponent(returnTo)}&reason=${SESSION_IDLE_REASON}`);
+}
+
+// The server already revoked the session; the logout request below only clears the cookies. Nothing of the closed account may stay in this browser.
+export async function endClosedAccountSession(): Promise<void> {
+  await endSession();
+  useBookingDraftStore.getState().clearDraft();
+  clearAllDrafts();
+  window.location.assign('/account-closed');
+}
+
 export function redirectToLogin(): void {
-  const returnTo: string = window.location.pathname + window.location.search;
-  window.location.assign(`/login?returnTo=${encodeURIComponent(returnTo)}`);
+  window.location.assign(`/login?returnTo=${encodeURIComponent(currentReturnTo())}`);
 }

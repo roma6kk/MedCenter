@@ -1,0 +1,19 @@
+{
+  "id": "i18n-04",
+  "unit": "i18n",
+  "kind": "i18n",
+  "severity": "low",
+  "title": "Показатели осмотра (температура, давление, глюкоза) выводятся с десятичной точкой в русском интерфейсе: «36.6 °C» вместо «36,6 °C»",
+  "description": "Единственное место интерфейса, где показывается дробное число из данных, — значения наблюдений (Observation) в сводке пациента у врача и в закрытом приёме. Они выводятся прямой подстановкой числа в шаблон (`${item.value} …` и `{item.value} …`), то есть через String(number): всегда с точкой, на любом языке. Врач вводит «36,6» (поле type=number показывает запятую в русской раскладке), а на экране после завершения приёма и в карточке пациента видит «36.6 °C». Остальные числа интерфейса уже идут через локаль (даты и время — clinic-time.ts с ru-BY / en-GB, размер файла — toLocaleString(locale) в file-drop.tsx), так что это пропущенный случай, а не принятая договорённость; в спецификации (frontend-design-spec §7) указано отображение «через Intl». Пациент значения наблюдений не видит, поэтому дефект касается только врача (отсюда low).",
+  "evidence": "frontend/src/components/doctor/patient-summary.tsx:128 `{`${item.value} ${unitLabel(item.unit, item.code)}`}` (VitalsList, «последние показатели»); frontend/src/components/doctor/encounter-readonly.tsx:36 `{item.value} {unitLabel(item.unit, item.code)}` (Observations of a finished encounter). `item.value` is a number (ObservationView). Node check: String(36.6) = '36.6'; new Intl.NumberFormat('ru-BY', { maximumFractionDigits: 6, useGrouping: false }).format(36.6) = '36,6', 'en-GB' gives '36.6'. Scenario: UI = Russian, observation 'Температура тела' 36.6 Cel -> «36.6 °C» (expected «36,6 °C»).",
+  "files": [
+    "frontend/src/components/doctor/patient-summary.tsx",
+    "frontend/src/components/doctor/encounter-readonly.tsx",
+    "frontend/src/lib/clinic-time.ts"
+  ],
+  "proposedFix": "Add a tiny `formatNumber(value: number, locale: Locale = currentLocale()): string` next to the other formatters (frontend/src/lib/clinic-time.ts already owns INTL_LOCALE, or a new lib/number-format.ts) that builds and caches `new Intl.NumberFormat(INTL_LOCALE[locale], { maximumFractionDigits: 6, useGrouping: false })` (no grouping: a clinical value like 1234,5 must not become '1 234,5'; return String(value) for a non-finite number). Use it in the two places above (subscribe to the locale like useUnitLabel does via useT/useUiStore so the text re-renders on a language switch). Add a spec (ru -> '36,6', en -> '36.6', integer unchanged, NaN does not throw) and extend patient-summary.spec / encounter-readonly.spec with one decimal observation.",
+  "needsDecision": false,
+  "decisionQuestion": "",
+  "tzRef": "NFR-008 (локализация); frontend-design-spec §7",
+  "confidence": "confirmed"
+}

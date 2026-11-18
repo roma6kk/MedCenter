@@ -1,15 +1,5 @@
 import type { MigrationInterface, QueryRunner } from 'typeorm';
 
-/**
- * Initial `analytics` read-model (architect §5, ADR-011/014). Nothing here is
- * clinical truth: every row is derived from domain events or copied from HAPI,
- * so the whole schema can be dropped and rebuilt by replaying the sources.
- *
- * - `processed_event` — idempotency ledger of the worker, keyed by `eventId`.
- * - `appointment_fact` / `encounter_fact` — one row per subject (API §9.1–9.3).
- * - `audit_event` — journal copy of FHIR `AuditEvent` (API §9.4).
- * - `sync_cursor` — high-water mark of the HAPI pull.
- */
 export class AnalyticsInit1760342400000 implements MigrationInterface {
   public readonly name = 'AnalyticsInit1760342400000';
 
@@ -22,7 +12,6 @@ export class AnalyticsInit1760342400000 implements MigrationInterface {
     await this.createSyncCursor(queryRunner);
   }
 
-  /** The schema stays: TypeORM keeps its `migrations` table in it. */
   public async down(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query('DROP TABLE IF EXISTS "analytics"."sync_cursor"');
     await queryRunner.query('DROP TABLE IF EXISTS "analytics"."audit_event"');
@@ -31,7 +20,6 @@ export class AnalyticsInit1760342400000 implements MigrationInterface {
     await queryRunner.query('DROP TABLE IF EXISTS "analytics"."processed_event"');
   }
 
-  /** Idempotency ledger of the worker: a redelivered `eventId` conflicts on the primary key. */
   private async createLedger(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(`CREATE TABLE "analytics"."processed_event" (
       "event_id" varchar(128) PRIMARY KEY,
@@ -76,7 +64,6 @@ export class AnalyticsInit1760342400000 implements MigrationInterface {
     );
   }
 
-  /** Newest-first paging, user filter and resource filter of API §9.4 each have an index. */
   private async createAuditJournal(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(`CREATE TABLE "analytics"."audit_event" (
       "id" varchar(64) PRIMARY KEY,

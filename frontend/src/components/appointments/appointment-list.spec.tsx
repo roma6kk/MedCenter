@@ -26,7 +26,7 @@ describe('AppointmentList', () => {
 
     renderWithClient(<AppointmentList />);
 
-    expect(screen.getByTestId('table-skeleton')).toBeInTheDocument();
+    expect(screen.getByTestId('content-skeleton-list')).toBeInTheDocument();
   });
 
   it('should request the first page of upcoming appointments, lead with the nearest one and list the rest as cards', async () => {
@@ -77,7 +77,9 @@ describe('AppointmentList', () => {
 
     await userEvent.click(screen.getByRole('tab', { name: 'Все записи' }));
 
-    expect(await screen.findByText('Записей нет')).toBeInTheDocument();
+    expect(await screen.findByText('Записей пока нет')).toBeInTheDocument();
+    expect(screen.getByTestId('empty-state-icon')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Записаться' })).toHaveAttribute('href', '/booking');
   });
 
   it('should show a banner with the request id and retry the read when the service fails', async () => {
@@ -100,7 +102,7 @@ describe('AppointmentList', () => {
     const retrying = await screen.findByRole('button', { name: 'Повторяем…' });
 
     expect(screen.getByTestId('problem-banner')).toHaveTextContent('Нет связи с сервером');
-    expect(screen.queryByTestId('table-skeleton')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('content-skeleton-list')).not.toBeInTheDocument();
     expect(retrying).toHaveFocus();
   });
 
@@ -137,12 +139,12 @@ describe('AppointmentList', () => {
     renderWithClient(<AppointmentList />);
     await userEvent.click(await screen.findByRole('button', { name: /Отменить запись:/ }));
 
-    await userEvent.type(screen.getByLabelText('Причина отмены'), 'Заболел');
+    await userEvent.click(screen.getByRole('radio', { name: 'Неудобное время' }));
     listMock.mockResolvedValue(pageOf([{ ...BOOKED, status: 'cancelled' }]));
     await userEvent.click(screen.getByRole('button', { name: 'Подтвердить отмену' }));
 
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
-    expect(cancelMock).toHaveBeenCalledWith('1', 'Заболел');
+    expect(cancelMock).toHaveBeenCalledWith('1', 'inconvenient-time');
     expect(useToastStore.getState().toasts.map((toast) => toast.message)).toContain('Запись отменена');
     expect(await screen.findByTestId('stamp-cancelled')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /Отменить запись:/ })).not.toBeInTheDocument();
@@ -170,9 +172,9 @@ describe('AppointmentList', () => {
 
     await userEvent.click(screen.getByRole('tab', { name: 'Все записи' }));
 
-    expect(await screen.findByTestId('table-skeleton')).toBeInTheDocument();
+    expect(await screen.findByTestId('content-skeleton-list')).toBeInTheDocument();
     expect(screen.queryByTestId('empty-state')).not.toBeInTheDocument();
-    expect(screen.queryByText('Записей нет')).not.toBeInTheDocument();
+    expect(screen.queryByText('Записей пока нет')).not.toBeInTheDocument();
   });
 
   it('should not show the cards of the previous tab under the new one while it is loading', async () => {
@@ -183,7 +185,7 @@ describe('AppointmentList', () => {
 
     await userEvent.click(screen.getByRole('tab', { name: 'Все записи' }));
 
-    expect(await screen.findByTestId('table-skeleton')).toBeInTheDocument();
+    expect(await screen.findByTestId('content-skeleton-list')).toBeInTheDocument();
     expect(screen.queryByTestId('next-appointment')).not.toBeInTheDocument();
   });
 
@@ -197,7 +199,7 @@ describe('AppointmentList', () => {
 
     await waitFor(() => expect(listMock).toHaveBeenCalledWith({ tab: 'upcoming', page: 2, pageSize: 10 }));
     expect(screen.getByTestId('next-appointment')).toBeInTheDocument();
-    expect(screen.queryByTestId('table-skeleton')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('content-skeleton-list')).not.toBeInTheDocument();
   });
 
   it('should keep the server order with the cancelled ones on the all tab', async () => {

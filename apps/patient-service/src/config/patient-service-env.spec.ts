@@ -19,6 +19,14 @@ describe('parsePatientServiceEnv', () => {
     expect(env.FHIR_CLIENT_SECRET).toBeUndefined();
   });
 
+  it('should treat empty FHIR client credentials as not set', () => {
+    const env = parsePatientServiceEnv({ ...validEnv, FHIR_CLIENT_ID: '', FHIR_CLIENT_SECRET: '', PORT: '' });
+
+    expect(env.FHIR_CLIENT_ID).toBeUndefined();
+    expect(env.FHIR_CLIENT_SECRET).toBeUndefined();
+    expect(env.PORT).toBe(3004);
+  });
+
   it('should reject the environment when FHIR_BASE_URL is missing', () => {
     const withoutFhir: NodeJS.ProcessEnv = { ...validEnv, FHIR_BASE_URL: undefined };
 

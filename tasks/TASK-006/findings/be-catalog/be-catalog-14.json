@@ -1,0 +1,19 @@
+{
+  "id": "be-catalog-14",
+  "unit": "be-catalog",
+  "kind": "robustness",
+  "severity": "low",
+  "title": "Удаление услуги, на которую ссылается не расписание, а другой ресурс, даёт «CONFLICT: resource was changed concurrently» вместо SERVICE_IN_USE",
+  "description": "DELETE /admin/services/{id} проверяет только расписания (Schedule?actor=HealthcareService/{id}) и отвечает 409 SERVICE_IN_USE по спецификации. Но на услугу ссылаются и другие ресурсы: демо-сид пишет её в PractitionerRole.healthcareService (и сам HealthcareService ссылается на Location). HAPI при ссылочной целостности отвечает 409 на удаление, commitTransaction превращает его в ConflictException с кодом CONFLICT и текстом «resource was changed concurrently» — причина (на услугу ссылаются роли врачей) скрыта, код отличается от документированного SERVICE_IN_USE, а админ ищет несуществующую параллельную правку. Типичный путь: удалить расписания демо-услуги, затем саму услугу.",
+  "evidence": "apps/catalog-service/src/modules/services/services.service.ts:168-183 (remove): после проверки расписаний сразу deleteAudited; libs/fhir/src/lib/fhir-transaction.ts:62-69: любой FhirClientError 409 -> ConflictException({errorCode:'CONFLICT', message:'CONFLICT: resource was changed concurrently'}). tools/demo-seed/demo-resources.ts:163 — PractitionerRole.healthcareService ссылается на услугу. Сценарий (демо): удалить все расписания услуги 'ter-primary' (cascade), затем DELETE /admin/services/{id} -> 409 CONFLICT 'changed concurrently' вместо 409 SERVICE_IN_USE.",
+  "files": [
+    "apps/catalog-service/src/modules/services/services.service.ts",
+    "apps/catalog-service/src/modules/services/services.service.spec.ts",
+    "apps/catalog-service/test/services-admin-delete.e2e-spec.ts"
+  ],
+  "proposedFix": "In ServicesService.remove, after the schedule check add a second cheap probe `PractitionerRole?service=HealthcareService/{id}&_count=1` (the same R4 search parameter practitioner-service uses) and throw the same SERVICE_IN_USE with a message naming doctor roles; additionally wrap deleteAudited and map a ConflictException (HAPI referential-integrity 409) to SERVICE_IN_USE 'referenced by other resources' so any future reference type is covered. Update the Swagger text of 5.1.5 (`SERVICE_IN_USE: a Schedule or a doctor role still references the service`). Add unit + e2e cases (role references the service -> 409 SERVICE_IN_USE, no AuditEvent). If be-catalog-12 is fixed by variant B (doctors derived from schedules), keep this check anyway for seeded roles.",
+  "needsDecision": false,
+  "decisionQuestion": "",
+  "tzRef": "api-designer-spec §1 и §5.1.5 (SERVICE_IN_USE); FR-016",
+  "confidence": "likely"
+}

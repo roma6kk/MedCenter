@@ -1,0 +1,18 @@
+{
+  "id": "task005-triage-b-03",
+  "unit": "task005-triage-b",
+  "kind": "question",
+  "severity": "low",
+  "title": "Нужен ли блок «Мои врачи» на главной пациента",
+  "description": "Вопрос из T6 про дизайн: блок «Мои врачи» (врачи предстоящих записей, ссылка «Открыть запись») виден только когда есть будущие записи. Он дублирует карточку ближайшей записи в hero и список «Предстоящие» на /appointments, но даёт быстрый переход к записи по врачу. Это вкус и состав главной, технического дефекта нет (блок не рендерится при пустом списке, aria-label с именем врача есть).",
+  "evidence": "frontend/src/components/patient/home-view.tsx:58 `<ProfileDoctors doctors={doctorsOf(booked)} />`; frontend/src/messages/ru.json:1417-1423 (patientHome.doctors: «Врачи ваших предстоящих записей»).",
+  "files": [
+    "frontend/src/components/patient/home-view.tsx",
+    "frontend/src/components/patient/profile/profile-doctors.tsx"
+  ],
+  "proposedFix": "Option keep (recommended): leave as is. Option remove: drop <ProfileDoctors/> and its i18n keys patientHome.doctors.* plus profile-doctors.tsx and its spec.",
+  "needsDecision": true,
+  "decisionQuestion": "Оставить блок «Мои врачи» на главной кабинета? Варианты: (A) оставить как есть — виден только при будущих записях; (B) убрать, потому что то же самое видно в hero и на странице «Мои записи». Рекомендация: A, блок ничего не стоит и не мешает; отчётливой пользы от удаления нет.",
+  "tzRef": "ТЗ Пациент: просмотр расписания",
+  "confidence": "confirmed"
+}

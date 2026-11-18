@@ -2,69 +2,133 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Design tokens of the redesign (design canvas «Токены и компоненты»). The dark set is opt-in through
-   `data-theme="dark"`: it is not bound to `prefers-color-scheme` until every screen has been checked on a dark ground. */
+/* The dark set lives under `:root[data-theme='dark']`: the theme switcher and the no-flash script in `app/layout.tsx` write that attribute. */
 :root {
+  color-scheme: light;
   --font-sans: 'Onest Variable', system-ui, sans-serif;
   --font-mono: 'JetBrains Mono Variable', ui-monospace, monospace;
-  --background: #f5f7f7;
-  --card: #ffffff;
-  --foreground: #13252b;
-  --muted-foreground: #4c5f66;
-  --primary: #0f766e;
-  --primary-foreground: #ffffff;
-  --primary-soft: #e2f1ee;
-  --primary-soft-foreground: #0b5a53;
-  --secondary: #edf2f2;
-  --accent: #edf2f2;
-  --destructive: #b3261e;
-  --destructive-soft: #fbe9e7;
-  --warning: #9a4a06;
-  --warning-soft: #fceedf;
-  --success: #2f6b4f;
-  --success-soft: #e3f1e9;
-  --border: #dce4e5;
-  /* Border of input/select/textarea: >= 3:1 against --card, --background and --secondary, WCAG 1.4.11.
-     The hairline --border stays for cards and dividers: fields have no other visual edge. */
-  --input: #7a8a8f;
-  --ring: #0f766e;
-  /* A dark band on a light page (audiences block): its own ground, text, hairline and link colour. */
-  --inverse: #13252b;
-  --inverse-foreground: #ffffff;
-  --inverse-muted: #c9d6d8;
-  --inverse-border: #2e4449;
-  --inverse-accent: #8fddd3;
-  --radius: 6px;
+
+  --background: oklch(97.5% 0.003 197);
+  --card: oklch(100% 0 0);
+  --foreground: oklch(25% 0.026 221);
+  --muted-foreground: oklch(47% 0.026 222);
+  /* Hover and pressed are real colours, not `opacity-90`, so text keeps its contrast. */
+  --primary: oklch(51% 0.088 186);
+  --primary-hover: oklch(45% 0.078 186);
+  --primary-strong: oklch(39% 0.068 186);
+  --primary-foreground: oklch(100% 0 0);
+  --primary-soft: oklch(94.6% 0.016 183);
+  --primary-soft-hover: oklch(91.5% 0.026 183);
+  --primary-soft-foreground: oklch(42% 0.071 185);
+  --secondary: oklch(95.7% 0.005 197);
+  --accent: oklch(95.7% 0.005 197);
+  --destructive: oklch(50% 0.178 29);
+  --destructive-hover: oklch(44% 0.17 29);
+  --destructive-foreground: oklch(100% 0 0);
+  --destructive-soft: oklch(94.8% 0.02 25);
+  --destructive-soft-hover: oklch(91.5% 0.035 25);
+  --warning: oklch(50% 0.127 52);
+  --warning-foreground: oklch(100% 0 0);
+  --warning-soft: oklch(95.6% 0.025 69);
+  --info: oklch(48% 0.135 250);
+  --info-soft: oklch(94.8% 0.025 245);
+  --success: oklch(47.9% 0.078 161);
+  --success-foreground: oklch(100% 0 0);
+  --success-soft: oklch(94.5% 0.018 161);
+  /* `--warm` is a decorative fill or icon colour (>= 3:1 on --card), never for text. */
+  --warm: oklch(68% 0.15 40);
+  --warm-soft: oklch(94.5% 0.032 55);
+  --warm-foreground: oklch(45% 0.12 38);
+  --border: oklch(91.3% 0.009 206);
+  --border-soft: oklch(95% 0.006 206);
+  /* >= 3:1 against --card, --background and --secondary (WCAG 1.4.11): fields have no other visual edge. */
+  --input: oklch(62% 0.02 219);
+  --ring: oklch(51% 0.088 186);
+  --focus-ring: oklch(51% 0.088 186 / 0.28);
+  --focus-ring-danger: oklch(50% 0.178 29 / 0.28);
+  --scrim: oklch(25% 0.026 221 / 0.4);
+  /* 80%, not 72%: under a saturated fill `--muted-foreground` fell below 4.5:1; `globals-contrast.spec.ts` holds 80%. */
+  --glass: oklch(100% 0 0 / 0.8);
+  --inverse: oklch(25% 0.026 221);
+  --inverse-foreground: oklch(100% 0 0);
+  --inverse-muted: oklch(86.7% 0.014 208);
+  --inverse-border: oklch(37% 0.029 213);
+  --inverse-accent: oklch(84.4% 0.078 186);
+
+  --radius-sm: 6px;
   --radius-control: 10px;
   --radius-card: 16px;
   --radius-panel: 20px;
+
+  --shadow-1: 0 1px 2px oklch(25% 0.03 221 / 0.06), 0 2px 8px oklch(25% 0.03 221 / 0.05);
+  --shadow-2: 0 2px 4px oklch(25% 0.03 221 / 0.06), 0 8px 24px oklch(25% 0.03 221 / 0.1);
+  --shadow-3: 0 4px 8px oklch(25% 0.03 221 / 0.08), 0 24px 56px oklch(25% 0.03 221 / 0.18);
+
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+  --duration-fast: 120ms;
+  --duration-base: 200ms;
+  --duration-slow: 300ms;
+
+  /* Steps below the base use a gentler ratio: with 1.2 `text-sm` would fall to 12.5 px. Tailwind keys: xs = -2 ... 5xl = 6. */
+  --step--2: clamp(0.7748rem, 0.7688rem + 0.0267vw, 0.7901rem);
+  --step--1: clamp(0.8523rem, 0.8379rem + 0.0637vw, 0.8889rem);
+  --step-0: clamp(0.9375rem, 0.913rem + 0.1087vw, 1rem);
+  --step-1: clamp(1.125rem, 1.0761rem + 0.2174vw, 1.25rem);
+  --step-2: clamp(1.35rem, 1.2668rem + 0.3696vw, 1.5625rem);
+  --step-3: clamp(1.62rem, 1.4896rem + 0.5793vw, 1.9531rem);
+  --step-4: clamp(1.944rem, 1.7494rem + 0.8651vw, 2.4414rem);
+  --step-5: clamp(2.3328rem, 2.0515rem + 1.2504vw, 3.0518rem);
+  --step-6: clamp(2.7994rem, 2.4021rem + 1.7658vw, 3.8147rem);
 }
 
 :root[data-theme='dark'] {
-  --background: #0d181b;
-  --card: #142328;
-  --foreground: #e4eced;
-  --muted-foreground: #9db0b4;
-  --primary: #34b3a5;
-  --primary-foreground: #04211e;
-  --primary-soft: #123b37;
-  --primary-soft-foreground: #8fddd3;
-  --secondary: #1b2e33;
-  --accent: #1b2e33;
-  --destructive: #f28b82;
-  --destructive-soft: #3d1d1b;
-  --warning: #f0a35e;
-  --warning-soft: #3a2613;
-  --success: #7fc9a1;
-  --success-soft: #163126;
-  --border: #25393e;
-  --input: #6e868b;
-  --ring: #34b3a5;
-  --inverse: #1b2e33;
-  --inverse-foreground: #e4eced;
-  --inverse-muted: #9db0b4;
-  --inverse-border: #2e4449;
-  --inverse-accent: #8fddd3;
+  color-scheme: dark;
+  --background: oklch(20% 0.017 217);
+  --card: oklch(24.5% 0.022 221);
+  --foreground: oklch(93.7% 0.009 206);
+  --muted-foreground: oklch(74.4% 0.022 212);
+  --primary: oklch(69.6% 0.11 184);
+  --primary-hover: oklch(75% 0.115 184);
+  --primary-strong: oklch(80% 0.11 184);
+  --primary-foreground: oklch(22.5% 0.035 185);
+  --primary-soft: oklch(32.2% 0.046 186);
+  --primary-soft-hover: oklch(36% 0.052 186);
+  --primary-soft-foreground: oklch(84.4% 0.078 186);
+  --secondary: oklch(28.7% 0.026 216);
+  --accent: oklch(28.7% 0.026 216);
+  --destructive: oklch(74.5% 0.127 26);
+  --destructive-hover: oklch(79% 0.12 26);
+  --destructive-foreground: oklch(22% 0.05 25);
+  --destructive-soft: oklch(27.5% 0.05 25);
+  --destructive-soft-hover: oklch(31% 0.058 25);
+  --warning: oklch(77.7% 0.125 61);
+  --warning-foreground: oklch(24% 0.045 63);
+  --warning-soft: oklch(28.8% 0.043 63);
+  --info: oklch(76% 0.11 245);
+  --info-soft: oklch(28.5% 0.05 250);
+  --success: oklch(77.6% 0.094 160);
+  --success-foreground: oklch(24% 0.04 165);
+  --success-soft: oklch(28.8% 0.039 165);
+  --warm: oklch(75% 0.13 40);
+  --warm-soft: oklch(29% 0.05 45);
+  --warm-foreground: oklch(84% 0.09 50);
+  --border: oklch(33% 0.027 215);
+  --border-soft: oklch(33% 0.027 215);
+  --input: oklch(60.3% 0.029 212);
+  --ring: oklch(69.6% 0.11 184);
+  --focus-ring: oklch(69.6% 0.11 184 / 0.4);
+  --focus-ring-danger: oklch(74.5% 0.127 26 / 0.4);
+  --scrim: oklch(10% 0.02 221 / 0.65);
+  --glass: oklch(24.5% 0.022 221 / 0.8);
+  --inverse: oklch(28.7% 0.026 216);
+  --inverse-foreground: oklch(93.7% 0.009 206);
+  --inverse-muted: oklch(74.4% 0.022 212);
+  --inverse-border: oklch(37% 0.029 213);
+  --inverse-accent: oklch(84.4% 0.078 186);
+  --shadow-1: 0 1px 2px oklch(8% 0.02 221 / 0.4), 0 2px 8px oklch(8% 0.02 221 / 0.3);
+  --shadow-2: 0 2px 4px oklch(8% 0.02 221 / 0.4), 0 8px 24px oklch(8% 0.02 221 / 0.5);
+  --shadow-3: 0 4px 8px oklch(8% 0.02 221 / 0.5), 0 24px 56px oklch(8% 0.02 221 / 0.65);
 }
 
 body {
@@ -74,9 +138,27 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
+.staff-ambient {
+  background-color: var(--background);
+  background-image: radial-gradient(60rem 36rem at 0% 0%, var(--primary-soft), transparent 70%);
+  background-attachment: fixed;
+}
+
+.warm-ambient {
+  background-color: var(--background);
+  background-image:
+    radial-gradient(44rem 30rem at 100% 0%, var(--warm-soft), transparent 68%),
+    radial-gradient(40rem 28rem at 0% 100%, var(--primary-soft), transparent 70%);
+}
+
 h1, h2, h3, .serif {
   font-family: var(--font-sans);
   letter-spacing: -0.015em;
+  text-wrap: balance;
+}
+
+p {
+  text-wrap: pretty;
 }
 
 .mono {
@@ -84,10 +166,10 @@ h1, h2, h3, .serif {
 }
 
 .form-label {
-  font-size: 12px;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: var(--muted-foreground);
+  font-size: var(--step--1);
+  font-weight: 600;
+  line-height: 1.4;
+  color: var(--foreground);
 }
 
 :focus-visible {
@@ -112,15 +194,96 @@ h1, h2, h3, .serif {
   padding: 0.5rem 1rem;
 }
 
-@media (prefers-reduced-motion: reduce) {
-  * {
-    animation: none !important;
-    transition: none !important;
+.skeleton {
+  background-color: var(--secondary);
+  background-image: linear-gradient(100deg, transparent 30%, var(--border) 50%, transparent 70%);
+  background-size: 250% 100%;
+  background-repeat: no-repeat;
+  animation: skeleton-shimmer 1.6s ease-in-out infinite;
+}
+
+/* `transform` is left out on purpose: it belongs to the controls that press (`active:scale`). */
+@layer base {
+  a,
+  button,
+  summary,
+  [role='button'],
+  [role='tab'],
+  [role='radio'] {
+    transition-property: color, background-color, border-color, text-decoration-color, box-shadow;
+    transition-duration: var(--duration-fast);
+    transition-timing-function: var(--ease-out);
   }
 }
 
+/* `!important` so that it also beats a utility such as `transition-colors`. */
+:root[data-theme-switching] *,
+:root[data-theme-switching] *::before,
+:root[data-theme-switching] *::after {
+  transition: none !important;
+}
+
+@keyframes skeleton-shimmer {
+  from { background-position: 150% 0; }
+  to { background-position: -50% 0; }
+}
+
+/* `backwards` (not `both`): after the animation the item's own `transform` (hover lift) is in charge again. */
+@keyframes stagger-in {
+  from { opacity: 0; transform: translateY(6px); }
+}
+
+.stagger-children > * {
+  animation: stagger-in var(--duration-base) var(--ease-out) backwards;
+}
+
+.stagger-children > :nth-child(2) { animation-delay: 35ms; }
+.stagger-children > :nth-child(3) { animation-delay: 70ms; }
+.stagger-children > :nth-child(4) { animation-delay: 105ms; }
+.stagger-children > :nth-child(5) { animation-delay: 140ms; }
+.stagger-children > :nth-child(6) { animation-delay: 175ms; }
+.stagger-children > :nth-child(7) { animation-delay: 210ms; }
+.stagger-children > :nth-child(8) { animation-delay: 245ms; }
+.stagger-children > :nth-child(n + 9) { animation-delay: 280ms; }
+
+/* Progressive enhancement: a browser without `animation-timeline` never matches and shows the section as is. */
+@keyframes reveal-in {
+  from { opacity: 0; transform: translateY(1.25rem); }
+}
+
+@supports (animation-timeline: view()) {
+  .reveal-on-scroll {
+    animation: reveal-in linear both;
+    animation-timeline: view();
+    animation-range: entry 0% entry 25%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+.visit-print-sheet { display: none; }
+
 @media print {
+  body.printing-visit > *:not(.visit-print-sheet) { display: none !important; }
+  body.printing-visit .visit-print-sheet { display: block; color: #000000; background: #ffffff; font-size: 12pt; line-height: 1.45; }
+  .visit-print-sheet h1 { margin: 4pt 0 12pt; font-size: 18pt; font-weight: 700; }
+  .visit-print-clinic { font-size: 11pt; font-weight: 700; }
+  .visit-print-row { display: grid; grid-template-columns: 38mm 1fr; gap: 8pt; padding: 4pt 0; border-bottom: 0.5pt solid #000000; break-inside: avoid; }
+  .visit-print-row dt { font-weight: 700; }
+  .visit-print-row ul { margin: 0; padding: 0; list-style: none; }
+  .visit-print-row code { font-family: ui-monospace, monospace; font-weight: 700; }
+  .visit-print-text { white-space: pre-line; overflow-wrap: anywhere; }
+  .visit-print-footer { margin-top: 16pt; font-size: 10pt; }
   .no-print { display: none !important; }
+  .reveal-on-scroll, .stagger-children > * { animation: none !important; }
   body { background: #ffffff; color: #000000; }
   header, nav, aside { display: none !important; }
   main { padding: 0 !important; }

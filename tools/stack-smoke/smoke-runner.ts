@@ -1,10 +1,8 @@
 import type { CheckResult, Outcome } from './smoke-types';
 
-/** One named step of a group; later steps of a chain depend on the earlier ones. */
 export interface SmokeStep {
   readonly name: string;
   readonly run: () => Promise<void>;
-  /** Reported group of this step; defaults to the group of the chain. */
   readonly group?: string;
 }
 
@@ -12,7 +10,6 @@ function reasonOf(error: unknown): string {
   return (error instanceof Error ? error.message : String(error)).replace(/\s+/g, ' ');
 }
 
-/** Collects the outcome of every check; a throwing check is a FAIL, never an abort. */
 export class SmokeRunner {
   private readonly collected: CheckResult[] = [];
 
@@ -20,7 +17,6 @@ export class SmokeRunner {
     return this.collected;
   }
 
-  /** Runs one check; resolves to `true` when it passed. */
   async check(group: string, name: string, run: () => Promise<void>): Promise<boolean> {
     const started = Date.now();
     try {
@@ -37,7 +33,7 @@ export class SmokeRunner {
     this.record({ group, name, outcome: 'SKIP', millis: 0, detail: reason }, false);
   }
 
-  /** Steps in order; after the first failure the rest are SKIPped, because each needs what the previous one made. */
+  // After the first failure the rest are SKIPped: each step needs what the previous one made.
   async chain(group: string, steps: readonly SmokeStep[]): Promise<void> {
     let failedStep: string | undefined;
     for (const step of steps) {
@@ -60,7 +56,6 @@ export class SmokeRunner {
   }
 }
 
-/** Zero only when every check passed: a SKIP is a hole in coverage, so it fails the run too. */
 export function exitCodeOf(results: readonly CheckResult[]): 0 | 1 {
   return results.length > 0 && results.every((result) => result.outcome === 'PASS') ? 0 : 1;
 }
@@ -69,7 +64,6 @@ export function countOf(results: readonly CheckResult[], outcome: Outcome): numb
   return results.filter((result) => result.outcome === outcome).length;
 }
 
-/** The compact pass/fail table: one row per group with its counts, then every failed or skipped check. */
 export function formatTable(results: readonly CheckResult[]): string {
   const groups = [...new Set(results.map((result) => result.group))];
   const rows = groups.map((group) => {

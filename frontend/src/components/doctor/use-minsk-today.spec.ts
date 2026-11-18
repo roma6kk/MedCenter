@@ -1,7 +1,6 @@
 import { act, renderHook } from '@testing-library/react';
 import { TODAY_CHECK_MS, useMinskToday } from './use-minsk-today';
 
-// 2026-10-20 23:59:30 in Minsk (UTC+3) is 20:59:30 UTC.
 const BEFORE_MIDNIGHT = new Date('2026-10-20T20:59:30Z');
 
 describe('useMinskToday', () => {

@@ -1,50 +1,40 @@
 'use client';
 
-import { useState } from 'react';
 import type { ReactNode } from 'react';
-import { Pager } from '@/components/data-display/paginated-table';
-import { SectionTitle } from '@/components/feedback/section-title';
-import { TableSkeleton } from '@/components/feedback/states';
 import { useT } from '@/lib/i18n/use-t';
-import { ContactList } from './contact-list';
-import type { RelatedPerson } from './doctor-types';
-import { QueryFailure } from '@/components/feedback/query-error-state';
+import type { RelatedPerson, Telecom } from './doctor-types';
 import { useRelatedPersons } from './use-doctor-queries';
 
 function relationshipOf(person: RelatedPerson): string | undefined {
   return person.relationship.map((coding) => coding.display ?? coding.code).find((text) => text !== undefined && text !== '');
 }
 
-function PersonCard({ person }: { readonly person: RelatedPerson }): ReactNode {
+function phoneOf(person: RelatedPerson): Telecom | undefined {
+  return person.telecom.find((contact) => contact.system === 'phone');
+}
+
+function Person({ person }: { readonly person: RelatedPerson }): ReactNode {
   const t = useT('doctor.patient');
   const relationship: string | undefined = relationshipOf(person);
+  const phone: Telecom | undefined = phoneOf(person);
   return (
-    <li className="rounded-card border border-border bg-card p-3 text-sm">
-      <p className="font-semibold">{person.fullName || t('unnamed')}</p>
-      {relationship ? <p className="text-muted-foreground">{relationship}</p> : null}
-      {person.telecom.length > 0 ? <div className="mt-2"><ContactList telecom={person.telecom} /></div> : null}
+    <li>
+      <span className="font-medium">{person.fullName || t('unnamed')}</span>
+      {relationship ? <span className="text-muted-foreground">{` (${relationship})`}</span> : null}
+      {phone ? <>{' · '}<a href={`tel:${phone.value.replace(/[^\d+]/g, '')}`} className="underline">{phone.value}</a></> : null}
     </li>
   );
 }
 
-/** Trusted persons of the patient (API 3.3, `RelatedPerson`). */
 export function RelatedPersons({ patientId }: { readonly patientId: string }): ReactNode {
   const t = useT('doctor.patient');
-  const [page, setPage] = useState(1);
-  const related = useRelatedPersons(patientId, page);
+  const related = useRelatedPersons(patientId, 1);
+  if (related.isError) return <p className="text-sm text-muted-foreground">{t('relatedUnavailable')}</p>;
+  if (related.data === undefined || related.data.items.length === 0) return null;
   return (
-    <section aria-labelledby="related-title" className="mt-6">
-      <div id="related-title"><SectionTitle>{t('relatedTitle')}</SectionTitle></div>
-      <div className="mt-3" aria-busy={related.isFetching}>
-        {related.data === undefined ? <QueryFailure query={related} embedded notFoundText={t('relatedUnavailable')} pending={<TableSkeleton />} /> : null}
-        {related.data && related.data.items.length === 0 ? <p className="text-sm text-muted-foreground">{t('relatedEmpty')}</p> : null}
-        {related.data && related.data.items.length > 0 ? (
-          <>
-            <ul className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">{related.data.items.map((person) => <PersonCard key={person.id} person={person} />)}</ul>
-            {related.data.meta.totalPages > 1 ? <Pager meta={related.data.meta} onPage={setPage} /> : null}
-          </>
-        ) : null}
-      </div>
+    <section aria-label={t('relatedTitle')} className="flex flex-wrap items-baseline gap-x-2 text-sm">
+      <h2 className="form-label">{t('relatedTitle')}</h2>
+      <ul className="flex flex-wrap gap-x-4 gap-y-1">{related.data.items.map((person) => <Person key={person.id} person={person} />)}</ul>
     </section>
   );
 }

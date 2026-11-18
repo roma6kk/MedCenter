@@ -1,0 +1,21 @@
+{
+  "id": "fe-doctor-03",
+  "unit": "fe-doctor",
+  "kind": "bug",
+  "severity": "medium",
+  "title": "В результатах поиска пациента подпись «Последний приём» показывает дату будущей записи",
+  "description": "patientsOf берёт для каждого пациента самую позднюю дату start среди ВСЕХ строк журнала окна «90 дней назад … 30 вперёд», в том числе записей на будущее со статусом booked. Результат поиска подписан «Последний приём: {дата}» (en: «Last visit»). Пациент, записанный на сегодня после обеда или на завтра, показывается с датой этого ещё не состоявшегося визита как «последнего приёма»; пациент, у которого прошлых приёмов в окне нет вовсе, получает подпись с датой будущей записи. Именно такого пациента врач чаще всего и ищет (тот, кто сейчас придёт), так что подсказка вводит в заблуждение. Тест patient-search-model.spec.ts фиксирует «newest visit» без учёта времени «сейчас».",
+  "evidence": "frontend/src/components/doctor/patient-search-model.ts:29-39 patientsOf keeps `Date.parse(visit.start) > Date.parse(known.lastVisit)` with no upper bound at now and no status check (booked is allowed, canOpenPatientCard only excludes cancelled/noshow). frontend/src/components/doctor/doctor-patient-search.tsx:42 renders t('lastVisit', { date }) = «Последний приём: {date}». Scenario: patient Иванов has one visit booked for tomorrow 10:00 and nothing earlier -> search «иван» shows «Последний приём: <tomorrow>».",
+  "files": [
+    "frontend/src/components/doctor/patient-search-model.ts",
+    "frontend/src/components/doctor/doctor-patient-search.tsx",
+    "frontend/src/components/doctor/patient-search-model.spec.ts",
+    "frontend/src/messages/ru.json",
+    "frontend/src/messages/en.json"
+  ],
+  "proposedFix": "Give patientsOf a `nowMs` argument (default Date.now()). Track two dates per patient: `lastVisit` = the newest start that is <= now (any non-cancelled/no-show status) and `nextVisit` = the earliest booked start that is > now. In Results show «Последний приём: …» only when lastVisit exists, and add «Ближайший приём: …» (new key doctor.search.nextVisit in ru and en) when nextVisit exists; sort by lastVisit, falling back to nextVisit. Update patient-search-model.spec.ts with a future booked visit.",
+  "needsDecision": false,
+  "decisionQuestion": "",
+  "tzRef": "FR-009 (врач: список пациентов), frontend-design-spec §A13 (поиск пациента врача)",
+  "confidence": "confirmed"
+}

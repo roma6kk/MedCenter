@@ -15,10 +15,6 @@ import { HealthModule } from '../modules/health/health.module';
 import { ReportsModule } from '../modules/reports/reports.module';
 import { WorkerModule } from '../modules/worker/worker.module';
 
-/**
- * The guard stack is mounted through `APP_GUARD` (ADR-009): JWT → scopes →
- * RBAC → rate-limit is the global default, so no route ships unprotected.
- */
 @Module({
   imports: [DatabaseModule, HealthModule, ReportsModule, AuditModule, WorkerModule],
   providers: [

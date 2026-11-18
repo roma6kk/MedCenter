@@ -8,17 +8,14 @@ import { FieldRow } from './encounter-form-fields';
 import { ValueSetSelect } from './value-set-select';
 
 interface CodedTermFieldProps {
-  /** The array of the form the row belongs to; both carry a `code` and the `codeSystem` it comes from. */
   readonly list: 'observations' | 'serviceRequests';
   readonly index: number;
   readonly id: string;
   readonly label: string;
   readonly placeholder: string;
-  /** ValueSet canonical whose concepts are the options. */
   readonly valueSet: string;
 }
 
-/** A closed list of НСИ concepts (select-only, BR-009); choosing one sets the row's `code` and its `codeSystem` together. */
 export function CodedTermField({ list, index, id, label, placeholder, valueSet }: CodedTermFieldProps): ReactNode {
   const { control, setValue } = useFormContext<CompleteEncounterForm>();
   const { errors } = useFormState({ control, name: `${list}.${index}.code` });

@@ -5,7 +5,7 @@ import { CodeChip } from '@/components/feedback/code-chip';
 import { useT } from '@/lib/i18n/use-t';
 import type { RoomUsage } from './room-types';
 import { SECONDARY_BUTTON_CLASS } from '../shared/admin-styles';
-import { Modal } from '../shared/modal';
+import { Dialog } from '@/components/ui/dialog';
 import { QueryState } from '../shared/query-state';
 import { useRoomUsage } from './use-admin-rooms';
 
@@ -36,15 +36,11 @@ interface RoomUsageDrawerProps {
   readonly onClose: () => void;
 }
 
-/**
- * Room occupancy side panel (api-designer-spec §4.7): the schedules and booked slots that block deleting the room
- * (409 `ROOM_IN_USE`, FR-017). Mount it only while open; it traps focus and closes on Escape.
- */
 export function RoomUsageDrawer({ roomId, roomName, onClose }: RoomUsageDrawerProps): ReactNode {
   const t = useT('admin.rooms');
   const query = useRoomUsage(roomId);
   return (
-    <Modal title={t('usage.title')} onClose={onClose} variant="drawer">
+    <Dialog title={t('usage.title')} onClose={onClose} variant="drawer">
       {roomName ? <p className="text-sm text-[var(--muted-foreground)]">{roomName}</p> : null}
       <QueryState query={query} isEmpty={(usage) => usage.items.length === 0} emptyTitle={t('usage.freeTitle')} emptyDescription={t('usage.freeHint')}>
         {(usage) => <UsageList usage={usage} />}
@@ -54,7 +50,7 @@ export function RoomUsageDrawer({ roomId, roomName, onClose }: RoomUsageDrawerPr
           {t('usage.close')}
         </button>
       </div>
-    </Modal>
+    </Dialog>
   );
 }
 

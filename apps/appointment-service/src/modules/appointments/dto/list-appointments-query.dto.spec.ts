@@ -1,4 +1,3 @@
-// `@Type()` / `@Transform()` (class-transformer) store design metadata; Nest loads this polyfill in the running app.
 import 'reflect-metadata';
 import { plainToInstance } from 'class-transformer';
 import { validate } from 'class-validator';

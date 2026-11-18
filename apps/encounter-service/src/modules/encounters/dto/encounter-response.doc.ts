@@ -14,7 +14,6 @@ import type {
   ServiceRequestViewDto,
 } from './encounter-response.dto';
 
-/** FHIR R4 `Encounter.status` value set. */
 export const ENCOUNTER_STATUSES: readonly EncounterStatus[] = [
   'planned',
   'arrived',
@@ -27,7 +26,7 @@ export const ENCOUNTER_STATUSES: readonly EncounterStatus[] = [
   'unknown',
 ];
 
-export class EncounterPeriodDoc implements EncounterPeriodDto {
+class EncounterPeriodDoc implements EncounterPeriodDto {
   @ApiProperty({ type: String, format: 'date-time', example: '2026-10-20T08:00:00Z' })
   start!: string;
 
@@ -57,7 +56,7 @@ export class DiagnosisViewDoc implements DiagnosisViewDto {
   verificationStatus?: DiagnosisVerificationStatus;
 }
 
-export class ObservationViewDoc implements ObservationViewDto {
+class ObservationViewDoc implements ObservationViewDto {
   @ApiProperty({ example: 'https://fhir.by/CodeSystem/nsi-observations' })
   codeSystem!: string;
 
@@ -74,7 +73,7 @@ export class ObservationViewDoc implements ObservationViewDto {
   unit!: string;
 }
 
-export class ServiceRequestViewDoc implements ServiceRequestViewDto {
+class ServiceRequestViewDoc implements ServiceRequestViewDto {
   @ApiProperty({ example: 'https://fhir.by/CodeSystem/nsi-services' })
   codeSystem!: string;
 
@@ -88,7 +87,7 @@ export class ServiceRequestViewDoc implements ServiceRequestViewDto {
   note?: string;
 }
 
-export class MedicationRequestViewDoc implements MedicationRequestViewDto {
+class MedicationRequestViewDoc implements MedicationRequestViewDto {
   @ApiProperty({ example: 'J01FA10' })
   atcCode!: string;
 
@@ -102,7 +101,6 @@ export class MedicationRequestViewDoc implements MedicationRequestViewDto {
   note?: string;
 }
 
-/** Swagger description of `EncounterResponseDto` (API §7.1, §7.3). */
 export class EncounterResponseDoc implements EncounterResponseDto {
   @ApiProperty({ description: 'Encounter id (FHIR id)', example: '1234' })
   id!: string;
@@ -126,7 +124,6 @@ export class EncounterResponseDoc implements EncounterResponseDto {
   practitionerRoleId!: string;
 }
 
-/** Swagger description of `EncounterDetailsDto` (API §7.2). */
 export class EncounterDetailsDoc extends EncounterResponseDoc implements EncounterDetailsDto {
   @ApiPropertyOptional({ type: CodingDoc })
   serviceType?: CodingDoc;

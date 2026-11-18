@@ -5,11 +5,7 @@ import { parseDatabaseEnv } from '../config/analytics-env';
 import { ANALYTICS_DATA_SOURCE } from './database.tokens';
 import { openAnalyticsDataSource } from './typeorm.config';
 
-/**
- * Owns the read-model connection. The provider opens and migrates the schema
- * before the application starts listening, so a broken database fails the
- * boot (the container restarts) instead of every request.
- */
+// Opens and migrates before listening: a broken database fails the boot (container restarts), not every request.
 @Global()
 @Module({
   providers: [

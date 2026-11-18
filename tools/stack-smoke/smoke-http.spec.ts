@@ -4,7 +4,6 @@ import type { Session } from './smoke-types';
 const SESSION: Session = { email: 'a@x.test', role: 'PATIENT', accessToken: 'tok-123', grantedScope: 'launch', claims: {} };
 
 function stubFetch(status: number, text: string, contentType = 'application/json'): jest.Mock {
-  // A fresh Response per call: a body can be read once.
   const noBody = status === 204;
   const mock = jest.fn().mockImplementation(async () => new Response(noBody ? null : text, { status, headers: { 'content-type': contentType } }));
   jest.spyOn(global, 'fetch').mockImplementation(mock);

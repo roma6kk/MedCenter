@@ -16,11 +16,6 @@ import {
   E2E_REDIRECT_URI,
 } from './e2e-env';
 
-// `jose` ships pure ESM and Jest's CJS runtime cannot load it at all, so the
-// signature check is stubbed for this suite. The *claims* are still decoded from
-// the token the application actually signed, which is what the revocation chain
-// under test depends on; RS256 signing is covered by `jwt.service.spec.ts` and the
-// unauthenticated perimeter by `jwt-perimeter.e2e-spec.ts`.
 jest.mock('jose', () => ({
   createRemoteJWKSet: () => 'mocked-jwks',
   jwtVerify: async (token: string) => {
@@ -32,14 +27,8 @@ jest.mock('jose', () => ({
 
 const PKCE_CHALLENGE = 'E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM';
 
-/** RFC 7636 appendix B verifier; its S256 challenge is `PKCE_CHALLENGE`. */
 const PKCE_VERIFIER = 'dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk';
 
-/**
- * Spec-only probe controller: it never ships with the application, it exists to
- * prove that the globally mounted guard stack (ADR-009) refuses a Bearer token
- * the issuer has since revoked.
- */
 @Controller()
 class RevocationProbeController {
   @Get('internal/revocation-probe')
@@ -48,7 +37,6 @@ class RevocationProbeController {
   }
 }
 
-/** `response_type=code` is REQUIRED (RFC 6749 §4.1.1); a test may override it. */
 function authorizeQuery(extra: Record<string, string> = {}): string {
   return new URLSearchParams({ response_type: 'code', ...extra }).toString();
 }
@@ -58,9 +46,6 @@ describe('OAuth / SMART surface (API 2.1.1–2.1.5)', () => {
   let tokens: TokenService;
 
   beforeAll(async () => {
-    // The synthetic users of this suite are minted codes for the confidential
-    // `user/*.read` client, so they resolve as staff (the scope matrix would
-    // strip `user/*` from a PATIENT and fail the grant).
     const started = await startAuthApp({
       controllers: [RevocationProbeController],
       identities: new StubIdentityResolver(Role.DOCTOR),
@@ -124,7 +109,6 @@ describe('OAuth / SMART surface (API 2.1.1–2.1.5)', () => {
         )
         .expect(401);
 
-      // Not problem+json: SMART clients branch on `error` (RFC 6749 §5.2).
       expect(response.headers['content-type']).toContain('application/json');
       expect(response.headers['cache-control']).toBe('no-store');
       expect(response.body).toMatchObject({
@@ -229,9 +213,6 @@ describe('OAuth / SMART surface (API 2.1.1–2.1.5)', () => {
     });
 
     it('should not issue an authorization code when only a Bearer token is presented', async () => {
-      // A SMART access token is not an interactive login: the route is
-      // `@Public()`, so the global JwtAuthGuard never attaches claims, and only
-      // the authorization server's own login session yields a principal.
       const response = await request(app.getHttpServer())
         .get(
           `/oauth/authorize?${authorizeQuery({
@@ -393,12 +374,6 @@ describe('OAuth / SMART surface (API 2.1.1–2.1.5)', () => {
 
       expect(response.headers['content-type']).toContain('application/problem+json');
     });
-
-    // Ownership (RFC 7009 §2.1) is asserted at the service and controller layers
-    // (`oauth.service.spec.ts`, `oauth.controller.spec.ts`) for principals other
-    // than the owner. The revocation suite below mints its pairs directly from
-    // `TokenService` to stay independent of the login form; the full browser
-    // flow (form → session → code → token) is `login-flow.e2e-spec.ts`.
   });
 
   describe('guard-layer revocation (TOKEN_REVOKED)', () => {
@@ -460,8 +435,6 @@ describe('OAuth / SMART surface (API 2.1.1–2.1.5)', () => {
 
       expect(revoked.body).toEqual({ revoked: true });
 
-      // Same Bearer token, 15-minute lifetime still largely ahead of it: the
-      // revocation, not the expiry, is what has to end it.
       const response = await request(app.getHttpServer())
         .get('/internal/revocation-probe')
         .set('authorization', `Bearer ${accessToken}`)
@@ -487,8 +460,6 @@ describe('OAuth / SMART surface (API 2.1.1–2.1.5)', () => {
 
       expect(rotated.body.refresh_token).not.toBe(refreshToken);
 
-      // Reuse detection seals the rotated refresh token, but the session is still
-      // live: rotation must not log its own caller out.
       await request(app.getHttpServer())
         .get('/internal/revocation-probe')
         .set('authorization', `Bearer ${accessToken}`)
@@ -520,17 +491,12 @@ describe('OAuth / SMART surface (API 2.1.1–2.1.5)', () => {
         })
         .expect(400);
 
-      // RFC 6749 §5.2 / API 2.1.3: a revoked or rotated refresh token is
-      // indistinguishable from an unknown one on this endpoint.
       expect(replay.body).toMatchObject({ error: 'invalid_grant' });
     });
   });
 
   describe('global validation pipeline (M1)', () => {
     it('should reject a form field that arrives with the wrong type', async () => {
-      // Only the mounted global `ValidationPipe` can produce this: without it the
-      // repeated `code_verifier` reaches the handler and is answered as
-      // `invalid_grant` by PKCE instead of as a validation failure.
       const response = await request(app.getHttpServer())
         .post('/oauth/token')
         .type('form')
@@ -561,8 +527,6 @@ describe('OAuth / SMART surface (API 2.1.1–2.1.5)', () => {
     });
 
     it('should carry Cache-Control no-store on the successful token response', async () => {
-      // M8 (RFC 6749 §5.1): the success path declares the header via `@Header`
-      // while errors set it in `OAuthErrorFilter` — both branches must carry it.
       const code = await tokens.issue({
         userId: 'user-cache',
         clientId: E2E_CONFIDENTIAL_CLIENT_ID,
@@ -590,8 +554,6 @@ describe('OAuth / SMART surface (API 2.1.1–2.1.5)', () => {
     });
 
     it('should reject a body property no DTO declares without breaking client authentication', async () => {
-      // `client_secret` is read from the raw body by `TokenClientGuard`, which
-      // runs before pipes: whitelisting it out of the DTO must not 400 the call.
       const response = await request(app.getHttpServer())
         .post('/oauth/token')
         .type('form')

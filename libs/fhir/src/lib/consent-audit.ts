@@ -14,11 +14,9 @@ function requestIdEntities(requestId: string | undefined): ReadonlyArray<Record<
     : [{ what: { identifier: { value: requestId } }, type: REQUEST_ID_TYPE }];
 }
 
-/** A consent write: the `Consent` or its scan `Binary` created or changed (ADR-014, same envelope as the other write events). */
 export interface ConsentWriteAuditParams {
   readonly interaction: 'create' | 'update';
   readonly actorSub: string;
-  /** Changed resource; may be a `urn:uuid:` fullUrl of a resource created in the same bundle. */
   readonly entityRef: string;
   readonly patientRef: string;
   readonly source: string;
@@ -43,7 +41,6 @@ export function buildConsentWriteAuditEvent(params: ConsentWriteAuditParams): Fh
   };
 }
 
-/** A download of the scan of a consent form; always journalled, by any user (design §5). */
 export interface ScanReadAuditParams {
   readonly outcome: 'success' | 'denied';
   readonly actorSub: string;
@@ -71,13 +68,10 @@ export function buildScanReadAuditEvent(params: ScanReadAuditParams): FhirResour
   };
 }
 
-/** A doctor proceeded without the patient's consent because it could not be given (`emergencyReason`, ADR-019). */
 export interface EmergencyBypassAuditParams {
   readonly actorSub: string;
   readonly patientRef: string;
-  /** Free-text reason the doctor gave. */
   readonly reason: string;
-  /** The `Encounter` (7.1/7.3) the bypass served, when known. */
   readonly contextRef?: string;
   readonly source: string;
   readonly requestId?: string;

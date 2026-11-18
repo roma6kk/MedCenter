@@ -1,6 +1,3 @@
-# Build context for infra/docker/web.Dockerfile (context = frontend/).
-# BuildKit reads <Dockerfile>.dockerignore next to the Dockerfile in preference
-# to a .dockerignore at the context root.
 **/node_modules
 .next
 .swc
@@ -10,8 +7,7 @@ playwright-report
 e2e
 *.tsbuildinfo
 *.md
-# Secrets and local overrides must never be baked into the image
-# (`next build` would read .env.local).
+# `next build` would read .env.local.
 .env
 .env.*
 **/.env

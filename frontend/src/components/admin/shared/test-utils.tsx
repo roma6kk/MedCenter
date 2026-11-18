@@ -1,7 +1,5 @@
-/**
- * test-utils — helpers for the admin specs (not part of the app bundle: only `*.spec.*` files import it).
- */
-import { render, type RenderResult } from '@testing-library/react';
+import { render, screen, type RenderResult } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { ReactElement, ReactNode } from 'react';
 import { ApiError } from '@/lib/api/api-fetch';
@@ -24,7 +22,6 @@ interface ProblemInput {
   readonly retryAfter?: number;
 }
 
-/** The `ApiError` a failed `apiFetch` rejects with, built from the parts of an RFC 7807 answer. */
 export function apiProblem({ status, errorCode, detail, details, requestId = 'req-test-1', retryAfter }: ProblemInput): ApiError {
   return new ApiError({
     title: 'Problem',
@@ -39,4 +36,31 @@ export function apiProblem({ status, errorCode, detail, details, requestId = 're
 
 export function pageOf<TItem>(items: ReadonlyArray<TItem>, page = 1, totalPages = 1): { items: ReadonlyArray<TItem>; meta: { page: number; pageSize: number; totalItems: number; totalPages: number } } {
   return { items, meta: { page, pageSize: 10, totalItems: items.length, totalPages } };
+}
+
+export async function chooseRowAction(rowName: string, action: string): Promise<void> {
+  const trigger = (await screen.findAllByRole('button', { name: `Действия: ${rowName}` }))[0] as HTMLElement;
+  await userEvent.click(trigger);
+  await userEvent.click(screen.getByRole('menuitem', { name: action }));
+}
+
+export async function firstButton(name: string): Promise<HTMLElement> {
+  return (await screen.findAllByRole('button', { name }))[0] as HTMLElement;
+}
+
+export function answerMethod(method: string, outcome: () => Promise<unknown>, listing: unknown): (path: string, options?: RequestInit) => Promise<unknown> {
+  return (_path, options) => (options?.method === method ? outcome() : Promise.resolve(listing));
+}
+
+export function pagedAfterDelete<TItem>(listPath: string, firstPage: ReadonlyArray<TItem>, lastPage: ReadonlyArray<TItem>): (path: string, options?: RequestInit) => Promise<unknown> {
+  let isDeleted = false;
+  const meta = (page: number, totalPages: number): { page: number; pageSize: number; totalItems: number; totalPages: number } => ({ page, pageSize: 10, totalItems: 11, totalPages });
+  return (path, options) => {
+    if (options?.method === 'DELETE') {
+      isDeleted = true;
+      return Promise.resolve(undefined);
+    }
+    if (path === `${listPath}?page=2&pageSize=10`) return Promise.resolve({ items: isDeleted ? [] : lastPage, meta: meta(2, isDeleted ? 1 : 2) });
+    return Promise.resolve({ items: firstPage, meta: meta(1, isDeleted ? 1 : 2) });
+  };
 }

@@ -1,24 +1,22 @@
-/**
- * auth — Playwright helpers that sign in through the REAL browser flow: `/login` → `/api/auth/authorize` → the auth-service
- * login form → `/api/auth/callback`. Nothing is faked, so a regression of the redirect_uri, the PKCE cookie or the token broker
- * fails here first.
- */
 import { test as base, expect, type Browser, type Page } from '@playwright/test';
 import { loadDemoAccount, type DemoAccount, type DemoRole } from './demo-accounts';
+import type { StoredSession } from './session-state';
 
 const SIGN_IN_TIMEOUT_MS = 20_000;
 const DEFAULT_WEB_ORIGIN = 'http://localhost:3000';
 
 export interface SignInOptions {
-  /** Origin of the web app (`baseURL`); the login form lives on the auth origin, so it cannot be read from `page.url()`. */
   readonly webOrigin?: string;
-  /** Path the user asked for before being sent to the login screen. */
   readonly returnTo?: string;
 }
 
-/** From the `/login` entry screen: «Войти» → the auth-service form (fields by name) → back on the web app. */
-export async function continueFromLoginScreen(page: Page, account: DemoAccount, webOrigin: string): Promise<void> {
-  await page.getByRole('link', { name: 'Войти' }).click();
+export function returnToOfAuthorizeUrl(url: string): string | null {
+  const state = new URL(url).searchParams.get('state') ?? '';
+  const separator = state.indexOf('.');
+  return separator === -1 ? null : decodeURIComponent(state.slice(separator + 1));
+}
+
+export async function fillAuthServiceForm(page: Page, account: DemoAccount, webOrigin: string): Promise<void> {
   await page.locator('input[name="email"]').fill(account.email);
   await page.locator('input[name="password"]').fill(account.password());
   await Promise.all([
@@ -28,19 +26,18 @@ export async function continueFromLoginScreen(page: Page, account: DemoAccount, 
   await page.waitForLoadState('networkidle');
 }
 
-/** Fills the auth-service login form (addressed by field name) and waits until the browser is back on the web app. */
 export async function signInThroughLoginForm(page: Page, account: DemoAccount, options: SignInOptions = {}): Promise<void> {
   const webOrigin = new URL(options.webOrigin ?? DEFAULT_WEB_ORIGIN).origin;
   const entry = options.returnTo === undefined ? '/login' : `/login?returnTo=${encodeURIComponent(options.returnTo)}`;
   await page.goto(`${webOrigin}${entry}`);
-  await continueFromLoginScreen(page, account, webOrigin);
+  await fillAuthServiceForm(page, account, webOrigin);
 }
 
-export async function openSignedInPage(browser: Browser, role: DemoRole, baseURL: string | undefined): Promise<Page> {
+export async function openSignedInSession(browser: Browser, role: DemoRole, index: number, baseURL: string | undefined, returnTo?: string): Promise<StoredSession> {
   const context = await browser.newContext({ baseURL });
   const page = await context.newPage();
-  await signInThroughLoginForm(page, loadDemoAccount(role), { webOrigin: baseURL });
-  return page;
+  await signInThroughLoginForm(page, loadDemoAccount(role, index), { webOrigin: baseURL, returnTo });
+  return { context, page };
 }
 
 interface SignedInFixtures {
@@ -49,23 +46,18 @@ interface SignedInFixtures {
   readonly adminPage: Page;
 }
 
-/** `test('…', async ({ patientPage }) => …)` — a page that is already signed in as a seeded demo user. */
+const signedInPage =
+  (role: DemoRole) =>
+  async ({ browser, baseURL }: { browser: Browser; baseURL: string | undefined }, use: (page: Page) => Promise<void>): Promise<void> => {
+    const { page } = await openSignedInSession(browser, role, 0, baseURL);
+    await use(page);
+    await page.context().close();
+  };
+
 export const test = base.extend<SignedInFixtures>({
-  patientPage: async ({ browser, baseURL }, use) => {
-    const page = await openSignedInPage(browser, 'PATIENT', baseURL);
-    await use(page);
-    await page.context().close();
-  },
-  doctorPage: async ({ browser, baseURL }, use) => {
-    const page = await openSignedInPage(browser, 'DOCTOR', baseURL);
-    await use(page);
-    await page.context().close();
-  },
-  adminPage: async ({ browser, baseURL }, use) => {
-    const page = await openSignedInPage(browser, 'ADMIN', baseURL);
-    await use(page);
-    await page.context().close();
-  },
+  patientPage: signedInPage('PATIENT'),
+  doctorPage: signedInPage('DOCTOR'),
+  adminPage: signedInPage('ADMIN'),
 });
 
 export { expect };

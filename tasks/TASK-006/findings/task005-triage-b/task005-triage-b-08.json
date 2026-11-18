@@ -1,0 +1,18 @@
+{
+  "id": "task005-triage-b-08",
+  "unit": "task005-triage-b",
+  "kind": "question",
+  "severity": "low",
+  "title": "RESOLVED: ФИО пациента в слоте расписания берётся из журнала недели — менять GET /doctor/schedule не нужно",
+  "description": "Вопрос из T5 «добавить patientId/appointmentId в GET /doctor/schedule?». Закрывается без изменений API: слот расписания принадлежит catalog-service, а запись и пациент — appointment-service, поэтому добавить связь в слот значило бы связать два сервиса ради подписи. Сейчас занятый слот соединяется с визитом по slotId из журнала недели (до 100 визитов за неделю), а если журнал не знает слот, блок честно пишет «Занято». Когда визитов больше страницы, интерфейс показывает пометку (visitsPartial). Реальный сценарий переполнения (больше 100 визитов у одного врача за неделю) практически недостижим при 20-30-минутных слотах и рабочем дне клиники.",
+  "evidence": "frontend/src/components/doctor/use-doctor-queries.ts:94-102 useDoctorWeekAppointments pageSize 100; frontend/src/components/doctor/doctor-schedule-view.tsx:77 passes visitsPartial={(visits.data?.meta.totalPages ?? 1) > 1}; schedule-slot-block.tsx:28 busy slot the journal does not list says only «Занято»; apps/catalog-service/src/modules/slots/dto/doctor-schedule-response.dto.ts:29 DoctorScheduleSlotDto has only label.",
+  "files": [
+    "frontend/src/components/doctor/use-doctor-queries.ts",
+    "frontend/src/components/doctor/doctor-schedule-view.tsx"
+  ],
+  "proposedFix": "No change. If the owner still wants exact names at any volume: page through the journal for the week (totalPages) instead of one page of 100.",
+  "needsDecision": false,
+  "decisionQuestion": "",
+  "tzRef": "FR-009",
+  "confidence": "confirmed"
+}

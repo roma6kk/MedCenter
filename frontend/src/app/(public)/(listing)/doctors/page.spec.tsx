@@ -1,8 +1,14 @@
-import { render, screen } from '@testing-library/react';
+import { screen } from '@testing-library/react';
 
+jest.mock('next/navigation', () => ({ useRouter: () => ({ replace: jest.fn() }) }));
+jest.mock('@/lib/api/api-fetch', () => {
+  const actual = jest.requireActual('@/lib/api/api-fetch');
+  return { ...actual, apiFetch: jest.fn() };
+});
 jest.mock('@/components/catalog/catalog-server', () => ({ loadDoctorPage: jest.fn(), loadDoctors: jest.fn(), loadServices: jest.fn() }));
 
 import { loadDoctorPage, loadDoctors, loadServices } from '@/components/catalog/catalog-server';
+import { renderWithCatalog, serveCatalog } from '@/components/catalog/catalog-test-utils';
 import DoctorsPage from './page';
 
 const loadDoctorPageMock = loadDoctorPage as jest.MockedFunction<typeof loadDoctorPage>;
@@ -19,12 +25,13 @@ function pageOf(items: typeof DOCTORS, page: number = 1, totalPages: number = 1)
 }
 
 async function renderPage(search: Record<string, string | string[]>): Promise<void> {
-  render(await DoctorsPage({ searchParams: Promise.resolve(search) }));
+  renderWithCatalog(await DoctorsPage({ searchParams: Promise.resolve(search) }));
 }
 
 describe('DoctorsPage', () => {
   beforeEach(() => {
     jest.resetAllMocks();
+    serveCatalog();
     loadServicesMock.mockResolvedValue({ ok: true, data: [] });
   });
 

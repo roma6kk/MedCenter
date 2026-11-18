@@ -1,13 +1,9 @@
 import { generateKeyPairSync } from 'node:crypto';
+import { E2E_ISSUER } from '@medcenter/testing';
 
-export const E2E_ISSUER = 'https://api.medcenter.by';
+export { E2E_ISSUER };
 export const E2E_FHIR_BASE = 'http://hapi:8080/fhir';
 
-/**
- * The guard stack (`JwtAuthGuard`) resolves its verifier configuration eagerly,
- * so a suite that boots `AppModule` must declare the environment *before*
- * `Test.createTestingModule(...).compile()`.
- */
 export function applyE2eEnv(): void {
   const { publicKey } = generateKeyPairSync('rsa', {
     modulusLength: 2048,
@@ -23,6 +19,4 @@ export function applyE2eEnv(): void {
   process.env['REDIS_URL'] = 'redis://localhost:6379';
   process.env['RABBITMQ_URL'] = 'amqp://localhost:5672';
   process.env['RATE_LIMIT_PER_MINUTE'] = '1000';
-  // These suites book with a free-text reason and no Consent in HAPI: they test the `warn` path explicitly (the schema default is `block`).
-  process.env['CONSENT_ENFORCEMENT'] = 'warn';
 }

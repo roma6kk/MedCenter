@@ -6,7 +6,6 @@ import { Button } from '@/components/ui/button';
 import { logout } from '@/lib/auth/session-client';
 import { useT } from '@/lib/i18n/use-t';
 
-/** Ends the session (revokes the refresh token server-side) and returns to the login screen. */
 export function LogoutButton(): ReactNode {
   const t = useT('layout');
   const [isPending, setIsPending] = useState(false);

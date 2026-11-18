@@ -1,13 +1,6 @@
 import { isStrongPassword } from 'class-validator';
 import { z } from 'zod';
 
-/**
- * Environment of the auth-specific infrastructure: the `auth` schema
- * connection, the bootstrap ADMIN account and the login-session secret.
- * Secrets have no defaults and are only ever read from the environment.
- */
-
-/** Same policy as `RegisterPatientDto.password` (API §2.2.6). */
 export const PASSWORD_POLICY = {
   minLength: 10,
   minLowercase: 1,
@@ -16,16 +9,11 @@ export const PASSWORD_POLICY = {
   minSymbols: 1,
 } as const;
 
-/**
- * Accounts are keyed by a trimmed, lower-cased email everywhere (registration,
- * admin CRUD, login, bootstrap), so `Ivanov@Example.by` cannot shadow
- * `ivanov@example.by`.
- */
+/** Accounts are keyed by a trimmed, lower-cased email everywhere, so `Ivanov@Example.by` cannot shadow `ivanov@example.by`. */
 export function normaliseEmail(email: string): string {
   return email.trim().toLowerCase();
 }
 
-/** An empty variable (`FOO=`) means "unset", never an empty secret or host. */
 const optionalText = z.preprocess(
   (value) => (value === '' ? undefined : value),
   z.string().min(1).optional(),
@@ -53,7 +41,7 @@ const databaseEnvSchema = z.object({
   POSTGRES_DB: optionalText,
 });
 
-export interface DatabaseConnectionEnv {
+interface DatabaseConnectionEnv {
   readonly host: string;
   readonly port: number;
   readonly username: string;
@@ -61,12 +49,6 @@ export interface DatabaseConnectionEnv {
   readonly database: string;
 }
 
-/**
- * Precedence: `AUTH_DB_*` (service-specific override) → `DB_*` (the compose
- * `x-db-env` fragment: `postgres:5432` inside the compose network) →
- * `POSTGRES_*` (the stack's own `.env`, so a host-run `nx serve` reaches the
- * published port).
- */
 export function parseDatabaseEnv(source: NodeJS.ProcessEnv): DatabaseConnectionEnv {
   const env = databaseEnvSchema.parse(source);
   const password = env.AUTH_DB_PASSWORD ?? env.DB_PASSWORD ?? env.POSTGRES_PASSWORD;
@@ -96,11 +78,6 @@ const bootstrapAdminSchema = z.object({
   BOOTSTRAP_ADMIN_LAST_NAME: optionalText,
 });
 
-/**
- * `null` when no bootstrap account is configured. A half-configured pair, a
- * malformed email or a weak password fails the boot instead of silently
- * creating (or skipping) an administrator.
- */
 export function parseBootstrapAdminEnv(source: NodeJS.ProcessEnv): BootstrapAdminEnv | null {
   const env = bootstrapAdminSchema.parse(source);
   const email = env.BOOTSTRAP_ADMIN_EMAIL;
@@ -134,12 +111,6 @@ const sessionSecretSchema = z.object({
   JWT_PRIVATE_KEY: optionalText,
 });
 
-/**
- * Input keying material for the login-session cookies. A dedicated
- * `AUTH_SESSION_SECRET` (≥ 32 chars) is preferred; without it the RS256
- * private key — already a mandatory secret of this service — is used as IKM,
- * and HKDF (`login-session.keys.ts`) separates the derived keys from it.
- */
 export function readSessionSecret(source: NodeJS.ProcessEnv): string {
   const env = sessionSecretSchema.parse(source);
   const secret = env.AUTH_SESSION_SECRET ?? env.JWT_PRIVATE_KEY;
@@ -153,11 +124,6 @@ const cookieSecureSchema = z.object({
   AUTH_COOKIE_SECURE: z.preprocess((value) => (value === '' ? undefined : value), z.enum(['true', 'false']).optional()),
 });
 
-/**
- * `AUTH_COOKIE_SECURE=true` forces the `Secure` attribute on the login cookies
- * even when the request does not look like TLS (e.g. a TLS terminator that
- * sends no `X-Forwarded-Proto`). Unset → decided per request (`req.secure`).
- */
 export function isCookieSecureForced(source: NodeJS.ProcessEnv): boolean {
   const raw = source['AUTH_COOKIE_SECURE'];
   if (cookieSecureMemo !== null && cookieSecureMemo.raw === raw) {
@@ -168,5 +134,35 @@ export function isCookieSecureForced(source: NodeJS.ProcessEnv): boolean {
   return forced;
 }
 
-/** Asked for on every login response; the variable is parsed again only when its text changes. */
 let cookieSecureMemo: { readonly raw: string | undefined; readonly forced: boolean } | null = null;
+
+export const DEFAULT_SESSION_IDLE_TIMEOUT_MINUTES = 15;
+
+const sessionIdleSchema = z.object({
+  SESSION_IDLE_TIMEOUT_MINUTES: z.preprocess(
+    (value) => (value === '' ? undefined : value),
+    z.coerce.number().int().min(1).max(24 * 60).default(DEFAULT_SESSION_IDLE_TIMEOUT_MINUTES),
+  ),
+});
+
+/** How long a signed-in session may go without a user activity ping before its refresh token stops working. */
+export function readSessionIdleTimeoutMs(source: NodeJS.ProcessEnv = process.env): number {
+  return sessionIdleSchema.parse(source).SESSION_IDLE_TIMEOUT_MINUTES * 60_000;
+}
+
+export const DEFAULT_RETENTION_ACCOUNT_DAYS = 1825;
+
+const retentionSchema = z.object({
+  RETENTION_ACCOUNT_DAYS: z.preprocess(
+    (value) => (value === '' ? undefined : value),
+    z.coerce.number().int().min(1).max(36_500).default(DEFAULT_RETENTION_ACCOUNT_DAYS),
+  ),
+});
+
+/**
+ * How many days the data of a closed account is kept after it was deactivated before the operator reviews it. The
+ * period follows the operator's records-retention schedule (по номенклатуре дел оператора) and is subject to confirmation.
+ */
+export function readRetentionAccountDays(source: NodeJS.ProcessEnv = process.env): number {
+  return retentionSchema.parse(source).RETENTION_ACCOUNT_DAYS;
+}

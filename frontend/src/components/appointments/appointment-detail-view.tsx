@@ -3,10 +3,12 @@
 import { useCallback, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import Link from 'next/link';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, CircleX } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { NotFoundState, TableSkeleton } from '@/components/feedback/states';
+import { NotFoundState } from '@/components/feedback/states';
+import { ContentSkeleton } from '@/components/feedback/content-skeleton';
 import { isMissingError, QueryFailure } from '@/components/feedback/query-error-state';
+import { useClinicFormat } from '@/hooks/use-clinic-format';
 import { useDocumentTitle } from '@/hooks/use-document-title';
 import { useFocusFallback } from '@/components/patient/use-focus-fallback';
 import { useT } from '@/lib/i18n/use-t';
@@ -28,18 +30,20 @@ interface LoadedProps {
 function LoadedAppointment({ appointment, onCancel }: LoadedProps): ReactNode {
   const t = useT('appointments');
   return (
-    <>
+    <div className="animate-fade-in">
       <AppointmentDetails appointment={appointment} />
       {isCancellable(appointment.status) ? (
         <div className="no-print mt-4">
-          <Button variant="danger" size="lg" onClick={onCancel}>{t('cancel')}</Button>
+          <Button variant="quiet-danger" size="lg" onClick={onCancel}>
+            <CircleX aria-hidden="true" className="size-5" />
+            {t('cancel')}
+          </Button>
         </div>
       ) : null}
-    </>
+    </div>
   );
 }
 
-/** The record cannot be shown to this patient: the not-found screen is the whole page (it brings its own heading). */
 function MissingAppointment(): ReactNode {
   const t = useT('appointments');
   return <NotFoundState title={t('notFoundTitle')} description={t('notFoundHint')} action={<BackLink />} />;
@@ -53,24 +57,24 @@ interface BodyProps {
 function DetailBody({ query, onCancel }: BodyProps): ReactNode {
   const t = useT('appointments');
   if (query.data !== undefined) return <LoadedAppointment appointment={query.data} onCancel={onCancel} />;
-  return <QueryFailure query={query} notFoundText={t('notFoundTitle')} badRequestIsNotFound pending={<TableSkeleton />} />;
+  return <QueryFailure query={query} notFoundText={t('notFoundTitle')} badRequestIsNotFound pending={<ContentSkeleton shape="detail" />} />;
 }
 
-/** One appointment with its cancel action (FR-005, FR-006); a foreign or unknown id looks exactly like a missing one (BR-006). */
 export function AppointmentDetailView({ appointmentId }: { readonly appointmentId: string }): ReactNode {
   const t = useT('appointments');
   const query = useAppointment(appointmentId);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const heading = useRef<HTMLHeadingElement>(null);
   const closeDialog = useCallback(() => setIsDialogOpen(false), []);
-  // The cancel button is gone once the status changed: keep the keyboard user at the top of the record.
   useFocusFallback(isDialogOpen, heading);
-  useDocumentTitle(t('detailTitle'));
+  const format = useClinicFormat();
+  const title: string = query.data === undefined ? t('detailTitle') : t('detailHeading', { when: format.dayTime(query.data.start) });
+  useDocumentTitle(title);
   if (query.data === undefined && isMissingError(query.error, true)) return <MissingAppointment />;
   return (
     <section aria-busy={query.isFetching} className="flex flex-col gap-4">
       <BackLink />
-      <h1 ref={heading} tabIndex={-1} className="text-[28px] font-bold tracking-tight focus:outline-none sm:text-[34px]">{t('detailTitle')}</h1>
+      <h1 ref={heading} tabIndex={-1} className="text-3xl font-bold tracking-tight focus:outline-none">{title}</h1>
       <div><DetailBody query={query} onCancel={() => setIsDialogOpen(true)} /></div>
       {isDialogOpen && query.data ? <CancelAppointmentDialog appointment={query.data} onClose={closeDialog} onCancelled={closeDialog} /> : null}
     </section>

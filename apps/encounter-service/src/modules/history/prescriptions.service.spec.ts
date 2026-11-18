@@ -81,6 +81,28 @@ describe('PrescriptionsService', () => {
     expect(fhir.search).toHaveBeenLastCalledWith('ServiceRequest', expect.objectContaining({ _count: 2, _offset: 1 }));
   });
 
+  it('should narrow both searches and the count to one encounter when an encounterId is given', async () => {
+    fhir.search.mockResolvedValueOnce(bundle(1, [medication('mr-1')])).mockResolvedValueOnce(bundle(1, [serviceRequest('sr-1')]));
+
+    await service.prescriptionsOf('Patient/pat-1', { page: 1, pageSize: 5, sortOrder: 'desc' }, ENCOUNTER_ID);
+
+    const scope = { patient: 'Patient/pat-1', encounter: `Encounter/${ENCOUNTER_ID}` };
+    expect(fhir.search).toHaveBeenNthCalledWith(1, 'MedicationRequest', expect.objectContaining(scope));
+    expect(fhir.search).toHaveBeenNthCalledWith(2, 'ServiceRequest', expect.objectContaining(scope));
+  });
+
+  it('should keep the encounter filter on the service-request count when the medications fill the page', async () => {
+    fhir.search.mockResolvedValueOnce(bundle(2, [medication('mr-1'), medication('mr-2')])).mockResolvedValueOnce({ total: 0 });
+
+    await service.prescriptionsOf('Patient/pat-1', { page: 1, pageSize: 2, sortOrder: 'desc' }, ENCOUNTER_ID);
+
+    expect(fhir.search).toHaveBeenLastCalledWith('ServiceRequest', {
+      patient: 'Patient/pat-1',
+      encounter: `Encounter/${ENCOUNTER_ID}`,
+      _summary: 'count',
+    });
+  });
+
   it('should map a medication with its ATC code and dosage and a service request with its НСИ code', async () => {
     fhir.search.mockResolvedValueOnce(bundle(1, [medication('mr-1')])).mockResolvedValueOnce(bundle(1, [serviceRequest('sr-1')]));
 

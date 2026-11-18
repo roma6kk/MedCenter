@@ -14,7 +14,6 @@ interface ReportSectionProps<TReport extends MeasureReport> {
   readonly children: (report: TReport) => ReactNode;
 }
 
-/** One report of the dashboard: its own heading, loading skeleton, error with «Повторить» and empty state. */
 export function ReportSection<TReport extends MeasureReport>({ title, query, emptyTitle, children }: ReportSectionProps<TReport>): ReactNode {
   const headingId = useId();
   return (

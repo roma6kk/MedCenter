@@ -1,0 +1,17 @@
+{
+  "id": "task005-triage-b-26",
+  "unit": "task005-triage-b",
+  "kind": "question",
+  "severity": "low",
+  "title": "RESOLVED: ссылка на каталог услуг для удалённых услуг в аналитике не нужна — строка таблицы объясняет их сама",
+  "description": "Вопрос из T8. В таблице «Популярность услуг» группы, у которых остался только код (услуга удалена или специальность не указана), сливаются в одну строку «Без названия» с раскрытием «Подробнее»: пояснение и коды чипами. Блок «Что стоит проверить» с отдельной ссылкой убран осознанно; удалённой услуги в каталоге всё равно нет, а активные видны на странице услуг. Ссылка вела бы в каталог, где этих услуг нет.",
+  "evidence": "frontend/src/components/admin/analytics/unnamed-groups.tsx:11-33 merged label, `unknownNote`, code chips in <details>.",
+  "files": [
+    "frontend/src/components/admin/analytics/unnamed-groups.tsx"
+  ],
+  "proposedFix": "No change.",
+  "needsDecision": false,
+  "decisionQuestion": "",
+  "tzRef": "",
+  "confidence": "confirmed"
+}

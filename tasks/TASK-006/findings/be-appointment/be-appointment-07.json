@@ -1,0 +1,20 @@
+{
+  "id": "be-appointment-07",
+  "unit": "be-appointment",
+  "kind": "bug",
+  "severity": "low",
+  "title": "reason при записи и при отмене из одних пробелов проходит проверку: сохраняется пустая причина, а запись пациента без согласия получает ложный CONSENT_REQUIRED",
+  "description": "CreateAppointmentDto.reason и CancelAppointmentDto.reason проверяются как IsString, MinLength(3), MaxLength(500) без обрезки пробелов, а глобальный ValidationPipe ничего не обрезает (transform включён, но Transform-обрезки нет). Строка из пяти пробелов проходит. Для отмены это сохраняет пустое cancelationReason.text (врач и пациент видят пустую причину), для записи сохраняется reasonCode.text из пробелов; при CONSENT_ENFORCEMENT=block пациент без согласия, приславший такую «причину», получает 409 CONSENT_REQUIRED вместо обычной записи без причины. Фронтенд обрезает текст сам (buildBookingRequest, cancelReasonSchema), поэтому дефект виден только при прямых вызовах API. Единственный DTO репозитория с обрезкой пробелов - emergencyReason в encounter-service.",
+  "evidence": "apps/appointment-service/src/modules/appointments/dto/cancel-appointment.dto.ts:13 and dto/create-appointment.dto.ts:43 apply @MinLength(3) to the raw string; libs/common/src/lib/pipes/validation.pipe.ts:44-50 has whitelist and transform only; apps/encounter-service/src/modules/encounters/dto/emergency-reason.decorator.ts:11 is the only trim Transform. Scenario: POST /appointments/{id}/cancel with reason '     ' (5 spaces) -> 200 and cancelationReason.text is 5 spaces; POST /appointments {slotId, reason: '   '} by a patient without consent in block mode -> 409 CONSENT_REQUIRED.",
+  "files": [
+    "apps/appointment-service/src/modules/appointments/dto/cancel-appointment.dto.ts",
+    "apps/appointment-service/src/modules/appointments/dto/create-appointment.dto.ts",
+    "apps/appointment-service/src/modules/appointments/dto/create-appointment.dto.spec.ts",
+    "apps/encounter-service/src/modules/encounters/dto/emergency-reason.decorator.ts"
+  ],
+  "proposedFix": "Trim before validating: add a small @Trim() decorator (Transform(({ value }) => typeof value === 'string' ? value.trim() : value), the pattern of emergency-reason.decorator.ts, ideally lifted into libs/common) to both reason fields, so @MinLength(3) counts real characters. A whitespace-only booking reason then fails with 400 VALIDATION_ERROR (the frontend never sends one: it drops an empty reason). Add cases to create-appointment.dto.spec.ts and a new cancel-appointment.dto.spec.ts.",
+  "needsDecision": false,
+  "decisionQuestion": "",
+  "tzRef": "API §6.1, §6.4; NFR-006 (валидация на границе системы)",
+  "confidence": "confirmed"
+}

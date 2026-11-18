@@ -23,35 +23,28 @@ import {
   EMAIL_MAX_LENGTH,
   ACCOUNT_CONSENT_VERSION_MAX_LENGTH,
   GENDERS,
+  IsPlausibleBirthDate,
+  NO_CONTROL_CHARS,
+  NO_CONTROL_CHARS_MESSAGE,
+  trimmed,
   isPresent,
   NAME_MAX_LENGTH,
   PASSWORD_MAX_LENGTH,
 } from './validation-patterns';
 
-/**
- * Consent to the processing of the account's data (art. 5 of Law 99-Z), given by ticking the
- * checkbox of the registration form. It is not the consent to the electronic medical record
- * (ADR-019): that one is a FHIR `Consent` and is never created here.
- */
-export class AccountConsentDto {
-  /** Only `true` is accepted: a registration without the tick is refused, not stored as `false`. */
+class AccountConsentDto {
   @ApiProperty({ type: Boolean, enum: [true], example: true, description: 'Only true is accepted' })
   @Equals(true, { message: 'accepted must be true' })
   accepted!: true;
 
-  /** Version of the text the user agreed to, so a later change of the text can be told apart. */
-  @ApiProperty({ example: '2026-10', maxLength: ACCOUNT_CONSENT_VERSION_MAX_LENGTH, description: 'Version of the consent text shown to the user' })
+  @ApiProperty({ example: '2026-11', maxLength: ACCOUNT_CONSENT_VERSION_MAX_LENGTH, description: 'Version of the consent text shown to the user' })
   @IsString()
   @IsNotEmpty()
   @MaxLength(ACCOUNT_CONSENT_VERSION_MAX_LENGTH)
+  @Matches(NO_CONTROL_CHARS, { message: NO_CONTROL_CHARS_MESSAGE })
   textVersion!: string;
 }
 
-/**
- * API §2.2.6 `POST /api/v1/auth/register`. The constraints mirror the
- * frontend zod schema field for field (`frontend/src/lib/contracts.ts`).
- * `@Matches(DATE_ONLY_PATTERN)` narrows `@IsDateString` to an R4 `date`.
- */
 export class RegisterPatientDto {
   @ApiProperty({ example: 'ivanov@example.by', maxLength: EMAIL_MAX_LENGTH })
   @IsEmail()
@@ -59,15 +52,19 @@ export class RegisterPatientDto {
   email!: string;
 
   @ApiProperty({ example: 'Иван', maxLength: NAME_MAX_LENGTH })
+  @Transform(trimmed)
   @IsString()
   @IsNotEmpty()
   @MaxLength(NAME_MAX_LENGTH)
+  @Matches(NO_CONTROL_CHARS, { message: NO_CONTROL_CHARS_MESSAGE })
   firstName!: string;
 
   @ApiProperty({ example: 'Иванов', maxLength: NAME_MAX_LENGTH })
+  @Transform(trimmed)
   @IsString()
   @IsNotEmpty()
   @MaxLength(NAME_MAX_LENGTH)
+  @Matches(NO_CONTROL_CHARS, { message: NO_CONTROL_CHARS_MESSAGE })
   lastName!: string;
 
   @ApiProperty({ format: 'password', example: 'Str0ng!Pass', maxLength: PASSWORD_MAX_LENGTH, description: 'Must satisfy the password policy' })
@@ -79,6 +76,7 @@ export class RegisterPatientDto {
   @ApiProperty({ type: String, format: 'date', example: '1990-05-12' })
   @IsDateString({ strict: true })
   @Matches(DATE_ONLY_PATTERN, { message: '$property must be a date (YYYY-MM-DD)' })
+  @IsPlausibleBirthDate()
   birthDate!: string;
 
   @ApiPropertyOptional({ enum: [...GENDERS], enumName: 'PatientGender' })
@@ -86,7 +84,6 @@ export class RegisterPatientDto {
   @IsIn(GENDERS)
   gender?: PatientGender;
 
-  /** Optional contact phone, `+375XXXXXXXXX`; spaces and dashes are accepted and dropped (API §2.2.6). */
   @ApiPropertyOptional({ example: '+375291234567', description: 'Belarus number: +375 and nine digits; spaces and dashes are dropped' })
   @ValidateIf(isPresent)
   @Transform(({ value }: { value: unknown }) => (typeof value === 'string' ? (normaliseBelarusPhone(value) ?? value) : value))
@@ -94,7 +91,7 @@ export class RegisterPatientDto {
   @Matches(BELARUS_PHONE_PATTERN, { message: 'phone must be a Belarus number: +375 and nine digits' })
   phone?: string;
 
-  @ApiProperty({ type: () => AccountConsentDto, description: 'Consent to the processing of the account data (not the EMR consent)' })
+  @ApiProperty({ type: () => AccountConsentDto, description: 'Consent to the processing of the account data (not the consent to entering health information)' })
   @IsDefined()
   @ValidateNested()
   @Type(() => AccountConsentDto)

@@ -1,4 +1,3 @@
-/** consent-fixtures — consent answers shared by the specs of the consent screens (never imported by application code). */
 import type { ConsentRecord, PatientConsent } from './consent-types';
 
 export const ACTIVE_RECORD: ConsentRecord = {

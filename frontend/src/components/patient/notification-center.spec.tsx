@@ -77,7 +77,7 @@ describe('NotificationCenter', () => {
 
     await userEvent.click(screen.getByRole('tab', { name: 'Непрочитанные' }));
 
-    expect(await screen.findByText('Непрочитанных уведомлений нет')).toBeInTheDocument();
+    expect(await screen.findByText('Всё прочитано')).toBeInTheDocument();
   });
 
   it('should mark the notification read, refresh the list and the counter, announce it and keep the focus in the list', async () => {
@@ -137,7 +137,9 @@ describe('NotificationCenter', () => {
 
     renderWithClient(<NotificationCenter />);
 
-    expect(await screen.findByText('Уведомлений нет')).toBeInTheDocument();
+    expect(await screen.findByText('Уведомлений пока нет')).toBeInTheDocument();
+    expect(screen.getByTestId('empty-state-icon')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Записаться' })).toHaveAttribute('href', '/booking');
   });
 
   it('should show a loading skeleton while the list is being read', () => {
@@ -145,7 +147,7 @@ describe('NotificationCenter', () => {
 
     renderWithClient(<NotificationCenter />);
 
-    expect(screen.getByTestId('table-skeleton')).toBeInTheDocument();
+    expect(screen.getByTestId('content-skeleton-tiles')).toBeInTheDocument();
   });
 
   it('should show a banner with the request id and retry when the service fails', async () => {
@@ -179,7 +181,7 @@ describe('NotificationCenter', () => {
 
     await userEvent.click(button);
 
-    expect(await screen.findByText('Непрочитанных уведомлений нет')).toBeInTheDocument();
+    expect(await screen.findByText('Всё прочитано')).toBeInTheDocument();
     await waitFor(() => expect(screen.getByRole('tabpanel')).toHaveFocus());
     expect(document.body).not.toHaveFocus();
     expect(screen.getByTestId('empty-state').closest('[role="status"]')).not.toBeNull();
@@ -257,7 +259,7 @@ describe('NotificationCenter', () => {
     renderWithClient(<NotificationCenter />);
 
     const link = await screen.findByRole('link', { name: 'Открыть в истории' });
-    expect(link).toHaveAttribute('href', '/history');
+    expect(link).toHaveAttribute('href', '/medcard');
     expect(screen.queryByRole('link', { name: 'Открыть запись' })).not.toBeInTheDocument();
   });
 

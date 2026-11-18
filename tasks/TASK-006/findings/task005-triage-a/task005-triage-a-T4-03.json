@@ -1,0 +1,18 @@
+{
+  "id": "task005-triage-a-T4-03",
+  "unit": "task005-triage-a",
+  "kind": "question",
+  "severity": "low",
+  "title": "RESOLVED (по замыслу): предупреждение при уходе со страницы показывается ровно тогда, когда локальный черновик не сохранился",
+  "description": "Вопрос был, нужно ли предупреждать при любых данных, не отправленных на сервер. В коде это сознательно не так: каждое изменение формы уходит в локальный черновик (автосохранение с задержкой плюс принудительный сброс при pagehide, скрытии вкладки и размонтировании формы), черновик восстанавливается при возвращении, поэтому нативное окно «Покинуть сайт?» при каждом уходе было бы шумом. Окно показывается только если запись в localStorage не удалась (хранилище заблокировано или переполнено), то есть данные действительно пропадут; в этом случае в панели действий формы виден предупреждающий статус (ключ draftUnavailable, значок предупреждения). Внутренняя навигация Next.js событие beforeunload не вызывает, но она закрыта тем же сбросом при размонтировании. Дополнительных действий не требуется.",
+  "evidence": "frontend/src/components/doctor/use-encounter-draft.ts:78-100: flush() on pagehide, visibilitychange (hidden) and in the effect cleanup; onBeforeUnload returns early unless hasFailed.current, then event.preventDefault() and returnValue = ''; :63 a failed write sets status { kind: 'unavailable' }, rendered by frontend/src/components/doctor/encounter-action-bar.tsx:16-20 as a warning with t('draftUnavailable'); frontend/src/lib/encounter-draft.ts:1-9 documents the best-effort storage; a grep for beforeunload/popstate shows this hook is the only guard in the frontend.",
+  "files": [
+    "frontend/src/components/doctor/use-encounter-draft.ts",
+    "frontend/src/lib/encounter-draft.ts"
+  ],
+  "proposedFix": "None. If the owner still wants a prompt for any unsent data, it would be a deliberate regression of the autosave design.",
+  "needsDecision": false,
+  "decisionQuestion": "",
+  "tzRef": "Врач: оформление результатов приёма; A8",
+  "confidence": "confirmed"
+}

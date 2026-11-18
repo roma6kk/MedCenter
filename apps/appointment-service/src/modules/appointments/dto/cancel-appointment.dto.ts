@@ -1,16 +1,14 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsString, MaxLength, MinLength } from 'class-validator';
+import { IsIn } from 'class-validator';
+import { APPOINTMENT_CANCEL_REASON_CODES, type AppointmentCancelReasonCode } from '@medcenter/contracts';
 
 export class CancelAppointmentDto {
-  /** Stored as `Appointment.cancelationReason.text` (API §6.4, BR-002). */
   @ApiProperty({
-    minLength: 3,
-    maxLength: 500,
-    example: 'Не смогу прийти',
-    description: 'Stored as the cancellation reason',
+    enum: APPOINTMENT_CANCEL_REASON_CODES,
+    enumName: 'AppointmentCancelReason',
+    example: 'plans-changed',
+    description: 'Neutral reason code, never free text; stored as Appointment.cancelationReason',
   })
-  @IsString()
-  @MinLength(3)
-  @MaxLength(500)
-  reason!: string;
+  @IsIn(APPOINTMENT_CANCEL_REASON_CODES)
+  reason!: AppointmentCancelReasonCode;
 }

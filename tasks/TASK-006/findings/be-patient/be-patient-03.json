@@ -1,0 +1,22 @@
+{
+  "id": "be-patient-03",
+  "unit": "be-patient",
+  "kind": "bug",
+  "severity": "medium",
+  "title": "Согласие, внесённое врачом, показывается как «Оформил: PractitionerRole/12» вместо ФИО: спека и подсказка в форме обещают имя «из учётной записи», но сервис сохраняет только ссылку",
+  "description": "В 3.8 поле signedByName «обязателен для ADMIN, у DOCTOR берётся из токена» (спека §3.8), а форма врача вместо поля показывает «Заполняется автоматически по вашей учётной записи». На деле токен имени не несёт (JwtClaims: sub, scope, role, patient, fhirUser, jti, sid), а signerOf для DOCTOR пишет в Consent.note только authorReference = PractitionerRole/{id} и имя, лишь если клиент сам прислал signedByName (форма врача его не шлёт). При чтении toConsentResponse берёт authorString, а за неимением его сырой reference: signedBy = «PractitionerRole/12». Интерфейс выводит это поле как есть («Оформил: {name}») и в карточке врача/администратора (3.7), и на странице самого пациента (3.4): так выглядит каждое согласие, внесённое врачом. Юридически значимая запись реестра не называет медработника, пациент и администратор видят технический идентификатор. Юнит-тест libs/fhir/consent.spec.ts «should label a signer given by reference when no name was stored» закрепляет этот запасной вариант, но настоящий путь врача всегда в него попадает. У администратора всё хорошо: он вводит ФИО.",
+  "evidence": "apps/patient-service/src/modules/consents/consents.service.ts:359-372 signerOf: for Role.DOCTOR returns { reference: `PractitionerRole/${practitionerRoleIdOf(claims)}`, ...(name === undefined ? {} : { name }) } where name is dto.signedByName (absent for the doctor's form). libs/fhir/src/lib/consent.ts:249-257 signedByOf: authorString ?? authorReference.reference; :287 signedBy = signedByOf(resource). libs/fhir/src/lib/consent.spec.ts:226-231 expects 'PractitionerRole/r1'. frontend/src/components/consent/consent-record-form.tsx:74 (doctor: only the hint, no input) + consent-record-schema.ts:75 (signedByName omitted when empty). frontend/src/components/consent/consent-status-view.tsx:33 renders t('signedBy', { name: record.signedBy }); used by staff-consent-panel.tsx:29 and my-consent-section.tsx:65. specs/api-designer-spec.md:392. Scenario: a doctor with a booked visit opens the patient card -> «Внести согласие» -> saves with the scan -> the consent block reads «Оформил: PractitionerRole/3» for the doctor, the administrator and the patient.",
+  "files": [
+    "apps/patient-service/src/modules/consents/consents.service.ts",
+    "libs/fhir/src/lib/consent.ts",
+    "libs/fhir/src/lib/consent.spec.ts",
+    "apps/patient-service/src/modules/consents/consents.service.spec.ts",
+    "frontend/src/components/consent/consent-status-view.tsx",
+    "specs/api-designer-spec.md"
+  ],
+  "proposedFix": "In ConsentsService.signerOf (make it async) resolve the doctor's display name at write time and store it next to the reference, so the response needs no further lookups: one search PractitionerRole?_id={roleId}&_include=PractitionerRole:practitioner (same pattern as HISTORY_DOCTOR_INCLUDES in encounter-service history.service.ts), format the first HumanName as the other services do (text, else family + given initials, e.g. 'Петрова А. И.'; readPersonName in apps/patient-service/src/shared/fhir-datatypes.mapper.ts already composes family+given) and pass { reference, name } to buildConsent, which then writes authorString and authorReference. An explicit signedByName from the client keeps priority. If the lookup yields no name, fall back to the reference as today. Add a service spec case (doctor without signedByName -> note.authorString is the doctor's name) and keep the lib test for the legacy fallback. Optionally, on the read side, show a neutral label (t('signedByUnknown')) instead of a raw reference when signedBy matches /^PractitionerRole\\//, for consents already stored that way.",
+  "needsDecision": false,
+  "decisionQuestion": "",
+  "tzRef": "TASK-003 / ADR-019, API §3.8 (signedByName: у DOCTOR берётся из токена), §3.4/§3.7 (signedBy)",
+  "confidence": "confirmed"
+}

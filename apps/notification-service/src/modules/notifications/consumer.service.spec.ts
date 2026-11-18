@@ -4,8 +4,9 @@ import { FhirClientError, type FhirClient } from '@medcenter/fhir';
 import type { AppointmentBookedEvent, PatientRegisteredEvent } from '@medcenter/contracts';
 
 import { communicationIdFor } from './communication.mapper';
-import { ConsumerService } from './consumer.service';
+import { ATTEMPT_HEADER, ConsumerService, MAX_NOTIFICATION_ATTEMPTS } from './consumer.service';
 import { DeduplicationService, type ClaimState, type DedupStore } from './deduplication.service';
+import { InvalidEventError } from './notification-event';
 
 jest.mock('amqplib', () => ({ connect: jest.fn() }));
 const connectMock = connect as jest.MockedFunction<typeof connect>;
@@ -25,19 +26,15 @@ const bookedEvent: AppointmentBookedEvent = {
 
 const notFound = (): FhirClientError => new FhirClientError('GET', 'http://hapi/Communication/x', 404);
 
-/** Lets the fake-timer clock run pending promise chains (`advanceTimersByTimeAsync` yields between timers). */
 const flushFakeTimers = (): Promise<void> => jest.advanceTimersByTimeAsync(0);
 
-/** Lets a real-timer promise chain settle (used where fake timers are off). */
 const drain = (): Promise<void> => new Promise((resolve) => setImmediate(resolve));
 
-/** Broker delivery as amqplib hands it to the consume callback. */
 const delivery = (body: unknown): { content: Buffer; properties: Record<string, unknown> } => ({
   content: Buffer.from(JSON.stringify(body)),
   properties: {},
 });
 
-/** Fake amqplib channel: an EventEmitter with the calls the consumer makes. */
 function fakeChannel() {
   return Object.assign(new EventEmitter(), {
     prefetch: jest.fn().mockResolvedValue(undefined),
@@ -51,7 +48,6 @@ function fakeChannel() {
   });
 }
 
-/** Fake amqplib connection; `emit('close')` simulates the broker dropping it. */
 function fakeConnection(channel = fakeChannel()) {
   return Object.assign(new EventEmitter(), {
     createChannel: jest.fn().mockResolvedValue(channel),
@@ -142,6 +138,20 @@ describe('ConsumerService', () => {
       expect(fhir.update).not.toHaveBeenCalled();
     });
 
+    it.each([
+      ['no patient reference', { ...bookedEvent, patientRef: undefined }, 'patientRef'],
+      ['an empty patient reference', { ...bookedEvent, patientRef: '' }, 'patientRef'],
+      ['a start that is no instant', { ...bookedEvent, start: 'soon' }, 'start'],
+      ['a schema version other than 1', { ...bookedEvent, v: 2 }, 'v'],
+    ])('rejects a booked event with %s without touching FHIR', async (_label, invalid, field) => {
+      const failure = consumer.handle(invalid as unknown as AppointmentBookedEvent);
+
+      await expect(failure).rejects.toBeInstanceOf(InvalidEventError);
+      await expect(failure).rejects.toMatchObject({ field });
+      expect(fhir.read).not.toHaveBeenCalled();
+      expect(fhir.update).not.toHaveBeenCalled();
+    });
+
     it('never copies the patient email from patient.registered.v1 into the Communication', async () => {
       const registered: PatientRegisteredEvent = {
         v: 1,
@@ -185,7 +195,7 @@ describe('ConsumerService', () => {
 
       expect(connectMock).toHaveBeenCalledTimes(2);
       expect(second.createChannel).toHaveBeenCalled();
-      expect(second.channel.consume).toHaveBeenCalledTimes(4);
+      expect(second.channel.consume).toHaveBeenCalledTimes(5);
 
       await consumer.onModuleDestroy();
       second.emit('close');
@@ -243,7 +253,7 @@ describe('ConsumerService', () => {
       await jest.advanceTimersByTimeAsync(5_000);
 
       expect(connectMock).toHaveBeenCalledTimes(2);
-      expect(connection.channel.consume).toHaveBeenCalledTimes(4);
+      expect(connection.channel.consume).toHaveBeenCalledTimes(5);
       await consumer.onModuleDestroy();
     });
 
@@ -318,7 +328,7 @@ describe('ConsumerService', () => {
       await jest.advanceTimersByTimeAsync(5_000);
 
       expect(connectMock).toHaveBeenCalledTimes(2);
-      expect(second.channel.consume).toHaveBeenCalledTimes(4);
+      expect(second.channel.consume).toHaveBeenCalledTimes(5);
       await consumer.onModuleDestroy();
     });
 
@@ -388,7 +398,6 @@ describe('ConsumerService', () => {
   describe('message handling', () => {
     let connection: ReturnType<typeof fakeConnection>;
 
-    /** Delivers a message to the first queue's consume callback. */
     const deliverTo = (message: unknown): void => {
       const onDelivery = connection.channel.consume.mock.calls[0]?.[1] as (message: unknown) => void;
       onDelivery(message);
@@ -428,6 +437,33 @@ describe('ConsumerService', () => {
       expect(fhir.update).not.toHaveBeenCalled();
     });
 
+    it.each([
+      ['has no patient reference', { ...bookedEvent, patientRef: undefined }],
+      ['has a start that is no instant', { ...bookedEvent, start: 'soon' }],
+    ])('dead-letters a known event that %s at once, without writing, retrying or acknowledging it', async (_label, invalid) => {
+      const message = delivery(invalid);
+
+      deliverTo(message);
+      await drain();
+
+      expect(connection.channel.nack).toHaveBeenCalledWith(message, false, false);
+      expect(connection.channel.sendToQueue).not.toHaveBeenCalled();
+      expect(connection.channel.ack).not.toHaveBeenCalled();
+      expect(fhir.read).not.toHaveBeenCalled();
+      expect(fhir.update).not.toHaveBeenCalled();
+    });
+
+    it('acknowledges an event of a type it does not know without writing it', async () => {
+      const message = delivery({ ...bookedEvent, type: 'something.else.v1' });
+
+      deliverTo(message);
+      await drain();
+
+      expect(connection.channel.ack).toHaveBeenCalledWith(message);
+      expect(connection.channel.nack).not.toHaveBeenCalled();
+      expect(fhir.update).not.toHaveBeenCalled();
+    });
+
     it('dead-letters JSON that is not a domain event (no eventId)', async () => {
       const message = delivery({ type: 'appointment.booked.v1' });
 
@@ -438,19 +474,55 @@ describe('ConsumerService', () => {
       expect(fhir.update).not.toHaveBeenCalled();
     });
 
-    it('dead-letters a message whose write fails, and the redelivery of the same event is written', async () => {
+    it('retries a message whose write fails through the delay queue with the next attempt, and the redelivery of the same event is written', async () => {
       fhir.update.mockRejectedValueOnce(new Error('HAPI down'));
       const first = delivery(bookedEvent);
-      const redelivery = delivery(bookedEvent);
 
       deliverTo(first);
       await drain();
+
+      expect(connection.channel.sendToQueue).toHaveBeenCalledWith(
+        'notification.appointment-booked.retry',
+        first.content,
+        expect.objectContaining({ persistent: true, headers: { [ATTEMPT_HEADER]: 2 } }),
+      );
+      expect(connection.channel.ack).toHaveBeenCalledWith(first);
+      expect(connection.channel.nack).not.toHaveBeenCalled();
+
+      const [, content, options] = connection.channel.sendToQueue.mock.calls[0] as [string, Buffer, { headers: Record<string, unknown> }];
+      const redelivery = { content, properties: { headers: options.headers } };
       deliverTo(redelivery);
       await drain();
 
-      expect(connection.channel.nack).toHaveBeenCalledWith(first, false, false);
       expect(connection.channel.ack).toHaveBeenCalledWith(redelivery);
       expect(fhir.update).toHaveBeenCalledTimes(2);
+    });
+
+    it('counts every failed delivery: the attempt before the last is retried with the last attempt number', async () => {
+      fhir.update.mockRejectedValue(new Error('HAPI down'));
+      const message = { content: Buffer.from(JSON.stringify(bookedEvent)), properties: { headers: { [ATTEMPT_HEADER]: MAX_NOTIFICATION_ATTEMPTS - 1, 'x-other': 'kept' } } };
+
+      deliverTo(message);
+      await drain();
+
+      expect(connection.channel.sendToQueue).toHaveBeenCalledWith(
+        'notification.appointment-booked.retry',
+        message.content,
+        expect.objectContaining({ headers: { [ATTEMPT_HEADER]: MAX_NOTIFICATION_ATTEMPTS, 'x-other': 'kept' } }),
+      );
+      expect(connection.channel.nack).not.toHaveBeenCalled();
+    });
+
+    it('dead-letters a message whose write fails on the last attempt', async () => {
+      fhir.update.mockRejectedValue(new Error('HAPI down'));
+      const message = { content: Buffer.from(JSON.stringify(bookedEvent)), properties: { headers: { [ATTEMPT_HEADER]: MAX_NOTIFICATION_ATTEMPTS } } };
+
+      deliverTo(message);
+      await drain();
+
+      expect(connection.channel.nack).toHaveBeenCalledWith(message, false, false);
+      expect(connection.channel.sendToQueue).not.toHaveBeenCalled();
+      expect(connection.channel.ack).not.toHaveBeenCalled();
     });
 
     it('defers a duplicate that arrives while the first copy is still writing to the retry queue, and never acks it early', async () => {
@@ -497,9 +569,10 @@ describe('ConsumerService', () => {
 
       failFirstWrite(new Error('HAPI down'));
       await drain();
-      expect(connection.channel.nack).toHaveBeenCalledWith(first, false, false);
+      expect(connection.channel.ack).toHaveBeenCalledWith(first);
+      expect(connection.channel.nack).not.toHaveBeenCalled();
+      expect(connection.channel.sendToQueue).toHaveBeenCalledTimes(2);
 
-      // The retry queue dead-letters the deferred copy back to the main queue; the claim was released, so it is written now.
       const [, deferredContent] = connection.channel.sendToQueue.mock.calls[0] as [string, Buffer];
       const redelivered = { content: deferredContent, properties: {} };
       deliverTo(redelivered);
@@ -509,15 +582,43 @@ describe('ConsumerService', () => {
       expect(fhir.update).toHaveBeenCalledTimes(2);
     });
 
-    it('dead-letters the message without writing when the dedup store is unavailable', async () => {
+    it('retries the message without writing when the dedup store is unavailable', async () => {
       jest.spyOn(DeduplicationService.prototype, 'claim').mockRejectedValueOnce(new Error('Redis down'));
       const message = delivery(bookedEvent);
 
       deliverTo(message);
       await drain();
 
-      expect(connection.channel.nack).toHaveBeenCalledWith(message, false, false);
+      expect(connection.channel.sendToQueue).toHaveBeenCalledWith(
+        'notification.appointment-booked.retry',
+        message.content,
+        expect.objectContaining({ headers: { [ATTEMPT_HEADER]: 2 } }),
+      );
+      expect(connection.channel.ack).toHaveBeenCalledWith(message);
+      expect(connection.channel.nack).not.toHaveBeenCalled();
       expect(fhir.update).not.toHaveBeenCalled();
+    });
+
+    it('keeps the attempt number of a copy deferred because the first copy is still writing', async () => {
+      let finishFirstWrite!: () => void;
+      fhir.update.mockImplementationOnce(
+        () => new Promise((resolve) => (finishFirstWrite = () => resolve({ resourceType: 'Communication' }))),
+      );
+      const duplicate = { content: Buffer.from(JSON.stringify(bookedEvent)), properties: { headers: { [ATTEMPT_HEADER]: 3 } } };
+
+      deliverTo(delivery(bookedEvent));
+      await drain();
+      deliverTo(duplicate);
+      await drain();
+
+      expect(connection.channel.sendToQueue).toHaveBeenCalledWith(
+        'notification.appointment-booked.retry',
+        duplicate.content,
+        expect.objectContaining({ headers: { [ATTEMPT_HEADER]: 3 } }),
+      );
+
+      finishFirstWrite();
+      await drain();
     });
 
     it('settles a message whose ack throws (channel closed mid-write) without an unhandled rejection', async () => {

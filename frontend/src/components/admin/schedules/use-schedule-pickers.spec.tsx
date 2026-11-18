@@ -82,7 +82,7 @@ describe('useSchedulePickers', () => {
 
     expect(apiFetchMock).toHaveBeenCalledWith('/api/v1/admin/users?page=1&pageSize=100&role=DOCTOR');
     expect(apiFetchMock).toHaveBeenCalledWith('/api/v1/rooms?page=1&pageSize=100');
-    expect(apiFetchMock).toHaveBeenCalledWith('/api/v1/services?page=1&pageSize=100');
+    expect(apiFetchMock).toHaveBeenCalledWith('/api/v1/admin/services?page=1&pageSize=100', { headers: { 'Accept-Language': 'ru' } });
   });
 
   it('should label a room with its number and keep the default duration of a service when the lists arrive', async () => {
@@ -90,7 +90,7 @@ describe('useSchedulePickers', () => {
 
     await waitFor(() => expect(result.current.isPending).toBe(false));
 
-    expect(result.current.rooms).toEqual([{ value: 'room-1', label: 'Кабинет 101 (101)' }]);
+    expect(result.current.rooms).toEqual([{ value: 'room-1', label: 'Кабинет 101' }]);
     expect(result.current.services).toEqual([{ value: 'svc-1', label: 'Приём', durationMin: 25 }]);
   });
 });

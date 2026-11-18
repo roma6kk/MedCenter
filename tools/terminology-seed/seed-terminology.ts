@@ -1,4 +1,6 @@
+import { join } from 'node:path';
 import { FhirHttp, FhirHttpError } from '../shared/fhir-http';
+import { loadSeedEnv } from '../shared/load-seed-env';
 import { resolveFhirBaseUrl, runMain } from '../shared/seed-env';
 import { applyUpsert, planUpsert, type CanonicalResource, type UpsertPlan, type UpsertResult } from './canonical-upsert';
 import { expansionCodes, findMissingCodes } from './expansion-codes';
@@ -11,32 +13,17 @@ import {
   type SeedValueSet,
 } from './terminology-resources';
 
-/**
- * Local R4 terminology seed (ADR-002/ADR-016, risk R-1): publishes the
- * versioned in-repo snapshot of НСИ ЦИСЗ / МКБ-10 / АТХ / UCUM to HAPI,
- * preserving the canonical URLs, so the stack boots without access to the
- * closed ЦИСЗ perimeter.
- *
- * Idempotent: every resource is written with `PUT` on a deterministic id (or on
- * the id of the copy that already holds its canonical), so a re-run updates in
- * place and never creates a duplicate. The run ends by proving every ValueSet
- * is `$expand`-able and returns each snapshot code, that `$validate-code` accepts
- * every snapshot code (the services' own gate), and that J06.9 / J01FA10 / Cel
- * are found through `$expand?filter=`.
- */
-
-export interface ExpandReport {
+interface ExpandReport {
   readonly valueSetUrl: string;
   readonly total: number;
   readonly missingCodes: readonly string[];
 }
 
 export interface ExpansionReport extends ExpandReport {
-  /** Snapshot codes `$validate-code` refused (the services' own gate). */
   readonly rejectedCodes: readonly string[];
 }
 
-export interface TerminologySeedSummary {
+interface TerminologySeedSummary {
   readonly upserts: readonly UpsertResult[];
   readonly expansions: readonly ExpansionReport[];
   readonly keyCodes: readonly KeyCodeProof[];
@@ -47,8 +34,7 @@ export { expansionCodes, findMissingCodes };
 
 const MIN_EXPANSION_COUNT = 1000;
 
-/** `ValueSet/$expand?url=` — the same call the services' terminology guards depend on (BR-004). */
-export async function verifyExpansion(http: FhirHttp, check: ExpansionCheck): Promise<ExpandReport> {
+async function verifyExpansion(http: FhirHttp, check: ExpansionCheck): Promise<ExpandReport> {
   const count = Math.max(MIN_EXPANSION_COUNT, check.expectedCodes.length * 2);
   const expanded = await http.operation('ValueSet/$expand', { url: check.valueSetUrl, count: String(count) });
   const returned = expansionCodes(expanded);
@@ -59,10 +45,6 @@ export async function verifyExpansion(http: FhirHttp, check: ExpansionCheck): Pr
   };
 }
 
-/**
- * Plans every resource before writing any: a copy the seed must not touch (a real
- * terminology import, see `isLegacySeedCopy`) stops the run before the first write.
- */
 async function upsertAll(http: FhirHttp): Promise<UpsertResult[]> {
   // CodeSystems first: a ValueSet that includes a system HAPI does not know yet cannot be expanded.
   const planned: Array<{ readonly resource: CanonicalResource; readonly plan: UpsertPlan }> = [];
@@ -79,33 +61,33 @@ async function upsertAll(http: FhirHttp): Promise<UpsertResult[]> {
 }
 
 export interface VerifyOptions {
-  /** Expansion attempts per ValueSet, the first included. */
   readonly attempts: number;
-  /** Pause between attempts: HAPI caches resolved CodeSystems for about a minute. */
+  // HAPI caches resolved CodeSystems for about a minute.
   readonly delayMs: number;
-  /** First pause before retrying a `$expand` that answered 5xx; it doubles for every further retry. */
   readonly serverErrorDelayMs?: number;
   readonly sleep: (ms: number) => Promise<void>;
 }
 
-/** Retries of one `$expand` that answered 5xx (so at most `1 + 4` calls): bounded, 1 s + 2 s + 4 s + 8 s by default. */
-const SERVER_ERROR_RETRIES = 4;
+const SERVER_ERROR_RETRIES = 6;
 const DEFAULT_SERVER_ERROR_DELAY_MS = 1_000;
+const MAX_SERVER_ERROR_PAUSE_MS = 16_000;
+const HAPI_NOT_READY_MARKER = 'HAPI-2788';
 
-/**
- * HAPI runs its pre-expansion job right after a ValueSet PUT and a `$expand` that lands in that window can answer
- * 5xx although the next call works. Only a 5xx is retried; a 4xx or a network error is a real failure.
- */
+function isTransient(error: unknown): error is FhirHttpError {
+  return error instanceof FhirHttpError && (error.status >= 500 || error.message.includes(HAPI_NOT_READY_MARKER));
+}
+
+// HAPI answers 5xx (or HAPI-2788) right after a ValueSet PUT while pre-expansion runs; only those are retried.
 async function retryOnServerError<T>(options: VerifyOptions, call: () => Promise<T>): Promise<T> {
   for (let retry = 0; ; retry += 1) {
     try {
       return await call();
     } catch (error) {
-      if (!(error instanceof FhirHttpError) || error.status < 500 || retry >= SERVER_ERROR_RETRIES) {
+      if (!isTransient(error) || retry >= SERVER_ERROR_RETRIES) {
         throw error;
       }
-      const pause = (options.serverErrorDelayMs ?? DEFAULT_SERVER_ERROR_DELAY_MS) * 2 ** retry;
-      console.log(`$expand answered ${error.status}, retrying in ${pause} ms (${retry + 1}/${SERVER_ERROR_RETRIES})`);
+      const pause = Math.min((options.serverErrorDelayMs ?? DEFAULT_SERVER_ERROR_DELAY_MS) * 2 ** retry, MAX_SERVER_ERROR_PAUSE_MS);
+      console.log(`HAPI answered ${error.status}, retrying in ${pause} ms (${retry + 1}/${SERVER_ERROR_RETRIES})`);
       await options.sleep(pause);
     }
   }
@@ -117,14 +99,7 @@ export const DEFAULT_VERIFY_OPTIONS: VerifyOptions = {
   sleep: (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
 };
 
-/**
- * HAPI pre-expands a ValueSet on a schedule and serves that stored expansion
- * afterwards. An expansion computed from an older CodeSystem body stays stale
- * until the ValueSet itself is replaced, so the recovery is delete + re-PUT of
- * the (purely derived) ValueSet — never a wait. It touches only `ownCopy`, the
- * id this run has just written (the adopted server id, or the deterministic
- * one) — never "whatever else carries the canonical".
- */
+// A stale pre-expansion survives until the ValueSet is replaced, so recover by delete + re-PUT.
 async function recreateValueSet(http: FhirHttp, ownCopy: SeedValueSet): Promise<void> {
   await http.delete('ValueSet', ownCopy.id);
   await http.put(ownCopy);
@@ -150,7 +125,6 @@ async function verifyWithRecovery(
   return report;
 }
 
-/** The ValueSet of `check` under the id this run wrote it to (the adopted server id, else the deterministic one). */
 function ownCopyOf(valueSets: readonly SeedValueSet[], check: ExpansionCheck, upserts: readonly UpsertResult[]): SeedValueSet | undefined {
   const valueSet = valueSets.find((candidate) => candidate.url === check.valueSetUrl);
   const written = upserts.find((upsert) => upsert.resourceType === 'ValueSet' && upsert.url === check.valueSetUrl);
@@ -162,7 +136,7 @@ async function verifyAll(http: FhirHttp, options: VerifyOptions, upserts: readon
   const reports: ExpansionReport[] = [];
   for (const check of buildExpansionChecks()) {
     const expanded = await verifyWithRecovery(http, check, ownCopyOf(valueSets, check, upserts), options);
-    const report = { ...expanded, rejectedCodes: await findRejectedCodes(http, check) };
+    const report = { ...expanded, rejectedCodes: await retryOnServerError(options, () => findRejectedCodes(http, check)) };
     console.log(
       `$expand ${report.valueSetUrl}: ${report.total} codes, missing: ${report.missingCodes.length}; ` +
         `$validate-code rejected: ${report.rejectedCodes.length}/${check.concepts.length}`,
@@ -196,7 +170,6 @@ async function proveKeys(http: FhirHttp, options: VerifyOptions): Promise<KeyCod
   return proofs;
 }
 
-/** Upserts every CodeSystem/ValueSet, then proves each ValueSet expands to its snapshot. */
 export async function seedTerminology(
   http: FhirHttp,
   options: VerifyOptions = DEFAULT_VERIFY_OPTIONS,
@@ -211,6 +184,7 @@ export async function seedTerminology(
 
 if (require.main === module) {
   runMain(async () => {
+    loadSeedEnv(join(__dirname, '..', '..'));
     await seedTerminology(new FhirHttp(resolveFhirBaseUrl()));
   });
 }

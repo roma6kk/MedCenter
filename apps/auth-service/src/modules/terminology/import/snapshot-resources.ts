@@ -7,33 +7,14 @@ import observationsSnapshot from './snapshot/observations.json';
 import servicesSnapshot from './snapshot/services.json';
 import ucumSnapshot from './snapshot/ucum.json';
 
-/**
- * Pure R4 builders for the versioned terminology snapshot (ADR-002/016,
- * risk R-1). They are the in-service counterpart of
- * `tools/terminology-seed/terminology-resources.ts`: the image of this service
- * contains only `apps/auth-service` and `libs`, so the CLI seed cannot be
- * imported into it. A spec compares both builders resource by resource, so the
- * two copies cannot drift apart unnoticed.
- *
- * Canonical URLs stay `https://fhir.by/...` (international ones — ATC, UCUM —
- * keep their HL7-registered canonicals) and every resource carries a
- * deterministic id, so the importer can `PUT` it idempotently.
- *
- * `content: 'fragment'` is deliberate: the snapshot is a curated *subset* of
- * МКБ-10 / АТХ / НСИ ЦИСЗ, which is exactly what R4 `fragment` means. It also
- * keeps HAPI on its in-memory expansion path (a `complete` CodeSystem is indexed
- * into HAPI's terminology tables, whose `$expand` needs Hibernate Search).
- */
-
-/** Release of НСИ ЦИСЗ the bundled snapshot is pinned to — the `snapshotVersion` the import API accepts. */
 export const SNAPSHOT_VERSION = '1.4.463';
 
-export interface SnapshotConcept {
+interface SnapshotConcept {
   readonly code: string;
   readonly display: string;
 }
 
-export interface SnapshotCodeSystem extends FhirResource {
+interface SnapshotCodeSystem extends FhirResource {
   readonly resourceType: 'CodeSystem';
   readonly id: string;
   readonly url: string;
@@ -47,7 +28,7 @@ export interface SnapshotCodeSystem extends FhirResource {
   readonly concept: readonly SnapshotConcept[];
 }
 
-export interface SnapshotValueSetInclude {
+interface SnapshotValueSetInclude {
   readonly system: string;
   readonly concept?: readonly SnapshotConcept[];
 }
@@ -73,7 +54,6 @@ interface SnapshotDefinition {
   readonly title: string;
   readonly caseSensitive: boolean;
   readonly concepts: readonly SnapshotConcept[];
-  /** `false` for UCUM: an external grammar-based system is never re-published as a CodeSystem. */
   readonly publishesCodeSystem: boolean;
 }
 
@@ -177,17 +157,11 @@ export function buildValueSets(): SnapshotValueSet[] {
 
 export interface ExpansionCheck {
   readonly valueSetUrl: string;
-  /** The code system the ValueSet draws from (the `system` of `$validate-code`). */
   readonly systemUrl: string;
   readonly concepts: readonly SnapshotConcept[];
   readonly expectedCodes: readonly string[];
 }
 
-/**
- * Every snapshot code must come back from `$expand` of its ValueSet and be
- * accepted by `$validate-code` against it — the call the services' terminology
- * guards make (BR-004).
- */
 export function buildExpansionChecks(): ExpansionCheck[] {
   return DEFINITIONS.map((definition) => ({
     valueSetUrl: definition.valueSetUrl,

@@ -15,7 +15,7 @@ describe('ConsentRequiredNotice', () => {
   it('should say the encounter cannot be opened, send the patient to the front desk and link to the record form', () => {
     renderNotice();
 
-    expect(screen.getByRole('alert')).toHaveTextContent('Нет согласия на электронную медкарту');
+    expect(screen.getByRole('alert')).toHaveTextContent('Нет согласия на внесение сведений в информационную систему клиники');
     expect(screen.getByText('Приём нельзя открыть: у пациента нет действующего согласия.')).toBeInTheDocument();
     expect(screen.getByText(/Отправьте пациента в регистратуру оформить согласие/)).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Внести согласие в карточке пациента' })).toHaveAttribute('href', '/patients/p1#consent');

@@ -9,7 +9,6 @@ interface BundleEntry {
 }
 
 const BASE = 'http://hapi:8080/fhir';
-/** Paging/format parameters the fake accepts and ignores (or applies to the page). */
 const CONTROL_PARAMS: ReadonlySet<string> = new Set(['_count', '_offset', '_sort', '_total', '_revinclude', '_include', '_include:iterate', '_summary']);
 
 function referencesIn(value: unknown, path: readonly string[]): string[] {
@@ -23,7 +22,6 @@ function referencesIn(value: unknown, path: readonly string[]): string[] {
   return typeof value === 'object' && value !== null && head !== undefined ? referencesIn((value as Record<string, unknown>)[head], rest) : [];
 }
 
-/** Search parameter → element path(s) holding the reference/token it matches. */
 const PARAM_PATHS: Readonly<Record<string, readonly string[]>> = {
   _id: ['id'],
   status: ['status'],
@@ -32,7 +30,6 @@ const PARAM_PATHS: Readonly<Record<string, readonly string[]>> = {
   actor: ['participant', 'actor', 'reference'],
 };
 
-/** Codings of a `CodeableConcept` or of an array of them, as `system|code` and bare `code` tokens. */
 function codingTokens(value: unknown): string[] {
   const concepts = Array.isArray(value) ? value : [value];
   return concepts.flatMap((concept) => {
@@ -41,7 +38,6 @@ function codingTokens(value: unknown): string[] {
   });
 }
 
-/** `Consent` token searches (`scope`, `category`) the consent gate relies on. */
 function matchesConsentToken(resource: FhirResource, key: string, value: unknown): boolean | undefined {
   if (resource.resourceType !== 'Consent' || (key !== 'scope' && key !== 'category')) {
     return undefined;
@@ -69,14 +65,6 @@ function matchesParam(resource: FhirResource, key: string, value: unknown): bool
   return referencesIn(resource, path).some((actual) => accepted.includes(actual));
 }
 
-/**
- * In-memory HAPI stand-in for the e2e suites. It implements exactly the FHIR
- * semantics this service relies on: versioned resources, `transaction` Bundles
- * applied all-or-nothing, `If-Match` (412 on a stale version), conditional
- * create (`ifNoneExist`), `urn:uuid:` reference rewriting, `_revinclude` on
- * `:encounter`, `_offset`/`_count` paging and `ValueSet/$validate-code` over a
- * fixed set of known codes. Transactions can be held to stage a race.
- */
 export class FakeHapi implements FhirClient {
   readonly transactions: FhirResource[] = [];
   private readonly store = new Map<string, FhirResource>();
@@ -127,7 +115,6 @@ export class FakeHapi implements FhirClient {
     return { resourceType: 'Parameters', parameter: [{ name: 'result', valueBoolean: isKnown }] };
   }
 
-  /** Holds every transaction until {@link releaseTransactions}; lets two requests read the same version. */
   holdTransactions(): void {
     this.held = [];
   }
@@ -152,7 +139,6 @@ export class FakeHapi implements FhirClient {
     return this.applyTransaction((bundle['entry'] as BundleEntry[] | undefined) ?? []);
   }
 
-  /** Only a read `AuditEvent` is created directly (ADR-018); every other write is a transaction. */
   async create(resourceType: string, resource: FhirResource): Promise<FhirResource> {
     if (resourceType !== 'AuditEvent') {
       throw new Error('FakeHapi: encounter-service writes through transactions only');
@@ -170,7 +156,6 @@ export class FakeHapi implements FhirClient {
     throw new Error('FakeHapi: encounter-service never deletes');
   }
 
-  /** Synchronous on purpose: a transaction is applied without interleaving, like HAPI's DB transaction. */
   private applyTransaction(entries: readonly BundleEntry[]): FhirResource {
     this.assertVersions(entries);
     const targets = new Map<string, string>();

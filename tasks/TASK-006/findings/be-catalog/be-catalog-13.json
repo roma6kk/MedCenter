@@ -1,0 +1,19 @@
+{
+  "id": "be-catalog-13",
+  "unit": "be-catalog",
+  "kind": "bug",
+  "severity": "medium",
+  "title": "Очистить описание услуги нельзя: пустое description записывается в HAPI как comment: \"\" и даёт 500 INTERNAL",
+  "description": "Форма редактирования услуги при пустом поле «Описание» отправляет в PATCH description: '' («an empty one clears it», frontend service-schema.ts). Для английского текста сервер это умеет (mergeTranslations удаляет _comment при пустом descriptionEn), а для русского описания — нет: toHealthcareService кладёт comment: '', mergeDefined копирует его в ресурс (пустая строка не undefined), и updateAudited отправляет в HAPI `\"comment\": \"\"`. FHIR JSON запрещает пустые строки (в этом же сервисе уже обработаны пустые массивы: «FHIR JSON forbids empty arrays»); HAPI отвечает 400 (HAPI-1821, Attribute values must not be empty), а FhirClientError превращает 400 в 500 INTERNAL. Администратор не может убрать описание услуги и получает безличную ошибку. Описание из одних пробелов ведёт себя так же.",
+  "evidence": "apps/catalog-service/src/modules/services/services.service.ts: toHealthcareService (стр. 231-235) `comment: dto.description`; mergeDefined (стр. 148-156) пропускает только undefined; mergeTranslations (стр. 136-146) чистит лишь _name/_comment по nameEn/descriptionEn. frontend/src/components/admin/services/service-schema.ts:56-67 (toServicePayload): при isEdit всегда `description: values.description`. Тестов на description: '' нет (services.service.spec.ts, test/services-admin.e2e-spec.ts). Сценарий: админ открывает услугу, стирает описание, сохраняет -> PATCH {description:''} -> 500. Вывод об отказе HAPI основан на его правилах разбора JSON, на живом стеке не проверялся.",
+  "files": [
+    "apps/catalog-service/src/modules/services/services.service.ts",
+    "apps/catalog-service/src/modules/services/services.service.spec.ts",
+    "apps/catalog-service/test/services-admin.e2e-spec.ts"
+  ],
+  "proposedFix": "In ServicesService treat a blank description like the blank English one: in update, when `dto.description !== undefined && dto.description.trim() === ''`, delete `comment` from the merged resource (and `_comment` too unless a non-blank descriptionEn comes in the same PATCH, so no orphan translation stays); in toHealthcareService emit `comment` only for a non-blank, trimmed description (create with '   ' then writes no comment). Add unit cases: PATCH {description:''} removes comment and the written resource has no empty string, PATCH {description:''} with the stored English text keeps/drops _comment as chosen, create with '   ' writes no comment; one e2e row.",
+  "needsDecision": false,
+  "decisionQuestion": "",
+  "tzRef": "FR-016; api-designer-spec §5.1.3-5.1.4",
+  "confidence": "likely"
+}

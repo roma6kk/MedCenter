@@ -1,0 +1,19 @@
+{
+  "id": "infra-tools-11",
+  "unit": "infra-tools",
+  "kind": "robustness",
+  "severity": "medium",
+  "title": "Админский импорт терминологии (API 2.3.4) имеет ту же гонку с HAPI, что и сидер, но без повторов: исправление 8236953 попало только в копию в tools/",
+  "description": "Код публикации и проверки справочников существует в двух копиях: tools/terminology-seed (npm run seed:terminology) и apps/auth-service/src/modules/terminology/import (POST /api/v1/admin/terminology/import; заголовок snapshot-importer.ts прямо говорит, что это тот же снимок). Коммит 8236953 добавил в сидер повтор `$expand` при 5xx, потому что сразу после PUT ValueSet HAPI может ответить 5xx на первый `$expand`. В боевой копии этого нет: `expandedCodes` и `findRejectedCodes` в snapshot-verifier.ts вызывают `fhir.operation(...)` напрямую, а в libs/fhir нет ни одного повтора (grep по retry/backoff пуст). Любой 5xx в окне после PUT завершает импорт ошибкой («HAPI request failed (status 5xx)» в аудите), хотя ресурсы уже перезаписаны, а проверка не доведена до конца. Окно возникает при каждом импорте, и живой smoke запускает его в конце каждого прогона (checks-terminology.ts, `terminologyImportChecks`, ответ 202 и результат никто не ждёт), так что сбой остаётся незамеченным.",
+  "evidence": "apps/auth-service/src/modules/terminology/import/snapshot-verifier.ts:50-54 (expandedCodes: bare `fhir.operation('ValueSet', '$expand', ...)`), :57-69 (findRejectedCodes: bare `$validate-code` per concept), :88-103 (expandWithRecovery retries only on missing codes, not on a thrown FhirClientError). libs/fhir/src has no retry/backoff. tools/terminology-seed/seed-terminology.ts:91-112 has retryOnServerError (commit 8236953, 'retry $expand on a 5xx with a bounded backoff'); that commit touched only tools/. apps/auth-service/src/modules/terminology/import/terminology-import.service.ts:77 turns the thrown error into a FAILED import. tools/stack-smoke/checks-terminology.ts:62-81 triggers an import and does not wait for its end. Scenario: admin presses import right after a HAPI restart or while its pre-expansion job runs -> first `$expand` answers 5xx -> import FAILED although the next call would succeed.",
+  "files": [
+    "apps/auth-service/src/modules/terminology/import/snapshot-verifier.ts",
+    "apps/auth-service/src/modules/terminology/import/snapshot-verifier.spec.ts",
+    "tools/terminology-seed/seed-terminology.ts"
+  ],
+  "proposedFix": "Mirror the (improved, see infra-tools-01) retry in snapshot-verifier.ts: a small `retryOnServerError(options, call)` that retries a call when the thrown FhirClientError has `upstreamStatus >= 500` (or its message names HAPI-2788) with a doubling, capped pause and a total budget of about 75-90 s, injected through the existing VerifyOptions (add `serverErrorDelayMs`, reuse `sleep` so the specs stay instant); wrap `expandedCodes` and every `$validate-code` in it. Add cases to snapshot-verifier.spec.ts (transient 503 then success, persistent 500 gives up after the bounded number of tries, 4xx is not retried). The lock TTL (IMPORT_LOCK_TTL_SECONDS = 1800) already covers the extra minute. Longer term, de-duplicate the two copies (canonical-upsert, expansion-codes, snapshot-verifier, snapshot-resources) so that a fix cannot land in only one of them; that refactor is optional for this pass.",
+  "needsDecision": false,
+  "decisionQuestion": "",
+  "tzRef": "API 2.3.4, BR-004; см. infra-tools-01 (тот же корень проблемы)",
+  "confidence": "likely"
+}

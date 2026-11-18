@@ -1,0 +1,17 @@
+{
+  "id": "task005-triage-b-27",
+  "unit": "task005-triage-b",
+  "kind": "question",
+  "severity": "low",
+  "title": "RESOLVED: отдельная группа fulfilled («Посещено») в отчёте 9.1 реализована",
+  "description": "Пункт T8 и решение владельца о группе fulfilled в 9.1 выполнены: сервис считает booked, fulfilled, cancelled и noshow как непересекающиеся группы; fulfilled определяется по завершённым приёмам из HAPI.",
+  "evidence": "apps/analytics-service/src/modules/reports/reports.service.ts:40-52 (`clinical.fulfilledAppointmentIds(range)`, `countAppointmentsByStatus(range, noShowIds, fulfilledIds)`); frontend/src/components/admin/analytics/status-style.ts fulfilled: bg-success.",
+  "files": [
+    "apps/analytics-service/src/modules/reports/reports.service.ts"
+  ],
+  "proposedFix": "No change.",
+  "needsDecision": false,
+  "decisionQuestion": "",
+  "tzRef": "FR-019",
+  "confidence": "confirmed"
+}

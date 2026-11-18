@@ -1,0 +1,19 @@
+{
+  "id": "be-auth-users-01",
+  "unit": "be-auth-users",
+  "kind": "bug",
+  "severity": "medium",
+  "title": "Поиск по пользователям в админке не находит человека по полному имени («Иванова Мария»): строка сопоставляется целиком с каждым столбцом отдельно",
+  "description": "GET /api/v1/admin/users?search= ищет введённую строку как одну подстроку в email, имени или фамилии по отдельности. Таблица пользователей показывает ФИО как «Фамилия Имя» (поле name), и администратор естественно вводит «Иванова Мария» или «Мария Иванова» — результат пустой («Пользователи не найдены»), хотя пользователь есть. Работает только поиск по одному слову. Для FR-015 (управление пользователями) это основной способ найти учётную запись среди нескольких десятков.",
+  "evidence": "apps/auth-service/src/modules/users/store/typeorm-user.store.ts:155-160: `builder.andWhere('(u.email ILIKE :term OR u.firstName ILIKE :term OR u.lastName ILIKE :term)', { term: `%${escapeLike(term)}%` })` with term = whole trimmed string. Scenario: users table has lastName='Иванова', firstName='Мария'; search='Иванова Мария' -> `last_name ILIKE '%Иванова Мария%'` false, `first_name ILIKE '%Иванова Мария%'` false, email false -> 0 rows. Same semantics in __tests__/in-memory-user.store.ts:matches (so the unit/e2e suites cannot notice).",
+  "files": [
+    "apps/auth-service/src/modules/users/store/typeorm-user.store.ts",
+    "apps/auth-service/src/modules/users/__tests__/in-memory-user.store.ts",
+    "apps/auth-service/src/modules/users/dto/list-users-query.dto.ts"
+  ],
+  "proposedFix": "In TypeOrmUserStore.list split `term` by whitespace into tokens (cap at e.g. 5 tokens, each already escaped with escapeLike) and add one `andWhere` per token: `(u.email ILIKE :t0 OR u.firstName ILIKE :t0 OR u.lastName ILIKE :t0)`, so every token must match some column (AND across tokens, OR across columns). Mirror the same rule in InMemoryUserStore.matches and add a store spec case ('Иванова Мария', 'Мария Иванова', 'ива мар'). No API contract change: `search` stays a free text param described as 'Substring of the name or e-mail'.",
+  "needsDecision": false,
+  "decisionQuestion": "",
+  "tzRef": "FR-015, api-designer-spec 2.2.2",
+  "confidence": "confirmed"
+}

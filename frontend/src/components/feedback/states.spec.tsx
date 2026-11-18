@@ -1,5 +1,6 @@
 import Link from 'next/link';
-import { render, screen } from '@testing-library/react';
+import { CalendarPlus } from 'lucide-react';
+import { act, render, screen } from '@testing-library/react';
 import { useUiStore } from '@/store/use-ui-store';
 import { EmptyState, ForbiddenState, NotFoundState, TableSkeleton } from './states';
 
@@ -23,6 +24,18 @@ describe('system states', () => {
     expect(screen.getByText('Проверьте ссылку')).toBeInTheDocument();
   });
 
+  it('should draw an icon above an empty state only when one is given', () => {
+    const { unmount } = render(<EmptyState title="Пусто" />);
+    expect(screen.queryByTestId('empty-state-icon')).not.toBeInTheDocument();
+    unmount();
+
+    render(<EmptyState icon={CalendarPlus} title="Записей нет" description="Запишитесь на приём" action={<button type="button">Записаться</button>} />);
+
+    expect(screen.getByTestId('empty-state-icon')).toHaveAttribute('aria-hidden', 'true');
+    expect(screen.getByRole('heading', { level: 2, name: 'Записей нет' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Записаться' })).toBeInTheDocument();
+  });
+
   it('should localize the headings to English', () => {
     useUiStore.setState({ locale: 'en' });
 
@@ -43,5 +56,24 @@ describe('system states', () => {
 
     expect(screen.getByRole('status')).toHaveAttribute('aria-busy', 'true');
     expect(screen.getByText('Загрузка…')).toBeInTheDocument();
+  });
+});
+
+describe('slow loading note', () => {
+  beforeEach(() => {
+    jest.useFakeTimers();
+    useUiStore.setState({ locale: 'ru' });
+  });
+  afterEach(() => jest.useRealTimers());
+
+  it('should add «Загружаем…» inside the table skeleton when it stays for more than three seconds', () => {
+    render(<TableSkeleton />);
+    expect(screen.queryByText('Загружаем…')).not.toBeInTheDocument();
+
+    act(() => {
+      jest.advanceTimersByTime(3000);
+    });
+
+    expect(screen.getByRole('status')).toHaveTextContent('Загружаем…');
   });
 });

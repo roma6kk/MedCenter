@@ -1,15 +1,7 @@
-/**
- * Readers for the R4 datatypes Patient and RelatedPerson share (HumanName,
- * ContactPoint, Identifier, CodeableConcept). HAPI returns untyped JSON, so
- * every reader narrows `unknown` defensively and drops malformed entries
- * instead of passing them to the client.
- */
+export const ADMINISTRATIVE_GENDERS = ['male', 'female', 'other', 'unknown'] as const;
 
-export type AdministrativeGender = 'male' | 'female' | 'other' | 'unknown';
+export type AdministrativeGender = (typeof ADMINISTRATIVE_GENDERS)[number];
 
-const ADMINISTRATIVE_GENDERS: ReadonlyArray<string> = ['male', 'female', 'other', 'unknown'];
-
-/** Name order used in Belarus: «Фамилия Имя Отчество» (`family`, `given[0]`, `given[1]`). */
 export interface PersonNameDto {
   readonly fullName: string;
   readonly lastName: string;
@@ -45,12 +37,10 @@ function stringOf(value: unknown): string | undefined {
   return typeof value === 'string' && value.length > 0 ? value : undefined;
 }
 
-/** Array elements that are JSON objects; anything else (absent, scalar) yields `[]`. */
 export function objectsOf(value: unknown): ReadonlyArray<Json> {
   return Array.isArray(value) ? value.filter(isJson) : [];
 }
 
-/** `official`, then `usual`, then the first name that is not `old`. */
 function pickHumanName(names: ReadonlyArray<Json>): Json | undefined {
   const current = names.filter((name) => name['use'] !== 'old');
   return (
@@ -77,19 +67,16 @@ export function readPersonName(value: unknown): PersonNameDto {
   };
 }
 
-/** URL of the first `Attachment` that has one (`Patient.photo`, `RelatedPerson.photo`). */
 export function readPhotoUrl(value: unknown): string | undefined {
   return objectsOf(value)
     .map((photo) => stringOf(photo['url']))
     .find((url): url is string => url !== undefined);
 }
 
-/** `Patient.gender` / `RelatedPerson.gender` — values outside the required ValueSet are dropped. */
 export function readGender(value: unknown): AdministrativeGender | undefined {
-  return typeof value === 'string' && ADMINISTRATIVE_GENDERS.includes(value) ? (value as AdministrativeGender) : undefined;
+  return typeof value === 'string' && (ADMINISTRATIVE_GENDERS as ReadonlyArray<string>).includes(value) ? (value as AdministrativeGender) : undefined;
 }
 
-/** ContactPoints with a value; `use=old` ("no longer in use") is left out. */
 export function readTelecom(value: unknown): ReadonlyArray<ContactPointDto> {
   return objectsOf(value)
     .filter((contact) => stringOf(contact['value']) !== undefined && contact['use'] !== 'old')
@@ -103,7 +90,6 @@ export function readTelecom(value: unknown): ReadonlyArray<ContactPointDto> {
     });
 }
 
-/** Identifiers with a value; `use=old` is left out. */
 export function readIdentifiers(value: unknown): ReadonlyArray<IdentifierDto> {
   return objectsOf(value)
     .filter((identifier) => stringOf(identifier['value']) !== undefined && identifier['use'] !== 'old')
@@ -118,10 +104,6 @@ export function readIdentifiers(value: unknown): ReadonlyArray<IdentifierDto> {
     });
 }
 
-/**
- * CodeableConcept → one entry per concept: the first coding supplies
- * `system`/`code`; `display` prefers the concept `text` (the localised label).
- */
 export function readConcepts(value: unknown): ReadonlyArray<CodingDto> {
   return objectsOf(value).flatMap((concept) => {
     const coding = objectsOf(concept['coding'])[0];
@@ -139,7 +121,6 @@ export function readDate(value: unknown): string | undefined {
   return stringOf(value);
 }
 
-/** `active` is a modifier element; an absent value means the record is in use. */
 export function readActive(value: unknown): boolean {
   return value !== false;
 }

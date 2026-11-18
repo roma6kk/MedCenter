@@ -1,0 +1,18 @@
+{
+  "id": "fe-public-auth-05",
+  "unit": "fe-public-auth",
+  "kind": "bug",
+  "severity": "medium",
+  "title": "Поиск врача по имени: символ, набранный пока сервер обрабатывает предыдущий запрос, пропадает",
+  "description": "Поле «Имя или фамилия» каталога /doctors применяет поиск через 300 мс после последнего нажатия клавиши (router.replace в transition), а второй эффект синхронизирует поле с адресом: когда params.search меняется, он ставит поле равным params.search, если текущий текст отличается. Обновлённый адрес приходит только после того, как сервер отрисовал страницу (три запроса к API), то есть заметно позже таймера. Если посетитель печатает с паузами («иван», пауза, «ов»), то после срабатывания таймера он успевает набрать ещё символ, затем приходит ответ на ПЕРВЫЙ запрос с params.search='иван', эффект видит, что в поле 'ивано' не совпадает с 'иван', и откатывает поле к 'иван'. Набранный символ исчезает вместе с запланированным вторым поиском. Это не внешнее изменение адреса (его эффект должен был отслеживать: кнопка «Сбросить», назад/вперёд), а запоздавший ответ на собственную навигацию компонента. Воспроизведено временным jest-тестом: после набора 'иван', 300 мс, набора 'о' и rerender с params.search='иван' значение поля равно 'иван' вместо 'ивано'. Существующий тест проверяет только вызов replace при неизменных params, поэтому гонка не покрыта.",
+  "evidence": "frontend/src/components/catalog/doctor-filter-bar.tsx:61-66 (debounce effect compares with latest.current.search, schedules router.replace) and :68-70 `setTerm((current) => (current.trim() === (params.search ?? '') ? current : (params.search ?? '')))` runs on every params.search change, including the one caused by the component's own earlier replace. Repro (scratchpad spec, not committed): render DoctorFilterBar params={{page:1}}; user.type(input,'иван'); advance 300 ms -> replace('/doctors?search=...'); user.type(input,'о') -> value 'ивано'; rerender with params={{page:1,search:'иван'}}; advance timers -> value is 'иван' (expected 'ивано'). frontend/src/components/catalog/doctor-catalog.spec.tsx:99-114 only covers the 300 ms debounce with static params.",
+  "files": [
+    "frontend/src/components/catalog/doctor-filter-bar.tsx",
+    "frontend/src/components/catalog/doctor-catalog.spec.tsx"
+  ],
+  "proposedFix": "Remember what the component itself last pushed: `const pushed = useRef<string | undefined>(params.search)`; set `pushed.current = wanted || undefined` in the debounce timer and in the form's onSubmit before router.replace. In the sync effect do nothing when `params.search === pushed.current` (our own navigation catching up); otherwise (reset link, back/forward) set `pushed.current = params.search` and `setTerm(params.search ?? '')`. Use the same ref instead of latest.current.search in the debounce comparison. Add a spec: type, advance 300 ms, type one more character, rerender with the first search in params, expect the field to keep the longer text and a second replace to follow after another 300 ms; and a spec that an external change (reset link) still replaces the field text.",
+  "needsDecision": false,
+  "decisionQuestion": "",
+  "tzRef": "FR-002 (view available doctors and services: filters/search of the public catalog); frontend-design-spec §3 (/doctors filters)",
+  "confidence": "confirmed"
+}

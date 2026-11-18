@@ -15,12 +15,6 @@ import {
 
 const CLINICAL_TYPES = ['Condition', 'ClinicalImpression', 'CarePlan', 'Observation', 'ServiceRequest', 'MedicationRequest'];
 
-/**
- * API §7.1–7.3 over HTTP (plan Task 14, Step 5): open → complete with
- * `J06.9` / `36.6 Cel` / `J01FA10` → replay. HAPI is the in-memory `FakeHapi`
- * (atomic transactions with `If-Match`); the live-stack variant runs against
- * the compose HAPI.
- */
 describe('Complete encounter (API §7.1–7.3)', () => {
   let harness: AppHarness;
 
@@ -204,19 +198,24 @@ describe('Complete encounter (API §7.1–7.3)', () => {
     expect(response.body).toMatchObject({ errorCode: 'COMPARTMENT_VIOLATION' });
   });
 
-  it('should refuse a patient token with 403 FORBIDDEN_SCOPE when it opens an encounter', async () => {
-    // ADR-009 guard order: JWT → scope → role, so a `patient/*` token stops at the scope check.
-    const response = await as(PATIENT).post('/api/v1/encounters', { appointmentId: APPOINTMENT_ID }).expect(403);
+  it.each([
+    ['FORBIDDEN_SCOPE', 'a patient', PATIENT],
+    ['FORBIDDEN_ROLE', 'an admin', ADMIN],
+  ])('should refuse with 403 %s when %s token opens an encounter', async (errorCode, _who, claims) => {
+    const response = await as(claims).post('/api/v1/encounters', { appointmentId: APPOINTMENT_ID }).expect(403);
 
-    expect(response.body).toMatchObject({ errorCode: 'FORBIDDEN_SCOPE' });
+    expect(response.body).toMatchObject({ errorCode });
     expect(harness.hapi.transactions).toHaveLength(0);
   });
 
-  it('should refuse an admin token with 403 FORBIDDEN_ROLE when it opens an encounter', async () => {
-    const response = await as(ADMIN).post('/api/v1/encounters', { appointmentId: APPOINTMENT_ID }).expect(403);
+  it('should refuse an admin token with 403 FORBIDDEN_ROLE when it reads an encounter (ADR-018)', async () => {
+    const encounterId = await openEncounter();
+    await as(DOCTOR).post(`/api/v1/encounters/${encounterId}/complete`, completeBody()).expect(200);
+
+    const response = await as(ADMIN).get(`/api/v1/encounters/${encounterId}`).expect(403);
 
     expect(response.body).toMatchObject({ errorCode: 'FORBIDDEN_ROLE' });
-    expect(harness.hapi.transactions).toHaveLength(0);
+    expect(JSON.stringify(response.body)).not.toContain('J06.9');
   });
 
   it('should show the completed clinical content to the participant doctor when the encounter is read', async () => {

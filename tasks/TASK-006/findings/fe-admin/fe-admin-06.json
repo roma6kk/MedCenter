@@ -1,0 +1,21 @@
+{
+  "id": "fe-admin-06",
+  "unit": "fe-admin",
+  "kind": "bug",
+  "severity": "low",
+  "title": "Создание пациента в админке: дату рождения в будущем можно ввести с клавиатуры, форма её пропускает",
+  "description": "Поле «Дата рождения» ограничено только в календаре (max = сегодня по Минску). Набранная вручную дата в DatePicker не сверяется с min/max: parseTypedDate возвращает любую настоящую календарную дату, и она уходит в форму. Схема createUserSchema проверяет только isCalendarDate, поэтому, например, 01.01.2090 проходит клиентскую проверку; сервер такую дату тоже принимает (см. be-auth-users-03), и создаётся пациент, который ещё не родился. В форме внесения согласия та же ситуация закрыта явной проверкой validation.futureDate, то есть в двух похожих формах поведение разное. Общая причина: DatePicker молча игнорирует min/max для набранного текста, поэтому проблема касается и других форм с max (в том числе регистрации пациента, это зона fe-public-auth).",
+  "evidence": "frontend/src/components/admin/users/user-schema.ts:23 (birthDate: z.string().refine(value => value === '' || isCalendarDate(value), 'validation.date'), без сравнения с сегодняшним днём); frontend/src/components/admin/users/user-fields.tsx (DatePicker max={clinicDateKey()}); frontend/src/components/ui/date-picker.tsx:299 (ветка ввода текста) report(parseTypedDate(text) ?? '') без clampKey/inRange; frontend/src/components/consent/consent-record-schema.ts:44 (.refine(day => day <= today || !isCalendarDate(day), 'validation.futureDate')). Сценарий: /admin/users -> «Создать» -> роль «Пациент» -> в «Дата рождения» набрать 01.01.2090 -> форма отправляется, ответ 201.",
+  "files": [
+    "frontend/src/components/admin/users/user-schema.ts",
+    "frontend/src/components/ui/date-picker.tsx",
+    "frontend/src/lib/contracts.ts",
+    "frontend/src/messages/ru.json",
+    "frontend/src/messages/en.json"
+  ],
+  "proposedFix": "Two small changes. (1) In createUserSchema reject a birth date later than the clinic's today (a superRefine next to checkRoleRules; take clinicDateKey() inside the refinement, not at import time) with a NEW message admin.users.validation.birthDateFuture («Дата рождения не может быть в будущем» / «Date of birth cannot be in the future») in ru.json and en.json: the existing validation.futureDate says «Дата подписания…» (signing date) and does not fit. (2) In DatePicker treat a typed date outside [min, max] as unreadable (isUnreadable -> aria-invalid) or clamp it, so every form with min/max behaves like its calendar; add a case to date-picker.spec. The server-side check is be-auth-users-03.",
+  "needsDecision": false,
+  "decisionQuestion": "",
+  "tzRef": "FR-015; BR-007",
+  "confidence": "confirmed"
+}

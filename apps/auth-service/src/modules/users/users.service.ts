@@ -10,40 +10,22 @@ import { normaliseEmail } from '../../config/auth-env';
 import type { AuditActor } from '../audit/audit-event.builder';
 import { AuditService } from '../audit/audit.service';
 import { AccountFactory } from './account-factory.service';
+import { ACCOUNT_RETENTION, accountRetentionFromEnv, closureOf, type AccountRetention } from './account-retention';
 import { assertUpdatable } from './account-rules';
 import type { CreateUserDto } from './dto/create-user.dto';
 import type { ListUsersQueryDto } from './dto/list-users-query.dto';
+import type { RetentionExpiredQueryDto } from './dto/retention-expired-query.dto';
 import type { MeResponseDto } from './dto/me-response.dto';
 import type { UpdateUserDto } from './dto/update-user.dto';
-import type { UserDetailsResponseDto, UserResponseDto } from './dto/user-response.dto';
-import { PatientProvisioner } from './patient-provisioner';
-import {
-  DuplicateEmailError,
-  ResourceAlreadyLinkedError,
-  USER_STORE,
-  type UserChanges,
-  type UserRecord,
-  type UserStore,
-} from './store/user-store';
-import { changesOf, demographicsOf, inverseOf } from './user-changes';
-import { emailTaken, practitionerRoleTaken, selfLockout, userNotFound } from './user-errors';
+import type { RetentionExpiredItemDto, UserDetailsResponseDto, UserResponseDto } from './dto/user-response.dto';
+import { PasswordHasher } from './password-hasher';
+import { PatientProvisioner, type PatientDemographicsChange } from './patient-provisioner';
+import { USER_STORE, type UserChanges, type UserRecord, type UserStore } from './store/user-store';
+import { changesOf, demographicsOf, effectiveChangesOf, effectiveDemographicsOf, inverseOf } from './user-changes';
+import { conflictOf, emailTaken, invalidPassword, selfLockout, userNotFound } from './user-errors';
 import { linkedRefs } from './user-links';
-import { toUserDetails, toUserResponse } from './user-view.mapper';
+import { toMe, toRetentionExpiredItem, toUserDetails, toUserResponse } from './user-view.mapper';
 
-/** The domain error a store refusal stands for; anything else is not ours to translate. */
-function conflictOf(error: unknown): unknown {
-  if (error instanceof DuplicateEmailError) {
-    return emailTaken();
-  }
-  return error instanceof ResourceAlreadyLinkedError ? practitionerRoleTaken() : error;
-}
-
-/**
- * Admin user management (API §2.2.1–2.2.5, FR-015) and the caller's own
- * profile (§2.2.7). Deletion is a soft deactivation (`isActive=false`): the row
- * — and with it the audit trail and FHIR links — stays. Every mutation writes
- * an `AuditEvent` (FR-021).
- */
 @Injectable()
 export class UsersService {
   private readonly logger = new Logger(UsersService.name);
@@ -53,6 +35,8 @@ export class UsersService {
     private readonly accounts: AccountFactory,
     private readonly patients: PatientProvisioner,
     private readonly audit: AuditService,
+    private readonly hasher: PasswordHasher,
+    @Inject(ACCOUNT_RETENTION) private readonly retention: AccountRetention = accountRetentionFromEnv(),
   ) {}
 
   async list(query: ListUsersQueryDto): Promise<PaginatedResponseDto<UserResponseDto>> {
@@ -72,12 +56,25 @@ export class UsersService {
     });
   }
 
+  /** Closed accounts whose retention period is over and which wait for the operator's review; nothing is deleted here. */
+  async listRetentionExpired(query: RetentionExpiredQueryDto): Promise<PaginatedResponseDto<RetentionExpiredItemDto>> {
+    const page = query.page ?? DEFAULT_PAGE;
+    const pageSize = query.pageSize ?? DEFAULT_PAGE_SIZE;
+    const found = await this.store.listRetentionExpired({ now: this.retention.now(), page, pageSize });
+    return buildPaginatedResponse(found.items.map(toRetentionExpiredItem), {
+      page,
+      pageSize,
+      totalItems: found.total,
+      totalPages: Math.ceil(found.total / pageSize),
+    });
+  }
+
   async getById(id: string): Promise<UserDetailsResponseDto> {
     return toUserDetails(await this.require(id));
   }
 
   async me(userId: string): Promise<MeResponseDto> {
-    return toUserDetails(await this.require(userId));
+    return toMe(await this.require(userId));
   }
 
   async create(dto: CreateUserDto, actor: AuditActor): Promise<UserDetailsResponseDto> {
@@ -90,7 +87,8 @@ export class UsersService {
    * `PractitionerRole` link — commit in one store transaction, so a `409`
    * leaves the account as it was. The `Patient` of the account is synced
    * after it; when HAPI refuses, the commit is reverted and the request fails
-   * with nothing changed. A change that stays committed always has its `AuditEvent`.
+   * with nothing changed. A change that stays committed always has its `AuditEvent`; a PATCH that changes
+   * nothing (the values are already there) writes and journals nothing and answers the unchanged card.
    */
   async update(id: string, dto: UpdateUserDto, actor: AuditActor): Promise<UserDetailsResponseDto> {
     const current = await this.require(id);
@@ -99,22 +97,43 @@ export class UsersService {
     if (typeof dto.practitionerRoleId === 'string') {
       await this.patients.assertPractitionerRoleExists(dto.practitionerRoleId);
     }
-    const changes = changesOf(dto, current);
-    const updated = await this.applyChanges(id, changes);
-    await this.syncPatient(current, updated, changes, dto, actor);
-    await this.recordUpdate(current, updated, actor, dto.isActive === false ? 'user.deactivated' : 'user.updated');
+    const changes = effectiveChangesOf(changesOf(dto, current), current);
+    const demographics = effectiveDemographicsOf(demographicsOf(dto), current);
+    if (Object.keys(changes).length === 0 && demographics === null) {
+      return toUserDetails(current);
+    }
+    const closure = changes.isActive === undefined ? {} : changes.isActive ? { closedAt: null, retentionUntil: null } : closureOf(this.retention);
+    const updated = await this.applyChanges(id, { ...changes, ...closure });
+    await this.syncPatient(current, updated, { ...changes, ...closure }, demographics, actor);
+    await this.recordUpdate(current, updated, actor, changes.isActive === false ? 'user.deactivated' : 'user.updated');
     return toUserDetails(updated);
   }
 
-  /** API §2.2.5: soft delete — `isActive=false`, the row stays. */
   async deactivate(id: string, actor: AuditActor): Promise<UserDetailsResponseDto> {
     if (id === actor.sub) {
       throw selfLockout();
     }
     const current = await this.require(id);
-    const updated = await this.applyChanges(id, { isActive: false });
+    if (!current.isActive) {
+      return toUserDetails(current);
+    }
+    const updated = await this.applyChanges(id, { isActive: false, ...closureOf(this.retention) });
     await this.recordUpdate(current, updated, actor, 'user.deactivated');
     return toUserDetails(updated);
+  }
+
+  /**
+   * The patient closes their own account: sign-in stops and the account consent is stamped as withdrawn. Only the
+   * `auth` row changes; the Patient and every clinical resource stay with the clinic. A wrong password and an account
+   * that is already inactive answer the same 403.
+   */
+  async deactivateSelf(id: string, password: string, actor: AuditActor): Promise<void> {
+    const current = await this.require(id);
+    if (!current.isActive || !(await this.hasher.verify(password, current.passwordHash))) {
+      throw invalidPassword();
+    }
+    const updated = await this.applyChanges(id, { isActive: false, accountConsentWithdrawnAt: new Date(), ...closureOf(this.retention) });
+    await this.recordUpdate(current, updated, actor, 'user.deactivated');
   }
 
   private async require(id: string): Promise<UserRecord> {
@@ -147,15 +166,13 @@ export class UsersService {
     return updated;
   }
 
-  /** Keeps the FHIR `Patient` in step with the account; a refusal by HAPI takes the account change back. */
   private async syncPatient(
     before: UserRecord,
     after: UserRecord,
     changes: UserChanges,
-    dto: UpdateUserDto,
+    demographics: PatientDemographicsChange | null,
     actor: AuditActor,
   ): Promise<void> {
-    const demographics = demographicsOf(dto);
     if (demographics === null || after.links.patientId === undefined) {
       return;
     }
@@ -179,7 +196,6 @@ export class UsersService {
     }
   }
 
-  /** The journal names every resource the change touched: those before it and those after it (a released link). */
   private async recordUpdate(
     before: UserRecord,
     after: UserRecord,

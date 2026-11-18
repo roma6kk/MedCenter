@@ -114,30 +114,16 @@ describe('GET /api/auth/callback', () => {
   it.each([
     ['DOCTOR', '/booking', 'http://localhost:3000/doctor/appointments'],
     ['ADMIN', '/booking', 'http://localhost:3000/admin/analytics'],
-    ['PATIENT', '/admin/users', 'http://localhost:3000/booking'],
+    ['PATIENT', '/admin/users', 'http://localhost:3000/home'],
     ['DOCTOR', '/doctor/schedule', 'http://localhost:3000/doctor/schedule'],
-  ])('should send a %s who asked for %s to %s', async (role, requested, expected) => {
+    ['ADMIN', null, 'http://localhost:3000/admin/analytics'],
+    ['PATIENT', 'https://evil.example.com/phish', 'http://localhost:3000/home'],
+  ])('should send a %s who asked for %s to %s (no returnTo or an off-site one lands on the role page)', async (role, requested, expected) => {
     fetchSpy.mockResolvedValueOnce(jsonResponse(tokenEndpointBody({ access_token: fakeAccessToken({ role }) })));
 
     const response = await callback(validQuery(requested));
 
     expect(response.headers.get('location')).toBe(expected);
-  });
-
-  it('should land on the role page when no returnTo was requested', async () => {
-    fetchSpy.mockResolvedValueOnce(jsonResponse(tokenEndpointBody({ access_token: fakeAccessToken({ role: 'ADMIN' }) })));
-
-    const response = await callback(validQuery(null));
-
-    expect(response.headers.get('location')).toBe('http://localhost:3000/admin/analytics');
-  });
-
-  it('should ignore an off-site returnTo and land on the role page', async () => {
-    fetchSpy.mockResolvedValueOnce(jsonResponse(tokenEndpointBody()));
-
-    const response = await callback(validQuery('https://evil.example.com/phish'));
-
-    expect(response.headers.get('location')).toBe('http://localhost:3000/booking');
   });
 
   it.each([
@@ -153,21 +139,51 @@ describe('GET /api/auth/callback', () => {
     expect(setCookies(response).find((header) => header.startsWith('mc_rt='))).toBeUndefined();
   });
 
-  it('should return to the login page when auth-service rejects the code', async () => {
+  it.each([
+    ['/appointments', 'http://localhost:3000/login?error=access_denied&returnTo=%2Fappointments'],
+    [null, 'http://localhost:3000/login?error=access_denied'],
+  ])('should return to the login page when auth-service rejects the code and the visitor asked for %p', async (returnTo, expected) => {
     fetchSpy.mockResolvedValueOnce(jsonResponse({ error: 'invalid_grant' }, 400));
 
-    const response = await callback(validQuery());
+    const response = await callback(validQuery(returnTo));
 
-    expect(response.headers.get('location')).toBe('http://localhost:3000/login?error=access_denied');
+    expect(response.headers.get('location')).toBe(expected);
     expect(setCookies(response).find((header) => header.startsWith('mc_rt='))).toBeUndefined();
   });
 
-  it('should return to the login page when auth-service is unreachable', async () => {
+  it('should keep a returnTo with a query intact on the login redirect', async () => {
+    fetchSpy.mockResolvedValueOnce(jsonResponse({ error: 'invalid_grant' }, 400));
+
+    const response = await callback(validQuery('/booking?doctor=d1&slot=s1'));
+
+    const location = new URL(response.headers.get('location') ?? '');
+    expect(location.searchParams.get('returnTo')).toBe('/booking?doctor=d1&slot=s1');
+    expect(location.searchParams.get('error')).toBe('access_denied');
+  });
+
+  it('should not carry a returnTo from a callback whose state did not verify', async () => {
+    const response = await callback(`code=c1&state=${encodeURIComponent(buildState('forged', '/appointments'))}`);
+
+    expect(fetchSpy).not.toHaveBeenCalled();
+    expect(response.headers.get('location')).toBe('http://localhost:3000/login?error=access_denied');
+  });
+
+  it('should tell the login page the service is unavailable when auth-service is unreachable', async () => {
     fetchSpy.mockRejectedValueOnce(new TypeError('fetch failed'));
 
     const response = await callback(validQuery());
 
-    expect(response.headers.get('location')).toBe('http://localhost:3000/login?error=access_denied');
+    expect(response.headers.get('location')).toBe('http://localhost:3000/login?error=temporarily_unavailable&returnTo=%2Fappointments');
+    expect(setCookies(response).find((header) => header.startsWith('mc_rt='))).toBeUndefined();
+    expect(setCookies(response).find((header) => header.startsWith('mc_pkce='))).toMatch(/Max-Age=0|Expires=Thu, 01 Jan 1970/);
+  });
+
+  it.each([429, 500, 503])('should tell the login page the service is unavailable when the token endpoint answers %i', async (status) => {
+    fetchSpy.mockResolvedValueOnce(jsonResponse({ error: 'server_error' }, status));
+
+    const response = await callback(validQuery(null));
+
+    expect(response.headers.get('location')).toBe('http://localhost:3000/login?error=temporarily_unavailable');
   });
 
   it('should not set a refresh cookie from a token body without a refresh token', async () => {

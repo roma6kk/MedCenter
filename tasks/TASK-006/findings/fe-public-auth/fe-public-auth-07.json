@@ -1,0 +1,20 @@
+{
+  "id": "fe-public-auth-07",
+  "unit": "fe-public-auth",
+  "kind": "ux",
+  "severity": "low",
+  "title": "После неудачного входа callback всегда отправляет error=access_denied: сообщение «сервис недоступен» недостижимо, а адрес возврата теряется",
+  "description": "Страница /login умеет показать два разных сообщения: «Не удалось выполнить вход» и «Сервис входа временно недоступен. Повторите попытку через минуту» (ветка UNAVAILABLE_CODES: server_error, temporarily_unavailable). Но единственный отправитель ошибки, GET /api/auth/callback, на любой сбой (параметр error от auth-service, несовпадение state, отказ или недоступность /oauth/token) делает один и тот же редирект на /login?error=access_denied. auth-service присылает на redirect_uri только access_denied, invalid_request и invalid_scope и никогда server_error, поэтому ветка «недоступен» в реальном потоке мертва: когда обмен кода упёрся в лимит запросов к /oauth/token (429), получил 5xx или таймаут, пользователь читает «Повторите попытку» без подсказки подождать минуту. Кроме того, редирект теряет returnTo: даже когда callback уже разобрал и проверил его (сбой на обмене кода), кнопка «Войти» на /login ведёт на /api/auth/authorize без returnTo, и после успешного повтора человек попадает на главную своей роли, а не на страницу, куда шёл.",
+  "evidence": "frontend/src/app/api/auth/callback/route.ts:14-18 `failure()` -> `/login?error=access_denied` for every failure; :31-32 `exchangeAuthorizationCode(input)` returns null for 400 invalid_grant and for an unreachable service alike (frontend/src/lib/auth/callback-flow.ts:62-67 returns null on !ok and in catch). frontend/src/components/auth/login-error.ts:8 UNAVAILABLE_CODES is the only source of the 'unavailable' message; apps/auth-service/src/modules/oauth/authorize.controller.ts:36-42 reports only access_denied | invalid_request | invalid_scope. login/page.tsx:23-27 passes the sanitised returnTo to LoginEntry, but the callback never sets it on failure. Scenario: a guest picked a slot, signs in with returnTo=/booking, the browser returns to /api/auth/callback?code=... but POST /oauth/token answers 429 or times out -> /login?error=access_denied -> «Не удалось выполнить вход. Повторите попытку.» (no hint to wait); after the retry succeeds the user lands on /home instead of /booking.",
+  "files": [
+    "frontend/src/app/api/auth/callback/route.ts",
+    "frontend/src/lib/auth/callback-flow.ts",
+    "frontend/src/components/auth/login-error.ts",
+    "frontend/src/app/api/auth/callback/route.spec.ts"
+  ],
+  "proposedFix": "Let exchangeAuthorizationCode return a result like RotationResult in session-broker.ts: ok | invalid (4xx) | unavailable (network error, timeout, 5xx, 429). In the callback map 'unavailable' to `/login?error=temporarily_unavailable` and keep access_denied for the rest. When the callback has a verified input.returnTo, append `&returnTo=<encoded>` to the failure redirect (sanitizeReturnTo already runs again on the login page). Extend callback/route.spec.ts: unreachable token endpoint -> error=temporarily_unavailable; failed exchange with a returnTo -> the redirect carries it.",
+  "needsDecision": false,
+  "decisionQuestion": "",
+  "tzRef": "frontend-design-spec §2 (callback, state=returnTo) and UI-1 (the /login entry screen)",
+  "confidence": "confirmed"
+}

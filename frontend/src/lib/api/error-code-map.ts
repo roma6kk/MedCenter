@@ -1,11 +1,3 @@
-/**
- * error-code-map — the 22/22 errorCode → UX contract from frontend-design-spec §5.4.
- *
- * Pure data. Components decide how to render each `kind`; this module only pins which UX each catalogue code
- * receives. `Record<ErrorCode, …>` makes a new or missing code a compile error, so the catalogue
- * (`libs/contracts` ERROR_CODES) and the UX cannot drift apart. Texts are not stored here: they come from
- * `messages/*.json` under `errors.<errorCode>` (see `errorMessageKey`).
- */
 import type { ErrorCode } from './problem';
 
 export type InUseResource = 'room' | 'service' | 'schedule';
@@ -35,21 +27,22 @@ export const errorCodeMap: Readonly<Record<ErrorCode, ErrorUx>> = {
   TOKEN_REVOKED: { kind: 'logout-toast' },
   FORBIDDEN_SCOPE: { kind: 'forbidden' },
   FORBIDDEN_ROLE: { kind: 'forbidden' },
-  // BR-006: a foreign patient's resource must look identical to a missing one (the backend answers 403).
   COMPARTMENT_VIOLATION: { kind: 'not-found' },
   NOT_FOUND: { kind: 'not-found' },
   METHOD_NOT_ALLOWED: { kind: 'banner-generic' },
   CONFLICT: { kind: 'banner-generic' },
   SLOT_CONFLICT: { kind: 'slot-conflict' },
   APPOINTMENT_NOT_CANCELLABLE: { kind: 'appointment-refresh' },
-  // ADR-019: 7.1/7.3 without a consent open `ConsentRequiredNotice`; 3.8 over an active consent says to revoke it first.
   CONSENT_REQUIRED: { kind: 'consent-required' },
   CONSENT_ALREADY_ACTIVE: { kind: 'consent-active' },
+  ACCOUNT_CONSENT_WITHDRAWN: { kind: 'banner-generic' },
+  INVALID_PASSWORD: { kind: 'banner-generic' },
   ENCOUNTER_STATE_INVALID: { kind: 'encounter-readonly' },
   SCHEDULE_OVERLAP: { kind: 'schedule-highlight' },
   SCHEDULE_IN_USE: { kind: 'in-use-conflict', resource: 'schedule' },
   ROOM_IN_USE: { kind: 'in-use-conflict', resource: 'room' },
   SERVICE_IN_USE: { kind: 'in-use-conflict', resource: 'service' },
+  AGE_RESTRICTED: { kind: 'banner-generic' },
   INVALID_ICD10_CODE: { kind: 'focus-icd10' },
   TERMINOLOGY_NOT_FOUND: { kind: 'focus-terminology' },
   RATE_LIMITED: { kind: 'rate-limit-toast' },
@@ -58,17 +51,14 @@ export const errorCodeMap: Readonly<Record<ErrorCode, ErrorUx>> = {
 
 const FALLBACK_UX: ErrorUx = { kind: 'banner-generic' };
 
-/** A code the client does not know yet (newer backend) degrades to the generic banner instead of crashing. */
 export function errorCodeToUx(code: ErrorCode): ErrorUx {
   return errorCodeMap[code] ?? FALLBACK_UX;
 }
 
-/** Message key of the localized text for a code, e.g. `errors.SLOT_CONFLICT`. */
 export function errorMessageKey(code: ErrorCode): string {
   return `errors.${code}`;
 }
 
-/** Kinds the user should see as a toast (aria-live) rather than as an inline banner. */
 export function isToastUx(ux: ErrorUx): boolean {
   return ux.kind === 'logout-toast' || ux.kind === 'rate-limit-toast' || ux.kind === 'slot-conflict';
 }

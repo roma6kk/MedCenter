@@ -6,7 +6,6 @@ interface FakeResponseInit {
   readonly status: number;
   readonly body?: unknown;
   readonly headers?: Record<string, string>;
-  /** `true`: `json()` rejects like an empty or HTML body does in a real browser. */
   readonly unparsable?: boolean;
 }
 
@@ -139,7 +138,7 @@ describe('apiFetch session end', () => {
     await apiFetch('/api/v1/appointments').catch(() => undefined);
 
     expect(consumeFlash()).toBe('session-ended');
-    expect(assignSpy).toHaveBeenCalledWith('/login?returnTo=%2Fappointments%3Ftab%3Dpast');
+    expect(assignSpy).toHaveBeenCalledWith('/login?returnTo=%2Fappointments%3Ftab%3Dpast&reason=session-ended');
   });
 
   it('should redirect to login when a refreshed token is rejected again', async () => {

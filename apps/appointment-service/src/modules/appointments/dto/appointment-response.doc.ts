@@ -1,10 +1,9 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import type { PageMetaDto } from '@medcenter/contracts';
+import { APPOINTMENT_CANCEL_REASON_CODES, type AppointmentCancelReasonCode, type PageMetaDto } from '@medcenter/contracts';
 import type { AppointmentResponseDto } from '@medcenter/fhir-mappers';
 
 import type { AppointmentViewDto } from './appointment-view.dto';
 
-/** Documentation class of the pagination envelope `meta` (API §0). */
 export class PageMetaDoc implements PageMetaDto {
   @ApiProperty({ minimum: 1, example: 1 })
   page!: number;
@@ -19,7 +18,6 @@ export class PageMetaDoc implements PageMetaDto {
   totalPages!: number;
 }
 
-/** Documentation class of `AppointmentResponseDto` (API §6.1): the mapper interface cannot be reflected by Swagger. */
 export class AppointmentResponseDoc implements AppointmentResponseDto {
   @ApiProperty({ description: 'Appointment id (FHIR id)', example: '3001' })
   id!: string;
@@ -51,17 +49,17 @@ export class AppointmentResponseDoc implements AppointmentResponseDto {
   @ApiProperty({ description: 'HealthcareService id', example: '1044' })
   serviceId!: string;
 
-  @ApiPropertyOptional({ description: 'Reason of the visit (free text)' })
-  reason?: string;
-
-  @ApiPropertyOptional({ description: 'Cancellation reason (statusReason)' })
-  cancelReason?: string;
+  @ApiPropertyOptional({
+    enum: APPOINTMENT_CANCEL_REASON_CODES,
+    enumName: 'AppointmentCancelReason',
+    description: 'Cancellation reason code; free text stored before the codes existed reads as `other`',
+  })
+  cancelReason?: AppointmentCancelReasonCode;
 
   @ApiProperty({ format: 'date-time', example: '2026-10-23T08:15:00.000Z' })
   createdAt!: string;
 }
 
-/** Documentation class of `AppointmentViewDto` (API §6.2, §6.3, §6.5): the response plus display names. */
 export class AppointmentViewDoc extends AppointmentResponseDoc implements AppointmentViewDto {
   @ApiPropertyOptional({ description: 'Practitioner.name of the PractitionerRole participant' })
   doctorName?: string;
@@ -73,7 +71,6 @@ export class AppointmentViewDoc extends AppointmentResponseDoc implements Appoin
   patientName?: string;
 }
 
-/** `PaginatedResponseDto<AppointmentViewDto>` (API §0, §6.2, §6.5). */
 export class AppointmentPageDoc {
   @ApiProperty({ type: [AppointmentViewDoc] })
   items!: AppointmentViewDoc[];

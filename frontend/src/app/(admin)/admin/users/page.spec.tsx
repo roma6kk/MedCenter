@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { ReactNode } from 'react';
 import { apiFetch } from '@/lib/api/api-fetch';
-import { apiProblem } from '@/components/admin/shared/test-utils';
+import { apiProblem, chooseRowAction } from '@/components/admin/shared/test-utils';
 import type { PaginatedResponse } from '@/lib/api/pagination';
 import type { AdminUser } from '@/components/admin/users/user-types';
 import AdminUsersPage from './page';
@@ -47,6 +47,13 @@ function requestedPaths(): ReadonlyArray<string> {
   return apiFetchMock.mock.calls.map(([path]) => path).filter((path) => path.startsWith('/api/v1/admin/users'));
 }
 
+function serveUsers(items: ReadonlyArray<AdminUser>, mutate?: (options: RequestInit) => Promise<unknown>): void {
+  apiFetchMock.mockImplementation((path: string, options?: RequestInit) => {
+    if (options?.method && mutate) return mutate(options);
+    return Promise.resolve(usersPage(path.includes('page=2') ? 2 : 1, items));
+  });
+}
+
 describe('AdminUsersPage', () => {
   beforeEach(() => {
     jest.resetAllMocks();
@@ -75,15 +82,42 @@ describe('AdminUsersPage', () => {
     expect((await screen.findAllByText('Пользователь 2')).length).toBeGreaterThan(0);
   });
 
-  it('should send the role filter and return to the first page when the filter is applied', async () => {
+  it('should send the role filter and return to the first page as soon as a role chip is pressed, without an apply button', async () => {
     renderPage();
     await screen.findAllByText('Пользователь 1');
 
-    await userEvent.selectOptions(screen.getByLabelText('Роль'), 'PATIENT');
-    await userEvent.click(screen.getByRole('button', { name: 'Применить' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Пациент' }));
 
     await waitFor(() => expect(requestedPaths()).toContain('/api/v1/admin/users?page=1&pageSize=10&role=PATIENT'));
     expect((await screen.findAllByText('Пациент 3')).length).toBeGreaterThan(0);
+    expect(screen.getByRole('button', { name: 'Пациент' })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.queryByRole('button', { name: 'Применить' })).not.toBeInTheDocument();
+  });
+
+  it('should drop the role filter when the chip «Все» is pressed', async () => {
+    renderPage();
+    await screen.findAllByText('Пользователь 1');
+    await userEvent.click(screen.getByRole('button', { name: 'Пациент' }));
+    await screen.findAllByText('Пациент 3');
+
+    await userEvent.click(screen.getByRole('button', { name: 'Все' }));
+
+    expect((await screen.findAllByText('Пользователь 1')).length).toBeGreaterThan(0);
+    expect(requestedPaths().at(-1)).toBe('/api/v1/admin/users?page=1&pageSize=10');
+  });
+
+  it('should search once typing pauses and keep the chosen role, without a request per letter', async () => {
+    renderPage();
+    await screen.findAllByText('Пользователь 1');
+    await userEvent.click(screen.getByRole('button', { name: 'Пациент' }));
+    await screen.findAllByText('Пациент 3');
+    const before = requestedPaths().length;
+
+    await userEvent.type(screen.getByLabelText('Поиск'), 'иван');
+
+    expect(requestedPaths()).toHaveLength(before);
+    await waitFor(() => expect(requestedPaths()).toContain(`/api/v1/admin/users?page=1&pageSize=10&role=PATIENT&search=${encodeURIComponent('иван')}`));
+    expect(requestedPaths()).toHaveLength(before + 1);
   });
 
   it('should render the empty state when the page has no users', async () => {
@@ -108,12 +142,9 @@ describe('AdminUsersPage deactivation', () => {
   });
 
   it('should ask for confirmation and send DELETE for the account when the admin confirms', async () => {
-    apiFetchMock.mockImplementation((path: string, options?: RequestInit) => {
-      if (options?.method === 'DELETE') return Promise.resolve({ ...user('u1', 'Пользователь 1'), isActive: false });
-      return Promise.resolve(usersPage(1, [user('u1', 'Пользователь 1')]));
-    });
+    serveUsers([user('u1', 'Пользователь 1')], () => Promise.resolve({ ...user('u1', 'Пользователь 1'), isActive: false }));
     renderPage();
-    await userEvent.click((await screen.findAllByRole('button', { name: 'Деактивировать учётную запись Пользователь 1' }))[0] as HTMLElement);
+    await chooseRowAction('Пользователь 1', 'Деактивировать');
 
     await userEvent.click(within(screen.getByRole('dialog', { name: 'Деактивация учётной записи' })).getByRole('button', { name: 'Деактивировать' }));
 
@@ -122,12 +153,11 @@ describe('AdminUsersPage deactivation', () => {
   });
 
   it('should explain SELF_LOCKOUT inside the dialog and keep it open when the admin deactivates themselves', async () => {
-    apiFetchMock.mockImplementation((_path: string, options?: RequestInit) => {
-      if (options?.method === 'DELETE') return Promise.reject(apiProblem({ status: 409, errorCode: 'CONFLICT', detail: 'SELF_LOCKOUT: an administrator cannot deactivate or demote their own account' }));
-      return Promise.resolve(usersPage(1, [user('u1', 'Пользователь 1')]));
-    });
+    serveUsers([user('u1', 'Пользователь 1')], () =>
+      Promise.reject(apiProblem({ status: 409, errorCode: 'CONFLICT', detail: 'SELF_LOCKOUT: an administrator cannot deactivate or demote their own account' })),
+    );
     renderPage();
-    await userEvent.click((await screen.findAllByRole('button', { name: 'Деактивировать учётную запись Пользователь 1' }))[0] as HTMLElement);
+    await chooseRowAction('Пользователь 1', 'Деактивировать');
 
     await userEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Деактивировать' }));
 
@@ -135,24 +165,18 @@ describe('AdminUsersPage deactivation', () => {
   });
 
   it('should offer activation for a deactivated account and send isActive true when it is pressed', async () => {
-    apiFetchMock.mockImplementation((_path: string, options?: RequestInit) => {
-      if (options?.method === 'PATCH') return Promise.resolve(user('u1', 'Пользователь 1'));
-      return Promise.resolve(usersPage(1, [user('u1', 'Пользователь 1', { isActive: false })]));
-    });
+    serveUsers([user('u1', 'Пользователь 1', { isActive: false })], () => Promise.resolve(user('u1', 'Пользователь 1')));
     renderPage();
 
-    await userEvent.click((await screen.findAllByRole('button', { name: 'Активировать учётную запись Пользователь 1' }))[0] as HTMLElement);
+    await chooseRowAction('Пользователь 1', 'Активировать');
 
     await waitFor(() => expect(apiFetchMock).toHaveBeenCalledWith('/api/v1/admin/users/u1', { method: 'PATCH', body: JSON.stringify({ isActive: true }) }));
   });
 
   it('should drop the failure of an activation when the admin turns the page', async () => {
-    apiFetchMock.mockImplementation((path: string, options?: RequestInit) => {
-      if (options?.method === 'PATCH') return Promise.reject(apiProblem({ status: 500, errorCode: 'INTERNAL' }));
-      return Promise.resolve(usersPage(path.includes('page=2') ? 2 : 1, [user('u1', 'Пользователь 1', { isActive: false })]));
-    });
+    serveUsers([user('u1', 'Пользователь 1', { isActive: false })], () => Promise.reject(apiProblem({ status: 500, errorCode: 'INTERNAL' })));
     renderPage();
-    await userEvent.click((await screen.findAllByRole('button', { name: 'Активировать учётную запись Пользователь 1' }))[0] as HTMLElement);
+    await chooseRowAction('Пользователь 1', 'Активировать');
     expect(await screen.findByTestId('problem-banner')).toBeInTheDocument();
 
     await userEvent.click(screen.getByRole('button', { name: 'Следующая страница' }));
@@ -161,14 +185,11 @@ describe('AdminUsersPage deactivation', () => {
   });
 
   it('should send the activation once when the button is pressed again while the request runs', async () => {
-    apiFetchMock.mockImplementation((_path: string, options?: RequestInit) =>
-      options?.method === 'PATCH' ? new Promise(() => undefined) : Promise.resolve(usersPage(1, [user('u1', 'Пользователь 1', { isActive: false })])),
-    );
+    serveUsers([user('u1', 'Пользователь 1', { isActive: false })], () => new Promise(() => undefined));
     renderPage();
-    const button = (await screen.findAllByRole('button', { name: 'Активировать учётную запись Пользователь 1' }))[0] as HTMLElement;
 
-    await userEvent.click(button);
-    await userEvent.click(button);
+    await chooseRowAction('Пользователь 1', 'Активировать');
+    await chooseRowAction('Пользователь 1', 'Активировать');
 
     expect(apiFetchMock.mock.calls.filter(([, options]) => options?.method === 'PATCH')).toHaveLength(1);
   });

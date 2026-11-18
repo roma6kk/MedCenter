@@ -1,4 +1,4 @@
-import { currentYearRange, DEFAULT_AUDIT_DAYS, lastDaysRange, validateReportRange } from './report-range';
+import { DEFAULT_AUDIT_DAYS, lastDaysRange, validateReportRange } from './report-range';
 
 describe('validateReportRange', () => {
   it('should accept a one-day period when from equals to', () => {
@@ -27,11 +27,6 @@ describe('validateReportRange', () => {
 });
 
 describe('default ranges', () => {
-  it('should cover the whole clinic year when the dashboard opens', () => {
-    expect(currentYearRange('2026-10-16')).toEqual({ from: '2026-01-01', to: '2026-12-31' });
-    expect(validateReportRange(currentYearRange('2028-02-29'))).toBeNull();
-  });
-
   it('should end on today and span the audit default window when the journal opens', () => {
     const range = lastDaysRange(DEFAULT_AUDIT_DAYS, '2026-10-16');
 

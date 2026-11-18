@@ -1,0 +1,18 @@
+{
+  "id": "task005-triage-b-17",
+  "unit": "task005-triage-b",
+  "kind": "question",
+  "severity": "low",
+  "title": "Услуги врача считаются N запросами GET /doctors?serviceId=: нужен ли эндпоинт или поле «услуги врача»",
+  "description": "Вопрос из T7 (близкий к вопросу T3 про группировку услуг). Профиль врача и мастер записи собирают услуги врача перебором: по одному запросу на активную услугу (pageSize 100, ответы кешируются в React Query и общие для профиля и мастера). При 6 услугах это 6 лёгких запросов, при 30 услугах станет заметно. Корректность не страдает: pageSize 100 покрывает любое число врачей одной услуги в клинике этого масштаба.",
+  "evidence": "frontend/src/components/catalog/use-doctor-services.ts:22-41 useQueries over all active services; frontend/src/components/catalog/catalog-api.ts:19-22 fetchDoctors pageSize CATALOG_PAGE_SIZE=100 (catalog-types.ts:60).",
+  "files": [
+    "frontend/src/components/catalog/use-doctor-services.ts",
+    "apps/practitioner-service/src/modules/doctors/dto/doctor-response.dto.ts"
+  ],
+  "proposedFix": "Variant A (recommended for now): leave. Variant B: additive `serviceIds: string[]` in DoctorResponseDto (practitioner-service already reads PractitionerRole.healthcareService for ?serviceId=), then use-doctor-services reads it from the doctor and the N queries go away.",
+  "needsDecision": true,
+  "decisionQuestion": "Убирать ли N запросов к каталогу врачей? Варианты: (A) оставить, пока услуг немного (сейчас 6); (B) добавить в DTO врача поле serviceIds и читать услуги из него. Рекомендация: A, вернуться к B вместе с вопросом T3 про направления услуг, если каталог вырастет.",
+  "tzRef": "FR-002",
+  "confidence": "confirmed"
+}

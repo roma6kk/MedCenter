@@ -1,3 +1,5 @@
+jest.mock('next/navigation', () => ({ useSearchParams: () => new URLSearchParams(window.location.search) }));
+
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { apiFetch } from '@/lib/api/api-fetch';
@@ -28,6 +30,7 @@ function auditPaths(): ReadonlyArray<string> {
 
 describe('AuditPanel', () => {
   beforeEach(() => {
+    window.history.replaceState(null, '', '/admin/audit');
     apiFetchMock.mockReset();
     apiFetchMock.mockResolvedValue(paged(3));
   });
@@ -54,6 +57,21 @@ describe('AuditPanel', () => {
     expect(apiFetchMock.mock.calls.map(([path]) => path)).toContain('/api/v1/admin/users?page=1&pageSize=100');
   });
 
+  it('should ask for the doctors and the administrators on their own, so an account past the first 100 still has a name', async () => {
+    const doctor = { id: '19d9172b-681f-4e46-a451-43215ce442d4', name: 'Петров Пётр', email: 'p@y.test', firstName: 'Пётр', lastName: 'Петров', roles: ['DOCTOR'], role: 'DOCTOR', patientRef: null, practitionerRoleRef: null, isActive: true };
+    apiFetchMock.mockImplementation((path: string) => {
+      if (path === '/api/v1/admin/users?page=1&pageSize=100&role=DOCTOR') return Promise.resolve({ items: [doctor], meta: { page: 1, pageSize: 100, totalItems: 1, totalPages: 1 } });
+      if (path.startsWith('/api/v1/admin/users')) return Promise.resolve({ items: [], meta: { page: 1, pageSize: 100, totalItems: 250, totalPages: 3 } });
+      return Promise.resolve(paged(3));
+    });
+    renderWithClient(<AuditPanel />);
+
+    const table = within(await screen.findByRole('table', { name: 'Журнал аудита' }));
+
+    expect(await table.findByText('Петров Пётр')).toBeInTheDocument();
+    expect(apiFetchMock.mock.calls.map(([path]) => path)).toEqual(expect.arrayContaining(['/api/v1/admin/users?page=1&pageSize=100&role=ADMIN']));
+  });
+
   it('should show when, who, what and on which resource for each event when the journal loads', async () => {
     renderWithClient(<AuditPanel />);
 
@@ -77,6 +95,42 @@ describe('AuditPanel', () => {
 
     expect(await table.findByText('Чтение')).toBeInTheDocument();
     expect(table.getByText('Отказ в доступе')).toBeInTheDocument();
+  });
+
+  it('should colour the action badge by the kind of event so a refusal or an override stands out among reads (VA5)', async () => {
+    const events: ReadonlyArray<AuditEvent> = (['read', 'create', 'update', 'denied', 'emergency-bypass'] as const).map((action, index) => ({
+      id: String(index), occurredAt: '2026-10-16T08:00:00.000Z', userId: 'u-1', action, resourceType: 'Patient', resourceId: '1442', requestId: `r-${index}`,
+    }));
+    apiFetchMock.mockResolvedValue({ items: events, meta: { page: 1, pageSize: 20, totalItems: 5, totalPages: 1 } });
+    renderWithClient(<AuditPanel />);
+
+    const table = within(await screen.findByRole('table', { name: 'Журнал аудита' }));
+    await table.findByText('Чтение');
+
+    expect(table.getByTestId('audit-action-read')).toHaveClass('bg-secondary');
+    expect(table.getByTestId('audit-action-create')).toHaveClass('bg-success-soft');
+    expect(table.getByTestId('audit-action-update')).toHaveClass('bg-info-soft');
+    expect(table.getByTestId('audit-action-denied')).toHaveClass('bg-warning-soft');
+    expect(table.getByTestId('audit-action-emergency-bypass')).toHaveClass('bg-destructive-soft');
+  });
+
+  it('should name every authentication event and show a dash for an unknown account', async () => {
+    const actions = ['login', 'login-failed', 'login-throttled', 'logout', 'session-idle'] as const;
+    const events: ReadonlyArray<AuditEvent> = actions.map((action, index) => ({
+      id: String(index), occurredAt: '2026-10-16T08:00:00.000Z', userId: action === 'login-failed' ? '' : 'u-1', action, resourceType: action === 'login-failed' ? '' : 'AuthUser', resourceId: action === 'login-failed' ? '' : 'u-1', requestId: '',
+    }));
+    apiFetchMock.mockResolvedValue({ items: events, meta: { page: 1, pageSize: 20, totalItems: 5, totalPages: 1 } });
+    renderWithClient(<AuditPanel />);
+
+    const table = within(await screen.findByRole('table', { name: 'Журнал аудита' }));
+    await table.findByTestId('audit-action-login');
+
+    expect(table.getByTestId('audit-action-login')).toHaveTextContent('Вход');
+    expect(table.getByTestId('audit-action-login-failed')).toHaveTextContent('Неудачный вход');
+    expect(table.getByTestId('audit-action-login-throttled')).toHaveTextContent('Вход заблокирован');
+    expect(table.getByTestId('audit-action-logout')).toHaveTextContent('Выход');
+    expect(table.getByTestId('audit-action-session-idle')).toHaveTextContent('Сеанс завершён по бездействию');
+    expect(table.getByText('—', { selector: 'span.text-muted-foreground' })).toBeInTheDocument();
   });
 
   it('should name the emergency consent bypass and show the reason the doctor gave (ADR-019)', async () => {
@@ -110,7 +164,7 @@ describe('AuditPanel', () => {
     expect((await table.findAllByText('—')).length).toBeGreaterThan(0);
   });
 
-  it('should send the period, entity and user filters and go back to page 1 when they are applied', async () => {
+  it('should send the period, entity and user filters and go back to page 1 once the typing pauses, without an apply button', async () => {
     renderWithClient(<AuditPanel />);
     await screen.findByText('Найдено событий: 41');
 
@@ -118,11 +172,61 @@ describe('AuditPanel', () => {
     fireEvent.change(screen.getByLabelText('По'), { target: { value: '2026-10-16' } });
     await userEvent.type(screen.getByLabelText('Ресурс'), 'Appointment/123');
     await userEvent.type(screen.getByLabelText('Пользователь'), 'PractitionerRole/abc');
-    await userEvent.click(screen.getByRole('button', { name: 'Применить' }));
 
     await waitFor(() =>
       expect(auditPaths()).toContain('/api/v1/admin/audit?from=2026-10-01&to=2026-10-16&entity=Appointment%2F123&userId=PractitionerRole%2Fabc&page=1&pageSize=20'),
     );
+    expect(screen.queryByRole('button', { name: 'Применить' })).not.toBeInTheDocument();
+  });
+
+  it.each([
+    ['Вход и выход', 'login%2Clogin-failed%2Clogin-throttled%2Clogout%2Csession-idle', 'auth'],
+    ['Чтение данных', 'read%2Cdenied', 'read'],
+    ['Изменения', 'create%2Cupdate%2Cdelete', 'changes'],
+    ['Экстренный доступ', 'emergency-bypass', 'emergency'],
+  ])('should ask for the actions of «%s» and keep the choice in the address when the group is picked', async (name, action, group) => {
+    renderWithClient(<AuditPanel />);
+    await screen.findByText('Найдено событий: 41');
+
+    await userEvent.click(screen.getByRole('button', { name }));
+
+    await waitFor(() => expect(auditPaths().at(-1)).toContain(`action=${action}&page=1&pageSize=20`));
+    expect(screen.getByRole('button', { name })).toHaveAttribute('aria-pressed', 'true');
+    expect(window.location.search).toBe(`?type=${group}`);
+  });
+
+  it('should send no action again and clear the address when «Все» is picked after a group', async () => {
+    renderWithClient(<AuditPanel />);
+    await screen.findByText('Найдено событий: 41');
+    await userEvent.click(screen.getByRole('button', { name: 'Изменения' }));
+    await waitFor(() => expect(auditPaths().at(-1)).toContain('action='));
+
+    await userEvent.click(screen.getByRole('button', { name: 'Все' }));
+
+    await waitFor(() => expect(auditPaths().at(-1)).not.toContain('action='));
+    expect(window.location.search).toBe('');
+  });
+
+  it('should open on the group named in the address', async () => {
+    window.history.replaceState(null, '', '/admin/audit?type=read');
+    renderWithClient(<AuditPanel />);
+
+    await screen.findByText('Найдено событий: 41');
+
+    expect(auditPaths()[0]).toContain('action=read%2Cdenied');
+    expect(screen.getByRole('button', { name: 'Чтение данных' })).toHaveAttribute('aria-pressed', 'true');
+  });
+
+  it('should go back to «Все» when «Сбросить» is pressed after a group was picked', async () => {
+    renderWithClient(<AuditPanel />);
+    await screen.findByText('Найдено событий: 41');
+    await userEvent.click(screen.getByRole('button', { name: 'Экстренный доступ' }));
+    await waitFor(() => expect(auditPaths().at(-1)).toContain('action=emergency-bypass'));
+
+    await userEvent.click(screen.getByRole('button', { name: 'Сбросить' }));
+
+    expect(screen.getByRole('button', { name: 'Все' })).toHaveAttribute('aria-pressed', 'true');
+    await waitFor(() => expect(auditPaths().at(-1)).not.toContain('action='));
   });
 
   it('should keep the filters and ask for the next page when the pager moves', async () => {
@@ -134,35 +238,67 @@ describe('AuditPanel', () => {
     await waitFor(() => expect(auditPaths().some((path) => path.includes('page=2&pageSize=20'))).toBe(true));
   });
 
-  it('should refuse a malformed resource and send nothing when the filter is applied', async () => {
+  it('should refuse a malformed resource once typing pauses, send nothing and keep the focus in the field', async () => {
     renderWithClient(<AuditPanel />);
     await screen.findByText('Найдено событий: 41');
     const calls = apiFetchMock.mock.calls.length;
 
     await userEvent.type(screen.getByLabelText('Ресурс'), 'appointment');
-    await userEvent.click(screen.getByRole('button', { name: 'Применить' }));
 
     expect(await screen.findByText('Укажите тип ресурса с заглавной буквы или Тип/id')).toBeInTheDocument();
     expect(screen.getByLabelText('Ресурс')).toHaveFocus();
     expect(apiFetchMock.mock.calls).toHaveLength(calls);
   });
 
-  it('should refuse a period over 366 days when the filter is applied', async () => {
+  it('should drop the error of a field that is typed back to the applied value', async () => {
     renderWithClient(<AuditPanel />);
     await screen.findByText('Найдено событий: 41');
 
+    await userEvent.type(screen.getByLabelText('Ресурс'), 'appointment');
+    expect(await screen.findByText('Укажите тип ресурса с заглавной буквы или Тип/id')).toBeInTheDocument();
+    await userEvent.clear(screen.getByLabelText('Ресурс'));
+
+    await waitFor(() => expect(screen.queryByText('Укажите тип ресурса с заглавной буквы или Тип/id')).not.toBeInTheDocument());
+    expect(screen.getByLabelText('Ресурс')).not.toHaveAttribute('aria-invalid');
+  });
+
+  it('should print the error under the whole row, not inside its field, so the fields stay on one line', async () => {
+    renderWithClient(<AuditPanel />);
+    await screen.findByText('Найдено событий: 41');
+
+    await userEvent.type(screen.getByLabelText('Ресурс'), 'appointment');
+
+    const message = await screen.findByText('Укажите тип ресурса с заглавной буквы или Тип/id');
+    expect(message).toHaveAttribute('id', 'audit-entity-error');
+    expect(message).toHaveAttribute('role', 'alert');
+    expect(message.parentElement).toHaveAttribute('role', 'search');
+  });
+
+  it('should not call a resource that is still being typed a mistake before the typing pauses', async () => {
+    renderWithClient(<AuditPanel />);
+    await screen.findByText('Найдено событий: 41');
+
+    await userEvent.type(screen.getByLabelText('Ресурс'), 'A');
+
+    expect(screen.queryByText('Укажите тип ресурса с заглавной буквы или Тип/id')).not.toBeInTheDocument();
+  });
+
+  it('should refuse a period over 366 days and send nothing when the start date is changed', async () => {
+    renderWithClient(<AuditPanel />);
+    await screen.findByText('Найдено событий: 41');
+    const calls = apiFetchMock.mock.calls.length;
+
     fireEvent.change(screen.getByLabelText('С'), { target: { value: '2024-01-01' } });
-    await userEvent.click(screen.getByRole('button', { name: 'Применить' }));
 
     expect(await screen.findByText('Период не может превышать 366 дней')).toBeInTheDocument();
-    expect(screen.getByLabelText('С')).toHaveFocus();
+    expect(apiFetchMock.mock.calls).toHaveLength(calls);
   });
 
   it('should restore the default period and clear the text filters when «Сбросить» is pressed', async () => {
     renderWithClient(<AuditPanel />);
     await screen.findByText('Найдено событий: 41');
     await userEvent.type(screen.getByLabelText('Ресурс'), 'Patient');
-    await userEvent.click(screen.getByRole('button', { name: 'Применить' }));
+    await waitFor(() => expect(auditPaths().at(-1)).toContain('entity=Patient'));
 
     await userEvent.click(screen.getByRole('button', { name: 'Сбросить' }));
 
@@ -185,4 +321,28 @@ describe('AuditPanel', () => {
 
     expect(await screen.findByTestId('empty-state')).toHaveTextContent('События не найдены');
   });
+
+  it('should keep the hint of «Ресурс» under the whole filter row so its field lines up with the others', async () => {
+    renderWithClient(<AuditPanel />);
+    await screen.findByText('Найдено событий: 41');
+
+    const form = screen.getByRole('search', { name: 'Фильтры журнала' });
+    const hint = within(form).getByText(/Тип ресурса или Тип\/id/);
+
+    expect(hint).toHaveAttribute('id', 'audit-entity-hint');
+    expect(hint).toHaveClass('basis-full');
+    expect(within(form).getByLabelText('Ресурс')).toHaveAttribute('aria-describedby', 'audit-entity-hint');
+    expect(hint.closest('div.grid')).toBeNull();
+  });
+
+  it('should keep long ids to one line and give the whole value as a tooltip', async () => {
+    renderWithClient(<AuditPanel />);
+
+    const table = within(await screen.findByRole('table', { name: 'Журнал аудита' }));
+
+    expect(table.getByTitle('a48dab5b-67da-4ed7-a9be-f047cd9925c7')).toHaveClass('truncate');
+    expect(table.getByTitle('Patient/2537')).toHaveClass('truncate');
+    expect(table.getByTitle('3882171c-26eb-4417-a8aa-3281fde8c982')).toBeInTheDocument();
+  });
 });
+

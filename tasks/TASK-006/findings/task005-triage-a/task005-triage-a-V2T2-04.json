@@ -1,0 +1,18 @@
+{
+  "id": "task005-triage-a-V2T2-04",
+  "unit": "task005-triage-a",
+  "kind": "question",
+  "severity": "low",
+  "title": "RESOLVED: подпись «Сгенерировать слоты» больше не переносится на 2 строки (кнопка с whitespace-nowrap)",
+  "description": "Кнопка в строке расписания получила `whitespace-nowrap`, а ячейка действий — `flex items-center gap-1 whitespace-nowrap`; тест фиксирует класс. Подпись сокращать не нужно. Визуально ширину таблицы на 1440 px стоит один раз проверить глазами при проходе по админке (стек в этом проходе не запущен), но дефекта переноса в коде нет.",
+  "evidence": "frontend/src/components/admin/schedules/schedules-table.tsx:46-48: <span className=\"flex items-center gap-1 whitespace-nowrap\"> with <button className={cn(buttonVariants({ variant: 'secondary' }), 'whitespace-nowrap')} aria-label={t('actions.generateAria', { label })}>; frontend/src/components/admin/schedules/schedules-table.spec.tsx:51 asserts toHaveClass('whitespace-nowrap') on the «Сгенерировать слоты» button.",
+  "files": [
+    "frontend/src/components/admin/schedules/schedules-table.tsx",
+    "frontend/src/components/admin/schedules/schedules-table.spec.tsx"
+  ],
+  "proposedFix": "None.",
+  "needsDecision": false,
+  "decisionQuestion": "",
+  "tzRef": "Администратор: управление услугами и расписанием",
+  "confidence": "confirmed"
+}

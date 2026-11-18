@@ -8,10 +8,10 @@ import { WEEK_DAYS } from './schedule-types';
 import { findOverlappingWindows } from './schedule-windows';
 import { CONTROL_CLASS, SECONDARY_BUTTON_CLASS } from '../shared/admin-styles';
 import { useFormMessage } from '../shared/use-form-message';
+import { Select } from '@/components/ui/select';
 
 interface WindowsEditorProps {
   readonly form: UseFormReturn<ScheduleFormValues>;
-  /** The server answered 409 `SCHEDULE_OVERLAP`: it does not say which window, so all of them are marked. */
   readonly serverOverlap: boolean;
 }
 
@@ -38,11 +38,11 @@ function WindowRow({ form, index, isOverlapping, serverOverlap, onRemove, canRem
   const describedBy: string | undefined = note === undefined ? undefined : noteId;
   return (
     <li className={rowClass(isMarked)} data-testid={`window-row-${index}`} data-overlap={isOverlapping || serverOverlap ? 'true' : 'false'}>
-      <select aria-label={t('windows.day', { n: index + 1 })} className={CONTROL_CLASS} {...register(`windows.${index}.dayOfWeek`)}>
+      <Select aria-label={t('windows.day', { n: index + 1 })} {...register(`windows.${index}.dayOfWeek`)}>
         {WEEK_DAYS.map((day) => (
           <option key={day} value={day}>{t(`days.${day}`)}</option>
         ))}
-      </select>
+      </Select>
       <input type="time" aria-label={t('windows.start', { n: index + 1 })} aria-invalid={isMarked || undefined} aria-describedby={describedBy} className={CONTROL_CLASS} {...register(`windows.${index}.startTime`)} />
       <input type="time" aria-label={t('windows.end', { n: index + 1 })} aria-invalid={isMarked || undefined} aria-describedby={describedBy} className={CONTROL_CLASS} {...register(`windows.${index}.endTime`)} />
       <button type="button" onClick={onRemove} disabled={!canRemove} aria-label={t('windows.remove', { n: index + 1 })} className={`${SECONDARY_BUTTON_CLASS} min-w-[44px]`}>
@@ -53,10 +53,6 @@ function WindowRow({ form, index, isOverlapping, serverOverlap, onRemove, canRem
   );
 }
 
-/**
- * The weekly windows of a schedule: one row per window (weekday + from + to). A window that crosses another one of the same
- * weekday is marked as soon as it is typed (BR-007 preview); the server's `SCHEDULE_OVERLAP` marks them all.
- */
 export function ScheduleWindowsEditor({ form, serverOverlap }: WindowsEditorProps): ReactNode {
   const t = useT('admin.schedules');
   const resolve = useFormMessage();

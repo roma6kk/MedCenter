@@ -1,0 +1,21 @@
+{
+  "id": "fe-public-auth-03",
+  "unit": "fe-public-auth",
+  "kind": "ux",
+  "severity": "medium",
+  "title": "На главной врач и администратор видят кнопки «Записаться», которые ведут на страницу 403",
+  "description": "Шапка, липкая нижняя панель, карточки врачей и страница врача уже прячут запись для ролей DOCTOR и ADMIN («врачи и администраторы не записываются»). Но на лендинге остались четыре места без такой проверки: кнопка в hero, кнопка в финальной полосе CTA, ссылка «Записаться» у блока «Частным пациентам» и кнопки ближайших свободных окон в карточке hero (они ещё и пишут черновик записи в sessionStorage). Вошедший врач или администратор, открыв «/», нажимает любую из них, попадает на /booking, где RoleGuard роли PATIENT отвечает 'forbidden' и переводит на /403 («Этот раздел недоступен для вашей роли»). Тупик в сквозном сценарии, при том что в остальных местах поведение для этих ролей уже определено.",
+  "evidence": "frontend/src/components/catalog/home-hero.tsx:49 `<Link href=\"/booking\" ...>` (no role check); home-cta.tsx:21 same; home-audiences.tsx:52 `action={{ href: '/booking', label: t('book') }}`; hero-windows.tsx:33-36 `book()` writes the draft and router.push('/booking') for any role. For contrast public-header.tsx:33, mobile-book-bar.tsx:17, doctor-profile-link.tsx:36 and doctor-slots-booking.tsx:108 hide the booking for DOCTOR/ADMIN. home-view.spec.tsx:83-92 asserts only that the mobile bar is gone for staff. Path: DOCTOR signed in -> opens / -> hero «Записаться на приём» -> /booking -> app/(patient)/layout.tsx RoleGuard required=PATIENT -> resolveRoleAccess -> 'forbidden' -> router.replace('/403').",
+  "files": [
+    "frontend/src/components/catalog/home-hero.tsx",
+    "frontend/src/components/catalog/home-cta.tsx",
+    "frontend/src/components/catalog/home-audiences.tsx",
+    "frontend/src/components/catalog/hero-windows.tsx",
+    "frontend/src/components/catalog/home-view.spec.tsx"
+  ],
+  "proposedFix": "Extract the repeated `role === 'DOCTOR' || role === 'ADMIN'` check into one small helper (e.g. a `useCanBook()` hook next to the session store, or a `BookingLink` component in components/catalog) and use it in BookLink, MobileBookBar, DoctorCardActions, DoctorSlotsBooking and the four landing places above. For staff: hero and CTA show only the secondary «Найти врача» button (or «Личный кабинет» -> ROLE_LANDING[role]); the Audience action is omitted (the Audience component already supports a missing action); HeroWindows either renders the windows as plain text without the book handler or is not drawn for staff. Extend home-view.spec.tsx: with role DOCTOR there is no link with href '/booking' anywhere on the landing.",
+  "needsDecision": false,
+  "decisionQuestion": "",
+  "tzRef": "frontend-design-spec §1 (role groups; role mismatch -> ForbiddenState); FR-003/FR-004 (choosing a slot and booking are patient functions)",
+  "confidence": "confirmed"
+}

@@ -1,6 +1,7 @@
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { apiFetch } from '@/lib/api/api-fetch';
+import { showToast } from '@/lib/ui/toast';
 import { apiProblem, renderWithClient } from '../shared/test-utils';
 import { DeleteScheduleDialog } from './delete-schedule-dialog';
 import type { AdminSchedule } from './schedule-types';
@@ -9,6 +10,8 @@ jest.mock('@/lib/api/api-fetch', () => {
   const actual = jest.requireActual('@/lib/api/api-fetch');
   return { ...actual, apiFetch: jest.fn() };
 });
+
+jest.mock('@/lib/ui/toast', () => ({ showToast: jest.fn() }));
 
 const apiFetchMock = apiFetch as jest.MockedFunction<(path: string, options?: RequestInit) => Promise<unknown>>;
 const schedule: AdminSchedule = { id: '2572', isActive: true, windows: [] };
@@ -29,6 +32,15 @@ describe('DeleteScheduleDialog', () => {
 
     await waitFor(() => expect(onClose).toHaveBeenCalled());
     expect(apiFetchMock).toHaveBeenCalledWith('/api/v1/admin/schedules/2572', { method: 'DELETE', body: JSON.stringify({ cascade: false }) });
+  });
+
+  it('should say the schedule was deactivated, not deleted, when the answer says slots with history kept it', async () => {
+    apiFetchMock.mockResolvedValue({ deactivated: true });
+    renderDialog();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Удалить' }));
+
+    await waitFor(() => expect(showToast).toHaveBeenCalledWith('success', 'admin.schedules.toast.deactivated'));
   });
 
   it('should send cascade true when «Удалить также свободные слоты» is ticked', async () => {

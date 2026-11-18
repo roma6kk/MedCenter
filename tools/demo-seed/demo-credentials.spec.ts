@@ -1,6 +1,5 @@
 import { generatePassword, randomState, resolvePassword } from './demo-credentials';
 
-/** `PASSWORD_POLICY` of auth-service: length >= 10 with a lower-case letter, an upper-case letter, a digit and a symbol. */
 function satisfiesPolicy(password: string): boolean {
   return (
     password.length >= 10 &&

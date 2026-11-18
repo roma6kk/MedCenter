@@ -82,7 +82,7 @@ guard-слой BFF, ADR-009/013), роль-гейтинг в UI — только
 | ------------- | ------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------- |
 | `(public)`  | любой / аноним | `/`, `/doctors`, `/doctors/[doctorId]`                                                                                                                | —                                     |
 | `(auth)`    | аноним              | `/login`, `/register`                                                                                                                                   | по роли (ниже)               |
-| `(patient)` | PATIENT                   | `/booking`, `/appointments`, `/appointments/[appointmentId]`, `/history`, `/prescriptions`, `/profile`, `/notifications`                      | `/booking`                           |
+| `(patient)` | PATIENT                   | `/home`, `/booking`, `/appointments`, `/appointments/[appointmentId]`, `/medcard` (`?tab=prescriptions`), `/notifications`; старые `/profile`, `/history`, `/prescriptions` — редиректы                      | `/home`                              |
 | `(doctor)`  | DOCTOR                    | `/doctor` → `/doctor/appointments`, `/doctor/schedule`, `/encounters/[encounterId]`, `/patients/[patientId]`                                     | `/doctor/appointments`               |
 | `(admin)`   | ADMIN                     | `/admin` → `/admin/analytics`, `/admin/users`, `/admin/services`, `/admin/rooms`, `/admin/schedules`, `/admin/terminology`, `/admin/audit` | `/admin/analytics`                   |
 
@@ -107,11 +107,18 @@ PKCE-обмена и refresh-токен не попадают в JS браузе
   («public (сессия логина)», API §2.1.2); POST /auth/login в API нет — эндпоинт не изобретаем.
   Клиентский `/login` = брендированный входной экран с кнопкой «Войти» (→ `/api/auth/authorize`) и
   ссылкой на `/register`.
+- **Сбой callback** возвращает на `/login?error=…`: `access_denied` (state не сошёлся или `/oauth/token`
+  отклонил `code` кодом 400/401) либо `temporarily_unavailable` (сервис входа не ответил: обрыв связи,
+  429, 5xx; страница показывает «Сервис входа временно недоступен»). Если state уже сверен, в адрес
+  добавляется `returnTo`, и повторное «Войти» ведёт на ту же страницу, а не на главную роли.
 - **Scopes:** клиент запрашивает `launch patient/*.read patient/*.write user/*.read user/*.write`
   offline через refresh; сервер выдаёт подмножество по роли (скоуп-матрица API §0). Роль берём из
   claim `role` (UI-навигация; авторитет — сервер).
 - `apiFetch` (lib/api): Bearer из session store; `401 UNAUTHENTICATED` → single-flight
   `POST /api/auth/refresh` → retry 1 раз; `401 TOKEN_REVOKED` или повторный 401 → logout.
+  Недоступность самого сервиса входа (503, 429, обрыв связи) не считается выходом: сессия остаётся в памяти,
+  запрос падает как 503 (страница показывает «Повторить»), а при первой загрузке `RoleGuard` вместо
+  перехода на `/login` показывает «Сервис входа недоступен» с кнопкой «Повторить».
 - **Draft бронирования переживает redirect:** черновик мастера в `sessionStorage` (ключ `booking-draft`),
   `state` возвращает на `/booking`; после входа — восстановление шага 4.
 - `Idempotency-Key` (API §0): uuid v4 генерируется при создании интента (шаг 4 мастера, диалог
@@ -136,9 +143,9 @@ PKCE-обмена и refresh-токен не попадают в JS браузе
 | `/booking`                      | мастер: услуга → врач → слот → подтверждение | `BookingWizard` (4 шага, черновик, Idempotency-Key) | 5.1.1, 4.1, 5.2.8, 6.1 | FR-003/004 |
 | `/appointments`                 | предстоящие/прошедшие                                        | `AppointmentList`, `StampBadge`                               | 6.2                    | FR-006     |
 | `/appointments/[appointmentId]` | детали + отмена                                                      | `AppointmentCard`, `CancelAppointmentDialog`                  | 6.3, 6.4               | FR-005/006 |
-| `/history`                      | моя история приёмов                                             | `PatientHistoryTimeline`                                        | 7.6                    | FR-006     |
-| `/prescriptions`                | мои назначения                                                      | `PrescriptionCard`                                              | 7.7                    | FR-007     |
-| `/profile`                      | профиль + FHIR-пациент                                             | `ProfileForm` (read-only), `ProfileCard`                      | 2.2.7, 3.1             | FR-001     |
+| `/home`                         | дом пациента: ближайший приём, быстрые действия, рекомендации, последний приём, личные данные (телефон), согласие на ЭМК, документы | `HomeView`, `ProfileRecommendations`, `ProfilePersonalData`, `MyConsentSection` | 2.2.7, 3.1, 3.4, 3.6, 6.2, 7.6, 7.7 | FR-001/006/007 |
+| `/medcard`                      | медкарта: вкладки «История приёмов» и «Назначения» (`?tab=prescriptions`) | `MedicalRecord`, `HistoryTimeline`, `PrescriptionList` | 7.6, 7.7 | FR-006/007 |
+| `/profile`, `/history`, `/prescriptions` | устаревшие адреса: редирект на `/home`, `/medcard`, `/medcard?tab=prescriptions` (закладки и ссылки работают) | — | — | — |
 | `/notifications`                | центр уведомлений                                                | `NotificationCenter`                                            | 8.1–8.3               | FR-008     |
 
 **(doctor)**
@@ -333,8 +340,8 @@ apps/web/src/
 | FR-003 | `BookingWizard` шаг 3, `SlotPicker`                              | 5.2.8                      |
 | FR-004 | `BookingWizard` шаг 4                                              | 6.1                        |
 | FR-005 | `CancelAppointmentDialog`                                             | 6.4                        |
-| FR-006 | `/appointments`, `/appointments/[id]`, `/history`                 | 6.2–6.3, 7.6              |
-| FR-007 | `/prescriptions`                                                      | 7.7                        |
+| FR-006 | `/appointments`, `/appointments/[id]`, `/medcard` (история)                 | 6.2–6.3, 7.6              |
+| FR-007 | `/medcard?tab=prescriptions`                                                      | 7.7                        |
 | FR-008 | `NotificationBell`, `/notifications`                                | 8.1–8.3                   |
 | FR-009 | `/doctor/appointments`, `/doctor/schedule`                          | 5.2.7, 6.5                 |
 | FR-010 | `/patients/[id]`                                                      | 3.2–3.3, 7.4              |
@@ -405,7 +412,7 @@ glassmorphism, emoji-иконок, pill-кнопок «везде». Запом�
    staleTime 15 s + `refetchOnWindowFocus`. Конфликт 409 `SLOT_CONFLICT`: тост `aria-live`
    «Слот только что заняли», авто-refresh, занятый слот — destructive-рамка 1.5px, мастер
    остаётся на шаге 3. Черновик — sessionStorage (§5.2).
-3. **`(patient)` `/appointments`, `/history`, `/prescriptions` (FR-006/FR-007).**
+3. **`(patient)` `/appointments`, `/medcard` (история и назначения; FR-006/FR-007).**
    `AppointmentCard`: дата Serif 20px + `StampBadge` справа; cancel — только владелец (BR-002)
    через `CancelAppointmentDialog` (reason 3…500, zod). `PatientHistoryTimeline`: волосяная
    линия, точки primary; запись — дата + диагноз-`CodeChip`. `PrescriptionCard`: код АТХ mono
@@ -432,15 +439,20 @@ glassmorphism, emoji-иконок, pill-кнопок «везде». Запом�
    action + resourceType/Id + `requestId` mono с копированием.
 6. **`(auth)` `/login`, `/register` + broker (FR-001).** Карточка `#FFFFFF`, рамка `#E5E2D9`,
    радиус 8px, max-w 400px по центру. 401/403 → `ProblemBanner` без раскрытия причины.
-   Редирект по роли: PATIENT → `/booking`, DOCTOR → `/doctor/appointments`,
+   Редирект по роли: PATIENT → `/home`, DOCTOR → `/doctor/appointments`,
    ADMIN → `/admin/analytics`.
 
 #### D. Состояния, motion, responsive (дополнение к §5.4/§7/§8)
 
-- `ProblemBanner`: title + detail + `CodeChip errorCode` + `requestId` mono с копированием;
+- `ProblemBanner`: title + detail + `CodeChip errorCode` + `requestId` mono с копированием; для `500 INTERNAL` без detail
+  (сервер не раскрывает причину, а его фраза всегда русская): заголовок `errors.INTERNAL`, чип и `requestId`
+  (502/503 с тем же кодом detail сохраняют: там сервер пишет, что делать);
   401 → silent refresh, повторный 401 → `/login?returnTo=…`; 429 → «повторите через N с»;
   5xx → страница 500 с `requestId`. `ForbiddenState` (403), `NotFoundState` (404),
-  `EmptyState` с CTA, skeleton-набор для таблиц/карточек/таймлайна.
+  `EmptyState` с CTA, skeleton-набор для таблиц/карточек/таймлайна. Несколько skeleton на одном экране (карточка
+  пациента у врача грузит шапку, историю и назначения параллельно) дают одну live-область `role="status"` и одну
+  подпись «Загружаем…» через 3 с: область и подпись держит первый смонтированный skeleton (`useLeadSkeleton`), остальные
+  — только декор; модальное окно считается отдельным экраном.
 - Motion: 150 мс ease-out hover/focus; баннеры — fade+slide 8px; шиммер 1200 мс;
   `prefers-reduced-motion: reduce` — статика. Без параллаксов — инструмент клиники.
 - Responsive: `≥1280px` — StaffShell (сайдбар 240px); `1024–1279px` — сайдбар 72px;
@@ -524,7 +536,7 @@ UX в §5.4 — здесь добавлены тексты и фокус-пов�
   карточки услуг с радио/галочкой, пунктирная «Не знаю, какая услуга», панель «Ваша запись» из черновика без новых запросов;
   выбор услуги по-прежнему сразу ведёт на шаг 2 (кнопки «Далее» нет, логика `booking-steps.ts` не менялась).
   **Мои записи**: карточка ближайшего приёма, список по дням, мягкие бейджи статусов.
-- **Профиль** `/profile` (`components/patient/profile/*`): шапка с кольцом полноты (4 равных пункта: дата рождения, пол,
+- **Дом пациента** `/home` (бывший `/profile`, он теперь редиректит сюда; `components/patient/profile/*`): шапка с кольцом полноты (4 равных пункта: дата рождения, пол,
   телефон, e-mail), быстрые действия, «Рекомендации для вас», ближайший и последний приём, «Мои врачи» (только врачи
   предстоящих записей), личные данные и документы. Правила рекомендаций — чистые функции со спеками; пороги клиники
   (40 лет, 365 и 60 дней) — константы в начале `profile-recommendations.ts`. Скрытые рекомендации хранятся в `localStorage`
@@ -553,7 +565,7 @@ UX в §5.4 — здесь добавлены тексты и фокус-пов�
 - **Регистрация** `/register`: обязательная галочка согласия на обработку данных учётной записи (ст. 5 Закона 99-З), версия
   текста `ACCOUNT_CONSENT_VERSION` в `lib/contracts.ts`; отправляется `accountConsent {accepted, textVersion}`, ошибки
   `accountConsent.*` ложатся на галочку. Рядом строка: согласие на медкарту оформляется письменно в клинике.
-- **Кабинет пациента** `/profile`: `MyConsentSection` (3.4, 3.6): статус, история, как оформить в регистратуре, отзыв через
+- **Кабинет пациента** `/home`: `MyConsentSection` (3.4, 3.6): статус, история, как оформить в регистратуре, отзыв через
   диалог (новые записи прекращаются, существующие не удаляются, нужно письменное заявление). Скан пациент не читает.
 - **Врач** `/patients/[patientId]`: `PatientConsentBanner` (предупреждение, если 3.7 без действующего согласия) и
   `StaffConsentPanel` (статус, история, скачивание скана 3.11 с токеном, форма 3.10+3.8, отзыв 3.9). Приём: 409 `CONSENT_REQUIRED`

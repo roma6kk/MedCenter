@@ -1,9 +1,4 @@
-/**
- * Suite setup: one real sign-in per account the specs reuse (see fixtures/session-state.ts).
- *
- * The logins are spaced out: auth-service allows 10 `POST /oauth/login` per minute per IP, and the specs that test the
- * login flow itself (auth-login, scenario A) sign in for real right after this project.
- */
+// Logins are spaced out: auth-service allows 10 POST /oauth/login per minute per IP.
 import { mkdirSync } from 'node:fs';
 import { test as setup } from '@playwright/test';
 import { signInThroughLoginForm } from './fixtures/auth';

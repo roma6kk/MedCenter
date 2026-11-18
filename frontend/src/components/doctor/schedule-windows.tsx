@@ -1,56 +1,74 @@
 'use client';
 
 import type { ReactNode } from 'react';
-import { useT } from '@/lib/i18n/use-t';
+import { CalendarClock } from 'lucide-react';
+import { useServices } from '@/components/catalog/use-catalog';
+import { roomLabel } from '@/components/admin/rooms/room-label';
+import { useAdminRooms } from '@/components/admin/rooms/use-admin-rooms';
 import { formatDateKey } from '@/lib/clinic-time';
-import type { ScheduleSummary, WeekDay, WeeklyWindow } from './doctor-types';
+import { describeWindows } from '@/lib/schedule-windows-text';
+import { useT } from '@/lib/i18n/use-t';
+import type { ScheduleSummary, WeekDay } from './doctor-types';
 
-const WEEK_ORDER: ReadonlyArray<WeekDay> = ['MO', 'TU', 'WE', 'TH', 'FR', 'SA', 'SU'];
 
-function windowsOf(day: WeekDay, windows: ReadonlyArray<WeeklyWindow>): ReadonlyArray<WeeklyWindow> {
-  return windows.filter((window) => window.dayOfWeek === day);
+function useRoomNames(): ReadonlyMap<string, string> {
+  const rooms = useAdminRooms(1, 100);
+  return new Map((rooms.data?.items ?? []).map((room) => [room.id, roomLabel(room)]));
 }
 
-function WeekRow({ day, windows }: { readonly day: WeekDay; readonly windows: ReadonlyArray<WeeklyWindow> }): ReactNode {
+function useServiceNames(): ReadonlyMap<string, string> {
+  const services = useServices();
+  return new Map((services.data?.items ?? []).map((service) => [service.id, service.name]));
+}
+
+interface ScheduleLineProps {
+  readonly schedule: ScheduleSummary;
+  readonly roomName: string | undefined;
+  readonly serviceName: string | undefined;
+}
+
+function ScheduleLine({ schedule, roomName, serviceName }: ScheduleLineProps): ReactNode {
   const t = useT('doctor.schedule');
-  const own = windowsOf(day, windows);
+  const groups = describeWindows(schedule.windows, (day: WeekDay) => t(`weekdaysShort.${day}`));
+  const when: string = groups.map((group) => `${group.days}, ${group.times}`).join('; ');
+  const headline: string = [when === '' ? t('noWindows') : when, roomName].filter((part): part is string => part !== undefined && part !== '').join(' · ');
+  const details: ReadonlyArray<string> = [
+    serviceName,
+    schedule.slotDurationMin === undefined ? undefined : t('slotDuration', { minutes: schedule.slotDurationMin }),
+    schedule.horizonTo === undefined ? undefined : t('plannedUntil', { date: formatDateKey(schedule.horizonTo) }),
+  ].filter((part): part is string => part !== undefined);
   return (
-    <tr className="border-t border-border">
-      <th scope="row" className="h-9 px-3 text-left font-normal">{t(`weekdays.${day}`)}</th>
-      <td className="mono h-9 px-3">
-        {own.length === 0 ? <span className="text-muted-foreground">{t('dayOff')}</span> : own.map((w) => `${w.startTime}–${w.endTime}`).join(', ')}
-      </td>
-    </tr>
+    <li className="flex items-start gap-3">
+      <span aria-hidden="true" className="mt-0.5 inline-flex size-9 shrink-0 items-center justify-center rounded-control bg-primary-soft text-primary-soft-foreground">
+        <CalendarClock className="size-[18px]" />
+      </span>
+      <span className="flex min-w-0 flex-col">
+        <span className="tabular-nums text-base font-semibold">{headline}</span>
+        {details.length === 0 ? null : <span className="text-sm text-muted-foreground">{details.join(' · ')}</span>}
+      </span>
+    </li>
   );
 }
 
-function ScheduleCard({ schedule }: { readonly schedule: ScheduleSummary }): ReactNode {
-  const t = useT('doctor.schedule');
-  return (
-    <article className="rounded-card border border-border bg-card p-4">
-      <h3 className="text-base font-semibold">{schedule.comment ?? t('scheduleFallback')}</h3>
-      <p className="mt-1 text-sm text-muted-foreground">
-        {schedule.slotDurationMin !== undefined ? t('slotDuration', { minutes: schedule.slotDurationMin }) : null}
-        {schedule.horizonFrom && schedule.horizonTo ? ` · ${t('horizon', { from: formatDateKey(schedule.horizonFrom), to: formatDateKey(schedule.horizonTo) })}` : null}
-      </p>
-      <table className="mt-3 w-full text-sm">
-        <caption className="sr-only">{t('windowsCaption')}</caption>
-        <tbody>{WEEK_ORDER.map((day) => <WeekRow key={day} day={day} windows={schedule.windows} />)}</tbody>
-      </table>
-    </article>
-  );
-}
-
-/** The weekly working windows (MO–SU, clinic time) of each of the doctor's schedules. */
 export function ScheduleWindows({ schedules }: { readonly schedules: ReadonlyArray<ScheduleSummary> }): ReactNode {
   const t = useT('doctor.schedule');
-  if (schedules.length === 0) return null;
+  const rooms = useRoomNames();
+  const services = useServiceNames();
+  const active: ReadonlyArray<ScheduleSummary> = schedules.filter((schedule) => schedule.isActive);
+  if (active.length === 0) return null;
   return (
-    <section aria-labelledby="schedule-windows-title" className="mt-6">
-      <h2 id="schedule-windows-title" className="serif text-xl font-semibold">{t('windowsTitle')}</h2>
-      <div className="mt-3 grid gap-3 lg:grid-cols-2">
-        {schedules.map((schedule) => <ScheduleCard key={schedule.id} schedule={schedule} />)}
-      </div>
+    <section aria-labelledby="schedule-windows-title" className="rounded-panel border border-border-soft bg-card p-5 shadow-elev-1">
+      <h2 id="schedule-windows-title" className="text-lg font-bold">{t('windowsTitle')}</h2>
+      <ul className="mt-3 grid gap-4 lg:grid-cols-2">
+        {active.map((schedule) => (
+          <ScheduleLine
+            key={schedule.id}
+            schedule={schedule}
+            roomName={schedule.roomId === undefined ? undefined : rooms.get(schedule.roomId)}
+            serviceName={schedule.serviceId === undefined ? undefined : services.get(schedule.serviceId)}
+          />
+        ))}
+      </ul>
     </section>
   );
 }

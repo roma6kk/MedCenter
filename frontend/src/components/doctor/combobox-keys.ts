@@ -6,8 +6,7 @@ export const DEBOUNCE_MS = 250;
 
 const NAVIGATION_KEYS: ReadonlyArray<string> = ['ArrowDown', 'ArrowUp', 'Home', 'End'];
 
-/** Where `aria-activedescendant` moves for a navigation key (`null` = nothing active yet). */
-export function nextIndex(key: string, current: number | null, last: number): number | null {
+function nextIndex(key: string, current: number | null, last: number): number | null {
   if (key === 'ArrowDown') return current === null ? 0 : Math.min(current + 1, last);
   if (key === 'ArrowUp') return current === null ? last : Math.max(current - 1, 0);
   if (key === 'Home') return 0;
@@ -15,7 +14,7 @@ export function nextIndex(key: string, current: number | null, last: number): nu
   return current;
 }
 
-export interface ComboboxKeyContext {
+interface ComboboxKeyContext {
   readonly items: ReadonlyArray<Term>;
   readonly isListVisible: boolean;
   readonly activeIndex: number | null;
@@ -24,7 +23,6 @@ export interface ComboboxKeyContext {
   readonly pick: (term: Term) => void;
 }
 
-/** ARIA 1.2 combobox keys: arrows/Home/End move the active option, Enter picks it, Escape closes the list. */
 export function handleComboboxKey(event: KeyboardEvent<HTMLInputElement>, context: ComboboxKeyContext): void {
   const { items, isListVisible, activeIndex, setActiveIndex, setIsOpen, pick } = context;
   const active: Term | undefined = activeIndex === null ? undefined : items[activeIndex];

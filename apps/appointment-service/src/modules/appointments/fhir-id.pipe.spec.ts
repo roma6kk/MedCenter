@@ -10,10 +10,8 @@ describe('FhirIdPipe', () => {
   });
 
   it.each(['..', '.', 'a,b', 'a/b', '', 'x'.repeat(65)])('should throw VALIDATION_ERROR when the id is %j', (id) => {
-    // Arrange
     const act = (): string => pipe.transform(id);
 
-    // Act + Assert
     expect(act).toThrow(BadRequestException);
     expect(act).toThrow(expect.objectContaining({ response: expect.objectContaining({ errorCode: 'VALIDATION_ERROR' }) }));
   });

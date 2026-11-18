@@ -5,7 +5,7 @@ import { useT } from '@/lib/i18n/use-t';
 import { ScheduleSlotGrid } from './schedule-slot-grid';
 import type { AdminSchedule } from './schedule-types';
 import { SECONDARY_BUTTON_CLASS } from '../shared/admin-styles';
-import { Modal } from '../shared/modal';
+import { Dialog } from '@/components/ui/dialog';
 
 interface ScheduleSlotsDialogProps {
   readonly schedule: AdminSchedule;
@@ -16,7 +16,7 @@ interface ScheduleSlotsDialogProps {
 export function ScheduleSlotsDialog({ schedule, scheduleLabel, onClose }: ScheduleSlotsDialogProps): ReactNode {
   const t = useT('admin.slots');
   return (
-    <Modal title={t('grid.title')} onClose={onClose} size="lg">
+    <Dialog title={t('grid.title')} onClose={onClose} size="lg">
       {scheduleLabel ? <p className="text-sm text-[var(--muted-foreground)]">{scheduleLabel}</p> : null}
       <ScheduleSlotGrid schedule={schedule} />
       <div className="mt-4 flex justify-end">
@@ -24,6 +24,6 @@ export function ScheduleSlotsDialog({ schedule, scheduleLabel, onClose }: Schedu
           {t('grid.close')}
         </button>
       </div>
-    </Modal>
+    </Dialog>
   );
 }

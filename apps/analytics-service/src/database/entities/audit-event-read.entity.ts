@@ -2,21 +2,25 @@ import { Column, Entity, PrimaryColumn } from 'typeorm';
 
 import { ANALYTICS_SCHEMA } from '../analytics-schema';
 
-/**
- * `AuditEvent.action` values the journal exposes (API §9.4): writes, plus `read` (a doctor's or administrator's read
- * of patient data) and `denied` (a read refused by the compartment rule), ADR-018, and `emergency-bypass` (a doctor went on
- * without the patient's consent because of an `emergencyReason`, ADR-019).
- */
-export type AuditAction = 'create' | 'update' | 'delete' | 'read' | 'denied' | 'emergency-bypass';
+export const AUDIT_ACTIONS = [
+  'create',
+  'update',
+  'delete',
+  'read',
+  'denied',
+  'emergency-bypass',
+  'login',
+  'login-failed',
+  'login-throttled',
+  'logout',
+  'session-idle',
+] as const;
 
-/**
- * Read-model copy of a FHIR `AuditEvent` (ADR-014). HAPI stays the system of
- * record; this table exists because HAPI cannot filter the journal by user
- * (`agent.who.identifier` is not searchable) or by resource type.
- */
+export type AuditAction = (typeof AUDIT_ACTIONS)[number];
+
+// Copy of FHIR AuditEvent: HAPI cannot filter the journal by user (agent.who.identifier) or by resource type.
 @Entity({ name: 'audit_event', schema: ANALYTICS_SCHEMA })
 export class AuditEventReadEntity {
-  /** `AuditEvent.id` in HAPI. */
   @PrimaryColumn({ type: 'varchar', length: 64 })
   id!: string;
 
@@ -41,7 +45,6 @@ export class AuditEventReadEntity {
   @Column({ name: 'source', type: 'varchar', length: 128, nullable: true })
   source!: string | null;
 
-  /** The doctor's `emergencyReason` of an `emergency-bypass` event; `null` for every other action. */
   @Column({ name: 'reason', type: 'varchar', length: 500, nullable: true })
   reason!: string | null;
 }

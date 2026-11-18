@@ -2,11 +2,11 @@
   "admin": {
     "common": {
       "empty": "Nothing found",
-      "find": "Search",
       "search": "Search form",
       "saving": "Saving…",
       "requiredNote": "Fields marked with an asterisk (*) are required.",
-      "refreshing": "Refreshing the data…"
+      "refreshing": "Refreshing the data…",
+      "rowActions": "Actions: {name}"
     },
     "problems": {
       "EMAIL_TAKEN": "A user with this email already exists",
@@ -16,9 +16,9 @@
       "IMPORT_RUNNING": "A terminology import is already running. Wait for it to finish.",
       "SNAPSHOT_NOT_BUNDLED": "This snapshot version is not bundled with the service",
       "TERMINOLOGY_NOT_FOUND": "This code is not in the reference catalogue",
-      "ROOM_IN_USE": "A room cannot be deleted while schedules refer to it. Open Occupancy to see which.",
+      "ROOM_IN_USE": "A room cannot be deleted while schedules (inactive ones too), doctor roles or services refer to it. Open Occupancy to see which.",
       "ROOM_IDENTIFIER_TAKEN": "A room with this identifier already exists",
-      "SERVICE_IN_USE": "A service cannot be deleted while schedules or appointments refer to it.",
+      "SERVICE_IN_USE": "A service cannot be deleted while schedules (inactive ones too) or appointments refer to it.",
       "SCHEDULE_IN_USE": "The schedule has slots. Slots with bookings always protect it; free slots can be deleted with the schedule by ticking the option Also delete the free slots.",
       "SCHEDULE_OVERLAP": "The doctor already has a schedule whose period overlaps the chosen one. Change the horizon or edit the existing schedule."
     },
@@ -31,13 +31,10 @@
       "create": "Create user",
       "createTitle": "New user",
       "edit": "Edit",
-      "editAria": "Edit user {name}",
       "editTitle": "Edit user",
       "save": "Save",
       "activate": "Activate",
-      "activateAria": "Activate the account of {name}",
       "deactivate": "Deactivate",
-      "deactivateAria": "Deactivate the account of {name}",
       "deactivateTitle": "Deactivate account",
       "deactivateMessage": "Deactivate the account of {name}? The user will not be able to sign in, the data is kept.",
       "active": "Active",
@@ -67,14 +64,14 @@
         "practitionerRoleId": "The catalog doctor this account is linked to. Without it the doctor sees no schedule.",
         "practitionerRoleIdTyped": "The doctor catalog is unavailable right now — type the PractitionerRole id. Without it the doctor sees no schedule.",
         "patientLocked": "The Patient role is unavailable: this account has no patient record. Create a separate user with the patient role.",
-        "linkReleased": "The PractitionerRole link will be released: after saving, the doctor will not see their schedule."
+        "linkReleased": "The PractitionerRole link will be released: after saving, the doctor will not see their schedule.",
+        "closedByPatient": "Account closed by the patient on {date}. It cannot be switched back on: the patient withdrew consent."
       },
       "filters": {
         "label": "User filters",
         "search": "Search",
         "role": "Role",
-        "anyRole": "Any role",
-        "apply": "Apply"
+        "anyRole": "All"
       },
       "roleNames": {
         "PATIENT": "Patient",
@@ -95,11 +92,26 @@
       "validation": {
         "rolesRequired": "Choose at least one role",
         "birthDateRequired": "A patient needs a birth date",
-        "practitionerOnlyDoctor": "A practitioner role can only be linked to a user with the Doctor role"
+        "birthDateFuture": "Date of birth cannot be in the future"
       },
       "roleOptionsLoading": "Loading doctors…",
       "roleNotLinked": "Not linked",
-      "roleTakenBy": "linked to {name}"
+      "roleTakenBy": "linked to {name}",
+      "links": {
+        "patient": "Patient record",
+        "doctor": "Doctor",
+        "doctorWithSpecialty": "Doctor · {specialty}"
+      },
+      "retention": {
+        "title": "Retention period expired",
+        "description": "Closed accounts whose data retention period under the operator's records schedule has passed. Nothing is deleted automatically: the operator decides what happens next. The patient's medical records are not affected by this list.",
+        "empty": "No closed accounts with an expired retention period",
+        "columns": {
+          "name": "User",
+          "closedAt": "Closed",
+          "retentionUntil": "Keep until"
+        }
+      }
     },
     "rooms": {
       "title": "Rooms",
@@ -107,18 +119,15 @@
       "create": "Create room",
       "createTitle": "New room",
       "edit": "Edit",
-      "editAria": "Edit room {name}",
       "editTitle": "Edit room",
       "save": "Save",
       "delete": "Delete",
-      "deleteAria": "Delete room {name}",
       "deleteTitle": "Delete room",
       "deleteMessage": "Delete room {name}? This cannot be undone.",
       "active": "Active",
       "inactive": "Inactive",
       "empty": "No rooms yet",
       "emptyHint": "Create the first room.",
-      "usageAria": "Occupancy of room {name}",
       "columns": {
         "identifier": "Number",
         "name": "Name",
@@ -150,13 +159,15 @@
         "close": "Close",
         "free": "The room is free: no schedules or slots",
         "freeTitle": "The room is free",
-        "freeHint": "No schedule refers to it, so the room can be deleted.",
-        "inUse": "The room is in use: it cannot be deleted while schedules refer to it",
+        "freeHint": "No schedule, doctor role or service refers to it, so the room can be deleted.",
+        "inUse": "The room is in use: it cannot be deleted while schedules, doctor roles or services refer to it",
         "inactive": "(inactive)",
         "truncated": "Not all upcoming bookings are listed.",
         "types": {
           "Schedule": "Schedule",
-          "Slot": "Slot"
+          "Slot": "Slot",
+          "PractitionerRole": "Doctor role",
+          "HealthcareService": "Service"
         }
       }
     },
@@ -166,11 +177,9 @@
       "create": "Create service",
       "createTitle": "New service",
       "edit": "Edit",
-      "editAria": "Edit service {name}",
       "editTitle": "Edit service",
       "save": "Save",
       "delete": "Delete",
-      "deleteAria": "Delete service {name}",
       "deleteTitle": "Delete service",
       "deleteMessage": "Delete service {name}? This cannot be undone.",
       "active": "Active",
@@ -191,10 +200,15 @@
         "typeSystem": "Code system",
         "typeCode": "Service reference code",
         "defaultDurationMin": "Duration, min",
-        "description": "Description"
+        "description": "Description",
+        "nameEn": "English name",
+        "descriptionEn": "English description",
+        "isActive": "Open for booking"
       },
       "hints": {
-        "typeCode": "Service code from the reference catalogue, for example 10001"
+        "typeCode": "Service code from the reference catalogue, for example 10001",
+        "english": "Optional: shown when the site is in English",
+        "isActive": "Turn off when the clinic no longer provides the service: it leaves the catalogue and booking, the history stays"
       },
       "validation": {
         "duration": "Duration: a whole number from 5 to 240 minutes"
@@ -228,10 +242,7 @@
         "generate": "Generate slots",
         "edit": "Edit",
         "delete": "Delete",
-        "slotsAria": "Slots of the schedule: {label}",
-        "generateAria": "Generate slots: {label}",
-        "editAria": "Edit the schedule: {label}",
-        "deleteAria": "Delete the schedule: {label}"
+        "generateAria": "Generate slots: {label}"
       },
       "days": {
         "MO": "Mon",
@@ -300,12 +311,27 @@
       "toast": {
         "created": "Schedule created",
         "updated": "Schedule updated",
-        "deleted": "Schedule deleted"
+        "deleted": "Schedule deleted",
+        "deactivated": "Schedule deactivated: slots with booking history are kept"
       },
       "doctorInactive": "{name} (account disabled)",
       "pickersTruncated": "The pickers list at most 100 doctors, rooms and services: some entries may be missing.",
       "emptyFiltered": "No schedules match the filters",
-      "emptyFilteredHint": "Change the doctor or the status, or clear the filters."
+      "emptyFilteredHint": "Change the doctor or the status, or clear the filters.",
+      "view": {
+        "label": "Schedules view",
+        "list": "List",
+        "week": "Week"
+      },
+      "week": {
+        "groupLabel": "Group the week plan",
+        "byDoctor": "By doctor",
+        "byRoom": "By room",
+        "caption": "Weekly plan of working windows",
+        "hint": "The week plan of the schedules' working windows. Slot load is not shown here: slots are read one schedule at a time.",
+        "truncated": "The first {count} schedules are shown. Narrow the list with the filters."
+      },
+      "slotOf": "{minutes}-min slots"
     },
     "slots": {
       "generate": {
@@ -362,10 +388,24 @@
       },
       "filters": {
         "label": "Period and top size",
+        "period": "Period",
+        "presets": {
+          "today": "Today",
+          "week": "Week",
+          "month": "Month",
+          "year": "Year",
+          "custom": "Custom"
+        },
         "from": "From",
         "to": "To",
-        "top": "Top services",
-        "apply": "Show"
+        "top": "Top services"
+      },
+      "heading": {
+        "today": "Analytics for today",
+        "week": "Analytics for this week",
+        "month": "Analytics for {month}",
+        "year": "Analytics for {year}",
+        "custom": "Analytics for {from} – {to}"
       },
       "appointments": {
         "title": "Appointments",
@@ -374,7 +414,37 @@
         "fulfilled": "Attended",
         "cancelled": "Cancelled",
         "noshow": "No-shows",
-        "barLabel": "Booked {booked}, attended {fulfilled}, cancelled {cancelled}, no-shows {noshow}"
+        "legend": "Appointment statuses"
+      },
+      "kpi": {
+        "period": "in the chosen period",
+        "share": "{percent}% of all appointments",
+        "flat": "no change",
+        "direction": {
+          "up": "Increase:",
+          "down": "Decrease:"
+        },
+        "vs": {
+          "today": "vs yesterday",
+          "week": "vs last week",
+          "month": "vs last month",
+          "year": "vs last year",
+          "custom": "vs the previous period"
+        }
+      },
+      "chart": {
+        "title": "Appointments over time",
+        "label": "Appointments over time, {total} in total. Left and right arrows switch the columns.",
+        "hint": "Left and right arrows switch the columns.",
+        "view": "View",
+        "viewChart": "Chart",
+        "viewTable": "Table",
+        "tableCaption": "Appointments over time by status",
+        "period": "Period",
+        "empty": "No appointments in this period",
+        "loading": "Loading the trend…",
+        "error": "Could not load the appointments trend.",
+        "retry": "Retry"
       },
       "encounters": {
         "title": "Completed encounters by specialty",
@@ -393,14 +463,6 @@
         "unknownNote": "These services were removed from the catalogue, so the appointments kept only an identifier. The identifiers are below."
       },
       "print": "Print",
-      "headline": {
-        "cancelledMajority": "More than half of the appointments are cancelled before the visit",
-        "cancelledTop": "Cancelled appointments outnumber booked ones and no-shows",
-        "noshowTop": "No-shows outnumber cancellations and booked appointments",
-        "fulfilledTop": "Attended visits outnumber cancellations, no-shows and booked appointments",
-        "bookedTop": "Booked appointments outnumber cancellations and no-shows",
-        "balanced": "The appointment outcomes are evenly split"
-      },
       "insights": {
         "label": "Key findings",
         "cancelled": {
@@ -421,21 +483,6 @@
           "text": "{count} of {total} completed.",
           "single": "There are no other specialties among the completed encounters.",
           "link": "Check the doctors’ schedules"
-        }
-      },
-      "check": {
-        "title": "What to check",
-        "audit": {
-          "text": "See the reasons for cancellations in the",
-          "link": "audit log"
-        },
-        "schedules": {
-          "text": "Check free slots and doctor load in the",
-          "link": "schedules"
-        },
-        "services": {
-          "text": "Services missing from the catalogue ({count}) — see the",
-          "link": "service catalogue"
         }
       },
       "table": {
@@ -459,8 +506,15 @@
         "entity": "Resource",
         "entityHint": "Resource type or Type/id, for example Appointment or Appointment/123",
         "userId": "User",
-        "apply": "Apply",
-        "reset": "Reset"
+        "reset": "Reset",
+        "group": "Event type"
+      },
+      "groups": {
+        "all": "All",
+        "auth": "Sign-in and sign-out",
+        "read": "Data reads",
+        "changes": "Changes",
+        "emergency": "Emergency access"
       },
       "errors": {
         "invalid": "Enter valid dates",
@@ -482,7 +536,12 @@
         "delete": "Delete",
         "read": "Read",
         "denied": "Access denied",
-        "emergency-bypass": "Emergency consent bypass"
+        "emergency-bypass": "Emergency consent bypass",
+        "login": "Sign-in",
+        "login-failed": "Failed sign-in",
+        "login-throttled": "Sign-in blocked (attempt limit)",
+        "logout": "Sign-out",
+        "session-idle": "Session ended by inactivity"
       }
     },
     "terminology": {
@@ -528,6 +587,7 @@
   "common": {
     "appName": "Lifeline",
     "loading": "Loading…",
+    "loadingSlow": "Still loading…",
     "retry": "Retry",
     "save": "Save",
     "cancel": "Cancel",
@@ -544,7 +604,6 @@
     "stepSlot": "Time",
     "stepConfirm": "Confirm",
     "confirm": "Confirm booking",
-    "slotConflict": "Slot was just taken",
     "subtitle": "Four steps, about two minutes",
     "summaryTitle": "Your appointment",
     "summaryNone": "Not chosen yet",
@@ -570,20 +629,15 @@
     "summaryTime": "Time",
     "summaryDuration": "Duration",
     "serviceBySchedule": "set by the schedule of the chosen time",
-    "reasonLabel": "Reason for the visit (optional)",
-    "reasonHint": "3 to 500 characters",
-    "reasonTooShort": "The reason must be at least 3 characters",
-    "reasonTooLong": "The reason must be at most 500 characters",
     "submitting": "Booking…",
     "conflictLead": "That time has just been taken. Pick another — the rest of the booking is kept.",
     "gone": "The chosen time is already taken. Pick another.",
     "mismatch": "That time belongs to another service of this doctor. Pick another time.",
-    "pickOther": "Choose another time",
-    "successTitle": "Appointment booked",
-    "successLead": "It is listed under “My appointments”; a notification arrives within a minute.",
-    "toAppointment": "Open the appointment",
+    "expired": "That time has already started. Pick another.",
+    "bookAnother": "Book another visit",
+    "successTitle": "You are booked",
+    "successLead": "The appointment is listed under “My appointments”; a notification arrives within a minute.",
     "toAppointments": "My appointments",
-    "newBooking": "New appointment",
     "draftRestored": "Your booking draft was restored — check the details and confirm.",
     "prevPeriod": "Earlier",
     "nextPeriod": "Later",
@@ -605,26 +659,66 @@
     "slotsFound": "Available times: {count}",
     "retryIn": "Try again in {seconds} s",
     "nextPeriodLimit": "This is the last available period: you can search up to a year ahead.",
-    "reasonNoConsent": "Free text about your health can be added only after the consent to the electronic record is signed. Ask the front desk: the visit can be booked without a reason."
+    "part": {
+      "morning": "Morning",
+      "day": "Afternoon",
+      "evening": "Evening"
+    },
+    "dayStripLabel": "Day of the visit",
+    "dayChip": "{day}: available times — {count}",
+    "dayFree": "{count, plural, one {# slot} other {# slots}}",
+    "dayNone": "none",
+    "nearest": "Nearest: {when}",
+    "whenToday": "today, {time}",
+    "whenTomorrow": "tomorrow, {time}",
+    "whenDate": "{date}, {time}",
+    "nearestSlots": "The doctor's nearest times",
+    "bookNearest": "Book {when} with {doctor}",
+    "noNearest": "No available times in the next two weeks",
+    "doctorEmptyAll": "No doctors yet",
+    "doctorEmptyAllHint": "The doctor list has not been filled in yet. Check back later or call the front desk.",
+    "serviceGroupOther": "Other services",
+    "servicesEmptyHint": "No services have been added yet. You can continue without a service and pick a doctor right away.",
+    "refresh": "Refresh",
+    "editStep": "Change",
+    "editStepLabel": "Change: {what}",
+    "summaryPlace": "Address",
+    "cancelHint": "You can cancel the appointment under “My appointments”.",
+    "addToCalendar": "Add to calendar",
+    "toHome": "Back home",
+    "cancelLink": "Cancel the appointment",
+    "calendarTitle": "Appointment at the {clinic} clinic"
   },
   "layout": {
     "skipToContent": "Skip to content",
     "brand": "Lifeline",
     "language": "Language",
+    "theme": {
+      "cycle": "Colour theme: {mode}. Switch",
+      "label": "Colour theme",
+      "system": "System",
+      "light": "Light",
+      "dark": "Dark"
+    },
     "logout": "Sign out",
     "loggingOut": "Signing out…",
     "notifications": {
       "label": "Notifications, unread: {count}",
       "announce": "Unread notifications: {count}",
-      "overflow": "99+"
+      "overflow": "99+",
+      "panelLabel": "Latest notifications",
+      "panelTitle": "Notifications",
+      "panelEmpty": "No notifications yet",
+      "markAll": "Mark all as read",
+      "markingAll": "Marking…",
+      "viewAll": "All notifications"
     },
     "patient": {
       "navLabel": "Patient",
-      "booking": "Booking",
       "appointments": "My appointments",
-      "history": "History",
-      "prescriptions": "Prescriptions",
-      "profile": "Profile"
+      "home": "Home",
+      "medcard": "Medical records",
+      "book": "Book a visit"
     },
     "doctor": {
       "navLabel": "Doctor",
@@ -645,7 +739,17 @@
       "terminology": "Terminology",
       "audit": "Audit"
     },
-    "description": "Appointment booking and clinical records"
+    "description": "Appointment booking and clinical records",
+    "languages": {
+      "ru": "Русский",
+      "en": "English"
+    },
+    "profile": {
+      "menu": "Profile menu: {name}"
+    },
+    "menu": {
+      "open": "Open the menu"
+    }
   },
   "feedback": {
     "forbiddenTitle": "Access denied",
@@ -686,7 +790,11 @@
     "active": "Active"
   },
   "session": {
-    "ended": "Your session has ended, please sign in again"
+    "ended": "Your session has ended, please sign in again",
+    "idle": "Your session ended due to inactivity",
+    "idleWarningTitle": "Your session is about to end",
+    "idleWarningText": "You have been inactive for a while. In {seconds} s the session will end and you will need to sign in again.",
+    "idleWarningStay": "Continue working"
   },
   "doctor": {
     "journal": {
@@ -708,7 +816,6 @@
       "weekStart": "Week start",
       "weekHeading": "Upcoming working days",
       "weekSummary": "Appointments: {total}, still to see: {pending}",
-      "weekLoadError": "Could not load the appointments of {count} day(s)",
       "weekGridLabel": "Appointments of the week",
       "weekEmpty": "No appointments yet",
       "weekHint": "Press an appointment to open the patient card, or a day heading to see that day in full.",
@@ -721,7 +828,7 @@
       "minutes": "{count} min",
       "hoursMinutes": "{hours} h {minutes} min",
       "hoursOnly": "{hours} h",
-      "gap": "{duration} with no appointments",
+      "gap": "Window of {duration}",
       "patientCardLink": "Patient card",
       "summaryTitle": "Day summary",
       "summaryAria": "Of {total}: {booked} waiting, {fulfilled} completed, {noshow} no-show, {cancelled} cancelled",
@@ -735,7 +842,6 @@
       "legendNoshow": "No-show",
       "legendCancelled": "Cancelled",
       "total": "Appointments on this day: {count}",
-      "empty": "No appointments on this day",
       "filterPageHint": "The filter applies to page {page} of {pages} only: the other appointments of the day are on other pages.",
       "emptyFiltered": "No appointments with the selected status",
       "loadError": "Could not load the journal",
@@ -749,55 +855,81 @@
         "time": "Time",
         "patient": "Patient",
         "service": "Service",
-        "reason": "Reason for visit",
         "status": "Status",
         "actions": "Actions"
-      }
+      },
+      "continue": "Continue encounter",
+      "continueFor": "Continue encounter: {label}",
+      "notTodayTitle": "This appointment is not today",
+      "notTodayBody": "The appointment is scheduled for {date} at {time}. Start it now?",
+      "notTodayCancel": "Do not start",
+      "notTodayConfirm": "Start now",
+      "now": "Now",
+      "emptyToday": "No appointments today",
+      "emptyDay": "No appointments on {date}",
+      "whenToday": "today",
+      "whenTomorrow": "tomorrow",
+      "nothingAhead": "No appointments in the next {days} days.",
+      "nextVisitOn": "The next appointment is {when}, {time}, {patient}",
+      "goToVisit": "Go to the appointment"
     },
     "noshow": {
       "button": "No-show",
-      "markFor": "Mark as no-show: {name}",
-      "confirmGroup": "Confirm the no-show",
       "confirm": "Confirm no-show",
       "cancel": "Cancel",
       "notBooked": "The appointment is no longer booked: it cannot be marked as a no-show",
       "hasEncounter": "It cannot be marked as a no-show: the appointment is no longer booked or an encounter is already open or completed for it",
-      "done": "No-show recorded"
+      "done": "No-show recorded",
+      "menu": "Appointment actions",
+      "menuFor": "Appointment actions: {name}",
+      "dialogTitle": "Mark as a no-show?",
+      "dialogBody": "The appointment will get the status \"No-show\". The journal cannot take the mark back.",
+      "dialogBodyFor": "The appointment of {name} will get the status \"No-show\". The journal cannot take the mark back."
     },
     "schedule": {
       "title": "My schedule",
-      "from": "From date",
-      "previousPeriod": "Earlier",
-      "nextPeriod": "Later",
+      "date": "Date",
+      "periodLabel": "Choose the week",
+      "previousWeek": "Previous week",
+      "nextWeek": "Next week",
       "today": "Today",
-      "period": "Period: {from} — {to}",
       "empty": "No schedule found",
       "emptyHint": "The doctor's schedule is created by an administrator.",
       "loadError": "Could not load the schedule",
-      "windowsTitle": "Weekly working windows",
-      "windowsCaption": "Working windows by day of the week",
-      "scheduleFallback": "Schedule",
-      "slotDuration": "Slot {minutes} min",
-      "horizon": "horizon {from} — {to}",
-      "dayOff": "day off",
-      "slotsTitle": "Slots of the period",
-      "truncated": "Not all slots are shown. Choose a shorter period.",
-      "noSlots": "There are no slots in this period",
+      "windowsTitle": "Working windows",
+      "noWindows": "No windows",
+      "slotDuration": "{minutes}-min slots",
+      "plannedUntil": "until {date}",
+      "gridCaption": "Slots of the week: days in columns, time in rows",
+      "truncated": "Not all slots of the week are shown.",
+      "visitsPartial": "Not all visits of the week are shown: some busy slots may lack a patient name.",
+      "noSlots": "There are no slots this week",
+      "noSlotsHint": "Choose another week or ask an administrator to generate slots.",
+      "noSlotsDay": "No appointments",
       "dayCounts": "{busy} of {total} taken",
-      "weekdays": {
-        "MO": "Monday",
-        "TU": "Tuesday",
-        "WE": "Wednesday",
-        "TH": "Thursday",
-        "FR": "Friday",
-        "SA": "Saturday",
-        "SU": "Sunday"
+      "free": "Free",
+      "busy": "Busy",
+      "unknownPatient": "Patient",
+      "patientCard": "Open the patient card",
+      "weekdaysShort": {
+        "MO": "Mon",
+        "TU": "Tue",
+        "WE": "Wed",
+        "TH": "Thu",
+        "FR": "Fri",
+        "SA": "Sat",
+        "SU": "Sun"
+      },
+      "strip": {
+        "dayStripLabel": "Day of the week",
+        "dayChip": "{day}: free windows — {count}",
+        "dayFree": "{count, plural, one {# slot} other {# slots}}",
+        "dayNone": "none"
       }
     },
     "encounter": {
       "title": "Encounter",
       "backToJournal": "Back to the journal",
-      "patient": "Patient",
       "patientFallback": "Patient {id}",
       "started": "Started",
       "ended": "Ended",
@@ -807,17 +939,14 @@
       "finishedHint": "The record is read-only.",
       "notEditable": "An encounter with the status \"{status}\" cannot be completed.",
       "formLabel": "Complete the encounter",
-      "diagnosesLegend": "Summary and diagnoses",
+      "diagnosesLegend": "Diagnoses",
       "summary": "Summary",
-      "diagnosesHint": "Diagnoses (ICD-10): at least one",
-      "diagnosisN": "diagnosis {n}",
-      "diagnosisName": "Diagnosis name {n}",
+      "diagnosesHint": "ICD-10, at least one; the first diagnosis is the primary one",
       "verificationLabel": "Verification status {n}",
       "verificationNone": "Not specified",
       "addDiagnosis": "Add a diagnosis",
       "removeDiagnosis": "Remove",
       "removeDiagnosisN": "Remove diagnosis {n}",
-      "recommendationsLegend": "Recommendations",
       "recommendations": "Recommendations",
       "complete": "Complete the encounter",
       "completing": "Completing…",
@@ -826,7 +955,36 @@
       "unknownIcd10": "The code is not in the ICD-10 value set",
       "unknownTerm": "The code was not found in the terminology",
       "unknownUnit": "The unit was not found in UCUM",
-      "unknownAtc": "The ATC code was not found in the terminology"
+      "unknownAtc": "The ATC code was not found in the terminology",
+      "patientBarLabel": "Patient of the encounter",
+      "patientSummary": "Patient summary",
+      "patientSummaryOpen": "Patient summary",
+      "sectionsNav": "Encounter sections",
+      "sectionFilled": "filled in",
+      "sectionEmpty": "empty",
+      "sectionError": "has errors",
+      "sectionOptional": "optional",
+      "diagnosisLabel": "Diagnosis {n}: ICD-10 code or name",
+      "diagnosisNameManual": "Diagnosis name {n}",
+      "diagnosisNameManualHint": "The terminology returned no name for this code: type it in.",
+      "recentDiagnoses": "From the patient's history",
+      "conclusionLegend": "Summary and recommendations",
+      "saveDraft": "Save draft",
+      "draftNone": "No draft yet",
+      "draftPending": "The draft is not saved yet",
+      "draftSaved": "Draft saved {time} · on this device",
+      "draftUnavailable": "The draft is not being saved: browser storage is unavailable",
+      "actionsLabel": "Encounter actions",
+      "restoredNotice": "Draft from {when} restored",
+      "restoredHint": "It is kept in this browser only.",
+      "restoredStartOver": "Start over",
+      "restoredDismiss": "Dismiss",
+      "durationLabel": "Encounter duration",
+      "duration": "In progress {value}",
+      "durationMinutes": "{minutes} min",
+      "durationHours": "{hours} h {minutes} min",
+      "durationDays": "{days} d {hours} h",
+      "verificationCaption": "Verification status"
     },
     "verification": {
       "working": "Working",
@@ -846,19 +1004,19 @@
       "noMedications": "No drugs prescribed"
     },
     "observations": {
-      "legend": "Observations (vital signs)",
-      "empty": "No observations added.",
+      "legend": "Examination and vital signs",
+      "empty": "No observations added",
       "add": "Add an observation",
       "remove": "Remove",
       "removeN": "Remove observation {n}",
       "code": "Measurement {n}",
       "codePlaceholder": "Choose a measurement",
       "value": "Value {n}",
-      "unit": "UCUM unit {n}"
+      "unit": "Unit {n}"
     },
     "services": {
       "legend": "Ordered services",
-      "empty": "No services ordered.",
+      "empty": "No services ordered",
       "add": "Add a service",
       "remove": "Remove",
       "removeN": "Remove service {n}",
@@ -868,7 +1026,7 @@
     },
     "medications": {
       "legend": "Prescribed drugs",
-      "empty": "No drugs prescribed.",
+      "empty": "No drugs prescribed",
       "add": "Add a drug",
       "remove": "Remove",
       "removeN": "Remove drug {n}",
@@ -881,7 +1039,8 @@
       "label": "ICD-10 code",
       "placeholder": "J06.9 or a diagnosis name",
       "invalid": "Invalid ICD-10 code, e.g. J06.9",
-      "options": "ICD-10 code suggestions"
+      "options": "ICD-10 code suggestions",
+      "pick": "Pick a diagnosis from the list or type a code, e.g. J06.9"
     },
     "atc": {
       "label": "ATC code",
@@ -897,7 +1056,10 @@
       "typeCode": "Enter a code"
     },
     "combobox": {
-      "unavailable": "The value set is unavailable: type the code, the server will check it on save."
+      "unavailable": "The value set is unavailable: type the code, the server will check it on save.",
+      "loading": "Searching…",
+      "empty": "Nothing found for “{query}”",
+      "retry": "Retry"
     },
     "validation": {
       "icd10": "Invalid ICD-10 code, e.g. J06.9",
@@ -906,7 +1068,8 @@
       "valueMin": "The value must be at least {min}",
       "valueMax": "The value must be at most {max}",
       "minLength": "At least {count} characters",
-      "maxLength": "At most {count} characters"
+      "maxLength": "At most {count} characters",
+      "duplicateDiagnosis": "This diagnosis is already added"
     },
     "patient": {
       "cardLabel": "Patient card",
@@ -925,9 +1088,7 @@
       "unknown": "Not specified",
       "contacts": "Contacts",
       "noContacts": "No contacts on file",
-      "recordId": "Identifier",
       "relatedTitle": "Trusted persons",
-      "relatedEmpty": "No trusted persons",
       "relatedUnavailable": "Trusted persons are unavailable",
       "telecom": {
         "phone": "Phone",
@@ -947,16 +1108,69 @@
       "summary": "Summary",
       "recommendations": "Recommendations",
       "openEncounter": "Open the encounter",
-      "openEncounterOn": "Open the encounter of {date}"
+      "openEncounterOn": "Open the encounter of {date}",
+      "orders": "Orders of the visit",
+      "doctor": "Doctor: {name}",
+      "otherDoctor": "Another doctor's visit"
     },
     "prescriptions": {
-      "title": "Prescriptions",
-      "empty": "No prescriptions",
+      "title": "All prescriptions",
       "unavailable": "Prescriptions are unavailable",
       "medication": "Drug",
       "service": "Service",
       "openEncounter": "Open the encounter",
       "openEncounterOn": "Open the encounter with the order: {name}"
+    },
+    "summary": {
+      "title": "Clinical summary",
+      "diagnosesTitle": "Recent diagnoses",
+      "diagnosesEmpty": "No diagnoses yet",
+      "prescriptionsTitle": "Current prescriptions",
+      "prescriptionsEmpty": "No active prescriptions",
+      "moreCount": "and {count} more",
+      "vitalsTitle": "Latest vitals",
+      "vitalsEmpty": "No vitals yet",
+      "vitalsOn": "From the encounter of {date}",
+      "upcomingTitle": "Next appointment",
+      "upcomingEmpty": "Nothing scheduled with you",
+      "unavailable": "Could not be loaded",
+      "vitalsOtherDoctor": "The latest visit was held by another doctor; its vitals are not available to you"
+    },
+    "unit": {
+      "percent": "%",
+      "perMinute": "/min",
+      "beatsPerMinute": "bpm",
+      "breathsPerMinute": "breaths/min",
+      "e12PerLitre": "×10¹²/L",
+      "e9PerLitre": "×10⁹/L",
+      "celsius": "°C",
+      "litre": "L",
+      "internationalUnit": "IU",
+      "centimetre": "cm",
+      "day": "d",
+      "gram": "g",
+      "gramPerLitre": "g/L",
+      "hour": "h",
+      "kilogram": "kg",
+      "kilogramPerSquareMetre": "kg/m²",
+      "millilitre": "mL",
+      "milligram": "mg",
+      "milligramPerDecilitre": "mg/dL",
+      "mmHg": "mmHg",
+      "millimolePerLitre": "mmol/L",
+      "microgram": "µg",
+      "week": "wk",
+      "tablet": "tab."
+    },
+    "search": {
+      "label": "Patient search",
+      "placeholder": "Find a patient",
+      "lastVisit": "Last visit: {date}",
+      "searching": "Searching…",
+      "failed": "The search failed",
+      "none": "None of your patients of the last three months and the coming month matches",
+      "nextVisit": "Next visit: {date}",
+      "truncated": "The search did not read the whole journal: the oldest visits are not included"
     }
   },
   "validation": {
@@ -973,6 +1187,7 @@
     "boolean": "Choose yes or no",
     "format": "The value has an invalid format",
     "phone": "Phone must be +375 and nine digits",
+    "ageRestricted": "Registration is open from age 18 only",
     "consentRequired": "Confirm your consent to create an account",
     "scanRequired": "Attach the scan of the signed form",
     "scanType": "The scan must be a PDF, JPEG or PNG file",
@@ -992,13 +1207,16 @@
     "CONFLICT": "Conflicts with existing data",
     "SLOT_CONFLICT": "The slot is already taken",
     "APPOINTMENT_NOT_CANCELLABLE": "The appointment cannot be cancelled",
-    "CONSENT_REQUIRED": "No active consent to the electronic record: send the patient to the front desk or record the paper consent",
+    "CONSENT_REQUIRED": "No active consent to entering information into the clinic information system: send the patient to the front desk or record the paper consent",
     "CONSENT_ALREADY_ACTIVE": "The patient already has an active consent: record its revocation first",
     "ENCOUNTER_STATE_INVALID": "The encounter is already completed",
     "SCHEDULE_OVERLAP": "Schedule windows overlap",
     "SCHEDULE_IN_USE": "The schedule is in use: it has linked slots or appointments",
     "ROOM_IN_USE": "The room is used by schedules",
     "SERVICE_IN_USE": "The service is used by schedules or appointments",
+    "ACCOUNT_CONSENT_WITHDRAWN": "The patient closed this account: it cannot be switched back on",
+    "INVALID_PASSWORD": "Wrong password",
+    "AGE_RESTRICTED": "Registration is open from age 18",
     "INVALID_ICD10_CODE": "Invalid ICD-10 code",
     "TERMINOLOGY_NOT_FOUND": "Term not found",
     "RATE_LIMITED": "Too many requests",
@@ -1014,24 +1232,26 @@
     "cabinet": "My account",
     "directions": "Departments",
     "companies": "Companies",
-    "contacts": "Contacts"
+    "contacts": "Contacts",
+    "menuOpen": "Open the menu",
+    "menuTitle": "Menu",
+    "book": "Book"
   },
   "home": {
     "title": "Lifeline — medical center",
     "eyebrow": "Multidisciplinary medical center",
     "heroTitle": "Consultation, diagnostics and follow-up in one center",
-    "lead": "Therapy, cardiology, neurology and surgery, with functional diagnostics on site. Visit results, diagnoses and prescriptions are kept in your electronic health record.",
+    "lead": "Therapy, cardiology, neurology and surgery, with functional diagnostics on site. Visit results, diagnoses and prescriptions are entered by the doctor and available to you in your personal cabinet.",
     "book": "Book an appointment",
-    "chooseDirection": "Choose a department",
     "findDoctor": "Find a doctor",
-    "recordTitle": "Electronic health record",
+    "recordTitle": "Visit history",
     "recordText": "Visit history, diagnoses and prescriptions in your personal account",
     "trustLabel": "Why patients trust us",
     "trustLicenseTitle": "Ministry of Health license",
     "trustLicense": "Special permit No. {number} of {date}",
     "trustDiagTitle": "Diagnostics on site",
     "trustDiag": "ECG with interpretation on the day of the visit",
-    "trustRecordTitle": "Health record online",
+    "trustRecordTitle": "Visit records online",
     "trustRecord": "ICD-10 diagnoses and prescriptions",
     "trustCorpTitle": "We work with companies",
     "trustCorp": "Contract-based care for employees",
@@ -1057,7 +1277,7 @@
       },
       "diagnostics": {
         "name": "Functional diagnostics",
-        "about": "Examinations whose results the doctor sees right in the health record."
+        "about": "Examinations whose results the doctor sees right in the visit record."
       }
     },
     "servicesTitle": "Services",
@@ -1101,7 +1321,16 @@
     "footerLegal": "© Lifeline · {name}, tax ID {unp}",
     "footerLicense": "License No. {number} of {date}",
     "loadError": "Could not load the catalog",
-    "loadErrorHint": "Check your connection and try again."
+    "loadErrorHint": "Check your connection and try again.",
+    "windowsTitle": "Nearest free windows",
+    "windowsEmpty": "No free time in the next two weeks. Please call the front desk.",
+    "windowsAll": "All doctors and schedules",
+    "windowsLoading": "Loading free time",
+    "directionGeneric": "Consultations with the doctors of this department.",
+    "directionServices": "All services",
+    "ctaTitle": "Book a visit in a couple of minutes",
+    "ctaText": "Choose a doctor and a free time. You can sign in or register on the next step, your choice is kept.",
+    "footerPrivacy": "Personal data processing policy"
   },
   "catalog": {
     "doctorsTitle": "Doctors",
@@ -1112,7 +1341,6 @@
     "filterSearch": "First or last name",
     "anyService": "Any service",
     "anySpecialty": "Any specialty",
-    "apply": "Search",
     "reset": "Reset",
     "found": "Doctors found: {count}",
     "loadError": "Could not load the doctor list",
@@ -1127,17 +1355,23 @@
     "notFoundHint": "The profile may be unavailable or removed.",
     "backToList": "Back to the doctor list",
     "slotsTitle": "Available times",
-    "slotsLead": "Pick a time and press “Book”. You can sign in on the next step, your choice is kept.",
+    "slotsLead": "Pick a service and a time, then press “Book”. You can sign in on the next step, your choice is kept.",
     "bookSelected": "Book {time}",
     "bookDisabled": "Pick a time",
-    "patientsOnly": "Booking is available to patients."
+    "patientsOnly": "Booking is available to patients.",
+    "emptyAll": "The doctor catalog is empty for now",
+    "emptyAllHint": "No doctors have been added yet. Check back later or call the front desk.",
+    "book": "Book",
+    "bookWith": "Book: {name}",
+    "aboutTitle": "About the doctor",
+    "aboutSpecialty": "Specialty",
+    "aboutServices": "Services",
+    "aboutNoServices": "The doctor's services are not listed yet.",
+    "aboutNote": "The clinic does not publish the doctor's experience, education or description yet.",
+    "serviceLabel": "Service",
+    "updating": "Updating the list…"
   },
   "patientProfile": {
-    "ageLine": "Age: {age}",
-    "sinceLine": "Clinic patient since {date}",
-    "chipNoPhone": "No phone number",
-    "chipActive": "Account active",
-    "chipInactive": "Account disabled",
     "completeness": {
       "ringLabel": "Profile is {score} percent complete",
       "title": "Profile {score}% complete",
@@ -1153,19 +1387,16 @@
     },
     "actions": {
       "label": "Quick actions",
-      "book": "Book a visit",
-      "bookHint": "Choose a doctor and a time",
       "appointments": "My appointments",
       "appointmentsHint": "Upcoming: {count}",
       "prescriptions": "Prescriptions",
       "prescriptionsHint": "Active: {count}",
       "history": "Visit history",
-      "historyHint": "Extract and print"
+      "historyHint": "Visits, diagnoses, extract"
     },
     "reco": {
       "title": "Recommended for you",
       "subtitle": "Based on your visit history, prescriptions and profile",
-      "counter": "{shown} of {total}",
       "empty": "No new recommendations. We will show them after your next visit.",
       "hide": "Hide",
       "hideLabel": "Hide recommendation: {title}",
@@ -1196,17 +1427,8 @@
       "phone": {
         "title": "Add a phone number",
         "text": "With a number the clinic can reach you if your doctor changes the schedule.",
-        "cta": "How to add"
+        "cta": "Add number"
       }
-    },
-    "next": {
-      "title": "Next visit",
-      "empty": "No upcoming appointments.",
-      "book": "Book a visit",
-      "details": "Details",
-      "more": "More appointments: {count}",
-      "serviceUnknown": "Service not specified",
-      "doctorUnknown": "Doctor not specified"
     },
     "last": {
       "title": "Last visit",
@@ -1225,8 +1447,6 @@
     },
     "data": {
       "title": "Personal data",
-      "account": "Account",
-      "patient": "Patient card",
       "phoneMissing": "Not specified",
       "registryNote": "You can change your phone number yourself. The front desk changes the rest of the data.",
       "phoneLabel": "Phone",
@@ -1273,6 +1493,7 @@
       "passwordHint": "At least 10 characters: lower- and upper-case Latin letters, a digit and a special character.",
       "submit": "Register",
       "submitting": "Registering…",
+      "birthDateHint": "Registration is open from age 18.",
       "emailTaken": "This email is already registered. Sign in or use another address.",
       "emailTakenLogin": "Sign in with this email",
       "haveAccount": "Already have an account?",
@@ -1282,14 +1503,17 @@
       "successCta": "Sign in",
       "requiredNote": "All fields except gender and phone are required.",
       "retryIn": "Try again in {seconds} s",
-      "consentLabel": "I consent to the processing of my personal data to keep my account on the Lifeline clinic portal (art. 5 of Law 99-Z on personal data protection).",
-      "consentRecordNote": "Consent to keep an electronic medical record is signed on paper at the clinic."
+      "consentLabel": "I consent to the processing of my personal data (email, first and last name, date of birth, sex, phone) to keep my account and book appointments on the Lifeline clinic portal until I withdraw consent (art. 5 of Law 99-Z on personal data protection).",
+      "consentRecordNote": "The consent covers only the account and appointment booking. Consent to entering data into the clinic information system is signed on paper at the clinic.",
+      "consentRightsTitle": "Your rights and the consequences of refusal",
+      "consentRightsText": "You may withdraw consent, get information on the processing, and require data to be changed or deleted: by application to the operator, answered within 5 working days (information) or 15 days (change, withdrawal, deletion). Without consent the account and online booking are unavailable; you can still book through the clinic front desk.",
+      "consentPolicyLink": "Personal data processing policy"
     }
   },
   "patientHistory": {
     "title": "Visit history",
     "subtitle": "Completed visits, diagnoses and doctors' recommendations",
-    "print": "Medical record extract",
+    "print": "Visit extract",
     "summaryLabel": "Summary",
     "tileVisits": "completed visits",
     "tileLast": "last visit",
@@ -1301,14 +1525,17 @@
     "filterLabel": "Diagnosis",
     "filterAll": "All diagnoses",
     "emptyFiltered": "No visits with the chosen diagnosis on this page",
-    "empty": "History is empty",
-    "emptyHint": "Completed visits will appear here.",
+    "empty": "Your visit history is empty",
+    "emptyHint": "After your first visit, diagnoses and your doctor's recommendations will appear here.",
     "diagnoses": "Diagnoses",
     "noDiagnosis": "No diagnosis recorded",
     "summary": "Conclusion",
     "recommendations": "Doctor's recommendations",
     "prescribed": "Prescribed at the visit",
     "prescriptionsLink": "Prescriptions",
+    "prescriptionsFailed": "The prescriptions could not be loaded.",
+    "prescriptionsPartial": "There are more prescriptions than shown here: the full list is on the Prescriptions tab.",
+    "prescriptionsRetry": "Retry",
     "rebook": "Book a follow-up",
     "openAppointment": "Appointment",
     "toggleVisit": "Visit on {date}: {service}",
@@ -1323,16 +1550,17 @@
       "working": "working",
       "provisional": "provisional",
       "confirmed": "confirmed"
-    }
+    },
+    "emptyCta": "Book a visit"
   },
   "appointments": {
     "title": "My appointments",
     "tabsLabel": "Appointment list",
     "tabUpcoming": "Upcoming",
     "tabAll": "All appointments",
-    "empty": "No appointments",
+    "empty": "No appointments yet",
     "emptyUpcoming": "No upcoming appointments",
-    "emptyHint": "Book an appointment with a doctor.",
+    "emptyHint": "Choose a doctor and a time that suits you — it takes about two minutes.",
     "bookCta": "Book",
     "listLabel": "Appointments",
     "detailTitle": "Appointment",
@@ -1340,7 +1568,6 @@
     "fieldService": "Service",
     "fieldTime": "Time",
     "fieldStatus": "Status",
-    "fieldReason": "Reason for the visit",
     "fieldCancelReason": "Cancellation reason",
     "fieldCreated": "Created",
     "open": "Details",
@@ -1352,22 +1579,26 @@
     "serviceUnknown": "Service not specified",
     "cancel": "Cancel appointment",
     "cancelFor": "Cancel appointment: {when}, {doctor}",
-    "cancelLead": "Give the reason for cancelling. The time becomes available to other patients.",
-    "reasonRequired": "Enter the reason for cancelling",
-    "reasonTooShort": "The reason must be at least 3 characters long",
-    "reasonTooLong": "The reason must not exceed 500 characters",
+    "cancelLead": "Choose the reason for cancelling. The time becomes available to other patients.",
+    "reasonRequired": "Choose the reason for cancelling",
     "cancelTitle": "Cancel the appointment",
     "cancelReasonLabel": "Cancellation reason",
-    "cancelReasonHint": "3 to 500 characters",
     "cancelSubmit": "Confirm cancellation",
     "cancelBusy": "Cancelling…",
     "cancelKeep": "Keep the appointment",
     "cancelled": "Appointment cancelled",
     "notCancellable": "This appointment can no longer be cancelled: it is cancelled or already took place.",
-    "newBooking": "New appointment",
     "nextTitle": "Next appointment",
     "cancelShort": "Cancel",
-    "minutes": "{minutes} min"
+    "minutes": "{minutes} min",
+    "detailHeading": "Appointment on {when}",
+    "moreVisits": "More appointments: {count}",
+    "cancelReasons": {
+      "plans-changed": "My plans changed",
+      "inconvenient-time": "The time is inconvenient",
+      "other-doctor": "I will choose another doctor",
+      "other": "Other"
+    }
   },
   "patientPrescriptions": {
     "subtitle": "Medications and referrals your doctor recorded at your visits",
@@ -1408,8 +1639,8 @@
   "patient": {
     "history": {
       "title": "Visit history",
-      "empty": "No visits yet",
-      "emptyHint": "Completed visits will appear here.",
+      "empty": "Your visit history is empty",
+      "emptyHint": "After your first visit, diagnoses and your doctor's recommendations will appear here.",
       "listLabel": "Completed visits",
       "diagnoses": "Diagnoses",
       "noDiagnosis": "No diagnosis recorded",
@@ -1425,8 +1656,8 @@
     },
     "prescriptions": {
       "title": "Prescriptions",
-      "empty": "No prescriptions",
-      "emptyHint": "The doctor's prescriptions appear after a visit.",
+      "empty": "No prescriptions yet",
+      "emptyHint": "Medicines and referrals your doctor orders will appear here after a visit.",
       "listLabel": "Doctor's prescriptions",
       "medication": "Medication",
       "service": "Test or service",
@@ -1444,15 +1675,16 @@
         "stopped": "Stopped",
         "entered-in-error": "Entered in error",
         "unknown": "Status unknown"
-      }
+      },
+      "emptyCta": "Book a visit"
     },
     "notifications": {
       "title": "Notifications",
       "tabsLabel": "Notification filter",
       "tabAll": "All",
       "tabUnread": "Unread",
-      "empty": "No notifications",
-      "emptyUnread": "No unread notifications",
+      "empty": "No notifications yet",
+      "emptyUnread": "You are all caught up",
       "listLabel": "Notification list",
       "markRead": "Mark as read",
       "marking": "Marking…",
@@ -1461,12 +1693,13 @@
       "categoryAppointment": "Appointment",
       "categoryEncounter": "Visit",
       "categoryRegistration": "Registration",
-      "categoryOther": "Message"
+      "categoryOther": "Message",
+      "emptyHint": "Reminders about your appointments and messages from the clinic will appear here.",
+      "emptyCta": "Book a visit",
+      "emptyUnreadHint": "Read notifications are on the “All” tab."
     },
     "profile": {
       "title": "Profile",
-      "accountTitle": "Account",
-      "patientTitle": "Patient card",
       "email": "Email",
       "name": "Full name",
       "status": "Status",
@@ -1482,11 +1715,21 @@
       "contactEmail": "Email",
       "contactPhone": "Phone",
       "registered": "Registered",
-      "readOnly": "You can change your phone number yourself; the front desk changes the rest.",
       "noPatient": "The patient card has not been created yet."
+    },
+    "home": {
+      "title": "Home"
     }
   },
   "patientNotifications": {
+    "text": {
+      "booked": "You are booked for a visit. Starts: {time} (Minsk time)",
+      "cancelled": "The appointment has been cancelled.",
+      "cancelledByClinic": "The clinic cancelled your appointment. Choose another time under «Book a visit».",
+      "noShow": "The visit is marked as missed: the doctor recorded a no-show.",
+      "encounterCompleted": "The visit is complete. The results are in the Visit history section.",
+      "registered": "Your registration at the medical centre is complete."
+    },
     "subtitleUnread": "Unread: {count}",
     "subtitleAllRead": "All notifications are read",
     "markAllRead": "Mark all as read",
@@ -1499,7 +1742,7 @@
     "openHistory": "Open in history"
   },
   "consent": {
-    "title": "Consent to the electronic record",
+    "title": "Consent to entering information into the clinic information system",
     "status": {
       "active": "In force",
       "inactive": "Revoked",
@@ -1516,6 +1759,7 @@
       "formNumber": "Form no. {number}",
       "signedAt": "Signed {date}",
       "signedBy": "Recorded by: {name}",
+      "signedByStaff": "a staff member",
       "consenter": "Signed by",
       "consenterTypes": {
         "self": "the patient",
@@ -1528,21 +1772,22 @@
       "until": "In force until {date}",
       "historyTitle": "History",
       "historyEmpty": "There are no consent entries.",
-      "scanFile": "form scan",
       "loading": "Loading the consent details…"
     },
     "mine": {
-      "lead": "Lifeline keeps your electronic medical record only with your written consent (art. 44 of the Healthcare Law).",
-      "noneHow": "To give your consent, come to the front desk with your passport: the form is signed on paper and its scan is attached to your record. Until then a doctor cannot add entries to your record.",
-      "revokedHow": "No new entries are added to your record; existing ones are kept. To have a consent in force again, sign a new one at the front desk.",
+      "lead": "Lifeline enters information about your health into the clinic information system only with your written consent (art. 44 of the Healthcare Law).",
+      "noneHow": "To give your consent, come to the front desk with your passport: the form is signed on paper and its scan is attached to your profile. Until then a doctor cannot add entries to the clinic information system.",
+      "revokedHow": "No new entries are added to the clinic information system; existing ones are kept. To have a consent in force again, sign a new one at the front desk.",
       "rejectedHow": "Your written refusal is on file. If you change your mind, sign a consent at the front desk.",
       "revoke": "Revoke consent",
       "dialogTitle": "Revoke your consent?",
-      "dialogBody": "After the revocation no new entries are added to your medical record. Entries already made are not deleted. Confirm the revocation with a written application at the clinic.",
+      "dialogBody": "After the revocation no new entries about you are added to the clinic information system. Entries already made are not deleted. Confirm the revocation with a written application at the clinic.",
       "dialogConfirm": "Revoke consent",
       "dialogBusy": "Revoking…",
       "dialogKeep": "Keep consent",
-      "revoked": "Consent revoked. Confirm it with a written application at the clinic."
+      "revoked": "Consent revoked. Confirm it with a written application at the clinic.",
+      "summaryActive": "Records consent in force since {date}",
+      "details": "Details"
     },
     "staff": {
       "lead": "The consent is signed on paper; its scan and the signature details are kept here.",
@@ -1560,6 +1805,7 @@
         "rejected": "Written refusal"
       },
       "consenterType": "Signed by",
+      "minorHint": "The patient is under 18: a legal representative or guardian signs the consent.",
       "relatedPerson": "Patient's trusted person",
       "relatedPlaceholder": "Choose…",
       "relatedNone": "The patient has no trusted persons on file: record a consent signed by the patient, or add the trusted person first.",
@@ -1568,21 +1814,23 @@
       "signedByName": "Name of the staff member who handled the form",
       "signedByDoctorHint": "Filled in from your account.",
       "file": "Scan of the signed form",
-      "fileHint": "PDF, JPEG or PNG, up to 10 MB.",
-      "submit": "Add to the record",
+      "submit": "Save consent",
       "submitting": "Adding…",
       "recorded": "The consent entry is recorded.",
       "alreadyActive": "The patient already has an active consent. Record its revocation from the written application first, then add the new form.",
       "revokeTitle": "Record a revocation",
-      "revokeLead": "The patient's written application to revoke the consent. New entries to the record stop, existing ones are not deleted.",
+      "revokeLead": "The patient's written application to revoke the consent. New entries to the clinic information system stop, existing ones are not deleted.",
       "applicationNumber": "Application number",
       "revokeSubmit": "Record revocation",
       "revoking": "Recording…",
       "revoked": "The revocation is recorded.",
-      "nothingToRevoke": "Nothing to revoke: there is no active consent."
+      "nothingToRevoke": "Nothing to revoke: there is no active consent.",
+      "manageTitle": "Consent management",
+      "revokeOpen": "Record a revocation",
+      "revokeCancel": "Cancel"
     },
     "required": {
-      "title": "No consent to the electronic record",
+      "title": "No consent to entering information into the clinic information system",
       "openLead": "The encounter cannot be opened: the patient has no active consent.",
       "completeLead": "The encounter cannot be completed: the patient has no active consent.",
       "how": "Send the patient to the front desk to sign the consent, or record the paper consent on the patient's page.",
@@ -1598,18 +1846,184 @@
       "sending": "Sending…"
     },
     "banner": {
-      "noneTitle": "No active consent to the electronic record",
-      "revokedTitle": "Consent to the electronic record is revoked",
-      "rejectedTitle": "The patient refused the electronic record in writing",
+      "noneTitle": "No active consent to entering information into the clinic information system",
+      "revokedTitle": "Consent to entering information into the clinic information system is revoked",
+      "rejectedTitle": "The patient refused entering information into the clinic information system in writing",
       "text": "An encounter can be opened only after the consent is signed, or as emergency care with a stated reason.",
-      "goTo": "Record the consent"
+      "record": "Record the consent"
     },
     "admin": {
-      "title": "Consent to the electronic record",
+      "title": "Consent to entering information into the clinic information system",
       "back": "Back to users",
-      "open": "EMR consent",
-      "openFor": "Consent to the electronic record: {name}",
-      "notFound": "Patient not found"
+      "open": "Records consent",
+      "openFor": "Consent to keeping records in the clinic system: {name}",
+      "notFound": "Patient not found",
+      "nameUnknown": "The patient's name is not known on this page. Open the consent from the user list to see whose it is."
+    },
+    "line": {
+      "active": "Records consent · in force since {date}",
+      "none": "No records consent",
+      "revoked": "Records consent revoked",
+      "rejected": "Written refusal of records",
+      "manage": "Manage consent"
     }
+  },
+  "ui": {
+    "datePicker": {
+      "placeholder": "dd.mm.yyyy",
+      "open": "Pick a date in the calendar",
+      "dialog": "Choose a date",
+      "grid": "Calendar: {month}",
+      "prevMonth": "Previous month",
+      "nextMonth": "Next month",
+      "month": "Month",
+      "year": "Year",
+      "today": "Today",
+      "hint": "Arrow keys move the day, PageUp and PageDown move the month, Enter selects, Esc closes.",
+      "unreadable": "Not a valid date. Format: dd.mm.yyyy",
+      "beforeMin": "The date cannot be earlier than {day}",
+      "afterMax": "The date cannot be later than {day}"
+    },
+    "fileDrop": {
+      "prompt": "Drag a file here or",
+      "choose": "Choose a file",
+      "replace": "Replace file",
+      "remove": "Remove file {name}",
+      "dropActive": "Release to attach the file",
+      "accepted": "Accepted: {types}, up to {size}.",
+      "wrongType": "This file type is not accepted. Accepted: {types}.",
+      "tooLarge": "The file is larger than {size}.",
+      "chosen": "File chosen:",
+      "megabytes": "{n} MB",
+      "kilobytes": "{n} KB",
+      "bytes": "{n} B"
+    }
+  },
+  "medcard": {
+    "title": "Medical records",
+    "subtitle": "Visits, diagnoses and prescriptions in one place",
+    "tabsLabel": "Records sections",
+    "tabHistory": "Visit history",
+    "tabPrescriptions": "Prescriptions"
+  },
+  "patientHome": {
+    "title": "Home",
+    "greeting": "Hello, {name}",
+    "greetingAnon": "Hello",
+    "hero": {
+      "emptyTitle": "No upcoming visits",
+      "emptyText": "Choose a doctor and a time that suits you — it takes about two minutes.",
+      "book": "Book a visit"
+    }
+  },
+  "privacy": {
+    "title": "Personal data processing policy",
+    "trainingNote": "Training project: the operator and its details are fictitious; enter test data only.",
+    "versionLine": "Policy version {version} of {date}",
+    "operatorTitle": "Operator",
+    "operatorText": "Operator: {name}, taxpayer no. {unp}, address: {address}. Contacts for requests: {email}, {phone}. The details are placeholders used to demonstrate the interface.",
+    "purposesTitle": "Purposes, personal data and legal basis",
+    "purposesLead": "Data is processed only for the purposes listed. Each purpose states the data, the basis and the term.",
+    "fieldData": "Data",
+    "fieldBasis": "Basis",
+    "fieldRetention": "Term",
+    "purposeAccountTitle": "Account on the portal",
+    "purposeAccountData": "Email, first and last name, date of birth, optional sex and phone, password (stored only as a hash), time and version of the consent text.",
+    "purposeAccountBasis": "The data subject consent (art. 5 of Law 99-Z), given by a mark on the site; the checkbox is never pre-filled.",
+    "purposeBookingTitle": "Appointment booking",
+    "purposeBookingData": "Chosen doctor, service and time, booking status, cancellation reason as a code from a list (no free text). The fact of seeking medical care is covered by medical confidentiality.",
+    "purposeBookingBasis": "Consent (art. 5) and actions under a contract being concluded for services (art. 6); the fact of seeking care falls under art. 8 para. 2 of Law 99-Z and is handled by clinic staff bound by medical confidentiality.",
+    "purposeClinicTitle": "Clinic information system (visits, diagnoses, prescriptions)",
+    "purposeClinicData": "Health data entered by the doctor: visit data, diagnoses, prescriptions.",
+    "purposeClinicBasis": "Special personal data: art. 8 para. 2 of Law 99-Z and art. 44 (part 13) of the Law on Healthcare. Consent to entering data into the clinic information system is given on paper at the clinic, not by a mark on the site.",
+    "purposeSecurityTitle": "Protection and action journal",
+    "purposeSecurityData": "Time and type of the event (sign-in, failed sign-in, sign-out, actions on data), account identifier. IP address and browser details are not recorded.",
+    "purposeSecurityBasis": "The operator duty to take protection measures (art. 17 of Law 99-Z).",
+    "retentionConsent": "Consent is valid until withdrawn. The data of a closed account is kept for the period set by the operator under its records schedule (to be confirmed), after which the operator decides what to do with it. Medical records are not affected.",
+    "cookiesTitle": "Cookies and browser data",
+    "cookiesLead": "Only technical cookies are used, without which sign-in and the site cannot work. There is no analytics, advertising or third-party service, so no consent banner is shown.",
+    "cookieName": "Cookie",
+    "cookiePurpose": "Purpose",
+    "cookieLifetime": "Lifetime",
+    "cookieRefreshPurpose": "Session refresh token (HttpOnly)",
+    "cookieRefreshLifetime": "14 days",
+    "cookieAccessPurpose": "Access token (HttpOnly)",
+    "cookieAccessLifetime": "up to 15 minutes (token lifetime)",
+    "cookieAsSessionPurpose": "Sign-in session at the authorization server after your login and password are checked, until you return to the app (HttpOnly)",
+    "cookieAsSessionLifetime": "5 minutes",
+    "cookieAsCsrfPurpose": "Protection of the sign-in form against request forgery (HttpOnly)",
+    "cookieAsCsrfLifetime": "30 minutes",
+    "cookieSessionPurpose": "Marker that a session exists, for page navigation (HttpOnly)",
+    "cookieSessionLifetime": "14 days",
+    "cookiePkcePurpose": "Sign-in procedure protection (HttpOnly)",
+    "cookiePkceLifetime": "10 minutes",
+    "cookieLocalePurpose": "Chosen interface language",
+    "cookieLocaleLifetime": "1 year",
+    "cookiesStorage": "Besides cookies, the browser keeps technical data the site needs to work. It stays in your browser and is not passed to third parties: the theme and language, the time of last activity \"mc-last-activity\" (for sign-out on inactivity, shared by all tabs), the booking draft (until the tab is closed), hidden hints in the patient profile, marks of started encounters (the last 50), the doctor's drafts (up to 3 days), the name of the patient an administrator has open (until the tab is closed) and a short notice about why you were signed out (until the next page).",
+    "rightsTitle": "Rights of the data subject",
+    "rightsLead": "The rights are set out in art. 10–14 of Law 99-Z:",
+    "rightInfo": "to get information on the processing of your data, answered within 5 working days;",
+    "rightChange": "to require inaccurate data to be changed, within 15 days;",
+    "rightWithdraw": "to withdraw consent, with processing stopped within 15 days;",
+    "rightDelete": "to require deletion, within 15 days, unless there are other grounds to keep the data, for example healthcare legislation.",
+    "rightsHow": "The application is sent to the operator in writing or as an electronic document with an electronic digital signature. The rights are not limited to the personal account: an application can be filed without an account.",
+    "consequencesTitle": "Consequences of refusal",
+    "consequencesText": "Without consent to keep an account, registration and online booking are unavailable. Booking and visits at the clinic remain possible through the front desk.",
+    "crossBorderTitle": "Cross-border transfer",
+    "crossBorderText": "No cross-border transfer is carried out."
+  },
+  "accountClosure": {
+    "title": "Delete account",
+    "lead": "You can close your personal cabinet. Sign-in stops, while your medical records stay with the clinic.",
+    "open": "Delete account",
+    "dialogTitle": "Delete your account?",
+    "removedTitle": "What will be deleted",
+    "removedText": "Access to the personal cabinet, sign-in with email and password, and the current session. Your consent to the personal cabinet will be withdrawn.",
+    "keptTitle": "What is kept and why",
+    "keptText": "Visit records, appointment history and paper consents stay with the clinic: they are kept as required by health-care law, for the period set by the operator's retention schedule. Medical records are not deleted.",
+    "rightsText": "You can request information about how your data is processed with a written application to the clinic. More in the",
+    "rightsLink": "personal data processing policy",
+    "passwordLabel": "Current password",
+    "passwordHint": "Enter your password to confirm the deletion.",
+    "passwordRequired": "Enter your password",
+    "wrongPassword": "The password is wrong or the account is already closed.",
+    "keep": "Keep my account",
+    "confirm": "Delete account",
+    "busy": "Deleting…",
+    "closedTitle": "Account deleted",
+    "closedLead": "Sign-in to the personal cabinet is closed, the session has ended and your consent to the personal cabinet is withdrawn.",
+    "closedHome": "To the home page"
+  },
+  "myData": {
+    "title": "My data",
+    "lead": "A file with the details about you that you can already see in the cabinet, and the information about how they are processed under art. 11 p. 1 of Law No. 99-Z.",
+    "download": "Download my data",
+    "preparing": "Preparing the file…",
+    "saved": "The file is saved to your downloads folder.",
+    "failed": "The file could not be prepared. Try again.",
+    "infoLegalBasis": "Provided under art. 11 p. 1 of the Law of the Republic of Belarus No. 99-Z \"On personal data protection\".",
+    "infoOperatorNote": "The operator is fictitious: the details are placeholders of a training project.",
+    "infoRetention": "Data of a closed account and medical records are kept according to the operator's records schedule (the period is to be confirmed by the operator).",
+    "infoAuthorised": "No authorised persons have been assigned to process data on the operator's behalf (training project).",
+    "infoFullRequest": "Full information about the processing can be requested by a written application to the operator (art. 14 of Law No. 99-Z); the operator answers within 5 working days."
+  },
+  "visitPrint": {
+    "clinic": "Lifeline (training project)",
+    "title": "Visit record",
+    "patient": "Patient",
+    "birthDate": "Date of birth",
+    "visitDate": "Visit date and time",
+    "doctor": "Doctor",
+    "service": "Service",
+    "diagnoses": "Diagnoses (ICD-10)",
+    "conclusion": "Conclusion",
+    "recommendations": "Recommendations",
+    "prescriptions": "Prescriptions",
+    "prescriptionsNotLoaded": "Prescriptions could not be loaded",
+    "none": "Not specified",
+    "unknownDoctor": "doctor not specified",
+    "print": "Print",
+    "printVisit": "Print the visit of {date}",
+    "footer": "Entered by: {doctor}, {datetime}. This document was generated by an information system and is not a medical document; the paper entry in the medical record has legal force."
   }
 }

@@ -1,0 +1,18 @@
+{
+  "id": "libs-common-01",
+  "unit": "libs-common",
+  "kind": "security",
+  "severity": "medium",
+  "title": "Лимит запросов считается по полному URL, а не по маршруту: меняя id в пути, лимит обходится на публичных GET /doctors/{id}, /services/{id}, /doctors/{id}/slots",
+  "description": "RateLimitGuard строит ключ корзины из identity + метод + request.originalUrl без query. Для маршрутов с параметром пути (/doctors/{id}, /services/{id}, /doctors/{id}/slots, /appointments/{id}, /admin/users/{id} и т.д.) каждый новый id получает собственную корзину с полным бюджетом (120 в минуту). Анонимный вызывающий (публичные маршруты каталога, ключ client_id|ip) или любой авторизованный пользователь может слать неограниченный поток запросов, просто подставляя разные id (достаточно произвольной строки вида FHIR id): лимит из NFR-006 / спецификации («120 req/min на пользователя на сервис») не срабатывает, а каждый такой запрос доходит до HAPI (чтение или поиск). Комментарий в самом guard уже отмечает, что query-строка вырезается, чтобы нельзя было «чеканить» свежий бюджет на каждый запрос, но то же самое остаётся возможным через сегмент пути.",
+  "evidence": "libs/common/src/lib/guards/rate-limit.guard.ts:69-71 (readRoutePath берёт originalUrl.split('?')[0]) и :73-78 (buildRateLimitKey). Воспроизведено на настоящем RateLimitGuard с RATE_LIMIT_PER_MINUTE=3 и счётчиком в памяти: GET /items/0../items/9 (10 разных id) -> 200 x10; тот же URL 6 раз -> 200,200,200,429,429,429. Ключи корзин: '-|::1:GET:/items/0:<minute>', '-|::1:GET:/items/1:<minute>' ... (по корзине на каждый id). В обработчике guard request.route.path доступен (для /plain он равен '/plain'), то есть шаблон маршрута ('/api/v1/doctors/:id') можно взять без внешних зависимостей.",
+  "files": [
+    "libs/common/src/lib/guards/rate-limit.guard.ts",
+    "libs/common/src/lib/guards/rate-limit.guard.spec.ts"
+  ],
+  "proposedFix": "В buildRateLimitKey заменить readRoutePath(request) на шаблон маршрута: request.route?.path (Express, доступно внутри guard) с запасным вариантом `${context.getClass().name}.${context.getHandler().name}`; передать ExecutionContext в buildRateLimitKey. Сохранить отдельную корзину на маршрут (нужна для @RateLimit(20) у POST /oauth/token), но не включать значения параметров пути. Добавить в rate-limit.guard.spec.ts случай: два запроса к /doctors/a и /doctors/b с маршрутом '/doctors/:id' дают один ключ increment.",
+  "needsDecision": false,
+  "decisionQuestion": "",
+  "tzRef": "NFR-006 (rate-limit, спецификация API §0: 120 req/min на пользователя на сервис)",
+  "confidence": "confirmed"
+}

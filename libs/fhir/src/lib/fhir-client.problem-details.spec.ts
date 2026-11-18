@@ -7,10 +7,6 @@ interface WireResponse {
   readonly body: Record<string, unknown>;
 }
 
-/**
- * Runs an error through the real boundary filter and returns what the client
- * would receive on the wire (status + problem+json body).
- */
 function sendThroughFilter(error: unknown): WireResponse {
   const response = {
     status: jest.fn().mockReturnThis(),
@@ -33,7 +29,6 @@ function sendThroughFilter(error: unknown): WireResponse {
   };
 }
 
-/** Rejects a single HttpClient call and returns the raw error it threw. */
 async function errorFrom(client: HttpClient): Promise<unknown> {
   try {
     await client.update('Schedule', '1', { resourceType: 'Schedule', id: '1' });
@@ -96,8 +91,6 @@ describe('FhirClientError through ProblemDetailsFilter', () => {
   );
 
   it('should send a stalled error body (headers arrived, body timed out) as 504 INTERNAL', async () => {
-    // HAPI answered 503 but never finished the OperationOutcome: the timeout
-    // must win over the upstream status, as it does for a stalled success body.
     global.fetch = jest.fn().mockResolvedValue({
       ok: false,
       status: 503,

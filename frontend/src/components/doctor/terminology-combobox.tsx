@@ -2,35 +2,34 @@
 
 import { forwardRef, useEffect, useState } from 'react';
 import type { KeyboardEvent, ReactNode } from 'react';
+import { Loader2 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { FIELD_CLASS } from '@/components/ui/field-styles';
 import { useT } from '@/lib/i18n/use-t';
 import { handleComboboxKey, DEBOUNCE_MS, MIN_QUERY_LENGTH } from './combobox-keys';
 import { SUGGESTION_COUNT } from './doctor-api';
 import type { Term } from './doctor-types';
 import { useExpansion } from './use-doctor-queries';
 
-export interface TerminologyComboboxProps {
+interface TerminologyComboboxProps {
   readonly id: string;
-  /** Visible label; the input is named by it. */
   readonly label: string;
-  /** ValueSet canonical the suggestions come from (`https://fhir.by/ValueSet/...`). */
   readonly valueSet: string;
-  /** The code in the field. Free typing stays possible: the service re-validates every code on submit (BR-004, BR-009). */
   readonly value: string;
   readonly onChange: (value: string) => void;
-  /** Called when a suggestion is picked (the owner can copy its display name into a sibling field). */
   readonly onSelectTerm?: (term: Term) => void;
   readonly onBlur?: () => void;
-  /** Client mask: a typed value that does not match it is flagged once the field loses focus. */
   readonly pattern: RegExp;
   readonly invalidMessage: string;
-  /** Text of the suggestion list for assistive technology. */
   readonly listLabel: string;
   readonly placeholder?: string;
   readonly maxLength?: number;
-  /** Shapes what is typed (upper-casing a code); applied before `onChange`. */
   readonly normalize?: (raw: string) => string;
-  /** A message from the form (zod or the server); wins over the mask message. */
   readonly error?: string;
+  readonly text?: string;
+  readonly onTextChange?: (raw: string) => void;
+  readonly shortcuts?: ReadonlyArray<Term>;
+  readonly shortcutsLabel?: string;
 }
 
 function useDebounced(value: string, delayMs: number): string {
@@ -42,15 +41,33 @@ function useDebounced(value: string, delayMs: number): string {
   return debounced;
 }
 
-/** Suggestions for what is typed: held back until two characters, and only while the list is open and the text has settled. */
-function useSuggestions(valueSet: string, value: string, isOpen: boolean): { readonly items: ReadonlyArray<Term>; readonly isFailed: boolean } {
-  const debounced: string = useDebounced(value, DEBOUNCE_MS);
-  const expansion = useExpansion(valueSet, debounced, { enabled: isOpen && debounced.length >= MIN_QUERY_LENGTH, count: SUGGESTION_COUNT });
-  const items: ReadonlyArray<Term> = isOpen && debounced === value ? expansion.data?.items ?? [] : [];
-  return { items, isFailed: expansion.isError && isOpen };
+interface SuggestionState {
+  readonly items: ReadonlyArray<Term>;
+  readonly isShortcuts: boolean;
+  readonly isSearching: boolean;
+  readonly isEmpty: boolean;
+  readonly isFailed: boolean;
+  readonly retry: () => void;
 }
 
-/** Whether the suggestion list is open and which option is active; closing always forgets the active option. */
+function useSuggestions(valueSet: string, query: string, isOpen: boolean, shortcuts: ReadonlyArray<Term>): SuggestionState {
+  const debounced: string = useDebounced(query, DEBOUNCE_MS);
+  const isSearch: boolean = isOpen && query.length >= MIN_QUERY_LENGTH;
+  const expansion = useExpansion(valueSet, debounced, { enabled: isOpen && debounced.length >= MIN_QUERY_LENGTH, count: SUGGESTION_COUNT });
+  const isSettled: boolean = debounced === query;
+  const found: ReadonlyArray<Term> = isSearch && isSettled ? expansion.data?.items ?? [] : [];
+  const isShortcuts: boolean = isOpen && query.length < MIN_QUERY_LENGTH && shortcuts.length > 0;
+  return {
+    items: isShortcuts ? shortcuts : found,
+    isShortcuts,
+    isSearching: isSearch && !expansion.isError && (!isSettled || expansion.isFetching),
+    isEmpty: isSearch && isSettled && expansion.isSuccess && found.length === 0,
+    // Not tied to the open list: leaving the field (Tab to «Повторить») must not remove the notice.
+    isFailed: query.length >= MIN_QUERY_LENGTH && isSettled && expansion.isError,
+    retry: () => void expansion.refetch(),
+  };
+}
+
 function useListState(): {
   readonly isOpen: boolean;
   readonly activeIndex: number | null;
@@ -75,19 +92,26 @@ function useListState(): {
 interface ComboboxMessagesProps {
   readonly id: string;
   readonly error: string | undefined;
-  /** The name of the picked concept, shown under the field while its code is still the value. */
   readonly hint: string | undefined;
-  readonly isFailed: boolean;
+  readonly query: string;
+  readonly state: SuggestionState;
 }
 
-/** What is said under the input: the error (announced), the picked concept's name, a notice that suggestions are down. */
-function ComboboxMessages({ id, error, hint, isFailed }: ComboboxMessagesProps): ReactNode {
+function ComboboxMessages({ id, error, hint, query, state }: ComboboxMessagesProps): ReactNode {
   const t = useT('doctor.combobox');
   return (
     <>
       {error !== undefined ? <p id={`${id}-error`} role="alert" className="mt-1 text-sm text-destructive">{error}</p> : null}
       {hint ? <p className="mt-1 text-sm text-muted-foreground">{hint}</p> : null}
-      {isFailed ? <p role="status" className="mt-1 text-sm text-warning">{t('unavailable')}</p> : null}
+      {state.isSearching ? <p role="status" className="mt-1 flex items-center gap-2 text-sm text-muted-foreground"><Loader2 aria-hidden="true" className="size-4 animate-spin motion-reduce:animate-none" />{t('loading')}</p> : null}
+      {state.isEmpty ? <p role="status" className="mt-1 text-sm text-muted-foreground">{t('empty', { query })}</p> : null}
+      {state.isFailed ? (
+        <p role="status" className="mt-1 flex flex-wrap items-center gap-x-3 text-sm text-warning">
+          <span>{t('unavailable')}</span>
+          {/* The mouse press must not blur the field: that closes the list the retry should bring back. */}
+          <Button variant="ghost" onClick={state.retry} onMouseDown={(event) => event.preventDefault()}>{t('retry')}</Button>
+        </p>
+      ) : null}
     </>
   );
 }
@@ -95,17 +119,18 @@ function ComboboxMessages({ id, error, hint, isFailed }: ComboboxMessagesProps):
 interface ComboboxInputProps {
   readonly props: TerminologyComboboxProps;
   readonly inputRef: React.ForwardedRef<HTMLInputElement>;
+  readonly text: string;
   readonly isListVisible: boolean;
   readonly activeIndex: number | null;
   readonly shownError: string | undefined;
   readonly onType: (raw: string) => void;
   readonly onKeyDown: (event: KeyboardEvent<HTMLInputElement>) => void;
+  readonly onFocus: () => void;
   readonly onLeave: () => void;
 }
 
-/** The labelled input of the combobox with its ARIA 1.2 attributes; all behaviour comes from the owner. */
-function ComboboxInput({ props, inputRef, isListVisible, activeIndex, shownError, onType, onKeyDown, onLeave }: ComboboxInputProps): ReactNode {
-  const { id, label, value, maxLength, placeholder } = props;
+function ComboboxInput({ props, inputRef, text, isListVisible, activeIndex, shownError, onType, onKeyDown, onFocus, onLeave }: ComboboxInputProps): ReactNode {
+  const { id, label, maxLength, placeholder } = props;
   return (
     <>
       <label htmlFor={id} className="form-label block">{label}</label>
@@ -119,15 +144,16 @@ function ComboboxInput({ props, inputRef, isListVisible, activeIndex, shownError
         aria-activedescendant={isListVisible && activeIndex !== null ? `${id}-option-${activeIndex}` : undefined}
         aria-invalid={shownError !== undefined}
         aria-describedby={shownError !== undefined ? `${id}-error` : undefined}
-        value={value}
+        value={text}
         maxLength={maxLength}
         placeholder={placeholder}
         spellCheck={false}
         autoComplete="off"
         onChange={(event) => onType(event.target.value)}
         onKeyDown={onKeyDown}
+        onFocus={onFocus}
         onBlur={onLeave}
-        className="mono mt-1 min-h-[44px] w-full rounded-control border border-input bg-card p-2"
+        className={`${props.text === undefined ? 'mono ' : ''}mt-1 ${FIELD_CLASS}`}
       />
     </>
   );
@@ -135,26 +161,27 @@ function ComboboxInput({ props, inputRef, isListVisible, activeIndex, shownError
 
 interface ComboboxModel {
   readonly list: ReturnType<typeof useListState>;
+  readonly text: string;
   readonly picked: Term | null;
   readonly isListVisible: boolean;
-  readonly items: ReadonlyArray<Term>;
-  readonly isFailed: boolean;
+  readonly state: SuggestionState;
   readonly shownError: string | undefined;
   readonly pick: (term: Term) => void;
   readonly handleType: (raw: string) => void;
+  readonly handleFocus: () => void;
   readonly handleLeave: () => void;
   readonly handleKeyDown: (event: KeyboardEvent<HTMLInputElement>) => void;
 }
 
-/** Everything the combobox decides: the open list, the suggestions, the picked concept, which error shows, and the three handlers. */
 function useComboboxModel(props: TerminologyComboboxProps): ComboboxModel {
-  const { valueSet, value, onChange, onSelectTerm, onBlur, pattern, invalidMessage, normalize, error } = props;
+  const { valueSet, value, onChange, onSelectTerm, onBlur, pattern, invalidMessage, normalize, error, text: ownerText, onTextChange, shortcuts = NO_TERMS } = props;
   const list = useListState();
   const [isTouched, setIsTouched] = useState(false);
   const [picked, setPicked] = useState<Term | null>(null);
-  const { items, isFailed } = useSuggestions(valueSet, value, list.isOpen);
-  const isListVisible: boolean = list.isOpen && items.length > 0;
-  const shownError: string | undefined = error ?? (isTouched && value !== '' && !pattern.test(value) ? invalidMessage : undefined);
+  const text: string = ownerText ?? value;
+  const state = useSuggestions(valueSet, text, list.isOpen, shortcuts);
+  const isListVisible: boolean = list.isOpen && state.items.length > 0;
+  const shownError: string | undefined = error ?? (isTouched && text !== '' && !pattern.test(value) ? invalidMessage : undefined);
 
   const pick = (term: Term): void => {
     setPicked(term);
@@ -163,8 +190,12 @@ function useComboboxModel(props: TerminologyComboboxProps): ComboboxModel {
     list.close();
   };
   const handleType = (raw: string): void => {
-    onChange(normalize ? normalize(raw) : raw);
+    if (onTextChange) onTextChange(raw);
+    else onChange(normalize ? normalize(raw) : raw);
     list.open();
+  };
+  const handleFocus = (): void => {
+    if (shortcuts.length > 0 && text.length < MIN_QUERY_LENGTH) list.open();
   };
   const handleLeave = (): void => {
     list.close();
@@ -172,40 +203,51 @@ function useComboboxModel(props: TerminologyComboboxProps): ComboboxModel {
     onBlur?.();
   };
   const handleKeyDown = (event: KeyboardEvent<HTMLInputElement>): void =>
-    handleComboboxKey(event, { items, isListVisible, activeIndex: list.activeIndex, setActiveIndex: list.setActiveIndex, setIsOpen: list.setIsOpen, pick });
-  return { list, picked, isListVisible, items, isFailed, shownError, pick, handleType, handleLeave, handleKeyDown };
+    handleComboboxKey(event, { items: state.items, isListVisible, activeIndex: list.activeIndex, setActiveIndex: list.setActiveIndex, setIsOpen: list.setIsOpen, pick });
+  return { list, text, picked, isListVisible, state, shownError, pick, handleType, handleFocus, handleLeave, handleKeyDown };
 }
 
-/**
- * Search-as-you-type over a terminology ValueSet (`$expand`, API 2.3.2) with the ARIA 1.2 combobox pattern:
- * the input keeps focus, arrows move `aria-activedescendant`, Enter picks, Escape closes.
- */
+const NO_TERMS: ReadonlyArray<Term> = [];
+
 export const TerminologyCombobox = forwardRef<HTMLInputElement, TerminologyComboboxProps>(function TerminologyCombobox(props, ref): ReactNode {
-  const { id, value, listLabel } = props;
+  const { id, value, listLabel, shortcutsLabel } = props;
   const model = useComboboxModel(props);
-  const { list, picked, isListVisible, items } = model;
+  const { list, picked, isListVisible, state } = model;
   return (
     <div>
       <ComboboxInput
         props={props}
         inputRef={ref}
+        text={model.text}
         isListVisible={isListVisible}
         activeIndex={list.activeIndex}
         shownError={model.shownError}
         onType={model.handleType}
         onKeyDown={model.handleKeyDown}
+        onFocus={model.handleFocus}
         onLeave={model.handleLeave}
       />
-      <ComboboxMessages id={id} error={model.shownError} hint={picked?.code === value ? picked.display : undefined} isFailed={model.isFailed} />
-      <Suggestions id={`${id}-listbox`} optionPrefix={id} label={listLabel} items={items} isVisible={isListVisible} activeIndex={list.activeIndex} onActive={list.setActiveIndex} onPick={model.pick} />
+      <ComboboxMessages id={id} error={model.shownError} hint={props.text === undefined && picked?.code === value ? picked.display : undefined} query={model.text} state={state} />
+      <SuggestionList
+        id={`${id}-listbox`}
+        optionPrefix={id}
+        label={listLabel}
+        heading={state.isShortcuts ? shortcutsLabel : undefined}
+        items={state.items}
+        isVisible={isListVisible}
+        activeIndex={list.activeIndex}
+        onActive={list.setActiveIndex}
+        onPick={model.pick}
+      />
     </div>
   );
 });
 
-interface SuggestionsProps {
+interface SuggestionListProps {
   readonly id: string;
   readonly optionPrefix: string;
   readonly label: string;
+  readonly heading: string | undefined;
   readonly items: ReadonlyArray<Term>;
   readonly isVisible: boolean;
   readonly activeIndex: number | null;
@@ -213,10 +255,11 @@ interface SuggestionsProps {
   readonly onPick: (term: Term) => void;
 }
 
-function Suggestions({ id, optionPrefix, label, items, isVisible, activeIndex, onActive, onPick }: SuggestionsProps): ReactNode {
+function SuggestionList({ id, optionPrefix, label, heading, items, isVisible, activeIndex, onActive, onPick }: SuggestionListProps): ReactNode {
   if (!isVisible) return <ul id={id} role="listbox" aria-label={label} hidden />;
   return (
-    <ul id={id} role="listbox" aria-label={label} className="mt-1 max-h-64 overflow-y-auto rounded-card border border-border bg-card">
+    <ul id={id} role="listbox" aria-label={label} className="mt-1 max-h-64 overflow-y-auto rounded-card border border-border bg-card py-1 shadow-elev-2">
+      {heading ? <li role="presentation" className="px-3 pb-1 pt-1.5 text-xs font-semibold text-muted-foreground">{heading}</li> : null}
       {items.map((term, index) => (
         <li
           key={term.code}
@@ -226,9 +269,9 @@ function Suggestions({ id, optionPrefix, label, items, isVisible, activeIndex, o
           onMouseDown={(event) => event.preventDefault()}
           onClick={() => onPick(term)}
           onMouseEnter={() => onActive(index)}
-          className={`cursor-pointer px-2 py-1.5 text-sm hover:bg-secondary ${index === activeIndex ? 'bg-secondary' : ''}`}
+          className={`cursor-pointer px-3 py-2 text-sm hover:bg-secondary ${index === activeIndex ? 'bg-secondary' : ''}`}
         >
-          <span className="mono">{term.code}</span>
+          <span className="mono font-semibold">{term.code}</span>
           {term.display ? <span> — {term.display}</span> : null}
         </li>
       ))}

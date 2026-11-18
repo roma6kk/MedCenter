@@ -5,7 +5,7 @@ import type { ClaimState, DedupStore } from './deduplication.service';
 const IN_PROGRESS = 'in-progress';
 const DONE = 'done';
 
-/** Redis-backed dedup store. `REDIS_URL` is required: without it duplicates would be written twice. */
+/** `REDIS_URL` is required: without it duplicates would be written twice. */
 export function createRedisDedupStore(env: NodeJS.ProcessEnv = process.env): DedupStore {
   const url = env['REDIS_URL'];
   if (url === undefined || url === '') {

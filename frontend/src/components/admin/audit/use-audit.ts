@@ -8,7 +8,6 @@ import { withQuery } from '@/lib/api/query-string';
 import { toAuditParams, type AuditFilter } from './audit-filter';
 import type { AuditEvent } from './audit-types';
 
-/** One page of the audit journal (`GET /admin/audit`, API 9.4); the previous page stays on screen while the next loads. */
 export function useAuditEvents(filter: AuditFilter, page: number): UseQueryResult<PaginatedResponse<AuditEvent>, Error> {
   const params = toAuditParams(filter, page);
   return useQuery({

@@ -11,18 +11,15 @@ const CARD_SHAPE = { ...USER_SHAPE, externalLinks: 'array' } as const;
 const ADMIN_USERS = '/api/v1/admin/users';
 const UNKNOWN_UUID = '00000000-0000-4000-8000-000000000000';
 
-/** A fresh random password per test account (CSPRNG), shaped to pass the password policy. */
 export function newPassword(): string {
   return `Sm0ke!${randomBytes(9).toString('hex')}Aa`;
 }
 
-/** The id a 2xx answer carries, read before any shape assertion so the janitor still finds the account of a failed step. */
 function idOf(response: ApiResponse): string {
   const id = (response.body as { id?: unknown } | undefined)?.id;
   return typeof id === 'string' ? id : '';
 }
 
-/** The test accounts of the run and the ones already deactivated, so the janitor knows what is left. */
 interface TestUsers {
   registered: string;
   created: string;
@@ -37,7 +34,6 @@ async function deactivate(suite: Suite, users: TestUsers, id: string): Promise<A
   return response;
 }
 
-/** Janitor for a chain that stopped half way: deactivates what the steps left active, so a failed run leaves no active test account. */
 async function deactivateLeftovers(suite: Suite, users: TestUsers): Promise<void> {
   for (const id of [users.registered, users.created].filter((candidate) => candidate !== '' && !users.deactivated.has(candidate))) {
     const response = await deactivate(suite, users, id);
@@ -47,7 +43,6 @@ async function deactivateLeftovers(suite: Suite, users: TestUsers): Promise<void
   }
 }
 
-/** `GET /api/v1/me` answers the caller's own profile for every role. */
 async function meChecks(suite: Suite): Promise<void> {
   const { runner, api, sessions } = suite;
   for (const [label, session] of [['admin', sessions.admin], ['doctor', sessions.doctor], ['patient', sessions.patient]] as const) {
@@ -59,7 +54,6 @@ async function meChecks(suite: Suite): Promise<void> {
   }
 }
 
-/** Public registration, the duplicate and the invalid-body answers (API §2.2.6, §1). Records the new user's id. */
 async function registrationChecks(suite: Suite, email: string, users: TestUsers): Promise<void> {
   const { runner, api } = suite;
   const body = { email, password: newPassword(), firstName: 'Смоук', lastName: 'Тестов', birthDate: '1991-02-03', gender: 'female', accountConsent: { accepted: true, textVersion: '2026-10' } };
@@ -145,12 +139,15 @@ function changeAndDeactivateSteps(suite: Suite, users: TestUsers): SmokeStep[] {
   ];
 }
 
-/** Admin user management: create, list with filters, card, patch, deactivate (API §2.2.1-2.2.5). */
 async function adminUserChecks(suite: Suite, email: string, users: TestUsers): Promise<void> {
   const { runner, api, sessions } = suite;
   await runner.chain(GROUP, [...createAndReadSteps(suite, email, users), ...changeAndDeactivateSteps(suite, users)]);
   await runner.check(GROUP, 'GET /admin/users/{unknown uuid} -> 404 NOT_FOUND', async () => {
     expectProblem(await api.get(`${ADMIN_USERS}/${UNKNOWN_UUID}`, { session: sessions.admin }), 404, 'NOT_FOUND');
+  });
+  await runner.check(GROUP, 'GET /admin/users/retention-expired -> page of closed accounts past retention, nothing deleted', async () => {
+    const items = expectPage(await api.get(`${ADMIN_USERS}/retention-expired`, { session: sessions.admin, query: { pageSize: 5 } }));
+    expectTrue(items.every((item) => typeof item['retentionUntil'] === 'string' && Date.parse(String(item['retentionUntil'])) <= Date.now()), 'a listed account is still within retention');
   });
 }
 

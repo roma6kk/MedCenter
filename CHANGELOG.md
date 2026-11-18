@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Product polish pass (TASK-006, `git log --grep "TASK-006: "`): `/ready` and `/metrics` in every service and one JSON
+  log line format with the request id (NFR-007); an administrator can deactivate a service (`GET /admin/services`,
+  `isActive`); optional `status` and `patient` filters on `GET /doctor/appointments`, `encounterId` on the prescription
+  lists, `serviceId` on slots, `middleName` on doctors; the login page follows `ui_locales`; appointment reads follow
+  `Accept-Language`.
 - Transactional outbox, stage 1 (ADR-021): `appointment.booked.v1` and `appointment.cancelled.v1` are written as FHIR
   `Basic` outbox records in the same transaction Bundle as the booking or cancellation, and the new `apps/outbox-relay`
   service publishes them to RabbitMQ (at-least-once, Redis lock, `If-Match` status update). Sent records are deleted
@@ -17,6 +22,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   completion transaction (encounter-service), and `patient.registered.v1` as the last step of creating an account
   (auth-service; if the write fails the user row and the Patient are removed again, so an account exists if and only if
   its outbox record does). encounter-, auth- and appointment-service no longer depend on RabbitMQ.
+- `appointment.noshow.v1` (`libs/contracts`): the doctor's no-show (API §6.6) is written to the outbox in the same transaction
+  as the status, and notification-service tells the patient (FR-008: every appointment status now has a notification).
 - `OUTBOX_STALE_PENDING_MS` and `OUTBOX_RETENTION_MS` (overrides `OUTBOX_RETENTION_DAYS`, for live verification only)
   for `outbox-relay`; `diagnosisCount` in `encounter.completed.v1`.
 - Frontend (`frontend/`) — standalone Next.js 15 App Router client (5 route groups, 27 routes): public catalog,
@@ -66,9 +73,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (default `false`, passed via compose `x-bff-env`). Every endpoint and DTO is documented, errors reference the global
   RFC 7807 `problemDetails` schema (`ApiProblems`), auth is Bearer-only, and each service has a `swagger.spec.ts`
   that checks its document against the API spec (API §10).
+- `GET /api/v1/notifications` items carry an optional `kind` (`appointment.booked`, `appointment.cancelled`,
+  `appointment.cancelled.by-admin`, `appointment.noshow`, `encounter.completed`, `patient.registered`) and, for a
+  booking, the `start` instant, so the client can word a notification in the UI language (NFR-008); `text` stays the
+  Russian fallback for notifications stored before. Stored in `Communication.topic` and an extension (additive).
+- `GET /api/v1/doctors` and `/doctors/{id}` (API §4.1/4.2) carry an optional `middleName` (the patronymic, the second `given`
+  of the doctor's name, translated by `Accept-Language` like `firstName`), so the public catalog can write a doctor as
+  «Иванова Мария Сергеевна», the same as the visit record does; `name` is unchanged («given family»). `toDoctorResponseDto`
+  in `libs/fhir-mappers` reads it; the demo seed already stores it.
 
 ### Changed
 
+- TASK-006: refresh tokens, codes and the revocation list of auth-service live in Redis, and every service sees a
+  revoked session; `DELETE /admin/schedules/{id}` answers `200 {deactivated}`; the `/oauth/token` rate limit is keyed by
+  the credential; Traefik trusts `X-Forwarded-For` only from the web container and limits `/fhir/metadata`; analytics
+  and date filters use Minsk calendar days.
 - `appointment.cancelled.v1`: `reason` is optional and no longer sent (payload minimisation); the cancellation
   notification no longer quotes it. Appointments are created with a client-assigned UUID id.
 - Payload minimisation (ADR-021): `encounter.completed.v1` no longer carries `diagnoses[]` (replaced by
@@ -82,9 +101,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   by the Bruno collection); `README.md` documents running, seeding, testing, E2E and Bruno.
 - Test-only libraries moved from `dependencies` to `devDependencies`, so they no longer reach runtime images.
 - Encounter opening extracted into `EncounterOpeningService`.
+- The notification about an appointment cancelled by an administrator says that the clinic cancelled it and sends the
+  patient to the booking section; a cancellation by the patient keeps the plain wording (FR-008, BR-002).
 
 ### Fixed
 
+- TASK-006: about 140 defects found by the polish pass. Highlights: an administrator no longer reads the clinical
+  content of an encounter (ADR-018); slot generation makes no overlaps and stays inside the planning horizon; a new
+  service is linked to its doctors; the patient is told about a no-show (FR-008); doctor search and the next visit read
+  every page; booking refuses a started slot or an inactive schedule; ru/en parity of the interface. Details in
+  `tasks/TASK-006/verify-polish-report.md`.
 - Middleware moved to `src/middleware.ts` — route-group guards now execute (the file previously sat in
   `src/app/` and was dead code).
 - JSX in a `.ts` file (`SectionTitle`) and the missing Jest transform.
@@ -109,3 +135,51 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The doctor journal no longer links cancelled and no-show rows to the patient card.
 - `GET /api/v1/doctors` filtered by service or specialty now pages and counts doctors, not roles: `totalItems`
   was the number of matching `PractitionerRole`s and a doctor with two roles shortened the page.
+- notification-service no longer dead-letters a notification on the first failed write: the consumer retries through
+  `<queue>.retry` (up to 12 deliveries, about 55 s), like analytics-service; the attempt bookkeeping (`attemptOf`,
+  `deferDelivery`) moved to `libs/messaging` and both consumers use it.
+- `outbox-relay` no longer marks an event `sent` when no queue is bound for it (a fresh broker or a consumer that has not
+  declared its queue yet): `AmqpEventPublisher` publishes `mandatory` and rejects what the broker returns, so the record
+  stays `pending` and goes out once a queue exists.
+- notification-service validates an event at the broker boundary like analytics-service does: a known type without a
+  `Patient/{id}` reference, with a bad id, a start that is no instant or another schema version goes to the DLQ with a
+  log naming the type, the event id and the field (it used to be acknowledged and lost); an unknown type is still
+  acknowledged. The mapper is typed over the contract events, so a renamed contract field fails compilation.
+- `outbox-relay` reports a `pending` record it cannot read (malformed record, payload that is not JSON) once per hour
+  per record instead of on every 2-second poll, so one poison record no longer fills the container log.
+- `GET /api/v1/notifications?unread=` answers `400 VALIDATION_ERROR` for anything but `true` or `false` (`unread=1` or a
+  typo used to return every notification instead of the unread ones), like the other list endpoints.
+- API §8 and the Swagger of notification-service match the code: `POST /notifications/{id}/read` of another patient's
+  notification answers `403 COMPARTMENT_VIOLATION` (404 only for an unknown id), `Communication` is written without
+  `sender`, `category` is documented as `appointment` | `encounter` | `registration`; the `patient.registered.v1` fixture
+  carries a bare `patientId`.
+- `PATCH /api/v1/admin/rooms/{id}` no longer answers 500 when the body has an empty `description` (the room form sends one on
+  every edit, and HAPI refuses an empty string in FHIR JSON): an empty or blank description removes the description,
+  and `floor: null` removes the floor, which could not be taken away before (an emptied extension array is dropped as well).
+  `POST /admin/rooms` leaves a `null` or blank optional element out of the `Location`. API §4.5 and Bruno describe it.
+- Room DTOs (API §4.4/4.5) validate at the boundary: `PATCH /admin/rooms/{id}` with `identifier: null` was a 500 (`null.trim()`), and
+  `null` for `name` went to HAPI as JSON null; both are now `400 VALIDATION_ERROR`, a name of spaces only is refused on create and
+  update, and `name`/`description` are stored without edge spaces like `identifier`. A PATCH that changes nothing (`{}` or the stored
+  values) answers 200 with the room and no longer writes a new version and a false `update` AuditEvent (FR-021); the identifier entry
+  of a seeded room (it has a `system`) is left as it is while the value is the same.
+- The public doctor catalog (API §4.1/4.2) hides a deactivated doctor: `Practitioner.active=false` takes the doctor out of the list
+  and answers the card with the same 404 as an unknown id, and a `PractitionerRole.active=false` no longer brings its doctor into a
+  service or specialty filter (only the role ids ignored it before). The filtered list reads the doctors of all matching roles before
+  it cuts the page, so a hidden one cannot shorten a page or inflate `totalItems`. The two stale e2e rows of the role filter
+  (they still described the `_include` search) now describe the id-only role scan.
+- `GET /api/v1/doctors?search=` finds a doctor by the English name (`Ivanova` in the English interface found nobody, the
+  English text sits in a `translation` extension HAPI does not index) and by the full name of the card (`Мария Иванова`
+  did not match the stored «Иванова Мария Сергеевна»): the service matches the words of the term against the name,
+  surname and patronymic in Russian and English, in any order, as word prefixes, over the doctors the service and
+  specialty filters left (a scan of at most 1000 practitioners; the list without `search` is still paged by HAPI).
+- `PATCH`, `DELETE` and `GET .../usage` of `/admin/rooms/{id}` answer 404 for a `Location` that is not a room (`physicalType`
+  other than `ro`), like the room list leaves it out: a PATCH used to turn a building into a room and a DELETE removed it.
+- `DELETE /api/v1/admin/rooms/{id}` and `GET .../usage` (API §4.6/4.7) agree with HAPI on what keeps a room: besides a `Schedule`
+  (active or not) a doctor role (`PractitionerRole.location`) and a service (`HealthcareService.location`) do, and the demo seed
+  lists every demo room in both. A room only they list was reported free by the usage view and then refused by the delete with the
+  generic «CONFLICT: changed concurrently»; now both answer `ROOM_IN_USE`, the usage view lists the doctor and the service lines
+  (`resourceType` `PractitionerRole` and `HealthcareService`, additive), and a 409 of the delete transaction itself (a reference
+  the probes did not see) is `ROOM_IN_USE` too, not `CONFLICT`. The wording «an active Schedule» became «a Schedule (active or not)».
+- `GET /api/v1/admin/rooms/{id}/usage` follows `Accept-Language`: the doctor's name and the service title come from the
+  `translation` extension (they were always Russian) and the slot line says «booking» in English. The lines no longer carry the
+  words «активно/неактивно», so an inactive schedule is marked once (by `isActive` and the drawer's own marker), not twice.

@@ -19,10 +19,6 @@ import {
 import { ConsentsService } from './consents.service';
 import { ConsentResponseDoc, PatientConsentResponseDoc } from './dto/consent-response.doc';
 
-/**
- * API §3.4 and §3.6 — the consent of the patient the token belongs to. No path
- * or query parameter names a patient: the compartment comes from the token only (ADR-013).
- */
 @ApiTags('patient')
 @ApiBearerAuth()
 @Controller('api/v1/me/consent')
@@ -34,12 +30,11 @@ export class MeConsentController {
   @RequiresScopes(SMART_SCOPES.PATIENT_READ)
   @ApiOperation({ summary: '3.4 Get my consent to the electronic record and its history' })
   @ApiResponse({ status: HttpStatus.OK, type: PatientConsentResponseDoc })
-  @ApiProblems([...GUARD_PROBLEM_STATUSES, 404], { 404: 'NOT_FOUND: the token has no linked Patient' })
+  @ApiProblems(GUARD_PROBLEM_STATUSES, { 403: 'COMPARTMENT_VIOLATION: the token carries no patient claim' })
   async getMine(@Req() request: RequestWithClaims): Promise<PatientConsentResponse> {
     return this.consents.getMine(claimsOf(request));
   }
 
-  /** Blocks new entries at once; nothing is deleted. */
   @Post('revoke')
   @HttpCode(HttpStatus.OK)
   @RequiresRoles(Role.PATIENT)
@@ -47,6 +42,7 @@ export class MeConsentController {
   @ApiOperation({ summary: '3.6 Revoke my consent' })
   @ApiResponse({ status: HttpStatus.OK, type: ConsentResponseDoc, description: 'Consent with status inactive' })
   @ApiProblems([...GUARD_PROBLEM_STATUSES, 404, 409], {
+    403: 'COMPARTMENT_VIOLATION: the token carries no patient claim',
     404: 'NOT_FOUND: no active consent to revoke',
     409: 'CONFLICT: the consent was changed concurrently',
   })

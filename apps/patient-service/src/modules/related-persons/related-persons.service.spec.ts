@@ -44,10 +44,8 @@ describe('RelatedPersonsService', () => {
   });
 
   it('should return the related persons of the patient in a paginated envelope when access is allowed', async () => {
-    // Act
     const result = await service.listForPatient('9f2c', adminClaims, page);
 
-    // Assert
     expect(result).toEqual({
       items: [
         {

@@ -9,7 +9,6 @@ export interface LoginHarness extends OAuthHarness {
   readonly page: LoginPageResponder;
 }
 
-/** `OAuthHarness` plus the login-session pieces of assumption UI-1, all in memory. */
 export function createLoginHarness(): LoginHarness {
   const oauth = createOAuthHarness();
   const sessions = new LoginSessionService(deriveLoginKeys('test-session-secret-0123456789abcdef'), new InMemoryTokenDenylist());

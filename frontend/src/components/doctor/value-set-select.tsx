@@ -2,26 +2,30 @@
 
 import { forwardRef } from 'react';
 import type { ChangeEvent, ReactNode } from 'react';
+import { FIELD_CLASS } from '@/components/ui/field-styles';
+import { Select } from '@/components/ui/select';
 import { useT } from '@/lib/i18n/use-t';
 import type { Term } from './doctor-types';
 import { useExpansion } from './use-doctor-queries';
 
-export interface ValueSetSelectProps {
+interface ValueSetSelectProps {
   readonly id: string;
-  /** ValueSet canonical whose concepts are the options. */
   readonly valueSet: string;
-  /** The chosen code (`''` while nothing is chosen). */
   readonly value: string;
   readonly onChange: (term: Term | null) => void;
   readonly onBlur?: () => void;
   readonly placeholder: string;
-  /** Codes offered when the terminology service cannot be reached; without them the field degrades to typing a code. */
   readonly fallbackCodes?: ReadonlyArray<string>;
+  readonly optionLabel?: (term: Term) => string;
   readonly 'aria-invalid'?: boolean;
   readonly 'aria-describedby'?: string;
 }
 
-const FIELD_CLASS = 'mt-1 w-full min-h-[44px] rounded-control border border-input bg-card p-2';
+const BOX_CLASS = 'mt-1';
+
+function defaultOptionLabel(term: Term): string {
+  return term.display ? `${term.code} — ${term.display}` : term.code;
+}
 
 function termFor(items: ReadonlyArray<Term>, code: string): Term | null {
   return items.find((item) => item.code === code) ?? null;
@@ -34,7 +38,6 @@ interface FallbackInputProps {
   readonly inputRef: FieldRef;
 }
 
-/** The terminology service is down and no short list exists: the code is typed, and the service validates it on submit. */
 function FallbackInput({ props, inputRef }: FallbackInputProps): ReactNode {
   const { id, value, onChange, onBlur } = props;
   const t = useT('doctor.valueSet');
@@ -48,7 +51,7 @@ function FallbackInput({ props, inputRef }: FallbackInputProps): ReactNode {
       placeholder={t('typeCode')}
       spellCheck={false}
       autoComplete="off"
-      className={`mono ${FIELD_CLASS}`}
+      className={`mono ${BOX_CLASS} ${FIELD_CLASS}`}
       aria-invalid={props['aria-invalid']}
       aria-describedby={props['aria-describedby']}
     />
@@ -61,13 +64,12 @@ interface OptionsSelectProps extends FallbackInputProps {
 }
 
 function OptionsSelect({ props, inputRef, options, isPending }: OptionsSelectProps): ReactNode {
-  const { id, value, onChange, onBlur, placeholder } = props;
+  const { id, value, onChange, onBlur, placeholder, optionLabel = defaultOptionLabel } = props;
   const t = useT('doctor.valueSet');
-  // A value the list does not contain (a code kept from before, a fallback code) stays selectable instead of silently vanishing.
   const isKnown: boolean = value === '' || options.some((option) => option.code === value);
   const handleChange = (event: ChangeEvent<HTMLSelectElement>): void => onChange(termFor(options, event.target.value));
   return (
-    <select
+    <Select
       ref={inputRef as React.Ref<HTMLSelectElement>}
       id={id}
       value={value}
@@ -76,21 +78,17 @@ function OptionsSelect({ props, inputRef, options, isPending }: OptionsSelectPro
       aria-busy={isPending}
       aria-invalid={props['aria-invalid']}
       aria-describedby={props['aria-describedby']}
-      className={FIELD_CLASS}
+      wrapperClassName={BOX_CLASS}
     >
       <option value="">{isPending ? t('loading') : placeholder}</option>
-      {isKnown ? null : <option value={value}>{value}</option>}
+      {isKnown ? null : <option value={value}>{optionLabel({ system: '', code: value })}</option>}
       {options.map((option) => (
-        <option key={option.code} value={option.code}>{option.display ? `${option.code} — ${option.display}` : option.code}</option>
+        <option key={option.code} value={option.code}>{optionLabel(option)}</option>
       ))}
-    </select>
+    </Select>
   );
 }
 
-/**
- * A closed list of concepts of a ValueSet (select-only: free text is refused, BR-009). A native `<select>` keeps keyboard
- * and screen-reader behaviour free. When the service is down it offers `fallbackCodes`, or a plain code input.
- */
 export const ValueSetSelect = forwardRef<HTMLSelectElement | HTMLInputElement, ValueSetSelectProps>(function ValueSetSelect(props, ref): ReactNode {
   const { valueSet, fallbackCodes } = props;
   const expansion = useExpansion(valueSet, '');

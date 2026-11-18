@@ -15,12 +15,7 @@ export interface HealthResponseDto {
   readonly service: string;
 }
 
-/**
- * Liveness probe for the compose healthcheck (`HEALTH_PATH=/health`). Not
- * routed by Traefik (only `/api/v1/admin/analytics|audit` is), carries no
- * data, hence `@Public()`. Readiness of PostgreSQL is enforced at boot: the
- * read-model is opened and migrated before the service listens.
- */
+// Liveness only, no data (hence @Public()); PostgreSQL readiness is enforced at boot.
 @ApiTags('analytics')
 @Controller('health')
 export class HealthController {

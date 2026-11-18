@@ -51,5 +51,5 @@ assert {
 }
 
 docs {
-  Spec 5.2.1. ADMIN. `horizonTo - horizonFrom <= 90 days`; `windows[]` `{dayOfWeek MO..SU, startTime HH:mm, endTime}`; `slotDurationMin` 5..120. The ids are FHIR ids (see README: numeric HAPI ids are valid). 409 `SCHEDULE_OVERLAP` on an overlapping horizon of the same `PractitionerRole`. `roomId` is an existing room (4.2/4.3); the horizon is 120 days ahead so it overlaps nothing.
+  Spec 5.2.1. ADMIN. `horizonFrom`/`horizonTo` are calendar dates YYYY-MM-DD, `0 <= horizonTo - horizonFrom <= 90 days` (400 otherwise, also for create); `endTime` after `startTime` (400 `windows.0.endTime`); an unknown role, room or service -> 404 `NOT_FOUND` naming the field; `windows[]` `{dayOfWeek MO..SU, startTime HH:mm, endTime}`; `slotDurationMin` 5..120. The ids are FHIR ids (see README: numeric HAPI ids are valid). 409 `SCHEDULE_OVERLAP` on an overlapping horizon of the same `PractitionerRole`. `roomId` is an existing room (4.2/4.3); the horizon is 120 days ahead so it overlaps nothing.
 }

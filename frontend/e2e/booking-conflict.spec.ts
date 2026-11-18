@@ -1,35 +1,20 @@
-/**
- * E2E — scenario A2 of the frontend design spec §6 (BR-001): two patients go for one slot at the same time, one wins,
- * the other gets 409 SLOT_CONFLICT and the wizard puts them back on the slot step with the refused slot shown as taken.
- *
- * Two seeded patients open their saved sessions (`auth.setup.ts`; the login is rate limited); the slots are found at run time and every
- * booking that was made is cancelled afterwards.
- */
-import { expect, test, type Browser, type BrowserContext, type Page } from '@playwright/test';
-import { bookSlotAs, cancelAppointmentAs, findFreeSlots } from './fixtures/booking-api';
+import { expect, test, type Page } from '@playwright/test';
+import { bookSlotAs, cancelAppointmentAs, findFreeSlot, revealSlotOnDoctorPage } from './fixtures/booking-api';
+import { isPostTo } from './fixtures/network';
 import { hasDemoManifest } from './fixtures/demo-accounts';
-import { openStoredSession } from './fixtures/session-state';
+import { openStoredSession, type StoredSession } from './fixtures/session-state';
 
 test.skip(!hasDemoManifest(), 'demo seed manifest not found');
 
-interface Session {
-  readonly context: BrowserContext;
-  readonly page: Page;
-}
-
-async function openPatient(browser: Browser, index: number, baseURL: string | undefined): Promise<Session> {
-  return openStoredSession(browser, baseURL, 'PATIENT', index);
-}
-
 test.describe('two patients, one slot', () => {
   test.describe.configure({ mode: 'serial' });
-  let first: Session;
-  let second: Session;
+  let first: StoredSession;
+  let second: StoredSession;
   const booked: Array<{ readonly owner: Page; readonly id: string }> = [];
 
   test.beforeAll(async ({ browser, baseURL }) => {
-    first = await openPatient(browser, 1, baseURL);
-    second = await openPatient(browser, 2, baseURL);
+    first = await openStoredSession(browser, baseURL, 'PATIENT', 1);
+    second = await openStoredSession(browser, baseURL, 'PATIENT', 2);
   });
 
   test.afterAll(async () => {
@@ -39,8 +24,7 @@ test.describe('two patients, one slot', () => {
   });
 
   test('should let exactly one of two parallel bookings win and answer the other 409 SLOT_CONFLICT', async ({ request }) => {
-    const [target] = await findFreeSlots(request, 1);
-    if (target === undefined) throw new Error('no free slot');
+    const target = await findFreeSlot(request);
 
     const [a, b] = await Promise.all([bookSlotAs(first.page, target.slotId), bookSlotAs(second.page, target.slotId)]);
 
@@ -53,21 +37,20 @@ test.describe('two patients, one slot', () => {
   });
 
   test('should show the conflict notice and the refused slot as taken when the slot is lost before the confirmation', async ({ request }) => {
-    const [target] = await findFreeSlots(request, 1);
-    if (target === undefined) throw new Error('no free slot');
+    const target = await findFreeSlot(request);
     const page = first.page;
 
     await page.goto(`/doctors/${encodeURIComponent(target.doctorId)}`);
+    await revealSlotOnDoctorPage(page, target);
     await page.getByTestId(`slot-${target.slotId}`).click();
     await page.getByRole('button', { name: /^Записаться на / }).click();
     await expect(page.getByRole('heading', { name: 'Проверьте данные записи' })).toBeVisible();
 
-    // The other patient takes the slot while this one is still reading the confirmation.
     const rival = await bookSlotAs(second.page, target.slotId);
     expect(rival.status).toBe(201);
     booked.push({ owner: second.page, id: String(rival.body['id']) });
 
-    const refused = page.waitForResponse((response) => response.url().endsWith('/api/v1/appointments') && response.request().method() === 'POST');
+    const refused = page.waitForResponse(isPostTo('/api/v1/appointments'));
     const refetched = page.waitForResponse((response) => /\/api\/v1\/doctors\/[^/]+\/slots\?/.test(response.url()) && response.request().method() === 'GET');
     await page.getByTestId('booking-confirm').click();
     expect((await refused).status()).toBe(409);

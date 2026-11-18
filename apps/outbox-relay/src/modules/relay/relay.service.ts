@@ -15,10 +15,13 @@ import { OUTBOX } from '@medcenter/terminology';
 
 import { RELAY_CONFIG, type RelayConfig } from './relay.config';
 import { LOCK_STORE, type LockStore } from './redis-lock';
+import { ReportThrottle } from './report-throttle';
 
 export const LOCK_KEY = 'outbox-relay:lock';
-/** One poll never holds the lock for longer than this share of its lifetime. */
 const LOCK_BUDGET_SHARE = 0.5;
+
+const POISON_REPORT_INTERVAL_MS = 60 * 60_000;
+const POISON_REPORT_CAPACITY = 1000;
 
 /** `$expunge` counts the deleted resource and each of its versions against `limit`; one record has a handful. */
 const EXPUNGE_LIMIT = 1000;
@@ -32,16 +35,7 @@ const tagSearch = (status: string): string => `${OUTBOX.STATUS_SYSTEM}|${status}
  */
 const PENDING_SEARCH = { _tag: tagSearch(OUTBOX.PENDING), '_tag:not': tagSearch(OUTBOX.SENT) } as const;
 
-/**
- * Transactional-outbox relay (ADR-021). Reads `pending` outbox `Basic` records,
- * publishes each event and marks the batch `sent` in one transaction with
- * `If-Match` on the versions it read. Delivery is at-least-once: a crash between
- * publish and mark, or a lost `If-Match` race, repeats events; consumers dedup by
- * `eventId`. The event payload is opaque text here and is never logged.
- *
- * Only one replica polls at a time (Redis lock). `sent` records older than the
- * retention window are deleted and expunged; `pending` records are never deleted.
- */
+/** At-least-once outbox relay: a crash between publish and mark, or a lost `If-Match` race, repeats events; consumers dedup by `eventId`. */
 @Injectable()
 export class RelayService implements OnApplicationBootstrap, OnModuleDestroy {
   private readonly logger = new Logger(RelayService.name);
@@ -49,6 +43,7 @@ export class RelayService implements OnApplicationBootstrap, OnModuleDestroy {
   private inFlight?: Promise<void>;
   private stopped = false;
   private lastHousekeeping = 0;
+  private readonly poisonReports = new ReportThrottle(POISON_REPORT_INTERVAL_MS, POISON_REPORT_CAPACITY);
 
   constructor(
     @Inject(FHIR_CLIENT) private readonly fhir: FhirClient,
@@ -73,7 +68,6 @@ export class RelayService implements OnApplicationBootstrap, OnModuleDestroy {
     await this.lock.close().catch(() => undefined);
   }
 
-  /** One poll under the lock; resolves (never rejects) so the loop keeps going. */
   async tick(now: Date = new Date()): Promise<void> {
     const token = randomUUID();
     try {
@@ -111,7 +105,6 @@ export class RelayService implements OnApplicationBootstrap, OnModuleDestroy {
     }, this.config.pollIntervalMs);
   }
 
-  /** Publishes and marks batches until none is left or the lock budget is spent. */
   private async dispatchPending(): Promise<void> {
     const deadline = Date.now() + this.config.lockTtlMs * LOCK_BUDGET_SHARE;
     for (;;) {
@@ -137,19 +130,17 @@ export class RelayService implements OnApplicationBootstrap, OnModuleDestroy {
 
   private recordOf(resource: FhirResource): OutboxRecord | undefined {
     const record = parseOutboxRecord(resource);
-    if (record === undefined) {
+    if (record === undefined && this.poisonReports.shouldReport(resource.id ?? '')) {
       this.logger.warn({ basicId: resource.id }, 'outbox record is malformed and is skipped');
     }
     return record;
   }
 
-  /** Publishes oldest first and stops at the first failure, so one stuck event never reorders the rest. */
   private async publishInOrder(records: readonly OutboxRecord[]): Promise<OutboxRecord[]> {
     const published: OutboxRecord[] = [];
     for (const record of records) {
       const event = this.eventOf(record);
       if (event === undefined) {
-        // A malformed payload stays pending (and is reported as stuck) without blocking the events behind it.
         continue;
       }
       try {
@@ -172,7 +163,9 @@ export class RelayService implements OnApplicationBootstrap, OnModuleDestroy {
       // The routing key and `eventId` come from the record's own extensions, never from the opaque payload.
       return { ...(parsed as Record<string, unknown>), type: record.eventType, eventId: record.eventId } as unknown as DomainEvent;
     } catch {
-      this.logger.warn({ basicId: record.id, eventId: record.eventId, type: record.eventType }, 'outbox payload is not valid JSON and is skipped');
+      if (this.poisonReports.shouldReport(record.id)) {
+        this.logger.warn({ basicId: record.id, eventId: record.eventId, type: record.eventType }, 'outbox payload is not valid JSON and is skipped');
+      }
       return undefined;
     }
   }
@@ -196,7 +189,6 @@ export class RelayService implements OnApplicationBootstrap, OnModuleDestroy {
     }
   }
 
-  /** Warns (id and age only, no payload) about the oldest `pending` record once it is older than the stale threshold. */
   private async warnAboutStalePending(now: Date): Promise<void> {
     const cutoff = new Date(now.getTime() - this.config.stalePendingMs).toISOString();
     const result = await this.fhir.search('Basic', {
@@ -216,7 +208,6 @@ export class RelayService implements OnApplicationBootstrap, OnModuleDestroy {
     }
   }
 
-  /** Deletes `sent` records older than the retention window, then expunges each so HAPI drops the rows. */
   private async purgeSent(now: Date): Promise<void> {
     const cutoff = new Date(now.getTime() - this.config.retentionMs).toISOString();
     const result = await this.fhir.search('Basic', {
@@ -225,7 +216,6 @@ export class RelayService implements OnApplicationBootstrap, OnModuleDestroy {
       _lastUpdated: `lt${cutoff}`,
       _count: this.config.batchSize,
     });
-    // `parseOutboxRecord` re-checks that this is an outbox record in `sent` state before anything is deleted.
     const expired = (result.entry ?? [])
       .map((entry) => parseOutboxRecord(entry.resource))
       .filter((record): record is OutboxRecord => record !== undefined && record.status === OUTBOX.SENT);

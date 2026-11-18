@@ -4,7 +4,7 @@ import { InMemoryClientRegistry } from '../guards/client.guard';
 import { createFakeResponse, type FakeResponse } from '../__tests__/fake-response';
 import { createLoginHarness } from '../__tests__/login-harness';
 import { TEST_REDIRECT_URI, createTestClient } from '../__tests__/test-keys';
-import { THROTTLED_MESSAGE } from './login-messages';
+import { THROTTLED_MESSAGE, UNAVAILABLE_MESSAGE, loginMessage } from './login-messages';
 import { LoginRateLimitFilter } from './login-rate-limit.filter';
 
 const AUTHORIZE_QUERY = new URLSearchParams({
@@ -29,11 +29,11 @@ function rateLimited(): HttpException {
   return new HttpException({ errorCode: 'RATE_LIMITED', message: 'Rate limit exceeded' }, HttpStatus.TOO_MANY_REQUESTS);
 }
 
-/** What `ProblemDetailsFilter` needs of a response, on top of the login page's own calls. */
 function withProblemSupport(fake: FakeResponse): { readonly type: jest.Mock } {
-  const response = fake.response as unknown as { status: jest.Mock; type?: jest.Mock };
+  const response = fake.response as unknown as { status: jest.Mock; type?: jest.Mock; setHeader?: jest.Mock };
   const type = jest.fn().mockReturnValue(fake.response);
   response.type = type;
+  response.setHeader = response.setHeader ?? jest.fn();
   return { type };
 }
 
@@ -84,6 +84,37 @@ describe('LoginRateLimitFilter', () => {
     await createFilter().catch(new BadRequestException('bad form'), hostOf({ headers: {}, originalUrl: '/oauth/login' }, fake));
 
     expect(fake.statusCode()).toBe(400);
+    expect(type).toHaveBeenCalledWith('application/problem+json');
+  });
+
+  it('should render the login page with the unavailable message when the database fails for a browser', async () => {
+    const fake = createFakeResponse();
+    const request = { headers: { accept: 'text/html,application/xhtml+xml' }, body: { authorize_query: AUTHORIZE_QUERY, email: 'ivanov@example.by' } };
+
+    await createFilter().catch(new Error('connection refused'), hostOf(request, fake));
+
+    expect(fake.statusCode()).toBe(503);
+    expect(fake.body()).toContain(UNAVAILABLE_MESSAGE);
+    expect(fake.body()).toContain('value="ivanov@example.by"');
+  });
+
+  it('should answer in English when the authorize query asks for it', async () => {
+    const fake = createFakeResponse();
+    const request = { headers: { accept: 'text/html' }, body: { authorize_query: `${AUTHORIZE_QUERY}&ui_locales=en` } };
+
+    await createFilter().catch(rateLimited(), hostOf(request, fake));
+
+    expect(fake.body()).toContain(loginMessage('throttled', 'en'));
+    expect(fake.body()).toContain('<html lang="en">');
+  });
+
+  it('should keep problem+json for an unexpected failure when the client does not accept HTML', async () => {
+    const fake = createFakeResponse();
+    const { type } = withProblemSupport(fake);
+
+    await createFilter().catch(new Error('boom'), hostOf({ headers: { accept: 'application/json' }, originalUrl: '/oauth/login' }, fake));
+
+    expect(fake.statusCode()).toBe(500);
     expect(type).toHaveBeenCalledWith('application/problem+json');
   });
 });

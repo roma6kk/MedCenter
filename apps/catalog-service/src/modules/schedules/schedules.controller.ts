@@ -21,7 +21,6 @@ import {
   IdempotencyService,
   RequiresRoles,
   type AuditedRequest,
-  type RequestWithClaims,
 } from '@medcenter/common';
 import { DEFAULT_PAGE, DEFAULT_PAGE_SIZE, Role } from '@medcenter/contracts';
 import type { SlotResponseDto } from '@medcenter/fhir-mappers';
@@ -36,6 +35,7 @@ import {
 import { CreateScheduleDto } from './dto/create-schedule.dto';
 import { GenerateSlotsResultDoc } from './dto/generate-slots-result.doc';
 import { DeleteScheduleDto } from './dto/delete-schedule.dto';
+import { DeleteScheduleResultDoc } from './dto/delete-schedule-result.doc';
 import { GenerateSlotsDto } from './dto/generate-slots.dto';
 import { ListSchedulesQueryDto } from './dto/list-schedules-query.dto';
 import { ScheduleSlotsQueryDto } from './dto/schedule-slots-query.dto';
@@ -44,7 +44,6 @@ import type { GenerateSlotsResult } from './slot-generator.service';
 import { SlotGeneratorService } from './slot-generator.service';
 import { SchedulesService, type SchedulePage } from './schedules.service';
 
-/** API §5.2 — schedules are admin-only (BR-007). */
 @ApiTags('catalog')
 @ApiBearerAuth()
 @Controller('api/v1/admin/schedules')
@@ -102,20 +101,21 @@ export class SchedulesController {
   @RequiresRoles(Role.ADMIN)
   @ApiOperation({ summary: '5.2.4 Delete (or deactivate) a schedule' })
   @ApiResponse({
-    status: 204,
+    status: 200,
+    type: DeleteScheduleResultDoc,
     description:
-      'The schedule is deleted, or deactivated when appointments still reference its slots',
+      '`deactivated: false` when the schedule was deleted, `true` when it was deactivated because appointments still reference its slots',
   })
   @ApiProblems([...GUARD_PROBLEM_STATUSES, 400, 404, 409], {
     409: 'SCHEDULE_IN_USE: slots protect the schedule (any slot without cascade, busy slots always)',
   })
-  @HttpCode(HttpStatus.NO_CONTENT)
+  @HttpCode(HttpStatus.OK)
   async remove(
     @Req() request: AuditedRequest,
     @Param() params: FhirIdParamDto,
     @Body() dto: DeleteScheduleDto,
-  ): Promise<void> {
-    await this.schedulesService.remove(params.id, dto.cascade === true, auditActorOf(request));
+  ): Promise<DeleteScheduleResultDoc> {
+    return { deactivated: await this.schedulesService.remove(params.id, dto.cascade === true, auditActorOf(request)) };
   }
 
   @Post(':id/generate')
@@ -124,7 +124,7 @@ export class SchedulesController {
   @ApiHeader({
     name: 'Idempotency-Key',
     required: false,
-    description: 'Replays the cached answer for 24 h (API §0)',
+    description: 'Replays the cached answer for 24 h; a retry while the first request still runs gets 409 CONFLICT (API §0)',
   })
   @ApiResponse({
     status: 201,
@@ -132,18 +132,17 @@ export class SchedulesController {
     type: GenerateSlotsResultDoc,
   })
   @ApiProblems([...GUARD_PROBLEM_STATUSES, 400, 404, 409], {
-    409: 'CONFLICT: the schedule is deactivated (active=false)',
+    409: 'CONFLICT: the schedule is deactivated (active=false), or the Idempotency-Key is still being processed or was used with another body',
   })
   async generate(
-    @Req() request: RequestWithClaims,
+    @Req() request: AuditedRequest,
     @Headers('idempotency-key') idempotencyKey: string | undefined,
     @Param() params: FhirIdParamDto,
     @Body() dto: GenerateSlotsDto,
   ): Promise<GenerateSlotsResult> {
-    // API §0: a replayed `Idempotency-Key` is answered from the cache (24 h), per caller and schedule.
     const scope = `generate:${claimsOf(request).sub}:${params.id}`;
     return this.idempotency.run(scope, idempotencyKey, dto, () =>
-      this.slotGenerator.generate(params.id, dto),
+      this.slotGenerator.generate(params.id, dto, auditActorOf(request)),
     );
   }
 

@@ -1,4 +1,5 @@
-import { DATE_ONLY_PATTERN, FHIR_ID_PATTERN } from './validation-patterns';
+import { FHIR_ID_PATTERN } from '@medcenter/common';
+import { DATE_ONLY_PATTERN } from './validation-patterns';
 
 describe('FHIR_ID_PATTERN', () => {
   it.each(['role-7', '1455', 'a.b-c', 'A'.repeat(64)])('should accept %s', (id) => {

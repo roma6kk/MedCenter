@@ -1,0 +1,18 @@
+{
+  "id": "task005-triage-b-34",
+  "unit": "task005-triage-b",
+  "kind": "question",
+  "severity": "low",
+  "title": "Не сделано из мобильной версии: нижняя панель вкладок пациента, закрытие панелей свайпом, View Transitions для мастера записи",
+  "description": "Пункт из V4/T9. Все три вещи это дополнения к уже работающей мобильной навигации (бургер и левая панель кабинета, закрытие диалогов крестиком, Esc и по подложке; смена шагов мастера анимирована CSS). Нижняя панель вкладок меняет структуру навигации и конкурирует с липкой кнопкой «Записаться»; свайп добавил бы жестовую логику с риском случайных закрытий; View Transitions API это расширение анимации без функционального выигрыша.",
+  "evidence": "frontend/src/components/layout/patient-mobile-menu.tsx (burger drawer); frontend/src/components/catalog/mobile-book-bar.tsx (sticky book button on public pages); frontend/src/components/ui/dialog.tsx has no gesture code.",
+  "files": [
+    "frontend/src/components/layout/patient-mobile-menu.tsx",
+    "frontend/src/components/ui/dialog.tsx"
+  ],
+  "proposedFix": "Variant A (recommended): do not build. Variant B: the bottom tab bar only (Главная, Записи, Медкарта, Профиль) for the patient cabinet below md.",
+  "needsDecision": true,
+  "decisionQuestion": "Делать ли оставшееся из мобильной версии? Варианты: (A) нет, текущей навигации достаточно; (B) только нижнюю панель вкладок кабинета пациента; (C) всё три. Рекомендация: A — это расширения без влияния на ТЗ и с риском для поддержки.",
+  "tzRef": "",
+  "confidence": "confirmed"
+}

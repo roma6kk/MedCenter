@@ -15,7 +15,6 @@ function concepts(count: number): Array<{ code: string; display: string }> {
   return Array.from({ length: count }, (_, index) => ({ code: `C${index}`, display: `Concept ${index}` }));
 }
 
-/** The seed's snapshot has 10 concepts. */
 function fragment(id: string): CanonicalResource {
   return { resourceType: 'CodeSystem', id, url: URL, content: 'fragment', concept: concepts(10) };
 }
@@ -118,14 +117,11 @@ describe('upsertCanonical against a server that holds a real import', () => {
   afterEach(() => jest.restoreAllMocks());
 
   it('should leave the server untouched when the existing copy is not recognisably the seed copy', async () => {
-    // Arrange
     const server = new InMemoryFhirServer();
     server.preload(legacy('real-import', 'complete', 500));
 
-    // Act
     const attempt = upsertCanonical(new FhirHttp('http://fhir.test/fhir', server.fetch), fragment('cs-nsi'));
 
-    // Assert
     await attempt.then(
       () => {
         throw new Error('expected the upsert to be refused');

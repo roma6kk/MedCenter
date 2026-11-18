@@ -1,10 +1,8 @@
 import { obtainTokenGrant } from '../demo-seed/oauth-pkce-client';
 import type { SmokeAccount, SmokeConfig, Session, TokenClaims } from './smoke-types';
 
-/** What the web client asks for; the server narrows it to the role (API §0 scope matrix). */
-export const REQUESTED_SCOPE = 'launch patient/*.read patient/*.write user/*.read user/*.write';
+const REQUESTED_SCOPE = 'launch patient/*.read patient/*.write user/*.read user/*.write';
 
-/** The payload of a JWT, unverified: the suite only inspects what the server says about the token. */
 export function decodeClaims(token: string): TokenClaims {
   const payload = token.split('.')[1];
   if (payload === undefined) {
@@ -18,17 +16,24 @@ export function decodeClaims(token: string): TokenClaims {
 }
 
 const LOGIN_THROTTLE_MARKER = 'rate limit reached';
-/** The login form allows 10 attempts per minute per address; a minute later the window is fresh. */
 const THROTTLE_WAIT_MS = 62_000;
 const MAX_THROTTLE_RETRIES = 2;
 
+const CREDENTIALS_REJECTED_MARKER = 'credentials rejected';
+
+export const RESEED_USERS_HINT =
+  'the account from the seed manifest is not in the auth database (was the postgres volume recreated?): ' +
+  'run "npm run seed:demo -- --users --with-admin --consents"';
+
+export function withLoginHint(error: unknown): unknown {
+  if (error instanceof Error && error.message.includes(CREDENTIALS_REJECTED_MARKER) && !error.message.includes(RESEED_USERS_HINT)) {
+    error.message = `${error.message}; ${RESEED_USERS_HINT}`;
+  }
+  return error;
+}
+
 const sleep = (millis: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, millis));
 
-/**
- * The real browser flow (GET /oauth/authorize -> POST /oauth/login -> code ->
- * POST /oauth/token) through the edge, reusing the seed's PKCE client. The
- * password is handed to it and never logged.
- */
 export async function signIn(config: SmokeConfig, account: SmokeAccount): Promise<Session> {
   for (let attempt = 0; ; attempt += 1) {
     try {
@@ -49,11 +54,6 @@ async function signInOnce(config: SmokeConfig, account: SmokeAccount): Promise<S
     { authBaseUrl: config.baseUrl, clientId: config.oauthClientId, redirectUri: config.redirectUri, scope: REQUESTED_SCOPE },
     { email: account.email, password: account.password },
   );
-  return {
-    email: account.email,
-    role: account.role,
-    accessToken: grant.accessToken,
-    grantedScope: grant.scope ?? decodeClaims(grant.accessToken).scope ?? '',
-    claims: decodeClaims(grant.accessToken),
-  };
+  const claims = decodeClaims(grant.accessToken);
+  return { email: account.email, role: account.role, accessToken: grant.accessToken, grantedScope: grant.scope ?? claims.scope ?? '', claims };
 }

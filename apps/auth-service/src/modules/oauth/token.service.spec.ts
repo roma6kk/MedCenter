@@ -27,6 +27,14 @@ function createService(): {
   return { service: new TokenService(store, denylist), store, denylist };
 }
 
+type IssuedToken = Awaited<ReturnType<TokenService['issue']>>;
+
+async function createIssued(overrides: Partial<IssueTokenParams> = {}): Promise<ReturnType<typeof createService> & { readonly issued: IssuedToken }> {
+  const created = createService();
+
+  return { ...created, issued: await created.service.issue({ ...BASE_PARAMS, ...overrides }) };
+}
+
 describe('InMemoryTokenDenylist', () => {
   it('should report a sealed jti as denied', async () => {
     const denylist = new InMemoryTokenDenylist();
@@ -115,15 +123,13 @@ describe('TokenService', () => {
 
   describe('consume', () => {
     it('should return the token when the jti and kind match', async () => {
-      const { service } = createService();
-      const issued = await service.issue(BASE_PARAMS);
+      const { service, issued } = await createIssued();
 
       await expect(service.consume(issued.jti, 'code')).resolves.toMatchObject({ jti: issued.jti });
     });
 
     it('should delete the row and seal the jti against reuse when it is consumed', async () => {
-      const { service, store } = createService();
-      const issued = await service.issue(BASE_PARAMS);
+      const { service, store, issued } = await createIssued();
 
       await service.consume(issued.jti, 'code');
 
@@ -132,20 +138,15 @@ describe('TokenService', () => {
     });
 
     it('should not end the session when a token is merely consumed', async () => {
-      const { service } = createService();
-      const issued = await service.issue({ ...BASE_PARAMS, kind: 'refresh' });
+      const { service, issued } = await createIssued({ kind: 'refresh' });
 
       await service.consume(issued.jti, 'refresh');
 
-      // Rotation seals the refresh token against reuse but must leave the access
-      // token the client is still using alone, or every rotation would log its
-      // own caller out (the guard answers 401 TOKEN_REVOKED).
       await expect(service.isRevoked(issued.jti)).resolves.toBe(false);
     });
 
     it('should refuse a second consumption of the same jti', async () => {
-      const { service } = createService();
-      const issued = await service.issue(BASE_PARAMS);
+      const { service, issued } = await createIssued();
 
       await service.consume(issued.jti, 'code');
 
@@ -159,21 +160,15 @@ describe('TokenService', () => {
     });
 
     it('should return null when the stored token has a different kind', async () => {
-      const { service, store } = createService();
-      const issued = await service.issue({ ...BASE_PARAMS, kind: 'refresh' });
+      const { service, store, issued } = await createIssued({ kind: 'refresh' });
 
       await expect(service.consume(issued.jti, 'code')).resolves.toBeNull();
       await expect(store.find(issued.jti)).resolves.toMatchObject({ kind: 'refresh' });
     });
 
     it('should return null and drop the row when the token has expired', async () => {
-      const { service, store } = createService();
-      const issued = await service.issue({ ...BASE_PARAMS, ttlSeconds: 0 });
+      const { service, store, issued } = await createIssued({ ttlSeconds: 0 });
 
-      // The denylist entry is deliberately not asserted here: `consume` derives its
-      // TTL from the *remaining* lifetime, which is <= 0 for an expired token, so the
-      // seal is a no-op. The token is unusable either way, because consumption checks
-      // `expiresAt` directly (see the `InMemoryTokenDenylist` ttl case above).
       await expect(service.consume(issued.jti, 'code')).resolves.toBeNull();
       await expect(store.find(issued.jti)).resolves.toBeNull();
     });
@@ -181,16 +176,14 @@ describe('TokenService', () => {
 
   describe('isDenied', () => {
     it('should report a consumed jti as denied', async () => {
-      const { service } = createService();
-      const issued = await service.issue(BASE_PARAMS);
+      const { service, issued } = await createIssued();
       await service.consume(issued.jti, 'code');
 
       await expect(service.isDenied(issued.jti)).resolves.toBe(true);
     });
 
     it('should report a live jti as not denied', async () => {
-      const { service } = createService();
-      const issued = await service.issue(BASE_PARAMS);
+      const { service, issued } = await createIssued();
 
       await expect(service.isDenied(issued.jti)).resolves.toBe(false);
     });
@@ -198,8 +191,7 @@ describe('TokenService', () => {
 
   describe('revoke', () => {
     it('should drop the stored row and seal the jti when a token is revoked', async () => {
-      const { service, store } = createService();
-      const issued = await service.issue({ ...BASE_PARAMS, kind: 'refresh' });
+      const { service, store, issued } = await createIssued({ kind: 'refresh' });
 
       await service.revoke(issued.jti);
 
@@ -208,8 +200,7 @@ describe('TokenService', () => {
     });
 
     it('should mark the jti as a revoked session when a token is revoked', async () => {
-      const { service } = createService();
-      const issued = await service.issue({ ...BASE_PARAMS, kind: 'refresh' });
+      const { service, issued } = await createIssued({ kind: 'refresh' });
 
       await service.revoke(issued.jti);
 
@@ -217,8 +208,7 @@ describe('TokenService', () => {
     });
 
     it('should prevent any further consumption after a revoke', async () => {
-      const { service } = createService();
-      const issued = await service.issue({ ...BASE_PARAMS, kind: 'refresh' });
+      const { service, issued } = await createIssued({ kind: 'refresh' });
 
       await service.revoke(issued.jti);
 
@@ -236,16 +226,14 @@ describe('TokenService', () => {
 
   describe('isRevoked', () => {
     it('should report a revoked session as revoked', async () => {
-      const { service } = createService();
-      const issued = await service.issue({ ...BASE_PARAMS, kind: 'refresh' });
+      const { service, issued } = await createIssued({ kind: 'refresh' });
       await service.revoke(issued.jti);
 
       await expect(service.isRevoked(issued.jti)).resolves.toBe(true);
     });
 
     it('should report a live session as not revoked', async () => {
-      const { service } = createService();
-      const issued = await service.issue({ ...BASE_PARAMS, kind: 'refresh' });
+      const { service, issued } = await createIssued({ kind: 'refresh' });
 
       await expect(service.isRevoked(issued.jti)).resolves.toBe(false);
     });
@@ -259,14 +247,11 @@ describe('TokenService', () => {
     it('should forget a revoked session after the access-token lifetime has elapsed', async () => {
       jest.useFakeTimers();
       try {
-        const { service } = createService();
-        const issued = await service.issue({ ...BASE_PARAMS, kind: 'refresh' });
+        const { service, issued } = await createIssued({ kind: 'refresh' });
         await service.revoke(issued.jti);
 
         jest.setSystemTime(Date.now() + (ACCESS_TOKEN_TTL_SECONDS + 1) * 1000);
 
-        // The session seal only has to outlive the access tokens minted for it.
-        // The reuse seal is bounded by the refresh token's own 14-day lifetime.
         await expect(service.isRevoked(issued.jti)).resolves.toBe(false);
         await expect(service.isDenied(issued.jti)).resolves.toBe(true);
       } finally {

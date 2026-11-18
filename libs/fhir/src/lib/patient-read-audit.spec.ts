@@ -96,7 +96,6 @@ describe('PatientReadAudit', () => {
   });
 });
 
-/** ADR-018 / D-3: DOCTOR and ADMIN reads and every refused read are journalled; a patient's own read is not. */
 describe('PatientReadAudit.audited', () => {
   const doctor = { sub: 'user-d', role: 'DOCTOR' };
   const admin = { sub: 'user-a', role: 'ADMIN' };

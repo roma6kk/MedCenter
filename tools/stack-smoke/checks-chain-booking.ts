@@ -6,11 +6,10 @@ import type { SmokeStep } from './smoke-runner';
 import type { JsonObject } from './smoke-types';
 import { newKey, type Suite } from './suite';
 
-/** What the booking steps hand to each other: the slot, the request, the first answer. */
 interface Booking {
   readonly slot: JsonObject;
   readonly key: string;
-  readonly body: { readonly slotId: string; readonly reason: string };
+  readonly body: { readonly slotId: string };
   firstAnswer: string;
 }
 
@@ -117,10 +116,9 @@ function slotGoneStep(suite: Suite, booking: Booking): SmokeStep {
   };
 }
 
-/** Steps 1-7 of the clinical chain: the patient finds a doctor and a free slot and books it. */
 export function bookingSteps(suite: Suite, slots: readonly JsonObject[]): SmokeStep[] {
   const slot = slots[0] as JsonObject;
-  const booking: Booking = { slot, key: newKey(), body: { slotId: String(slot['id']), reason: 'Контрольный осмотр (smoke)' }, firstAnswer: '' };
+  const booking: Booking = { slot, key: newKey(), body: { slotId: String(slot['id']) }, firstAnswer: '' };
   return [
     findSlotStep(suite, booking),
     bookStep(suite, booking),

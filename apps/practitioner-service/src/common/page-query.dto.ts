@@ -6,11 +6,7 @@ import { DEFAULT_PAGE, DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE } from '@medcenter/contr
 /** Upper bound on `page`, so a client cannot push HAPI into an unbounded `_offset` scan. */
 export const MAX_PAGE = 1000;
 
-/**
- * `?page=&pageSize=` of API §0. Both become HAPI `_count`/`_offset`, so a value
- * that is not a whole number in range (`page=abc` is `NaN` after `Number()`) is
- * answered 400 here instead of surfacing as a HAPI error and a 500.
- */
+// Non-numeric or out-of-range `page`/`pageSize` is a 400 here, not a HAPI error and a 500.
 export class PageQueryDto {
   @ApiPropertyOptional({ minimum: 1, maximum: MAX_PAGE, default: DEFAULT_PAGE })
   @IsOptional()

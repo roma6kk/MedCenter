@@ -112,7 +112,7 @@ describe('ReportsService', () => {
     it('should query the read-model and HAPI with the same half-open period when the range is valid', async () => {
       await reportsService.appointmentsSummary(range);
 
-      const expected = { from: new Date('2026-01-01T00:00:00.000Z'), toExclusive: new Date('2027-01-01T00:00:00.000Z') };
+      const expected = { from: new Date('2025-12-31T21:00:00.000Z'), toExclusive: new Date('2026-12-31T21:00:00.000Z') };
       expect(repository.countAppointmentsByStatus).toHaveBeenCalledWith(expected, [], []);
       expect(clinical.noShowAppointmentIds).toHaveBeenCalledWith(expected);
       expect(clinical.fulfilledAppointmentIds).toHaveBeenCalledWith(expected);
@@ -121,7 +121,7 @@ describe('ReportsService', () => {
     it('should describe the period inclusively like a MeasureReport when the summary is built', async () => {
       const summary = await reportsService.appointmentsSummary(range);
 
-      expect(summary.period).toEqual({ start: '2026-01-01T00:00:00.000Z', end: '2026-12-31T23:59:59.999Z' });
+      expect(summary.period).toEqual({ start: '2025-12-31T21:00:00.000Z', end: '2026-12-31T20:59:59.999Z' });
       expect(summary.scoring).toBe('cohort');
       expect(summary.measure).toBe('appointments-by-status');
     });
@@ -138,9 +138,17 @@ describe('ReportsService', () => {
 
       expect(summary.groups).toEqual([
         { code: 'cardiology', system: 'http://snomed.info/sct', display: 'Кардиология', count: 5 },
-        { code: 'unknown', display: 'Специальность не указана', count: 1 },
+        { code: 'unknown', count: 1 },
       ]);
       expect(summary.total).toBe(6);
+    });
+
+    it('should leave display out when the specialty has a code but no name in the read-model', async () => {
+      repository.countEncountersBySpecialty.mockResolvedValue([{ system: 'http://snomed.info/sct', code: '394579002', display: null, count: '2' }]);
+
+      const summary = await reportsService.encountersSummary(range);
+
+      expect(summary.groups).toEqual([{ code: '394579002', system: 'http://snomed.info/sct', count: 2 }]);
     });
 
     it('should keep one group per code system when the same code is coded in two systems', async () => {
@@ -179,6 +187,14 @@ describe('ReportsService', () => {
         { code: 'svc-2', display: 'УЗИ сердца', count: 9 },
         { code: 'svc-1', count: 4 },
       ]);
+    });
+
+    it('should hand the content language to the name lookup when one is given', async () => {
+      repository.countBookingsByService.mockResolvedValue([{ serviceId: 'svc-1', count: '1' }]);
+
+      await reportsService.servicesPopularity(range, 'en');
+
+      expect(clinical.serviceNames).toHaveBeenCalledWith(['svc-1'], 'en');
     });
 
     it('should default to the top 10 services when "top" is omitted', async () => {

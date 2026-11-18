@@ -1,17 +1,14 @@
 import type { FetchLike } from '../shared/fhir-http';
-import { readUsersConfig } from './demo-cli-options';
 import type { DemoUsersSection } from './demo-manifest';
-import { ADMIN_EMAIL, ADMIN_PASSWORD, authService } from './fake-auth-api';
+import { authService, usersConfigOf } from './fake-auth-api';
 import { planDoctorAccounts, seedDemoUsers, toRejectedRecord, toUserRecord, type UsersProgress, type UsersSeedConfig } from './seed-demo-users';
 
-const NOW = new Date('2026-11-02T10:00:00.000Z');
 const PETROV = 'doctor.petrov@medcenter.test';
 
 function configOf(previous?: DemoUsersSection): UsersSeedConfig {
-  return readUsersConfig({ BOOTSTRAP_ADMIN_EMAIL: ADMIN_EMAIL, BOOTSTRAP_ADMIN_PASSWORD: ADMIN_PASSWORD }, previous, NOW, true);
+  return usersConfigOf({}, previous);
 }
 
-/** Forwards to the service, but a request for `email` rejects like a dropped connection; `afterSend` lets the account be created first. */
 function rejectingFor(email: string, inner: FetchLike, afterSend: boolean): FetchLike {
   return async (url, init) => {
     if (!String(init?.body).includes(email)) {
@@ -63,13 +60,10 @@ describe('seedDemoUsers when a request rejects', () => {
   afterEach(() => jest.restoreAllMocks());
 
   it('should keep the passwords of created accounts when a later request rejects', async () => {
-    // Arrange
     const service = authService();
 
-    // Act
     const section = await seedDemoUsers(configOf(), rejectingFor(PETROV, service.fetchImpl, false));
 
-    // Assert
     const created = section.accounts.filter((account) => account.status === 'created');
     expect(created).toHaveLength(7);
     expect(created.every((account) => typeof account.password === 'string' && account.password.length >= 10)).toBe(true);
@@ -77,14 +71,11 @@ describe('seedDemoUsers when a request rejects', () => {
   });
 
   it('should reuse the kept password on a re-run when the account was created but its answer was lost', async () => {
-    // Arrange
     const service = authService();
     const first = await seedDemoUsers(configOf(), rejectingFor(PETROV, service.fetchImpl, true));
 
-    // Act
     const second = await seedDemoUsers(configOf(first), service.fetchImpl);
 
-    // Assert
     expect(accountOf(second, PETROV)).toMatchObject({ status: 'exists', password: accountOf(first, PETROV)?.password });
     expect(service.created.filter((email) => email === PETROV)).toHaveLength(1);
   });
@@ -103,22 +94,18 @@ describe('seedDemoUsers progress', () => {
   afterEach(() => jest.restoreAllMocks());
 
   it('should report the section after every account so the manifest can be written as it grows', async () => {
-    // Arrange
     const service = authService();
     const sizes: number[] = [];
     const onProgress: UsersProgress = async (section) => {
       sizes.push(section.accounts.filter((account) => account.status === 'created').length);
     };
 
-    // Act
     await seedDemoUsers(configOf(), service.fetchImpl, onProgress);
 
-    // Assert
     expect(sizes).toEqual([1, 2, 3, 4, 5, 6, 7, 8]);
   });
 
   it('should keep the previous passwords of accounts not reached yet when a re-run is interrupted', async () => {
-    // Arrange
     const service = authService();
     const first = await seedDemoUsers(configOf(), service.fetchImpl);
     const snapshots: DemoUsersSection[] = [];
@@ -129,10 +116,8 @@ describe('seedDemoUsers progress', () => {
       }
     };
 
-    // Act
     await expect(seedDemoUsers(configOf(first), service.fetchImpl, onProgress)).rejects.toThrow('interrupted');
 
-    // Assert
     const lastWritten = snapshots[snapshots.length - 1];
     expect(lastWritten?.accounts.map((account) => account.password)).toEqual(first.accounts.map((account) => account.password));
   });

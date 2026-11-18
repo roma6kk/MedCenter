@@ -1,3 +1,4 @@
+import type { AuditService } from '../../audit/audit.service';
 import type { CredentialsService } from '../../users/credentials.service';
 import { InMemoryClientRegistry } from '../guards/client.guard';
 import { createFakeResponse } from '../__tests__/fake-response';
@@ -10,11 +11,11 @@ import { ACCOUNT_ATTEMPT_LIMIT, ACCOUNT_ATTEMPT_WINDOW_SECONDS, LoginThrottle } 
 import {
   BROKEN_REQUEST_MESSAGE,
   INVALID_CREDENTIALS_MESSAGE,
-  LoginController,
   STALE_FORM_MESSAGE,
   THROTTLED_MESSAGE,
   UNAVAILABLE_MESSAGE,
-} from './login.controller';
+} from './login-messages';
+import { LoginController } from './login.controller';
 
 const AUTHORIZE_QUERY = new URLSearchParams({
   response_type: 'code',
@@ -27,16 +28,29 @@ const AUTHORIZE_QUERY = new URLSearchParams({
 
 interface Setup extends LoginHarness {
   readonly controller: LoginController;
-  readonly verify: jest.Mock;
+  readonly check: jest.Mock;
+  readonly recordAuthEvent: jest.Mock;
 }
 
-function setup(userId: string | null = 'user-1', attempts: LoginAttemptStore = new InMemoryLoginAttemptStore()): Setup {
+function setup(
+  userId: string | null = 'user-1',
+  attempts: LoginAttemptStore = new InMemoryLoginAttemptStore(),
+  accountId: string | null = userId,
+): Setup {
   const harness = createLoginHarness();
-  const verify = jest.fn().mockResolvedValue(userId);
-  const credentials = { verify } as unknown as CredentialsService;
+  const check = jest.fn().mockResolvedValue({ userId, accountId });
+  const credentials = { check } as unknown as CredentialsService;
+  const recordAuthEvent = jest.fn().mockResolvedValue(undefined);
   const clients = new InMemoryClientRegistry([createTestClient()]);
-  const controller = new LoginController(credentials, new LoginThrottle(attempts), harness.sessions, harness.page, clients);
-  return { ...harness, controller, verify };
+  const controller = new LoginController(
+    credentials,
+    new LoginThrottle(attempts),
+    harness.sessions,
+    harness.page,
+    { recordAuthEvent } as unknown as AuditService,
+    clients,
+  );
+  return { ...harness, controller, check, recordAuthEvent };
 }
 
 function submit(setupResult: Setup, form: Partial<LoginFormDto> = {}): { form: LoginFormDto; cookie: string } {
@@ -47,17 +61,19 @@ function submit(setupResult: Setup, form: Partial<LoginFormDto> = {}): { form: L
   };
 }
 
+async function attempt(context: Setup, form: Partial<LoginFormDto> = {}): Promise<ReturnType<typeof createFakeResponse>> {
+  const { form: body, cookie } = submit(context, form);
+  const fake = createFakeResponse();
+  await context.controller.login(body, { headers: { cookie } }, fake.response);
+  return fake;
+}
+
 describe('LoginController', () => {
   it('should set the login session and return to the authorize endpoint when the credentials are valid', async () => {
-    // Arrange
     const context = setup();
-    const { form, cookie } = submit(context);
-    const fake = createFakeResponse();
 
-    // Act
-    await context.controller.login(form, { headers: { cookie } }, fake.response);
+    const fake = await attempt(context);
 
-    // Assert
     expect(fake.redirect).toHaveBeenCalledWith(302, `/oauth/authorize?${AUTHORIZE_QUERY}`);
     const session = fake.cookies.find((set) => set.name === LOGIN_SESSION_COOKIE);
     expect(session?.options).toMatchObject({ httpOnly: true, sameSite: 'lax', path: '/oauth' });
@@ -66,11 +82,7 @@ describe('LoginController', () => {
   });
 
   it('should re-render the form with one generic message when the credentials are rejected', async () => {
-    const context = setup(null);
-    const { form, cookie } = submit(context);
-    const fake = createFakeResponse();
-
-    await context.controller.login(form, { headers: { cookie } }, fake.response);
+    const fake = await attempt(setup(null));
 
     expect(fake.redirect).not.toHaveBeenCalled();
     expect(fake.body()).toContain(INVALID_CREDENTIALS_MESSAGE);
@@ -87,15 +99,11 @@ describe('LoginController', () => {
 
     expect(fake.statusCode()).toBe(403);
     expect(fake.body()).toContain(STALE_FORM_MESSAGE);
-    expect(context.verify).not.toHaveBeenCalled();
+    expect(context.check).not.toHaveBeenCalled();
   });
 
   it('should answer 400 without a form when the authorization request names no registered client', async () => {
-    const context = setup();
-    const { form, cookie } = submit(context, { authorize_query: 'client_id=unknown&response_type=code' });
-    const fake = createFakeResponse();
-
-    await context.controller.login(form, { headers: { cookie } }, fake.response);
+    const fake = await attempt(setup(), { authorize_query: 'client_id=unknown&response_type=code' });
 
     expect(fake.statusCode()).toBe(400);
     expect(fake.body()).toContain(BROKEN_REQUEST_MESSAGE);
@@ -103,35 +111,79 @@ describe('LoginController', () => {
   });
 
   it('should answer 400 when the redirect_uri of the form is not registered for the client', async () => {
-    const context = setup();
     const query = AUTHORIZE_QUERY.replace(encodeURIComponent(TEST_REDIRECT_URI), encodeURIComponent('https://evil.example/cb'));
-    const { form, cookie } = submit(context, { authorize_query: query });
-    const fake = createFakeResponse();
 
-    await context.controller.login(form, { headers: { cookie } }, fake.response);
+    const fake = await attempt(setup(), { authorize_query: query });
 
     expect(fake.statusCode()).toBe(400);
     expect(fake.redirect).not.toHaveBeenCalled();
   });
 
   it('should drop smuggled parameters from the redirect when the form query carries extras', async () => {
-    const context = setup();
-    const { form, cookie } = submit(context, { authorize_query: `${AUTHORIZE_QUERY}&prompt=none&next=https://evil.example` });
-    const fake = createFakeResponse();
-
-    await context.controller.login(form, { headers: { cookie } }, fake.response);
+    const fake = await attempt(setup(), { authorize_query: `${AUTHORIZE_QUERY}&prompt=none&next=https://evil.example` });
 
     expect(fake.redirect).toHaveBeenCalledWith(302, `/oauth/authorize?${AUTHORIZE_QUERY}`);
   });
 
-  describe('per-account throttle', () => {
-    async function attempt(context: Setup, form: Partial<LoginFormDto> = {}): Promise<ReturnType<typeof createFakeResponse>> {
-      const { form: body, cookie } = submit(context, form);
-      const fake = createFakeResponse();
-      await context.controller.login(body, { headers: { cookie } }, fake.response);
-      return fake;
-    }
+  describe('authentication journal', () => {
+    it('should journal a successful login for the account', async () => {
+      const context = setup('user-1');
 
+      await attempt(context);
+
+      expect(context.recordAuthEvent).toHaveBeenCalledTimes(1);
+      expect(context.recordAuthEvent).toHaveBeenCalledWith({ kind: 'login', userId: 'user-1' });
+    });
+
+    it('should journal a failed login with the existing account but never the typed password or email', async () => {
+      const context = setup(null, new InMemoryLoginAttemptStore(), 'user-9');
+
+      await attempt(context);
+
+      expect(context.recordAuthEvent).toHaveBeenCalledWith({ kind: 'login-failed', userId: 'user-9' });
+      expect(JSON.stringify(context.recordAuthEvent.mock.calls)).not.toMatch(/Str0ng|ivanov/);
+    });
+
+    it('should journal a failed login without an account when the email is unknown', async () => {
+      const context = setup(null);
+
+      await attempt(context);
+
+      expect(context.recordAuthEvent).toHaveBeenCalledWith({ kind: 'login-failed' });
+    });
+
+    it('should journal the throttled attempt', async () => {
+      const context = setup(null);
+      for (let spent = 0; spent < ACCOUNT_ATTEMPT_LIMIT; spent += 1) {
+        await attempt(context);
+      }
+      context.recordAuthEvent.mockClear();
+
+      await attempt(context);
+
+      expect(context.recordAuthEvent).toHaveBeenCalledWith({ kind: 'login-throttled' });
+    });
+
+    it('should not journal a stale form', async () => {
+      const context = setup();
+      const { form } = submit(context);
+
+      await context.controller.login(form, { headers: { cookie: `${LOGIN_CSRF_COOKIE}=other-nonce` } }, createFakeResponse().response);
+
+      expect(context.recordAuthEvent).not.toHaveBeenCalled();
+    });
+
+    it('should log in even when the journal is slow or broken', async () => {
+      const context = setup('user-1');
+      context.recordAuthEvent.mockReturnValue(new Promise(() => undefined));
+
+      const fake = await attempt(context);
+
+      expect(fake.redirect).toHaveBeenCalledWith(302, `/oauth/authorize?${AUTHORIZE_QUERY}`);
+    });
+  });
+
+  describe('per-account throttle', () => {
     it('should refuse with 429 and never check the password when the account exhausted its attempts', async () => {
       const context = setup(null);
       for (let spent = 0; spent < ACCOUNT_ATTEMPT_LIMIT; spent += 1) {
@@ -143,7 +195,7 @@ describe('LoginController', () => {
       expect(fake.statusCode()).toBe(429);
       expect(fake.body()).toContain(THROTTLED_MESSAGE);
       expect(fake.headers['Retry-After']).toBe(String(ACCOUNT_ATTEMPT_WINDOW_SECONDS));
-      expect(context.verify).toHaveBeenCalledTimes(ACCOUNT_ATTEMPT_LIMIT);
+      expect(context.check).toHaveBeenCalledTimes(ACCOUNT_ATTEMPT_LIMIT);
     });
 
     it('should refuse even the right password when the account is over its limit', async () => {
@@ -158,7 +210,7 @@ describe('LoginController', () => {
 
       expect(fake.redirect).not.toHaveBeenCalled();
       expect(fake.statusCode()).toBe(429);
-      expect(owner.verify).not.toHaveBeenCalled();
+      expect(owner.check).not.toHaveBeenCalled();
     });
 
     it('should give the whole budget back when a valid login clears the counter', async () => {
@@ -186,7 +238,7 @@ describe('LoginController', () => {
 
       expect(fake.statusCode()).toBe(503);
       expect(fake.body()).toContain(UNAVAILABLE_MESSAGE);
-      expect(context.verify).not.toHaveBeenCalled();
+      expect(context.check).not.toHaveBeenCalled();
     });
 
     it('should not spend the account budget when the CSRF token is wrong', async () => {

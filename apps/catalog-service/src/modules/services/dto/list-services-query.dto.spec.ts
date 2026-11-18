@@ -11,10 +11,8 @@ async function parse(query: Record<string, string>): Promise<ListServicesQueryDt
 
 describe('ListServicesQueryDto', () => {
   it('should convert page and pageSize to numbers when they are valid', async () => {
-    // Act
     const query = await parse({ page: '2', pageSize: '50', search: 'терапевт' });
 
-    // Assert
     expect(query).toMatchObject({ page: 2, pageSize: 50, search: 'терапевт' });
   });
 

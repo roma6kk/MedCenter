@@ -8,7 +8,6 @@ import { TerminologyImportPanel } from './terminology-import-panel';
 import { useValueSets } from './use-terminology';
 import { ValueSetTable } from './value-set-table';
 
-/** `/admin/terminology` (FR-018): the seeded ValueSets and the snapshot import. */
 export function TerminologyPanel(): ReactNode {
   const t = useT('admin.terminology');
   const query = useValueSets();

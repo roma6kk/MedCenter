@@ -17,7 +17,6 @@ const EXPECTED_PATHS: readonly string[] = [
   '/api/v1/admin/rooms/{id}/usage',
 ];
 
-/** API §10: the OpenAPI document of practitioner-service, built from the real controllers. */
 describe('practitioner-service OpenAPI document', () => {
   let document: OpenAPIObject;
 
@@ -66,6 +65,7 @@ describe('practitioner-service OpenAPI document', () => {
     const publicLabels: readonly string[] = [
       'GET /api/v1/doctors',
       'GET /api/v1/doctors/{id}',
+      'GET /health',
     ];
     for (const { label, operation } of all) {
       if (publicLabels.includes(label)) {

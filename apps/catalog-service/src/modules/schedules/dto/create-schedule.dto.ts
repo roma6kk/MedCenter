@@ -11,24 +11,36 @@ import {
   Max,
   MaxLength,
   Min,
+  registerDecorator,
   ValidateNested,
+  type ValidationArguments,
 } from 'class-validator';
 import { Type } from 'class-transformer';
+import { FHIR_ID_PATTERN } from '@medcenter/common';
 
-import { FHIR_ID_PATTERN } from '../../../common/fhir-id';
+import { CALENDAR_DATE } from '../../../common/zoned-date';
+import { toMinutes } from '../slot-planner';
 
 const FHIR_ID_MESSAGE = '$property must be a FHIR resource id';
 
-/**
- * One weekly availability window inside a `Schedule.planningHorizon`.
- * `startTime`/`endTime` are clinic wall-clock times (Europe/Minsk, UTC+3) and
- * `dayOfWeek` is the clinic weekday: a `09:00` window yields slots from 06:00Z.
- *
- * The zone is fixed by this service, not by API §5.2.1 (the spec does not name
- * one yet; it is pending a spec update). `tools/demo-seed` stores its windows
- * the same way. Windows that an older generator read as UTC are not converted:
- * see the migration note in `tasks/TASK-001/coder-m2-gaps-report.md`.
- */
+function IsAfterStartTime(): PropertyDecorator {
+  return (target, propertyKey) => {
+    registerDecorator({
+      name: 'isAfterStartTime',
+      target: target.constructor,
+      propertyName: String(propertyKey),
+      options: { message: 'endTime must be after startTime' },
+      validator: {
+        validate: (value: unknown, args: ValidationArguments): boolean => {
+          const startTime = (args.object as { startTime?: unknown }).startTime;
+          return typeof value === 'string' && typeof startTime === 'string' && toMinutes(value) > toMinutes(startTime);
+        },
+      },
+    });
+  };
+}
+
+/** `startTime`/`endTime` are clinic wall-clock times (Europe/Minsk) and `dayOfWeek` is the clinic weekday. */
 export class WeeklyWindowDto {
   @ApiProperty({ enum: ['MO', 'TU', 'WE', 'TH', 'FR', 'SA', 'SU'], description: 'Clinic weekday' })
   @IsIn(['MO', 'TU', 'WE', 'TH', 'FR', 'SA', 'SU'])
@@ -50,16 +62,11 @@ export class WeeklyWindowDto {
   })
   @IsString()
   @Matches(/^([01]\d|2[0-3]):[0-5]\d$/)
+  @IsAfterStartTime()
   endTime!: string;
 }
 
-/**
- * API §5.2.1 `CreateScheduleDto` (FR-020, ADR-015). The three actor ids are
- * validated as FHIR `id`s, not as UUIDs (deviation from the spec's `@IsUUID()`):
- * HAPI assigns sequential numeric ids to rooms and services created through
- * `POST /admin/rooms` and `POST /admin/services`, so `@IsUUID()` made every room
- * and service created through the API unusable in a schedule (found by the stack smoke).
- */
+/** The actor ids are FHIR `id`s, not UUIDs: HAPI assigns sequential numeric ids to rooms and roles. */
 export class CreateScheduleDto {
   @ApiProperty({
     description: 'PractitionerRole id (FHIR id)',
@@ -86,16 +93,17 @@ export class CreateScheduleDto {
   serviceId!: string;
 
   @ApiProperty({ format: 'date', example: '2026-11-02' })
-  @IsDateString()
+  @IsDateString({ strict: true })
+  @Matches(CALENDAR_DATE, { message: 'horizonFrom must be a calendar date YYYY-MM-DD' })
   horizonFrom!: string;
 
-  /** Inclusive planning horizon end — never more than 90 days after `horizonFrom`. */
   @ApiProperty({
     format: 'date',
     example: '2026-12-31',
     description: 'Inclusive; at most 90 days after horizonFrom',
   })
-  @IsDateString()
+  @IsDateString({ strict: true })
+  @Matches(CALENDAR_DATE, { message: 'horizonTo must be a calendar date YYYY-MM-DD' })
   horizonTo!: string;
 
   @ApiProperty({ type: () => [WeeklyWindowDto], minItems: 1 })

@@ -18,7 +18,6 @@ describe('RoomIdParamDto', () => {
   });
 
   it.each(['.', '..'])('should reject the id when it is only dots (%s) and would collapse the FHIR URL', async (id) => {
-    // `Location/..` resolves to the FHIR base URL inside fetch.
     expect(await isValidId(id)).toBe(false);
   });
 });

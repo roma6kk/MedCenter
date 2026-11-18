@@ -6,7 +6,6 @@ import { startAppHarness, type AppHarness } from './app-harness';
 
 const DAY_MS = 86_400_000;
 
-/** Exactly the shape appointment-service / encounter-service write (ADR-014), after HAPI assigned ids. */
 function auditEvent(params: {
   readonly id: string;
   readonly recorded: string;
@@ -62,7 +61,6 @@ const OCTOBER = 'from=2026-10-01&to=2026-10-31';
 describe('GET /api/v1/admin/audit (API §9.4, FR-021) over a mocked HAPI', () => {
   let harness: AppHarness;
 
-  /** `token: null` sends no Authorization header (an explicit `undefined` would pick the default). */
   function get(path: string, token: string | null = harness.adminToken()): request.Test {
     const call = request(harness.app.getHttpServer()).get(path);
     return token === null ? call : call.set('Authorization', `Bearer ${token}`);
@@ -110,6 +108,27 @@ describe('GET /api/v1/admin/audit (API §9.4, FR-021) over a mocked HAPI', () =>
     const response = await get(`/api/v1/admin/audit?${OCTOBER}&entity=Appointment`).expect(200);
 
     expect(response.body.items.map((item: { id: string }) => item.id)).toEqual(['ae-2', 'ae-1']);
+  });
+
+  it('should keep only the given action when action is a single value', async () => {
+    const response = await get(`/api/v1/admin/audit?${OCTOBER}&action=create`).expect(200);
+
+    expect(response.body.items.map((item: { id: string }) => item.id)).toEqual(['ae-1']);
+  });
+
+  it.each([
+    ['a comma list', 'action=create,update'],
+    ['repeated parameters', 'action=create&action=update'],
+  ])('should keep the events of any listed action when action is %s', async (_case, query) => {
+    const response = await get(`/api/v1/admin/audit?${OCTOBER}&${query}`).expect(200);
+
+    expect(response.body.meta.totalItems).toBe(3);
+  });
+
+  it('should return nothing when no event has the requested action', async () => {
+    const response = await get(`/api/v1/admin/audit?${OCTOBER}&action=login-failed`).expect(200);
+
+    expect(response.body.items).toEqual([]);
   });
 
   it('should filter by one resource when entity is a Type/id reference', async () => {
@@ -205,6 +224,8 @@ describe('GET /api/v1/admin/audit (API §9.4, FR-021) over a mocked HAPI', () =>
 
   it.each([
     ['an entity that is not a resource reference', 'entity=appointment;drop'],
+    ['an unknown action', 'action=teleport'],
+    ['an unknown action in a list', 'action=login,teleport'],
     ['a pageSize above 100', 'pageSize=101'],
     ['a malformed date', 'from=31.10.2026'],
     ['a month instead of a date', 'from=2026-10&to=2026-10'],

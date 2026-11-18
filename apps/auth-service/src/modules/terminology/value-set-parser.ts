@@ -28,7 +28,6 @@ function toSummary(resource: FhirResource): ValueSetSummaryDto | null {
   return { url, ...optional('name'), ...optional('title'), ...optional('version'), ...optional('status') };
 }
 
-/** The `fhir.by` ValueSets of a search Bundle, ordered by canonical; anything else HAPI holds is not ours. */
 export function toValueSetSummaries(result: FhirSearchResult): ValueSetSummaryDto[] {
   return (result.entry ?? [])
     .map((entry) => toSummary(entry.resource))
@@ -40,7 +39,6 @@ function collectConcepts(nodes: unknown, into: ConceptDto[]): void {
   for (const node of records(nodes)) {
     const system = textOf(node, 'system');
     const code = textOf(node, 'code');
-    // `abstract` grouping nodes carry no code; their children are still listed.
     if (system !== undefined && code !== undefined) {
       const display = textOf(node, 'display');
       into.push({ system, code, ...(display !== undefined ? { display } : {}) });
@@ -49,7 +47,6 @@ function collectConcepts(nodes: unknown, into: ConceptDto[]): void {
   }
 }
 
-/** Flattens `ValueSet.expansion.contains` (which may nest) into concepts plus the server's total. */
 export function toConcepts(valueSet: FhirResource): { readonly total: number; readonly items: ConceptDto[] } {
   const expansion = isRecord(valueSet['expansion']) ? valueSet['expansion'] : {};
   const items: ConceptDto[] = [];
@@ -58,7 +55,6 @@ export function toConcepts(valueSet: FhirResource): { readonly total: number; re
   return { total: typeof total === 'number' && Number.isInteger(total) && total >= 0 ? total : items.length, items };
 }
 
-/** `Parameters` of `ValueSet/$validate-code`: `result` (boolean) and the resolved `display`. */
 export function toValidation(parameters: FhirResource): { readonly valid: boolean; readonly display?: string } {
   const list = records(parameters['parameter']);
   const result = list.find((parameter) => parameter['name'] === 'result');

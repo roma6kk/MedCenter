@@ -6,7 +6,6 @@ export interface SetCookie {
   readonly options: CookieOptions;
 }
 
-/** Records what a handler did to an Express response: status, headers, body, cookies, redirect. */
 export interface FakeResponse {
   readonly response: Response;
   readonly redirect: jest.Mock;
@@ -73,7 +72,6 @@ export function createFakeResponse(): FakeResponse {
   };
 }
 
-/** The hidden CSRF field of a rendered login page. */
 export function csrfFieldOf(html: string | undefined): string {
   return /name="csrf" value="([^"]*)"/.exec(html ?? '')?.[1] ?? '';
 }

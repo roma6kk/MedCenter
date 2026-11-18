@@ -2,25 +2,12 @@ import type { FhirHttp, FhirResource } from '../shared/fhir-http';
 import { expansionCodes } from './expansion-codes';
 import { buildExpansionChecks, TERMINOLOGY_URLS, type ExpansionCheck, type SeedConcept } from './terminology-resources';
 
-/**
- * Proof that the seeded terminology works the way the services use it.
- *
- * - `ValueSet/$validate-code` is the services' own gate (BR-004, BR-009,
- *   `TerminologyValidatorService`): every snapshot code must be accepted.
- * - `ValueSet/$expand?filter=` is what a combobox calls. HAPI's in-memory
- *   expansion matches `filter` against the *display* text only (a code such as
- *   `J06.9` is not matched — auth-service's terminology API applies the code
- *   match itself), so the proof filters by the concept's display and checks
- *   that exactly its code comes back.
- */
-
-export interface KeyCode {
+interface KeyCode {
   readonly label: string;
   readonly valueSetUrl: string;
   readonly code: string;
 }
 
-/** The codes the demo and the encounter flow depend on first. */
 export const KEY_CODES: readonly KeyCode[] = [
   { label: 'ICD-10', valueSetUrl: TERMINOLOGY_URLS.ICD10_VALUE_SET, code: 'J06.9' },
   { label: 'ATC', valueSetUrl: TERMINOLOGY_URLS.ATC_VALUE_SET, code: 'J01FA10' },
@@ -30,9 +17,7 @@ export const KEY_CODES: readonly KeyCode[] = [
 export interface KeyCodeProof extends KeyCode {
   readonly display: string;
   readonly isValid: boolean;
-  /** `$expand?filter=<display>` returned this code. */
   readonly isFoundByFilter: boolean;
-  /** Number of concepts the filtered expansion returned (the display should be specific). */
   readonly filterMatches: number;
 }
 
@@ -51,7 +36,6 @@ export async function isCodeValid(http: FhirHttp, valueSetUrl: string, system: s
   return readValidateResult(await http.operation('ValueSet/$validate-code', { url: valueSetUrl, system, code }));
 }
 
-/** Snapshot codes `$validate-code` refuses for the ValueSet. */
 export async function findRejectedCodes(http: FhirHttp, check: ExpansionCheck): Promise<string[]> {
   const rejected: string[] = [];
   for (const concept of check.concepts) {

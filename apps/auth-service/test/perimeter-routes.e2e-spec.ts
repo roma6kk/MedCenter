@@ -57,7 +57,6 @@ function routesOf(controller: Type<unknown>): ReadonlyArray<RouteInfo> {
   });
 }
 
-/** Every route the real `AppModule` mounts, read from the Nest metadata of its controllers. */
 function mountedRoutes(app: INestApplication): ReadonlyArray<RouteInfo> {
   const controllers = [...app.get(ModulesContainer).values()].flatMap((module) =>
     [...module.controllers.values()].flatMap((wrapper) =>
@@ -67,12 +66,6 @@ function mountedRoutes(app: INestApplication): ReadonlyArray<RouteInfo> {
   return controllers.flatMap(routesOf);
 }
 
-/**
- * Completeness of the perimeter (ADR-009). `jwt-perimeter.e2e-spec.ts` proves the guard stack
- * protects *a* route; this suite proves no route of the real application escapes the two lists the
- * other suites test: the protected catalogue (`authz-matrix`) and the explicit public allow-list.
- * A new endpoint fails here until it is classified and covered.
- */
 describe('Route inventory of the perimeter', () => {
   let app: INestApplication;
   let routes: ReadonlyArray<RouteInfo>;

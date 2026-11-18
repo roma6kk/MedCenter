@@ -35,8 +35,8 @@ describe('appointment-api', () => {
   });
 
   it('should POST the cancellation reason as JSON to /appointments/{id}/cancel', async () => {
-    await cancelAppointment('1552', 'Заболел');
+    await cancelAppointment('1552', 'plans-changed');
 
-    expect(apiFetchMock).toHaveBeenCalledWith('/api/v1/appointments/1552/cancel', { method: 'POST', body: '{"reason":"Заболел"}' });
+    expect(apiFetchMock).toHaveBeenCalledWith('/api/v1/appointments/1552/cancel', { method: 'POST', body: '{"reason":"plans-changed"}' });
   });
 });

@@ -1,7 +1,7 @@
 import { BadRequestException } from '@nestjs/common';
 import type { FhirClient, FhirResource } from '@medcenter/fhir';
 
-import { auditedResource, committedAudit, committedEntries, transactionResponder } from '../../common/__tests__/audited-transactions';
+import { auditedResource, committedAudit, committedEntries, transactionResponder } from '@medcenter/testing';
 import { RedisCacheService } from '../cache/redis-cache.service';
 import {
   PLANNING_HORIZON_EXT,
@@ -15,13 +15,26 @@ const ACTOR = { sub: 'admin-1', requestId: 'req-1' };
 
 function createFhirClientMock(): jest.Mocked<FhirClient> {
   return {
-    search: jest.fn(),
+    search: jest.fn().mockResolvedValue({ entry: [] }),
     read: jest.fn(),
     create: jest.fn(),
     update: jest.fn(),
     delete: jest.fn(),
     batch: jest.fn().mockImplementation(transactionResponder()),
   } as unknown as jest.Mocked<FhirClient>;
+}
+
+function createDto(overrides: Partial<CreateScheduleDto> = {}): CreateScheduleDto {
+  return {
+    practitionerRoleId: 'role-1',
+    roomId: 'room-1',
+    serviceId: 'svc-1',
+    horizonFrom: '2026-11-01',
+    horizonTo: '2026-11-30',
+    slotDurationMin: 30,
+    windows: [{ dayOfWeek: 'MO', startTime: '09:00', endTime: '10:00' }],
+    ...overrides,
+  };
 }
 
 describe('SchedulesService', () => {
@@ -34,52 +47,30 @@ describe('SchedulesService', () => {
   });
 
   it('should reject overlapping weekly windows for the same practitioner role', async () => {
-    fhirClient.search.mockResolvedValue({ entry: [] });
-
     await expect(
-      schedulesService.create({
-        practitionerRoleId: 'role-1',
-        roomId: 'room-1',
-        serviceId: 'svc-1',
-        horizonFrom: '2026-11-01',
-        horizonTo: '2026-11-30',
-        slotDurationMin: 30,
+      schedulesService.create(createDto({
         windows: [
           { dayOfWeek: 'MO', startTime: '09:00', endTime: '12:00' },
           { dayOfWeek: 'MO', startTime: '11:00', endTime: '13:00' },
         ],
-      }, ACTOR),
+      }), ACTOR),
     ).rejects.toThrow('SCHEDULE_OVERLAP');
   });
 
   it('should persist a non-overlapping schedule', async () => {
-    fhirClient.search.mockResolvedValue({ entry: [] });
-
     await expect(
-      schedulesService.create({
-        practitionerRoleId: 'role-1',
-        roomId: 'room-1',
-        serviceId: 'svc-1',
-        horizonFrom: '2026-11-01',
-        horizonTo: '2026-11-30',
-        slotDurationMin: 30,
-        windows: [{ dayOfWeek: 'MO', startTime: '09:00', endTime: '10:00' }],
-      }, ACTOR),
+      schedulesService.create(createDto(), ACTOR),
     ).resolves.toMatchObject({ id: expect.any(String), isActive: true });
   });
 
   it('should answer with the ScheduleSummaryDto, not the raw FHIR resource, when a schedule is created', async () => {
-    fhirClient.search.mockResolvedValue({ entry: [] });
-
-    const created = await schedulesService.create({
-      practitionerRoleId: 'role-1',
+    const created = await schedulesService.create(createDto({
       roomId: '1469',
       serviceId: '1470',
       horizonFrom: '2026-12-19',
       horizonTo: '2026-12-26',
-      slotDurationMin: 30,
       windows: [{ dayOfWeek: 'SA', startTime: '09:00', endTime: '12:00' }],
-    }, ACTOR);
+    }), ACTOR);
 
     expect(created).toEqual({
       id: expect.any(String),
@@ -103,7 +94,7 @@ describe('SchedulesService', () => {
     expect(fhirClient.search).toHaveBeenCalledWith('Schedule', {
       actor: 'PractitionerRole/role-1',
       active: 'true',
-      _sort: '_id',
+      _sort: '-_lastUpdated,_id',
       _count: 20,
       _offset: 20,
       _total: 'accurate',
@@ -142,21 +133,9 @@ describe('SchedulesService', () => {
   });
 
   it('should persist slotDurationMin as a valueInteger extension, not a top-level element', async () => {
-    fhirClient.search.mockResolvedValue({ entry: [] });
-
-    await schedulesService.create({
-      practitionerRoleId: 'role-1',
-      roomId: 'room-1',
-      serviceId: 'svc-1',
-      horizonFrom: '2026-11-01',
-      horizonTo: '2026-11-30',
-      slotDurationMin: 45,
-      windows: [{ dayOfWeek: 'MO', startTime: '09:00', endTime: '10:00' }],
-    }, ACTOR);
+    await schedulesService.create(createDto({ slotDurationMin: 45 }), ACTOR);
 
     const created = (committedEntries(fhirClient)[0]?.resource ?? {}) as FhirResource;
-    // `slotDurationMin` is not a valid FHIR R4 Schedule element: a strict HAPI
-    // would reject the whole create. It must live in an extension.
     expect(created['slotDurationMin']).toBeUndefined();
     expect(created['extension']).toContainEqual({ url: SLOT_DURATION_EXT, valueInteger: 45 });
   });
@@ -165,7 +144,7 @@ describe('SchedulesService', () => {
     fhirClient.read.mockResolvedValue({
       resourceType: 'Schedule',
       id: 'sched-1',
-      slotDurationMin: 30, // legacy top-level write from an older version
+      slotDurationMin: 30,
       extension: [
         {
           url: WEEKLY_WINDOWS_EXT,
@@ -179,14 +158,12 @@ describe('SchedulesService', () => {
     const merged = (committedEntries(fhirClient)[0]?.resource ?? {}) as FhirResource;
     expect(merged['slotDurationMin']).toBeUndefined();
     expect(merged['extension']).toContainEqual({ url: SLOT_DURATION_EXT, valueInteger: 45 });
-    // The stored weekly windows survive the duration merge.
     expect(merged['extension']).toContainEqual(
       expect.objectContaining({ valueString: expect.any(String) }),
     );
   });
 
   it('should carry the stored slot duration over a windows-only PATCH', async () => {
-    fhirClient.search.mockResolvedValue({ entry: [] });
     fhirClient.read.mockResolvedValue({
       resourceType: 'Schedule',
       id: 'sched-1',
@@ -204,7 +181,6 @@ describe('SchedulesService', () => {
     }, ACTOR);
 
     const merged = (committedEntries(fhirClient)[0]?.resource ?? {}) as FhirResource;
-    // Replacing the windows must not drop the stored duration extension.
     expect(merged['extension']).toContainEqual({ url: SLOT_DURATION_EXT, valueInteger: 45 });
     expect(merged['extension']).toContainEqual(
       expect.objectContaining({ valueString: expect.any(String) }),
@@ -212,7 +188,6 @@ describe('SchedulesService', () => {
   });
 
   it('should include the status filter in the slot cache key', async () => {
-    fhirClient.search.mockResolvedValue({ entry: [] });
     const cache = (schedulesService as unknown as { cache: RedisCacheService }).cache;
     const getOrLoad = jest.spyOn(cache, 'getOrLoad');
 
@@ -220,15 +195,12 @@ describe('SchedulesService', () => {
     await schedulesService.listSlots('sched-1', '2026-11-02', '2026-11-03');
 
     const keys = getOrLoad.mock.calls.map((call) => call[0] as string);
-    // The two queries must land on distinct keys: a filtered query must never
-    // serve (nor populate) the cache entry of the unfiltered one.
     expect(keys[0]).toBe('slots:sched-1:2026-11-02:2026-11-03:free');
     expect(keys[1]).toBe('slots:sched-1:2026-11-02:2026-11-03:all');
     expect(keys[0]).not.toBe(keys[1]);
   });
 
   it('should merge horizonFrom/horizonTo into the planningHorizon valuePeriod extension', async () => {
-    fhirClient.search.mockResolvedValue({ entry: [] });
     fhirClient.read.mockResolvedValue({
       resourceType: 'Schedule',
       id: 'sched-1',
@@ -244,7 +216,6 @@ describe('SchedulesService', () => {
     const extensions = merged['extension'] as Array<Record<string, unknown>>;
     const period = extensions.find((ext) => ext['url'] === PLANNING_HORIZON_EXT);
     expect(period).toMatchObject({ valuePeriod: { start: '2026-01-01', end: '2026-03-31' } });
-    // Windows valueString extension must survive.
     expect(extensions.some((ext) => 'valueString' in ext)).toBe(true);
   });
 
@@ -265,7 +236,6 @@ describe('SchedulesService', () => {
       ],
     });
 
-    // Only horizonTo is supplied: the span is measured from the stored start.
     await expect(
       schedulesService.update('sched-1', { horizonTo: '2027-12-31' }, ACTOR),
     ).rejects.toBeInstanceOf(BadRequestException);
@@ -289,19 +259,9 @@ describe('SchedulesService', () => {
   });
 
   describe('audit (FR-021, ADR-014)', () => {
-    const dto = {
-      practitionerRoleId: 'role-1',
-      roomId: 'room-1',
-      serviceId: 'svc-1',
-      horizonFrom: '2026-11-01',
-      horizonTo: '2026-11-30',
-      slotDurationMin: 30,
-      windows: [{ dayOfWeek: 'MO', startTime: '09:00', endTime: '10:00' }],
-    } as CreateScheduleDto;
+    const dto = createDto();
 
     it('should write the create AuditEvent of the new schedule in the same transaction, with the actor and the request id', async () => {
-      fhirClient.search.mockResolvedValue({ entry: [] });
-
       await schedulesService.create(dto, ACTOR);
 
       expect(fhirClient.batch).toHaveBeenCalledTimes(1);

@@ -1,9 +1,5 @@
 import type { AuditAction } from '../../../database/entities/audit-event-read.entity';
 
-/**
- * API §9.4 journal row. Missing values are empty strings, never `null`, so the
- * admin table (`audit-table.tsx`) can render every column as text.
- */
 export interface AuditEventDto {
   readonly id: string;
   readonly occurredAt: string;
@@ -12,6 +8,5 @@ export interface AuditEventDto {
   readonly resourceType: string;
   readonly resourceId: string;
   readonly requestId: string;
-  /** Only an `emergency-bypass` event has one: the reason the doctor gave (ADR-019). */
   readonly reason?: string;
 }

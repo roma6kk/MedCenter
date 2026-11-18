@@ -1,4 +1,4 @@
-import { fireEvent, screen, waitFor } from '@testing-library/react';
+import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { apiFetch } from '@/lib/api/api-fetch';
 import { renderWithClient } from '../shared/test-utils';
 import { ScheduleSlotGrid } from './schedule-slot-grid';
@@ -40,7 +40,7 @@ describe('ScheduleSlotGrid', () => {
 
     await screen.findAllByText('22:00–22:25');
     expect(apiFetchMock).toHaveBeenCalledWith('/api/v1/admin/schedules/2572/slots?from=2026-11-02&to=2026-11-16');
-    expect(screen.getByLabelText('С')).toHaveValue('2026-11-02');
+    expect(screen.getByLabelText('С')).toHaveValue('02.11.2026');
   });
 
   it('should tell free, busy and entered-in-error slots apart and count them when the slots arrive', async () => {
@@ -126,4 +126,19 @@ describe('ScheduleSlotGrid', () => {
     await waitFor(() => expect(apiFetchMock).toHaveBeenCalledWith('/api/v1/admin/schedules/2572/slots?from=2026-10-17&to=2026-10-30'));
     expect(await screen.findByTestId('slot-free')).toBeInTheDocument();
   });
+
+  it('should draw each slot as a compact chip with the time and the status as an icon and a word for assistive technology (VF2)', async () => {
+    renderWithClient(<ScheduleSlotGrid schedule={schedule} />);
+
+    const free = await screen.findByTestId('slot-free');
+    const busy = screen.getByTestId('slot-busy');
+
+    expect(free).toHaveClass('justify-center');
+    expect(free.querySelector('svg')).toHaveAttribute('aria-hidden', 'true');
+    expect(free).toHaveTextContent('22:00–22:25');
+    expect(within(free).getByText('Свободно')).toHaveClass('sr-only');
+    expect(within(busy).getByText('Занято')).toHaveClass('sr-only');
+    expect(busy).toHaveAttribute('title', '22:25–22:50 · Занято');
+  });
 });
+

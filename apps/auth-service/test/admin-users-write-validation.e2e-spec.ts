@@ -16,7 +16,6 @@ type Body = Readonly<Record<string, unknown>>;
 
 const UUID_V4 = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 
-/** API §2.2.1–2.2.5: the request validation, the error mapping and the response contract of the admin CRUD. */
 describe('Admin users API — create and update validation', () => {
   let fixture: AdminFixture;
   let app: INestApplication;

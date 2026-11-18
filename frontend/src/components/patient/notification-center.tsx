@@ -3,28 +3,33 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { ReactNode, RefObject } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { BellRing, CheckCheck } from 'lucide-react';
 import { Pager } from '@/components/data-display/paginated-table';
-import { EmptyState, TableSkeleton } from '@/components/feedback/states';
+import { EmptyState } from '@/components/feedback/states';
+import { ContentSkeleton } from '@/components/feedback/content-skeleton';
 import { buttonVariants } from '@/components/ui/button-variants';
 import { isApiError } from '@/lib/api/api-fetch';
 import { invalidateFor } from '@/lib/api/invalidation';
 import type { PaginatedResponse } from '@/lib/api/pagination';
 import { useT } from '@/lib/i18n/use-t';
+import { cn } from '@/lib/ui/cn';
 import { showToast } from '@/lib/ui/toast';
 import { markAllNotificationsRead, type NotificationItem } from '@/lib/notifications/notification-api';
 import { useMarkNotificationRead, useNotifications, useUnreadCount } from '@/lib/notifications/use-notifications';
 import { ProblemBanner } from '@/components/feedback/problem-banner';
 import { QueryFailure } from '@/components/feedback/query-error-state';
 import { formatDayHeading } from '@/lib/clinic-time';
+import { BookLink } from './book-link';
 import { SegmentedTabs, tabPanelProps, type TabOption } from './segmented-tabs';
 import { useClampedPage } from './use-clamped-page';
 import { useClinicFormat } from '@/hooks/use-clinic-format';
 import { useDocumentTitle } from '@/hooks/use-document-title';
+import { useStaggerOnce } from '@/hooks/use-stagger-once';
 import { useRestoreFocus } from './use-restore-focus';
 import { NotificationRow } from './notifications/notification-row';
 import { groupByClinicDay, matchesFilter, NOTIFICATION_FILTERS, type NotificationFilter } from './notifications/notification-logic';
 
-export const NOTIFICATIONS_PAGE_SIZE = 10;
+const NOTIFICATIONS_PAGE_SIZE = 10;
 const TABS_ID = 'notifications';
 
 interface ListProps {
@@ -36,17 +41,17 @@ interface ListProps {
   readonly onPage: (page: number) => void;
 }
 
-/** The items of the page, one list per clinic day under its own heading, then the pager. */
 function NotificationItems({ items, meta, markingId, listRef, onMarkRead, onPage }: ListProps): ReactNode {
   const t = useT('patient.notifications');
   const format = useClinicFormat();
+  const enter = useStaggerOnce();
   return (
     <>
       <div ref={listRef} tabIndex={-1} role="group" aria-label={t('listLabel')} className="flex flex-col gap-6 focus:outline-none">
         {groupByClinicDay(items).map((day) => (
           <section key={day.dayKey} className="flex flex-col gap-2.5">
-            <h2 id={`notifications-day-${day.dayKey}`} className="text-[15px] font-semibold text-muted-foreground">{formatDayHeading(day.dayKey, format.locale)}</h2>
-            <ul aria-labelledby={`notifications-day-${day.dayKey}`} className="overflow-hidden rounded-panel border border-border bg-card">
+            <h2 id={`notifications-day-${day.dayKey}`} className="text-base font-semibold text-muted-foreground">{formatDayHeading(day.dayKey, format.locale)}</h2>
+            <ul aria-labelledby={`notifications-day-${day.dayKey}`} className={cn('overflow-hidden rounded-panel border border-border bg-card', enter)}>
               {day.items.map((item) => <NotificationRow key={item.id} item={item} markingId={markingId} onMarkRead={onMarkRead} />)}
             </ul>
           </section>
@@ -57,15 +62,14 @@ function NotificationItems({ items, meta, markingId, listRef, onMarkRead, onPage
   );
 }
 
-/**
- * The "nothing here" notice sits in a live region that is always on the page: when the last unread item is marked read the
- * list disappears under the user, and a region that appears together with its text is not reliably announced.
- */
 function EmptyNotice({ filter, isEmpty }: { readonly filter: NotificationFilter; readonly isEmpty: boolean }): ReactNode {
   const t = useT('patient.notifications');
   const tn = useT('patientNotifications');
-  const title: string = filter === 'unread' ? t('emptyUnread') : filter === 'all' ? t('empty') : tn('emptyType');
-  return <div role="status">{isEmpty ? <EmptyState title={title} /> : null}</div>;
+  let empty: ReactNode = null;
+  if (isEmpty && filter === 'all') empty = <EmptyState icon={BellRing} title={t('empty')} description={t('emptyHint')} action={<BookLink label={t('emptyCta')} />} />;
+  else if (isEmpty && filter === 'unread') empty = <EmptyState icon={CheckCheck} title={t('emptyUnread')} description={t('emptyUnreadHint')} />;
+  else if (isEmpty) empty = <EmptyState icon={BellRing} title={tn('emptyType')} />;
+  return <div role="status">{empty}</div>;
 }
 
 interface MarkReadState {
@@ -77,7 +81,6 @@ interface MarkReadState {
   readonly clearFailure: () => void;
 }
 
-/** Marks notifications read, one or all of them (API 8.3 / 8.4); the list and the bell counter refresh through the shared invalidation table. */
 function useMarkRead(begin: () => () => void, onRefresh: () => void): MarkReadState {
   const client = useQueryClient();
   const single = useMarkNotificationRead();
@@ -92,12 +95,11 @@ function useMarkRead(begin: () => () => void, onRefresh: () => void): MarkReadSt
     (id: string) => {
       const restoreFocus: () => void = begin();
       mutate(id, {
-        // The button that had the focus is gone with the "unread" state: keep the keyboard user on the page.
+        // The focused button is gone with the "unread" state: keep the keyboard user on the page.
         onSuccess: () => {
           showToast('success', 'patient.notifications.markedRead');
           restoreFocus();
         },
-        // The notification may be gone already (404): show the real list instead of a stale one.
         onError: onRefresh,
       });
     },
@@ -136,19 +138,16 @@ interface CenterState extends MarkReadState {
   readonly setPage: (page: number) => void;
 }
 
-/** Everything the center keeps: the open filter and page, the read, the mark-as-read actions and where the focus goes after them. */
 function useCenterState(): CenterState {
   const [filter, setFilter] = useState<NotificationFilter>('all');
   const [page, setPage] = useState(1);
   const listRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
-  // Only "unread" is a server filter; the type filters narrow the page that was read.
   const query = useNotifications({ page, pageSize: NOTIFICATIONS_PAGE_SIZE, unread: filter === 'unread' });
   const { refetch } = query;
   const begin = useRestoreFocus(query.dataUpdatedAt, listRef, panelRef);
   const mark = useMarkRead(begin, useCallback(() => void refetch(), [refetch]));
   const { clearFailure } = mark;
-  // A banner about a notification that is no longer on screen would only confuse: it goes with the filter or the page.
   useEffect(() => {
     clearFailure();
   }, [filter, page, clearFailure]);
@@ -166,7 +165,7 @@ function PanelBody({ state }: { readonly state: CenterState }): ReactNode {
   return (
     <>
       {isApiError(failure) ? <div className="mb-3"><ProblemBanner problem={failure.problem} /></div> : null}
-      {query.data === undefined ? <QueryFailure query={query} embedded pending={<TableSkeleton />} /> : null}
+      {query.data === undefined ? <QueryFailure query={query} embedded pending={<ContentSkeleton shape="tiles" rows={3} />} /> : null}
       {query.data && visible.length > 0 ? (
         <NotificationItems items={visible} meta={query.data.meta} markingId={state.markingId} listRef={state.listRef} onMarkRead={state.markRead} onPage={state.setPage} />
       ) : null}
@@ -188,7 +187,7 @@ function CenterHeader({ unreadCount, allMarking, onMarkAll }: HeaderProps): Reac
   return (
     <div className="flex flex-wrap items-end justify-between gap-4">
       <div>
-        <h1 className="text-[28px] font-bold tracking-tight sm:text-[34px]">{t('title')}</h1>
+        <h1 className="text-3xl font-bold tracking-tight">{t('title')}</h1>
         {unreadCount === undefined ? null : (
           <p className="mt-1.5 text-base text-muted-foreground">{unreadCount > 0 ? tn('subtitleUnread', { count: unreadCount }) : tn('subtitleAllRead')}</p>
         )}
@@ -202,7 +201,6 @@ function CenterHeader({ unreadCount, allMarking, onMarkAll }: HeaderProps): Reac
   );
 }
 
-/** The patient's in-app notifications (FR-008, scenario E): filters, day groups, mark as read, refreshed every 30 s. */
 export function NotificationCenter(): ReactNode {
   const t = useT('patient.notifications');
   const tn = useT('patientNotifications');

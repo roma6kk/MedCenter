@@ -44,5 +44,5 @@ tests {
 }
 
 docs {
-  Spec 5.2.8, public. `{id}` is the Practitioner id. Window defaults to today + 14 days, at most 31 days, `from` within the look-ahead limit; not paginated, sorted by `start`. Stores the first free slot in `slotId`.
+  Spec 5.2.8, public. `{id}` is the Practitioner id. Window defaults to today + 14 days, at most 31 days, `from` within the look-ahead limit; not paginated, sorted by `start`. Every item carries `serviceId` (HealthcareService of its schedule). Stores the first free slot in `slotId`.
 }

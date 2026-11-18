@@ -1,0 +1,22 @@
+{
+  "id": "tz-matrix-02",
+  "unit": "tz-matrix",
+  "kind": "gap",
+  "severity": "high",
+  "title": "FR-008: пациент не получает уведомление, когда врач отмечает неявку (status=noshow) — событие не публикуется",
+  "description": "ТЗ: «получение уведомлений об изменениях статуса записи»; FR-008: «Уведомления об изменении статуса записи». Статусы записи — booked, cancelled, noshow, fulfilled. Уведомления есть для booked (appointment.booked.v1), cancelled (appointment.cancelled.v1) и fulfilled (encounter.completed.v1), но для noshow нет ни события, ни потребителя: AppointmentsService.markNoShow() коммитит только PUT Appointment + AuditEvent, без outboxWrite. Пациент видит смену статуса записи на «Неявка» в списке, но в центре уведомлений ничего не появляется — единственный из четырёх статусов без уведомления.",
+  "evidence": "apps/appointment-service/src/modules/appointments/appointments.service.ts:159-182 markNoShow(): commitTransaction([...PUT Appointment, auditWrite(...)]) — no outboxWrite(...), unlike book() (line 85) and cancel() (line 130). libs/contracts/src/lib/events has only appointment-booked/appointment-cancelled/encounter-completed/patient-registered. apps/notification-service/.../notification.bindings.ts binds only 4 routing keys; communication.mapper.ts describe() has no noshow branch. Scenario: doctor POST /doctor/appointments/{id}/noshow -> 200, Appointment.status=noshow -> patient GET /notifications -> no new item.",
+  "files": [
+    "apps/appointment-service/src/modules/appointments/appointments.service.ts",
+    "apps/appointment-service/src/modules/events/appointment-events.ts",
+    "libs/contracts/src/lib/events/appointment-cancelled.event.ts",
+    "apps/notification-service/src/modules/notifications/notification.bindings.ts",
+    "apps/notification-service/src/modules/notifications/communication.mapper.ts",
+    "frontend/src/components/patient/notifications/notification-logic.ts"
+  ],
+  "proposedFix": "Follow the cancelled-event pattern (ADR-021, minimised payload): (1) libs/contracts: add appointment-noshow.event.ts `{ type: 'appointment.noshow.v1'; appointmentId; patientRef }` + export; (2) appointment-events.ts: noshowEvent(); (3) markNoShow(): add `outboxWrite(noshowEvent({ appointmentId, patientRef: patientRef ?? '' }))` to the same transaction array; (4) notification-service: add binding `{ queue: 'notification.appointment-noshow', routingKey: 'appointment.noshow.v1' }`, recipientOf() case, describe() case with category 'appointment', about Appointment/{id}, text like «Приём отмечен как несостоявшийся: врач зафиксировал неявку.»; check outbox-relay needs no per-type registration; (5) analytics ingestion ignores unknown types (verify AnalyticsEvent union is unaffected). Add unit specs next to appointments.service.spec.ts and communication.mapper.spec.ts. The category 'appointment' already links the notification to /appointments/{id} in the UI, so no frontend change is needed.",
+  "needsDecision": false,
+  "decisionQuestion": "",
+  "tzRef": "ТЗ Пациент: уведомления об изменениях статуса записи; FR-008; api-designer-spec §6.6, §8",
+  "confidence": "confirmed"
+}

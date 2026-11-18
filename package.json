@@ -1,5 +1,8 @@
 {
   "name": "medcenter",
+  "engines": {
+    "node": ">=22 <25"
+  },
   "private": true,
   "packageManager": "npm@11.19.0",
   "scripts": {
@@ -10,6 +13,7 @@
     "test:tools": "jest tools/",
     "lint:tools": "eslint --no-eslintrc -c tools/.eslintrc.golden.json tools --ext .ts",
     "seed:terminology": "TS_NODE_PROJECT=tsconfig.base.json ts-node tools/terminology-seed/seed-terminology.ts",
+    "maint:strip-reasons": "TS_NODE_PROJECT=tsconfig.base.json ts-node -r tsconfig-paths/register tools/maintenance/strip-free-text-reasons.ts",
     "seed:demo": "TS_NODE_PROJECT=tsconfig.base.json ts-node -r tsconfig-paths/register tools/demo-seed/seed-demo.ts",
     "smoke:stack": "TS_NODE_PROJECT=tsconfig.base.json ts-node -r tsconfig-paths/register tools/stack-smoke/run-stack-smoke.ts",
     "stack:up": "docker compose up -d --wait",

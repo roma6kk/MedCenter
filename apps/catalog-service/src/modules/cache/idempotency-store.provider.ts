@@ -3,14 +3,8 @@ import { IDEMPOTENCY_STORE, type IdempotencyStore } from '@medcenter/common';
 
 import { CACHE_STORE, type CacheStore } from './redis-cache.service';
 
-/** Entries the process-local store keeps before it evicts: keys live 24 h, so a bound keeps memory flat. */
 export const MEMORY_STORE_MAX_ENTRIES = 1_000;
 
-/**
- * Process-local fallback for a deployment without Redis, where the cache degrades to always-miss.
- * `main.ts` refuses to boot without `REDIS_URL`, so in practice this store serves tests and a
- * deployment that deliberately runs a single replica.
- */
 export class MemoryIdempotencyStore implements IdempotencyStore {
   private readonly entries = new Map<string, { readonly value: string; readonly expiresAt: number }>();
 
@@ -30,7 +24,20 @@ export class MemoryIdempotencyStore implements IdempotencyStore {
     this.entries.set(key, { value, expiresAt: Date.now() + ttlSeconds * 1000 });
   }
 
-  /** Drops the expired entries; when none expired, the oldest one (Map keeps insertion order). */
+  /** Check and write in one synchronous step, so two concurrent callers never both get `true`. */
+  async setIfAbsent(key: string, value: string, ttlSeconds: number): Promise<boolean> {
+    const entry = this.entries.get(key);
+    if (entry !== undefined && entry.expiresAt > Date.now()) {
+      return false;
+    }
+    await this.set(key, value, ttlSeconds);
+    return true;
+  }
+
+  async delete(key: string): Promise<void> {
+    this.entries.delete(key);
+  }
+
   private evict(): void {
     const now = Date.now();
     for (const [key, entry] of this.entries) {
@@ -45,11 +52,6 @@ export class MemoryIdempotencyStore implements IdempotencyStore {
   }
 }
 
-/**
- * The `Idempotency-Key` replay store of `POST /admin/schedules/{id}/generate`: the
- * catalog's own Redis cache store (same `get`/`set` contract), so a replay is
- * answered by whichever replica receives it.
- */
 export const idempotencyStoreProvider: Provider = {
   provide: IDEMPOTENCY_STORE,
   inject: [CACHE_STORE],

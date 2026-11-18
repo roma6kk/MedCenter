@@ -3,23 +3,26 @@
 import { useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
 import { Pager } from '@/components/data-display/paginated-table';
-import { EmptyState, TableSkeleton } from '@/components/feedback/states';
+import { EmptyState } from '@/components/feedback/states';
+import { ContentSkeleton } from '@/components/feedback/content-skeleton';
 import { QueryFailure } from '@/components/feedback/query-error-state';
 import { useClinicFormat } from '@/hooks/use-clinic-format';
 import { useDocumentTitle } from '@/hooks/use-document-title';
+import { useStaggerOnce } from '@/hooks/use-stagger-once';
 import { useT } from '@/lib/i18n/use-t';
 import { cn } from '@/lib/ui/cn';
+import { FileText } from 'lucide-react';
+import { BookLink } from './book-link';
 import { DiagnosisPanel, RepeatVisitCard } from './history/diagnosis-panel';
 import { diagnosisFrequency, filterByDiagnosis, groupByMonth, prescriptionsByEncounter, summarize } from './history/history-model';
 import { SummaryTiles } from './history/summary-tiles';
-import { VisitRow } from './history/visit-row';
+import { VisitRow, type PrescriptionsState } from './history/visit-row';
 import type { HistoryEntry, Prescription } from './patient-types';
 import { PrintButton } from './print-button';
 import { useClampedPage } from './use-clamped-page';
 import { useMyHistory, useMyPrescriptions } from './use-patient-queries';
 import type { PageMeta } from '@/lib/api/pagination';
 
-export { ICD10_SYSTEM } from './history/visit-row';
 export const HISTORY_PAGE_SIZE = 10;
 const PRESCRIPTIONS_LOOKUP_SIZE = 100;
 const EMPTY_PRESCRIPTIONS: ReadonlyArray<Prescription> = [];
@@ -27,7 +30,7 @@ const EMPTY_PRESCRIPTIONS: ReadonlyArray<Prescription> = [];
 function DiagnosisFilter({ codes, value, onChange }: { readonly codes: ReadonlyArray<string>; readonly value: string | null; readonly onChange: (code: string | null) => void }): ReactNode {
   const t = useT('patientHistory');
   const item = (selected: boolean): string =>
-    cn('min-h-[38px] rounded-[9px] px-3.5 text-sm', selected ? 'bg-card font-semibold text-foreground shadow-sm' : 'font-medium text-muted-foreground');
+    cn('min-h-11 rounded-sm px-3.5 text-sm transition-[background-color,color,box-shadow,transform] duration-fast ease-out active:scale-[0.97]', selected ? 'bg-card font-semibold text-foreground shadow-elev-1' : 'font-medium text-muted-foreground hover:text-foreground');
   return (
     <div role="group" aria-label={t('filterLabel')} className="no-print inline-flex flex-wrap gap-0.5 rounded-control bg-secondary p-[3px]">
       <button type="button" aria-pressed={value === null} onClick={() => onChange(null)} className={item(value === null)}>{t('filterAll')}</button>
@@ -49,12 +52,15 @@ interface LoadedProps {
   readonly items: ReadonlyArray<HistoryEntry>;
   readonly meta: PageMeta;
   readonly prescriptions: ReadonlyArray<Prescription>;
+  readonly prescriptionsState: PrescriptionsState;
+  readonly onRetryPrescriptions: () => void;
   readonly onPage: (page: number) => void;
 }
 
-function Loaded({ items, meta, prescriptions, onPage }: LoadedProps): ReactNode {
+function Loaded({ items, meta, prescriptions, prescriptionsState, onRetryPrescriptions, onPage }: LoadedProps): ReactNode {
   const t = useT('patientHistory');
   const [chosen, setChosen] = useState<string | null>(null);
+  const enter = useStaggerOnce();
   const summary = useMemo(() => summarize(items), [items]);
   const frequency = useMemo(() => diagnosisFrequency(items), [items]);
   const byEncounter = useMemo(() => prescriptionsByEncounter(prescriptions), [prescriptions]);
@@ -70,8 +76,8 @@ function Loaded({ items, meta, prescriptions, onPage }: LoadedProps): ReactNode 
           {groups.map((group) => (
             <section key={group.key} aria-labelledby={`hx-month-${group.key}`} className="flex flex-col gap-3">
               <MonthHeading monthKey={group.key} id={`hx-month-${group.key}`} />
-              <ol aria-labelledby={`hx-month-${group.key}`} className="flex flex-col gap-3">
-                {group.entries.map((entry) => <VisitRow key={entry.id} entry={entry} prescriptions={byEncounter.get(entry.id) ?? EMPTY_PRESCRIPTIONS} />)}
+              <ol aria-labelledby={`hx-month-${group.key}`} className={cn('flex flex-col gap-3', enter)}>
+                {group.entries.map((entry) => <VisitRow key={entry.id} entry={entry} prescriptions={byEncounter.get(entry.id) ?? EMPTY_PRESCRIPTIONS} prescriptionsState={prescriptionsState} onRetryPrescriptions={onRetryPrescriptions} />)}
               </ol>
             </section>
           ))}
@@ -86,28 +92,29 @@ function Loaded({ items, meta, prescriptions, onPage }: LoadedProps): ReactNode 
   );
 }
 
-/** The patient's finished visits (FR-006, API 7.6): newest first, by month, each row opens to the doctor's words and the prescriptions of that visit. */
-export function HistoryTimeline(): ReactNode {
+export function HistoryTimeline({ embedded = false }: { readonly embedded?: boolean }): ReactNode {
   const t = useT('patientHistory');
   const [page, setPage] = useState(1);
   const query = useMyHistory({ page, pageSize: HISTORY_PAGE_SIZE });
   const prescriptions = useMyPrescriptions({ page: 1, pageSize: PRESCRIPTIONS_LOOKUP_SIZE });
   useClampedPage(query.data?.meta, page, setPage);
-  useDocumentTitle(t('title'));
+  useDocumentTitle(embedded ? null : t('title'));
   const data = query.data;
+  // A visit without prescriptions is not proof there were none: the lookup may have failed or miss older visits.
+  const prescriptionsState: PrescriptionsState = prescriptions.data === undefined ? (prescriptions.isError ? 'failed' : 'loading') : prescriptions.data.meta.totalPages > 1 ? 'partial' : 'ok';
   return (
     <section className="flex flex-col gap-6">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="text-[28px] font-bold tracking-tight sm:text-[34px]">{t('title')}</h1>
-          <p className="mt-1.5 text-base text-muted-foreground">{t('subtitle')}</p>
+          {embedded ? null : <h1 className="text-3xl font-bold tracking-tight">{t('title')}</h1>}
+          <p className={embedded ? 'text-base text-muted-foreground' : 'mt-1.5 text-base text-muted-foreground'}>{t('subtitle')}</p>
         </div>
         {data !== undefined && data.items.length > 0 ? <PrintButton label={t('print')} /> : null}
       </div>
       <div aria-busy={query.isFetching} className="flex flex-col gap-6">
-        {data === undefined ? <QueryFailure query={query} embedded pending={<TableSkeleton />} /> : null}
-        {data !== undefined && data.items.length === 0 ? <EmptyState title={t('empty')} description={t('emptyHint')} /> : null}
-        {data !== undefined && data.items.length > 0 ? <Loaded items={data.items} meta={data.meta} prescriptions={prescriptions.data?.items ?? EMPTY_PRESCRIPTIONS} onPage={setPage} /> : null}
+        {data === undefined ? <QueryFailure query={query} embedded pending={<ContentSkeleton shape="timeline" rows={3} />} /> : null}
+        {data !== undefined && data.items.length === 0 ? <EmptyState icon={FileText} title={t('empty')} description={t('emptyHint')} action={<BookLink label={t('emptyCta')} />} /> : null}
+        {data !== undefined && data.items.length > 0 ? <Loaded items={data.items} meta={data.meta} prescriptions={prescriptions.data?.items ?? EMPTY_PRESCRIPTIONS} prescriptionsState={prescriptionsState} onRetryPrescriptions={() => void prescriptions.refetch()} onPage={setPage} /> : null}
       </div>
     </section>
   );

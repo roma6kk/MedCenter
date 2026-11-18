@@ -1,0 +1,21 @@
+{
+  "id": "infra-tools-06",
+  "unit": "infra-tools",
+  "kind": "gap",
+  "severity": "medium",
+  "title": "У catalog-, practitioner- и notification-service нет /health: NFR-007 выполнен для 6 сервисов из 9, их docker healthcheck проверяет только «порт слушает»",
+  "description": "Требование NFR-007 («health/readiness endpoints») и architect-architecture.md:184 («`/health` на каждом сервисе») реализованы контроллерами `@Public() GET /health` в auth-, appointment-, patient-, encounter-, analytics-service и outbox-relay. В catalog-service, practitioner-service и notification-service такого контроллера нет (в их коде нет ни одного упоминания health). Общий docker healthcheck (`x-bff-healthcheck`) для них получает 404 и по собственному правилу «любой ответ < 500 — жив» считает контейнер здоровым. Комментарий в docker-compose.yml (строки 120-122) признаёт это как временную меру («once @nestjs/terminus adds /health»), но terminus так и не добавлен, а три сервиса можно привести к общему виду без него: готовый образец — HealthController в appointment-service. Для notification-service это особенно важно: он держит потребителя RabbitMQ, и именно его состояние должен отражать health.",
+  "evidence": "grep -rn health apps/catalog-service apps/practitioner-service apps/notification-service --include=*.ts returns nothing (only the word in HealthcareService). apps/*/src/**/health.controller.ts exist for analytics, appointment, auth, encounter, patient and outbox-relay (tasks/TASK-006/findings/verify-map-backend-routes.txt). docker-compose.yml:120-123 and :330-396 set HEALTH_PATH: /health for practitioner/catalog/notification, which answer 404. specs/architect-architecture.md:184, tasks/TASK-001/requirements-analyst-requirements.md:99 (NFR-007). Scenario: notification-service loses its RabbitMQ connection and stops consuming -> `docker compose ps` still shows (healthy) because GET /health -> 404 (< 500).",
+  "files": [
+    "apps/catalog-service/src/app",
+    "apps/practitioner-service/src/app",
+    "apps/notification-service/src/app",
+    "apps/appointment-service/src/modules/health/health.controller.ts",
+    "docker-compose.yml"
+  ],
+  "proposedFix": "Copy the pattern of apps/appointment-service/src/modules/health (health.controller.ts, health.module.ts, health-response.doc.ts, health.controller.spec.ts) into catalog-service, practitioner-service and notification-service (`@Controller('health')`, `@Public()`, returns { status: 'ok', service: '<name>' }) and import the module in each AppModule; the global guards already honour @Public(). Add the spec per service as in appointment-service. For notification-service make the controller report the consumer: answer 503 with { status: 'degraded', consumer: 'disconnected' } when CONSUMER_ENABLED=true and the RabbitMQ consumer is not connected (the compose probe already maps >= 500 to unhealthy). Then update the comment in docker-compose.yml (lines 120-122) to say that every service has /health. Optional later: `/ready` probing HAPI/Redis (needs @nestjs/terminus or a hand-written check) — not required for this fix.",
+  "needsDecision": false,
+  "decisionQuestion": "",
+  "tzRef": "NFR-007; specs/architect-architecture.md §7 (наблюдаемость)",
+  "confidence": "confirmed"
+}

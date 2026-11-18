@@ -1,19 +1,14 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Transform } from 'class-transformer';
-import { IsInt, IsNotEmpty, IsOptional, IsString, Max, MaxLength, Min } from 'class-validator';
+import { IsInt, IsNotEmpty, IsOptional, IsString, Max, MaxLength, Min, ValidateIf } from 'class-validator';
 
+import { isPresent } from './is-present';
 import { trimString } from './trim-string';
 
-/**
- * API §4.5 `UpdateRoomDto` — every field optional.
- *
- * Written out by hand instead of `PartialType(...)`: `@nestjs/mapped-types`
- * (and its Swagger re-export) is not a dependency of this workspace, and the
- * contract is small enough that an explicit DTO is clearer than a new package.
- */
+// Written by hand: `@nestjs/mapped-types` is not a dependency. `null` on identifier/name is 400; on floor/description it removes them.
 export class UpdateRoomDto {
   @ApiPropertyOptional({ description: 'Unique room identifier; the room own value is allowed', maxLength: 50, example: '204-Х' })
-  @IsOptional()
+  @ValidateIf(isPresent)
   @Transform(trimString)
   @IsString()
   @IsNotEmpty()
@@ -21,22 +16,24 @@ export class UpdateRoomDto {
   identifier?: string;
 
   @ApiPropertyOptional({ maxLength: 200 })
-  @IsOptional()
+  @ValidateIf(isPresent)
+  @Transform(trimString)
   @IsString()
   @IsNotEmpty()
   @MaxLength(200)
   name?: string;
 
-  @ApiPropertyOptional({ minimum: 1, maximum: 10 })
+  @ApiPropertyOptional({ type: Number, nullable: true, minimum: 1, maximum: 10, description: 'null removes the floor' })
   @IsOptional()
   @IsInt()
   @Min(1)
   @Max(10)
-  floor?: number;
+  floor?: number | null;
 
-  @ApiPropertyOptional({ maxLength: 500 })
+  @ApiPropertyOptional({ type: String, nullable: true, maxLength: 500, description: 'An empty (or blank) text and null remove the description' })
   @IsOptional()
+  @Transform(trimString)
   @IsString()
   @MaxLength(500)
-  description?: string;
+  description?: string | null;
 }

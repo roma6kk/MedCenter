@@ -5,9 +5,8 @@ import { FHIR_CLIENT, type FhirClient, type FhirResource } from '@medcenter/fhir
 
 import { AppModule } from '../src/app/app.module';
 import { applyE2eEnv } from './e2e-env';
-import { startTestIssuer, type TestIssuer } from './test-tokens';
+import { startTestIssuer, type TestIssuer } from '@medcenter/testing';
 
-/** HAPI stand-in: every FHIR call the service makes is observable and scriptable. */
 export type FakeFhir = jest.Mocked<FhirClient>;
 
 export interface AppHarness {
@@ -39,11 +38,6 @@ function createMemoryStore(): IdempotencyStore {
   };
 }
 
-/**
- * Boots the real `AppModule` — global guard stack, validation pipe, RFC 7807
- * filter — over a fake FHIR client and an in-memory idempotency store, so HTTP
- * behaviour is tested without HAPI or Redis. The service no longer publishes events itself (outbox, ADR-021).
- */
 export async function startAppHarness(): Promise<AppHarness> {
   applyE2eEnv();
   const issuer = await startTestIssuer();
@@ -71,7 +65,6 @@ export async function startAppHarness(): Promise<AppHarness> {
   };
 }
 
-/** A booked appointment of `Patient/pat-1` with `PractitionerRole/role-1`. */
 export const BOOKED_APPOINTMENT: FhirResource = {
   resourceType: 'Appointment',
   id: 'apt-1',
@@ -88,7 +81,6 @@ export const BOOKED_APPOINTMENT: FhirResource = {
   meta: { versionId: '2' },
 };
 
-/** Search Bundle for {@link BOOKED_APPOINTMENT} with the resources `_include` brings in. */
 export function bookedSearchBundle(): { total: number; entry: Array<{ resource: FhirResource; search: { mode: string } }> } {
   return {
     total: 1,

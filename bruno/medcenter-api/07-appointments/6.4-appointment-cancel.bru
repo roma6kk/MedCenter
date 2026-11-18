@@ -17,7 +17,7 @@ post {
 
 body:json {
   {
-    "reason": "Отмена из коллекции Bruno"
+    "reason": "plans-changed"
   }
 }
 
@@ -31,5 +31,5 @@ assert {
 }
 
 docs {
-  Spec 6.4. The owner patient or ADMIN (a doctor uses 6.6). `reason` 3..500. Frees the slot. A repeat -> 409 `APPOINTMENT_NOT_CANCELLABLE`.
+  Spec 6.4. The owner patient or ADMIN (a doctor uses 6.6). `reason` is a code, never free text: `plans-changed`, `inconvenient-time`, `other-doctor`, `other` (any other value -> 400 `VALIDATION_ERROR`). Frees the slot. A repeat -> 409 `APPOINTMENT_NOT_CANCELLABLE`.
 }

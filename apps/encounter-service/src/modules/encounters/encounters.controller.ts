@@ -12,14 +12,8 @@ import { OpenEncounterDto } from './dto/open-encounter.dto';
 import { EncounterOpeningService } from './encounter-opening.service';
 import { EncountersService } from './encounters.service';
 
-/** An authenticated request after `RequestIdMiddleware` has assigned its correlation id. */
 type AuditedRequest = RequestWithClaims & Pick<RequestWithRequestId, 'requestId'>;
 
-/**
- * API §7.1–7.3 — the doctor opens and completes an encounter (FR-010…FR-014).
- * The doctor is identified by `fhirUser = PractitionerRole/{id}` and must take
- * part in the appointment / encounter; a token without it fails closed (403).
- */
 @ApiTags('encounter')
 @ApiBearerAuth()
 @Controller('api/v1/encounters')
@@ -29,7 +23,6 @@ export class EncountersController {
     private readonly encounters: EncountersService,
   ) {}
 
-  /** 7.1 — `201` with the new encounter; `200` with the open one when the appointment already has it. */
   @Post()
   @ApiOperation({ summary: '7.1 Open an encounter for a booked appointment' })
   @ApiResponse({ status: 201, description: 'Encounter created (in-progress)', type: EncounterResponseDoc })
@@ -51,19 +44,17 @@ export class EncountersController {
     return result.encounter;
   }
 
-  /** 7.2 — participant doctor or admin (`user/*.read`). */
   @Get(':id')
   @ApiOperation({ summary: '7.2 Get encounter details' })
   @ApiParam({ name: 'id', description: 'Encounter id (FHIR id)' })
   @ApiResponse({ status: 200, description: 'Encounter with its clinical content once finished', type: EncounterDetailsDoc })
   @ApiProblems([400, ...GUARD_PROBLEM_STATUSES, 404], { 404: 'NOT_FOUND: encounter not found' })
-  @RequiresRoles(Role.DOCTOR, Role.ADMIN)
+  @RequiresRoles(Role.DOCTOR)
   @RequiresScopes(SMART_SCOPES.USER_READ)
   async findOne(@Req() request: RequestWithClaims, @Param('id', FhirIdPipe) id: string): Promise<EncounterDetailsDto> {
     return this.encounters.findOne(claimsOf(request), id);
   }
 
-  /** 7.3 — one atomic completion; a replay answers `409 ENCOUNTER_STATE_INVALID`. */
   @Post(':id/complete')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: '7.3 Complete an encounter (diagnoses, plan, prescriptions)' })

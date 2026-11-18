@@ -15,10 +15,11 @@ const STAMP_OF: Readonly<Record<ConsentRecord['status'], StampStatus>> = {
   'entered-in-error': 'entered-in-error',
 };
 
-/** The record the headline describes: the one in force, else the newest entry that was not a mistake. */
 function headlineRecord(consent: PatientConsent): ConsentRecord | null {
   return consent.active ?? consent.history.find((entry) => entry.status !== 'entered-in-error') ?? null;
 }
+
+const RAW_REFERENCE = /^PractitionerRole\//;
 
 function EntryFacts({ record }: { readonly record: ConsentRecord }): ReactNode {
   const t = useT('consent.view');
@@ -30,7 +31,7 @@ function EntryFacts({ record }: { readonly record: ConsentRecord }): ReactNode {
       <li>{t('signedAt', { date: format.date(record.signedAt) })}</li>
       {signer === undefined ? null : <li>{`${t('consenter')}: ${signer}`}</li>}
       {record.representativeDocument === undefined ? null : <li>{t('representativeDocument', { document: record.representativeDocument })}</li>}
-      {record.signedBy === undefined ? null : <li>{t('signedBy', { name: record.signedBy })}</li>}
+      {record.signedBy === undefined ? null : <li>{t('signedBy', { name: RAW_REFERENCE.test(record.signedBy) ? t('signedByStaff') : record.signedBy })}</li>}
       {record.period.end === undefined ? null : <li>{t('until', { date: format.date(record.period.end) })}</li>}
       {record.revocationNumber === undefined ? null : <li>{t('revocationNumber', { number: record.revocationNumber })}</li>}
     </ul>
@@ -52,28 +53,36 @@ function HistoryEntry({ record, scanOfPatient }: { readonly record: ConsentRecor
 
 interface ConsentStatusViewProps {
   readonly consent: PatientConsent;
-  /** Staff read the scan: give the patient the consent belongs to and each entry offers its download. The patient themselves do not. */
   readonly scanOfPatient?: string;
+  readonly compact?: boolean;
 }
 
-/** Where the patient's consent stands (active, revoked, refused, none) with the facts of the entry in question and the whole history. */
-export function ConsentStatusView({ consent, scanOfPatient }: ConsentStatusViewProps): ReactNode {
+export function ConsentStatusView({ consent, scanOfPatient, compact = false }: ConsentStatusViewProps): ReactNode {
   const t = useT('consent');
   const state: ConsentState = consentStateOf(consent);
   const record: ConsentRecord | null = headlineRecord(consent);
+  const isRepeat: boolean = compact && consent.history.length === 1 && consent.history[0]?.id === record?.id;
   return (
     <div>
-      <div role="status" data-testid={`consent-state-${state}`}>
-        <p className="font-semibold">{t(`state.${state}`)}</p>
-        {record === null ? null : <EntryFacts record={record} />}
-      </div>
-      <h3 className="mt-4 text-sm font-semibold text-muted-foreground">{t('view.historyTitle')}</h3>
-      {consent.history.length === 0 ? (
-        <p className="mt-1 text-sm text-muted-foreground">{t('view.historyEmpty')}</p>
+      {compact ? (
+        record === null ? null : <EntryFacts record={record} />
       ) : (
-        <ul aria-label={t('view.historyTitle')} className="mt-2 grid gap-2">
-          {consent.history.map((entry) => <HistoryEntry key={entry.id} record={entry} scanOfPatient={scanOfPatient} />)}
-        </ul>
+        <div role="status" data-testid={`consent-state-${state}`}>
+          <p className="font-semibold">{t(`state.${state}`)}</p>
+          {record === null ? null : <EntryFacts record={record} />}
+        </div>
+      )}
+      {isRepeat ? null : (
+        <>
+          <h3 className="mt-4 text-sm font-semibold text-muted-foreground">{t('view.historyTitle')}</h3>
+          {consent.history.length === 0 ? (
+            <p className="mt-1 text-sm text-muted-foreground">{t('view.historyEmpty')}</p>
+          ) : (
+            <ul aria-label={t('view.historyTitle')} className="mt-2 grid gap-2">
+              {consent.history.map((entry) => <HistoryEntry key={entry.id} record={entry} scanOfPatient={scanOfPatient} />)}
+            </ul>
+          )}
+        </>
       )}
     </div>
   );

@@ -5,7 +5,7 @@ import { FHIR_CLIENT, type FhirClient } from '@medcenter/fhir';
 
 import { AppModule } from '../src/app/app.module';
 import { applyE2eEnv } from './e2e-env';
-import { startTestIssuer, type TestIssuer } from './test-issuer';
+import { startTestIssuer, type TestIssuer } from '@medcenter/testing';
 
 export interface BootedApp {
   readonly app: INestApplication;
@@ -26,11 +26,6 @@ export function createFhirMock(): jest.Mocked<FhirClient> {
   } as unknown as jest.Mocked<FhirClient>;
 }
 
-/**
- * Boots the real `AppModule` — guard stack, validation pipe, problem+json
- * filter — with HAPI replaced by a Jest mock behind `FHIR_CLIENT` and a local
- * issuer whose JWKS the JWT guard trusts.
- */
 export async function bootApp(): Promise<BootedApp> {
   const issuer = await startTestIssuer();
   applyE2eEnv();

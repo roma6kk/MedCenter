@@ -7,7 +7,6 @@ import {
   type ConsentScanContentType,
 } from '@medcenter/contracts';
 
-/** The part of a multer memory file this module uses (`@types/multer` is not a dependency). */
 export interface UploadedScan {
   readonly buffer: Buffer;
   readonly mimetype: string;
@@ -15,12 +14,10 @@ export interface UploadedScan {
   readonly originalname: string;
 }
 
-/** An accepted scan: the type its bytes prove and the SHA-1 `Consent.sourceAttachment.hash` carries. */
-export interface ValidScan {
+interface ValidScan {
   readonly buffer: Buffer;
   readonly contentType: ConsentScanContentType;
   readonly size: number;
-  /** Base64 SHA-1 of the bytes. */
   readonly hash: string;
 }
 
@@ -32,6 +29,10 @@ const SIGNATURES: ReadonlyArray<{
   { type: 'image/png', magic: [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a] },
   { type: 'image/jpeg', magic: [0xff, 0xd8, 0xff] },
 ];
+
+export function sha1Base64(bytes: Buffer): string {
+  return createHash('sha1').update(bytes).digest('base64');
+}
 
 function reject(message: string): BadRequestException {
   return new BadRequestException({
@@ -52,12 +53,7 @@ function isAllowedType(value: string): value is ConsentScanContentType {
   return (CONSENT_SCAN_CONTENT_TYPES as ReadonlyArray<string>).includes(value);
 }
 
-/**
- * Boundary check of a consent scan (API §3.10): a file is present and not
- * empty, at most 10 MB, declared as PDF/JPEG/PNG **and** starting with that
- * type's signature — the header alone is the client's word. Throws 400
- * `VALIDATION_ERROR`; nothing reaches HAPI before this passes.
- */
+// The declared type alone is the client's word: the bytes must carry that type's signature.
 export function validateScanUpload(file: UploadedScan | undefined): ValidScan {
   if (file === undefined) {
     throw reject('file is required (multipart field "file")');
@@ -78,6 +74,6 @@ export function validateScanUpload(file: UploadedScan | undefined): ValidScan {
     buffer: file.buffer,
     contentType: file.mimetype,
     size: file.buffer.length,
-    hash: createHash('sha1').update(file.buffer).digest('base64'),
+    hash: sha1Base64(file.buffer),
   };
 }

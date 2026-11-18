@@ -6,8 +6,7 @@ import { CodingDoc, DiagnosisViewDoc, ENCOUNTER_STATUSES } from '../../encounter
 import type { EncounterStatus } from '../../encounters/dto/encounter-response.dto';
 import type { HistoryItemDto } from './history-item.dto';
 
-/** Swagger description of `HistoryItemDto` (API §7.4, §7.6). */
-export class HistoryItemDoc implements HistoryItemDto {
+class HistoryItemDoc implements HistoryItemDto {
   @ApiProperty({ description: 'Encounter id (FHIR id)' })
   id!: string;
 
@@ -45,7 +44,6 @@ export class HistoryItemDoc implements HistoryItemDto {
   doctorName?: string;
 }
 
-/** `PaginatedResponseDto<HistoryItemDto>` for Swagger. */
 export class HistoryPageDoc implements PaginatedResponseDto<HistoryItemDoc> {
   @ApiProperty({ type: [HistoryItemDoc] })
   items!: HistoryItemDoc[];

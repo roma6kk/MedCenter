@@ -1,10 +1,3 @@
-/**
- * error-effects — the side effects frontend-design-spec §5.4 attaches to an errorCode, independent of any screen.
- *
- * Applied once, centrally, by the QueryClient caches (`createAppQueryClient`): a toast for the codes that want one
- * and a refetch of the data that just turned out to be stale. Inline UX (field errors, banners, read-only forms)
- * stays with the component that owns the form.
- */
 import type { QueryKey } from '@tanstack/react-query';
 import { errorCodeToUx, errorMessageKey } from './error-code-map';
 import type { ProblemDetails } from './problem';
@@ -23,7 +16,6 @@ export interface ErrorEffects {
 
 const NO_EFFECTS: ErrorEffects = { toast: null, invalidate: [] };
 
-/** A failed query is retried by its owner; only a mutation (user action) refetches stale data and reports a lost connection. */
 export type ErrorSource = 'query' | 'mutation';
 
 function rateLimitToast(problem: ProblemDetails): ToastEffect {
@@ -38,7 +30,6 @@ function mutationEffects(problem: ProblemDetails): ErrorEffects {
   const ux = errorCodeToUx(problem.errorCode);
   switch (ux.kind) {
     case 'slot-conflict':
-      // BR-001: the slot is gone — refresh the list, tell the user, keep the wizard step.
       return { toast: { tone: 'info', messageKey: errorMessageKey('SLOT_CONFLICT') }, invalidate: [queryRoots.slots] };
     case 'appointment-refresh':
       return { toast: null, invalidate: [queryRoots.appointments, queryRoots.appointmentDetail] };
@@ -46,7 +37,6 @@ function mutationEffects(problem: ProblemDetails): ErrorEffects {
       return { toast: null, invalidate: [queryRoots.encounters, queryRoots.doctorAppointments] };
     case 'consent-required':
     case 'consent-active':
-      // The consent the screen showed is out of date: refresh it so the banner and the form agree with the server.
       return { toast: null, invalidate: [queryRoots.consent] };
     case 'rate-limit-toast':
       return { toast: rateLimitToast(problem), invalidate: [] };

@@ -10,12 +10,6 @@ import {
 import { TypeOrmUserStore } from './typeorm-user.store';
 import { DuplicateEmailError, ResourceAlreadyLinkedError, type NewUser } from './user-store';
 
-/**
- * Integration suite of the production `UserStore` against a real PostgreSQL
- * with every `auth` migration applied (own database, so it never races the
- * database of `test/postgres-flow.e2e-spec.ts`). Skipped when `TEST_PG_*` does not
- * reach a server — see `pg-test-connection.ts`.
- */
 const DATABASE = 'auth_user_store_test';
 const postgresAvailable = isPostgresAvailable();
 
@@ -168,6 +162,16 @@ describePostgres('TypeOrmUserStore', () => {
     expect(page.items.map((user) => user.lastName)).toEqual(['Васильев']);
   });
 
+  it('should find a user by the first and the last name typed together in either order', async () => {
+    await store.create(newUser({ email: 'ivanova@example.by', firstName: 'Мария', lastName: 'Иванова' }));
+    await store.create(newUser({ email: 'petrova@example.by', firstName: 'Мария', lastName: 'Петрова' }));
+
+    for (const search of ['Иванова Мария', 'мария ива']) {
+      const page = await store.list({ search, page: 1, pageSize: 20 });
+      expect(page.items.map((user) => user.lastName)).toEqual(['Иванова']);
+    }
+  });
+
   it('should treat LIKE wildcards in the search term literally', async () => {
     await store.create(newUser({ email: 'plain@example.by' }));
 
@@ -185,5 +189,31 @@ describePostgres('TypeOrmUserStore', () => {
       count: number;
     }>;
     expect(count).toBe(0);
+  });
+
+  it('should list only closed accounts whose retention has passed, oldest first', async () => {
+    const early = await store.create(newUser({ email: 'early@example.by' }));
+    const late = await store.create(newUser({ email: 'late@example.by' }));
+    const open = await store.create(newUser({ email: 'open@example.by' }));
+    const young = await store.create(newUser({ email: 'young@example.by' }));
+    await store.update(late.id, { isActive: false, closedAt: new Date('2026-01-02T00:00:00Z'), retentionUntil: new Date('2026-02-02T00:00:00Z') });
+    await store.update(early.id, { isActive: false, closedAt: new Date('2026-01-01T00:00:00Z'), retentionUntil: new Date('2026-02-01T00:00:00Z') });
+    await store.update(young.id, { isActive: false, closedAt: new Date('2026-03-01T00:00:00Z'), retentionUntil: new Date('2027-03-01T00:00:00Z') });
+
+    const page = await store.listRetentionExpired({ now: new Date('2026-06-01T00:00:00Z'), page: 1, pageSize: 10 });
+
+    expect(page.items.map((user) => user.id)).toEqual([early.id, late.id]);
+    expect(page.total).toBe(2);
+    expect(page.items.map((user) => user.id)).not.toContain(open.id);
+  });
+
+  it('should clear closedAt and retentionUntil when they are set to null', async () => {
+    const created = await store.create(newUser());
+    await store.update(created.id, { isActive: false, closedAt: new Date(), retentionUntil: new Date() });
+
+    const reopened = await store.update(created.id, { isActive: true, closedAt: null, retentionUntil: null });
+
+    expect(reopened?.closedAt).toBeUndefined();
+    expect(reopened?.retentionUntil).toBeUndefined();
   });
 });

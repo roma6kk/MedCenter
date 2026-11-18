@@ -1,16 +1,10 @@
 import { Logger, type OnModuleDestroy } from '@nestjs/common';
-import Redis from 'ioredis';
 
-/**
- * Counter behind the per-account login throttle. Unlike the shared
- * `RateLimitGuard` store it must **fail closed**: a counter that cannot be
- * reached rejects, and the login step then refuses the attempt instead of
- * letting an unbounded password search through.
- */
+import { connectRedis } from '../redis-token-stores';
+
+// Fails closed (unlike the shared RateLimitGuard store): an unreachable counter refuses the login attempt.
 export interface LoginAttemptStore {
-  /** Counts one attempt on `key`; resolves to the attempts of the current window, this one included. */
   record(key: string, windowSeconds: number): Promise<number>;
-  /** Forgets the attempts of `key` (a successful login). */
   clear(key: string): Promise<void>;
 }
 
@@ -18,7 +12,6 @@ export const LOGIN_ATTEMPT_STORE = Symbol('LOGIN_ATTEMPT_STORE');
 
 const KEY_PREFIX = 'auth:login-attempts:';
 
-/** Upper bound of the in-process fallback: an address space of emails must not grow it without limit. */
 const MAX_TRACKED_KEYS = 10_000;
 
 interface AttemptWindow {
@@ -26,7 +19,6 @@ interface AttemptWindow {
   readonly expiresAt: number;
 }
 
-/** Per-process counter for runs without Redis (local development, unit and e2e suites). */
 export class InMemoryLoginAttemptStore implements LoginAttemptStore {
   private readonly windows = new Map<string, AttemptWindow>();
 
@@ -62,14 +54,13 @@ export class InMemoryLoginAttemptStore implements LoginAttemptStore {
   }
 }
 
-/** The subset of ioredis the store uses, so tests can pass a fake. */
 export interface RedisAttemptClient {
   eval(script: string, numKeys: number, ...args: string[]): Promise<unknown>;
   del(...keys: string[]): Promise<number>;
   quit(): Promise<unknown>;
 }
 
-/** INCR and the window TTL in one atomic script: a crash between them cannot leave a counter that never expires. */
+// INCR and TTL in one script: a crash between them must not leave a counter that never expires.
 const RECORD_SCRIPT = `
 local attempts = redis.call('INCR', KEYS[1])
 if attempts == 1 then
@@ -78,7 +69,6 @@ end
 return attempts
 `;
 
-/** Redis counter shared by every replica; errors propagate (fail closed). */
 export class RedisLoginAttemptStore implements LoginAttemptStore, OnModuleDestroy {
   private readonly logger = new Logger(RedisLoginAttemptStore.name);
 
@@ -99,19 +89,10 @@ export class RedisLoginAttemptStore implements LoginAttemptStore, OnModuleDestro
   }
 }
 
-/** Commands that hang on a dead Redis must fail within a login's patience. */
-const COMMAND_TIMEOUT_MS = 2000;
-
-/** Redis when `REDIS_URL` is set (compose, production), the in-process counter otherwise. */
 export function createLoginAttemptStore(source: NodeJS.ProcessEnv = process.env): LoginAttemptStore {
   const url = source['REDIS_URL'];
   if (url === undefined || url === '') {
     return new InMemoryLoginAttemptStore();
   }
-  const client = new Redis(url, { maxRetriesPerRequest: 1, commandTimeout: COMMAND_TIMEOUT_MS });
-  client.on('error', (error: Error) => {
-    // Without a listener an idle connection failure would crash the process.
-    new Logger(RedisLoginAttemptStore.name).warn({ err: error }, 'Login attempt store Redis connection error');
-  });
-  return new RedisLoginAttemptStore(client);
+  return new RedisLoginAttemptStore(connectRedis(url, RedisLoginAttemptStore.name, 'Login attempt store'));
 }

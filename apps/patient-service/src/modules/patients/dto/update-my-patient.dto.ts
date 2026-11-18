@@ -4,10 +4,6 @@ import { BELARUS_PHONE_PATTERN, normaliseBelarusPhone } from '@medcenter/contrac
 import { Transform } from 'class-transformer';
 import { IsString, Matches } from 'class-validator';
 
-/**
- * API §3.12 body. Only the phone is editable; every other property is dropped by
- * the whitelist. The number is normalised to `+375XXXXXXXXX` before it is checked.
- */
 export class UpdateMyPatientDto implements UpdateMyPatientRequest {
   @ApiProperty({
     description: 'Belarus phone: +375 and nine digits; spaces, dashes and brackets are dropped',

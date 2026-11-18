@@ -1,4 +1,3 @@
-/** API §5.1 `ServiceResponseDto`. */
 export interface ServiceResponseDto {
   readonly id: string;
   readonly name: string;
@@ -7,5 +6,7 @@ export interface ServiceResponseDto {
   readonly typeDisplay: string;
   readonly defaultDurationMin: number;
   readonly description?: string;
+  readonly nameEn?: string;
+  readonly descriptionEn?: string;
   readonly isActive: boolean;
 }

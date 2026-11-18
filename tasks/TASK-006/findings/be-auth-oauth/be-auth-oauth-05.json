@@ -1,0 +1,21 @@
+{
+  "id": "be-auth-oauth-05",
+  "unit": "be-auth-oauth",
+  "kind": "robustness",
+  "severity": "low",
+  "title": "auth-service не использует общий applyHttpEdge и держит побайтную копию parseTrustProxy: заголовок X-Powered-By остаётся включённым",
+  "description": "Все семь остальных BFF в main.ts/bootstrap.ts вызывают applyHttpEdge(app) из libs/common (trust proxy из TRUST_PROXY + app.disable('x-powered-by')). auth-service — единственный, кто этого не делает: в main.ts он вручную выставляет только 'trust proxy' и импортирует собственную копию parseTrustProxy из apps/auth-service/src/config/trust-proxy.ts (файл побайтно идентичен libs/common/src/lib/http/trust-proxy.ts, вместе с дублирующим spec). Итог: два места делают одно и то же, и на самом чувствительном сервисе (token endpoint, форма входа) Express рекламирует себя заголовком X-Powered-By, если к сервису обратиться в обход Traefik (на периметре заголовок затирает middleware в infra/traefik/dynamic.yml:35-38, поэтому эффект — только defence-in-depth). Любая будущая правка парсера TRUST_PROXY в lib не дойдёт до auth-service.",
+  "evidence": "apps/auth-service/src/main.ts:8,13-17 (`import { parseTrustProxy } from './config/trust-proxy'`, `app.getHttpAdapter().getInstance().set('trust proxy', trustProxy)`); diff apps/auth-service/src/config/trust-proxy.ts libs/common/src/lib/http/trust-proxy.ts → файлы идентичны; grep applyHttpEdge: используется в analytics, appointment, catalog, encounter, notification, patient, practitioner, но не в auth-service; grep -i 'x-powered-by|helmet' по apps/auth-service — пусто.",
+  "files": [
+    "apps/auth-service/src/main.ts",
+    "apps/auth-service/src/config/trust-proxy.ts",
+    "apps/auth-service/src/config/trust-proxy.spec.ts",
+    "libs/common/src/lib/http/http-edge.ts",
+    "libs/common/src/lib/http/trust-proxy.ts"
+  ],
+  "proposedFix": "In apps/auth-service/src/main.ts replace the manual `trust proxy` block and the local import with `applyHttpEdge(app)` from '@medcenter/common' (as encounter-service/src/main.ts does; keep the early parse if a boot failure before NestFactory.create is wanted: `parseTrustProxy` is exported from @medcenter/common too). Delete apps/auth-service/src/config/trust-proxy.ts and its spec (the lib has trust-proxy.spec.ts and trust-proxy.edge-cases.spec.ts). Add a main.spec.ts like the other services have if one is wanted.",
+  "needsDecision": false,
+  "decisionQuestion": "",
+  "tzRef": "NFR-006 (OWASP A05)",
+  "confidence": "confirmed"
+}

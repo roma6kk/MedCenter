@@ -12,6 +12,8 @@ describe('parseUserRole', () => {
 
 describe('isPathAllowedForRole', () => {
   it.each([
+    ['PATIENT', '/home'],
+    ['PATIENT', '/medcard?tab=prescriptions'],
     ['PATIENT', '/booking'],
     ['PATIENT', '/appointments/a1'],
     ['PATIENT', '/doctors/d1'],
@@ -29,6 +31,7 @@ describe('isPathAllowedForRole', () => {
     ['PATIENT', '/doctor/schedule'],
     ['PATIENT', '/patients/p1'],
     ['DOCTOR', '/booking'],
+    ['DOCTOR', '/medcard'],
     ['DOCTOR', '/admin'],
     ['ADMIN', '/appointments'],
     ['ADMIN', '/encounters/e1'],
@@ -49,6 +52,7 @@ describe('resolvePostLoginPath', () => {
 
   it.each([
     ['DOCTOR', '/booking'],
+    ['DOCTOR', '/home'],
     ['ADMIN', '/booking'],
     ['PATIENT', '/admin/users'],
   ] as const)('should send %s to its landing page instead of %s', (role, requested) => {

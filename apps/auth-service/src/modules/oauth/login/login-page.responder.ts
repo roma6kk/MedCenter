@@ -2,26 +2,29 @@ import { HttpStatus, Injectable } from '@nestjs/common';
 import type { Response } from 'express';
 
 import { LOGIN_CSRF_COOKIE, csrfCookieOptions, type CookieRequest } from './login-cookies';
+import { loginLocaleOf } from './authorize-query';
+import type { LoginLocale } from './login-messages';
 import { LOGIN_PAGE_CSP, renderLoginErrorPage, renderLoginPage } from './login-page';
 import { LoginSessionService } from './login-session.service';
 
 export interface LoginFormView {
   readonly authorizeQuery: string;
-  /** The validated `redirect_uri` of the client; its origin hosts the registration page. */
   readonly redirectUri: string;
   readonly status?: HttpStatus;
   readonly error?: string;
+  readonly fieldError?: boolean;
   readonly email?: string;
-  /** Sent as `Retry-After` with a refusal that tells the browser when to come back. */
   readonly retryAfterSeconds?: number;
 }
 
-/** The client's own registration page (`frontend/src/app/(auth)/register`), on the `redirect_uri` origin. */
-export function registerUrlFor(redirectUri: string): string | undefined {
+export function acceptsHtml(request: { readonly headers?: { readonly accept?: string } }): boolean {
+  return (request.headers?.accept ?? '').toLowerCase().includes('text/html');
+}
+
+function urlOn(path: string, redirectUri: string): string | undefined {
   try {
-    return new URL('/register', redirectUri).toString();
+    return new URL(path, redirectUri).toString();
   } catch {
-    // An unparsable redirect_uri never passed client validation; render without the link.
     return undefined;
   }
 }
@@ -37,36 +40,35 @@ function sendHtml(response: Response, status: HttpStatus, html: string, retryAft
       'Content-Security-Policy': LOGIN_PAGE_CSP,
       'X-Content-Type-Options': 'nosniff',
       'X-Frame-Options': 'DENY',
-      // The page URL carries the authorization request; it must not leak through the register link.
+      // The page URL carries the authorization request; it must not leak through the register or site link.
       'Referrer-Policy': 'no-referrer',
     })
     .send(html);
 }
 
-/**
- * Sends the authorization server's login page (assumption UI-1). Every render
- * mints a fresh CSRF pair: the nonce goes into an httpOnly cookie, its MAC
- * into the form.
- */
 @Injectable()
 export class LoginPageResponder {
   constructor(private readonly sessions: LoginSessionService) {}
 
   sendForm(request: CookieRequest, response: Response, view: LoginFormView): void {
     const csrf = this.sessions.issueCsrf();
-    const registerUrl = registerUrlFor(view.redirectUri);
+    const registerUrl = urlOn('/register', view.redirectUri);
+    const siteUrl = urlOn('/', view.redirectUri);
     response.cookie(LOGIN_CSRF_COOKIE, csrf.cookie, csrfCookieOptions(request));
     const html = renderLoginPage({
       authorizeQuery: view.authorizeQuery,
       csrfField: csrf.field,
+      locale: loginLocaleOf(view.authorizeQuery),
+      ...(view.fieldError === true ? { fieldError: true } : {}),
       ...(view.error !== undefined ? { error: view.error } : {}),
       ...(view.email !== undefined ? { email: view.email } : {}),
       ...(registerUrl !== undefined ? { registerUrl } : {}),
+      ...(siteUrl !== undefined ? { siteUrl } : {}),
     });
     sendHtml(response, view.status ?? HttpStatus.OK, html, view.retryAfterSeconds);
   }
 
-  sendError(response: Response, status: HttpStatus, message: string): void {
-    sendHtml(response, status, renderLoginErrorPage(message));
+  sendError(response: Response, status: HttpStatus, message: string, locale?: LoginLocale): void {
+    sendHtml(response, status, renderLoginErrorPage(message, locale));
   }
 }

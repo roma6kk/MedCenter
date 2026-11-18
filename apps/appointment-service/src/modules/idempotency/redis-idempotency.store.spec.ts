@@ -11,6 +11,7 @@ function fakeClient(status: string): jest.Mocked<RedisLikeClient> & { status: st
     status,
     get: jest.fn().mockResolvedValue('cached'),
     set: jest.fn().mockResolvedValue('OK'),
+    del: jest.fn().mockResolvedValue(1),
     quit: jest.fn().mockResolvedValue('OK'),
     disconnect: jest.fn(),
     on: jest.fn(),
@@ -19,41 +20,53 @@ function fakeClient(status: string): jest.Mocked<RedisLikeClient> & { status: st
 
 describe('RedisIdempotencyStore', () => {
   it('should read through the client and write with a TTL in seconds when a response is cached', async () => {
-    // Arrange
     const client = fakeClient('ready');
     const store = new RedisIdempotencyStore(client);
 
-    // Act
     const value = await store.get('idempotency:u-1:k-1');
     await store.set('idempotency:u-1:k-1', '{"x":1}', 86_400);
 
-    // Assert
     expect(value).toBe('cached');
     expect(client.set).toHaveBeenCalledWith('idempotency:u-1:k-1', '{"x":1}', 'EX', 86_400);
   });
 
-  it('should quit gracefully when the connection is ready at shutdown', async () => {
-    // Arrange
+  it('should claim the in-flight mark with SET NX EX and report whether the key was free', async () => {
+    const client = fakeClient('ready');
+    client.set.mockResolvedValueOnce('OK').mockResolvedValueOnce(null);
+    const store = new RedisIdempotencyStore(client);
+
+    const first = await store.setIfAbsent('idempotency:u-1:k-1:lock', '1', 30);
+    const second = await store.setIfAbsent('idempotency:u-1:k-1:lock', '1', 30);
+
+    expect([first, second]).toEqual([true, false]);
+    expect(client.set).toHaveBeenCalledWith('idempotency:u-1:k-1:lock', '1', 'EX', 30, 'NX');
+  });
+
+  it('should delete the in-flight mark when the request ends', async () => {
     const client = fakeClient('ready');
     const store = new RedisIdempotencyStore(client);
 
-    // Act
+    await store.delete('idempotency:u-1:k-1:lock');
+
+    expect(client.del).toHaveBeenCalledWith('idempotency:u-1:k-1:lock');
+  });
+
+  it('should quit gracefully when the connection is ready at shutdown', async () => {
+    const client = fakeClient('ready');
+    const store = new RedisIdempotencyStore(client);
+
     await store.onModuleDestroy();
 
-    // Assert
     expect(client.quit).toHaveBeenCalledTimes(1);
     expect(client.disconnect).not.toHaveBeenCalled();
   });
 
   it('should drop the connection without connecting when it was never used before shutdown', async () => {
-    // Arrange
     const client = fakeClient('wait');
     const store = new RedisIdempotencyStore(client);
 
-    // Act
     await store.onModuleDestroy();
 
-    // Assert
     expect(client.disconnect).toHaveBeenCalledTimes(1);
     expect(client.quit).not.toHaveBeenCalled();
   });
@@ -66,24 +79,18 @@ describe('createRedisIdempotencyStore', () => {
   });
 
   it('should refuse to start when REDIS_URL is missing', () => {
-    // Arrange
     const env: NodeJS.ProcessEnv = {};
 
-    // Act
     const create = (): unknown => createRedisIdempotencyStore(env);
 
-    // Assert
     expect(create).toThrow('REDIS_URL');
   });
 
   it('should connect lazily and observe connection errors when the store is created', () => {
-    // Arrange
     const env: NodeJS.ProcessEnv = { REDIS_URL: 'redis://redis:6379' };
 
-    // Act
     createRedisIdempotencyStore(env);
 
-    // Assert
     expect(RedisMock).toHaveBeenCalledWith('redis://redis:6379', expect.objectContaining({ lazyConnect: true }));
     const client = RedisMock.mock.results[0]?.value as { on: jest.Mock };
     expect(client.on).toHaveBeenCalledWith('error', expect.any(Function));

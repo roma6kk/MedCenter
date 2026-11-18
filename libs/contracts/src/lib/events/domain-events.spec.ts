@@ -2,6 +2,7 @@ import type { DomainEventBase } from './domain-event-base';
 import { DLQ_SUFFIX, DOMAIN_EVENT_EXCHANGE } from './domain-event.constants';
 import type { AppointmentBookedEvent } from './appointment-booked.event';
 import type { AppointmentCancelledEvent } from './appointment-cancelled.event';
+import type { AppointmentNoShowEvent } from './appointment-noshow.event';
 import type { EncounterCompletedEvent } from './encounter-completed.event';
 import type { PatientRegisteredEvent } from './patient-registered.event';
 
@@ -31,10 +32,17 @@ const cancelledEvent: AppointmentCancelledEvent = {
   actorType: 'PATIENT',
 };
 
+const noshowEvent: AppointmentNoShowEvent = {
+  ...BASE,
+  type: 'appointment.noshow.v1',
+  appointmentId: 'appt-1',
+  patientRef: 'Patient/1',
+};
+
 const registeredEvent: PatientRegisteredEvent = {
   ...BASE,
   type: 'patient.registered.v1',
-  patientId: 'Patient/1',
+  patientId: '1',
   email: 'patient@example.by',
 };
 
@@ -57,7 +65,7 @@ describe('domain event contracts', () => {
   });
 
   it('should pin schema version 1 on every published event', () => {
-    const events = [bookdEvent, cancelledEvent, registeredEvent, completedEvent];
+    const events = [bookdEvent, cancelledEvent, noshowEvent, registeredEvent, completedEvent];
 
     expect(events.every((event) => event.v === 1)).toBe(true);
   });
@@ -65,6 +73,7 @@ describe('domain event contracts', () => {
   it.each([
     ['appointment.booked.v1', bookdEvent.type],
     ['appointment.cancelled.v1', cancelledEvent.type],
+    ['appointment.noshow.v1', noshowEvent.type],
     ['patient.registered.v1', registeredEvent.type],
     ['encounter.completed.v1', completedEvent.type],
   ])('should route the stable key %s', (expected, actual) => {
@@ -72,13 +81,13 @@ describe('domain event contracts', () => {
   });
 
   it('should keep every event routing key unique', () => {
-    const types = [bookdEvent.type, cancelledEvent.type, registeredEvent.type, completedEvent.type];
+    const types = [bookdEvent.type, cancelledEvent.type, noshowEvent.type, registeredEvent.type, completedEvent.type];
 
     expect(new Set(types).size).toBe(types.length);
   });
 
   it('should express every routing key as <domain>.<event>.v<version>', () => {
-    const types = [bookdEvent.type, cancelledEvent.type, registeredEvent.type, completedEvent.type];
+    const types = [bookdEvent.type, cancelledEvent.type, noshowEvent.type, registeredEvent.type, completedEvent.type];
 
     expect(types.every((type) => /^[a-z]+\.[a-z.]+\.v\d+$/.test(type))).toBe(true);
   });

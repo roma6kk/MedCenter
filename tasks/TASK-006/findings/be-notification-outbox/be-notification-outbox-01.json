@@ -1,0 +1,21 @@
+{
+  "id": "be-notification-outbox-01",
+  "unit": "be-notification-outbox",
+  "kind": "robustness",
+  "severity": "medium",
+  "title": "Уведомление уходит в DLQ при первой же ошибке записи, без повторных попыток (в analytics-service повторы есть)",
+  "description": "Потребитель notification-service при любой ошибке, кроме EventInProgressError, делает nack без requeue, и событие сразу попадает в <queue>.dlq. Короткий сбой HAPI (рестарт, таймаут 10 с) или Redis (dedup.claim/complete бросает) превращается в потерянное уведомление: DLQ-очереди никто не читает и не перепроигрывает. Потребитель analytics-service для тех же событий делает до 5 попыток с задержкой 5 с через <queue>.retry (заголовок попытки) и только потом отправляет в DLQ. То есть два потребителя одних и тех же событий ведут себя по-разному, а очередь .retry и механизм задержки в libs/messaging для notification используются только для случая «первая копия ещё пишется».",
+  "evidence": "apps/notification-service/src/modules/notifications/consumer.service.ts onMessage(): catch -> `this.settle(() => channel.nack(message, false, false), 'dead-letter failed message')` for every error except EventInProgressError. Unit tests lock this in: consumer.service.spec.ts 'dead-letters a message whose write fails' and 'dead-letters the message without writing when the dedup store is unavailable'. Scenario: patient books an appointment, relay publishes appointment.booked.v1, HAPI answers 503 for ~10 s (restart/overload) or Redis is briefly unreachable -> handle() throws -> nack -> notification.appointment-booked.dlq; the patient never sees the notification, nothing redrives the DLQ (grep: .dlq is only declared in libs/messaging/src/lib/topology.ts, never consumed). Contrast: apps/analytics-service/src/modules/worker/delivery.processor.ts (ATTEMPT_HEADER 'x-analytics-attempt', MAX_DELIVERY_ATTEMPTS = 5, disposition 'retry' -> sendToQueue(retryQueueOf(queue)) + ack, DLQ only on the last attempt) and analytics.worker.ts dispatch().",
+  "files": [
+    "apps/notification-service/src/modules/notifications/consumer.service.ts",
+    "apps/notification-service/src/modules/notifications/consumer.service.spec.ts",
+    "apps/analytics-service/src/modules/worker/delivery.processor.ts",
+    "apps/analytics-service/src/modules/worker/analytics.worker.ts",
+    "libs/messaging/src/lib/topology.ts"
+  ],
+  "proposedFix": "Give the notification consumer the same bounded-retry policy as analytics. Preferably lift the attempt bookkeeping into libs/messaging (e.g. `DELIVERY_ATTEMPT_HEADER`, `MAX_DELIVERY_ATTEMPTS`, `attemptOf(headers)`) and use it from both services; minimal variant: mirror it in consumer.service.ts. In onMessage(): read attempt from message.properties.headers; for a non-malformed failure with attempt < MAX_DELIVERY_ATTEMPTS, `channel.sendToQueue(retryQueueOf(queue), message.content, { persistent: true, contentType: 'application/json', messageId, headers: { ...headers, [header]: attempt + 1 } })` and ack the original; on the last attempt (or malformed JSON) keep `nack(message, false, false)` to the DLQ. Keep EventInProgressError deferral as is (it must not consume an attempt). Update the two spec cases above: first failure -> retry queue with attempt 2, failure on attempt 5 -> DLQ. Note: 5 x 5 s (~20 s) does not cover a full HAPI restart; consider a larger attempt budget for notifications or a longer RETRY_DELAY_MS, which is a tuning, not a contract change.",
+  "needsDecision": false,
+  "decisionQuestion": "",
+  "tzRef": "FR-008 (уведомления об изменении статуса записи), NFR-005 (надёжность); architect §4.4 (очереди с DLQ)",
+  "confidence": "confirmed"
+}

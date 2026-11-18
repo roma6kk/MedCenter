@@ -1,0 +1,17 @@
+{
+  "id": "fe-public-auth-09",
+  "unit": "fe-public-auth",
+  "kind": "bug",
+  "severity": "low",
+  "title": "В форме регистрации ссылка «Войти» при занятом e-mail сделана через next/link на маршрут OAuth, который нельзя префетчить",
+  "description": "В public-header.tsx записано правило: вход это обычный <a>, потому что цель, /api/auth/authorize, это route handler, который отвечает редиректом на другой origin, и next/link не должен его префетчить. В register-form.tsx это правило соблюдено только в RegisterSuccess (<a href={LOGIN_HREF}>), а ссылка, которая появляется после ошибки «e-mail уже занят», сделана через <Link href={LOGIN_HREF}>. В production Next запросит эту ссылку как RSC-страницу, как только она попадёт во viewport: маршрут выполнится (создаст PKCE-пару и перезапишет cookie mc_pkce), редирект на другой origin будет заблокирован CORS, в консоли появится ошибка «Failed to fetch RSC payload», а при клике произойдёт откат на жёсткую навигацию. Работает, но с побочными эффектами и шумом в консоли, в точности как предупреждает комментарий в шапке. Ещё в файле продублирована константа LOGIN_HREF вместо общей AUTHORIZE_PATH.",
+  "evidence": "frontend/src/components/auth/register-form.tsx:40 `<Link href={LOGIN_HREF} ...>` (LOGIN_HREF = '/api/auth/authorize', line 19), versus :27 `<a href={LOGIN_HREF}>` and frontend/src/components/catalog/public-header.tsx:23-26 (comment + plain <a href={AUTHORIZE_PATH}>). frontend/src/app/api/auth/authorize/route.ts:29-31 sets the mc_pkce cookie on every GET. frontend/src/lib/auth/authorize-href.ts:2 already exports AUTHORIZE_PATH.",
+  "files": [
+    "frontend/src/components/auth/register-form.tsx"
+  ],
+  "proposedFix": "Use a plain `<a href={AUTHORIZE_PATH}>` for the e-mail-taken link and import AUTHORIZE_PATH from '@/lib/auth/authorize-href' instead of the local LOGIN_HREF (also in RegisterSuccess). The register-form spec that looks for the link by name keeps working.",
+  "needsDecision": false,
+  "decisionQuestion": "",
+  "tzRef": "frontend-design-spec §2 (/api/auth/authorize answers a 302 to auth-service)",
+  "confidence": "likely"
+}

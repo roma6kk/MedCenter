@@ -1,10 +1,9 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
-import { ADMINISTRATIVE_GENDER_VALUES, ContactPointDoc, IdentifierDoc } from '../../../shared/fhir-datatypes.doc';
-import type { AdministrativeGender } from '../../../shared/fhir-datatypes.mapper';
+import { ContactPointDoc, IdentifierDoc } from '../../../shared/fhir-datatypes.doc';
+import { ADMINISTRATIVE_GENDERS, type AdministrativeGender } from '../../../shared/fhir-datatypes.mapper';
 import type { PatientResponseDto } from './patient-response.dto';
 
-/** Swagger projection of `PatientResponseDto` (API §3.1–3.2, 3.12). */
 export class PatientResponseDoc implements PatientResponseDto {
   @ApiProperty({ description: 'Patient.id (FHIR id)', example: '1234' })
   readonly id!: string;
@@ -18,7 +17,7 @@ export class PatientResponseDoc implements PatientResponseDto {
   @ApiPropertyOptional({ description: 'Patient.birthDate (YYYY, YYYY-MM or YYYY-MM-DD)', example: '1985-04-12' })
   readonly birthDate?: string;
 
-  @ApiPropertyOptional({ enum: ADMINISTRATIVE_GENDER_VALUES, enumName: 'AdministrativeGender' })
+  @ApiPropertyOptional({ enum: ADMINISTRATIVE_GENDERS, enumName: 'AdministrativeGender' })
   readonly gender?: AdministrativeGender;
 
   @ApiPropertyOptional({ description: 'Patient.photo[0].url' })

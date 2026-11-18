@@ -1,0 +1,18 @@
+{
+  "id": "fe-patient-05",
+  "unit": "fe-patient",
+  "kind": "bug",
+  "severity": "low",
+  "title": "Скрытая пациентом рекомендация «Повторный приём» остаётся скрытой навсегда: её id один и тот же для любого визита",
+  "description": "Рекомендации на главной кабинета запоминаются как скрытые по id в localStorage (medcenter.profile.hiddenRecommendations.<patientId>). Для направлений id включает идентификатор назначения (referral-<id>), а для «Повторного приёма» это константа 'repeat-visit', хотя сама рекомендация привязана к конкретному последнему визиту (в тексте стоит его день, params.day). Пациент один раз нажал «Скрыть» после визита A; после визита B (новая дата, новые рекомендации врача) новая подсказка получает тот же id 'repeat-visit' и сразу считается скрытой. Пациент видит только кнопку «Показать скрытые» со счётчиком и не знает, что там лежит новая подсказка. (Годовая ЭКГ и «Добавить телефон» не привязаны к событию, для них постоянный id приемлем.)",
+  "evidence": "frontend/src/components/patient/profile/profile-recommendations.ts:75 (`id: 'repeat-visit'`, `params: { day: clinicDayOf(last.date) }`); frontend/src/components/patient/profile/profile-recommendations-block.tsx:37 (`all.filter((item) => !hidden.includes(item.id))`); frontend/src/components/patient/profile/use-hidden-recommendations.ts:5,32-45 (ids kept per patient forever); profile-recommendations.spec.ts:22,28,39,96 pin the constant id. Scenario: hide «Повторный приём» after the visit of 19.10 -> later visit 12.12 ends with recommendations -> no card, only «Показать скрытые».",
+  "files": [
+    "frontend/src/components/patient/profile/profile-recommendations.ts",
+    "frontend/src/components/patient/profile/profile-recommendations.spec.ts"
+  ],
+  "proposedFix": "Make the id depend on the visit: `id: `repeat-visit-${last.id}`` (HistoryEntry.id is the encounter id) and update the four spec expectations (toMatchObject / toEqual lists) and the id comment on line 33. Old dismissals simply stop matching, which is the intended reset.",
+  "needsDecision": false,
+  "decisionQuestion": "",
+  "tzRef": "FR-006/FR-007 (история посещений, рекомендации врача), главная кабинета (B4)",
+  "confidence": "confirmed"
+}

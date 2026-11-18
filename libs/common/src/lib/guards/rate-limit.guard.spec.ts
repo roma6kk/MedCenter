@@ -2,10 +2,22 @@ import { Reflector } from '@nestjs/core';
 import { clearEnvCache } from '@medcenter/config';
 import { captureAsyncHttpException, createMockHttpContext } from '../../__tests__/mock-context';
 import { RateLimit } from '../decorators/rate-limit.decorator';
-import { RateLimitGuard, type RateLimitStore, setRateLimitStore } from './rate-limit.guard';
+import {
+  RATE_LIMIT_STORE_TIMEOUT_MS,
+  RateLimitGuard,
+  type RateLimitStore,
+  setRateLimitStore,
+} from './rate-limit.guard';
 
 class OauthController {
   @RateLimit(20)
+  token(): string {
+    return 'token';
+  }
+}
+
+class CredentialController {
+  @RateLimit(2, { perAddressCeiling: 5 })
   token(): string {
     return 'token';
   }
@@ -27,7 +39,7 @@ function createOauthContext(
     request: {
       headers: {},
       method: 'POST',
-      originalUrl: '/oauth/token',
+      route: { path: '/oauth/token' },
       ip: '127.0.0.1',
       user: { sub: 'client-1', scope: 'launch', role: 'PATIENT', jti: 'j5' },
       ...overrides,
@@ -83,9 +95,6 @@ describe('RateLimitGuard', () => {
   }
 
   it('should key the token endpoint budget on client_id and ip when no principal exists', async () => {
-    // M2: `POST /oauth/token` is `@Public()`, so `user` is undefined on the
-    // wire. The unauthenticated body `client_id` is combined with the IP, never
-    // substituted for it.
     const key = await keyFor({ user: undefined, body: { client_id: 'medcenter-web' } });
 
     expect(key.startsWith('medcenter-web|127.0.0.1:POST:/oauth/token:')).toBe(true);
@@ -111,7 +120,6 @@ describe('RateLimitGuard', () => {
   });
 
   it('should ignore the body client_id when an authenticated principal exists', async () => {
-    // e.g. `POST /oauth/token/revoke` accepts `client_id` from a signed-in user.
     const first = await keyFor({ body: { client_id: 'x1' } });
     const second = await keyFor({ body: { client_id: 'x2' } });
 
@@ -132,7 +140,6 @@ describe('RateLimitGuard', () => {
   });
 
   it('should share one bucket across query strings on the same route', async () => {
-    // Query strings must not split the budget, or `?n=1`, `?n=2`, … bypass the limit.
     const first = await keyFor({ user: undefined, originalUrl: '/oauth/token?n=1' });
     const second = await keyFor({ user: undefined, originalUrl: '/oauth/token?n=2' });
 
@@ -153,5 +160,111 @@ describe('RateLimitGuard', () => {
     const firstKey = String(increment.mock.calls[0]?.[0] ?? '');
     const secondKey = String(increment.mock.calls[1]?.[0] ?? '');
     expect(firstKey).not.toBe(secondKey);
+  });
+
+  it('should share one bucket across values of a path parameter on the same route', async () => {
+    const first = await keyFor({ route: { path: '/doctors/:id' }, originalUrl: '/doctors/a' });
+    const second = await keyFor({ route: { path: '/doctors/:id' }, originalUrl: '/doctors/b' });
+
+    expect(first).toBe(second);
+    expect(first).toContain(':POST:/doctors/:id:');
+  });
+
+  it('should fall back to the handler name when the adapter exposes no route template', async () => {
+    const key = await keyFor({ route: undefined });
+
+    expect(key).toContain(':POST:OauthController.token:');
+  });
+
+  it('should fail open when the store never answers', async () => {
+    jest.useFakeTimers();
+    try {
+      setRateLimitStore({ increment: jest.fn().mockReturnValue(new Promise<number>(() => undefined)) });
+      const { context } = createOauthContext();
+
+      const result = guard.canActivate(context);
+      await jest.advanceTimersByTimeAsync(RATE_LIMIT_STORE_TIMEOUT_MS + 1);
+
+      await expect(result).resolves.toBe(true);
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  describe('token endpoint keyed by credential', () => {
+    function createCredentialContext(body: Record<string, unknown>, ip = '10.0.0.1'): ReturnType<typeof createMockHttpContext> {
+      return createMockHttpContext({
+        handler: CredentialController.prototype.token,
+        controller: CredentialController,
+        request: { headers: {}, method: 'POST', route: { path: '/oauth/token' }, ip, body },
+      });
+    }
+
+    function countingStore(): RateLimitStore {
+      const hits = new Map<string, number>();
+      return {
+        increment: async (key: string): Promise<number> => {
+          const next = (hits.get(key) ?? 0) + 1;
+          hits.set(key, next);
+          return next;
+        },
+      };
+    }
+
+    it('should let clients behind one address use their own codes without sharing a bucket', async () => {
+      setRateLimitStore(countingStore());
+
+      for (let i = 0; i < 4; i += 1) {
+        const body = { grant_type: 'authorization_code', client_id: 'medcenter-web', code: `code-${i}` };
+        await expect(guard.canActivate(createCredentialContext(body).context)).resolves.toBe(true);
+      }
+    });
+
+    it('should answer 429 once the same credential is replayed past the budget, from any address', async () => {
+      setRateLimitStore(countingStore());
+      const body = { grant_type: 'refresh_token', client_id: 'medcenter-web', refresh_token: 'rt-1' };
+      await guard.canActivate(createCredentialContext(body, '10.0.0.1').context);
+      await guard.canActivate(createCredentialContext(body, '10.0.0.2').context);
+
+      const error = await captureAsyncHttpException(() => guard.canActivate(createCredentialContext(body, '10.0.0.3').context));
+
+      expect(error.getStatus()).toBe(429);
+    });
+
+    it('should answer 429 when one address passes the ceiling with ever-new credentials', async () => {
+      setRateLimitStore(countingStore());
+      for (let i = 0; i < 5; i += 1) {
+        const body = { grant_type: 'authorization_code', client_id: 'c', code: `code-${i}` };
+        await guard.canActivate(createCredentialContext(body).context);
+      }
+
+      const body = { grant_type: 'authorization_code', client_id: 'c', code: 'code-new' };
+      const error = await captureAsyncHttpException(() => guard.canActivate(createCredentialContext(body).context));
+
+      expect(error.getStatus()).toBe(429);
+    });
+
+    it('should never put the raw code or refresh token into the store key', async () => {
+      const increment = jest.fn().mockResolvedValue(1);
+      setRateLimitStore({ increment });
+
+      await guard.canActivate(
+        createCredentialContext({ grant_type: 'refresh_token', client_id: 'c', refresh_token: 'super-secret-token' }).context,
+      );
+
+      const keys = increment.mock.calls.map((call) => String(call[0]));
+      expect(keys.some((key) => key.includes('super-secret-token'))).toBe(false);
+      expect(keys.some((key) => key.startsWith('c|refresh_token|'))).toBe(true);
+    });
+
+    it('should fall back to client_id and ip when the request carries no credential', async () => {
+      const increment = jest.fn().mockResolvedValue(1);
+      setRateLimitStore({ increment });
+
+      await guard.canActivate(createCredentialContext({ grant_type: 'authorization_code', client_id: 'c' }).context);
+
+      expect(increment).toHaveBeenCalledTimes(1);
+      expect(String(increment.mock.calls[0]?.[0]).startsWith('c|10.0.0.1:POST:/oauth/token:')).toBe(true);
+    });
   });
 });

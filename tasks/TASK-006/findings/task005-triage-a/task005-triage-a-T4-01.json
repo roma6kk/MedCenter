@@ -1,0 +1,18 @@
+{
+  "id": "task005-triage-a-T4-01",
+  "unit": "task005-triage-a",
+  "kind": "question",
+  "severity": "low",
+  "title": "В форме приёма нет отдельных полей «Жалобы» и «Анамнез» (в DTO их нет) — добавлять в API?",
+  "description": "Требования FR-011..FR-014 описывают заключение, диагноз, рекомендации и назначения; жалоб и анамнеза в требованиях и спецификациях нет. Свободный текст врача уже ложится в поле заключения (ClinicalImpression.summary, 3..4000 знаков), в нём можно записать и жалобы, и осмотр. Отдельные поля потребовали бы изменения контракта 7.3 (complete) и маппера: Encounter.reasonCode подходит плохо (это кодированная причина обращения), ближе ClinicalImpression.description или note.",
+  "evidence": "tasks/TASK-001/requirements-analyst-requirements.md:72-75 FR-011..FR-014; grep -i 'жалоб|анамнез|complaint|anamnes' over TASK-001 requirements and specs/*.md finds nothing; apps/encounter-service/src/modules/encounters/dto/complete-encounter.dto.ts:27-32 summary is the only free-text clinical field besides recommendations.",
+  "files": [
+    "apps/encounter-service/src/modules/encounters/dto/complete-encounter.dto.ts",
+    "frontend/src/components/doctor/encounter-complete-form.tsx"
+  ],
+  "proposedFix": "Option 2 (frontend only, no contract change): split the «Заключение» textarea into three labelled blocks (Жалобы, Осмотр, Заключение), join them into `summary` with fixed headings on submit and split on read; needs a parser tolerant to old records. Option 3: new optional complaints / anamnesis strings in CompleteEncounterDto, ClinicalImpression.description in the mapper, fields in EncounterDetailsDto and the encounter view.",
+  "needsDecision": true,
+  "decisionQuestion": "Нужны ли в форме приёма отдельные «Жалобы» и «Анамнез»? Варианты: (1) нет — заключение (до 4000 знаков) покрывает свободный текст, ТЗ и FR-011..014 этого не требуют (рекомендация); (2) только на фронтенде: три подписанных блока, склеиваемых в summary; (3) новые поля в API и FHIR (ClinicalImpression.description). Если нужен (2) или (3), это отдельная задача с обновлением ADR/спецификации.",
+  "tzRef": "Врач: оформление результатов приёма; FR-011",
+  "confidence": "confirmed"
+}

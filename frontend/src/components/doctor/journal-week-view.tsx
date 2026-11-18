@@ -11,7 +11,7 @@ import { useT } from '@/lib/i18n/use-t';
 import { cn } from '@/lib/ui/cn';
 import { useUiStore } from '@/store/use-ui-store';
 import type { AppointmentState, DoctorJournalPage, JournalAppointment } from './doctor-types';
-import { HALF_HOUR_PX, canOpenPatientCard, gridRange, layoutBlocks, shortName, weekdayShort, type WeekBlock } from './journal-model';
+import { HALF_HOUR_PX, canOpenPatientCard, gridRange, layoutBlocks, patientNameOf, shortName, weekdayShort, type WeekBlock } from './journal-model';
 
 const BLOCK_STYLE: Readonly<Record<AppointmentState, string>> = {
   booked: 'border-primary bg-primary text-primary-foreground',
@@ -27,7 +27,6 @@ const LEGEND_ROWS: ReadonlyArray<{ readonly status: AppointmentState; readonly l
   { status: 'cancelled', labelKey: 'legendCancelled' },
 ];
 
-/** The legend belongs in the shell's sidebar; a page rendered without that shell keeps it under the grid. */
 function useAsideSlot(): HTMLElement | null | undefined {
   const [slot, setSlot] = useState<HTMLElement | null | undefined>(undefined);
   useLayoutEffect(() => setSlot(document.getElementById(STAFF_ASIDE_SLOT_ID)), []);
@@ -37,12 +36,12 @@ function useAsideSlot(): HTMLElement | null | undefined {
 function Legend(): ReactNode {
   const t = useT('doctor.journal');
   return (
-    <div className="flex flex-col gap-2.5 rounded-card bg-background p-3.5 text-[13px]">
+    <div className="flex flex-col gap-2.5 rounded-card bg-background p-3.5 text-xs">
       <p className="text-sm font-bold">{t('legendTitle')}</p>
       <ul className="flex flex-col gap-2.5">
         {LEGEND_ROWS.map((row) => (
           <li key={row.status} className="flex items-center gap-2">
-            <span aria-hidden="true" className={cn('size-3.5 shrink-0 rounded-[4px] border', BLOCK_STYLE[row.status])} />
+            <span aria-hidden="true" className={cn('size-3.5 shrink-0 rounded-sm border', BLOCK_STYLE[row.status])} />
             {t(row.labelKey)}
           </li>
         ))}
@@ -55,7 +54,7 @@ function Block({ block }: { readonly block: WeekBlock }): ReactNode {
   const t = useT('doctor.journal');
   const tStamp = useT('stamp');
   const { visit } = block;
-  const name: string = visit.patientName ?? t('unknownPatient', { id: visit.patientId });
+  const name: string = patientNameOf(visit, t);
   const blockClass = cn('flex h-full flex-col justify-center overflow-hidden rounded-card border px-2', BLOCK_STYLE[visit.status]);
   const label = `${formatClinicTime(visit.start)} ${visit.patientName ? shortName(visit.patientName) : name}`;
   return (
@@ -87,11 +86,9 @@ export interface DayColumn {
 interface JournalWeekViewProps {
   readonly days: ReadonlyArray<DayColumn>;
   readonly today: string;
-  /** A day heading opens that day in the day view. */
   readonly onOpenDay: (dateKey: string) => void;
 }
 
-/** Week view: five working days side by side, every visit a block at its time on a half-hour grid. */
 export function JournalWeekView({ days, today, onOpenDay }: JournalWeekViewProps): ReactNode {
   const t = useT('doctor.journal');
   const locale = useUiStore((state) => state.locale);
@@ -117,17 +114,17 @@ export function JournalWeekView({ days, today, onOpenDay }: JournalWeekViewProps
                   isToday ? 'bg-primary-soft text-primary-soft-foreground' : 'bg-card text-foreground',
                 )}
               >
-                <span className="text-[13px] font-semibold uppercase tracking-[0.05em]">{weekdayShort(day.dateKey, locale)}{isToday ? ` · ${t('todayEyebrow').toLowerCase()}` : ''}</span>
+                <span className="text-xs font-semibold">{weekdayShort(day.dateKey, locale)}{isToday ? ` · ${t('todayEyebrow').toLowerCase()}` : ''}</span>
                 <span className="flex items-baseline justify-between gap-2">
-                  <span className="text-[22px] font-bold">{day.dateKey.slice(8)}</span>
-                  <span className="text-[13px] text-muted-foreground">{day.query.isSuccess ? t('dayCount', { count: day.visits.length }) : '…'}</span>
+                  <span className="text-xl font-bold">{day.dateKey.slice(8)}</span>
+                  <span className="text-xs text-muted-foreground">{day.query.isSuccess ? t('dayCount', { count: day.visits.length }) : '…'}</span>
                 </span>
               </button>
             );
           })}
           <div aria-hidden="true" className="relative" style={{ height }}>
             {hours.map((hour, index) => (
-              <span key={hour} className="mono absolute right-2 -translate-y-1/2 text-xs font-medium text-muted-foreground" style={{ top: index * 2 * HALF_HOUR_PX + 8 }}>
+              <span key={hour} className="tabular-nums absolute right-2 -translate-y-1/2 text-xs font-medium text-muted-foreground" style={{ top: index * 2 * HALF_HOUR_PX + 8 }}>
                 {`${String(hour).padStart(2, '0')}:00`}
               </span>
             ))}

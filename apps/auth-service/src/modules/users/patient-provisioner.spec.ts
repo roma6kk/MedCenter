@@ -70,6 +70,30 @@ describe('applyDemographics', () => {
   });
 });
 
+describe('applyDemographics (name)', () => {
+  const patient = {
+    resourceType: 'Patient',
+    id: 'pat-1',
+    name: [{ use: 'official', text: 'Иванов Иван Петрович', family: 'Иванов', given: ['Иван', 'Петрович'] }],
+  };
+
+  it('should keep the patronymic and drop the stale full-name text when the first name changes', () => {
+    const updated = applyDemographics(patient, { firstName: 'Иоанн' });
+
+    expect(updated['name']).toEqual([{ use: 'official', family: 'Иванов', given: ['Иоанн', 'Петрович'] }]);
+  });
+
+  it('should drop the stale text when only the last name changes', () => {
+    expect(applyDemographics(patient, { lastName: 'Петров' })['name']).toEqual([
+      { use: 'official', family: 'Петров', given: ['Иван', 'Петрович'] },
+    ]);
+  });
+
+  it('should leave the name untouched when the change has no name', () => {
+    expect(applyDemographics(patient, { gender: 'male' })['name']).toEqual(patient.name);
+  });
+});
+
 describe('applyDemographics (email)', () => {
   const patient = {
     resourceType: 'Patient',

@@ -1,0 +1,17 @@
+{
+  "id": "task005-triage-b-28",
+  "unit": "task005-triage-b",
+  "kind": "question",
+  "severity": "low",
+  "title": "Название «Лайфлайн» скрыто в шапке кабинета пациента уже на 480 px",
+  "description": "Вопрос из V4/T9. На узком экране в строку шапки должны поместиться бургер, логотип-розетка, кнопка «Записаться» и колокольчик; название бренда скрывается раньше, чем у публичной шапки. Вариант: сократить «Записаться» до иконки с подписью для скринридера и вернуть название. Дефекта доступности нет (розетка и кнопки подписаны), это вкус.",
+  "evidence": "frontend/src/components/layout (patient header and mobile menu, patient-mobile-menu.tsx:51 opens the left drawer); breakpoint 480 px named in the T9 note of tasks/TASK-005/verify-open-questions.md.",
+  "files": [
+    "frontend/src/components/layout/patient-mobile-menu.tsx"
+  ],
+  "proposedFix": "Variant A (recommended): keep. Variant B: icon-only «Записаться» (aria-label kept) below 480 px and show the brand name from 360 px.",
+  "needsDecision": true,
+  "decisionQuestion": "Что делать с шапкой пациента на узком экране? Варианты: (A) оставить: название бренда скрыто до 480 px, логотип остаётся; (B) сделать «Записаться» иконкой и оставить название. Рекомендация: A — главное действие остаётся подписанным текстом.",
+  "tzRef": "",
+  "confidence": "confirmed"
+}

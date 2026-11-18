@@ -1,6 +1,9 @@
 import { useEffect, useRef } from 'react';
 
-/** Traps Tab inside `container`, focuses the first focusable child, closes on Escape. */
+export const DIALOG_CLOSE_ATTRIBUTE = 'data-dialog-close';
+
+const FOCUSABLE = 'a[href], button:not([disabled]), textarea, input, select, [tabindex]:not([tabindex="-1"])';
+
 export function useDialogFocus<TElement extends HTMLElement>(open: boolean, onClose: () => void): React.RefCallback<TElement> {
   const containerRef = useRef<TElement | null>(null);
   const previousFocus = useRef<Element | null>(null);
@@ -9,10 +12,8 @@ export function useDialogFocus<TElement extends HTMLElement>(open: boolean, onCl
     previousFocus.current = document.activeElement;
     const container = containerRef.current;
     if (!container) return;
-    const focusables = container.querySelectorAll<HTMLElement>(
-      'a[href], button:not([disabled]), textarea, input, select, [tabindex]:not([tabindex="-1"])',
-    );
-    focusables[0]?.focus();
+    const initial = Array.from(container.querySelectorAll<HTMLElement>(FOCUSABLE)).find((element) => !element.hasAttribute(DIALOG_CLOSE_ATTRIBUTE));
+    (initial ?? container).focus();
     const handleKeyDown = (event: KeyboardEvent): void => {
       if (event.key === 'Escape') {
         event.preventDefault();
@@ -20,11 +21,7 @@ export function useDialogFocus<TElement extends HTMLElement>(open: boolean, onCl
         return;
       }
       if (event.key !== 'Tab') return;
-      const elements = Array.from(
-        container.querySelectorAll<HTMLElement>(
-          'a[href], button:not([disabled]), textarea, input, select, [tabindex]:not([tabindex="-1"])',
-        ),
-      );
+      const elements = Array.from(container.querySelectorAll<HTMLElement>(FOCUSABLE));
       if (elements.length === 0) return;
       const first = elements[0];
       const last = elements[elements.length - 1];

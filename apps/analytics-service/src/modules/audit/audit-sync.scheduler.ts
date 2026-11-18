@@ -3,21 +3,10 @@ import { Inject, Injectable, Logger, type OnApplicationBootstrap, type OnModuleD
 import { AUDIT_SYNC_CONFIG, type AuditSyncConfig } from '../../config/analytics-env';
 import { AuditSyncService } from './audit-sync.service';
 
-/**
- * Pauses between the retries of the very first run. Docker Compose starts the
- * service as soon as HAPI's container exists (no healthcheck on its image), so
- * HAPI may still be booting for tens of seconds. Bounded: after the last retry
- * the regular interval takes over.
- */
+// First-run retries: Compose starts the service as soon as HAPI exists (no healthcheck), so HAPI may boot for tens of seconds. Bounded.
 export const STARTUP_RETRY_DELAYS_MS: ReadonlyArray<number> = [1_000, 2_000, 4_000, 8_000, 16_000];
 
-/**
- * Pulls new `AuditEvent`s from HAPI into the journal read-model on a fixed
- * interval (architect §5: the worker fills the read-model "по расписанию").
- * Runs never overlap; a failed run is logged and the next tick retries. Every
- * replica may run it: rows are inserted-or-ignored and the cursor only moves
- * forward, so concurrent pulls are harmless.
- */
+// Runs never overlap. Safe on every replica: rows are insert-or-ignore and the cursor only moves forward.
 @Injectable()
 export class AuditSyncScheduler implements OnApplicationBootstrap, OnModuleDestroy {
   private readonly logger = new Logger(AuditSyncScheduler.name);
@@ -58,7 +47,6 @@ export class AuditSyncScheduler implements OnApplicationBootstrap, OnModuleDestr
     }
   }
 
-  /** First run: quiet, bounded retries with backoff while HAPI is still starting. */
   private async syncWithStartupRetries(): Promise<void> {
     for (const delayMs of STARTUP_RETRY_DELAYS_MS) {
       try {

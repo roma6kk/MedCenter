@@ -17,6 +17,7 @@ environment **local**.
 | `patientRef`, `otherPatientRef` | `Patient/<id>` of the patient to read (3.2, 3.3, 3.7, 7.4, 7.5) and of someone else (403 example) |
 | `encounterId` | encounter for 7.2 (otherwise taken from the patient history, 7.6) |
 | `newUserPassword` (secret) | password for the accounts created by 2.2.1 and 2.2.6; choose your own |
+| `deactivateSelfPassword` (secret) | current password of the patient whose token runs 2.2.8; leave unset and the request is skipped |
 | `refreshToken`, `authCode` (secret) | for 2.1.3 (refresh) / 2.1.4 and for the manual code exchange |
 | `oauthClientId`, `oauthRedirectUri` | public PKCE client of the web app (`medcenter-web`) |
 

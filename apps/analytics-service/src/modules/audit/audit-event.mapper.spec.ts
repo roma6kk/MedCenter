@@ -2,7 +2,6 @@ import { buildWriteAuditEvent, type FhirResource } from '@medcenter/fhir';
 
 import { toAuditEventRow } from './audit-event.mapper';
 
-/** Exactly what `apps/appointment-service/.../audit.ts` writes, after HAPI assigned ids. */
 function appointmentServiceAudit(overrides: Record<string, unknown> = {}): FhirResource {
   return {
     resourceType: 'AuditEvent',
@@ -68,14 +67,11 @@ describe('toAuditEventRow', () => {
     });
   });
 
-  it('should map the R4 action code U to update when no restful subtype is present', () => {
-    const row = toAuditEventRow(appointmentServiceAudit({ action: 'U', subtype: undefined }));
-
-    expect(row?.action).toBe('update');
-  });
-
-  it('should map the R4 action code D to delete when the event records a deletion', () => {
-    expect(toAuditEventRow(appointmentServiceAudit({ action: 'D', subtype: undefined }))?.action).toBe('delete');
+  it.each([
+    ['U', 'update'],
+    ['D', 'delete'],
+  ])('should map the R4 action code %s to %s when no restful subtype is present', (action, expected) => {
+    expect(toAuditEventRow(appointmentServiceAudit({ action, subtype: undefined }))?.action).toBe(expected);
   });
 
   describe('patient-data reads (ADR-018)', () => {
@@ -107,7 +103,6 @@ describe('toAuditEventRow', () => {
   });
 
   describe('emergency consent bypass (ADR-019)', () => {
-    /** What `buildEmergencyBypassAuditEvent` writes for 7.1/7.3 with `emergencyReason` and no consent. */
     const bypassAudit = (overrides: Record<string, unknown> = {}): FhirResource => ({
       resourceType: 'AuditEvent',
       id: 'ae-bypass',
@@ -322,6 +317,55 @@ describe('toAuditEventRow', () => {
       );
 
       expect(row).toMatchObject({ resourceType: null, resourceId: null });
+    });
+  });
+
+  describe('authentication events of auth-service', () => {
+    const DCM = 'http://dicom.nema.org/resources/ontology/DCM';
+
+    function authAudit(subtype: string, outcome: string, outcomeDesc?: string, userId?: string): FhirResource {
+      return appointmentServiceAudit({
+        type: { system: DCM, code: '110114', display: 'User Authentication' },
+        subtype: [{ system: DCM, code: subtype }],
+        action: 'E',
+        outcome,
+        ...(outcomeDesc !== undefined ? { outcomeDesc } : {}),
+        agent: [{ ...(userId !== undefined ? { who: { identifier: { value: userId } } } : {}), requestor: true }],
+        source: { observer: { display: 'auth-service' } },
+        entity:
+          userId === undefined
+            ? []
+            : [{ what: { identifier: { system: 'https://api.medcenter.by/sid/auth-user', value: userId } }, name: 'auth.user' }],
+      });
+    }
+
+    it.each([
+      ['110122', '0', undefined, 'login'],
+      ['110122', '4', 'login-failed', 'login-failed'],
+      ['110122', '4', 'login-throttled', 'login-throttled'],
+      ['110123', '0', undefined, 'logout'],
+      ['110123', '0', 'session-idle', 'session-idle'],
+    ] as const)('should journal subtype %s with outcome %s (%s) as %s', (subtype, outcome, outcomeDesc, action) => {
+      expect(toAuditEventRow(authAudit(subtype, outcome, outcomeDesc, 'user-1'))).toMatchObject({
+        action,
+        userId: 'user-1',
+        resourceType: 'AuthUser',
+        resourceId: 'user-1',
+        source: 'auth-service',
+      });
+    });
+
+    it('should journal a failed login of an unknown account without a user or a resource', () => {
+      expect(toAuditEventRow(authAudit('110122', '4', 'login-failed'))).toMatchObject({
+        action: 'login-failed',
+        userId: null,
+        resourceType: null,
+        resourceId: null,
+      });
+    });
+
+    it('should not treat a login with an unexpected outcome description as a lockout', () => {
+      expect(toAuditEventRow(authAudit('110122', '0', 'login-throttled', 'user-1'))).toMatchObject({ action: 'login' });
     });
   });
 });

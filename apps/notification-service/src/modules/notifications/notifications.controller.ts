@@ -19,7 +19,17 @@ function parsePositiveInt(raw: string | undefined, fallback: number, max: number
   return value;
 }
 
-/** API §8.1–8.3 — the patient's own in-app notifications (FR-008). */
+/** Anything but true/false is a typo, not "all": 400. */
+function parseFlag(raw: string | undefined, name: string): boolean {
+  if (raw === undefined || raw === '' || raw === 'false') {
+    return false;
+  }
+  if (raw === 'true') {
+    return true;
+  }
+  throw new BadRequestException({ errorCode: 'VALIDATION_ERROR', message: `${name} must be true or false` });
+}
+
 @ApiTags('notification')
 @ApiBearerAuth()
 @Controller('api/v1/notifications')
@@ -45,7 +55,7 @@ export class NotificationsController {
     return this.notifications.list(patientRef, {
       page: parsePositiveInt(page, 1, MAX_PAGE, 'page'),
       pageSize: parsePositiveInt(pageSize, DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE, 'pageSize'),
-      unreadOnly: unread === 'true',
+      unreadOnly: parseFlag(unread, 'unread'),
     });
   }
 
@@ -60,7 +70,7 @@ export class NotificationsController {
     return { count: await this.notifications.unreadCount(patientRef) };
   }
 
-  /** API §8.4: every unread notification of the caller becomes read; answers how many did. Declared before `:id/read`. */
+  /** Declared before `:id/read`. */
   @Post('read-all')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: '8.4 Mark all my unread notifications as read' })
@@ -78,7 +88,10 @@ export class NotificationsController {
   @ApiOperation({ summary: '8.3 Mark a notification as read' })
   @ApiParam({ name: 'id', description: 'Notification (Communication) id' })
   @ApiResponse({ status: 204, description: 'Marked as read' })
-  @ApiProblems([400, ...GUARD_PROBLEM_STATUSES, 404], { 404: 'NOT_FOUND: no such notification of the caller' })
+  @ApiProblems([400, ...GUARD_PROBLEM_STATUSES, 404], {
+    403: 'COMPARTMENT_VIOLATION: the notification belongs to another patient; FORBIDDEN_ROLE / FORBIDDEN_SCOPE',
+    404: 'NOT_FOUND: no such notification',
+  })
   @RequiresRoles(Role.PATIENT)
   @RequiresScopes(SMART_SCOPES.PATIENT_WRITE)
   async markRead(@Req() request: RequestWithClaims, @Param('id', FhirIdPipe) id: string): Promise<void> {

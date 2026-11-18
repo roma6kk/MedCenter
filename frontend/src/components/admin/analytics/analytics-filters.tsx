@@ -1,67 +1,68 @@
 'use client';
 
 import { useState } from 'react';
-import type { FormEvent, ReactNode } from 'react';
+import type { ReactNode } from 'react';
+import { DatePicker } from '@/components/ui/date-picker';
+import { SegmentedControl } from '@/components/ui/segmented-control';
+import { Select } from '@/components/ui/select';
 import { useT } from '@/lib/i18n/use-t';
-import { CONTROL_CLASS, PRIMARY_BUTTON_CLASS } from '../shared/admin-styles';
-import { focusField } from '../shared/focus-field';
 import { controlProps, Field } from '../shared/form-field';
-import { validateReportRange, type ReportRange, type ReportRangeError } from '../shared/report-range';
+import { validateReportRange, type ReportRange } from '../shared/report-range';
+import { PERIOD_PRESETS, type PeriodPreset } from './analytics-period';
 import { TOP_OPTIONS } from './analytics-types';
 
 interface AnalyticsFiltersProps {
+  readonly preset: PeriodPreset;
   readonly range: ReportRange;
   readonly top: number;
-  readonly onApply: (range: ReportRange, top: number) => void;
+  readonly onPreset: (preset: PeriodPreset) => void;
+  readonly onRange: (range: ReportRange) => void;
+  readonly onTop: (top: number) => void;
 }
 
-interface FilterDraft {
-  readonly draft: ReportRange;
-  readonly setDraft: (range: ReportRange) => void;
-  readonly draftTop: number;
-  readonly setDraftTop: (top: number) => void;
-  readonly rangeError: ReportRangeError | null;
-  readonly handleSubmit: (event: FormEvent) => void;
-}
-
-function useFilterDraft(range: ReportRange, top: number, onApply: (range: ReportRange, top: number) => void): FilterDraft {
-  const [draft, setDraft] = useState<ReportRange>(range);
-  const [draftTop, setDraftTop] = useState<number>(top);
-  const [rangeError, setRangeError] = useState<ReportRangeError | null>(null);
-  const handleSubmit = (event: FormEvent): void => {
-    event.preventDefault();
-    const error = validateReportRange(draft);
-    setRangeError(error);
-    if (error === null) onApply(draft, draftTop);
-    else focusField('analytics-from');
-  };
-  return { draft, setDraft, draftTop, setDraftTop, rangeError, handleSubmit };
-}
-
-/**
- * Period (≤ 366 days) and the length of the «top services» list. The reports are requested on submit only, so a half-typed
- * date never reaches the API (it would answer 400).
- */
-export function AnalyticsFilters({ range, top, onApply }: AnalyticsFiltersProps): ReactNode {
+// Dates stay as typed; only a valid ordered period of at most 366 days goes on, so a half-typed date never reaches the API (400).
+function CustomRange({ initial, onRange }: { readonly initial: ReportRange; readonly onRange: (range: ReportRange) => void }): ReactNode {
   const t = useT('admin.analytics');
-  const { draft, setDraft, draftTop, setDraftTop, rangeError, handleSubmit } = useFilterDraft(range, top, onApply);
-  const error: string | undefined = rangeError === null ? undefined : t(`errors.${rangeError}`);
+  const [draft, setDraft] = useState<ReportRange>(initial);
+  const reason = validateReportRange(draft);
+  const error: string | undefined = reason === null ? undefined : t(`errors.${reason}`);
+  const change = (next: ReportRange): void => {
+    setDraft(next);
+    if (validateReportRange(next) === null) onRange(next);
+  };
   return (
-    <form role="search" aria-label={t('filters.label')} onSubmit={handleSubmit} noValidate className="no-print mb-6 flex flex-wrap items-end gap-3 rounded-card border border-[var(--border)] bg-[var(--card)] p-4">
+    <>
       <Field id="analytics-from" label={t('filters.from')} error={error}>
-        <input {...controlProps('analytics-from', error)} type="date" value={draft.from} onChange={(event) => setDraft({ ...draft, from: event.target.value })} className={CONTROL_CLASS} />
+        <DatePicker {...controlProps('analytics-from', error)} value={draft.from} onChange={(from) => change({ ...draft, from })} wrapperClassName="w-44" />
       </Field>
       <Field id="analytics-to" label={t('filters.to')}>
-        <input id="analytics-to" type="date" value={draft.to} aria-invalid={error ? true : undefined} aria-describedby={error ? 'analytics-from-error' : undefined} onChange={(event) => setDraft({ ...draft, to: event.target.value })} className={CONTROL_CLASS} />
+        <DatePicker id="analytics-to" value={draft.to} aria-invalid={error ? true : undefined} aria-describedby={error ? 'analytics-from-error' : undefined} onChange={(to) => change({ ...draft, to })} wrapperClassName="w-44" />
       </Field>
-      <Field id="analytics-top" label={t('filters.top')}>
-        <select id="analytics-top" value={draftTop} onChange={(event) => setDraftTop(Number(event.target.value))} className={CONTROL_CLASS}>
+    </>
+  );
+}
+
+export function AnalyticsFilters({ preset, range, top, onPreset, onRange, onTop }: AnalyticsFiltersProps): ReactNode {
+  const t = useT('admin.analytics');
+  return (
+    <div role="group" aria-label={t('filters.label')} className="no-print mb-6 flex flex-wrap items-end gap-x-4 gap-y-3">
+      <SegmentedControl<PeriodPreset>
+        kind="toggle"
+        label={t('filters.period')}
+        className="self-end"
+        value={preset}
+        onChange={onPreset}
+        options={PERIOD_PRESETS.map((value) => ({ value, label: t(`filters.presets.${value}`) }))}
+      />
+      {preset === 'custom' ? <CustomRange initial={range} onRange={onRange} /> : null}
+      <div className="grid gap-1.5 sm:ml-auto">
+        <label htmlFor="analytics-top" className="form-label">{t('filters.top')}</label>
+        <Select id="analytics-top" value={top} onChange={(event) => onTop(Number(event.target.value))} wrapperClassName="w-24">
           {TOP_OPTIONS.map((option) => (
             <option key={option} value={option}>{option}</option>
           ))}
-        </select>
-      </Field>
-      <button type="submit" className={PRIMARY_BUTTON_CLASS}>{t('filters.apply')}</button>
-    </form>
+        </Select>
+      </div>
+    </div>
   );
 }

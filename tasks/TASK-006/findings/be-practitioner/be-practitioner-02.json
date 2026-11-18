@@ -1,0 +1,19 @@
+{
+  "id": "be-practitioner-02",
+  "unit": "be-practitioner",
+  "kind": "bug",
+  "severity": "medium",
+  "title": "Публичный каталог врачей не скрывает неактивных врачей и роли: active=false учитывается только в practitionerRoleIds",
+  "description": "Ни один запрос practitioner-service не содержит условия по active. Список без фильтров (`Practitioner?name&_count&_offset`) и карточка (`GET /doctors/{id}` читает Practitioner по id) отдают врача при `Practitioner.active=false`; поиск по услуге/специальности (`PractitionerRole?service=&specialty=`) тоже берёт роли с `active=false`. При этом `roleIdsByPractitioner` отбрасывает неактивные роли (поле practitionerRoleIds, «только активные»), то есть сервис сам считает неактивную роль несуществующей, но врача из выдачи не убирает: по фильтру «Кардиология» неактивная роль всё равно приводит врача в список, а его practitionerRoleIds приходит пустым, и у карточки нет записи на приём (расписания и слоты catalog-service уже фильтруют `active:not=false`). Дизайн потока №1 (brainstorming-design.md) прямо называет запрос `PractitionerRole?service=X&active=true`. Сейчас ничто в системе не выставляет active=false (сид пишет true, пишущих эндпоинтов врача нет), поэтому дефект скрыт, но он блокирует любое решение по be-auth-users-02/tz-matrix-10 (скрытие врача при деактивации или увольнении) и лишает смысла поле active в HAPI. Уточнение к be-auth-users-02: там сказано, что каталог скрывает врача при PractitionerRole.active=false, — в коде это не так (скрываются только id роли).",
+  "evidence": "apps/practitioner-service/src/modules/doctors/doctor-search.ts:38-44 practitionerQuery (no active condition), :56-67 practitionerRoleQuery (no `active:not`), :98-108 roleIdsByPractitioner skips `active === false` roles only for practitionerRoleIds; apps/practitioner-service/src/modules/doctors/doctors.service.ts:68-72 findById returns whatever Practitioner it reads. Scenario: Practitioner/7 gets active=false (or its only PractitionerRole gets active=false) -> GET /api/v1/doctors?specialty=394579002 still lists Practitioner/7 with practitionerRoleIds [] and GET /api/v1/doctors/7 answers 200; the public page shows a doctor nobody can book. No unit or e2e case sets `active` on a Practitioner (doctors.service.roles.spec.ts only covers the role id list).",
+  "files": [
+    "apps/practitioner-service/src/modules/doctors/doctor-search.ts",
+    "apps/practitioner-service/src/modules/doctors/doctors.service.ts",
+    "apps/practitioner-service/src/modules/doctors/doctors.service.query-string.spec.ts"
+  ],
+  "proposedFix": "Add `'active:not': 'false'` (the pattern catalog-service already uses for Schedule, so an absent active still counts as active) to practitionerQuery and to practitionerRoleQuery; in findById answer 404 NOT_FOUND when the read Practitioner has `active === false` (same body as for an unknown id, so the public cannot tell a hidden doctor from a missing one). Keep a doctor with zero active roles listed (spec 4.1/4.2 allows practitionerRoleIds = []). If be-catalog-12 is implemented (service filter derived from active Schedules, not from PractitionerRole.healthcareService), keep the same rule there: only roles/practitioners that are not `active=false` count. Update the exact-URL expectations in doctors.service.query-string.spec.ts and catalog-queries.e2e-spec.ts and add: inactive practitioner is not listed / card is 404; a role with active=false does not bring its doctor into a service or specialty filter result.",
+  "needsDecision": false,
+  "decisionQuestion": "",
+  "tzRef": "Пациент: просмотр доступных врачей; FR-002; specs/api-designer-spec.md 4.1/4.2 (practitionerRoleIds — активные роли); связано с be-auth-users-02",
+  "confidence": "confirmed"
+}

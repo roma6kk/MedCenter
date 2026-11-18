@@ -1,0 +1,21 @@
+{
+  "id": "be-practitioner-08",
+  "unit": "be-practitioner",
+  "kind": "question",
+  "severity": "low",
+  "title": "Кабинет в карточке врача: roomId описан в спецификации 4.2, DTO и Swagger, но никогда не заполняется, а пациент не может узнать кабинет нигде в интерфейсе",
+  "description": "Спецификация 4.2 называет ответ «карточка врача + специальность + кабинет», DoctorResponseDto и Swagger-схема содержат `roomId?` («Location id of the doctor room»). Но общий маппер toDoctorResponseDto никогда не пишет roomId, а DoctorsService не читает PractitionerRole.location, хотя роли врачей уже загружаются для practitionerRoleIds (одним поиском на страницу). Фронтенд честно обходит это: профиль врача не показывает кабинет («the room list needs a signed-in session»: GET /rooms доступен только со scope user/*.read), а блок «ближайшая запись» пишет «the room is not in the API». Итог: поле-призрак в контракте, а пациенту нигде не сказано, куда идти на приём. Решение зависит от продукта: показывать ли кабинет публично и как выбирать его у врача с несколькими кабинетами (в сиде PractitionerRole.location содержит все кабинеты его расписаний).",
+  "evidence": "libs/fhir-mappers/src/lib/practitioner.mapper.ts:5-16 interface declares roomId, :38-52 toDoctorResponseDto never sets it; apps/practitioner-service/src/modules/doctors/dto/doctor-response.dto.ts:13 and doctor-response.doc.ts:29-30 declare it; apps/practitioner-service/src/modules/doctors/doctors.service.ts:78-84 withRoles loads the roles but reads only ids; tools/demo-seed/demo-resources.ts:162 seeds PractitionerRole.location; frontend/src/components/catalog/doctor-profile.tsx:19-20 and appointments/next-appointment.tsx:36 say the room is not available to the patient. grep roomId in practitioner-service tests: no case asserts a roomId on a doctor.",
+  "files": [
+    "libs/fhir-mappers/src/lib/practitioner.mapper.ts",
+    "apps/practitioner-service/src/modules/doctors/doctors.service.ts",
+    "apps/practitioner-service/src/modules/doctors/dto/doctor-response.dto.ts",
+    "apps/practitioner-service/src/modules/doctors/dto/doctor-response.doc.ts",
+    "specs/api-designer-spec.md"
+  ],
+  "proposedFix": "Option (a): delete the dead `roomId` from the shared DTO/mapper, DoctorResponseDto, DoctorResponseDoc and the spec 4.2 sentence («+ кабинет»); the room stays in schedules and slots for staff. Option (b): in withRoles ask the role search for `_include=PractitionerRole:location` (one request, no extra round trip), and when the doctor's active roles point to exactly one Location, return `roomId` plus a public `roomName` (Location.name; identifier as `roomLabel` if wanted); with several rooms omit the fields. Frontend: show «Кабинет …» in doctor-profile.tsx and the appointment blocks (ru/en keys). Add mapper/service unit cases for one room, several rooms, no room.",
+  "needsDecision": true,
+  "decisionQuestion": "Показывать ли пациенту кабинет приёма (в карточке врача и в записи)? Сейчас roomId есть в контракте, но не заполняется, а список кабинетов пациенту недоступен. Варианты: (а) убрать мёртвое поле из DTO, Swagger и спецификации 4.2 и ничего не показывать (минимум работы, кабинет виден только персоналу); (б) РЕКОМЕНДУЮ: отдавать roomId и roomName из PractitionerRole.location (только когда у врача один кабинет, при нескольких поле опускается) и показать «Кабинет 204» в карточке врача и в записи пациента, это закрывает строку спецификации 4.2 и отвечает на вопрос «куда идти». Для (б) нужно ваше согласие считать номер кабинета публичной информацией клиники.",
+  "tzRef": "specs/api-designer-spec.md 4.2 (карточка врача + специальность + кабинет); FR-002",
+  "confidence": "confirmed"
+}

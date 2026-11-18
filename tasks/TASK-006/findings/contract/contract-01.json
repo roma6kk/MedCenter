@@ -1,0 +1,19 @@
+{
+  "id": "contract-01",
+  "unit": "contract",
+  "kind": "i18n",
+  "severity": "low",
+  "title": "При ошибке 500 баннер ошибки в английском интерфейсе показывает русскую строку «Внутренняя ошибка сервера»",
+  "description": "Для необработанных ошибок ProblemDetailsFilter (и FhirClient для сбоев HAPI) отдаёт detail «Внутренняя ошибка сервера». Это единственный detail на русском: все остальные серверные тексты английские («SLOT_CONFLICT: slot is not free», «CONFLICT: resource was changed concurrently»). ProblemBanner выводит problem.detail второй строкой под локализованным заголовком errors.INTERNAL. В английском интерфейсе получается «Internal error» и под ним русская строка; в русском интерфейсе под заголовком «Внутренняя ошибка» стоит почти та же фраза второй раз. Для INTERNAL эта строка ничего не добавляет: сервер намеренно не раскрывает причину (OWASP A05/A09), а единственная нужная пользователю и поддержке вещь — requestId — баннер уже показывает отдельной кнопкой.",
+  "evidence": "libs/common/src/lib/filters/problem-details.filter.ts:80 (detail: 'Внутренняя ошибка сервера'), libs/fhir/src/lib/fhir-client.provider.ts:343; frontend/src/components/feedback/problem-banner.tsx:41-45 (detail: props.detail ?? (hasFieldErrors || offline ? undefined : problem?.detail)). Баннер без явного detail рисуют: feedback/query-error-state.tsx:114 (любое упавшее чтение), patient/notification-center.tsx:177, appointments/cancel-appointment-dialog.tsx:53, consent/consent-record-form.tsx:136, consent/revoke-consent-dialog.tsx:50, auth/register-form.tsx:111, patient/profile/profile-phone.tsx:69 и AdminProblem для любого кода вне KNOWN_DETAIL_CODES. Сценарий: язык интерфейса EN, GET /api/v1/me/history отвечает 500 -> баннер «Internal error» + приглушённая строка «Внутренняя ошибка сервера» + чип INTERNAL + request id.",
+  "files": [
+    "frontend/src/components/feedback/problem-banner.tsx",
+    "frontend/src/components/feedback/problem-banner.spec.tsx",
+    "libs/common/src/lib/filters/problem-details.filter.ts"
+  ],
+  "proposedFix": "In useProblemView (problem-banner.tsx) leave `detail` undefined when `errorCode === 'INTERNAL'`, the same way it already does for the offline case: the localized headline errors.INTERNAL plus the request id are the whole message. Add a problem-banner.spec case (INTERNAL problem with Russian detail renders no detail line; a CONFLICT problem still renders its detail). The server text can stay as it is: it is asserted by problem-details.filter.spec.ts, fhir-client.problem-details.spec.ts and practitioner-service doctors-read e2e, and changing the wire text is not needed once the client stops printing it.",
+  "needsDecision": false,
+  "decisionQuestion": "",
+  "tzRef": "NFR-008",
+  "confidence": "confirmed"
+}

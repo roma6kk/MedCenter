@@ -4,7 +4,6 @@ import type { PaginatedResponseDto } from '@medcenter/contracts';
 import { PageMetaDoc } from '../../../common/paging/page-meta.doc';
 import type { MedicationPrescriptionDto, ServicePrescriptionDto } from './prescription-item.dto';
 
-/** Swagger description of `MedicationPrescriptionDto` (`kind: 'medication'`). */
 export class MedicationPrescriptionDoc implements MedicationPrescriptionDto {
   @ApiProperty({ description: 'MedicationRequest id (FHIR id)' })
   id!: string;
@@ -37,7 +36,6 @@ export class MedicationPrescriptionDoc implements MedicationPrescriptionDto {
   dosageText!: string;
 }
 
-/** Swagger description of `ServicePrescriptionDto` (`kind: 'service'`). */
 export class ServicePrescriptionDoc implements ServicePrescriptionDto {
   @ApiProperty({ description: 'ServiceRequest id (FHIR id)' })
   id!: string;
@@ -70,7 +68,6 @@ export class ServicePrescriptionDoc implements ServicePrescriptionDto {
   display?: string;
 }
 
-/** `PaginatedResponseDto<PrescriptionItemDto>` for Swagger; items are discriminated by `kind`. */
 export class PrescriptionPageDoc implements PaginatedResponseDto<MedicationPrescriptionDoc | ServicePrescriptionDoc> {
   @ApiProperty({
     type: 'array',

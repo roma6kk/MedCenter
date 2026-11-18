@@ -1,12 +1,7 @@
 import { BadRequestException, Injectable, type PipeTransform } from '@nestjs/common';
+import { FHIR_ID_PATTERN } from '@medcenter/common';
 
-import { FHIR_ID_PATTERN } from './fhir-reference';
-
-/**
- * Path `{id}` must be a FHIR `id`. Besides rejecting junk early with
- * `400 VALIDATION_ERROR` (instead of a HAPI 400 surfacing as 500), it keeps a
- * comma out of `_id=` searches, where `a,b` would mean "a OR b".
- */
+/** Rejects junk with 400 and keeps a comma out of `_id=` searches, where `a,b` means OR. */
 @Injectable()
 export class FhirIdPipe implements PipeTransform<string, string> {
   transform(value: string): string {

@@ -3,6 +3,9 @@ import { isProtectedPath, shouldRedirectToLogin, PROTECTED_PREFIXES } from './ro
 describe('route-guard', () => {
   describe('isProtectedPath', () => {
     it.each([
+      ['/home'],
+      ['/medcard'],
+      ['/medcard/anything'],
       ['/booking'],
       ['/booking/confirm'],
       ['/appointments'],
@@ -32,6 +35,8 @@ describe('route-guard', () => {
       ['/login', 'login page'],
       ['/login?returnTo=/booking', 'login with query'],
       ['/register', 'registration'],
+      ['/privacy', 'privacy policy'],
+      ['/account-closed', 'closed account notice'],
       ['/bookingx', 'prefix without segment boundary'],
       ['/booking-confirmation', 'hyphenated lookalike'],
       ['/administrator', 'admin lookalike without boundary'],
@@ -44,8 +49,8 @@ describe('route-guard', () => {
       expect(isProtectedPath(path)).toBe(false);
     });
 
-    it('should expose 10 protected prefixes', () => {
-      expect(PROTECTED_PREFIXES).toHaveLength(10);
+    it('should expose 12 protected prefixes', () => {
+      expect(PROTECTED_PREFIXES).toHaveLength(12);
     });
   });
 

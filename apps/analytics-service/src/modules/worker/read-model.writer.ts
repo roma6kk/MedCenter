@@ -3,7 +3,6 @@ import type { DataSource, EntityManager } from 'typeorm';
 
 import { ANALYTICS_DATA_SOURCE } from '../../database/database.tokens';
 
-/** Envelope fields every event leaves in the idempotency ledger. */
 export interface EventMeta {
   readonly eventId: string;
   readonly eventType: string;
@@ -20,14 +19,14 @@ export interface BookedFact {
   readonly bookedAt: Date;
 }
 
-export interface CancelledFact {
+interface CancelledFact {
   readonly appointmentId: string;
   readonly patientRef: string;
   readonly cancelledAt: Date;
   readonly actorType: string;
 }
 
-export interface EncounterFact {
+interface EncounterFact {
   readonly encounterId: string;
   readonly patientRef: string;
   readonly practitionerRef: string;
@@ -38,10 +37,8 @@ export interface EncounterFact {
   readonly diagnosisCount: number;
 }
 
-/** `duplicate`: the `eventId` is already in the ledger, nothing was written. */
 export type ApplyOutcome = 'applied' | 'duplicate';
 
-/** Write side of the read-model: each call is one transaction, idempotent by `eventId`. */
 export interface ReadModelWriter {
   isProcessed(eventId: string): Promise<boolean>;
   applyBooked(meta: EventMeta, fact: BookedFact): Promise<ApplyOutcome>;
@@ -54,7 +51,6 @@ export const READ_MODEL_WRITER = Symbol('READ_MODEL_WRITER');
 const CLAIM_EVENT = `INSERT INTO "analytics"."processed_event" ("event_id", "event_type", "occurred_at")
   VALUES ($1, $2, $3) ON CONFLICT ("event_id") DO NOTHING RETURNING "event_id"`;
 
-/** A booking never revives a cancellation that overtook it on the other queue. */
 const UPSERT_BOOKED = `INSERT INTO "analytics"."appointment_fact"
   ("appointment_id", "status", "patient_ref", "practitioner_role_ref", "service_id", "slot_ref", "start_at", "booked_at")
   VALUES ($1, 'booked', $2, $3, $4, $5, $6, $7)
@@ -67,7 +63,6 @@ const UPSERT_BOOKED = `INSERT INTO "analytics"."appointment_fact"
     "booked_at" = EXCLUDED."booked_at",
     "updated_at" = now()`;
 
-/** `patient_ref` is kept when the booking already set it. */
 const UPSERT_CANCELLED = `INSERT INTO "analytics"."appointment_fact"
   ("appointment_id", "status", "patient_ref", "cancelled_at", "cancel_actor")
   VALUES ($1, 'cancelled', $2, $3, $4)
@@ -78,17 +73,12 @@ const UPSERT_CANCELLED = `INSERT INTO "analytics"."appointment_fact"
     "cancel_actor" = EXCLUDED."cancel_actor",
     "updated_at" = now()`;
 
-/** An encounter is completed once (BR-003): a second fact for the same id is ignored. */
 const INSERT_ENCOUNTER = `INSERT INTO "analytics"."encounter_fact"
   ("encounter_id", "patient_ref", "practitioner_ref", "specialty_system", "specialty_code", "specialty_display", "completed_at", "diagnosis_count")
   VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
   ON CONFLICT ("encounter_id") DO NOTHING`;
 
-/**
- * TypeORM implementation. The ledger row and the fact are written in the same
- * transaction: a concurrent redelivery blocks on the ledger's primary key until
- * the first copy commits (then sees the conflict) or rolls back (then wins).
- */
+// Ledger row and fact share one transaction: a concurrent redelivery blocks on the ledger key until the first copy commits or rolls back.
 @Injectable()
 export class TypeOrmReadModelWriter implements ReadModelWriter {
   constructor(@Inject(ANALYTICS_DATA_SOURCE) private readonly dataSource: DataSource) {}

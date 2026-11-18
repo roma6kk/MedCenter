@@ -1,17 +1,21 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
 import type { ReactNode } from 'react';
-import { useWatch } from 'react-hook-form';
+import { Controller, useWatch } from 'react-hook-form';
 import type { RelatedPerson } from '@/components/doctor/doctor-types';
 import { useRelatedPersons } from '@/components/doctor/use-doctor-queries';
 import { ProblemBanner } from '@/components/feedback/problem-banner';
 import { Button } from '@/components/ui/button';
+import { DatePicker } from '@/components/ui/date-picker';
+import { FIELD_NARROW_CLASS } from '@/components/ui/field-styles';
+import { FileDrop } from '@/components/ui/file-drop';
 import { FormField, INPUT_CLASS } from '@/components/patient/form-field';
-import { CONSENT_SCAN_CONTENT_TYPES } from '@/lib/contracts';
+import { clinicDateKey } from '@/lib/clinic-time';
+import { CONSENT_SCAN_CONTENT_TYPES, CONSENT_SCAN_MAX_BYTES } from '@/lib/contracts';
 import { useT } from '@/lib/i18n/use-t';
 import { CONSENTER_TYPES } from './consent-types';
 import { useConsentRecordForm, type ConsentRecordFormState } from './use-consent-record-form';
+import { Select } from '@/components/ui/select';
 
 type Role = 'ADMIN' | 'DOCTOR';
 
@@ -20,7 +24,6 @@ function relatedLabel(person: RelatedPerson): string {
   return relationship === undefined ? person.fullName : `${person.fullName} (${relationship})`;
 }
 
-/** Choice of the person who signed for the patient and the document that gives them the right to (art. 18 of the Healthcare Law). */
 function RepresentativeFields({ state, patientId }: { readonly state: ConsentRecordFormState; readonly patientId: string }): ReactNode {
   const t = useT('consent.staff');
   const related = useRelatedPersons(patientId, 1);
@@ -31,10 +34,10 @@ function RepresentativeFields({ state, patientId }: { readonly state: ConsentRec
       {related.data !== undefined && persons.length === 0 ? <p className="mt-3 text-sm text-muted-foreground">{t('relatedNone')}</p> : null}
       <FormField id="consent-related" label={t('relatedPerson')} error={errors.relatedPersonId?.message}>
         {(control) => (
-          <select {...control} {...register('relatedPersonId')} className={INPUT_CLASS}>
+          <Select {...control} {...register('relatedPersonId')}>
             <option value="">{t('relatedPlaceholder')}</option>
             {persons.map((person) => <option key={person.id} value={person.id}>{relatedLabel(person)}</option>)}
-          </select>
+          </Select>
         )}
       </FormField>
       <FormField id="consent-document" label={t('representativeDocument')} hint={t('representativeHint')} error={errors.representativeDocument?.message}>
@@ -48,21 +51,15 @@ function ScanField({ state }: { readonly state: ConsentRecordFormState }): React
   const t = useT('consent.staff');
   const { setValue, control, formState: { errors } } = state.form;
   const file: File | null = useWatch({ control, name: 'file' });
-  const input = useRef<HTMLInputElement>(null);
-  // After a successful record the form is reset: the browser keeps the old file name in the input unless it is cleared too.
-  useEffect(() => {
-    if (file === null && input.current !== null) input.current.value = '';
-  }, [file]);
   return (
-    <FormField id="consent-file" label={t('file')} hint={t('fileHint')} error={errors.file?.message}>
+    <FormField id="consent-file" label={t('file')} error={errors.file?.message}>
       {(controlProps) => (
-        <input
+        <FileDrop
           {...controlProps}
-          ref={input}
-          type="file"
-          accept={CONSENT_SCAN_CONTENT_TYPES.join(',')}
-          onChange={(event) => setValue('file', event.target.files?.[0] ?? null, { shouldValidate: state.form.formState.isSubmitted })}
-          className={INPUT_CLASS}
+          value={file}
+          accept={CONSENT_SCAN_CONTENT_TYPES}
+          maxBytes={CONSENT_SCAN_MAX_BYTES}
+          onChange={(next) => setValue('file', next, { shouldValidate: state.form.formState.isSubmitted })}
         />
       )}
     </FormField>
@@ -80,7 +77,7 @@ function SignerField({ state, role }: { readonly state: ConsentRecordFormState; 
   );
 }
 
-function EntryFields({ state, role, patientId }: { readonly state: ConsentRecordFormState; readonly role: Role; readonly patientId: string }): ReactNode {
+function EntryFields({ state, role, patientId, canSelfSign }: { readonly state: ConsentRecordFormState; readonly role: Role; readonly patientId: string; readonly canSelfSign: boolean }): ReactNode {
   const t = useT('consent.staff');
   const tType = useT('consent.view.consenterTypes');
   const { register, control, formState: { errors } } = state.form;
@@ -88,24 +85,24 @@ function EntryFields({ state, role, patientId }: { readonly state: ConsentRecord
   return (
     <>
       <FormField id="consent-form-number" label={t('formNumber')} error={errors.formNumber?.message}>
-        {(controlProps) => <input {...controlProps} type="text" aria-required="true" {...register('formNumber')} className={INPUT_CLASS} />}
+        {(controlProps) => <input {...controlProps} type="text" aria-required="true" {...register('formNumber')} className={`${INPUT_CLASS} ${FIELD_NARROW_CLASS}`} />}
       </FormField>
       <FormField id="consent-signed-at" label={t('signedAt')} error={errors.signedAt?.message}>
-        {(controlProps) => <input {...controlProps} type="date" aria-required="true" {...register('signedAt')} className={INPUT_CLASS} />}
+        {(controlProps) => <Controller control={control} name="signedAt" render={({ field }) => <DatePicker {...controlProps} {...field} max={clinicDateKey()} aria-required="true" />} />}
       </FormField>
       <FormField id="consent-status" label={t('entryStatus')}>
         {(controlProps) => (
-          <select {...controlProps} {...register('status')} className={INPUT_CLASS}>
+          <Select {...controlProps} {...register('status')} wrapperClassName="max-w-xs">
             <option value="active">{t('entryStatuses.active')}</option>
             <option value="rejected">{t('entryStatuses.rejected')}</option>
-          </select>
+          </Select>
         )}
       </FormField>
-      <FormField id="consent-consenter" label={t('consenterType')}>
+      <FormField id="consent-consenter" label={t('consenterType')} error={errors.consenterType?.message} hint={canSelfSign ? undefined : t('minorHint')}>
         {(controlProps) => (
-          <select {...controlProps} {...register('consenterType')} className={INPUT_CLASS}>
-            {CONSENTER_TYPES.map((type) => <option key={type} value={type}>{tType(type)}</option>)}
-          </select>
+          <Select {...controlProps} {...register('consenterType')} wrapperClassName="max-w-xs">
+            {CONSENTER_TYPES.filter((type) => canSelfSign || type !== 'self').map((type) => <option key={type} value={type}>{tType(type)}</option>)}
+          </Select>
         )}
       </FormField>
       {consenterType === 'self' ? null : <RepresentativeFields state={state} patientId={patientId} />}
@@ -117,22 +114,17 @@ function EntryFields({ state, role, patientId }: { readonly state: ConsentRecord
 
 interface ConsentRecordFormProps {
   readonly patientId: string;
-  /** ADMIN types the name of the clerk who handled the form; for a DOCTOR the server takes it from the token. */
   readonly role: Role;
+  readonly canSelfSign?: boolean;
 }
 
-/**
- * Records a paper consent or a written refusal (API 3.10 + 3.8, ADR-019): form number, signing date, who signed (for a
- * representative: the trusted person and the authority document) and the scan. The consent itself is never given here by
- * the patient; this form only enters what was signed on paper.
- */
-export function ConsentRecordForm({ patientId, role }: ConsentRecordFormProps): ReactNode {
+export function ConsentRecordForm({ patientId, role, canSelfSign = true }: ConsentRecordFormProps): ReactNode {
   const t = useT('consent.staff');
-  const state: ConsentRecordFormState = useConsentRecordForm(patientId, role);
+  const state: ConsentRecordFormState = useConsentRecordForm(patientId, role, canSelfSign);
   return (
     <form onSubmit={state.submit} noValidate aria-labelledby="consent-record-title" className="mt-2">
       <h3 id="consent-record-title" className="text-base font-bold">{t('recordTitle')}</h3>
-      <EntryFields state={state} role={role} patientId={patientId} />
+      <EntryFields state={state} role={role} patientId={patientId} canSelfSign={canSelfSign} />
       {state.isAlreadyActive ? <p role="alert" className="mt-3 rounded-card bg-warning-soft p-3 text-sm">{t('alreadyActive')}</p> : null}
       {state.problem !== null ? <div className="mt-3"><ProblemBanner problem={state.problem} /></div> : null}
       <Button type="submit" aria-disabled={state.isPending ? true : undefined} aria-busy={state.isPending} className="mt-4">

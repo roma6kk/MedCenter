@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { ReactNode } from 'react';
@@ -29,6 +29,15 @@ describe('ServiceStep states', () => {
 
     expect(await screen.findByText('Каталог услуг пока пуст')).toBeInTheDocument();
     expect(screen.getByTestId('service-any')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Обновить' })).toBeInTheDocument();
+  });
+
+  it('should ask for the services again when the visitor presses refresh on the empty catalog', async () => {
+    apiFetchMock.mockResolvedValue({ items: [], meta: META });
+    renderWithClient(<ServiceStep selectedServiceId={null} onSelect={jest.fn()} />);
+    await userEvent.click(await screen.findByRole('button', { name: 'Обновить' }));
+
+    await waitFor(() => expect(apiFetchMock.mock.calls.filter(([path]) => path.startsWith('/api/v1/services'))).toHaveLength(2));
   });
 
   it('should let the visitor choose "any service" with a null id when its card is clicked', async () => {
@@ -55,7 +64,15 @@ describe('DoctorStep states', () => {
 
   it('should say that no doctor gives the chosen service and point back one step when the doctor list is empty', async () => {
     apiFetchMock.mockResolvedValue({ items: [], meta: META });
-    renderWithClient(<DoctorStep serviceId={null} selectedDoctorId={null} onSelect={jest.fn()} />);
+    renderWithClient(<DoctorStep serviceId={null} selectedDoctorId={null} onSelect={jest.fn()} onSelectSlot={jest.fn()} />);
+
+    expect(await screen.findByText('Врачей пока нет')).toBeInTheDocument();
+    expect(screen.queryByText('Для выбранной услуги нет врачей')).not.toBeInTheDocument();
+  });
+
+  it('should say that no doctor gives the chosen service and point back one step when a service is chosen and nobody matches', async () => {
+    apiFetchMock.mockImplementation((path) => Promise.resolve(path.startsWith('/api/v1/services/') ? { id: 's1', name: 'ЭКГ', defaultDurationMin: 20 } : { items: [], meta: META }));
+    renderWithClient(<DoctorStep serviceId="s1" selectedDoctorId={null} onSelect={jest.fn()} onSelectSlot={jest.fn()} />);
 
     expect(await screen.findByText('Для выбранной услуги нет врачей')).toBeInTheDocument();
     expect(screen.getByText('Вернитесь на шаг назад и выберите другую услугу.')).toBeInTheDocument();
@@ -63,7 +80,7 @@ describe('DoctorStep states', () => {
 
   it('should show the real problem when the doctors cannot be read', async () => {
     apiFetchMock.mockRejectedValue(new ApiError({ title: 'x', status: 500, errorCode: 'INTERNAL', requestId: 'req-5' }));
-    renderWithClient(<DoctorStep serviceId={null} selectedDoctorId={null} onSelect={jest.fn()} />);
+    renderWithClient(<DoctorStep serviceId={null} selectedDoctorId={null} onSelect={jest.fn()} onSelectSlot={jest.fn()} />);
 
     expect(await screen.findByTestId('problem-banner')).toHaveTextContent('req-5');
   });

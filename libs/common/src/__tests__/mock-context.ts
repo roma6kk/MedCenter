@@ -2,6 +2,7 @@ import type { ExecutionContext, HttpException, Type } from '@nestjs/common';
 
 export interface MockHttpResponse {
   readonly header: jest.Mock;
+  readonly setHeader: jest.Mock;
   readonly status: jest.Mock;
   readonly type: jest.Mock;
   readonly send: jest.Mock;
@@ -23,6 +24,7 @@ export function createMockHttpContext(options: MockHttpContextOptions): MockHttp
   const request = options.request ?? {};
   const response: MockHttpResponse = {
     header: jest.fn(),
+    setHeader: jest.fn(),
     status: jest.fn().mockReturnThis(),
     type: jest.fn().mockReturnThis(),
     send: jest.fn(),

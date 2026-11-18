@@ -6,7 +6,6 @@ const GROUP = 'compartment (ADR-013)';
 
 type Attempt = readonly [string, () => Promise<ApiResponse>];
 
-/** What the intruder tries; every attempt must be refused with 403 COMPARTMENT_VIOLATION. */
 async function expectRefused(suite: Suite, who: string, attempts: readonly Attempt[]): Promise<void> {
   for (const [label, call] of attempts) {
     await suite.runner.check(GROUP, `${who}: ${label} -> 403 COMPARTMENT_VIOLATION`, async () => {
@@ -25,7 +24,7 @@ function otherPatientAttempts(suite: Suite, ids: { patientId: string; appointmen
     ['GET /patients/{other patient}/history', () => api.get(`/api/v1/patients/${patientId}/history`, { session })],
     ['GET /patients/{other patient}/prescriptions', () => api.get(`/api/v1/patients/${patientId}/prescriptions`, { session })],
     ["GET /appointments/{another patient's}", () => api.get(`/api/v1/appointments/${appointmentId}`, { session })],
-    ["POST /appointments/{another patient's}/cancel", () => api.post(`/api/v1/appointments/${appointmentId}/cancel`, { session, body: { reason: 'чужая запись' } })],
+    ["POST /appointments/{another patient's}/cancel", () => api.post(`/api/v1/appointments/${appointmentId}/cancel`, { session, body: { reason: 'plans-changed' } })],
   ];
 }
 
@@ -41,7 +40,6 @@ function otherDoctorAttempts(suite: Suite, ids: { patientId: string; appointment
   ];
 }
 
-/** Data of the patient of the clinical chain must not leak to another patient or to a doctor who is not a participant. */
 export async function compartmentChecks(suite: Suite): Promise<void> {
   const { api, sessions, chain } = suite;
   const ids = {

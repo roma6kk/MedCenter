@@ -5,7 +5,7 @@ import type { EncountersSummaryDto } from './encounters-summary.dto';
 import type { MeasureGroupDto, MeasurePeriodDto, MeasureReportDto } from './measure-report.dto';
 import type { ServicesPopularityDto } from './services-popularity.dto';
 
-export class MeasureGroupDoc implements MeasureGroupDto {
+class MeasureGroupDoc implements MeasureGroupDto {
   @ApiProperty({ description: 'Appointment.status, specialty code or HealthcareService id', example: 'booked' })
   code!: string;
 
@@ -19,7 +19,7 @@ export class MeasureGroupDoc implements MeasureGroupDto {
   count!: number;
 }
 
-export class MeasurePeriodDoc implements MeasurePeriodDto {
+class MeasurePeriodDoc implements MeasurePeriodDto {
   @ApiProperty({ type: String, format: 'date-time', example: '2026-10-01T00:00:00.000Z' })
   start!: string;
 
@@ -27,8 +27,7 @@ export class MeasurePeriodDoc implements MeasurePeriodDto {
   end!: string;
 }
 
-/** Shared shape of the `MeasureReport`-derived responses (API §9.1-9.3). */
-export class MeasureReportDoc implements MeasureReportDto {
+class MeasureReportDoc implements MeasureReportDto {
   @ApiProperty({ example: 'appointments-by-status' })
   measure!: string;
 
@@ -45,7 +44,6 @@ export class MeasureReportDoc implements MeasureReportDto {
   groups!: MeasureGroupDoc[];
 }
 
-/** Swagger description of `AppointmentsSummaryDto` (API §9.1). */
 export class AppointmentsSummaryDoc extends MeasureReportDoc implements AppointmentsSummaryDto {
   @ApiProperty({ enum: ['appointments-by-status'] })
   declare measure: 'appointments-by-status';
@@ -63,13 +61,11 @@ export class AppointmentsSummaryDoc extends MeasureReportDoc implements Appointm
   noshow!: number;
 }
 
-/** Swagger description of `EncountersSummaryDto` (API §9.2). */
 export class EncountersSummaryDoc extends MeasureReportDoc implements EncountersSummaryDto {
   @ApiProperty({ enum: ['encounters-by-specialty'] })
   declare measure: 'encounters-by-specialty';
 }
 
-/** Swagger description of `ServicesPopularityDto` (API §9.3). */
 export class ServicesPopularityDoc extends MeasureReportDoc implements ServicesPopularityDto {
   @ApiProperty({ enum: ['services-popularity'] })
   declare measure: 'services-popularity';

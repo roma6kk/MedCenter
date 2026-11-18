@@ -1,0 +1,22 @@
+{
+  "id": "be-appointment-03",
+  "unit": "be-appointment",
+  "kind": "gap",
+  "severity": "medium",
+  "title": "GET /doctor/appointments не фильтруется по пациенту и статусу: «Ближайший визит» в сводке пациента ищется в первых 50 строках месяца и при обычной нагрузке врача показывает «нет предстоящих визитов»",
+  "description": "Карточка пациента и экран приёма показывают блок «Ближайший визит» (patient-summary.tsx, UpcomingVisit). Эндпоинта «записи пациента у этого врача» нет, поэтому useUpcomingVisit() берёт журнал врача на 30 дней вперёд одной страницей в 50 строк по возрастанию start (JOURNAL_PAGE_SIZE = 50) и ищет booked-запись пациента уже на клиенте. Эндпоинт 6.5 понимает только from/to/page/pageSize/sortOrder: ни patient, ни status. У врача с 15-18 приёмами в день первые 50 строк - это три ближайших дня, поэтому запись пациента через неделю на страницу не попадает, и блок честно, но неверно пишет «нет предстоящих визитов». Отменённые и неявочные строки тоже занимают страницу. Так же устроен useNextBookedVisit() (первые 100 строк за 14 дней и фильтр booked на клиенте). Отдельный вопрос «нужен ли врачу эндпоинт поиска пациентов» уже записан в TASK-005 verify-open-questions (строка 50) и здесь не поднимается; речь о мелком аддитивном расширении существующего 6.5 по образцу фильтра status из 6.2, которое убирает усечение без нового эндпоинта и не меняет компартмент врача.",
+  "evidence": "apps/appointment-service/src/modules/appointments/dto/list-doctor-appointments-query.dto.ts (only from/to on top of PageQueryDto); appointment-queries.service.ts:104-114 listForDoctor() builds actor=<PractitionerRole> plus the date range, nothing else. frontend/src/components/doctor/use-doctor-queries.ts:41 JOURNAL_PAGE_SIZE = 50; :121-130 useUpcomingVisit(): fetchDoctorJournal(30-day range, page 1, pageSize 50) then select(page => page.items.find(visit.patientId === patientId && status === 'booked')); patient-summary.tsx UpcomingVisit shows the 'upcomingEmpty' text when the result is null. Scenario: a doctor has 18 visits a day, patient P has a booked visit in 6 days (about row 110 of the window) -> not on page 1 -> 'нет предстоящих визитов' although the booking exists.",
+  "files": [
+    "apps/appointment-service/src/modules/appointments/dto/list-doctor-appointments-query.dto.ts",
+    "apps/appointment-service/src/modules/appointments/appointment-queries.service.ts",
+    "apps/appointment-service/src/modules/appointments/doctor-appointments.controller.ts",
+    "frontend/src/components/doctor/use-doctor-queries.ts",
+    "frontend/src/components/doctor/doctor-api.ts",
+    "specs/api-designer-spec.md"
+  ],
+  "proposedFix": "Add two optional query parameters to 6.5, following the 6.2 pattern: status (reuse APPOINTMENT_STATUSES and the toStatusList transform from list-appointments-query.dto.ts, and statusFilter() from appointment-queries.service.ts) and patient (a FHIR id validated with FHIR_ID_PATTERN, sent to HAPI as patient=Patient/{id} next to actor=PractitionerRole/{id}; FHIR ANDs different parameters, and the doctor compartment still comes from the token's role). Document both in API §6.5 and Swagger and add unit specs next to appointment-queries.service.spec.ts. Frontend: fetchDoctorJournal() gets optional patientId and status; useUpcomingVisit() asks patient + status=booked + pageSize 1 (the nearest visit is row 1 in ascending order) and drops the client-side find; useNextBookedVisit() asks status=booked + pageSize 1 and drops the client-side filter and sort. Parameters are optional, so current clients are not affected.",
+  "needsDecision": false,
+  "decisionQuestion": "",
+  "tzRef": "ТЗ Врач: просмотр расписания и списка пациентов; API §6.5",
+  "confidence": "likely"
+}

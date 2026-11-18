@@ -12,6 +12,7 @@ import { parseJwtEnv } from '@medcenter/config';
 import type { JWTPayload, RemoteJWKSet } from 'jose';
 import { IS_PUBLIC_KEY } from '../decorators/public.decorator';
 import type { JwtClaims, RequestWithClaims } from '../request-context';
+import { createDefaultRevocationChecker } from './redis-token-revocation';
 import { TOKEN_REVOCATION, revocationKeysOf, type TokenRevocationChecker } from './token-revocation';
 
 const BEARER_PATTERN = /^Bearer\s+(\S+)$/i;
@@ -54,10 +55,7 @@ function toJwtClaims(payload: JWTPayload): JwtClaims {
 let cachedJwksUri: string | null = null;
 let cachedJwks: RemoteJWKSet | null = null;
 
-/**
- * `jose` ships pure ESM; the import stays lazy so the CJS Jest runtime never
- * evaluates it (Node ≥ 22.12 loads it through `require(esm)` at request time).
- */
+/** `jose` is pure ESM; the lazy import keeps the CJS Jest runtime from evaluating it. */
 async function getJwks(uri: string): Promise<RemoteJWKSet> {
   if (cachedJwks !== null && cachedJwksUri === uri) {
     return cachedJwks;
@@ -68,13 +66,7 @@ async function getJwks(uri: string): Promise<RemoteJWKSet> {
   return cachedJwks;
 }
 
-/**
- * `jose` error codes that mean "this token is unacceptable": expired, forged,
- * malformed, foreign issuer/key, unsupported algorithm. They are the caller's
- * problem (401 `UNAUTHENTICATED`, API §1) and let the client refresh its token.
- * An unreachable or broken JWKS endpoint (`ERR_JWKS_TIMEOUT`, `ERR_JWKS_INVALID`,
- * a network error) is ours and is deliberately not listed: it stays a server error.
- */
+/** `jose` codes of an unacceptable token (401, the client may refresh). An unreachable JWKS is ours and deliberately not listed. */
 const REJECTED_TOKEN_CODES: ReadonlySet<string> = new Set([
   'ERR_JWT_EXPIRED',
   'ERR_JWT_INVALID',
@@ -104,22 +96,20 @@ async function verifyBearerToken(token: string): Promise<JwtClaims> {
   return toJwtClaims(payload);
 }
 
-/**
- * First guard of the shared stack (ADR-009): verifies the `Authorization`
- * bearer token against the issuer JWKS, rejects anything the issuer has revoked,
- * and attaches the claims to the request. `@Public()` routes are the only ones
- * exempted.
- */
 @Injectable()
 export class JwtAuthGuard implements CanActivate {
   private readonly logger = new Logger(JwtAuthGuard.name);
+
+  private readonly revocation: TokenRevocationChecker | null;
 
   constructor(
     private readonly reflector: Reflector,
     @Optional()
     @Inject(TOKEN_REVOCATION)
-    private readonly revocation: TokenRevocationChecker | null = null,
-  ) {}
+    revocation: TokenRevocationChecker | null = null,
+  ) {
+    this.revocation = revocation ?? createDefaultRevocationChecker();
+  }
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const isPublic = this.reflector.getAllAndOverride<boolean | undefined>(IS_PUBLIC_KEY, [
@@ -159,18 +149,7 @@ export class JwtAuthGuard implements CanActivate {
     }
   }
 
-  /**
-   * Guard-layer revocation (API error catalogue `TOKEN_REVOKED`, 401): a token
-   * whose `jti` — or whose session `sid` — is in the issuer's denylist is refused
-   * even though its signature and expiry are still valid. This is what makes a
-   * logout immediate rather than bound to the 15-minute access-token lifetime.
-   *
-   * The check **fails open**: a denylist that cannot be reached must not take
-   * every BFF service down with it, so the failure is logged (`GOLDEN-PRINCIPLES`
-   * — never swallow errors) and the token is accepted. Revocation is a secondary
-   * control behind a short token lifetime, while an unreachable shared store is a
-   * hard availability event.
-   */
+  /** Revocation fails open: an unreachable denylist is logged and must not take every BFF down; it backs a short token lifetime. */
   private async assertNotRevoked(claims: JwtClaims): Promise<void> {
     const checker = this.revocation;
     if (checker === null) {

@@ -2,17 +2,9 @@ import { Inject, Injectable, Logger } from '@nestjs/common';
 import { FHIR_CLIENT, type FhirClient } from '@medcenter/fhir';
 
 import { buildUserAuditEvent, type UserAuditParams } from './audit-event.builder';
+import { buildAuthAuditEvent, type AuthAuditParams } from './auth-event.builder';
 import { buildTerminologyImportAuditEvent, type TerminologyImportAuditParams } from './terminology-import-audit.builder';
 
-/**
- * Writes the `AuditEvent` of every user mutation to HAPI (FR-021, ADR-014).
- *
- * The account change lives in PostgreSQL (`auth` schema) and is already
- * committed when the audit record is written, so the two cannot share a
- * transaction. A HAPI failure here is logged at `error` with the account and
- * event — never rethrown: rolling back a deactivation because the audit store
- * is down would keep a revoked user active, which is the worse outcome.
- */
 @Injectable()
 export class AuditService {
   private readonly logger = new Logger(AuditService.name);
@@ -30,11 +22,19 @@ export class AuditService {
     }
   }
 
-  /**
-   * The `AuditEvent` of a terminology import (`started` when it is accepted,
-   * `completed`/`failed` when the job ends). Never rethrown, for the same
-   * reason: the import itself does not depend on its audit trail being writable.
-   */
+  /** Never rethrown: the audit must not fail or slow a sign-in; callers do not await it. */
+  async recordAuthEvent(params: AuthAuditParams): Promise<void> {
+    try {
+      await this.fhir.create('AuditEvent', buildAuthAuditEvent(params));
+    } catch (error: unknown) {
+      this.logger.error(
+        { err: error, kind: params.kind, userId: params.userId, requestId: params.requestId },
+        'AuditEvent of the authentication event was not written',
+      );
+    }
+  }
+
+  /** Never rethrown: the audit must not fail an import. */
   async recordTerminologyImport(params: TerminologyImportAuditParams): Promise<void> {
     try {
       await this.fhir.create('AuditEvent', buildTerminologyImportAuditEvent(params));

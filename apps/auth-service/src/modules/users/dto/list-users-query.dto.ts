@@ -1,12 +1,12 @@
 import { MAX_PAGE_SIZE, Role } from '@medcenter/contracts';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import { IsEnum, IsInt, IsOptional, IsString, Max, MaxLength, Min } from 'class-validator';
+import { IsEnum, IsInt, IsOptional, IsString, Matches, Max, MaxLength, Min } from 'class-validator';
 
-/** Upper bound on `page`, so a client cannot push the database into an unbounded offset scan. */
+import { NO_CONTROL_CHARS, NO_CONTROL_CHARS_MESSAGE } from './validation-patterns';
+
 export const MAX_PAGE = 1000;
 
-/** API §2.2.2 `GET /api/v1/admin/users?role=&search=&page=&pageSize=` (API §0 pagination). */
 export class ListUsersQueryDto {
   @ApiPropertyOptional({ enum: Role, enumName: 'Role', description: 'Only accounts with this role' })
   @IsOptional()
@@ -17,6 +17,7 @@ export class ListUsersQueryDto {
   @IsOptional()
   @IsString()
   @MaxLength(100)
+  @Matches(NO_CONTROL_CHARS, { message: NO_CONTROL_CHARS_MESSAGE })
   search?: string;
 
   @ApiPropertyOptional({ type: Number, minimum: 1, maximum: MAX_PAGE, default: 1 })

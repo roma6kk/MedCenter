@@ -1,8 +1,5 @@
-/**
- * Parameters of an authorization request (RFC 6749 §4.1.1, RFC 7636, SMART
- * App Launch) that the login form carries back to `GET /oauth/authorize`.
- * Nothing else survives the round trip.
- */
+import { DEFAULT_LOGIN_LOCALE, type LoginLocale } from './login-messages';
+
 const AUTHORIZE_PARAMS = [
   'response_type',
   'client_id',
@@ -15,7 +12,9 @@ const AUTHORIZE_PARAMS = [
   'aud',
 ] as const;
 
-/** A single parameter longer than this is not a legitimate authorization request. */
+const UI_LOCALES_PARAM = 'ui_locales';
+const SUPPORTED_UI_LOCALES: ReadonlyArray<LoginLocale> = ['ru', 'en'];
+
 const MAX_PARAM_LENGTH = 2048;
 
 export const AUTHORIZE_PATH = '/oauth/authorize';
@@ -25,11 +24,6 @@ function firstValue(source: URLSearchParams | Readonly<Record<string, unknown>>,
   return typeof value === 'string' && value.length <= MAX_PARAM_LENGTH ? value : undefined;
 }
 
-/**
- * Re-serialises the authorization request from either the parsed query of
- * `GET /oauth/authorize` or the raw hidden field of the login form, keeping
- * only the known parameters (first value, bounded length).
- */
 export function sanitizeAuthorizeQuery(source: string | Readonly<Record<string, unknown>>): string {
   const input = typeof source === 'string' ? new URLSearchParams(source) : source;
   const output = new URLSearchParams();
@@ -39,14 +33,28 @@ export function sanitizeAuthorizeQuery(source: string | Readonly<Record<string, 
       output.set(key, value);
     }
   }
+  const locale = uiLocaleOf(firstValue(input, UI_LOCALES_PARAM));
+  if (locale !== undefined) {
+    output.set(UI_LOCALES_PARAM, locale);
+  }
   return output.toString();
 }
 
-/**
- * The post-login redirect target. The path is fixed — the form can only send
- * the browser back to this server's authorize endpoint, which re-validates the
- * client and its registered `redirect_uri` (no open redirect).
- */
+function uiLocaleOf(value: string | undefined): LoginLocale | undefined {
+  for (const tag of (value ?? '').split(/\s+/)) {
+    const language = tag.toLowerCase().split(/[-_]/)[0];
+    const match = SUPPORTED_UI_LOCALES.find((locale) => locale === language);
+    if (match !== undefined) {
+      return match;
+    }
+  }
+  return undefined;
+}
+
+export function loginLocaleOf(sanitizedQuery: string): LoginLocale {
+  return uiLocaleOf(new URLSearchParams(sanitizedQuery).get(UI_LOCALES_PARAM) ?? undefined) ?? DEFAULT_LOGIN_LOCALE;
+}
+
 export function authorizeLocation(sanitizedQuery: string): string {
   return `${AUTHORIZE_PATH}?${sanitizedQuery}`;
 }

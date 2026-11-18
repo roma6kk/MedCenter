@@ -6,21 +6,17 @@ import { updateIfUnchanged } from '../fhir/versioned-update';
 
 export type PatientGender = 'male' | 'female';
 
-/** What the `auth` account knows about the person behind a PATIENT account. */
-export interface PatientDemographics {
+interface PatientDemographics {
   readonly userId: string;
   readonly email: string;
   readonly firstName: string;
   readonly lastName: string;
   readonly birthDate: string;
   readonly gender?: PatientGender;
-  /** Optional, `+375XXXXXXXXX` (API §2.2.6); stored as the `mobile` phone `telecom` entry. */
   readonly phone?: string;
 }
 
-/** Fields an admin PATCH may change on an already linked Patient. */
 export interface PatientDemographicsChange {
-  /** The account email, kept in the `home` email `telecom` entry. */
   readonly email?: string;
   readonly firstName?: string;
   readonly lastName?: string;
@@ -28,7 +24,6 @@ export interface PatientDemographicsChange {
   readonly gender?: PatientGender;
 }
 
-/** R4 `Patient` for a self-registered account (HL7 FHIR International R4 only). */
 export function buildPatient(demographics: PatientDemographics): FhirResource {
   return {
     resourceType: 'Patient',
@@ -46,7 +41,6 @@ export function buildPatient(demographics: PatientDemographics): FhirResource {
 
 type ContactPoint = Readonly<Record<string, unknown>>;
 
-/** Replaces the `home` email entry (the one `buildPatient` writes) or adds it; other contact points stay. */
 function withHomeEmail(patient: FhirResource, email: string): ReadonlyArray<ContactPoint> {
   const telecom = Array.isArray(patient['telecom']) ? (patient['telecom'] as ReadonlyArray<ContactPoint>) : [];
   const isHomeEmail = (point: ContactPoint): boolean => point['system'] === 'email' && point['use'] === 'home';
@@ -56,15 +50,25 @@ function withHomeEmail(patient: FhirResource, email: string): ReadonlyArray<Cont
   return telecom.map((point) => (isHomeEmail(point) ? { ...point, value: email } : point));
 }
 
-/** Applies the change to the official `HumanName`, the email and the scalar fields, keeping everything else. */
+function furtherGiven(name: Record<string, unknown> | undefined): string[] {
+  const given = name?.['given'];
+  return Array.isArray(given) ? given.slice(1).filter((part): part is string => typeof part === 'string') : [];
+}
+
 export function applyDemographics(patient: FhirResource, change: PatientDemographicsChange): FhirResource {
   const names = Array.isArray(patient['name']) ? (patient['name'] as ReadonlyArray<Record<string, unknown>>) : [];
   const [official, ...others] = names;
+  const renamed = change.lastName !== undefined || change.firstName !== undefined;
+  // A rewritten name must not keep the old `text` (it would still be shown as the full name).
+  const kept: Record<string, unknown> = { ...official };
+  if (renamed) {
+    delete kept['text'];
+  }
   const name = {
     use: 'official',
-    ...official,
+    ...kept,
     ...(change.lastName !== undefined ? { family: change.lastName } : {}),
-    ...(change.firstName !== undefined ? { given: [change.firstName] } : {}),
+    ...(change.firstName !== undefined ? { given: [change.firstName, ...furtherGiven(official)] } : {}),
   };
   return {
     ...patient,
@@ -75,17 +79,10 @@ export function applyDemographics(patient: FhirResource, change: PatientDemograp
   };
 }
 
-/**
- * The `auth` service's narrow window onto HAPI: it creates the `Patient` of a
- * self-registration (API §2.2.6), keeps its demographics in step with an admin
- * edit, removes it when a registration has to be compensated, and checks that
- * a `PractitionerRole` exists before a doctor account is linked to it.
- */
 @Injectable()
 export class PatientProvisioner {
   constructor(@Inject(FHIR_CLIENT) private readonly fhir: FhirClient) {}
 
-  /** Returns the server-assigned `Patient.id`. */
   async create(demographics: PatientDemographics): Promise<string> {
     const created = await this.fhir.create('Patient', buildPatient(demographics));
     if (typeof created.id !== 'string' || created.id.length === 0) {
@@ -126,7 +123,6 @@ export class PatientProvisioner {
     }
   }
 
-  /** `404 NOT_FOUND` (via `FhirClientError`) when HAPI has no such `PractitionerRole`. */
   async assertPractitionerRoleExists(practitionerRoleId: string): Promise<void> {
     await this.fhir.read('PractitionerRole', practitionerRoleId);
   }

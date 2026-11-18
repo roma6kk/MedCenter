@@ -1,0 +1,19 @@
+{
+  "id": "task005-triage-a-T1-03",
+  "unit": "task005-triage-a",
+  "kind": "bug",
+  "severity": "medium",
+  "title": "«Последние показатели» в карте пациента говорят «Показателей пока нет», когда последний приём вёл другой врач (403) или запрос упал",
+  "description": "Врач, имеющий общий приём/запись с пациентом, читает всю историю пациента (7.4), включая визиты коллег, но `GET /encounters/:id` (7.2) отдаёт приём только врачу-участнику. Блок «Последние показатели» берёт самый свежий визит из истории и запрашивает его детали; если визит вёл другой врач, приходит 403, а блок показывает «Показателей пока нет» — это неверно: показатели есть, просто недоступны этому врачу. Так же маскируется любой другой сбой запроса (сеть, 500): ошибка истории показывается как «Недоступно» с кнопкой «Повторить», а ошибка загрузки приёма — как «пусто».",
+  "evidence": "frontend/src/components/doctor/patient-summary.tsx:138-153 LastVitals: `latest = history.data?.items[0]`, `encounter = useEncounter(latest.id)`, and `(latest === undefined || encounter.isError || observations.length === 0) ? <Empty>{t('vitalsEmpty')}</Empty>`; apps/encounter-service/.../patient-access.service.ts:41-47 lets a doctor who shares care read the whole history; encounters.controller.ts:55-65 (7.2) is participant-only. Scenario: patient saw cardiologist A last week, therapist B reads the card -> B sees «Показателей пока нет» although A recorded blood pressure; ru.json:1116 vitalsEmpty = «Показателей пока нет».",
+  "files": [
+    "frontend/src/components/doctor/patient-summary.tsx",
+    "frontend/src/messages/ru.json",
+    "frontend/src/messages/en.json"
+  ],
+  "proposedFix": "In LastVitals separate the cases: (a) isApiError(encounter.error) with status 403 -> neutral note `t('vitalsOtherDoctor')` (ru «Последний приём провёл другой врач — его показатели вам недоступны», en «The latest visit was held by another doctor; its vitals are not available to you»); (b) any other encounter.isError -> the existing <Unavailable onRetry={() => void encounter.refetch()} />; (c) only a successful encounter with no observations keeps vitalsEmpty. Add both i18n keys to ru.json and en.json (section doctor.summary) and cases to patient-summary spec. No API change.",
+  "needsDecision": false,
+  "decisionQuestion": "",
+  "tzRef": "Врач: просмотр истории обращений пациента; FR-007",
+  "confidence": "confirmed"
+}

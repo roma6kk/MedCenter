@@ -8,7 +8,6 @@ import { createFakeTerminologyHapi } from '../src/modules/terminology/import/__t
 import { startWithAdmin, type AdminFixture } from './admin-fixture';
 import { PATIENT_PASSWORD, bearer, signIn, type TokenBody } from './auth-flow-helpers';
 
-// `jose` is pure ESM and Jest's CJS runtime cannot load it; see `terminology.e2e-spec.ts`.
 jest.mock('jose', () => ({
   createRemoteJWKSet: () => 'mocked-jwks',
   jwtVerify: async (token: string) => {
@@ -21,7 +20,6 @@ jest.mock('jose', () => ({
 const IMPORT_URL = '/api/v1/admin/terminology/import';
 const ICD10_VALUE_SET = 'https://fhir.by/ValueSet/InternClassificDiseases10';
 const DOCTOR = { email: 'doctor@medcenter.by', password: 'D0ctor!Passw0rd' } as const;
-/** Snapshot resources: 4 CodeSystems (UCUM is an external system) + 5 ValueSets. */
 const RESOURCE_COUNT = 9;
 
 interface Deferred {
@@ -29,7 +27,6 @@ interface Deferred {
   readonly open: () => void;
 }
 
-/** `sub` claim of a token this application signed. */
 function subOf(token: TokenBody): string {
   const segment = token.access_token.split('.')[1] ?? '';
   const claims: { sub?: string } = JSON.parse(Buffer.from(segment, 'base64url').toString('utf8'));
@@ -44,7 +41,6 @@ function gate(): Deferred {
   return { promise, open };
 }
 
-/** API §2.3.4 — the snapshot import over real HTTP, the real guard stack and a stateful fake HAPI. */
 describe('Terminology import API (API 2.3.4)', () => {
   let fixture: AdminFixture;
   let app: INestApplication;

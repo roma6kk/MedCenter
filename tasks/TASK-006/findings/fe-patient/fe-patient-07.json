@@ -1,0 +1,20 @@
+{
+  "id": "fe-patient-07",
+  "unit": "fe-patient",
+  "kind": "robustness",
+  "severity": "low",
+  "title": "История посещений молча показывает визиты «без назначений», если запрос назначений упал или их больше 100",
+  "description": "Строки визитов в «Медкарте» берут назначения из отдельного запроса GET /me/prescriptions?pageSize=100 (HistoryTimeline: useMyPrescriptions({ page: 1, pageSize: 100 })). Результат этого запроса используется только как `prescriptions.data?.items ?? []`: ни ошибка (5xx, обрыв сети, 429), ни усечение (у пациента больше 100 назначений, а старые визиты как раз и лежат за пределом) нигде не показываются. Раскрытая строка визита просто не содержит блока «Назначено», и пациент читает это как «врач ничего не назначил», хотя назначения есть на вкладке «Назначения». Остальные блоки кабинета (главная: рекомендации) в такой ситуации честно показывают ошибку с «Повторить»; здесь поведение другое.",
+  "evidence": "frontend/src/components/patient/history-timeline.tsx:28 (PRESCRIPTIONS_LOOKUP_SIZE = 100), :99 (useMyPrescriptions without looking at isError / meta.totalPages), :115 (`prescriptions.data?.items ?? EMPTY_PRESCRIPTIONS`); history/visit-row.tsx:87-92 (the «Назначено» block is drawn only when the list is non-empty). Scenario: GET /me/prescriptions fails with 503 while GET /me/history succeeds -> every visit opens without «Назначено» and without any hint.",
+  "files": [
+    "frontend/src/components/patient/history-timeline.tsx",
+    "frontend/src/components/patient/history/visit-row.tsx",
+    "frontend/src/messages/ru.json",
+    "frontend/src/messages/en.json"
+  ],
+  "proposedFix": "Pass a small state down instead of a bare array: `prescriptionsState: 'ok' | 'failed' | 'partial'` (failed = prescriptions.isError && no data; partial = meta.totalPages > 1). In VisitRow's details show, when not 'ok' and the visit has no matched prescriptions, a muted line with a link: «Назначения не удалось загрузить» + «Повторить» (query.refetch) / «Все назначения — на вкладке «Назначения»» (new keys patientHistory.prescriptionsFailed, patientHistory.prescriptionsPartial in ru+en). Cover with a spec in history-timeline.spec.tsx (rejected prescriptions fetch).",
+  "needsDecision": false,
+  "decisionQuestion": "",
+  "tzRef": "FR-007 (просмотр назначений врача), FR-006 (история посещений)",
+  "confidence": "confirmed"
+}

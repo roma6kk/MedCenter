@@ -1,0 +1,17 @@
+{
+  "id": "infra-tools-04",
+  "unit": "infra-tools",
+  "kind": "docs",
+  "severity": "low",
+  "title": "Bruno 9.1 описывает ответ без группы fulfilled и не проверяет её утверждениями",
+  "description": "Запрос `10-analytics/9.1-appointments.bru` документирует тело ответа как `{ measure, scoring, period, total, groups[], booked, cancelled, noshow }` и проверяет только `measure`, `total`, `groups`. После решения владельца в отчёте 9.1 есть отдельная группа `fulfilled` («Посещено») и плоское поле `fulfilled` (AppointmentsSummaryDto, спецификация §9.1 п. 954-961). Коллекция — единственный «живой» документ API для ручной проверки, поэтому описание устарело, а регресс по `fulfilled` её утверждения не поймают.",
+  "evidence": "bruno/medcenter-api/10-analytics/9.1-appointments.bru: docs line lists `booked, cancelled, noshow` only; assert block has no `res.body.fulfilled`. apps/analytics-service/src/modules/reports/dto/appointments-summary.dto.ts declares `fulfilled: number` and four groups; specs/api-designer-spec.md:954-961 describes the `fulfilled` group.",
+  "files": [
+    "bruno/medcenter-api/10-analytics/9.1-appointments.bru"
+  ],
+  "proposedFix": "In 9.1-appointments.bru add `res.body.fulfilled: isNumber`, `res.body.booked: isNumber`, `res.body.cancelled: isNumber`, `res.body.noshow: isNumber` to the assert block and change the docs sentence to `{ measure, scoring, period, total, groups[] (booked, fulfilled, cancelled, noshow), booked, fulfilled, cancelled, noshow }`.",
+  "needsDecision": false,
+  "decisionQuestion": "",
+  "tzRef": "FR-019, API §9.1",
+  "confidence": "confirmed"
+}

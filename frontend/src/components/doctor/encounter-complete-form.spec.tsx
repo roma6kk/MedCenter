@@ -3,13 +3,12 @@ jest.mock('@/lib/api/api-fetch', () => {
   return { ...actual, apiFetch: jest.fn() };
 });
 
-// Long typing sequences (hundreds of keystrokes through user-event) take well over 5 s when the machine is busy.
 jest.setTimeout(30_000);
 
-import { screen, waitFor } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { bodyOf } from './doctor-test-utils';
-import { completeCall, completeRoute, fillRequired, OBSERVATION_SYSTEM, SERVICE_SYSTEM, setup, submit, UCUM } from './encounter-form-test-utils';
+import { addDrug, completeCall, completeRoute, DIAGNOSIS_DISPLAY, diagnosisInput, fillRequired, OBSERVATION_SYSTEM, pickDiagnosis, SERVICE_SYSTEM, setup, submit } from './encounter-form-test-utils';
 
 describe('EncounterCompleteForm validation', () => {
   it('should not send anything and should mark the fields when the form is empty', async () => {
@@ -21,8 +20,18 @@ describe('EncounterCompleteForm validation', () => {
     expect(completeCall()).toBeUndefined();
   });
 
-  it('should move focus to the summary when the form is empty and submitted', async () => {
+  it('should move focus to the first field on screen, the diagnosis, when the empty form is submitted', async () => {
     setup();
+
+    await submit();
+
+    await waitFor(() => expect(diagnosisInput()).toHaveFocus());
+  });
+
+  it('should move focus to the summary when only the conclusion is missing', async () => {
+    setup();
+    await pickDiagnosis();
+    await userEvent.type(screen.getByLabelText('Рекомендации'), 'Покой, обильное питьё');
 
     await submit();
 
@@ -36,15 +45,15 @@ describe('EncounterCompleteForm validation', () => {
 
     await submit();
 
-    await waitFor(() => expect(screen.getByLabelText(/Код МКБ-10/)).toHaveFocus());
+    await waitFor(() => expect(diagnosisInput()).toHaveFocus());
     expect(completeCall()).toBeUndefined();
   });
 
   it('should block submission with the ICD-10 message when the code does not match the mask', async () => {
     setup();
     await fillRequired();
-    await userEvent.clear(screen.getByLabelText(/Код МКБ-10/));
-    await userEvent.type(screen.getByLabelText(/Код МКБ-10/), 'bad');
+    await userEvent.clear(diagnosisInput());
+    await userEvent.type(diagnosisInput(), 'bad');
 
     await submit();
 
@@ -78,9 +87,7 @@ describe('EncounterCompleteForm validation', () => {
   it('should block submission when a drug has an invalid ATC code', async () => {
     setup();
     await fillRequired();
-    await userEvent.click(screen.getByRole('button', { name: 'Добавить лекарство' }));
-    await userEvent.type(screen.getByLabelText(/Код АТХ/), 'bad');
-    await userEvent.type(screen.getByLabelText(/Дозировка 1/), '1 таб 3 раза в день');
+    await addDrug('bad', '1 таб 3 раза в день');
 
     await submit();
 
@@ -102,7 +109,7 @@ describe('EncounterCompleteForm observation unit', () => {
 
     await userEvent.click(screen.getByRole('button', { name: 'Добавить наблюдение' }));
 
-    expect(await screen.findByLabelText(/Единица UCUM 1/)).toHaveValue('');
+    expect(await screen.findByLabelText(/Единица 1/)).toHaveValue('');
   });
 
   it('should not send a measurement and should ask for its unit when the doctor leaves the unit untouched', async () => {
@@ -112,15 +119,15 @@ describe('EncounterCompleteForm observation unit', () => {
     await submit();
 
     expect(await screen.findByText('Поле обязательно для заполнения')).toBeInTheDocument();
-    await waitFor(() => expect(screen.getByLabelText(/Единица UCUM 1/)).toHaveFocus());
-    expect(screen.getByLabelText(/Единица UCUM 1/)).toHaveAttribute('aria-invalid', 'true');
+    await waitFor(() => expect(screen.getByLabelText(/Единица 1/)).toHaveFocus());
+    expect(screen.getByLabelText(/Единица 1/)).toHaveAttribute('aria-invalid', 'true');
     expect(completeCall()).toBeUndefined();
   });
 
   it('should send exactly the unit the doctor chose when one is picked', async () => {
     setup();
     await addWeightRowWithoutUnit();
-    await userEvent.selectOptions(screen.getByLabelText(/Единица UCUM 1/), 'mg');
+    await userEvent.selectOptions(screen.getByLabelText(/Единица 1/), 'mg');
 
     await submit();
 
@@ -139,7 +146,7 @@ describe('EncounterCompleteForm submit', () => {
     await waitFor(() => expect(completeCall()).toBeDefined());
     expect(bodyOf(completeCall())).toEqual({
       summary: 'ОРВИ, состояние удовлетворительное',
-      diagnoses: [{ code: 'J06.9', display: 'Острый назофарингит' }],
+      diagnoses: [{ code: 'J06.9', display: DIAGNOSIS_DISPLAY }],
       recommendations: 'Покой, обильное питьё',
       observations: [],
       serviceRequests: [],
@@ -151,14 +158,15 @@ describe('EncounterCompleteForm submit', () => {
     setup();
     await fillRequired();
     await userEvent.click(screen.getByRole('button', { name: 'Добавить диагноз' }));
-    await userEvent.type(screen.getByLabelText(/Код МКБ-10 · диагноз 2/), 'K21.0');
-    await userEvent.type(screen.getByLabelText(/Название диагноза 2/), 'ГЭРБ');
+    await userEvent.type(diagnosisInput(2), 'K21.0');
+    await userEvent.tab();
+    await userEvent.type(await screen.findByLabelText(/Название диагноза 2/), 'ГЭРБ');
 
     await submit();
 
     await waitFor(() => expect(completeCall()).toBeDefined());
     expect(bodyOf(completeCall())['diagnoses']).toEqual([
-      { code: 'J06.9', display: 'Острый назофарингит' },
+      { code: 'J06.9', display: DIAGNOSIS_DISPLAY },
       { code: 'K21.0', display: 'ГЭРБ' },
     ]);
   });
@@ -166,12 +174,12 @@ describe('EncounterCompleteForm submit', () => {
   it('should send the verification status when the doctor chooses one', async () => {
     setup();
     await fillRequired();
-    await userEvent.selectOptions(screen.getByLabelText(/Статус подтверждения 1/), 'confirmed');
+    await userEvent.click(within(screen.getByRole('group', { name: /Статус подтверждения 1/ })).getByRole('button', { name: 'Подтверждённый' }));
 
     await submit();
 
     await waitFor(() => expect(completeCall()).toBeDefined());
-    expect(bodyOf(completeCall())['diagnoses']).toEqual([{ code: 'J06.9', display: 'Острый назофарингит', verificationStatus: 'confirmed' }]);
+    expect(bodyOf(completeCall())['diagnoses']).toEqual([{ code: 'J06.9', display: DIAGNOSIS_DISPLAY, verificationStatus: 'confirmed' }]);
   });
 
   it('should send the observation, the service and the drug of the encounter (scenario C)', async () => {
@@ -180,12 +188,10 @@ describe('EncounterCompleteForm submit', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Добавить наблюдение' }));
     await userEvent.selectOptions(await screen.findByLabelText(/Показатель 1/), '8310-5');
     await userEvent.type(screen.getByLabelText(/Значение 1/), '36.6');
-    await userEvent.selectOptions(screen.getByLabelText(/Единица UCUM 1/), 'Cel');
+    await userEvent.selectOptions(screen.getByLabelText(/Единица 1/), 'Cel');
     await userEvent.click(screen.getByRole('button', { name: 'Добавить услугу' }));
     await userEvent.selectOptions(await screen.findByLabelText(/Услуга 1/), 'A01.001');
-    await userEvent.click(screen.getByRole('button', { name: 'Добавить лекарство' }));
-    await userEvent.type(screen.getByLabelText(/Код АТХ/), 'J01FA10');
-    await userEvent.type(screen.getByLabelText(/Дозировка 1/), '1 таб 3 раза в день после еды');
+    await addDrug('J01FA10', '1 таб 3 раза в день после еды');
 
     await submit();
 
@@ -199,11 +205,11 @@ describe('EncounterCompleteForm submit', () => {
   it('should remove a diagnosis row but never the last one', async () => {
     setup();
     await userEvent.click(screen.getByRole('button', { name: 'Добавить диагноз' }));
-    expect(screen.getAllByLabelText(/Код МКБ-10/)).toHaveLength(2);
+    expect(screen.getAllByLabelText(/Диагноз \d:/)).toHaveLength(2);
 
     await userEvent.click(screen.getByRole('button', { name: 'Удалить диагноз 1' }));
 
-    expect(screen.getAllByLabelText(/Код МКБ-10/)).toHaveLength(1);
+    expect(screen.getAllByLabelText(/Диагноз \d:/)).toHaveLength(1);
     expect(screen.queryByRole('button', { name: /Удалить диагноз/ })).toBeNull();
   });
 

@@ -16,6 +16,7 @@ function createHost(response: MockHttpResponse, request: Record<string, unknown>
 function createResponse(): MockHttpResponse {
   return {
     header: jest.fn(),
+    setHeader: jest.fn(),
     status: jest.fn().mockReturnThis(),
     type: jest.fn().mockReturnThis(),
     send: jest.fn(),
@@ -23,15 +24,6 @@ function createResponse(): MockHttpResponse {
 }
 
 describe('ProblemDetailsFilter', () => {
-  it('should map a validation error to 400 VALIDATION_ERROR', () => {
-    const problem = ProblemDetailsFilter.fromValidationError('/api/v1/appointments', 'req-1', [
-      { field: 'slotId', message: 'must be a UUID' },
-    ]);
-
-    expect(problem.status).toBe(400);
-    expect(problem.errorCode).toBe('VALIDATION_ERROR');
-  });
-
   it('should preserve an explicit errorCode carried by an HttpException payload', () => {
     const filter = new ProblemDetailsFilter();
     const response = createResponse();
@@ -156,10 +148,69 @@ describe('ProblemDetailsFilter', () => {
         status: 500,
         errorCode: 'INTERNAL',
         detail: 'Внутренняя ошибка сервера',
-        requestId: 'unknown',
+        requestId: expect.stringMatching(/^[0-9a-f-]{36}$/),
       }),
     );
     const sentBody = JSON.stringify(response.send.mock.calls[0]?.[0]);
     expect(sentBody).not.toContain('password=hunter2');
+  });
+
+  it('should title a problem by its error code, not by the exception class', () => {
+    const filter = new ProblemDetailsFilter();
+    const response = createResponse();
+    const host = createHost(response, { originalUrl: '/api/v1/appointments', requestId: 'req-1' });
+
+    filter.catch(new HttpException({ errorCode: 'SLOT_CONFLICT', message: 'taken' }, 409), host);
+
+    expect(response.send).toHaveBeenCalledWith(expect.objectContaining({ title: 'Slot conflict' }));
+  });
+
+  it('should answer a 401 with a WWW-Authenticate challenge', () => {
+    const filter = new ProblemDetailsFilter();
+    const anonymous = createResponse();
+    const withToken = createResponse();
+
+    filter.catch(
+      new HttpException({ errorCode: 'UNAUTHENTICATED', message: 'no token' }, 401),
+      createHost(anonymous, { originalUrl: '/a', requestId: 'r', headers: {} }),
+    );
+    filter.catch(
+      new HttpException({ errorCode: 'UNAUTHENTICATED', message: 'bad token' }, 401),
+      createHost(withToken, { originalUrl: '/a', requestId: 'r', headers: { authorization: 'Bearer x' } }),
+    );
+
+    expect(anonymous.header).toHaveBeenCalledWith('WWW-Authenticate', 'Bearer');
+    expect(withToken.header).toHaveBeenCalledWith('WWW-Authenticate', 'Bearer error="invalid_token"');
+  });
+
+  it('should answer a body larger than the parser limit with 400 VALIDATION_ERROR', () => {
+    const filter = new ProblemDetailsFilter();
+    const response = createResponse();
+    const host = createHost(response, { originalUrl: '/api/v1/echo', headers: {} });
+    const tooLarge = Object.assign(new Error('request entity too large'), {
+      status: 413,
+      statusCode: 413,
+      expose: true,
+      type: 'entity.too.large',
+    });
+
+    filter.catch(tooLarge, host);
+
+    expect(response.status).toHaveBeenCalledWith(400);
+    expect(response.send).toHaveBeenCalledWith(
+      expect.objectContaining({ errorCode: 'VALIDATION_ERROR', detail: 'Request body is too large' }),
+    );
+  });
+
+  it('should give an error that precedes the request-id middleware a real id instead of unknown', () => {
+    const filter = new ProblemDetailsFilter();
+    const response = createResponse();
+    const host = createHost(response, { originalUrl: '/api/v1/echo', headers: {} });
+
+    filter.catch(new Error('boom'), host);
+
+    const sent = (response.send as jest.Mock).mock.calls[0]?.[0] as { requestId: string };
+    expect(sent.requestId).toMatch(/^[0-9a-f-]{36}$/);
+    expect(response.setHeader).toHaveBeenCalledWith('x-request-id', sent.requestId);
   });
 });

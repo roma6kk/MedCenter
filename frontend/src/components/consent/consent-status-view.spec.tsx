@@ -62,4 +62,12 @@ describe('ConsentStatusView', () => {
     expect(screen.getByRole('status')).toHaveTextContent('Подписал: опекун');
     expect(screen.getByRole('status')).toHaveTextContent('Документ, подтверждающий полномочия: Решение об опеке № 5');
   });
+
+  it('should show a neutral label instead of a raw PractitionerRole reference as the signer', () => {
+    const raw = { ...WITH_ACTIVE.history[0]!, signedBy: 'PractitionerRole/pr-1' };
+    render(<ConsentStatusView consent={{ active: raw, history: [raw] }} />);
+
+    expect(screen.getByRole('status')).toHaveTextContent('Оформил: медицинский работник');
+    expect(screen.getByRole('status')).not.toHaveTextContent('PractitionerRole/');
+  });
 });

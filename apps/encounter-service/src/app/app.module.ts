@@ -13,10 +13,6 @@ import { EncountersModule } from '../modules/encounters/encounters.module';
 import { HistoryModule } from '../modules/history/history.module';
 import { HealthController } from './health.controller';
 
-/**
- * The guard stack is mounted through `APP_GUARD` (ADR-009): JWT → scopes →
- * RBAC → rate-limit is the global default, so no route ships unprotected.
- */
 @Module({
   imports: [EncountersModule, HistoryModule],
   controllers: [HealthController],

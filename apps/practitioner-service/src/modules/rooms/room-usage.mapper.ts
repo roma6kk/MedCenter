@@ -1,13 +1,15 @@
+import { formatSlotPeriod } from '@medcenter/common';
 import type { FhirResource } from '@medcenter/fhir';
-import { toDoctorResponseDto } from '@medcenter/fhir-mappers';
+import { toDoctorResponseDto, translated, type ContentLanguage } from '@medcenter/fhir-mappers';
 import { MEDCENTER_EXT } from '@medcenter/terminology';
 
-import { formatHorizonDate, formatSlotPeriod } from './clinic-time';
+import { formatHorizonDate } from './clinic-time';
 import type { RoomUsageReferenceDto } from './dto/room-usage-response.dto';
 
 type Json = Readonly<Record<string, unknown>>;
 
-/** Resources of a search Bundle (matches and `_include`s) keyed by `Type/id`. */
+const BOOKING_WORD: Readonly<Record<ContentLanguage, string>> = { ru: 'запись', en: 'booking' };
+
 export type ResourceIndex = ReadonlyMap<string, FhirResource>;
 
 export function indexByReference(resources: readonly FhirResource[]): ResourceIndex {
@@ -23,37 +25,38 @@ function referenceOf(value: unknown): string | undefined {
   return typeof reference === 'string' && reference !== '' ? reference : undefined;
 }
 
-/** First `Schedule.actor` reference of the given type, e.g. `PractitionerRole/role-7`. */
 function actorReference(schedule: FhirResource, resourceType: string): string | undefined {
   const actors: readonly unknown[] = Array.isArray(schedule['actor']) ? schedule['actor'] : [];
   return actors.map(referenceOf).find((reference) => reference?.startsWith(`${resourceType}/`));
 }
 
-function practitionerName(role: FhirResource | undefined, index: ResourceIndex): string | undefined {
+function practitionerName(role: FhirResource | undefined, index: ResourceIndex, lang: ContentLanguage): string | undefined {
   const reference = referenceOf(role?.['practitioner']);
   const practitioner = reference === undefined ? undefined : index.get(reference);
   if (practitioner === undefined) {
     return undefined;
   }
-  const { firstName, lastName } = toDoctorResponseDto(practitioner);
+  const { firstName, lastName } = toDoctorResponseDto(practitioner, lang);
   const name = `${lastName} ${firstName}`.trim();
   return name === '' ? undefined : name;
 }
 
-/** Doctor of a schedule: the practitioner's name, else the bare role reference. */
-export function scheduleDoctorLabel(schedule: FhirResource, index: ResourceIndex): string | undefined {
+function scheduleDoctorLabel(schedule: FhirResource, index: ResourceIndex, lang: ContentLanguage): string | undefined {
   const roleReference = actorReference(schedule, 'PractitionerRole');
   if (roleReference === undefined) {
     return undefined;
   }
-  return practitionerName(index.get(roleReference), index) ?? roleReference;
+  return practitionerName(index.get(roleReference), index, lang) ?? roleReference;
 }
 
-/** Schedule id → doctor label, for naming the doctor on each booked slot line. */
-export function doctorsBySchedule(schedules: readonly FhirResource[], index: ResourceIndex): ReadonlyMap<string, string> {
+export function doctorsBySchedule(
+  schedules: readonly FhirResource[],
+  index: ResourceIndex,
+  lang: ContentLanguage,
+): ReadonlyMap<string, string> {
   const doctors = new Map<string, string>();
   for (const schedule of schedules) {
-    const doctor = scheduleDoctorLabel(schedule, index);
+    const doctor = scheduleDoctorLabel(schedule, index, lang);
     if (schedule.id !== undefined && doctor !== undefined) {
       doctors.set(schedule.id, doctor);
     }
@@ -61,10 +64,15 @@ export function doctorsBySchedule(schedules: readonly FhirResource[], index: Res
   return doctors;
 }
 
-function serviceName(schedule: FhirResource, index: ResourceIndex): string | undefined {
+function serviceName(service: FhirResource | undefined, lang: ContentLanguage): string | undefined {
+  const name = service?.['name'];
+  const title = typeof name === 'string' ? translated(name, service?.['_name'], lang) : '';
+  return title === '' ? undefined : title;
+}
+
+function scheduleServiceName(schedule: FhirResource, index: ResourceIndex, lang: ContentLanguage): string | undefined {
   const reference = actorReference(schedule, 'HealthcareService');
-  const name = reference === undefined ? undefined : index.get(reference)?.['name'];
-  return typeof name === 'string' && name !== '' ? name : undefined;
+  return serviceName(reference === undefined ? undefined : index.get(reference), lang);
 }
 
 function horizonText(schedule: FhirResource): string | undefined {
@@ -88,24 +96,42 @@ function joinDefined(parts: ReadonlyArray<string | undefined>): string {
   return parts.filter((part): part is string => part !== undefined).join(' · ');
 }
 
-/** `Иванов Иван · Консультация терапевта · 01.11.2026–30.11.2026 · активно`. */
-export function toScheduleUsage(schedule: FhirResource, index: ResourceIndex): RoomUsageReferenceDto {
-  const isActive = schedule['active'] !== false;
+export function toScheduleUsage(schedule: FhirResource, index: ResourceIndex, lang: ContentLanguage): RoomUsageReferenceDto {
+  const id = schedule.id ?? '';
+  const line = joinDefined([scheduleDoctorLabel(schedule, index, lang), scheduleServiceName(schedule, index, lang), horizonText(schedule)]);
   return {
     resourceType: 'Schedule',
-    id: schedule.id ?? '',
-    isActive,
-    display: joinDefined([
-      scheduleDoctorLabel(schedule, index),
-      serviceName(schedule, index),
-      horizonText(schedule),
-      isActive ? 'активно' : 'неактивно',
-    ]),
+    id,
+    isActive: schedule['active'] !== false,
+    display: line === '' ? `Schedule/${id}` : line,
   };
 }
 
-/** `02.11.2026 12:00–12:30 · запись · Иванов Иван` — a busy slot is a booked appointment. */
-export function toSlotUsage(slot: FhirResource, doctorBySchedule: ReadonlyMap<string, string>): RoomUsageReferenceDto {
+export function toRoleUsage(role: FhirResource, index: ResourceIndex, lang: ContentLanguage): RoomUsageReferenceDto {
+  const id = role.id ?? '';
+  return {
+    resourceType: 'PractitionerRole',
+    id,
+    isActive: role['active'] !== false,
+    display: practitionerName(role, index, lang) ?? `PractitionerRole/${id}`,
+  };
+}
+
+export function toServiceUsage(service: FhirResource, lang: ContentLanguage): RoomUsageReferenceDto {
+  const id = service.id ?? '';
+  return {
+    resourceType: 'HealthcareService',
+    id,
+    isActive: service['active'] !== false,
+    display: serviceName(service, lang) ?? `HealthcareService/${id}`,
+  };
+}
+
+export function toSlotUsage(
+  slot: FhirResource,
+  doctorBySchedule: ReadonlyMap<string, string>,
+  lang: ContentLanguage,
+): RoomUsageReferenceDto {
   const start = typeof slot['start'] === 'string' ? slot['start'] : '';
   const end = typeof slot['end'] === 'string' ? slot['end'] : '';
   const scheduleId = referenceOf(slot['schedule'])?.replace(/^Schedule\//, '') ?? '';
@@ -115,6 +141,6 @@ export function toSlotUsage(slot: FhirResource, doctorBySchedule: ReadonlyMap<st
     scheduleId,
     start,
     end,
-    display: joinDefined([formatSlotPeriod(start, end), 'запись', doctorBySchedule.get(scheduleId)]),
+    display: joinDefined([formatSlotPeriod(start, end), BOOKING_WORD[lang], doctorBySchedule.get(scheduleId)]),
   };
 }

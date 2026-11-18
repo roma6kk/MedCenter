@@ -1,0 +1,19 @@
+{
+  "id": "infra-tools-05",
+  "unit": "infra-tools",
+  "kind": "docs",
+  "severity": "low",
+  "title": "README обещает, что повторный seed:demo --users меняет пароли, а код их сохраняет; в шапке сидера устаревшая пометка про живой стенд",
+  "description": "В README (раздел «Running the project», пункт «Demo accounts») сказано: «Re-running `--users` rotates the passwords». Код делает обратное: `resolvePassword` берёт пароль в порядке «переменная окружения > прошлый manifest > новый», а для существующей учётной записи (`409 EMAIL_TAKEN`) сидер ничего не обновляет и сохраняет пароль из manifest. Новый пароль сгенерируется только для аккаунта, которого ещё нет. Тот, кто захочет сбросить пароли демо-пользователей повторным запуском, получит неизменившиеся пароли и неверное представление о безопасности стенда. Кроме того, шапка tools/demo-seed/seed-demo-users.ts всё ещё утверждает «Not yet exercised against a live auth-service» — сидер давно прогонялся на живом стеке (manifest создан 28.10, TASK-001/TASK-005 отчёты).",
+  "evidence": "README.md:35-38 (`Re-running --users rotates the passwords.`); tools/demo-seed/demo-credentials.ts:61-64 (`sources.fromEnv ?? sources.fromManifest ?? generate()`); tools/demo-seed/seed-demo-users.ts:26-33 header ('Re-running is safe ... keeps the password an earlier run generated') and :213-224 (existingAccountRecord keeps `known` password, 'account already exists; password kept from the previous run'); seed-demo-users.ts:21-24 ('Not yet exercised against a live auth-service'). Scenario: run `npm run seed:demo -- --users` twice -> the second run prints `exists` for every account and the manifest passwords are identical.",
+  "files": [
+    "README.md",
+    "tools/demo-seed/seed-demo-users.ts",
+    "tools/demo-seed/demo-credentials.ts"
+  ],
+  "proposedFix": "Change the README sentence to: `Re-running --users is idempotent: existing accounts and their manifest passwords are kept; to change a password set DEMO_*_PASSWORD and reset the user through PATCH /api/v1/admin/users/{id} (or delete the account and the manifest entry first).` Drop the 'Not yet exercised against a live auth-service' sentence from the header of seed-demo-users.ts (replace with a pointer to tasks/TASK-001/verify-live-stack-report.md). No behaviour change.",
+  "needsDecision": false,
+  "decisionQuestion": "",
+  "tzRef": "",
+  "confidence": "confirmed"
+}

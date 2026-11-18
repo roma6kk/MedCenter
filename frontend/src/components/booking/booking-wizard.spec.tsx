@@ -44,7 +44,7 @@ describe('BookingWizard steps', () => {
     await userEvent.click(await screen.findByTestId('service-any'));
 
     expect(await screen.findByRole('heading', { name: 'Выберите врача' })).toBeInTheDocument();
-    expect(apiFetchMock).not.toHaveBeenCalledWith(expect.stringContaining('serviceId'));
+    expect(apiFetchMock).toHaveBeenCalledWith('/api/v1/doctors?pageSize=100');
   });
 
   it('should offer only the slots as long as the chosen service when a service is chosen', async () => {
@@ -64,7 +64,7 @@ describe('BookingWizard steps', () => {
     await userEvent.click(await screen.findByTestId('slot-slot-30'));
 
     const summary = await screen.findByTestId('booking-summary');
-    await waitFor(() => expect(summary).toHaveTextContent('Мария Иванова'));
+    await waitFor(() => expect(summary).toHaveTextContent('Иванова Мария'));
     expect(summary).toHaveTextContent('Приём терапевта (первичный)');
     expect(summary).toHaveTextContent('30 мин');
   });

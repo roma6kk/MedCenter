@@ -7,13 +7,14 @@ jest.setTimeout(30_000);
 
 import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { problem } from './doctor-test-utils';
-import { apiFetchMock, completeCall, completeRoute, fillRequired, setup, submit } from './encounter-form-test-utils';
-import { bodyOf } from './doctor-test-utils';
+import { bodyOf, callsTo, problem } from './doctor-test-utils';
+import { apiFetchMock, COMPLETE, completeCall, completeRoute, fillRequired, setup, submit } from './encounter-form-test-utils';
+
+const refuse = (): never => { throw problem(409, 'CONSENT_REQUIRED'); };
 
 describe('EncounterCompleteForm without a consent (409 CONSENT_REQUIRED)', () => {
   it('should say the patient has no consent, with the record link and the emergency option, instead of the generic banner', async () => {
-    setup(completeRoute(() => { throw problem(409, 'CONSENT_REQUIRED'); }));
+    setup(completeRoute(refuse));
     await fillRequired();
 
     await submit();
@@ -25,11 +26,31 @@ describe('EncounterCompleteForm without a consent (409 CONSENT_REQUIRED)', () =>
     expect(screen.getByLabelText('Заключение')).toHaveValue('ОРВИ, состояние удовлетворительное');
   });
 
+  it('should bring the notice into focus, since it renders below a long form out of the sticky bar\'s sight', async () => {
+    setup(completeRoute(refuse));
+    await fillRequired();
+
+    await submit();
+
+    const notice = await screen.findByTestId('consent-required');
+    await waitFor(() => expect(notice.parentElement).toHaveFocus());
+  });
+
+  it('should bring a failure that belongs to no field into focus', async () => {
+    setup(completeRoute(() => { throw problem(500, 'INTERNAL'); }));
+    await fillRequired();
+
+    await submit();
+
+    const banner = await screen.findByTestId('problem-banner');
+    await waitFor(() => expect(banner.parentElement).toHaveFocus());
+  });
+
   it('should resend the same body with the emergency reason when the doctor completes it as emergency care', async () => {
     let attempts = 0;
     setup(completeRoute(() => {
       attempts += 1;
-      if (attempts === 1) throw problem(409, 'CONSENT_REQUIRED');
+      if (attempts === 1) refuse();
       return { id: 'enc-1', status: 'finished' };
     }));
     await fillRequired();
@@ -39,8 +60,8 @@ describe('EncounterCompleteForm without a consent (409 CONSENT_REQUIRED)', () =>
     await userEvent.paste('Пациент без сознания, ДТП');
     await userEvent.click(screen.getByRole('button', { name: 'Завершить приём как экстренный' }));
 
-    await waitFor(() => expect(apiFetchMock.mock.calls.filter(([path]) => String(path).endsWith('/complete'))).toHaveLength(2));
-    const calls = apiFetchMock.mock.calls.filter(([path]) => String(path).endsWith('/complete'));
+    await waitFor(() => expect(callsTo(apiFetchMock, COMPLETE, 'POST')).toHaveLength(2));
+    const calls = callsTo(apiFetchMock, COMPLETE, 'POST');
     const first = bodyOf(completeCall());
     const second = JSON.parse(String(calls[1]?.[1]?.body)) as Record<string, unknown>;
     expect(first).not.toHaveProperty('emergencyReason');
@@ -48,7 +69,7 @@ describe('EncounterCompleteForm without a consent (409 CONSENT_REQUIRED)', () =>
   });
 
   it('should not send the emergency request while the reason is too short', async () => {
-    setup(completeRoute(() => { throw problem(409, 'CONSENT_REQUIRED'); }));
+    setup(completeRoute(refuse));
     await fillRequired();
     await submit();
 
@@ -57,6 +78,6 @@ describe('EncounterCompleteForm without a consent (409 CONSENT_REQUIRED)', () =>
     await userEvent.click(screen.getByRole('button', { name: 'Завершить приём как экстренный' }));
 
     expect(await screen.findByText('Опишите причину подробнее: не меньше 10 символов')).toBeInTheDocument();
-    expect(apiFetchMock.mock.calls.filter(([path]) => String(path).endsWith('/complete'))).toHaveLength(1);
+    expect(callsTo(apiFetchMock, COMPLETE, 'POST')).toHaveLength(1);
   });
 });

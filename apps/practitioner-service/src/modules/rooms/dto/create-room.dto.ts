@@ -4,7 +4,6 @@ import { IsInt, IsNotEmpty, IsOptional, IsString, Max, MaxLength, Min } from 'cl
 
 import { trimString } from './trim-string';
 
-/** API §4.4 `CreateRoomDto` — maps to a FHIR `Location` with `physicalType=room`. */
 export class CreateRoomDto {
   @ApiProperty({ description: 'Unique room identifier (Location.identifier)', maxLength: 50, example: '204-Х' })
   @Transform(trimString)
@@ -14,21 +13,23 @@ export class CreateRoomDto {
   identifier!: string;
 
   @ApiProperty({ maxLength: 200, example: 'Кабинет 204' })
+  @Transform(trimString)
   @IsString()
   @IsNotEmpty()
   @MaxLength(200)
   name!: string;
 
-  @ApiPropertyOptional({ minimum: 1, maximum: 10, example: 2 })
+  @ApiPropertyOptional({ type: Number, nullable: true, minimum: 1, maximum: 10, example: 2 })
   @IsOptional()
   @IsInt()
   @Min(1)
   @Max(10)
-  floor?: number;
+  floor?: number | null;
 
-  @ApiPropertyOptional({ maxLength: 500 })
+  @ApiPropertyOptional({ type: String, nullable: true, maxLength: 500 })
   @IsOptional()
+  @Transform(trimString)
   @IsString()
   @MaxLength(500)
-  description?: string;
+  description?: string | null;
 }

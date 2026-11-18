@@ -1,20 +1,9 @@
 import { isIP } from 'node:net';
 
-/** The value Express's `trust proxy` setting accepts. */
 export type TrustProxySetting = boolean | number | string;
 
 const TRUST_KEYWORDS = new Set(['loopback', 'linklocal', 'uniquelocal']);
 
-/**
- * Parses `TRUST_PROXY` into the value Express expects.
- *
- * - unset or empty, or `false`: trust no proxy (default; `X-Forwarded-For` is ignored)
- * - `true`: trust every hop (the left-most `X-Forwarded-For` entry is the client)
- * - a non-negative integer: the number of proxy hops in front of the service (e.g. `1` behind Traefik)
- * - a comma-separated list of IPs, CIDR ranges or `loopback`/`linklocal`/`uniquelocal`
- *
- * Throws on anything else so a misconfigured deployment fails at boot.
- */
 export function parseTrustProxy(raw: string | undefined): TrustProxySetting {
   const value = raw?.trim() ?? '';
   if (value === '' || value === 'false') {

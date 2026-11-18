@@ -32,15 +32,14 @@ describe('ProblemBanner', () => {
     expect(screen.getByTestId('copy-request-id')).toHaveTextContent('01J9ZK3M8Q');
   });
 
-  it('should render the three in-use codes with their own messages', () => {
-    const { rerender } = render(<ProblemBanner problem={{ ...CONFLICT, errorCode: 'ROOM_IN_USE' }} />);
-    expect(screen.getByRole('alert')).toHaveTextContent('Кабинет используется в расписаниях');
+  it.each([
+    ['ROOM_IN_USE', 'Кабинет используется в расписаниях'],
+    ['SERVICE_IN_USE', 'Услуга используется'],
+    ['SCHEDULE_IN_USE', 'Расписание используется'],
+  ] as const)('should render the in-use code %s with its own message', (errorCode, message) => {
+    render(<ProblemBanner problem={{ ...CONFLICT, errorCode }} />);
 
-    rerender(<ProblemBanner problem={{ ...CONFLICT, errorCode: 'SERVICE_IN_USE' }} />);
-    expect(screen.getByRole('alert')).toHaveTextContent('Услуга используется');
-
-    rerender(<ProblemBanner problem={{ ...CONFLICT, errorCode: 'SCHEDULE_IN_USE' }} />);
-    expect(screen.getByRole('alert')).toHaveTextContent('Расписание используется');
+    expect(screen.getByRole('alert')).toHaveTextContent(message);
   });
 
   it('should keep working with the explicit title/detail props the pages already pass', () => {
@@ -124,6 +123,47 @@ describe('ProblemBanner', () => {
 
       expect(screen.getByRole('alert')).toHaveTextContent('Внутренняя ошибка');
       expect(screen.getByTestId('code-chip')).toHaveTextContent('INTERNAL');
+    });
+  });
+
+  describe('when the server failed with an unhandled error', () => {
+    const UNHANDLED: ProblemDetails = { title: 'Internal Server Error', status: 500, errorCode: 'INTERNAL', detail: 'Внутренняя ошибка сервера', requestId: 'req-500' };
+
+    it('should show the headline and not repeat the server sentence under it', () => {
+      render(<ProblemBanner problem={UNHANDLED} />);
+
+      expect(screen.getByRole('alert')).toHaveTextContent('Внутренняя ошибка');
+      expect(screen.queryByText('Внутренняя ошибка сервера')).not.toBeInTheDocument();
+    });
+
+    it('should put no Russian line under the English headline', () => {
+      useUiStore.setState({ locale: 'en' });
+
+      render(<ProblemBanner problem={UNHANDLED} />);
+
+      expect(screen.getByRole('alert')).toHaveTextContent('Internal error');
+      expect(screen.queryByText('Внутренняя ошибка сервера')).not.toBeInTheDocument();
+    });
+
+    it('should keep the code chip and the request id for support', () => {
+      render(<ProblemBanner problem={UNHANDLED} />);
+
+      expect(screen.getByTestId('code-chip')).toHaveTextContent('INTERNAL');
+      expect(screen.getByTestId('copy-request-id')).toHaveTextContent('req-500');
+    });
+
+    it('should still show a detail the page passes explicitly', () => {
+      render(<ProblemBanner problem={UNHANDLED} detail="Повторите позже" />);
+
+      expect(screen.getByText('Повторите позже')).toBeInTheDocument();
+    });
+
+    it('should keep the detail of a 502 under the same code: there the server says what to do', () => {
+      const partial: ProblemDetails = { title: 'Bad Gateway', status: 502, errorCode: 'INTERNAL', detail: '3 slots were not written (17 were); run the same range again to write the rest' };
+
+      render(<ProblemBanner problem={partial} />);
+
+      expect(screen.getByText(/run the same range again/)).toBeInTheDocument();
     });
   });
 });

@@ -1,17 +1,13 @@
 import { readManifest, type DemoManifest, type DemoUserRecord } from '../demo-seed/demo-manifest';
 import type { SmokeAccount } from './smoke-types';
 
-/** The logins the suite needs, picked from the seed manifest. */
 export interface SmokeAccounts {
   readonly admin: SmokeAccount;
-  /** The doctor whose `PractitionerRole` owns the clinical chain (the first demo doctor). */
   readonly doctor: SmokeAccount;
-  /** A second doctor: the "wrong doctor" of the compartment checks. */
   readonly otherDoctor: SmokeAccount;
   readonly patient: SmokeAccount;
   readonly otherPatient: SmokeAccount;
   readonly thirdPatient: SmokeAccount;
-  /** `Practitioner.id` of `doctor` (what `GET /doctors/{id}/slots` takes). */
   readonly doctorId: string;
   readonly doctorRoleId: string;
 }
@@ -51,7 +47,6 @@ function practitionerIdOf(manifest: DemoManifest, roleId: string): string {
   return role.practitionerId;
 }
 
-/** Pure: the suite's accounts from a manifest. Throws a message naming the seed step that is missing. */
 export function pickAccounts(manifest: DemoManifest): SmokeAccounts {
   const records = manifest.users?.accounts ?? [];
   const doctor = pick(records, 'DOCTOR', 0);

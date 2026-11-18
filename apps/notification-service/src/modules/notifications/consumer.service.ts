@@ -1,14 +1,20 @@
 import { Inject, Injectable, Logger, type OnModuleDestroy, type OnModuleInit } from '@nestjs/common';
 import { connect, type Channel, type ChannelModel, type ConsumeMessage } from 'amqplib';
 import { FHIR_CLIENT, FhirClientError, type FhirClient, type FhirResource } from '@medcenter/fhir';
-import { bindQueueWithDlq, retryQueueOf, type DomainEvent } from '@medcenter/messaging';
+import { attemptOf, bindQueueWithDlq, deferDelivery, type DomainEvent } from '@medcenter/messaging';
 
 import { communicationFromEvent } from './communication.mapper';
 import { DeduplicationService, EventInProgressError } from './deduplication.service';
 import { NOTIFICATION_BINDINGS } from './notification.bindings';
+import { InvalidEventError, parseNotificationEvent } from './notification-event';
 
 const RECONNECT_DELAY_MS = 5_000;
 const PREFETCH = 10;
+
+export const ATTEMPT_HEADER = 'x-notification-attempt';
+
+// ~55 s of delayed retries: long enough for HAPI or Redis to restart, then the DLQ.
+export const MAX_NOTIFICATION_ATTEMPTS = 12;
 
 function isDomainEvent(value: unknown): value is DomainEvent {
   if (typeof value !== 'object' || value === null) {
@@ -22,25 +28,12 @@ function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-/**
- * RabbitMQ consumer (FR-008). Each queue is bound to its routing key with a
- * dead-letter queue. A message is acked after its `Communication` is written.
- * A malformed message or a failed write is rejected without requeue, which
- * sends it to `<queue>.dlq` for inspection instead of an endless redelivery loop.
- *
- * The consumer runs a reconnect loop: whenever the connection ends (error or
- * close) it waits `RECONNECT_DELAY_MS` and connects again. An unreachable broker
- * does not stop the HTTP endpoints from serving. `CONSUMER_ENABLED=false`
- * turns the consumer off (used by the e2e suite).
- *
- * Every promise started here has a handler: a broker that drops mid-message
- * must not produce an unhandled rejection.
- */
 @Injectable()
 export class ConsumerService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(ConsumerService.name);
   private connection?: ChannelModel;
   private stopped = false;
+  private listening = false;
 
   constructor(
     @Inject(FHIR_CLIENT) private readonly fhir: FhirClient,
@@ -56,6 +49,10 @@ export class ConsumerService implements OnModuleInit, OnModuleDestroy {
     });
   }
 
+  isListening(): boolean {
+    return this.listening;
+  }
+
   async onModuleDestroy(): Promise<void> {
     this.stopped = true;
     await this.connection?.close().catch((error: unknown) => {
@@ -63,19 +60,14 @@ export class ConsumerService implements OnModuleInit, OnModuleDestroy {
     });
   }
 
-  /**
-   * Handles one domain event. A duplicate of a finished event is acknowledged
-   * silently; a duplicate arriving while the first copy is still being written
-   * throws `EventInProgressError` so it is deferred to the retry queue (acking it would drop the
-   * event if that first write then fails). Unknown event types are ignored; a
-   * failed write releases the dedup claim and rethrows so the message is dead-lettered.
-   */
+  /** A duplicate while the first copy is still writing is deferred, not acked: acking would lose the event if that write fails. */
   async handle(event: DomainEvent): Promise<void> {
-    const communication = communicationFromEvent(event);
-    if (communication === undefined) {
-      this.logger.warn({ type: event.type, eventId: event.eventId }, 'no notification for this event type');
+    const known = parseNotificationEvent(event);
+    if (known === undefined) {
+      this.logger.warn({ type: event.type, eventId: event.eventId }, 'unknown event type; acknowledged without a notification');
       return;
     }
+    const communication = communicationFromEvent(known);
     const claim = await this.dedup.claim(event.eventId);
     if (claim === 'done') {
       return;
@@ -92,11 +84,7 @@ export class ConsumerService implements OnModuleInit, OnModuleDestroy {
     }
   }
 
-  /**
-   * Deterministic write. The id derives from the `eventId`, so a redelivery
-   * targets the same resource. An existing resource (already written, possibly
-   * already read by the patient) is left untouched, never overwritten.
-   */
+  /** Deterministic id from the eventId; an existing resource (maybe already read by the patient) is never overwritten. */
   private async writeOnce(communication: FhirResource): Promise<void> {
     const id = communication.id ?? '';
     if (await this.exists(id)) {
@@ -135,11 +123,6 @@ export class ConsumerService implements OnModuleInit, OnModuleDestroy {
     }
   }
 
-  /**
-   * Opens a connection, binds every queue and consumes until the connection
-   * ends. Resolves when it ends, so the caller reconnects. Rejects only if the
-   * initial setup fails.
-   */
   private async consumeUntilClosed(url: string): Promise<void> {
     const connection = await connect(url);
     if (this.stopped) {
@@ -169,7 +152,6 @@ export class ConsumerService implements OnModuleInit, OnModuleDestroy {
         await bindQueueWithDlq(channel, binding.queue, binding.routingKey);
         await channel.consume(binding.queue, (message) => {
           if (message === null) {
-            // Broker cancelled this consumer: end the connection so the reconnect loop binds again.
             connection.close().catch(() => undefined);
             return;
           }
@@ -178,12 +160,17 @@ export class ConsumerService implements OnModuleInit, OnModuleDestroy {
           });
         });
       }
+      this.listening = true;
       this.logger.log('notification consumer is listening');
     } catch (error) {
       connection.close().catch(() => undefined);
       throw error;
     }
-    await ended;
+    try {
+      await ended;
+    } finally {
+      this.listening = false;
+    }
   }
 
   private async onMessage(channel: Channel, queue: string, message: ConsumeMessage): Promise<void> {
@@ -196,21 +183,28 @@ export class ConsumerService implements OnModuleInit, OnModuleDestroy {
     try {
       await this.handle(event);
     } catch (error) {
-      if (error instanceof EventInProgressError) {
-        // The first copy is still writing. Re-publish this copy to the delay queue and ack the
-        // original: a plain requeue would bounce straight back and spin until the first copy settles.
-        this.settle(() => {
-          channel.sendToQueue(retryQueueOf(queue), message.content, {
-            persistent: true,
-            contentType: 'application/json',
-            messageId: message.properties.messageId,
-            headers: message.properties.headers,
-          });
-          channel.ack(message);
-        }, 'defer event still in progress');
+      if (error instanceof InvalidEventError) {
+        // A retry cannot repair the payload: straight to the DLQ, which keeps the copy for inspection.
+        this.logger.error({ type: event.type, eventId: event.eventId, field: error.field }, 'event payload is invalid; dead-lettering');
+        this.settle(() => channel.nack(message, false, false), 'dead-letter invalid event');
         return;
       }
-      this.logger.error({ err: error, type: event.type, eventId: event.eventId }, 'notification write failed; dead-lettering');
+      if (error instanceof EventInProgressError) {
+        // The first copy is still writing: defer this copy and ack the original (a plain requeue would spin).
+        this.settle(() => deferDelivery(channel, queue, message, message.properties.headers), 'defer event still in progress');
+        return;
+      }
+      const attempt = attemptOf(message.properties.headers, ATTEMPT_HEADER);
+      const context = { err: error, type: event.type, eventId: event.eventId, attempt };
+      if (attempt < MAX_NOTIFICATION_ATTEMPTS) {
+        this.logger.warn(context, 'notification write failed; retrying after a delay');
+        this.settle(
+          () => deferDelivery(channel, queue, message, { ...message.properties.headers, [ATTEMPT_HEADER]: attempt + 1 }),
+          'retry failed message',
+        );
+        return;
+      }
+      this.logger.error(context, 'notification write failed on the last attempt; dead-lettering');
       this.settle(() => channel.nack(message, false, false), 'dead-letter failed message');
       return;
     }
@@ -226,11 +220,7 @@ export class ConsumerService implements OnModuleInit, OnModuleDestroy {
     }
   }
 
-  /**
-   * Runs an ack or nack. `ack`/`nack` throw when the channel has already closed;
-   * that is logged here instead of becoming an unhandled rejection. The broker
-   * redelivers any message that was not settled.
-   */
+  /** ack/nack throw on a closed channel; log it instead of an unhandled rejection (the broker redelivers). */
   private settle(action: () => void, label: string): void {
     try {
       action();

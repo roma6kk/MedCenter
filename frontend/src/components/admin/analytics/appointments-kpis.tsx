@@ -1,66 +1,89 @@
 'use client';
 
 import type { ReactNode } from 'react';
+import { ArrowDownRight, ArrowRight, ArrowUpRight, type LucideIcon } from 'lucide-react';
 import { StampBadge } from '@/components/feedback/stamp-badge';
-import { cn } from '@/lib/ui/cn';
+import { Badge } from '@/components/ui/badge';
+import { Card } from '@/components/ui/card';
+import { Skeleton } from '@/components/ui/skeleton';
 import { useT } from '@/lib/i18n/use-t';
-import { statusCounts } from './analytics-math';
+import { cn } from '@/lib/ui/cn';
+import { deltaOf, deltaTone, type DeltaDirection, type DeltaTone } from './analytics-delta';
+import { sharePercent, statusCounts } from './analytics-math';
+import type { PeriodPreset } from './analytics-period';
 import { APPOINTMENT_STATUSES, type AppointmentStatusCode, type AppointmentsReport } from './analytics-types';
 
-const SEGMENT_CLASS: Record<AppointmentStatusCode, string> = {
-  booked: 'bg-primary text-primary-foreground',
-  fulfilled: 'bg-success text-white',
-  cancelled: 'bg-destructive text-white',
-  noshow: 'bg-warning text-white',
+const DELTA_ICON: Readonly<Record<DeltaDirection, LucideIcon>> = { up: ArrowUpRight, down: ArrowDownRight, flat: ArrowRight };
+
+const DELTA_TONE_CLASS: Readonly<Record<DeltaTone, string>> = {
+  good: 'text-success',
+  bad: 'text-destructive',
+  neutral: 'text-muted-foreground',
 };
 
-/** Below this share a segment is too narrow for its caption; the cards under the bar carry the same numbers. */
-const CAPTION_MIN_PERCENT = 14;
+interface DeltaLineProps {
+  readonly kind: AppointmentStatusCode | 'total';
+  readonly current: number;
+  readonly previous: number;
+  readonly preset: PeriodPreset;
+}
 
-function StatusBar({ report }: { readonly report: AppointmentsReport }): ReactNode {
-  const t = useT('admin.analytics.appointments');
-  const counts = statusCounts(report);
-  const sum = APPOINTMENT_STATUSES.reduce((total, status) => total + counts[status], 0);
+function DeltaLine({ kind, current, previous, preset }: DeltaLineProps): ReactNode {
+  const t = useT('admin.analytics.kpi');
+  const delta = deltaOf(current, previous);
+  const Icon: LucideIcon = DELTA_ICON[delta.direction];
+  const sign: string = delta.direction === 'up' ? '+' : delta.direction === 'down' ? '−' : '';
+  const amount: string = delta.direction === 'flat' ? t('flat') : `${sign}${Math.abs(delta.change)}${delta.percent === null ? '' : ` (${sign}${delta.percent}%)`}`;
   return (
-    <div role="img" aria-label={t('barLabel', counts)} className="flex h-14 gap-[3px] overflow-hidden rounded-control">
-      {APPOINTMENT_STATUSES.filter((status) => counts[status] > 0).map((status) => (
-        <div
-          key={status}
-          data-testid={`bar-${status}`}
-          style={{ flex: `${counts[status]} 1 0`, minWidth: 6 }}
-          className={cn('flex min-w-0 items-center px-3.5 text-[15px] font-semibold', SEGMENT_CLASS[status])}
-        >
-          {(counts[status] * 100) / sum >= CAPTION_MIN_PERCENT ? <span className="truncate">{`${t(status)} · ${counts[status]}`}</span> : null}
-        </div>
+    <p data-testid="kpi-delta" className={cn('flex items-start gap-1 text-sm font-medium leading-snug', DELTA_TONE_CLASS[deltaTone(kind, delta.direction)])}>
+      <Icon aria-hidden="true" className="mt-0.5 size-4 flex-none" strokeWidth={2.25} />
+      <span>
+        {delta.direction === 'flat' ? null : <span className="sr-only">{t(`direction.${delta.direction}`)} </span>}
+        {amount}
+        <span className="font-normal text-muted-foreground"> {t(`vs.${preset}`)}</span>
+      </span>
+    </p>
+  );
+}
+
+interface KpiProps {
+  readonly kind: AppointmentStatusCode | 'total';
+  readonly value: number;
+  readonly total: number;
+  readonly previous: number | undefined;
+  readonly previousPending: boolean;
+  readonly preset: PeriodPreset;
+}
+
+function Kpi({ kind, value, total, previous, previousPending, preset }: KpiProps): ReactNode {
+  const t = useT('admin.analytics.appointments');
+  const tKpi = useT('admin.analytics.kpi');
+  return (
+    <Card as="article" padding="md" data-testid="kpi" className="flex flex-col gap-2">
+      {kind === 'total' ? <Badge tone="neutral">{t('total')}</Badge> : <StampBadge status={kind}>{t(kind)}</StampBadge>}
+      <p className="text-4xl font-bold leading-none">{value}</p>
+      <p className="min-h-5 text-sm text-muted-foreground">{kind === 'total' ? tKpi('period') : tKpi('share', { percent: sharePercent(value, total) })}</p>
+      {previous !== undefined ? <DeltaLine kind={kind} current={value} previous={previous} preset={preset} /> : previousPending ? <Skeleton className="h-5 w-3/4" /> : null}
+    </Card>
+  );
+}
+
+interface AppointmentsKpisProps {
+  readonly report: AppointmentsReport;
+  readonly previous: AppointmentsReport | undefined;
+  readonly previousPending: boolean;
+  readonly preset: PeriodPreset;
+}
+
+export function AppointmentsKpis({ report, previous, previousPending, preset }: AppointmentsKpisProps): ReactNode {
+  const counts = statusCounts(report);
+  const before = previous === undefined ? undefined : statusCounts(previous);
+  return (
+    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+      <Kpi kind="total" value={report.total} total={report.total} previous={previous?.total} previousPending={previousPending} preset={preset} />
+      {APPOINTMENT_STATUSES.map((status) => (
+        <Kpi key={status} kind={status} value={counts[status]} total={report.total} previous={before?.[status]} previousPending={previousPending} preset={preset} />
       ))}
-    </div>
-  );
-}
-
-function Kpi({ value, children }: { readonly value: number; readonly children: ReactNode }): ReactNode {
-  return (
-    <div className="rounded-card bg-[var(--secondary)] p-4" data-testid="kpi">
-      <p className="serif text-3xl font-bold">{value}</p>
-      <p className="mt-1 text-sm text-[var(--muted-foreground)]">{children}</p>
-    </div>
-  );
-}
-
-/** 9.1: the share of every status as one bar, then the total and one card per appointment status (shown as its stamp). */
-export function AppointmentsKpis({ report }: { readonly report: AppointmentsReport }): ReactNode {
-  const t = useT('admin.analytics.appointments');
-  const counts = statusCounts(report);
-  return (
-    <div className="grid gap-4">
-      <StatusBar report={report} />
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
-        <Kpi value={report.total}>{t('total')}</Kpi>
-        {APPOINTMENT_STATUSES.map((status) => (
-          <Kpi key={status} value={counts[status]}>
-            <StampBadge status={status}>{t(status)}</StampBadge>
-          </Kpi>
-        ))}
-      </div>
     </div>
   );
 }

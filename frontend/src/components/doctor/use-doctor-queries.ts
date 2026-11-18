@@ -1,14 +1,10 @@
 'use client';
 
-/**
- * use-doctor-queries — TanStack Query reads of the doctor area. Keys come from the shared factory
- * (`lib/api/query-keys`, frontend-design-spec §5.1), lifetimes from `query-config`.
- */
 import { keepPreviousData, useQueries, useQuery, type QueryClient, type UseQueryResult } from '@tanstack/react-query';
 import type { PaginatedResponse } from '@/lib/api/pagination';
 import { DEFAULT_STALE_TIME_MS, STALE_TIME_MS } from '@/lib/api/query-config';
 import { queryKeys } from '@/lib/api/query-keys';
-import { clinicDayBounds } from '@/lib/clinic-time';
+import { clinicDateKey, clinicDayBounds, shiftDateKey } from '@/lib/clinic-time';
 import {
   CARD_PAGE_SIZE,
   EXPAND_COUNT,
@@ -17,65 +13,57 @@ import {
   fetchDoctorSchedule,
   fetchEncounter,
   fetchExpansion,
+  fetchJournalScan,
   fetchPatient,
   fetchPatientHistory,
   fetchPatientPrescriptions,
   fetchRelatedPersons,
+  JOURNAL_MAX_PAGE_SIZE,
   type JournalRange,
 } from './doctor-api';
+import { findNextVisit } from './journal-model';
+import { patientsOf, type PatientHit } from './patient-search-model';
 import type {
   DoctorJournalPage,
   DoctorScheduleResponse,
   EncounterDetails,
   Expansion,
   HistoryItem,
+  JournalAppointment,
   PatientCard,
   Prescription,
   RelatedPerson,
   Term,
 } from './doctor-types';
 
-/** A clinic day rarely has more than a few dozen visits; 50 keeps one day on one page so the status filter sees all of it. */
-export const JOURNAL_PAGE_SIZE = 50;
+const JOURNAL_PAGE_SIZE = 50;
 
-/** Params object of a journal query key (`['doctorAppointments', { from, to, page, pageSize }]`), if it is one. */
 function journalFrom(query: { readonly queryKey: ReadonlyArray<unknown> } | undefined): unknown {
   const params: unknown = query?.queryKey[1];
   return typeof params === 'object' && params !== null && 'from' in params ? (params as { from: unknown }).from : undefined;
 }
 
-/**
- * The doctor's own appointments of one clinic day (API 6.5), one server page at a time.
- * Turning the page keeps the old rows on screen meanwhile; switching the day does not (rows of another day would mislead).
- */
-export function useDoctorJournal(dateKey: string, page: number): UseQueryResult<DoctorJournalPage> {
+function dayJournalQuery(dateKey: string, page: number) {
   const range: JournalRange = clinicDayBounds(dateKey);
-  return useQuery({
+  return {
     queryKey: queryKeys.doctorAppointments({ ...range, page, pageSize: JOURNAL_PAGE_SIZE }),
-    queryFn: ({ signal }) => fetchDoctorJournal(range, { page, pageSize: JOURNAL_PAGE_SIZE }, signal),
+    queryFn: ({ signal }: { readonly signal: AbortSignal }) => fetchDoctorJournal(range, { page, pageSize: JOURNAL_PAGE_SIZE }, signal),
     staleTime: STALE_TIME_MS.appointments,
-    placeholderData: (previous, previousQuery) => (journalFrom(previousQuery) === range.from ? previous : undefined),
+  };
+}
+
+export function useDoctorJournal(dateKey: string, page: number): UseQueryResult<DoctorJournalPage> {
+  const from: string = clinicDayBounds(dateKey).from;
+  return useQuery({
+    ...dayJournalQuery(dateKey, page),
+    placeholderData: (previous, previousQuery) => (journalFrom(previousQuery) === from ? previous : undefined),
   });
 }
 
-/**
- * The first journal page of each of several clinic days, fetched in parallel (the week view). Every query has the key of the
- * day view's first page, so a day opened from the week is already cached and the other way round.
- */
 export function useDoctorWeekJournal(dateKeys: ReadonlyArray<string>): ReadonlyArray<UseQueryResult<DoctorJournalPage>> {
-  return useQueries({
-    queries: dateKeys.map((dateKey) => {
-      const range: JournalRange = clinicDayBounds(dateKey);
-      return {
-        queryKey: queryKeys.doctorAppointments({ ...range, page: 1, pageSize: JOURNAL_PAGE_SIZE }),
-        queryFn: ({ signal }: { readonly signal: AbortSignal }) => fetchDoctorJournal(range, { page: 1, pageSize: JOURNAL_PAGE_SIZE }, signal),
-        staleTime: STALE_TIME_MS.appointments,
-      };
-    }),
-  });
+  return useQueries({ queries: dateKeys.map((dateKey) => dayJournalQuery(dateKey, 1)) });
 }
 
-/** The doctor's schedules and their slots in the range (API 5.2.7); not cached long — a booking must show at once. */
 export function useDoctorSchedule(range: JournalRange): UseQueryResult<DoctorScheduleResponse> {
   return useQuery({
     queryKey: queryKeys.doctorScheduleRange({ from: range.from, to: range.to }),
@@ -84,11 +72,34 @@ export function useDoctorSchedule(range: JournalRange): UseQueryResult<DoctorSch
   });
 }
 
-export function useEncounter(encounterId: string): UseQueryResult<EncounterDetails> {
+export function useDoctorWeekAppointments(weekStart: string): UseQueryResult<DoctorJournalPage> {
+  const range: JournalRange = { from: clinicDayBounds(weekStart).from, to: clinicDayBounds(shiftDateKey(weekStart, 6)).to };
+  return useQuery({
+    queryKey: queryKeys.doctorAppointments({ ...range, page: 1, pageSize: JOURNAL_MAX_PAGE_SIZE }),
+    queryFn: ({ signal }) => fetchDoctorJournal(range, { page: 1, pageSize: JOURNAL_MAX_PAGE_SIZE }, signal),
+    staleTime: STALE_TIME_MS.appointments,
+  });
+}
+
+export function useEncounter(encounterId: string, enabled: boolean = true): UseQueryResult<EncounterDetails> {
   return useQuery({
     queryKey: queryKeys.encounterDetail(encounterId),
     queryFn: ({ signal }) => fetchEncounter(encounterId, signal),
     staleTime: DEFAULT_STALE_TIME_MS,
+    enabled,
+  });
+}
+
+const UPCOMING_HORIZON_DAYS = 30;
+
+export function useUpcomingVisit(patientId: string, excludeAppointmentId?: string): UseQueryResult<JournalAppointment | null> {
+  const today: string = clinicDateKey();
+  const range: JournalRange = { from: clinicDayBounds(today).from, to: clinicDayBounds(shiftDateKey(today, UPCOMING_HORIZON_DAYS)).to };
+  const isUpcoming = (visit: JournalAppointment): boolean => visit.patientId === patientId && visit.status === 'booked' && visit.id !== excludeAppointmentId;
+  return useQuery({
+    queryKey: queryKeys.doctorAppointments({ ...range, scan: 'upcoming', patientId, exclude: excludeAppointmentId }),
+    queryFn: async ({ signal }) => (await fetchJournalScan(range, { until: (items) => items.some(isUpcoming) }, signal)).items.find(isUpcoming) ?? null,
+    staleTime: STALE_TIME_MS.appointments,
   });
 }
 
@@ -127,13 +138,21 @@ export function usePatientPrescriptions(patientId: string, page: number): UseQue
   });
 }
 
+const VISIT_ORDERS_PAGE_SIZE = 100;
+
+export function useVisitPrescriptions(patientId: string, encounterId: string): UseQueryResult<PaginatedResponse<Prescription>> {
+  return useQuery({
+    queryKey: queryKeys.prescriptions(patientId, { page: 1, pageSize: VISIT_ORDERS_PAGE_SIZE, encounterId }),
+    queryFn: ({ signal }) => fetchPatientPrescriptions(patientId, { page: 1, pageSize: VISIT_ORDERS_PAGE_SIZE, encounterId }, signal),
+    staleTime: DEFAULT_STALE_TIME_MS,
+  });
+}
+
 interface ExpansionOptions {
-  /** Hold the request back (a search box waits for a few characters). */
   readonly enabled?: boolean;
   readonly count?: number;
 }
 
-/** A page of a ValueSet (API 2.3.2). Expansions only change on a terminology import, hence the 1 h lifetime. */
 export function useExpansion(valueSet: string, filter: string, options: ExpansionOptions = {}): UseQueryResult<Expansion> {
   const count: number = options.count ?? EXPAND_COUNT;
   return useQuery({
@@ -144,10 +163,6 @@ export function useExpansion(valueSet: string, filter: string, options: Expansio
   });
 }
 
-/**
- * The concept whose code is exactly `code` (API 2.3.2 searches by code and name), `null` when the value set has none.
- * Reads through the query cache with the key of a suggestion search, so a code the doctor just searched costs no request.
- */
 export async function lookupTerm(client: QueryClient, valueSet: string, code: string): Promise<Term | null> {
   const expansion: Expansion = await client.fetchQuery({
     queryKey: [...queryKeys.terminologyExpand(valueSet, code), SUGGESTION_COUNT] as const,
@@ -155,4 +170,41 @@ export async function lookupTerm(client: QueryClient, valueSet: string, code: st
     staleTime: STALE_TIME_MS.terminology,
   });
   return expansion.items.find((item) => item.code === code) ?? null;
+}
+
+const PATIENT_SEARCH_BACK_DAYS = 90;
+const PATIENT_SEARCH_AHEAD_DAYS = 30;
+
+interface DoctorPatients {
+  readonly patients: ReadonlyArray<PatientHit>;
+  readonly truncated: boolean;
+}
+
+export function useDoctorPatients(enabled: boolean): UseQueryResult<DoctorPatients> {
+  const today: string = clinicDateKey();
+  const range: JournalRange = {
+    from: clinicDayBounds(shiftDateKey(today, -PATIENT_SEARCH_BACK_DAYS)).from,
+    to: clinicDayBounds(shiftDateKey(today, PATIENT_SEARCH_AHEAD_DAYS)).to,
+  };
+  return useQuery({
+    queryKey: queryKeys.doctorAppointments({ ...range, scan: 'patients', sortOrder: 'desc' }),
+    queryFn: ({ signal }) => fetchJournalScan(range, { sortOrder: 'desc' }, signal),
+    staleTime: STALE_TIME_MS.appointments,
+    enabled,
+    select: (scan): DoctorPatients => ({ patients: patientsOf(scan.items), truncated: scan.truncated }),
+  });
+}
+
+export const NEXT_VISIT_LOOKAHEAD_DAYS = 14;
+
+export function useNextBookedVisit(afterDay: string, today: string, enabled: boolean): UseQueryResult<JournalAppointment | null> {
+  const first: string = shiftDateKey(afterDay, 1) > today ? shiftDateKey(afterDay, 1) : today;
+  const range: JournalRange = { from: clinicDayBounds(first).from, to: clinicDayBounds(shiftDateKey(first, NEXT_VISIT_LOOKAHEAD_DAYS - 1)).to };
+  return useQuery({
+    queryKey: queryKeys.doctorAppointments({ ...range, page: 1, pageSize: JOURNAL_MAX_PAGE_SIZE }),
+    queryFn: ({ signal }) => fetchDoctorJournal(range, { page: 1, pageSize: JOURNAL_MAX_PAGE_SIZE }, signal),
+    staleTime: STALE_TIME_MS.appointments,
+    enabled,
+    select: (page) => findNextVisit(page.items) ?? null,
+  });
 }

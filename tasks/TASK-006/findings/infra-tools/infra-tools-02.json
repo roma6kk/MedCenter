@@ -1,0 +1,19 @@
+{
+  "id": "infra-tools-02",
+  "unit": "infra-tools",
+  "kind": "bug",
+  "severity": "low",
+  "title": "seed:terminology не читает SEED_FHIR_BASE_URL из .env, а seed:demo читает — два сидера целятся в разные серверы",
+  "description": "`tools/demo-seed/seed-demo.ts` в начале main вызывает `loadSeedEnv(...)`: переменные сидера (в том числе `SEED_FHIR_BASE_URL`) подхватываются из корневого `.env`, если оболочка их не задала (так и написано в шапке файла и в tools/shared/load-seed-env.ts). `tools/terminology-seed/seed-terminology.ts` вызывает только `resolveFhirBaseUrl()` без `loadSeedEnv`. Если владелец один раз прописал `SEED_FHIR_BASE_URL` в `.env` (например, другой порт HAPI), демо-сидер пишет в этот сервер, а сидер терминологии молча пишет в `http://localhost:8080/fhir` — справочники и демо-данные оказываются на разных HAPI, а проверка кодов в encounter-service падает с TERMINOLOGY_NOT_FOUND. Это то же самое действие («определить, куда писать»), выполненное по-разному в двух соседних скриптах.",
+  "evidence": "tools/terminology-seed/seed-terminology.ts:212-216 (`runMain(async () => { await seedTerminology(new FhirHttp(resolveFhirBaseUrl())); })` — no loadSeedEnv); tools/demo-seed/seed-demo.ts:115-118 (`loadSeedEnv(join(__dirname, '..', '..'))` before parseCliArgs); tools/shared/load-seed-env.ts:10-21 lists SEED_FHIR_BASE_URL among the names taken from .env. Scenario: `.env` contains SEED_FHIR_BASE_URL=http://localhost:18080/fhir, shell has none -> `npm run seed:demo` writes to :18080, `npm run seed:terminology` writes to :8080 (the warning in resolveFhirBaseUrl fires only for FHIR_BASE_URL, not here).",
+  "files": [
+    "tools/terminology-seed/seed-terminology.ts",
+    "tools/shared/load-seed-env.ts",
+    "tools/demo-seed/seed-demo.ts"
+  ],
+  "proposedFix": "In seed-terminology.ts import `join` from node:path and `loadSeedEnv` from ../shared/load-seed-env and call `loadSeedEnv(join(__dirname, '..', '..'))` as the first statement of the runMain callback, exactly as seed-demo.ts does (the repository root is two levels up from tools/terminology-seed). Add one sentence to the file header. No new test is strictly needed (loadSeedEnv has its own spec); optionally assert in seed-terminology.spec.ts that the main block is not executed on import.",
+  "needsDecision": false,
+  "decisionQuestion": "",
+  "tzRef": "",
+  "confidence": "confirmed"
+}

@@ -24,5 +24,6 @@ assert {
 }
 
 docs {
-  Spec 4.7. ADMIN. `Schedule`/`Slot` references that keep the room busy; `truncated` when the list was cut.
+  Spec 4.7. ADMIN. The `Schedule`, `PractitionerRole` and `HealthcareService` references that keep the room busy (`inUse` is true exactly when 4.6 answers 409 `ROOM_IN_USE`), then its upcoming booked `Slot`s; `truncated` when the slot list was cut.
+  `display` follows `Accept-Language` (en, else ru); whether a resource is active is `isActive`.
 }

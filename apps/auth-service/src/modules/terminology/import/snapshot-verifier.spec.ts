@@ -1,3 +1,5 @@
+import { FhirClientError } from '@medcenter/fhir';
+
 import { buildCodeSystems, buildValueSets, buildExpansionChecks } from './snapshot-resources';
 import { SnapshotVerificationError, findRejectedCodes, verifySnapshot, type VerifyOptions } from './snapshot-verifier';
 import { createFakeTerminologyHapi, type FakeTerminologyHapi } from './__tests__/fake-terminology-hapi';
@@ -76,5 +78,58 @@ describe('findRejectedCodes', () => {
     const rejected = await findRejectedCodes(fhir, { ...check, concepts: [...check.concepts, { code: 'Z99ZZ99', display: 'x' }] });
 
     expect(rejected).toEqual(['Z99ZZ99']);
+  });
+});
+
+describe('verifySnapshot against a HAPI that fails transiently', () => {
+  const RETRY: VerifyOptions = { ...OPTIONS, serverErrorDelayMs: 10, sleep: jest.fn().mockResolvedValue(undefined) };
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  function failing(error: FhirClientError, times: number, onOperation = '$expand'): FakeTerminologyHapi {
+    const fhir = seeded();
+    const served = fhir.operation.getMockImplementation() as NonNullable<ReturnType<typeof fhir.operation.getMockImplementation>>;
+    let left = times;
+    fhir.operation.mockImplementation(async (type, operation, params) => {
+      if (operation === onOperation && left > 0) {
+        left -= 1;
+        throw error;
+      }
+      return served(type, operation, params);
+    });
+    return fhir;
+  }
+
+  it('should retry $expand with a doubling pause and succeed when HAPI answers 503 twice', async () => {
+    const fhir = failing(new FhirClientError('POST', 'http://hapi/', 503), 2);
+
+    const reports = await verifySnapshot(fhir, RETRY);
+
+    expect(reports.every((report) => report.missingCodes.length === 0)).toBe(true);
+    expect(RETRY.sleep).toHaveBeenNthCalledWith(1, 10);
+    expect(RETRY.sleep).toHaveBeenNthCalledWith(2, 20);
+  });
+
+  it('should retry $validate-code on a 500 and on HAPI-2788 under a 4xx', async () => {
+    await verifySnapshot(failing(new FhirClientError('POST', 'http://hapi/', 500), 1, '$validate-code'), RETRY);
+    await verifySnapshot(failing(new FhirClientError('POST', 'http://hapi/', 404, 'HAPI-2788: not ready'), 1, '$validate-code'), RETRY);
+
+    expect(RETRY.sleep).toHaveBeenCalledTimes(2);
+  });
+
+  it('should give up with the HAPI error after the bounded number of retries when 500 persists', async () => {
+    const fhir = failing(new FhirClientError('POST', 'http://hapi/', 500), 1000);
+
+    await expect(verifySnapshot(fhir, RETRY)).rejects.toBeInstanceOf(FhirClientError);
+    expect(RETRY.sleep).toHaveBeenCalledTimes(8);
+  });
+
+  it('should not retry a 4xx answer', async () => {
+    const fhir = failing(new FhirClientError('POST', 'http://hapi/', 400), 1000);
+
+    await expect(verifySnapshot(fhir, RETRY)).rejects.toBeInstanceOf(FhirClientError);
+    expect(RETRY.sleep).not.toHaveBeenCalled();
   });
 });

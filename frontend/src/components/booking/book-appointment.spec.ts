@@ -2,7 +2,7 @@ jest.mock('@/lib/api/api-fetch', () => ({ apiFetch: jest.fn() }));
 
 import { apiFetch } from '@/lib/api/api-fetch';
 import type { ProblemDetails } from '@/lib/api/problem';
-import { bookAppointment, buildBookingRequest, classifyBookingFailure, reasonProblem, serverReasonMessage } from './book-appointment';
+import { bookAppointment, buildBookingRequest, classifyBookingFailure } from './book-appointment';
 
 const apiFetchMock = apiFetch as jest.MockedFunction<(path: string, options?: RequestInit) => Promise<unknown>>;
 
@@ -10,45 +10,21 @@ function problem(overrides: Partial<ProblemDetails>): ProblemDetails {
   return { title: 'Error', status: 400, errorCode: 'VALIDATION_ERROR', ...overrides };
 }
 
-describe('reasonProblem', () => {
-  it('should accept the booking when the reason is missing', () => {
-    expect(reasonProblem('')).toBeNull();
-    expect(reasonProblem('   ')).toBeNull();
-  });
-
-  it('should refuse a reason when it is shorter than three characters after trimming', () => {
-    expect(reasonProblem(' ab ')).toBe('tooShort');
-  });
-
-  it('should accept a reason when it has three or five hundred characters', () => {
-    expect(reasonProblem('abc')).toBeNull();
-    expect(reasonProblem('x'.repeat(500))).toBeNull();
-  });
-
-  it('should refuse a reason when it has more than five hundred characters', () => {
-    expect(reasonProblem('x'.repeat(501))).toBe('tooLong');
-  });
-});
-
 describe('buildBookingRequest', () => {
   it('should be null when no slot is chosen yet', () => {
-    expect(buildBookingRequest({ slotId: null, serviceId: null, reason: '' })).toBeNull();
+    expect(buildBookingRequest({ slotId: null, serviceId: null })).toBeNull();
   });
 
-  it('should send only the slot when no service and no reason were given', () => {
-    expect(buildBookingRequest({ slotId: 'slot-1', serviceId: null, reason: '  ' })).toEqual({ slotId: 'slot-1' });
+  it('should send only the slot when no service was given', () => {
+    expect(buildBookingRequest({ slotId: 'slot-1', serviceId: null })).toEqual({ slotId: 'slot-1' });
   });
 
-  it('should send the service and the trimmed reason when they were given', () => {
-    expect(buildBookingRequest({ slotId: 'slot-1', serviceId: 'svc-1', reason: ' Болит спина ' })).toEqual({
-      slotId: 'slot-1',
-      serviceId: 'svc-1',
-      reason: 'Болит спина',
-    });
+  it('should send the service and never a free-text reason when the service was given', () => {
+    expect(buildBookingRequest({ slotId: 'slot-1', serviceId: 'svc-1' })).toEqual({ slotId: 'slot-1', serviceId: 'svc-1' });
   });
 
   it('should not name a patient when the request body is built', () => {
-    const body = buildBookingRequest({ slotId: 'slot-1', serviceId: null, reason: '' });
+    const body = buildBookingRequest({ slotId: 'slot-1', serviceId: null });
 
     expect(Object.keys(body ?? {})).not.toContain('patient');
   });
@@ -85,12 +61,6 @@ describe('classifyBookingFailure', () => {
     expect(classifyBookingFailure(failure)).toBe('mismatch');
   });
 
-  it('should read the problem as a field problem when the server complains about the reason', () => {
-    const failure = problem({ details: [{ field: 'reason', message: 'reason must be longer than or equal to 3 characters' }] });
-
-    expect(classifyBookingFailure(failure)).toBe('reason');
-  });
-
   it('should read the problem as a missing slot when the server complains about the slot id', () => {
     const failure = problem({ details: [{ field: 'slotId', message: 'slotId must be a FHIR resource id' }] });
 
@@ -100,17 +70,5 @@ describe('classifyBookingFailure', () => {
   it('should treat the problem as retryable when it is anything else', () => {
     expect(classifyBookingFailure(problem({ status: 500, errorCode: 'INTERNAL' }))).toBe('other');
     expect(classifyBookingFailure(problem({ status: 400, detail: 'something' }))).toBe('other');
-  });
-});
-
-describe('serverReasonMessage', () => {
-  it('should hand back the localized server words when the problem names the reason field', () => {
-    const failure = problem({ details: [{ field: 'reason', message: 'reason must be longer than or equal to 3 characters' }] });
-
-    expect(serverReasonMessage(failure)).toBe('Слишком короткое значение');
-  });
-
-  it('should be null when the reason was not mentioned', () => {
-    expect(serverReasonMessage(problem({}))).toBeNull();
   });
 });

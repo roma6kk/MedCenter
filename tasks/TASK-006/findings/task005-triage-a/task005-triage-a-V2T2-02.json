@@ -1,0 +1,19 @@
+{
+  "id": "task005-triage-a-V2T2-02",
+  "unit": "task005-triage-a",
+  "kind": "question",
+  "severity": "low",
+  "title": "Список пользователей админки: «Медкарта №…» и «Кабинет …» в колонке «Связи» требуют бэкенда — нужны ли они?",
+  "description": "Колонка «Связи» уже показывает человекочитаемо: чип «Пациент» или «Врач · специальность» (специальность берётся из каталога врачей по PractitionerRole), сырая ссылка Patient/… или PractitionerRole/… лежит в подсказке. Две оставшиеся идеи нельзя сделать только на фронтенде: (1) номера медкарты в системе нет (у Patient единственный идентификатор — id учётной записи, см. T1-02); (2) кабинет — свойство расписания (одно расписание = врач + кабинет + услуга), у врача их может быть несколько (в демо у кардиолога кабинеты 204 и 210), а поле DoctorResponseDto.roomId объявлено в спецификации 4.1/4.2, но нигде не заполняется. Для администратора, ведущего учётные записи, этого достаточно: кабинеты и расписания он видит в своих разделах.",
+  "evidence": "frontend/src/components/admin/users/users-table.tsx:62-80 LinkChips (role chips + specialty from the catalogue, raw reference in title); apps/auth-service/src/modules/users/user-view.mapper.ts:19-20 returns only patientRef / practitionerRoleRef; tools/demo-seed/demo-catalog.ts:148-157 'One Schedule = one (PractitionerRole, room, service)', petrov has room-204 and room-210; apps/practitioner-service/src/modules/doctors/dto/doctor-response.dto.ts:13 declares roomId, a grep for roomId in apps/practitioner-service/src/modules/doctors finds only the DTO and doc files (nothing populates it).",
+  "files": [
+    "frontend/src/components/admin/users/users-table.tsx",
+    "apps/auth-service/src/modules/users/user-view.mapper.ts",
+    "apps/practitioner-service/src/modules/doctors/dto/doctor-response.dto.ts"
+  ],
+  "proposedFix": "Option 1: no change except removing the dead DoctorResponseDto.roomId (dto, doc and specs/api-designer-spec.md 4.1/4.2). Option 3 would add an optional list of rooms to the admin user view, built from the doctor's active Schedules.",
+  "needsDecision": true,
+  "decisionQuestion": "Нужны ли в таблице пользователей «Медкарта №» и «Кабинет»? Варианты: (1) нет, оставить чипы «Пациент» / «Врач · специальность» (рекомендация); (2) добавить номер медкарты, если он вообще будет введён (T1-02, вариант 2); (3) для врача показывать кабинеты из его расписаний (новое поле в админском ответе). Заодно: поле roomId в DoctorResponseDto (спецификация 4.1/4.2) нигде не заполняется — убрать его из DTO и спецификации (рекомендация) или заполнять?",
+  "tzRef": "Администратор: управление пользователями; FR-015",
+  "confidence": "confirmed"
+}

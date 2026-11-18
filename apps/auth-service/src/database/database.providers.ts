@@ -6,12 +6,7 @@ import { buildDataSource, type PostgresConnectionOptions } from './typeorm.confi
 
 export const AUTH_DATA_SOURCE = Symbol('AUTH_DATA_SOURCE');
 
-/**
- * Opens the `auth` schema and applies pending migrations before the service
- * accepts traffic (never `synchronize`). The schema must exist before TypeORM
- * creates its migrations table inside it.
- */
-export async function openAuthDataSource(connection: PostgresConnectionOptions): Promise<DataSource> {
+async function openAuthDataSource(connection: PostgresConnectionOptions): Promise<DataSource> {
   const dataSource = await buildDataSource(connection).initialize();
   try {
     await dataSource.query('CREATE SCHEMA IF NOT EXISTS "auth"');
@@ -29,7 +24,6 @@ export const authDataSourceProvider: Provider = {
   useFactory: (): Promise<DataSource> => openAuthDataSource(parseDatabaseEnv(process.env)),
 };
 
-/** Closes the pool on shutdown so `enableShutdownHooks()` drains cleanly. */
 @Injectable()
 export class AuthDataSourceCloser implements OnApplicationShutdown {
   private readonly logger = new Logger(AuthDataSourceCloser.name);

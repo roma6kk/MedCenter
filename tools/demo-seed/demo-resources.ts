@@ -1,5 +1,6 @@
 import { FHIR_BY } from '../../libs/terminology/src/lib/canonical-urls';
 import { MEDCENTER_EXT } from '../../libs/terminology/src/lib/extension-urls';
+import { translationExtension } from '../../libs/fhir-mappers/src/lib/translation';
 import type { FhirResource } from '../shared/fhir-http';
 import {
   CLINIC,
@@ -16,18 +17,8 @@ import { CODE_SYSTEMS, DEMO_SEED_TAG, demoIds, IDENTIFIER_SYSTEMS } from './demo
 import { doctorOf, nsiServiceDisplay, roomOf, serviceOf, specialtyOf } from './demo-lookup';
 import { clinicWindows, type WeeklyWindow } from './demo-slots';
 
-/**
- * Pure R4 builders of the clinic's reference data. Each resource has the shape
- * the BFF services read and write (see the per-builder notes): extensions come
- * from `MEDCENTER_EXT`, the service type from the НСИ ЦИСЗ canonical, the
- * specialty is a SNOMED CT concept (what `PractitionerRole.specialty` carries
- * across the services). Only HL7 FHIR International R4 elements are used.
- */
-
 export interface Horizon {
-  /** First day of the planning horizon, `YYYY-MM-DD`. */
   readonly from: string;
-  /** Last day of the planning horizon (inclusive), `YYYY-MM-DD`. */
   readonly to: string;
 }
 
@@ -40,10 +31,15 @@ export function fullNameOf(doctor: DoctorDef): string {
   return `${doctor.family} ${doctor.given} ${doctor.patronymic}`;
 }
 
+function english(content: string): Json {
+  return { extension: [translationExtension('en', content)] };
+}
+
 function specialtyConcept(specialty: SpecialtyDef): Json {
   return {
-    coding: [{ system: CODE_SYSTEMS.SNOMED_CT, code: specialty.code, display: specialty.display }],
+    coding: [{ system: CODE_SYSTEMS.SNOMED_CT, code: specialty.code, display: specialty.display, _display: english(specialty.displayEn) }],
     text: specialty.profession,
+    _text: english(specialty.professionEn),
   };
 }
 
@@ -51,7 +47,6 @@ function serviceTypeConcept(typeCode: string): Json {
   return { coding: [{ system: FHIR_BY.SERVICE_CODE_SYSTEM, code: typeCode, display: nsiServiceDisplay(typeCode) }] };
 }
 
-/** The clinic itself — the `managingOrganization` / `providedBy` / `organization` target of everything else. */
 export function buildOrganization(): FhirResource {
   return {
     resourceType: 'Organization',
@@ -79,10 +74,6 @@ export function buildOrganization(): FhirResource {
   };
 }
 
-/**
- * Rooms, written like `RoomsService.toLocation` (identifier value, `physicalType`
- * room, floor in the `ROOM_FLOOR` extension), plus `status` and the owner.
- */
 export function buildLocations(): FhirResource[] {
   return ROOMS.map((room) => ({
     resourceType: 'Location',
@@ -99,10 +90,6 @@ export function buildLocations(): FhirResource[] {
   }));
 }
 
-/**
- * Doctors. `toDoctorResponseDto` reads `name[0].given[0]` / `.family` and the
- * specialty from `qualification[0].code` (`text`, else `coding[0].display`).
- */
 export function buildPractitioners(): FhirResource[] {
   return DOCTORS.map((doctor) => ({
     resourceType: 'Practitioner',
@@ -115,7 +102,9 @@ export function buildPractitioners(): FhirResource[] {
         use: 'official',
         text: fullNameOf(doctor),
         family: doctor.family,
+        _family: english(doctor.familyEn),
         given: [doctor.given, doctor.patronymic],
+        _given: [english(doctor.givenEn), english(doctor.patronymicEn)],
       },
     ],
     gender: doctor.gender,
@@ -132,12 +121,6 @@ function distinct(values: readonly string[]): string[] {
   return [...new Set(values)];
 }
 
-/**
- * One role per doctor. `practitioner` is what `PractitionerRole:practitioner`
- * `_include`, the doctor-slots lookup (`PractitionerRole?practitioner=`) and the
- * appointment views follow; `healthcareService` is what `PractitionerRole?service=`
- * filters on (doctor catalog by service); `specialty` is a coded SNOMED CT concept.
- */
 export function buildPractitionerRoles(): FhirResource[] {
   return DOCTORS.map((doctor) => {
     const schedules = schedulesOf(doctor);
@@ -158,12 +141,6 @@ export function buildPractitionerRoles(): FhirResource[] {
   });
 }
 
-/**
- * Services, written like `ServicesService.toHealthcareService`: `type` coded in
- * `nsi-services`, duration in `SERVICE_DEFAULT_DURATION`, description in
- * `comment`. Provider, location and specialty are derived from the schedules
- * that offer the service.
- */
 export function buildHealthcareServices(): FhirResource[] {
   return SERVICES.map((service) => {
     const offered = SCHEDULES.filter((schedule) => schedule.serviceKey === service.key);
@@ -178,18 +155,18 @@ export function buildHealthcareServices(): FhirResource[] {
       specialty: [specialtyConcept(specialtyOf(doctor.specialtyKey))],
       location: distinct(offered.map((schedule) => schedule.roomKey)).map((key) => ref('Location', demoIds.room(key))),
       name: service.name,
+      _name: english(service.nameEn),
       comment: service.description,
+      _comment: english(service.descriptionEn),
       extension: [{ url: MEDCENTER_EXT.SERVICE_DEFAULT_DURATION, valueInteger: service.durationMin }],
     };
   });
 }
 
-/** Weekly windows in clinic wall-clock time (API §5.2.1) — stored as is, the generator reads them as such. */
 export function windowsOf(schedule: ScheduleDef): WeeklyWindow[] {
   return clinicWindows(schedule.days, schedule.localStart, schedule.localEnd);
 }
 
-/** The three actors of a schedule, in the order `SchedulesService.create` writes them. */
 export function scheduleActors(schedule: ScheduleDef): Array<{ reference: string }> {
   return [
     ref('PractitionerRole', demoIds.practitionerRole(schedule.doctorKey)),
@@ -204,12 +181,6 @@ function comment(schedule: ScheduleDef): string {
   return `${service.name}, ${room.name}: ${schedule.days.join('/')} ${schedule.localStart}-${schedule.localEnd} (время клиники, Минск)`;
 }
 
-/**
- * Schedules, written like `SchedulesService.create`: actors
- * [PractitionerRole, Location, HealthcareService] and the three extensions
- * (slot duration, weekly windows as a JSON string in clinic time, planning horizon).
- * `serviceType` repeats the service code natively so `Schedule?service-type=` works.
- */
 export function buildSchedules(horizon: Horizon): FhirResource[] {
   return SCHEDULES.map((schedule) => ({
     resourceType: 'Schedule',

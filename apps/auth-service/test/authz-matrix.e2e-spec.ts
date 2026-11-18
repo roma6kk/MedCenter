@@ -23,22 +23,18 @@ const VALIDATION = {
 
 type Caller = 'administrator' | 'doctor' | 'patient';
 
-/** Who may call the endpoint: the role pin narrows it to ADMIN, the scope pin excludes the PATIENT token. */
 function allowedCallers(endpoint: ProtectedEndpoint): ReadonlyArray<Caller> {
-  if (endpoint.role !== null) {
+  if (endpoint.role === Role.ADMIN) {
     return ['administrator'];
+  }
+  if (endpoint.role === Role.PATIENT) {
+    return ['patient'];
   }
   return endpoint.scope === null
     ? ['administrator', 'doctor', 'patient']
     : ['administrator', 'doctor'];
 }
 
-/**
- * Perimeter matrix over every protected route of the service: anonymous, malformed credential,
- * wrong scope, wrong role, and the one caller the handler is meant for (ADR-009, API §0 scope
- * matrix). Refused calls carry a *valid* request, so a guard that failed open would change state;
- * each refusal asserts that neither `auth` nor HAPI was written.
- */
 describe('Authorization matrix of the protected endpoints', () => {
   let fixture: AdminFixture;
   let app: INestApplication;
@@ -150,7 +146,7 @@ describe('Authorization matrix of the protected endpoints', () => {
       });
     }
 
-    if (endpoint.role !== null) {
+    if (endpoint.role === Role.ADMIN) {
       it('should answer 403 FORBIDDEN_ROLE and change nothing when a doctor, who holds the user scopes, calls it', async () => {
         const before = writes();
 
@@ -175,12 +171,30 @@ describe('Authorization matrix of the protected endpoints', () => {
       });
     }
 
+    if (endpoint.role === Role.PATIENT) {
+      it.each(['administrator', 'doctor'] as const)(
+        'should answer 403 FORBIDDEN_ROLE and change nothing when the %s calls a patient-only endpoint',
+        async (caller) => {
+          const before = writes();
+
+          const response = await call(endpoint, authorization[caller]);
+
+          expect(response.status).toBe(403);
+          expect(response.body).toMatchObject({ errorCode: 'FORBIDDEN_ROLE' });
+          expect(writes()).toBe(before);
+        },
+      );
+    }
+
     it.each(allowedCallers(endpoint))(
       'should reach the handler when the %s calls it',
       async (caller) => {
         const response = await call(endpoint, authorization[caller], true);
 
         expect(response.status).toBe(endpoint.reached.status);
+        if (endpoint.reached.errorCode !== undefined) {
+          expect(response.body).toMatchObject({ errorCode: endpoint.reached.errorCode });
+        }
       },
     );
   });

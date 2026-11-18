@@ -1,17 +1,5 @@
 import type { FhirClient, FhirResource } from '@medcenter/fhir';
 
-/**
- * Idempotent upsert of a canonical (`url`-identified) terminology resource.
- * Mirrors `tools/terminology-seed/canonical-upsert.ts` over the service's
- * `FhirClient`.
- *
- * A canonical resource is identified by its `url`, not by its id, and earlier
- * seed runs created resources with server-assigned ids via `POST`. The upsert
- * therefore resolves the target id by canonical: an existing resource is
- * updated in place, otherwise the deterministic id is created — re-running the
- * import never yields a second resource for the same canonical.
- */
-
 export interface CanonicalResource extends FhirResource {
   readonly id: string;
   readonly url: string;
@@ -20,7 +8,6 @@ export interface CanonicalResource extends FhirResource {
 export interface UpsertPlan {
   readonly id: string;
   readonly action: 'created' | 'updated';
-  /** Ids of legacy resources that must be deleted before the upsert (see {@link isTermIndexedCodeSystem}). */
   readonly retireIds: readonly string[];
 }
 
@@ -29,13 +16,7 @@ export interface UpsertResult extends UpsertPlan {
   readonly url: string;
 }
 
-/**
- * A CodeSystem HAPI has indexed into its terminology tables (`content`
- * complete / not-present / absent). Such a canonical is expanded through the
- * database path, which needs Hibernate Search — so a legacy `complete` copy
- * left by an old seed would keep `$expand` failing even after the resource is
- * rewritten as `fragment`. Only deleting it drops the index rows.
- */
+/** A CodeSystem HAPI has indexed into its terminology tables (`content` complete / not-present / absent) is expanded through those tables, so a legacy copy must be deleted before the upsert. */
 export function isTermIndexedCodeSystem(resource: FhirResource): boolean {
   if (resource.resourceType !== 'CodeSystem') {
     return false;
@@ -44,7 +25,6 @@ export function isTermIndexedCodeSystem(resource: FhirResource): boolean {
   return content === undefined || content === 'complete' || content === 'not-present';
 }
 
-/** Pure decision: which id to write, and which legacy copies to retire first. */
 export function planCanonicalUpsert(desired: CanonicalResource, existing: readonly FhirResource[]): UpsertPlan {
   const desiredIsIndexed = isTermIndexedCodeSystem(desired);
   const retire = existing.filter((resource) => !desiredIsIndexed && isTermIndexedCodeSystem(resource));
@@ -63,7 +43,6 @@ export function planCanonicalUpsert(desired: CanonicalResource, existing: readon
   };
 }
 
-/** Resources of `resourceType` that already carry the canonical `url`. */
 export async function findByCanonical(
   fhir: FhirClient,
   resourceType: string,

@@ -1,10 +1,4 @@
-/**
- * problem — RFC 7807 `application/problem+json` as the BFF services send it (api-designer-spec §1).
- *
- * The client keeps its own copy of the `libs/contracts` ERROR_CODES catalogue (`frontend/` has no path to
- * `libs/`). `libs/contracts/.../error-code.frontend-parity.spec.ts` parses the array literal below with a regex, so keep
- * it a plain list of quoted codes, one per line, and do not repeat the declaration text in a comment.
- */
+// libs/contracts error-code.frontend-parity.spec.ts parses ERROR_CODES with a regex: keep it a plain list of quoted codes, one per line.
 export const ERROR_CODES = [
   'VALIDATION_ERROR',
   'UNAUTHENTICATED',
@@ -19,11 +13,14 @@ export const ERROR_CODES = [
   'APPOINTMENT_NOT_CANCELLABLE',
   'CONSENT_REQUIRED',
   'CONSENT_ALREADY_ACTIVE',
+  'ACCOUNT_CONSENT_WITHDRAWN',
+  'INVALID_PASSWORD',
   'ENCOUNTER_STATE_INVALID',
   'SCHEDULE_OVERLAP',
   'SCHEDULE_IN_USE',
   'ROOM_IN_USE',
   'SERVICE_IN_USE',
+  'AGE_RESTRICTED',
   'INVALID_ICD10_CODE',
   'TERMINOLOGY_NOT_FOUND',
   'RATE_LIMITED',
@@ -32,7 +29,6 @@ export const ERROR_CODES = [
 
 export type ErrorCode = (typeof ERROR_CODES)[number];
 
-/** One violated constraint of a `VALIDATION_ERROR` (`details[]`); a field can carry several. */
 export interface FieldErrorDetail {
   readonly field: string;
   readonly message: string;
@@ -47,7 +43,6 @@ export interface ProblemDetails {
   readonly errorCode: ErrorCode;
   readonly requestId?: string;
   readonly details?: ReadonlyArray<FieldErrorDetail>;
-  /** Seconds to wait, from the `Retry-After` header of a 429 (or the body when the service sends it there). */
   readonly retryAfter?: number;
 }
 

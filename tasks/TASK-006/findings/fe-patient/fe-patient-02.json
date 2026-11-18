@@ -1,0 +1,19 @@
+{
+  "id": "fe-patient-02",
+  "unit": "fe-patient",
+  "kind": "bug",
+  "severity": "low",
+  "title": "В блоке «Согласие на электронную карту» дата вступления в силу выводится сырой строкой, если signedAt пришёл с временем",
+  "description": "API согласия (3.8) принимает signedAt как дату YYYY-MM-DD или как RFC 3339 (@IsISO8601), хранит значение как есть в Consent.dateTime и отдаёт его обратно; тип ConsentRecord.signedAt в клиенте так и описан. Две из трёх мест показа учитывают обе формы (consent-status-line.tsx: numericDate = isDateKey ? value : clinicDayOf(value); consent-status-view.tsx: format.date()), а строка-резюме в кабинете пациента вызывает formatDateKey(signedAt, 'numeric') напрямую. formatDateKey возвращает не-дату без изменений, поэтому пациенту, чьё согласие внесено через API с временем, показывается «действует с 2026-10-22T09:00:00.000Z» вместо «22.10.2026». UI-форма и сидеры шлют только дату, поэтому в демо это не видно.",
+  "evidence": "frontend/src/components/consent/my-consent-section.tsx:29 `formatDateKey(consent.active.signedAt, 'numeric')`; frontend/src/lib/clinic-time.ts:180-184 (`if (!isDateKey(dateKey)) return dateKey;`); frontend/src/components/consent/consent-status-line.tsx:18-20 (the correct numericDate helper, private to that file); apps/patient-service/src/modules/consents/dto/create-consent.dto.ts:29-30 (`@IsISO8601() signedAt`, doc «YYYY-MM-DD or RFC 3339»). Scenario: POST /patients/{id}/consent with signedAt=\"2026-10-22T09:00:00Z\" -> GET /me/consent -> profile page line shows the raw ISO string.",
+  "files": [
+    "frontend/src/components/consent/my-consent-section.tsx",
+    "frontend/src/components/consent/consent-status-line.tsx",
+    "frontend/src/components/consent/consent-types.ts"
+  ],
+  "proposedFix": "Move `numericDate` out of consent-status-line.tsx into one exported helper (e.g. `consentDayOf(signedAt)` in consent-types.ts or `formatDayOrInstant(value, style)` in lib/clinic-time.ts) and use it in both consent-status-line.tsx and my-consent-section.tsx. Add a case to my-consent-section.spec.tsx with signedAt '2026-10-22T09:00:00.000Z' expecting '22.10.2026'.",
+  "needsDecision": false,
+  "decisionQuestion": "",
+  "tzRef": "FR-001 / ADR-019 (согласие на электронную карту), api-designer-spec §3.4",
+  "confidence": "confirmed"
+}

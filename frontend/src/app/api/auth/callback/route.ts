@@ -9,30 +9,32 @@ import { ROLE_LANDING, resolvePostLoginPath } from '@/lib/auth/user-role';
 
 export const dynamic = 'force-dynamic';
 
-const FALLBACK_LANDING = ROLE_LANDING.PATIENT;
+const DENIED = 'access_denied';
+const UNAVAILABLE = 'temporarily_unavailable';
 
-function failure(): NextResponse {
-  const response: NextResponse = NextResponse.redirect(publicUrl('/login?error=access_denied'));
+function failure(code: string = DENIED, returnTo: string | null = null): NextResponse {
+  const suffix = returnTo === null ? '' : `&returnTo=${encodeURIComponent(returnTo)}`;
+  const response = NextResponse.redirect(publicUrl(`/login?error=${code}${suffix}`));
   clearPkceCookie(response);
   return response;
 }
 
 function successTarget(tokens: TokenSet, input: CallbackInput): string {
   const { role } = buildSessionPayload(tokens);
-  const requested: string = input.returnTo ?? (role === null ? FALLBACK_LANDING : ROLE_LANDING[role]);
+  const requested = input.returnTo ?? (role === null ? ROLE_LANDING.PATIENT : ROLE_LANDING[role]);
   return resolvePostLoginPath(role, requested);
 }
 
-/** PKCE callback: verifies state, exchanges the code, stores the refresh token and redirects (public origin only). */
+// A failure goes back to /login: access_denied when unverifiable or refused, temporarily_unavailable when auth-service could not answer.
 export async function GET(request: NextRequest): Promise<NextResponse> {
-  const input: CallbackInput | null = parseCallback(request.nextUrl.searchParams, request.cookies.get(PKCE_COOKIE)?.value);
+  const input = parseCallback(request.nextUrl.searchParams, request.cookies.get(PKCE_COOKIE)?.value);
   if (input === null) return failure();
 
-  const tokens: TokenSet | null = await exchangeAuthorizationCode(input);
-  if (tokens === null) return failure();
+  const exchange = await exchangeAuthorizationCode(input);
+  if (!exchange.ok) return failure(exchange.reason === 'unavailable' ? UNAVAILABLE : DENIED, input.returnTo);
 
-  const response: NextResponse = NextResponse.redirect(publicUrl(successTarget(tokens, input)));
-  setSessionCookies(response, tokens, isSecureOrigin(resolvePublicOrigin()));
+  const response = NextResponse.redirect(publicUrl(successTarget(exchange.tokens, input)));
+  setSessionCookies(response, exchange.tokens, isSecureOrigin(resolvePublicOrigin()));
   clearPkceCookie(response);
   return response;
 }

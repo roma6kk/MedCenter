@@ -56,6 +56,32 @@ describe('HistoryService', () => {
     expect(page.items[0]).toEqual(expect.objectContaining({ practitionerRoleId: 'role-1', doctorName: 'Иванов Иван Иванович' }));
   });
 
+  it('should name the doctor by the translated name in English and by the stored name in Russian', async () => {
+    const translation = (content: string): Record<string, unknown> => ({
+      extension: [{ url: 'http://hl7.org/fhir/StructureDefinition/translation', extension: [{ url: 'lang', valueCode: 'en' }, { url: 'content', valueString: content }] }],
+    });
+    fhir.search.mockResolvedValue({
+      total: 1,
+      entry: [
+        { resource: finishedEncounter },
+        { resource: { resourceType: 'PractitionerRole', id: 'role-1', practitioner: { reference: 'Practitioner/doc-1' } } },
+        {
+          resource: {
+            resourceType: 'Practitioner',
+            id: 'doc-1',
+            name: [{ family: 'Иванова', _family: translation('Ivanova'), given: ['Мария', 'Сергеевна'], _given: [translation('Maria'), translation('Sergeevna')], text: 'Иванова Мария Сергеевна' }],
+          },
+        },
+      ],
+    });
+
+    const english = await service.historyOf('Patient/pat-1', QUERY, 'en');
+    const russian = await service.historyOf('Patient/pat-1', QUERY, 'ru');
+
+    expect(english.items[0]?.doctorName).toBe('Ivanova Maria Sergeevna');
+    expect(russian.items[0]?.doctorName).toBe('Иванова Мария Сергеевна');
+  });
+
   it('should omit the doctor name when the role or practitioner did not come back', async () => {
     fhir.search.mockResolvedValue({
       total: 1,

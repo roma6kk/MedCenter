@@ -3,6 +3,7 @@ import {
   Controller,
   Delete,
   Get,
+  Headers,
   HttpCode,
   HttpStatus,
   Param,
@@ -21,6 +22,7 @@ import {
   type AuditedRequest,
 } from '@medcenter/common';
 import { DEFAULT_PAGE, DEFAULT_PAGE_SIZE, Role } from '@medcenter/contracts';
+import { resolveContentLanguage } from '@medcenter/fhir-mappers';
 
 import { FhirIdParamDto } from '../../common/fhir-id-param.dto';
 import { CreateServiceDto } from './dto/create-service.dto';
@@ -30,7 +32,6 @@ import { ServicePageDoc, ServiceResponseDoc } from './dto/service-response.doc';
 import type { ServiceResponseDto } from './dto/service-response.dto';
 import { ServicesService, type ServicePage } from './services.service';
 
-/** API §5.1. Public reads; admin writes carry `ADMIN` (BR-007). */
 @ApiTags('catalog')
 @Controller('api/v1')
 export class ServicesController {
@@ -38,14 +39,15 @@ export class ServicesController {
 
   @Public()
   @Get('services')
-  @ApiOperation({ summary: '5.1.1 List the service catalogue' })
+  @ApiOperation({ summary: '5.1.1 List the service catalogue (name and description follow Accept-Language: en, else ru)' })
   @ApiResponse({ status: 200, description: 'A page of services', type: ServicePageDoc })
   @ApiProblems([400, 429, 500])
-  async list(@Query() query: ListServicesQueryDto): Promise<ServicePage> {
+  async list(@Query() query: ListServicesQueryDto, @Headers('accept-language') acceptLanguage?: string): Promise<ServicePage> {
     return this.servicesService.list(
       query.page ?? DEFAULT_PAGE,
       query.pageSize ?? DEFAULT_PAGE_SIZE,
       query.search,
+      resolveContentLanguage(acceptLanguage),
     );
   }
 
@@ -53,9 +55,27 @@ export class ServicesController {
   @Get('services/:id')
   @ApiOperation({ summary: '5.1.2 Get a service' })
   @ApiResponse({ status: 200, description: 'The service', type: ServiceResponseDoc })
-  @ApiProblems([400, 404, 429, 500])
-  async findById(@Param() params: FhirIdParamDto): Promise<ServiceResponseDto> {
-    return this.servicesService.findById(params.id);
+  @ApiProblems([400, 404, 429, 500], { 404: 'NOT_FOUND: no such service, or it is deactivated' })
+  async findById(
+    @Param() params: FhirIdParamDto,
+    @Headers('accept-language') acceptLanguage?: string,
+  ): Promise<ServiceResponseDto> {
+    return this.servicesService.findById(params.id, resolveContentLanguage(acceptLanguage));
+  }
+
+  @Get('admin/services')
+  @RequiresRoles(Role.ADMIN)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: '5.1.6 List the services for the administrator, deactivated ones included' })
+  @ApiResponse({ status: 200, description: 'A page of services', type: ServicePageDoc })
+  @ApiProblems([...GUARD_PROBLEM_STATUSES, 400])
+  async listAll(@Query() query: ListServicesQueryDto, @Headers('accept-language') acceptLanguage?: string): Promise<ServicePage> {
+    return this.servicesService.listAll(
+      query.page ?? DEFAULT_PAGE,
+      query.pageSize ?? DEFAULT_PAGE_SIZE,
+      query.search,
+      resolveContentLanguage(acceptLanguage),
+    );
   }
 
   @Post('admin/services')
@@ -96,7 +116,7 @@ export class ServicesController {
   @ApiOperation({ summary: '5.1.5 Delete a service' })
   @ApiResponse({ status: 204, description: 'The service is deleted' })
   @ApiProblems([...GUARD_PROBLEM_STATUSES, 400, 404, 409], {
-    409: 'SERVICE_IN_USE: a Schedule still references the service',
+    409: 'SERVICE_IN_USE: a Schedule or a doctor role still references the service',
   })
   @HttpCode(HttpStatus.NO_CONTENT)
   async remove(@Req() request: AuditedRequest, @Param() params: FhirIdParamDto): Promise<void> {

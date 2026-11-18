@@ -44,11 +44,9 @@ describe('clinicDateOf', () => {
 });
 
 describe('expandSlotIntervals', () => {
-  /** Clinic time: 09:00 in Minsk is 06:00Z. */
   const monday: readonly WeeklyWindow[] = [{ dayOfWeek: 'MO', startTime: '09:00', endTime: '10:30' }];
 
   it('should cut a clinic-time window into back-to-back UTC slots of the given length', () => {
-    // 2026-11-02 is a Monday.
     expect(expandSlotIntervals('2026-11-02', '2026-11-02', monday, 30)).toEqual([
       { start: '2026-11-02T06:00:00.000Z', end: '2026-11-02T06:30:00.000Z' },
       { start: '2026-11-02T06:30:00.000Z', end: '2026-11-02T07:00:00.000Z' },
@@ -69,7 +67,6 @@ describe('expandSlotIntervals', () => {
   });
 
   it('should use the clinic weekday when a window starts just after local midnight', () => {
-    // Monday 00:30 in Minsk is Sunday 21:30Z: the slot belongs to the clinic Monday.
     const night: readonly WeeklyWindow[] = [{ dayOfWeek: 'MO', startTime: '00:30', endTime: '01:00' }];
 
     expect(expandSlotIntervals('2026-11-02', '2026-11-02', night, 30)).toEqual([

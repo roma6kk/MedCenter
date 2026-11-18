@@ -10,9 +10,8 @@ import { REPORTS_REPOSITORY, type ReportsRepository } from '../src/modules/repor
 import { READ_MODEL_WRITER, type ReadModelWriter } from '../src/modules/worker/read-model.writer';
 import { applyE2eEnv } from './e2e-env';
 import { InMemoryAuditRepository } from './in-memory-audit.repository';
-import { startTestIssuer, type TestIssuer } from './test-tokens';
+import { startTestIssuer, type TestIssuer } from '@medcenter/testing';
 
-/** HAPI stand-in: every FHIR call the service makes is observable and scriptable. */
 export type FakeFhir = jest.Mocked<FhirClient>;
 
 export interface AppHarness {
@@ -53,11 +52,6 @@ const UNUSED_WRITER: ReadModelWriter = {
   applyEncounterCompleted: () => Promise.reject(new Error('the worker is disabled in e2e')),
 };
 
-/**
- * Boots the real `AppModule` — global guard stack, validation pipe, RFC 7807
- * filter — over a fake FHIR client and in-memory read-model repositories, so
- * HTTP behaviour is tested without HAPI, PostgreSQL, Redis or RabbitMQ.
- */
 export async function startAppHarness(extraControllers: ReadonlyArray<Type<unknown>> = []): Promise<AppHarness> {
   applyE2eEnv();
   const issuer = await startTestIssuer();

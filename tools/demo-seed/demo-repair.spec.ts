@@ -13,7 +13,6 @@ function bundleOf(resources: readonly unknown[], total?: number): unknown {
   return { resourceType: 'Bundle', ...(total === undefined ? {} : { total }), entry: resources.map((resource) => ({ resource })) };
 }
 
-/** A HAPI stand-in answering by resource type; `batchStatuses` are the per-entry outcomes of the batch. */
 function fakeHapi(data: { encounters: unknown[]; booked: unknown[]; locations?: unknown[]; services?: unknown[]; inactive?: number; batchStatuses?: string[] }): { fetchImpl: FetchLike; calls: Call[] } {
   const calls: Call[] = [];
   const fetchImpl: FetchLike = async (raw, init) => {

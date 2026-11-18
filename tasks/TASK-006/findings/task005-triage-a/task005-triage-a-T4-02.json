@@ -1,0 +1,19 @@
+{
+  "id": "task005-triage-a-T4-02",
+  "unit": "task005-triage-a",
+  "kind": "question",
+  "severity": "low",
+  "title": "Черновик формы приёма хранится только в localStorage (до 3 дней, стирается при выходе): нужен серверный черновик?",
+  "description": "Черновик устроен аккуратно: автосохранение с задержкой, сброс при pagehide / скрытии вкладки / размонтировании, восстановление с плашкой, срок жизни 3 дня, не более 10 черновиков и 200 КБ, ключ — id приёма, без имени и идентификатора пациента; при явном выходе (logout) все черновики стираются, а при «умершей» сессии остаются, чтобы врач мог войти снова и продолжить. Серверного черновика нет, потому что у encounter-service единственная запись клинического содержимого — атомарное завершение 7.3. Ограничение известно: черновик не переезжает между устройствами и браузерами. Серверный вариант — это новый эндпоинт, хранение клинического текста до завершения (аудит, согласие ADR-019) и отдельное решение в ADR.",
+  "evidence": "frontend/src/lib/encounter-draft.ts:1-17 (local only by design, DRAFT_MAX_AGE_MS = 3 days, MAX_DRAFTS = 10, MAX_BYTES = 200_000); frontend/src/components/doctor/use-encounter-draft.ts:78-100 flush on pagehide / visibilitychange / unmount; frontend/src/lib/auth/session-client.ts:114-120 logout() calls clearAllDrafts(), endRevokedSession() does not. Related finding from another unit: fe-doctor-08 (a draft stays in localStorage when the visit was completed elsewhere).",
+  "files": [
+    "frontend/src/lib/encounter-draft.ts",
+    "frontend/src/components/doctor/use-encounter-draft.ts",
+    "frontend/src/lib/auth/session-client.ts"
+  ],
+  "proposedFix": "None for option 1. For option 2: PUT/GET /encounters/{id}/draft in encounter-service storing a FHIR Basic or a QuestionnaireResponse, participant-doctor access only, audit event, same consent gate as 7.3, TTL cleanup; frontend would sync the local draft to it.",
+  "needsDecision": true,
+  "decisionQuestion": "Нужен ли серверный черновик приёма? Варианты: (1) нет — локального автосохранения достаточно для одного рабочего места врача (рекомендация: клинический текст до завершения не должен лежать на сервере без отдельной проработки аудита и согласия); (2) да — новый эндпоинт черновика в encounter-service, отдельная задача на несколько дней вместе с тестами и ADR.",
+  "tzRef": "Врач: оформление результатов приёма; FR-011, A8",
+  "confidence": "confirmed"
+}

@@ -24,5 +24,5 @@ assert {
 }
 
 docs {
-  Spec 4.6. ADMIN. 204; 409 `ROOM_IN_USE` while an active `Schedule` uses the room (this request deletes the unused room created by 4.4).
+  Spec 4.6. ADMIN. 204; 409 `ROOM_IN_USE` while a `Schedule` (active or not), a doctor role (`PractitionerRole.location`) or a service (`HealthcareService.location`) references the room (this request deletes the unused room created by 4.4).
 }

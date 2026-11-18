@@ -3,14 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import type { RefObject } from 'react';
 
-/**
- * An action can remove the very control the keyboard user pressed (the "mark as read" button of an item that leaves the
- * "unread" list). The refreshed list is on screen once `version` (the read's `dataUpdatedAt`) differs from the one the action
- * started with; if the focus fell to the page body by then, it goes to the first target that exists: the list while it has
- * items, otherwise the panel that always does. A focus that is still on a real element is left alone.
- *
- * Returns `begin`: call it when the action starts, call what it returns when the action succeeded.
- */
+// The pressed control may leave the list: once the refreshed list is on screen, restore lost focus to the first existing target.
 export function useRestoreFocus(version: number, preferred: RefObject<HTMLElement>, fallback: RefObject<HTMLElement>): () => () => void {
   const [armedAt, setArmedAt] = useState<number | null>(null);
   useEffect(() => {

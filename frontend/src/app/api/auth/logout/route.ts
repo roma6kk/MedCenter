@@ -6,27 +6,28 @@ import { ACCESS_COOKIE, REFRESH_COOKIE, clearSessionCookies } from '@/lib/auth/s
 export const dynamic = 'force-dynamic';
 
 function bearerOf(request: NextRequest): string | null {
-  const header: string | null = request.headers.get('authorization');
-  const match: RegExpExecArray | null = header === null ? null : /^Bearer\s+(\S+)$/i.exec(header);
-  return match?.[1] ?? null;
+  return /^Bearer\s+(\S+)$/i.exec(request.headers.get('authorization') ?? '')?.[1] ?? null;
 }
 
-/** API 2.1.4 needs the owner's Bearer: the client's own, else the one the broker cached, else one minted from the refresh cookie. */
-async function revokeSession(refreshToken: string, bearer: string | null): Promise<void> {
-  if (bearer !== null) {
-    await revokeRefreshToken(refreshToken, bearer);
-    return;
-  }
+// An idle tab's Bearer is long expired (401), so a refused revoke falls back to a minted pair: otherwise the refresh token would stay valid 14 days after logout.
+async function revokeSession(refreshToken: string, bearer: string | null, reason: 'idle' | undefined): Promise<void> {
+  if (bearer !== null && (await revokeRefreshToken(refreshToken, bearer, undefined, reason))) return;
   const rotated = await rotateRefreshToken(refreshToken);
-  if (rotated.ok) await revokeRefreshToken(rotated.tokens.refreshToken, rotated.tokens.accessToken);
+  if (rotated.ok) await revokeRefreshToken(rotated.tokens.refreshToken, rotated.tokens.accessToken, undefined, reason);
+}
+
+// Only the client's own idle sign-out sends a body; auth-service still checks the session really was quiet before it journals the reason.
+async function readReason(request: NextRequest): Promise<'idle' | undefined> {
+  const body = (await request.json().catch(() => null)) as { readonly reason?: unknown } | null;
+  return body?.reason === 'idle' ? 'idle' : undefined;
 }
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
-  const refreshToken: string | undefined = request.cookies.get(REFRESH_COOKIE)?.value;
+  const refreshToken = request.cookies.get(REFRESH_COOKIE)?.value;
   if (refreshToken !== undefined && refreshToken.length > 0) {
-    await revokeSession(refreshToken, bearerOf(request) ?? request.cookies.get(ACCESS_COOKIE)?.value ?? null);
+    await revokeSession(refreshToken, bearerOf(request) ?? request.cookies.get(ACCESS_COOKIE)?.value ?? null, await readReason(request));
   }
-  const response: NextResponse = NextResponse.json({ loggedOut: true }, { headers: { 'Cache-Control': 'no-store' } });
+  const response = NextResponse.json({ loggedOut: true }, { headers: { 'Cache-Control': 'no-store' } });
   clearSessionCookies(response);
   return response;
 }

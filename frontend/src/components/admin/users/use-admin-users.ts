@@ -6,15 +6,14 @@ import type { PaginatedResponse } from '@/lib/api/pagination';
 import { queryKeys } from '@/lib/api/query-keys';
 import { withQuery } from '@/lib/api/query-string';
 import { useAdminMutation } from '../shared/use-admin-mutation';
-import type { AdminUser, CreateUserPayload, UpdateUserPayload, UserRole } from './user-types';
+import type { AdminUser, CreateUserPayload, RetentionExpiredAccount, UpdateUserPayload, UserRole } from './user-types';
 
-export const USERS_PAGE_SIZE = 10;
+const USERS_PAGE_SIZE = 10;
 
 export interface UsersFilter {
   readonly page: number;
   readonly role: UserRole | '';
   readonly search: string;
-  /** Page size override: the schedule pickers read all doctors at once. */
   readonly pageSize?: number;
 }
 
@@ -23,6 +22,15 @@ export function useAdminUsers(filter: UsersFilter): UseQueryResult<PaginatedResp
   return useQuery({
     queryKey: queryKeys.adminUsers(params),
     queryFn: () => apiFetch<PaginatedResponse<AdminUser>>(withQuery('/api/v1/admin/users', params)),
+    placeholderData: keepPreviousData,
+  });
+}
+
+export function useRetentionExpired(page: number): UseQueryResult<PaginatedResponse<RetentionExpiredAccount>, Error> {
+  const params = { page, pageSize: USERS_PAGE_SIZE };
+  return useQuery({
+    queryKey: queryKeys.adminUsers({ ...params, report: 'retention-expired' }),
+    queryFn: () => apiFetch<PaginatedResponse<RetentionExpiredAccount>>(withQuery('/api/v1/admin/users/retention-expired', params)),
     placeholderData: keepPreviousData,
   });
 }
@@ -37,7 +45,7 @@ export function useCreateUser(): UseMutationResult<AdminUser, Error, CreateUserP
   });
 }
 
-export interface UpdateUserVars {
+interface UpdateUserVars {
   readonly id: string;
   readonly payload: UpdateUserPayload;
 }
@@ -50,7 +58,6 @@ export function useUpdateUser(successMessageKey: string = 'admin.users.toast.upd
   });
 }
 
-/** `DELETE` is a soft delete: the account is deactivated and answered back (api-designer-spec §2.2.5). */
 export function useDeactivateUser(): UseMutationResult<AdminUser, Error, string> {
   return useAdminMutation<string, AdminUser>({
     mutationFn: (id) => apiFetch<AdminUser>(`/api/v1/admin/users/${id}`, { method: 'DELETE' }),

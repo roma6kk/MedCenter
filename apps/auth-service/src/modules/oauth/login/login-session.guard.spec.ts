@@ -15,15 +15,12 @@ function requestWithCookie(cookie?: string): RequestWithLoginSession {
 
 describe('LoginSessionGuard', () => {
   it('should attach the doctor principal with its PractitionerRole fhirUser when the session is valid', async () => {
-    // Arrange
     const { sessions, identities } = createLoginHarness();
     identities.set('doc-1', { role: Role.DOCTOR, practitionerRoleId: 'role-7' });
     const request = requestWithCookie(sessions.issue('doc-1'));
 
-    // Act
     const allowed = await new LoginSessionGuard(sessions, identities).canActivate(contextFor(request));
 
-    // Assert
     expect(allowed).toBe(true);
     expect(request.principal).toMatchObject({
       userId: 'doc-1',

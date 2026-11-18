@@ -4,13 +4,16 @@ import {
   clinicDateKey,
   clinicDayBounds,
   clinicDayOf,
+  clinicHourOf,
   daysBetween,
   formatClinicDate,
   formatClinicDateTime,
+  formatClinicDayTime,
   formatClinicTime,
   formatDateKey,
   formatDayHeading,
   formatDayShort,
+  formatWeekdayShort,
   groupSlotsByDay,
   isDateKey,
   localizeInstants,
@@ -141,6 +144,17 @@ describe('formatting', () => {
     });
   });
 
+  describe('formatClinicDayTime', () => {
+    it('should write the day and the clinic clock time without the year', () => {
+      expect(formatClinicDayTime('2026-10-27T07:00:00Z', 'ru')).toBe('27 октября, 10:00');
+      expect(formatClinicDayTime('2026-10-27T07:00:00Z', 'en')).toBe('27 October, 10:00');
+    });
+
+    it('should return a value that is not a date unchanged', () => {
+      expect(formatClinicDayTime('soon', 'ru')).toBe('soon');
+    });
+  });
+
   describe('formatClinicTime', () => {
     it('should show the clinic wall clock when the instant is given in UTC', () => {
       expect(formatClinicTime('2026-10-20T06:00:00Z', 'ru')).toBe('09:00');
@@ -221,6 +235,28 @@ describe('formatting', () => {
     });
   });
 
+  describe('formatWeekdayShort', () => {
+    it('should print the abbreviated weekday when a day is formatted for a day strip', () => {
+      expect(formatWeekdayShort('2026-10-19', 'ru')).toBe('пн');
+      expect(formatWeekdayShort('2026-10-19', 'en')).toBe('Mon');
+    });
+
+    it('should return the text as it was when it is not a day', () => {
+      expect(formatWeekdayShort('soon', 'ru')).toBe('soon');
+    });
+  });
+
+  describe('clinicHourOf', () => {
+    it('should read the hour on the Minsk wall clock when the instant is given in UTC', () => {
+      expect(clinicHourOf('2026-10-19T07:00:00.000Z')).toBe(10);
+      expect(clinicHourOf('2026-10-19T21:30:00.000Z')).toBe(0);
+    });
+
+    it('should return 0 when the value is not a date', () => {
+      expect(clinicHourOf('soon')).toBe(0);
+    });
+  });
+
   describe('localizeInstants', () => {
     it('should replace an embedded UTC instant with the clinic time when the sentence carries one', () => {
       const text = localizeInstants('Вы записаны на приём. Начало: 2026-10-19T11:40:00.000Z', 'ru');
@@ -269,7 +305,6 @@ describe('groupSlotsByDay', () => {
 
 describe('Intl formatters', () => {
   const SLOT_COUNT = 300;
-  /** 14 days of 16 half-hour slots from 08:00 Minsk time: the load of a doctor page. */
   const slots = Array.from({ length: SLOT_COUNT }, (_, index) => {
     const dayStart: number = Date.parse(`${shiftDateKey('2026-10-19', Math.floor(index / 16))}T05:00:00.000Z`);
     return slot(`s-${index}`, new Date(dayStart + (index % 16) * 30 * 60_000).toISOString());

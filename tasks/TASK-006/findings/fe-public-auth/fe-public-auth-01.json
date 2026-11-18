@@ -1,0 +1,19 @@
+{
+  "id": "fe-public-auth-01",
+  "unit": "fe-public-auth",
+  "kind": "robustness",
+  "severity": "medium",
+  "title": "Страница /login падает с ошибкой, если returnTo передан в адресе дважды",
+  "description": "Next.js отдаёт повторяющийся параметр запроса массивом строк. Страница /login описывает returnTo как string и сразу передаёт значение в sanitizeReturnTo, который вызывает raw.trim(). Для адреса вида /login?returnTo=%2Fbooking&returnTo=%2Fhome это TypeError: посетитель видит экран «Что-то пошло не так» вместо перехода на вход. Соседние параметры той же страницы (error, reason) и каталог /doctors уже умеют читать string | string[], не обработан только returnTo. Это граница системы (ввод из URL), а в AGENTS.md проверка на границах обязательна. Юнит-тест страницы передаёт только Record<string, string>, поэтому случай не покрыт.",
+  "evidence": "frontend/src/app/(auth)/login/page.tsx:12 types `returnTo?: string`; :23-24 `const { returnTo, error, reason } = ...; sanitizeReturnTo(returnTo, '')`. frontend/src/lib/auth/return-to.ts:28-30 `const trimmed = raw.trim()` with no type check. Scenario: GET /login?returnTo=%2Fbooking&returnTo=%2Fhome -> searchParams.returnTo = ['/booking', '/home'] -> TypeError: raw.trim is not a function during the server render -> app/error.tsx. By contrast login-error.ts:11 and authorize-href.ts:12 accept `string | ReadonlyArray<string>`, and doctor-directory.ts:30 has `firstValue`. /api/auth/authorize is fine (uses searchParams.get, first value).",
+  "files": [
+    "frontend/src/app/(auth)/login/page.tsx",
+    "frontend/src/lib/auth/return-to.ts",
+    "frontend/src/app/(auth)/login/page.spec.tsx"
+  ],
+  "proposedFix": "In login/page.tsx type returnTo as `string | string[]` and take the first value before sanitising (same idea as firstValue in doctor-directory.ts / isSessionEnded). Additionally make sanitizeReturnTo accept `unknown` (return the fallback for anything that is not a string) so no caller can crash it. Add a spec case: open({ returnTo: ['/booking', '/home'] }) -> redirect('/api/auth/authorize?returnTo=%2Fbooking'), plus a return-to.spec.ts case for a non-string argument.",
+  "needsDecision": false,
+  "decisionQuestion": "",
+  "tzRef": "frontend-design-spec §2 (/login, returnTo); NFR-006; AGENTS.md (validate at system boundaries)",
+  "confidence": "confirmed"
+}

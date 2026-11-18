@@ -1,9 +1,4 @@
-/**
- * token-response — runtime validation of the `POST /oauth/token` body (API 2.1.3).
- *
- * The broker trusts nothing it did not validate: a body without both tokens must
- * never end up in a cookie as the literal string "undefined".
- */
+// Validated at runtime: a body without both tokens must never become the cookie value "undefined".
 
 export interface TokenSet {
   readonly accessToken: string;

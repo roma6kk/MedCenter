@@ -1,11 +1,3 @@
-/**
- * session-response — shared body of `GET /api/auth/session` and `POST /api/auth/refresh`.
- *
- * Both answer with the access token plus the claims the UI needs. `/session` serves a still-valid `mc_at` cookie as it is
- * (a page load must not cost a call to the token endpoint: it allows 20/min for the whole web server); otherwise, and always
- * for `/refresh`, the refresh token is rotated. The rotated pair MUST be stored back into the cookies: refresh tokens are
- * single-use, so a response that drops the new one would log the user out on the next page load.
- */
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { isSecureOrigin, resolvePublicOrigin } from './auth-config';
@@ -13,12 +5,8 @@ import { ANONYMOUS_SESSION, buildSessionPayload, readCachedSession, rotateRefres
 import { ACCESS_COOKIE, REFRESH_COOKIE, clearSessionCookies, setSessionCookies } from './session-cookies';
 
 export interface RotationPolicy {
-  /** `/session` answers an anonymous visitor with 200 (it doubles as the container health probe); `/refresh` with 401. */
   readonly anonymousStatus: 200 | 401;
-  /**
-   * `/session` may answer from the still-valid `mc_at` cookie. `/refresh` never does: it is called because the access token
-   * was rejected, so handing the same token back would not help.
-   */
+  // /refresh never answers from the mc_at cookie: it is called because that access token was rejected.
   readonly allowCachedAccessToken: boolean;
 }
 

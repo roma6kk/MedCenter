@@ -1,0 +1,19 @@
+{
+  "id": "task005-triage-a-V2T2-03",
+  "unit": "task005-triage-a",
+  "kind": "question",
+  "severity": "low",
+  "title": "Основное действие строки в таблицах админки — первый пункт меню «⋯», а не клик по строке: оставить?",
+  "description": "В таблицах пользователей, услуг и кабинетов у строки один элемент действий — `DropdownMenu` с подписью `rowActions` и именем строки; первый пункт («Изменить») — основное действие, опасное идёт последним и красным. Клик по строке ничего не делает. Это сознательное решение дизайна (D2): строки не ссылки, меню доступно с клавиатуры и читается скринридером, на мобильной карточке есть отдельная зона действий. Недостаток — основное действие не видно без открытия меню (лишний клик).",
+  "evidence": "frontend/src/components/admin/users/users-table.tsx:~100-112 RowActions builds the items (edit first, deactivate last and destructive) and returns <DropdownMenu label={tCommon('rowActions', { name })} />; the same pattern at admin/rooms/rooms-table.tsx:32 and admin/services/services-table.tsx:26.",
+  "files": [
+    "frontend/src/components/admin/users/users-table.tsx",
+    "frontend/src/components/admin/rooms/rooms-table.tsx",
+    "frontend/src/components/admin/services/services-table.tsx"
+  ],
+  "proposedFix": "Option 2 only: render the name cell as a text button that calls onEdit(row) (keep the menu for the rest); no change for option 1.",
+  "needsDecision": true,
+  "decisionQuestion": "Устраивает ли, что «Изменить» живёт внутри меню «⋯»? Варианты: (1) оставить как есть; (2) сделать имя в первой колонке кнопкой-ссылкой «Изменить» (клик и Enter открывают форму), меню оставить для остального; (3) клик по всей строке. Рекомендация: (1) — действие доступно с клавиатуры и согласовано во всех трёх таблицах; (2) стоит делать только если на защите/в замечаниях попросят убрать лишний клик.",
+  "tzRef": "Администратор: управление пользователями, услугами, кабинетами",
+  "confidence": "confirmed"
+}

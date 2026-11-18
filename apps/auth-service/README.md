@@ -15,7 +15,7 @@ Port map and edge routes of all services: `../../infra/traefik/dynamic.yml` (thi
 
 | Area | Endpoint | Access |
 | --- | --- | --- |
-| SMART / OAuth2 | `GET /.well-known/smart-configuration`, `GET /.well-known/jwks.json`, `POST /oauth/token`, `POST /oauth/token/revoke` | see API §2.1 |
+| SMART / OAuth2 | `GET /.well-known/smart-configuration`, `GET /.well-known/jwks.json`, `POST /oauth/token`, `POST /oauth/token/revoke`, `POST /oauth/token/activity` | see API §2.1 |
 | Browser login | `GET /oauth/authorize` (renders the login form without a session), `POST /oauth/login` | public, rate-limited |
 | Users (API §2.2) | `POST /api/v1/auth/register` | public, rate-limited |
 | | `GET /api/v1/me` | any Bearer |
@@ -41,8 +41,9 @@ background. It is the in-service counterpart of `tools/terminology-seed` (the im
 
 ### Browser login (assumption UI-1)
 
-`GET /oauth/authorize` without a login session answers a server-rendered, script-free HTML form (Russian labels,
-CSRF double-submit token, inline CSS pinned by CSP hash). `POST /oauth/login` verifies the password (scrypt,
+`GET /oauth/authorize` without a login session answers a server-rendered HTML form that works without scripts (one
+inline script only reveals the show-password toggle; labels in Russian or English by the OIDC `ui_locales` of the request, Russian
+by default; CSRF double-submit token, inline CSS and script pinned by CSP hash). `POST /oauth/login` verifies the password (scrypt,
 per-user salt, constant-time compare; one generic error for unknown email, wrong password and inactive account),
 sets a signed `httpOnly; SameSite=Lax; Path=/oauth` session cookie valid for 5 minutes and **single use**, and
 302s back to `/oauth/authorize?<original query>`, which then issues the code. Tokens (authorization_code **and**
@@ -102,7 +103,9 @@ Specific to this service (`src/config/auth-env.ts`):
 | `AUTH_SESSION_SECRET` | key material of the login-session and CSRF cookies (>= 32 chars); falls back to `JWT_PRIVATE_KEY` |
 | `AUTH_COOKIE_SECURE` | `true` forces `Secure` on the login cookies; unset = decided per request (`req.secure`) |
 | `BOOTSTRAP_ADMIN_EMAIL/PASSWORD/FIRST_NAME/LAST_NAME` | first administrator, see above |
-| `OAUTH_CLIENTS_JSON` | registered OAuth clients and their redirect URIs |
+| `JWT_PRIVATE_KEY` / `JWT_PUBLIC_KEY` | RS256 key pair in PEM (PKCS#8/SPKI or PKCS#1); parsed and matched at boot, a literal `\n` is read as a line break |
+| `JWT_PRIVATE_KEY_B64` / `JWT_PUBLIC_KEY_B64` | the same PEMs base64-encoded; when set they replace the plain variables |
+| `OAUTH_CLIENTS_JSON` | registered OAuth clients; every redirect URI is an absolute http(s) URL without a fragment (checked at boot) |
 
 `TRUST_PROXY` sets Express's `trust proxy` (unset = `false`, so `X-Forwarded-For` is ignored). Behind Traefik use the
 hop count `1`; a list of IPs/CIDRs (`10.0.0.0/8,loopback`) is also accepted. `true` trusts every hop, so a client can

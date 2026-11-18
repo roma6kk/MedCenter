@@ -1,7 +1,16 @@
-import { SetMetadata } from '@nestjs/common';
+import { applyDecorators, SetMetadata } from '@nestjs/common';
 
 export const RATE_LIMIT_KEY = 'rateLimitPerMinute';
+export const RATE_LIMIT_CREDENTIAL_KEY = 'rateLimitCredentialCeiling';
 
-/** Overrides the per-minute request budget for a single route (e.g. 20 for `POST /oauth/token`). */
-export const RateLimit = (perMinute: number): MethodDecorator =>
-  SetMetadata(RATE_LIMIT_KEY, perMinute);
+export interface RateLimitOptions {
+  readonly perAddressCeiling?: number;
+}
+
+export const RateLimit = (perMinute: number, options: RateLimitOptions = {}): MethodDecorator =>
+  applyDecorators(
+    SetMetadata(RATE_LIMIT_KEY, perMinute),
+    ...(options.perAddressCeiling === undefined
+      ? []
+      : [SetMetadata(RATE_LIMIT_CREDENTIAL_KEY, options.perAddressCeiling)]),
+  );

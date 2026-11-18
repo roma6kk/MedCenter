@@ -1,9 +1,8 @@
-/** room-schema — the room (Location) form, limits of `CreateRoomDto` (api-designer-spec §4.4). Messages are message KEYS. */
 import { z } from 'zod';
 import type { AdminRoom, RoomPayload } from './room-types';
 
-export const FLOOR_MIN = 1;
-export const FLOOR_MAX = 10;
+const FLOOR_MIN = 1;
+const FLOOR_MAX = 10;
 
 function isFloorInRange(value: string): boolean {
   if (value === '') return true;
@@ -26,12 +25,11 @@ export function roomValuesOf(room: AdminRoom): RoomFormValues {
   return { identifier: room.identifier, name: room.name, floor: room.floor === undefined ? '' : String(room.floor), description: room.description ?? '' };
 }
 
-/** The body of `POST`/`PATCH /admin/rooms`. An edit always sends the description (an empty one clears it). */
 export function toRoomPayload(values: RoomFormValues, isEdit: boolean): RoomPayload {
   return {
     identifier: values.identifier.trim(),
     name: values.name.trim(),
-    ...(values.floor === '' ? {} : { floor: Number(values.floor) }),
+    ...(values.floor !== '' ? { floor: Number(values.floor) } : isEdit ? { floor: null } : {}),
     ...(values.description === '' && !isEdit ? {} : { description: values.description }),
   };
 }

@@ -7,11 +7,6 @@ interface ModuleMetadataLike {
   readonly imports?: unknown[];
 }
 
-/**
- * Every controller reachable from `root` through `@Module({ imports })` (dynamic modules included),
- * without starting any provider. Lets a unit test build a service's OpenAPI document from a bare
- * `Test.createTestingModule({ controllers })` with auto-mocked dependencies.
- */
 export function collectModuleControllers(root: Type<unknown> | ModuleMetadataLike): Type<unknown>[] {
   const seen = new Set<unknown>();
   const controllers = new Set<Type<unknown>>();
@@ -36,10 +31,6 @@ export function collectModuleControllers(root: Type<unknown> | ModuleMetadataLik
 
 const HTTP_METHODS = ['get', 'put', 'post', 'delete', 'patch', 'options', 'head'] as const;
 
-/**
- * API §10 conventions, checked on a built document: every operation has a tag, a summary and a
- * 2xx/3xx response. Returns one line per violation (empty = conforming).
- */
 export function findUndocumentedOperations(document: OpenAPIObject): string[] {
   const problems: string[] = [];
   for (const [path, item] of Object.entries(document.paths)) {

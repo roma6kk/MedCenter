@@ -13,8 +13,6 @@ import {
 import { startAuthApp } from './app-harness';
 import { PATIENT_PASSWORD, bearer, claimsOfToken, signIn } from './auth-flow-helpers';
 
-// `jose` is pure ESM and Jest's CJS runtime cannot load it; the signature check is stubbed and the
-// claims are decoded from the token the application actually signed (see `oauth.e2e-spec.ts`).
 jest.mock('jose', () => ({
   createRemoteJWKSet: () => 'mocked-jwks',
   jwtVerify: async (token: string) => {
@@ -24,12 +22,6 @@ jest.mock('jose', () => ({
   },
 }));
 
-/**
- * The first-stack journey over the production persistence: the app opens the
- * `auth` schema itself, bootstraps the administrator from the environment and
- * serves registration and the browser login against PostgreSQL. Skipped when
- * `TEST_PG_*` does not reach a server (see `pg-test-connection.ts`).
- */
 const DATABASE = 'auth_flow_e2e';
 const ADMIN = { email: 'admin@medcenter.by', password: 'Adm1n!Passw0rd' } as const;
 const postgresAvailable = isPostgresAvailable();

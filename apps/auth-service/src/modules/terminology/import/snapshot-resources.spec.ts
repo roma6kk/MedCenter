@@ -1,7 +1,3 @@
-/*
- * The drift guard reads the CLI seed's builders on purpose: the service image cannot
- * contain `tools/`, so the only place both copies meet is this (non-shipped) spec.
- */
 /* eslint-disable @nx/enforce-module-boundaries */
 import {
   buildCodeSystems as buildCliCodeSystems,

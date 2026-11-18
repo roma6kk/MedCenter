@@ -1,14 +1,10 @@
 import { generateKeyPairSync } from 'node:crypto';
+import { E2E_ISSUER } from '@medcenter/testing';
 
-export const E2E_ISSUER = 'https://api.medcenter.by';
+export { E2E_ISSUER };
 export const E2E_FHIR_BASE = 'http://hapi:8080/fhir';
 
-/**
- * The guard stack (`JwtAuthGuard`) resolves its verifier configuration eagerly,
- * so a suite that boots `AppModule` must declare the environment *before*
- * `Test.createTestingModule(...).compile()`. `JWT_JWKS_URI` points nowhere
- * here; suites that send real tokens override it with `startTestIssuer()`.
- */
+// The guard stack resolves its verifier config eagerly: declare the environment before compiling the testing module.
 export function applyE2eEnv(): void {
   const { publicKey } = generateKeyPairSync('rsa', {
     modulusLength: 2048,

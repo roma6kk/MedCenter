@@ -16,7 +16,6 @@ function auditEvent(id: string, lastUpdated: string): FhirResource {
   };
 }
 
-/** What the `pg` driver reports through TypeORM's `QueryFailedError` for a rejected value. */
 function sqlError(code: string, message: string): Error {
   return Object.assign(new Error(message), { code });
 }

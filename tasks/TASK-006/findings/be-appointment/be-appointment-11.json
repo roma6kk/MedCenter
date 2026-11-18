@@ -1,0 +1,23 @@
+{
+  "id": "be-appointment-11",
+  "unit": "be-appointment",
+  "kind": "robustness",
+  "severity": "low",
+  "title": "Ядро оптимистичной блокировки (commitTransaction, versionOf, idFromLocation) скопировано в appointment-service, хотя в libs/fhir есть тот же код: правка маппинга 409/412 нужна в трёх местах",
+  "description": "SLOT_CONFLICT и вся защита ADR-012 держатся на commitTransaction(): HAPI-412 превращается в 409 с доменным кодом. Тот же модуль есть в libs/fhir/src/lib/fhir-transaction.ts (его использует libs/fhir/src/lib/audited-write.ts, а через него, например, catalog-service), а третья копия лежит в encounter-service (apps/encounter-service/src/common/fhir/fhir-transaction.ts, с добавочными transactionOutcomes и TransactionConflictCode). Копия в appointment-service - строгое подмножество библиотечной: тела commitTransaction и versionOf совпадают построчно, отличаются только более узкие типы (conflictCode, method без DELETE), реализация idFromLocation (через parseReference вместо регулярного выражения) и лишняя функция referenceId. Поведение при этом уже слегка расходится, а любое исправление (например, обработка нового кода HAPI для проигранной гонки) придётся вносить трижды, иначе запись, отмена и открытие приёма начнут по-разному отвечать на одну и ту же гонку. Это не ошибка поведения сегодня, а риск расхождения в самом чувствительном месте сервиса.",
+  "evidence": "apps/appointment-service/src/modules/appointments/fhir-transaction.ts (82 lines) vs libs/fhir/src/lib/fhir-transaction.ts: diff shows only narrower conflictCode union, method 'POST' | 'PUT', required resource, idFromLocation via parseReference and the extra referenceId(); commitTransaction and versionOf bodies are identical. libs/fhir/src/index.ts:6 already exports the library module; importers of the local copy: appointments.service.ts:24, compartment.ts:7, audit.ts:4 and fhir-transaction.spec.ts:1; apps/encounter-service/src/modules/encounters/encounter-opening.service.ts:11 imports the third copy.",
+  "files": [
+    "apps/appointment-service/src/modules/appointments/fhir-transaction.ts",
+    "apps/appointment-service/src/modules/appointments/fhir-transaction.spec.ts",
+    "apps/appointment-service/src/modules/appointments/fhir-reference.ts",
+    "apps/appointment-service/src/modules/appointments/appointments.service.ts",
+    "apps/appointment-service/src/modules/appointments/compartment.ts",
+    "apps/appointment-service/src/modules/appointments/audit.ts",
+    "libs/fhir/src/lib/fhir-transaction.ts"
+  ],
+  "proposedFix": "In appointment-service import commitTransaction, versionOf, idFromLocation and type TransactionWrite from '@medcenter/fhir' (the library's ErrorCode type already covers SLOT_CONFLICT, APPOINTMENT_NOT_CANCELLABLE and ENCOUNTER_STATE_INVALID); move referenceId() next to parseReference() in fhir-reference.ts, which is where it belongs; delete the local fhir-transaction.ts and move its idFromLocation/referenceId cases into fhir-reference.spec.ts (the lib already has its own commitTransaction specs). Keep the existing appointments.service.spec.ts cases for 'If-Match lost -> SLOT_CONFLICT' as the regression net. Do the encounter-service copy as a separate step (it has two extra exports that would have to move into the library first).",
+  "needsDecision": false,
+  "decisionQuestion": "",
+  "tzRef": "ADR-012",
+  "confidence": "confirmed"
+}

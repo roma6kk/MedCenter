@@ -1,30 +1,29 @@
 'use client';
 
-import { useCallback, useEffect, useId, useRef } from 'react';
+import { useEffect, useRef } from 'react';
 import type { ReactNode } from 'react';
 import { Button } from '@/components/ui/button';
+import { Dialog } from '@/components/ui/dialog';
 import { buttonVariants } from '@/components/ui/button-variants';
-import { FormField, INPUT_CLASS } from '@/components/patient/form-field';
 import { ProblemBanner } from '@/components/feedback/problem-banner';
+import { CANCEL_REASON_CODES } from '@/lib/contracts';
 import { useClinicFormat } from '@/hooks/use-clinic-format';
-import { useDialogFocus } from '@/hooks/use-dialog-focus';
 import { useT } from '@/lib/i18n/use-t';
-import type { AppointmentView } from './appointment-types';
+import { useCloseUnlessPending } from '@/components/patient/use-close-unless-pending';
+import { doctorOf, type AppointmentView } from './appointment-types';
 import { useCancelForm, type CancelFormState } from './use-cancel-form';
 
 interface CancelAppointmentDialogProps {
   readonly appointment: AppointmentView;
-  /** Must keep its identity between renders (`useCallback`): the focus trap restarts when it changes. */
+  // Must keep its identity between renders: the focus trap restarts when it changes.
   readonly onClose: () => void;
   readonly onCancelled: () => void;
 }
-
 
 function NotCancellable({ onClose }: { readonly onClose: () => void }): ReactNode {
   const t = useT('appointments');
   const tCommon = useT('common');
   const closeButton = useRef<HTMLButtonElement>(null);
-  // The submit button that had the focus is gone: hand the focus to the only action left.
   useEffect(() => closeButton.current?.focus(), []);
   return (
     <div>
@@ -34,7 +33,6 @@ function NotCancellable({ onClose }: { readonly onClose: () => void }): ReactNod
   );
 }
 
-/** Client messages are `appointments.*` keys; whatever the server said about the field is already text. */
 function useReasonError(form: CancelFormState): string | undefined {
   const t = useT();
   const error = form.errors.reason;
@@ -42,57 +40,48 @@ function useReasonError(form: CancelFormState): string | undefined {
   return error.type === 'server' ? error.message : t(error.message);
 }
 
-function ReasonForm({ form, onClose }: { readonly form: CancelFormState; readonly onClose: () => void }): ReactNode {
+function ReasonForm({ form, formId }: { readonly form: CancelFormState; readonly formId: string }): ReactNode {
   const t = useT('appointments');
   const error: string | undefined = useReasonError(form);
   return (
-    <form onSubmit={(event) => { event.preventDefault(); form.submit(); }} noValidate className="mt-3">
-      <FormField id="cancel-reason" label={t('cancelReasonLabel')} hint={t('cancelReasonHint')} error={error}>
-        {(control) => <textarea rows={4} {...control} {...form.register('reason')} className={INPUT_CLASS} />}
-      </FormField>
+    <form id={formId} onSubmit={(event) => { event.preventDefault(); form.submit(); }} noValidate className="mt-3">
+      <fieldset aria-describedby={error === undefined ? undefined : 'cancel-reason-error'} className="grid gap-2">
+        <legend className="form-label mb-1">{t('cancelReasonLabel')}</legend>
+        {CANCEL_REASON_CODES.map((code) => (
+          <label key={code} className="flex min-h-11 cursor-pointer items-center gap-3 text-sm">
+            <input type="radio" value={code} {...form.register('reason')} className="size-4 accent-primary" />
+            {t(`cancelReasons.${code}`)}
+          </label>
+        ))}
+        {error === undefined ? null : <p id="cancel-reason-error" role="alert" className="text-sm text-destructive">{error}</p>}
+      </fieldset>
       {form.problem !== null ? <div className="mt-3"><ProblemBanner problem={form.problem} /></div> : null}
-      <div className="mt-4 flex flex-wrap gap-2">
-        {/* aria-disabled, not disabled: a control that loses the focus to the body would let Tab walk out of the dialog. */}
-        <Button type="submit" variant="danger" aria-disabled={form.pending}>{form.pending ? t('cancelBusy') : t('cancelSubmit')}</Button>
-        <Button variant="secondary" aria-disabled={form.pending} onClick={onClose}>{t('cancelKeep')}</Button>
-      </div>
     </form>
   );
 }
 
-/**
- * "Do not cancel" and Escape mean the request was never sent, so they do nothing while it is in flight: the appointment
- * would be cancelled after the user dismissed the dialog, and nobody would be told. The identity of the returned function
- * does not change (the focus trap restarts when it does), the pending state is read through a ref.
- */
-function useCloseUnlessPending(pending: boolean, onClose: () => void): () => void {
-  const isPending = useRef(pending);
-  useEffect(() => {
-    isPending.current = pending;
-  }, [pending]);
-  return useCallback(() => {
-    if (!isPending.current) onClose();
-  }, [onClose]);
-}
-
-/** The cancellation dialog (FR-005): the reason is mandatory, focus stays inside, Escape closes, a 409 explains itself. */
 export function CancelAppointmentDialog({ appointment, onClose, onCancelled }: CancelAppointmentDialogProps): ReactNode {
   const t = useT('appointments');
   const format = useClinicFormat();
-  const titleId: string = useId();
-  const leadId: string = useId();
+  const formId = 'cancel-appointment-form';
   const form: CancelFormState = useCancelForm(appointment.id, onCancelled);
   const close: () => void = useCloseUnlessPending(form.pending, onClose);
-  const dialogRef = useDialogFocus<HTMLDivElement>(true, close);
+  const footer: ReactNode = form.notCancellable ? undefined : (
+    <>
+      {/* aria-disabled, not disabled: a control that loses the focus to the body would let Tab walk out of the dialog. */}
+      <Button variant="secondary" aria-disabled={form.pending} onClick={close}>{t('cancelKeep')}</Button>
+      <Button type="submit" form={formId} variant="destructive" aria-disabled={form.pending}>{form.pending ? t('cancelBusy') : t('cancelSubmit')}</Button>
+    </>
+  );
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-inverse/40 p-4">
-      <div ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby={titleId} aria-describedby={leadId} className="max-h-full w-full max-w-md overflow-y-auto rounded-panel border border-border bg-card p-6">
-        <h2 id={titleId} className="text-lg font-bold">{t('cancelTitle')}</h2>
-        <p id={leadId} className="mt-1 text-sm text-[var(--muted-foreground)]">
-          {format.dateTime(appointment.start)} · {appointment.doctorName ?? t('doctorUnknown')}. {t('cancelLead')}
-        </p>
-        {form.notCancellable ? <NotCancellable onClose={onClose} /> : <ReasonForm form={form} onClose={close} />}
-      </div>
-    </div>
+    <Dialog
+      title={t('cancelTitle')}
+      description={`${format.dateTime(appointment.start)} · ${doctorOf(appointment, t('doctorUnknown'))}. ${t('cancelLead')}`}
+      size="sm"
+      onClose={close}
+      footer={footer}
+    >
+      {form.notCancellable ? <NotCancellable onClose={onClose} /> : <ReasonForm form={form} formId={formId} />}
+    </Dialog>
   );
 }

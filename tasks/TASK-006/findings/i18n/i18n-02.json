@@ -1,0 +1,18 @@
+{
+  "id": "i18n-02",
+  "unit": "i18n",
+  "kind": "i18n",
+  "severity": "low",
+  "title": "В английском интерфейсе карточки услуг при записи показывают описание, повторяющее название: фильтр «лишнего» описания знает только русские слова",
+  "description": "`visibleDescription` скрывает описание услуги, если оно лишь пересказывает название (список «пустых» основ GENERIC_STEMS — прием/приём/консу/врача/визит/осмот — только русский). После коммита 520db7b сервис отдаёт английские название и описание по Accept-Language: en, и для английского текста фильтр не работает: у приёмов (терапевт первичный и повторный, кардиолог, хирург, невролог — в демо-каталоге пять таких услуг) в карточке под «Therapist appointment (initial)» появляется строка «Initial consultation with a therapist», которую в русском интерфейсе не видно. Одна и та же услуга ведёт себя по-разному в двух языках, а смысл фильтра («строка-шум на карточке») в английском теряется. Пары проверены запуском функции на демо-данных tools/demo-seed/demo-catalog.ts: RU скрыто во всех четырёх случаях, EN показано во всех четырёх; «Resting ECG with interpretation» (несущее смысл) корректно остаётся в обоих языках.",
+  "evidence": "frontend/src/components/booking/service-text.ts:8 `const GENERIC_STEMS = new Set(['прием', 'приём', 'консу', 'врача', 'визит', 'осмот'])`; stems are the first 5 letters (STEM_LENGTH). Used at components/booking/service-step.tsx:17 (visibleDescription). Run on the seeded pairs: visibleDescription('Therapist appointment (initial)', 'Initial consultation with a therapist') -> the description (should be hidden); same for 'Follow-up consultation with a therapist', 'Initial consultation with a cardiologist', 'Initial consultation with a surgeon'. The existing service-text.spec.ts covers only Russian pairs. Words that block hiding: 'consu' (consultation) and 'with' are not in the name stems.",
+  "files": [
+    "frontend/src/components/booking/service-text.ts",
+    "frontend/src/components/booking/service-text.spec.ts"
+  ],
+  "proposedFix": "Extend GENERIC_STEMS with the English counterparts of the visit words and the stop words: 'consu', 'appoi', 'visit', 'exami', 'with' (words shorter than 3 letters such as 'a'/'of' are already dropped by MIN_WORD_LENGTH; add 'the'/'for' if a seed text needs them). With those the four visit pairs are hidden and 'Resting ECG with interpretation' (stems resti/inter not in the name) stays visible. Keep one flat set (the stems cannot collide across the two alphabets). Add the English pairs from demo-catalog.ts to service-text.spec.ts as an it.each next to the Russian ones.",
+  "needsDecision": false,
+  "decisionQuestion": "",
+  "tzRef": "NFR-008 (локализация, en как задел); ADR/spec: frontend-design-spec §7",
+  "confidence": "confirmed"
+}

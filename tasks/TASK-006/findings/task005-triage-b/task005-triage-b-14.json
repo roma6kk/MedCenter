@@ -1,0 +1,19 @@
+{
+  "id": "task005-triage-b-14",
+  "unit": "task005-triage-b",
+  "kind": "question",
+  "severity": "low",
+  "title": "Показывать ли кабинет врача на публичном профиле: добавить название кабинета в DTO врача",
+  "description": "Вопрос из T7 (тот же, что про название кабинета в записи из T3: ответ один на оба). Профиль врача кабинета не показывает: GET /rooms требует токен (USER_READ, без @Public), а в публичном DTO врача есть только roomId. Варианты: отдавать название кабинета в DTO врача (аддитивное поле), открыть GET /rooms публично или показывать кабинет только в уже созданной записи. Номер кабинета не персональные данные, но публикация списка кабинетов расширяет публичную поверхность API.",
+  "evidence": "apps/practitioner-service/src/modules/rooms/rooms.controller.ts:38-40 `@Get('rooms') @RequiresScopes(SMART_SCOPES.USER_READ)` (no @Public); apps/practitioner-service/src/modules/doctors/dto/doctor-response.dto.ts has `roomId` but no room name.",
+  "files": [
+    "apps/practitioner-service/src/modules/doctors/doctor.mapper.ts",
+    "apps/practitioner-service/src/modules/doctors/dto/doctor-response.dto.ts",
+    "frontend/src/components/catalog/doctor-profile.tsx"
+  ],
+  "proposedFix": "Variant A (recommended): practitioner-service resolves the room of the PractitionerRole (it already finds roles and roomId) and adds `roomName` to DoctorResponseDto (additive); the profile and the wizard card show «Кабинет 101». Update spec 4.1/4.2, the swagger doc class and Bruno.",
+  "needsDecision": true,
+  "decisionQuestion": "Показывать кабинет врача гостям? Варианты: (A) да, добавить roomName в публичный DTO врача (и в запись, см. вопрос T3 про название кабинета); (B) открыть GET /rooms без токена; (C) нет, кабинет виден только в созданной записи. Рекомендация: A.",
+  "tzRef": "FR-002",
+  "confidence": "confirmed"
+}

@@ -1,16 +1,9 @@
-/** Tunables of the relay; every value has a default so the stack needs no extra variables. */
 export interface RelayConfig {
-  /** Pause between two polls. */
   readonly pollIntervalMs: number;
-  /** Records read, published and marked per round trip (`_count`). */
   readonly batchSize: number;
-  /** Redis lock lifetime; a crashed relay frees the lock after this long. */
   readonly lockTtlMs: number;
-  /** `sent` records older than this are deleted and expunged. */
   readonly retentionMs: number;
-  /** A `pending` record older than this is logged as stuck. */
   readonly stalePendingMs: number;
-  /** How often cleanup and the stuck-record check run. */
   readonly housekeepingIntervalMs: number;
 }
 
@@ -30,7 +23,6 @@ function positiveInt(env: NodeJS.ProcessEnv, key: string, fallback: number): num
   return value;
 }
 
-/** A bad value fails the service at startup, never silently on the first poll. */
 export function parseRelayConfig(env: NodeJS.ProcessEnv = process.env): RelayConfig {
   return {
     pollIntervalMs: positiveInt(env, 'OUTBOX_POLL_INTERVAL_MS', 2_000),

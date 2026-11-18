@@ -1,4 +1,4 @@
-import { screen, waitFor } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { apiProblem, newQueryClient, pageOf, renderWithClient, resetCabinetState } from '@/components/patient/cabinet-test-utils';
 import { useToastStore } from '@/store/use-toast-store';
@@ -30,7 +30,13 @@ async function fillSelf(): Promise<void> {
   await userEvent.upload(screen.getByLabelText('Скан подписанной формы'), PDF);
 }
 
-const submit = (): Promise<void> => userEvent.click(screen.getByRole('button', { name: 'Внести в карту' }));
+const submit = (): Promise<void> => userEvent.click(screen.getByRole('button', { name: 'Внести согласие' }));
+
+async function renderAndSubmitSelf(): Promise<void> {
+  renderForm();
+  await fillSelf();
+  await submit();
+}
 
 describe('ConsentRecordForm', () => {
   beforeEach(() => {
@@ -39,6 +45,15 @@ describe('ConsentRecordForm', () => {
     doctorMocked.fetchRelatedPersons.mockResolvedValue(pageOf([RELATED]));
     mocked.postConsentScan.mockResolvedValue({ scanId: 's1', contentType: 'application/pdf', size: 8, hash: 'h' });
     mocked.postPatientConsent.mockResolvedValue(ACTIVE_RECORD);
+  });
+
+  it('should offer no self signer and default to the legal representative for a minor patient', () => {
+    renderWithClient(<ConsentRecordForm patientId="p1" role="DOCTOR" canSelfSign={false} />, newQueryClient());
+
+    const select = screen.getByLabelText('Кто подписал');
+    expect(within(select).queryByRole('option', { name: 'сам пациент' })).not.toBeInTheDocument();
+    expect(select).toHaveValue('legal-representative');
+    expect(screen.getByText(/нет 18 лет/)).toBeInTheDocument();
   });
 
   it('should leave the signing clerk to the server for a doctor and ask for the name from an administrator', () => {
@@ -72,10 +87,7 @@ describe('ConsentRecordForm', () => {
   });
 
   it('should upload the scan, record the consent signed by the patient and clear the form', async () => {
-    renderForm();
-
-    await fillSelf();
-    await submit();
+    await renderAndSubmitSelf();
 
     await waitFor(() => expect(mocked.postPatientConsent).toHaveBeenCalledTimes(1));
     expect(mocked.postConsentScan).toHaveBeenCalledWith('p1', PDF);
@@ -96,19 +108,19 @@ describe('ConsentRecordForm', () => {
   });
 
   it.each([
-    ['a file that is not PDF, JPEG or PNG', new File(['x'], 'a.gif', { type: 'image/gif' }), 'Скан должен быть в формате PDF, JPEG или PNG'],
-    ['a file larger than 10 MB', setFileSize(new File(['x'], 'big.pdf', { type: 'application/pdf' }), 10 * 1024 * 1024 + 1), 'Файл больше 10 МБ'],
+    ['a file that is not PDF, JPEG or PNG', new File(['x'], 'a.gif', { type: 'image/gif' }), 'Этот тип файла не подходит. Подходят: PDF, JPEG, PNG.'],
+    ['a file larger than 10 MB', setFileSize(new File(['x'], 'big.pdf', { type: 'application/pdf' }), 10 * 1024 * 1024 + 1), 'Файл больше 10 МБ.'],
   ])('should refuse %s before anything is uploaded', async (_name, file, message) => {
     const user = userEvent.setup({ applyAccept: false });
     renderForm();
 
     await user.type(screen.getByLabelText('Номер формы'), 'Ф-12');
     await user.type(screen.getByLabelText('Дата подписания'), '2020-01-15');
-    await user.upload(screen.getByLabelText('Скан подписанной формы'), file);
-    await user.click(screen.getByRole('button', { name: 'Внести в карту' }));
+    await user.upload(screen.getByLabelText('Скан подписанной формы', { selector: 'input' }), file);
+    await user.click(screen.getByRole('button', { name: 'Внести согласие' }));
 
     expect(await screen.findByText(message)).toBeInTheDocument();
-    expect(screen.getByLabelText('Скан подписанной формы')).toHaveAttribute('aria-invalid', 'true');
+    expect(screen.getByLabelText('Скан подписанной формы', { selector: 'input' })).toHaveAttribute('aria-invalid', 'true');
     expect(mocked.postConsentScan).not.toHaveBeenCalled();
   });
 
@@ -120,7 +132,7 @@ describe('ConsentRecordForm', () => {
     await userEvent.type(screen.getByLabelText('Дата подписания'), '2999-01-01');
     await submit();
 
-    expect(await screen.findByText('Дата подписания не может быть в будущем')).toBeInTheDocument();
+    expect(await screen.findByText(/^Дата не позже \d{2}\.\d{2}\.\d{4}$/)).toBeInTheDocument();
     expect(mocked.postConsentScan).not.toHaveBeenCalled();
   });
 
@@ -149,15 +161,12 @@ describe('ConsentRecordForm', () => {
 
     await userEvent.selectOptions(screen.getByLabelText('Кто подписал'), 'родственник');
 
-    expect(await screen.findByText(/нет доверенных лиц в карте/)).toBeInTheDocument();
+    expect(await screen.findByText(/нет доверенных лиц в системе/)).toBeInTheDocument();
   });
 
   it('should say to revoke first when the patient already has an active consent (409 CONSENT_ALREADY_ACTIVE)', async () => {
     mocked.postPatientConsent.mockRejectedValue(apiProblem(409, 'CONSENT_ALREADY_ACTIVE'));
-    renderForm();
-
-    await fillSelf();
-    await submit();
+    await renderAndSubmitSelf();
 
     expect(await screen.findByRole('alert')).toHaveTextContent('У пациента уже есть действующее согласие. Сначала запишите его отзыв');
     expect(screen.queryByTestId('problem-banner')).not.toBeInTheDocument();
@@ -166,10 +175,7 @@ describe('ConsentRecordForm', () => {
 
   it('should put a server field error next to its field', async () => {
     mocked.postPatientConsent.mockRejectedValue(apiProblem(400, 'VALIDATION_ERROR', { details: [{ field: 'formNumber', message: 'formNumber must not be blank' }] }));
-    renderForm();
-
-    await fillSelf();
-    await submit();
+    await renderAndSubmitSelf();
 
     expect(await screen.findByLabelText('Номер формы')).toHaveAttribute('aria-invalid', 'true');
     expect(screen.queryByTestId('problem-banner')).not.toBeInTheDocument();
@@ -177,10 +183,7 @@ describe('ConsentRecordForm', () => {
 
   it('should show the scan refusal of the server on the file field', async () => {
     mocked.postConsentScan.mockRejectedValue(apiProblem(400, 'VALIDATION_ERROR', { details: [{ field: 'file', message: 'File content does not match PDF, JPEG or PNG' }] }));
-    renderForm();
-
-    await fillSelf();
-    await submit();
+    await renderAndSubmitSelf();
 
     await waitFor(() => expect(screen.getByLabelText('Скан подписанной формы')).toHaveAttribute('aria-invalid', 'true'));
     expect(mocked.postPatientConsent).not.toHaveBeenCalled();
@@ -188,10 +191,7 @@ describe('ConsentRecordForm', () => {
 
   it('should show the problem banner for a failure no field explains', async () => {
     mocked.postPatientConsent.mockRejectedValue(apiProblem(403, 'COMPARTMENT_VIOLATION', { requestId: 'req-3' }));
-    renderForm();
-
-    await fillSelf();
-    await submit();
+    await renderAndSubmitSelf();
 
     expect(await screen.findByTestId('problem-banner')).toHaveTextContent('req-3');
   });
@@ -199,16 +199,13 @@ describe('ConsentRecordForm', () => {
   it('should keep the button focusable and send once while the request runs', async () => {
     let finish: (value: typeof ACTIVE_RECORD) => void = () => undefined;
     mocked.postPatientConsent.mockReturnValue(new Promise((done) => { finish = done; }));
-    renderForm();
-
-    await fillSelf();
-    await submit();
+    await renderAndSubmitSelf();
     const busy = await screen.findByRole('button', { name: 'Вносим…' });
     await userEvent.click(busy);
 
     expect(busy).toHaveAttribute('aria-disabled', 'true');
     expect(mocked.postPatientConsent).toHaveBeenCalledTimes(1);
     finish(ACTIVE_RECORD);
-    await waitFor(() => expect(screen.getByRole('button', { name: 'Внести в карту' })).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Внести согласие' })).toBeInTheDocument());
   });
 });

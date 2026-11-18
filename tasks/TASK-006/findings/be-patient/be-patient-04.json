@@ -1,0 +1,19 @@
+{
+  "id": "be-patient-04",
+  "unit": "be-patient",
+  "kind": "robustness",
+  "severity": "low",
+  "title": "Два одновременных внесения согласия создают два действующих Consent, а отзыв закрывает только одно: после отзыва пациент остаётся «согласным»",
+  "description": "Правило «не больше одного действующего согласия» (409 CONSENT_ALREADY_ACTIVE) держится на проверке-затем-записи: create() ищет действующее согласие (findActiveConsent), затем ещё несколько раз обращается к HAPI (performerOf, readOwnScan) и только потом делает обычный POST Consent в transaction-Bundle без условного создания (If-None-Exist) и без проверки версии чего-либо. Два одновременных запроса (двое сотрудников у одного пациента, повтор запроса после обрыва связи, прямой клиент API) оба видят «действующего нет» и оба создают Consent. Дальше хуже: closeActive() (3.6 и 3.9) находит только первое действующее согласие (findActiveConsent берёт первое попавшееся) и закрывает его, второе остаётся status=active. Шлюз согласия в encounter-service (checkConsent -> findActiveConsent) продолжает видеть действующее согласие, хотя пациент или сотрудник записал отзыв, а интерфейс после отзыва покажет следующий по списку действующий Consent. Для реестра, который держится на юридической силе отзыва, это тихая потеря гарантии. Интерфейс двойную отправку гасит (use-consent-record-form.ts: if (record.isPending) return), поэтому достижимо только через гонку двух клиентов или прямой вызов API.",
+  "evidence": "apps/patient-service/src/modules/consents/consents.service.ts:create (findActiveConsent -> performerOf -> readOwnScan -> commitTransaction([{method:'POST', url:'Consent'}, audit]) with no ifNoneExist); closeActive: `const active = await findActiveConsent(...)` closes a single resource (PUT Consent/{id} with ifMatch). libs/fhir/src/lib/active-consent.ts:findActiveConsent returns the first in-force candidate (`.find(...) ?? null`). libs/fhir/src/lib/fhir-transaction.ts TransactionWrite has no ifNoneExist field. Scenario: POST /patients/42/consent twice in parallel with different formNumber/scanId -> both 201; POST /patients/42/consent/revoke -> 200 closes one; GET /patients/42/consent -> active is still non-null; encounter-service 7.1 for this patient still passes the gate.",
+  "files": [
+    "apps/patient-service/src/modules/consents/consents.service.ts",
+    "libs/fhir/src/lib/active-consent.ts",
+    "libs/fhir/src/lib/fhir-transaction.ts"
+  ],
+  "proposedFix": "Two independent measures, the first is the cheap safety net. (1) Make closeActive close every consent in force, not just the first: add a listActiveConsents(fhir, patientId, now) next to findActiveConsent in libs/fhir/src/lib/active-consent.ts (same search, return all in-force candidates) and put one PUT with ifMatch per consent plus a single audit event into the same commitTransaction; respond with the newest one. After that a revoke always leaves the patient without a consent in force, even if duplicates exist. (2) Close the race at its source with a conditional create: add an optional ifNoneExist to TransactionWrite (request.ifNoneExist) and set it on the Consent entry to `patient=Patient/{id}&scope=...&category=...&status=active` for status 'active'; HAPI then creates nothing when one exists, the service reads the entry status ('200' instead of '201') and throws CONSENT_ALREADY_ACTIVE. Add a service spec for each (two in-force consents -> revoke closes both; entry status 200 -> 409).",
+  "needsDecision": false,
+  "decisionQuestion": "",
+  "tzRef": "TASK-003 / ADR-019 (одно действующее согласие, отзыв блокирует новые записи), API §3.8, §3.9",
+  "confidence": "likely"
+}

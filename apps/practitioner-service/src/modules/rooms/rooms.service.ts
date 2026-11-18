@@ -1,4 +1,6 @@
-import { ConflictException, Inject, Injectable } from '@nestjs/common';
+import { isDeepStrictEqual } from 'node:util';
+
+import { ConflictException, HttpStatus, Inject, Injectable } from '@nestjs/common';
 import type { PaginatedResponseDto } from '@medcenter/contracts';
 import {
   createAudited,
@@ -17,34 +19,30 @@ import { toPage } from '../../common/page-envelope';
 import { CreateRoomDto } from './dto/create-room.dto';
 import { UpdateRoomDto } from './dto/update-room.dto';
 import type { RoomResponseDto } from './dto/room-response.dto';
-import { roomIdentifierQuery, roomUsingIdentifier } from './room-identifier';
-import { roomScheduleQuery } from './room-schedules';
-import { findAllRooms, LOCATION_PHYSICAL_TYPE_SYSTEM, ROOM_PHYSICAL_TYPE_CODE } from './room-search';
+import { identifierValuesOf, roomIdentifierQuery, roomUsingIdentifier } from './room-identifier';
+import { firstRoomReferrer, type RoomReferrerType } from './room-references';
+import { findAllRooms, LOCATION_PHYSICAL_TYPE_SYSTEM, readRoom, ROOM_PHYSICAL_TYPE_CODE } from './room-search';
 
-/** One page of the room list in the API §0 envelope. */
 export type RoomPage = PaginatedResponseDto<RoomResponseDto>;
 
-const HTTP_BAD_REQUEST = 400;
-
-/** `AuditEvent.source` of the writes of this service. */
 const AUDIT_SOURCE = 'practitioner-service';
 
-/** FHIR R4 `Location` has no native floor element — it lives in an extension. */
 const FLOOR_EXT = MEDCENTER_EXT.ROOM_FLOOR;
 
-/**
- * Admin CRUD over `Location` resources whose `physicalType` is `room`
- * (API §4.3–4.7, FR-017).
- *
- * The delete path protects busy slots: a room referenced by any `Schedule`
- * is never removed (BR-001) — the caller gets `409 ROOM_IN_USE`, and
- * `GET /admin/rooms/{id}/usage` (API §4.7) lists exactly those schedules.
- */
+function isBlank(value: string | null | undefined): boolean {
+  return value === undefined || value === null || value.trim() === '';
+}
+
+const REFERRER_TEXT: Readonly<Record<RoomReferrerType, string>> = {
+  Schedule: 'a schedule',
+  PractitionerRole: 'a doctor role',
+  HealthcareService: 'a service',
+};
+
 @Injectable()
 export class RoomsService {
   constructor(@Inject(FHIR_CLIENT) private readonly fhirClient: FhirClient) {}
 
-  /** The page is cut from the room list itself, so the total counts rooms only (see {@link findAllRooms}). */
   async list(page = 1, pageSize = 20): Promise<RoomPage> {
     const rooms = await findAllRooms(this.fhirClient);
     const offset = (page - 1) * pageSize;
@@ -53,11 +51,9 @@ export class RoomsService {
   }
 
   async findById(id: string): Promise<RoomResponseDto> {
-    const resource = await this.fhirClient.read('Location', id);
-    return this.toResponseDto(resource);
+    return this.toResponseDto(await readRoom(this.fhirClient, id));
   }
 
-  /** Admin writes carry their `AuditEvent` in the same transaction (FR-021, ADR-014). */
   private auditOf(actor: WriteActor): AuditContext {
     return { actor, source: AUDIT_SOURCE };
   }
@@ -72,7 +68,7 @@ export class RoomsService {
     } catch (error) {
       // Another request stored a room with this identifier between the check above and the write:
       // HAPI refused this transaction (400 when it matched the stored room, 409 when it met a write in flight).
-      if (error instanceof ConflictException || (error instanceof FhirClientError && error.upstreamStatus === HTTP_BAD_REQUEST)) {
+      if (error instanceof ConflictException || (error instanceof FhirClientError && error.upstreamStatus === HttpStatus.BAD_REQUEST)) {
         await this.assertIdentifierFree(dto.identifier);
       }
       throw error;
@@ -80,69 +76,76 @@ export class RoomsService {
   }
 
   async update(id: string, dto: UpdateRoomDto, actor: WriteActor): Promise<RoomResponseDto> {
-    const existing = await this.fhirClient.read('Location', id);
+    const existing = await readRoom(this.fhirClient, id);
     if (dto.identifier !== undefined) {
       await this.assertIdentifierFree(dto.identifier, id);
     }
-    // Merge skips undefined: absent DTO fields must not blank existing values.
-    // `floor` is excluded from the plain merge: it lives inside an extension,
-    // and the whole `extension` array of the patch would overwrite unrelated
-    // stored extensions — it is merged per-entry below instead.
-    const merged: Record<string, unknown> = { ...existing };
-    for (const [key, value] of Object.entries(this.toLocation(dto))) {
-      if (value !== undefined && key !== 'extension') {
-        merged[key] = value;
-      }
-    }
-    // `floor` lives in an extension: merge it separately so an absent field
-    // keeps the stored extension while a supplied one replaces just its entry.
-    if (dto.floor !== undefined) {
-      const extensions = (Array.isArray(merged['extension'])
-        ? (merged['extension'] as Array<Record<string, unknown>>).filter(
-            (ext) => ext['url'] !== FLOOR_EXT,
-          )
-        : []
-      ).concat([{ url: FLOOR_EXT, valueInteger: dto.floor }]);
-      merged['extension'] = extensions;
+    const merged = this.applyPatch(existing, dto);
+    // A patch that changes nothing writes no version and no AuditEvent.
+    if (isDeepStrictEqual(merged, existing)) {
+      return this.toResponseDto(existing);
     }
     const updated = await updateAudited(this.fhirClient, { ...merged, id } as FhirResource, this.auditOf(actor));
     return this.toResponseDto(updated);
   }
 
-  /**
-   * Refuses to delete a room referenced by any schedule (active or not — HAPI
-   * keeps referential integrity on delete, so a deactivated schedule pins the
-   * room too). Busy slots are protected (BR-001); the contract is 409 `ROOM_IN_USE`
-   * (API §4.6).
-   *
-   * `ROOM_IN_USE` is catalogued in `ERROR_CODES` (libs/contracts), so
-   * `ProblemDetailsFilter` promotes it to the response `errorCode`; the same
-   * label stays at the start of `detail` for logs and older clients.
-   */
-  async remove(id: string, actor: WriteActor): Promise<void> {
-    // An unknown id surfaces as 404 NOT_FOUND straight from the FHIR client.
-    await this.fhirClient.read('Location', id);
-    // `_count: 1` — one referencing schedule is enough to refuse the delete.
-    // Same query as the usage view (API §4.7), so both always agree.
-    const schedules = await this.fhirClient.search('Schedule', {
-      ...roomScheduleQuery(id),
-      _count: 1,
-    });
-    if ((schedules.entry ?? []).length > 0) {
-      throw new ConflictException({
-        errorCode: 'ROOM_IN_USE',
-        message: `ROOM_IN_USE: room ${id} is referenced by a schedule`,
-      });
+  // Emptied optional elements are removed (FHIR JSON allows no empty string); `floor` is merged entry by entry so other extensions survive.
+  private applyPatch(existing: FhirResource, dto: UpdateRoomDto): Record<string, unknown> {
+    const merged: Record<string, unknown> = { ...existing };
+    // The stored entry stays as it is while the value is the same: a seeded room carries a `system` the patch does not know.
+    const storedIdentifiers = identifierValuesOf(existing);
+    if (dto.identifier !== undefined && !(storedIdentifiers.length === 1 && storedIdentifiers[0] === dto.identifier)) {
+      merged['identifier'] = [{ value: dto.identifier }];
     }
-    await deleteAudited(this.fhirClient, 'Location', id, this.auditOf(actor));
+    if (dto.name !== undefined) {
+      merged['name'] = dto.name;
+    }
+    if (dto.description !== undefined) {
+      if (isBlank(dto.description)) {
+        delete merged['description'];
+      } else {
+        merged['description'] = dto.description;
+      }
+    }
+    if (dto.floor !== undefined && (dto.floor ?? undefined) !== this.readFloor(existing)) {
+      const others = (Array.isArray(merged['extension']) ? (merged['extension'] as Array<Record<string, unknown>>) : []).filter(
+        (ext) => ext['url'] !== FLOOR_EXT,
+      );
+      const extensions = dto.floor === null ? others : [...others, { url: FLOOR_EXT, valueInteger: dto.floor }];
+      if (extensions.length === 0) {
+        delete merged['extension'];
+      } else {
+        merged['extension'] = extensions;
+      }
+    }
+    return merged;
   }
 
-  /**
-   * `409 CONFLICT` when another room already has `identifier` (API §4.4/4.5, compared trimmed and
-   * case-insensitively). HAPI has no unique constraint over `Location.identifier`, so the rooms are
-   * read and compared here; two admins creating the same identifier in the same instant is the one
-   * case this check cannot see; `create` closes it with a conditional create (`roomIdentifierQuery`).
-   */
+  async remove(id: string, actor: WriteActor): Promise<void> {
+    await readRoom(this.fhirClient, id);
+    const referrer = await firstRoomReferrer(this.fhirClient, id);
+    if (referrer !== undefined) {
+      throw this.roomInUse(id, REFERRER_TEXT[referrer]);
+    }
+    try {
+      await deleteAudited(this.fhirClient, 'Location', id, this.auditOf(actor));
+    } catch (error) {
+      // A delete carries no `If-Match`, so its 409 is HAPI keeping a reference: a resource the probes missed points at the room, not a concurrent edit.
+      if (error instanceof ConflictException) {
+        throw this.roomInUse(id, 'another resource');
+      }
+      throw error;
+    }
+  }
+
+  private roomInUse(roomId: string, referrer: string): ConflictException {
+    return new ConflictException({
+      errorCode: 'ROOM_IN_USE',
+      message: `ROOM_IN_USE: room ${roomId} is referenced by ${referrer}`,
+    });
+  }
+
+  // HAPI has no unique constraint over `Location.identifier`; `create` closes the concurrent case with a conditional create.
   private async assertIdentifierFree(identifier: string, roomId?: string): Promise<void> {
     const taken = roomUsingIdentifier(await findAllRooms(this.fhirClient), identifier, roomId);
     if (taken !== undefined) {
@@ -157,15 +160,13 @@ export class RoomsService {
     });
   }
 
-  private toLocation(dto: Partial<CreateRoomDto>): FhirResource {
+  private toLocation(dto: CreateRoomDto): FhirResource {
     return {
       resourceType: 'Location',
-      identifier: dto.identifier === undefined ? undefined : [{ value: dto.identifier }],
+      identifier: [{ value: dto.identifier }],
       name: dto.name,
-      description: dto.description,
-      ...(dto.floor === undefined
-        ? {}
-        : { extension: [{ url: FLOOR_EXT, valueInteger: dto.floor }] }),
+      ...(isBlank(dto.description) ? {} : { description: dto.description }),
+      ...(typeof dto.floor === 'number' ? { extension: [{ url: FLOOR_EXT, valueInteger: dto.floor }] } : {}),
       physicalType: {
         coding: [
           { system: LOCATION_PHYSICAL_TYPE_SYSTEM, code: ROOM_PHYSICAL_TYPE_CODE, display: 'room' },
@@ -175,30 +176,21 @@ export class RoomsService {
   }
 
   private toResponseDto(resource: FhirResource): RoomResponseDto {
-    const identifier = Array.isArray(resource['identifier'])
-      ? (resource['identifier'] as Array<Record<string, unknown>>)[0]
-      : undefined;
+    const { name, description } = resource;
+    const [identifier] = Array.isArray(resource['identifier']) ? resource['identifier'] : [];
     return {
       id: resource.id ?? '',
-      identifier: typeof identifier?.['value'] === 'string' ? (identifier['value'] as string) : '',
-      name: typeof resource['name'] === 'string' ? (resource['name'] as string) : '',
-      description:
-        typeof resource['description'] === 'string' ? (resource['description'] as string) : undefined,
+      identifier: typeof identifier?.value === 'string' ? identifier.value : '',
+      name: typeof name === 'string' ? name : '',
+      description: typeof description === 'string' ? description : undefined,
       floor: this.readFloor(resource),
       isActive: resource['status'] !== 'inactive',
     };
   }
 
   private readFloor(resource: FhirResource): number | undefined {
-    const extensions = resource['extension'];
-    if (!Array.isArray(extensions)) {
-      return undefined;
-    }
-    const floor = (extensions as Array<Record<string, unknown>>).find(
-      (ext) => ext['url'] === FLOOR_EXT,
-    );
-    return typeof floor?.['valueInteger'] === 'number'
-      ? (floor['valueInteger'] as number)
-      : undefined;
+    const extensions: ReadonlyArray<Record<string, unknown>> = Array.isArray(resource['extension']) ? resource['extension'] : [];
+    const floor = extensions.find((ext) => ext['url'] === FLOOR_EXT)?.['valueInteger'];
+    return typeof floor === 'number' ? floor : undefined;
   }
 }

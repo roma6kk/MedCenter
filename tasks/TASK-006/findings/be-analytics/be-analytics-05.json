@@ -1,0 +1,20 @@
+{
+  "id": "be-analytics-05",
+  "unit": "be-analytics",
+  "kind": "question",
+  "severity": "low",
+  "title": "Отчёт 9.3: total и «Доля» считаются от суммы показанных топ-N услуг, а не от всех записей периода",
+  "description": "SQL 9.3 режет список по LIMIT top, а ReportsService.envelope считает total как сумму групп. Поэтому при top меньше числа услуг, на которые были записи, total (и строка «Итого» таблицы, и колонка «Доля», и полоски share-bar) относятся только к показанным строкам: у лидера, который на деле занимает 30% записей периода, таблица покажет 40%, а «Итого 75 · 100%» не равно числу записей (100). Общая шапка DTO при этом утверждает, что каждая запись попадает ровно в одну группу, а total равен сумме групп; для 9.3 с отсечением это неверно. В демо-данных (6 услуг, top по умолчанию 10) разницы нет, она появляется при top=5 или при каталоге длиннее top. Это выбор между двумя разумными поведениями (доля внутри топа или доля от всех записей), поэтому вопрос владельцу, а не правка.",
+  "evidence": "apps/analytics-service/src/modules/reports/reports.repository.ts:100-115 countBookingsByService (.limit(limit) at :113); reports.service.ts:80-90 servicesPopularity -> this.envelope(...) and :95-101 envelope, total: sumOf(groups) at :100; reports/dto/measure-report.dto.ts header ('each subject ... is counted in exactly one group, and total is the sum of the groups'). Frontend: components/admin/analytics/group-table.tsx ShareCell/tfoot use report.total (sharePercent(group.count, report.total), 'Итого' row = report.total, '100%'). Scenario: 12 booked services with counts 30,20,10,10,5,5,5,5,4,3,2,1 (total 100), top=5 -> groups sum 75 -> table shows shares 40/27/13/13/7 % and 'Итого 75 · 100%' instead of 30/20/10/10/5 % of 100 bookings.",
+  "files": [
+    "apps/analytics-service/src/modules/reports/reports.service.ts",
+    "apps/analytics-service/src/modules/reports/reports.repository.ts",
+    "apps/analytics-service/src/modules/reports/dto/services-popularity.dto.ts",
+    "frontend/src/components/admin/analytics/group-table.tsx"
+  ],
+  "proposedFix": "Option A (recommended): keep groups as they are and add an additive field to 9.3, e.g. `others: number` (bookings of the services beyond the top) computed in the same SQL with a window/second query; `total` = sum of groups + others; the table shows an «Other services» row when others > 0 so that Share and the total row are relative to all bookings of the period. Option B: leave the numbers, relabel the column in the UI as «share of the shown» (no backend change). Option C: drop the share column for truncated lists.",
+  "needsDecision": true,
+  "decisionQuestion": "В рейтинге услуг (отчёт 9.3) «Доля» и «Итого» сейчас считаются от суммы показанных топ-N строк. Как должно быть? A) добавить в ответ число записей по остальным услугам и строку «Прочие услуги», тогда доли и итог относятся ко всем записям периода (рекомендую, добавление аддитивное); B) оставить как есть и подписать колонку «доля среди показанных»; C) убрать колонку долей, когда список обрезан.",
+  "tzRef": "FR-019; api-designer-spec §9.3",
+  "confidence": "confirmed"
+}

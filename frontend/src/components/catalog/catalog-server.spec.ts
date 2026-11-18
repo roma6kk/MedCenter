@@ -1,12 +1,31 @@
 jest.mock('@/lib/server-fetch', () => ({ publicApiFetch: jest.fn() }));
+jest.mock('@/lib/i18n/server-locale', () => ({ readServerLocale: jest.fn().mockResolvedValue('ru') }));
 
+import { readServerLocale } from '@/lib/i18n/server-locale';
 import { publicApiFetch } from '@/lib/server-fetch';
 import { loadDoctor, loadDoctorPage, loadDoctors, loadServices } from './catalog-server';
 
-const fetchMock = publicApiFetch as jest.MockedFunction<(path: string) => Promise<unknown>>;
+const fetchMock = publicApiFetch as jest.MockedFunction<(path: string, locale?: string) => Promise<unknown>>;
+const localeMock = readServerLocale as jest.MockedFunction<typeof readServerLocale>;
 
 describe('catalog-server', () => {
-  beforeEach(() => fetchMock.mockReset());
+  beforeEach(() => {
+    fetchMock.mockReset();
+    localeMock.mockResolvedValue('ru');
+  });
+
+  it('should ask for the language of the viewer when it reads the catalog', async () => {
+    fetchMock.mockResolvedValue({ ok: true, data: [] });
+    localeMock.mockResolvedValue('en');
+
+    await loadServices();
+    await loadDoctors();
+    await loadDoctorPage({});
+    await loadDoctor('d1');
+
+    expect(fetchMock.mock.calls.map((call) => call[1])).toEqual(['en', 'en', 'en', 'en']);
+  });
+
 
   it('should hand the items of the page envelope to the page when the API answers with an envelope', async () => {
     fetchMock.mockResolvedValue({ ok: true, data: { items: [{ id: 'd1' }], meta: { page: 1, pageSize: 100, totalItems: 1, totalPages: 1 } } });
@@ -33,7 +52,7 @@ describe('catalog-server', () => {
 
     await loadDoctors({ serviceId: 'svc-1', search: 'Ив' });
 
-    expect(fetchMock).toHaveBeenCalledWith(expect.stringMatching(/serviceId=svc-1.*search=/));
+    expect(fetchMock).toHaveBeenCalledWith(expect.stringMatching(/serviceId=svc-1.*search=/), 'ru');
   });
 
   it('should keep the server page meta and send the specialty and paging when one page of doctors is loaded', async () => {
@@ -42,7 +61,7 @@ describe('catalog-server', () => {
 
     const result = await loadDoctorPage({ specialty: '419192003', page: 2, pageSize: 9 });
 
-    expect(fetchMock).toHaveBeenCalledWith('/api/v1/doctors?specialty=419192003&page=2&pageSize=9');
+    expect(fetchMock).toHaveBeenCalledWith('/api/v1/doctors?specialty=419192003&page=2&pageSize=9', 'ru');
     expect(result).toEqual({ ok: true, data: envelope });
   });
 
@@ -51,6 +70,6 @@ describe('catalog-server', () => {
 
     await loadDoctor('x/y');
 
-    expect(fetchMock).toHaveBeenCalledWith('/api/v1/doctors/x%2Fy');
+    expect(fetchMock).toHaveBeenCalledWith('/api/v1/doctors/x%2Fy', 'ru');
   });
 });

@@ -6,39 +6,9 @@ import type { DemoUserRecord, DemoUsersSection } from './demo-manifest';
 import { assertAdminGrant } from './demo-admin-grant';
 import { obtainTokenGrant, type OAuthConfig } from './oauth-pkce-client';
 
-/**
- * User part of the demo seed (separate step: `seed:demo -- --users`). It talks
- * to auth-service through its public API (API §2.2) as the bootstrap ADMIN:
- *
- * - with `--with-admin` only: one demo ADMIN via `POST /api/v1/admin/users` (the bootstrap
- *   admin's password lives only in `.env`; the stack smoke suite signs in as this generated
- *   account instead). A persistent privileged account is opt-in; an admin an earlier run
- *   made keeps its manifest record (and password) when a later run omits the flag;
- * - DOCTOR accounts via `POST /api/v1/admin/users` with `practitionerRoleId`
- *   (the seeded PractitionerRole), so the doctor's token carries `fhirUser`;
- * - PATIENT accounts via the public `POST /api/v1/auth/register`, which also
- *   provisions the FHIR `Patient`.
- *
- * Must run AFTER auth-service is deployed and the FHIR part has run (the role
- * ids must exist in HAPI: the service checks them before linking). Not yet
- * exercised against a live auth-service — the request shapes were taken from
- * its controllers/DTOs and are covered by unit and contract tests.
- *
- * Re-running is safe: a taken email answers `409` with `EMAIL_TAKEN`, which is
- * recorded as `exists` and keeps the password an earlier run generated. Any
- * other `409` (e.g. `PRACTITIONER_ROLE_TAKEN`) is a real conflict and fails.
- *
- * Generated passwords live only in the manifest, so nothing here may lose them:
- * a request that rejects (network, auth-service restart) or an unreadable 201
- * body becomes one `failed`/`created` record instead of aborting the run, and
- * the caller can persist the manifest after every account (`onProgress`).
- */
-
 export interface UsersSeedConfig {
-  /** Create the demo ADMIN too (`--with-admin`). */
   readonly withDemoAdmin: boolean;
   readonly oauth: OAuthConfig;
-  /** Origin of `/api/v1/*`, normally the same Traefik edge as `oauth.authBaseUrl`. */
   readonly apiBaseUrl: string;
   readonly admin: { readonly email: string; readonly password: string };
   readonly emailDomain: string;
@@ -52,7 +22,6 @@ export interface UsersSeedConfig {
 export interface PlannedAccount {
   readonly role: DemoUserRecord['role'];
   readonly email: string;
-  /** Request path and JSON body (the body carries the password; it is never logged). */
   readonly path: string;
   readonly body: Readonly<Record<string, unknown>>;
   readonly practitionerRoleId?: string;
@@ -61,12 +30,7 @@ export interface PlannedAccount {
 
 const ERROR_EXCERPT_LENGTH = 300;
 
-/**
- * Version of the account consent text the demo patients "accept" at registration (API 2.2.6).
- * It mirrors `ACCOUNT_CONSENT_VERSION` in `frontend/src/lib/contracts.ts`, the version the web form
- * sends (the backend keeps no copy: it stores whatever version the client names). Change both together.
- */
-export const DEMO_ACCOUNT_CONSENT_VERSION = '2026-10';
+const DEMO_ACCOUNT_CONSENT_VERSION = '2026-10';
 
 export function emailOf(local: string, domain: string): string {
   return `${local}@${domain}`;
@@ -76,11 +40,6 @@ function previousPassword(config: UsersSeedConfig, email: string): string | unde
   return config.previous?.accounts.find((account) => account.email === email)?.password;
 }
 
-/**
- * Demo ADMIN accounts. The bootstrap admin's password lives only in `.env`, so
- * tools that must act as an administrator (the stack smoke suite) read this
- * generated account from the manifest instead.
- */
 export function planAdminAccounts(config: UsersSeedConfig): PlannedAccount[] {
   return ADMINS.map((admin) => {
     const email = emailOf(admin.emailLocal, config.emailDomain);
@@ -90,7 +49,6 @@ export function planAdminAccounts(config: UsersSeedConfig): PlannedAccount[] {
   });
 }
 
-/** DOCTOR accounts, linked to the seeded PractitionerRoles by their deterministic ids. */
 export function planDoctorAccounts(config: UsersSeedConfig): PlannedAccount[] {
   return DOCTORS.map((doctor) => {
     const email = emailOf(doctor.emailLocal, config.emailDomain);
@@ -117,7 +75,6 @@ export function planDoctorAccounts(config: UsersSeedConfig): PlannedAccount[] {
   });
 }
 
-/** PATIENT accounts, self-registered (the FHIR `Patient` is created by auth-service). */
 export function planPatientAccounts(config: UsersSeedConfig): PlannedAccount[] {
   return PATIENTS.map((patient) => {
     const email = emailOf(patient.emailLocal, config.emailDomain);
@@ -154,7 +111,6 @@ async function post(
     headers: {
       'content-type': 'application/json',
       accept: 'application/json',
-      // Registration is public; only the admin endpoint needs the Bearer token.
       ...(account.role === 'PATIENT' ? {} : { authorization: `Bearer ${token}` }),
     },
     body: JSON.stringify(account.body),
@@ -162,7 +118,6 @@ async function post(
   return { status: response.status, text: await response.text() };
 }
 
-/** `409` of a repeated email — the only conflict that means "this account is already there". */
 const EMAIL_TAKEN_MARKER = 'EMAIL_TAKEN';
 
 function existingAccountRecord(base: RecordBase, known: string | undefined): DemoUserRecord {
@@ -187,10 +142,6 @@ function recordBase(account: PlannedAccount): RecordBase {
   };
 }
 
-/**
- * A 201 means the account exists with the generated password, so a body that
- * is not JSON must not turn that into an error: the id is just left out.
- */
 function createdDetails(text: string): Pick<DemoUserRecord, 'userId' | 'detail'> {
   try {
     const created = JSON.parse(text) as { id?: unknown } | null;
@@ -204,12 +155,7 @@ function errorText(error: unknown): string {
   return (error instanceof Error ? error.message : String(error)).slice(0, ERROR_EXCERPT_LENGTH);
 }
 
-/**
- * The request itself rejected (network, auth-service restart): the outcome is
- * unknown, because the account may have been created before the answer was
- * lost. The password is therefore kept, so a re-run (which reuses it, then
- * meets `EMAIL_TAKEN` if the account was created) stays consistent.
- */
+// Outcome unknown (the account may exist): keep the generated password so a re-run stays consistent.
 export function toRejectedRecord(account: PlannedAccount, error: unknown): DemoUserRecord {
   return {
     ...recordBase(account),
@@ -219,12 +165,6 @@ export function toRejectedRecord(account: PlannedAccount, error: unknown): DemoU
   };
 }
 
-/**
- * Pure mapping of an API answer to the manifest record: 201 -> `created` (with
- * the generated password), 409 `EMAIL_TAKEN` -> `exists` (the earlier run's
- * password, if any — the generated one was never applied), anything else ->
- * `failed`. Never throws.
- */
 export function toUserRecord(
   config: UsersSeedConfig,
   account: PlannedAccount,
@@ -253,11 +193,6 @@ async function seedAccount(
   }
 }
 
-/**
- * The section as it stands after some accounts: the records of this run, then
- * the previous manifest's records for accounts not reached yet — so an
- * interrupted re-run never drops a password the earlier run recorded.
- */
 function sectionOf(config: UsersSeedConfig, accounts: readonly DemoUserRecord[]): DemoUsersSection {
   return { generatedAt: config.now.toISOString(), authBaseUrl: config.oauth.authBaseUrl, accounts };
 }
@@ -268,18 +203,12 @@ function sectionSoFar(config: UsersSeedConfig, done: readonly DemoUserRecord[]):
   return sectionOf(config, [...done, ...pending]);
 }
 
-/** Called with the section after every account, so the caller can persist it before the next request. */
 export type UsersProgress = (section: DemoUsersSection) => Promise<void>;
 
-/** Demo admins of an earlier `--with-admin` run: their records stay in the manifest, which holds their only password copy. */
 function earlierDemoAdmins(config: UsersSeedConfig): DemoUserRecord[] {
   return (config.previous?.accounts ?? []).filter((record) => record.role === 'ADMIN' && record.email !== config.admin.email);
 }
 
-/**
- * Creates the demo doctors and patients, and the demo admin when `withDemoAdmin` is set; the bootstrap
- * admin itself is only listed.
- */
 export async function seedDemoUsers(
   config: UsersSeedConfig,
   fetchImpl: FetchLike = (url, init) => fetch(url, init),

@@ -1,11 +1,13 @@
 'use client';
 
+import { CalendarRange, Pencil, Trash2 } from 'lucide-react';
 import { PaginatedTable, type PageMeta, type TableColumn } from '@/components/data-display/paginated-table';
 import { CodeChip } from '@/components/feedback/code-chip';
-import { StampBadge } from '@/components/feedback/stamp-badge';
+import type { MenuItem } from '@/components/ui/dropdown-menu';
 import { useT } from '@/lib/i18n/use-t';
 import type { AdminRoom } from './room-types';
-import { ROW_ACTION_CLASS } from '../shared/admin-styles';
+import { ActiveStatusBadge } from '../shared/active-status-badge';
+import { RowActionsMenu } from '../shared/row-actions-menu';
 
 interface RoomActionHandlers {
   readonly onUsage: (room: AdminRoom) => void;
@@ -21,34 +23,26 @@ interface RoomsTableProps extends RoomActionHandlers {
 
 function RoomActions({ room, onUsage, onEdit, onDelete }: RoomActionHandlers & { readonly room: AdminRoom }): React.JSX.Element {
   const t = useT('admin.rooms');
-  return (
-    <span className="flex flex-wrap gap-1">
-      <button type="button" className={ROW_ACTION_CLASS} onClick={() => onUsage(room)} aria-label={t('usageAria', { name: room.name })}>
-        {t('usage.open')}
-      </button>
-      <button type="button" className={ROW_ACTION_CLASS} onClick={() => onEdit(room)} aria-label={t('editAria', { name: room.name })}>
-        {t('edit')}
-      </button>
-      <button type="button" className={ROW_ACTION_CLASS} onClick={() => onDelete(room)} aria-label={t('deleteAria', { name: room.name })}>
-        {t('delete')}
-      </button>
-    </span>
-  );
+  const items: ReadonlyArray<MenuItem> = [
+    { key: 'edit', label: t('edit'), icon: Pencil, onSelect: () => onEdit(room) },
+    { key: 'usage', label: t('usage.open'), icon: CalendarRange, onSelect: () => onUsage(room) },
+    { key: 'delete', label: t('delete'), icon: Trash2, destructive: true, onSelect: () => onDelete(room) },
+  ];
+  return <RowActionsMenu name={room.name} items={items} />;
 }
 
 function useRoomColumns(actions: RoomActionHandlers): ReadonlyArray<TableColumn<AdminRoom>> {
   const t = useT('admin.rooms');
   return [
-    { key: 'identifier', header: t('columns.identifier'), render: (row) => <CodeChip code={row.identifier} /> },
-    { key: 'name', header: t('columns.name'), render: (row) => row.name },
+    { key: 'identifier', header: t('columns.identifier'), mobile: 'badge', render: (row) => <CodeChip code={row.identifier} /> },
+    { key: 'name', header: t('columns.name'), mobile: 'title', render: (row) => row.name },
     { key: 'floor', header: t('columns.floor'), render: (row) => row.floor ?? '—' },
     { key: 'description', header: t('columns.description'), render: (row) => row.description ?? '—' },
-    { key: 'status', header: t('columns.status'), render: (row) => <StampBadge status={row.isActive ? 'active' : 'cancelled'}>{row.isActive ? t('active') : t('inactive')}</StampBadge> },
-    { key: 'actions', header: t('columns.actions'), render: (row) => <RoomActions room={row} {...actions} /> },
+    { key: 'status', header: t('columns.status'), mobile: 'badge', render: (row) => <ActiveStatusBadge isActive={row.isActive} activeLabel={t('active')} inactiveLabel={t('inactive')} /> },
+    { key: 'actions', header: t('columns.actions'), mobile: 'actions', render: (row) => <RoomActions room={row} {...actions} /> },
   ];
 }
 
-/** Room list (FR-017): identifier, floor, status; occupancy drawer, edit and delete per row. */
 export function RoomsTable({ rows, meta, onPage, onUsage, onEdit, onDelete }: RoomsTableProps): React.JSX.Element {
   const t = useT('admin.rooms');
   const columns = useRoomColumns({ onUsage, onEdit, onDelete });

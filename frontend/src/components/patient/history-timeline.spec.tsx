@@ -29,7 +29,7 @@ describe('HistoryTimeline', () => {
 
     renderWithClient(<HistoryTimeline />);
 
-    expect(screen.getByTestId('table-skeleton')).toBeInTheDocument();
+    expect(screen.getByTestId('content-skeleton-timeline')).toBeInTheDocument();
   });
 
   it('should show the visit with its Minsk time, diagnosis chip, summary and recommendations', async () => {
@@ -96,8 +96,11 @@ describe('HistoryTimeline', () => {
 
     renderWithClient(<HistoryTimeline />);
 
-    expect(await screen.findByText('История пуста')).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Выписка из медкарты' })).not.toBeInTheDocument();
+    expect(await screen.findByText('История приёмов пуста')).toBeInTheDocument();
+    expect(screen.getByText(/После первого приёма здесь появятся диагнозы/)).toBeInTheDocument();
+    expect(screen.getByTestId('empty-state-icon')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Записаться' })).toHaveAttribute('href', '/booking');
+    expect(screen.queryByRole('button', { name: 'Выписка о приёмах' })).not.toBeInTheDocument();
   });
 
   it('should show a banner with the request id and retry when the service fails', async () => {
@@ -126,7 +129,7 @@ describe('HistoryTimeline', () => {
     historyMock.mockResolvedValue(pageOf([historyFixture()]));
     renderWithClient(<HistoryTimeline />);
 
-    await userEvent.click(await screen.findByRole('button', { name: 'Выписка из медкарты' }));
+    await userEvent.click(await screen.findByRole('button', { name: 'Выписка о приёмах' }));
 
     expect(print).toHaveBeenCalledTimes(1);
     print.mockRestore();
@@ -175,6 +178,29 @@ describe('HistoryTimeline', () => {
     expect(within(second as HTMLElement).queryByText(/Азитромицин/)).not.toBeInTheDocument();
   });
 
+  it('should say the prescriptions could not be loaded, with a retry, when their request fails', async () => {
+    historyMock.mockResolvedValue(pageOf([historyFixture()]));
+    prescriptionsMock.mockRejectedValueOnce(apiProblem(500, 'INTERNAL'));
+
+    renderWithClient(<HistoryTimeline />);
+
+    const visit = await openVisit();
+    expect(await within(visit).findByText('Назначения не удалось загрузить.')).toBeInTheDocument();
+    prescriptionsMock.mockResolvedValue(pageOf([medicationFixture()]));
+    await userEvent.click(within(visit).getByRole('button', { name: 'Повторить' }));
+    await waitFor(() => expect(within(visit).queryByText('Назначения не удалось загрузить.')).not.toBeInTheDocument());
+  });
+
+  it('should point to the prescriptions tab when there are more prescriptions than one page holds', async () => {
+    historyMock.mockResolvedValue(pageOf([historyFixture()]));
+    prescriptionsMock.mockResolvedValue({ ...pageOf([]), meta: { ...pageOf([]).meta, totalPages: 2 } });
+
+    renderWithClient(<HistoryTimeline />);
+
+    const visit = await openVisit();
+    expect(await within(visit).findByText(/Назначений больше, чем показано здесь/)).toBeInTheDocument();
+  });
+
   it('should filter the loaded visits by diagnosis', async () => {
     historyMock.mockResolvedValue(pageOf([historyFixture(), historyFixture({ id: 'enc-2', diagnosis: 'I10', diagnoses: [{ code: 'I10', display: 'Гипертензия' }] })]));
     renderWithClient(<HistoryTimeline />);
@@ -192,6 +218,6 @@ describe('HistoryTimeline', () => {
 
     expect(await screen.findByTestId('problem-banner')).toHaveTextContent('req-21');
     expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
-    expect(screen.queryByText('История пуста')).not.toBeInTheDocument();
+    expect(screen.queryByText('История приёмов пуста')).not.toBeInTheDocument();
   });
 });

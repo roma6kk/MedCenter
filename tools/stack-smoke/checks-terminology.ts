@@ -49,13 +49,11 @@ async function validationChecks(suite: Suite): Promise<void> {
   });
 }
 
-/** API §2.3.1-2.3.3: the seeded value sets, their expansion and code validation. */
 export async function terminologyReadChecks(suite: Suite): Promise<void> {
   await valueSetChecks(suite);
   await validationChecks(suite);
 }
 
-/** API §2.3.4: the snapshot importer. Runs last: it republishes the terminology in the background. */
 export async function terminologyImportChecks(suite: Suite): Promise<void> {
   const { runner, api, sessions, config } = suite;
   const session = sessions.admin;
@@ -67,7 +65,6 @@ export async function terminologyImportChecks(suite: Suite): Promise<void> {
     const listed = expectPage(await api.get('/api/v1/terminology/value-sets', { session }), VALUE_SET_SHAPE);
     const snapshot = listed.find((item) => item['url'] === NSI_VALUE_SET);
     const snapshotVersion = String(expectDefined(snapshot, 'the НСИ value set')['version']);
-    // 409 means an earlier import still holds the single-flight lock: wait for it instead of failing.
     const accepted = await pollUntil(config, 'the import lock', async () => {
       const response = await api.post('/api/v1/admin/terminology/import', { session, body: { snapshotVersion } });
       if (response.status === 409) {

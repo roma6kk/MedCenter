@@ -1,0 +1,19 @@
+{
+  "id": "be-practitioner-01",
+  "unit": "be-practitioner",
+  "kind": "bug",
+  "severity": "medium",
+  "title": "Поиск врача по имени не находит врача по английскому имени (Accept-Language: en) и по полному имени из двух слов",
+  "description": "GET /api/v1/doctors?search= передаёт строку в HAPI как `Practitioner?name=<строка>` (а при фильтре по услуге/специальности как `PractitionerRole?practitioner.name=`). Параметр name в R4 сопоставляется по началу каждого сохранённого строкового поля HumanName отдельно (family, given, text...), и значения там только русские: английский текст лежит в расширении translation (`_family`, `_given[i]`), которое HAPI не индексирует. Итого после коммита 520db7b карточка врача в английском интерфейсе показывает «Maria Ivanova», но если пациент вводит в поле поиска именно это имя (или «Ivanova»), результат пустой: `name=Ivanova` не совпадает с «Иванова». Вторая половина дефекта — то же для русского: карточка показывает `name` = «given family» («Мария Иванова»), а в сид-данных HumanName.text хранится как «family given patronymic» («Иванова Мария Сергеевна»), поэтому строка «Мария Иванова» (два слова, как на карточке) не является началом ни одного поля и тоже даёт пустой список; находится только одно слово или порядок «Иванова Мария». Фронтенд передаёт `search` как есть (doctor-filter-bar.tsx) и всегда шлёт Accept-Language текущей локали, поэтому сценарий воспроизводится из интерфейса.",
+  "evidence": "apps/practitioner-service/src/modules/doctors/doctor-search.ts:43 `{ name: search }` and :63 `'practitioner.name': search`; apps/practitioner-service/src/modules/doctors/doctors.service.ts:41-52 `lang` is used only by toDoctorDto after the search, never by the query; libs/fhir-mappers/src/lib/translation.ts: the English value lives in `_family`/`_given` translation extensions; tools/demo-seed/demo-resources.ts:123-127 stores `text: 'Иванова Мария Сергеевна'`, `family: 'Иванова'`, `_family: {extension:[translation en 'Ivanova']}`. Scenario 1: UI language en, GET /api/v1/doctors?search=Ivanova (Accept-Language: en) -> HAPI `Practitioner?name=Ivanova` -> 0 items although the page lists «Maria Ivanova». Scenario 2: ru, search=«Мария Иванова» -> `name=Мария Иванова` -> 0 items (to confirm live: GET /fhir/Practitioner?name=Мария%20Иванова). Unit tests only use one-word Latin/Cyrillic terms (doctors.service.query-string.spec.ts, catalog-queries.e2e-spec.ts).",
+  "files": [
+    "apps/practitioner-service/src/modules/doctors/doctor-search.ts",
+    "apps/practitioner-service/src/modules/doctors/doctors.service.ts",
+    "libs/fhir-mappers/src/lib/translation.ts"
+  ],
+  "proposedFix": "Do the name match in the service instead of (or in addition to) HAPI: when `search` is present, read the practitioners in chunks like findAllRooms does (`Practitioner?_count=100&_offset=…`, bounded by a scan limit; for the role-filter path restrict to the ids already found by the PractitionerRole scan, i.e. drop the `practitioner.name` chain and filter the id list), then keep a doctor when every word of the term is a case-insensitive prefix of some given/family token in ru OR en (use the existing `translated(original, element, 'ru'|'en')` helpers, so both languages work whichever UI language is active, and the word order does not matter). Page and count the filtered list locally (totalItems = number of matching doctors). Keep the plain HAPI paging when `search` is absent. Add unit cases: en term finds the doctor in en and ru, 'Мария Иванова' and 'Иванова Мария' both find her, a term that matches nobody gives an empty page with totalItems 0.",
+  "needsDecision": false,
+  "decisionQuestion": "",
+  "tzRef": "Пациент: просмотр доступных врачей; FR-002; NFR-008 (ru/en); коммит 520db7b",
+  "confidence": "likely"
+}

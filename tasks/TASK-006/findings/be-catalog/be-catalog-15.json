@@ -1,0 +1,18 @@
+{
+  "id": "be-catalog-15",
+  "unit": "be-catalog",
+  "kind": "bug",
+  "severity": "low",
+  "title": "typeDisplay услуги пустой у созданных через API услуг и теряется при смене typeCode, хотя НСИ-$lookup уже возвращает display",
+  "description": "ServiceResponseDto содержит typeDisplay (читаемое название вида услуги из НСИ), админская таблица показывает его второй строкой. Но create/update пишут в HealthcareService.type только {system, code}: assertTerminology вызывает CodeSystem/$lookup (в ответе есть параметр display), однако результат отбрасывается. Итог: у каждой услуги, созданной через админку, typeDisplay == '' всегда, а при PATCH typeCode прежний display затирается (type пересобирается без него) — у демо-услуг подпись пропадает после редактирования кода. Ни одна ветка не заполняет поле, которое спецификация описывает в ответе.",
+  "evidence": "apps/catalog-service/src/modules/services/services.service.ts:199-222 (assertTerminology: `lookup` не используется дальше проверки resourceType), 231-258 (toHealthcareService пишет coding без display), 118-125 (update пересобирает type через toHealthcareService без display), 295 (typeDisplay: coding.display ?? ''); frontend/src/components/admin/services/services-table.tsx:39 показывает typeDisplay.",
+  "files": [
+    "apps/catalog-service/src/modules/services/services.service.ts",
+    "apps/catalog-service/src/modules/services/services.service.spec.ts"
+  ],
+  "proposedFix": "Let assertTerminology return the `display` parameter of the $lookup Parameters (`parameter.find(p => p.name === 'display')?.valueString`) and pass it into the type coding in create and in the typeCode branch of update (coding: [{system, code, display}] only when a display was returned). Cover with unit tests: create with a $lookup answer carrying display -> written coding has it; PATCH typeCode -> new display, PATCH name only -> existing coding untouched (already tested).",
+  "needsDecision": false,
+  "decisionQuestion": "",
+  "tzRef": "api-designer-spec §5.1 (ServiceResponseDto.typeDisplay); ADR-002",
+  "confidence": "confirmed"
+}

@@ -2,13 +2,16 @@
 
 import type { ReactNode } from 'react';
 import Link from 'next/link';
-import { useId } from 'react';
+import { useRouter } from 'next/navigation';
+import { useEffect, useId, useRef, useState, useTransition } from 'react';
 import { useT } from '@/lib/i18n/use-t';
 import type { CatalogService } from './catalog-types';
-import type { DirectoryParams, SpecialtyOption } from './doctor-directory';
+import { directoryHref, type DirectoryParams, type SpecialtyOption } from './doctor-directory';
 import { SECONDARY_BUTTON_CLASS } from './catalog-styles';
+import { FIELD_CLASS } from '@/components/ui/field-styles';
+import { Select } from '@/components/ui/select';
 
-const CONTROL_CLASS = 'mt-1 min-h-[44px] w-full rounded-[6px] border border-[var(--input)] bg-[var(--card)] px-2';
+const SEARCH_DEBOUNCE_MS = 300;
 
 interface DoctorFilterBarProps {
   readonly params: DirectoryParams;
@@ -18,40 +21,86 @@ interface DoctorFilterBarProps {
 
 function Field({ label, htmlFor, children }: { readonly label: string; readonly htmlFor: string; readonly children: ReactNode }): ReactNode {
   return (
-    <div>
-      <label htmlFor={htmlFor} className="form-label block">{label}</label>
+    <div className="grid gap-1.5">
+      <label htmlFor={htmlFor} className="form-label">{label}</label>
       {children}
     </div>
   );
 }
 
-/** Service, specialty and name filters of the catalog: a plain GET form, so the filters are links and work without client JS. */
+function withFilter(params: DirectoryParams, name: 'serviceId' | 'specialty' | 'search', value: string): DirectoryParams {
+  const filters: Record<'serviceId' | 'specialty' | 'search', string | undefined> = { serviceId: params.serviceId, specialty: params.specialty, search: params.search };
+  filters[name] = value === '' ? undefined : value;
+  return {
+    ...(filters.serviceId === undefined ? {} : { serviceId: filters.serviceId }),
+    ...(filters.specialty === undefined ? {} : { specialty: filters.specialty }),
+    ...(filters.search === undefined ? {} : { search: filters.search }),
+    page: 1,
+  };
+}
+
 export function DoctorFilterBar({ params, services, specialties }: DoctorFilterBarProps): ReactNode {
   const t = useT('catalog');
   const id: string = useId();
+  const router = useRouter();
+  const [isPending, startTransition] = useTransition();
+  const [term, setTerm] = useState<string>(params.search ?? '');
+  const latest = useRef<DirectoryParams>(params);
+  latest.current = params;
+  // The name this field last put into the URL: the server's later answer for it is not a change from outside.
+  const pushed = useRef<string | undefined>(params.search);
+  const apply = (next: DirectoryParams): void => {
+    pushed.current = next.search;
+    startTransition(() => router.replace(directoryHref(next), { scroll: false }));
+  };
+  useEffect(() => {
+    const wanted: string = term.trim();
+    if (wanted === (pushed.current ?? '')) return undefined;
+    const timer = setTimeout(() => {
+      const next: DirectoryParams = withFilter(latest.current, 'search', wanted);
+      pushed.current = next.search;
+      startTransition(() => router.replace(directoryHref(next), { scroll: false }));
+    }, SEARCH_DEBOUNCE_MS);
+    return () => clearTimeout(timer);
+  }, [term, router]);
+  useEffect(() => {
+    if (params.search === pushed.current) return;
+    pushed.current = params.search;
+    setTerm(params.search ?? '');
+  }, [params.search]);
+  const hasFilter: boolean = params.serviceId !== undefined || params.specialty !== undefined || params.search !== undefined || term !== '';
   return (
-    <form method="get" action="/doctors" role="search" aria-label={t('filterLabel')} className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 lg:items-end">
+    <form
+      method="get"
+      action="/doctors"
+      role="search"
+      aria-label={t('filterLabel')}
+      aria-busy={isPending}
+      onSubmit={(event) => {
+        event.preventDefault();
+        apply(withFilter(latest.current, 'search', term.trim()));
+      }}
+      className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[repeat(3,minmax(0,1fr))_auto] lg:items-end"
+    >
       {services.length === 0 ? null : (
         <Field label={t('filterService')} htmlFor={`${id}-service`}>
-          <select id={`${id}-service`} name="serviceId" defaultValue={params.serviceId ?? ''} className={CONTROL_CLASS}>
+          <Select id={`${id}-service`} name="serviceId" value={params.serviceId ?? ''} onChange={(event) => apply(withFilter(params, 'serviceId', event.target.value))}>
             <option value="">{t('anyService')}</option>
             {services.map((service) => <option key={service.id} value={service.id}>{service.name}</option>)}
-          </select>
+          </Select>
         </Field>
       )}
       <Field label={t('filterSpecialty')} htmlFor={`${id}-specialty`}>
-        <select id={`${id}-specialty`} name="specialty" defaultValue={params.specialty ?? ''} className={CONTROL_CLASS}>
+        <Select id={`${id}-specialty`} name="specialty" value={params.specialty ?? ''} onChange={(event) => apply(withFilter(params, 'specialty', event.target.value))}>
           <option value="">{t('anySpecialty')}</option>
           {specialties.map((specialty) => <option key={specialty.code} value={specialty.code}>{specialty.label}</option>)}
-        </select>
+        </Select>
       </Field>
       <Field label={t('filterSearch')} htmlFor={`${id}-search`}>
-        <input id={`${id}-search`} type="search" name="search" maxLength={100} defaultValue={params.search ?? ''} className={CONTROL_CLASS} />
+        <input id={`${id}-search`} type="search" name="search" maxLength={100} value={term} onChange={(event) => setTerm(event.target.value)} className={FIELD_CLASS} />
       </Field>
-      <div className="flex gap-2">
-        <button type="submit" className="min-h-[44px] rounded-[6px] bg-[var(--primary)] px-5 py-2 text-[var(--primary-foreground)]">{t('apply')}</button>
-        <Link href="/doctors" className={SECONDARY_BUTTON_CLASS}>{t('reset')}</Link>
-      </div>
+      {hasFilter ? <Link href="/doctors" className={SECONDARY_BUTTON_CLASS}>{t('reset')}</Link> : null}
+      <p role="status" className="sr-only">{isPending ? t('updating') : ''}</p>
     </form>
   );
 }

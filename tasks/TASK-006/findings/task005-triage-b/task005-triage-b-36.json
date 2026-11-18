@@ -1,0 +1,18 @@
+{
+  "id": "task005-triage-b-36",
+  "unit": "task005-triage-b",
+  "kind": "test",
+  "severity": "low",
+  "title": "Контраст приглушённого текста на «стеклянной» панели в худшем случае ниже 4,5:1 и тестом не проверяется",
+  "description": "Вопрос из T5: «контраст стеклянной панели не покрыт тестом контраста (зависит от фона)». Расчёт по токенам globals.css (OKLCH -> sRGB, смешивание --glass с подложкой в гамма-пространстве, как в браузере): основной текст (--foreground) на стекле выдерживает 7:1 и больше в обеих темах при любой подложке, а приглушённый (--muted-foreground) при непрозрачности стекла 0.72 падает ниже 4,5:1, когда под полупрозрачной панелью оказывается насыщенная сплошная заливка (destructive, info, warning, success): светлая тема 4.18:1, тёмная 3.84:1. Обычные подложки (--background, --card) проходят. Реальная опасность малая: сплошные заливки (столбцы графика, красные кнопки) под липкой шапкой встречаются редко, а backdrop-blur-md размывает пятно, но тест, фиксирующий наихудший случай, отсутствует, и токен можно подтянуть. Непрозрачность стекла 4,5:1 для худшего случая достигается примерно при 0.77 (светлая) и 0.79 (тёмная).",
+  "evidence": "frontend/src/styles/globals.css:63 `--glass: oklch(100% 0 0 / 0.72)` and :145 dark `oklch(24.5% 0.022 221 / 0.72)`; used by frontend/src/components/layout/staff-shell.tsx:67,96 and frontend/src/components/catalog/mobile-book-bar.tsx:19 with backdrop-blur-md; frontend/src/styles/globals-contrast.spec.ts has no glass case (describes oklch conversion, --warm, --border vs --input). My computation: worst-case muted-foreground over glass 4.18:1 (light) and 3.84:1 (dark) at alpha 0.72.",
+  "files": [
+    "frontend/src/styles/globals.css",
+    "frontend/src/styles/globals-contrast.spec.ts"
+  ],
+  "proposedFix": "Add a case to globals-contrast.spec.ts for each theme: composite --glass over every solid token (background, card, primary, secondary, destructive, warm, info, success, warning) and expect --foreground >= 4.5 and --muted-foreground >= 4.5 (reuse the oklch converter already in the spec). If it fails, raise the alpha of --glass in both themes to the value found above (about 0.77 light / 0.79 dark; one number 0.79 covers both) or switch the muted text on glass surfaces to --foreground.",
+  "needsDecision": false,
+  "decisionQuestion": "",
+  "tzRef": "WCAG 1.4.3; NFR-008",
+  "confidence": "likely"
+}

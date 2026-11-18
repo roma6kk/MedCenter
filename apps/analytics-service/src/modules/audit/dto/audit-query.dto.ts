@@ -1,20 +1,27 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { Type } from 'class-transformer';
-import { IsInt, IsOptional, Matches, Max, Min } from 'class-validator';
+import { Transform, Type } from 'class-transformer';
+import { ArrayMaxSize, IsIn, IsInt, IsOptional, Matches, Max, Min } from 'class-validator';
 import { MAX_PAGE_SIZE } from '@medcenter/contracts';
 
+import { AUDIT_ACTIONS, type AuditAction } from '../../../database/entities/audit-event-read.entity';
 import { DateRangeQueryDto } from '../../shared/date-range-query.dto';
 
-/** `Appointment` (any resource of the type) or `Appointment/{id}` (one resource). */
-export const ENTITY_FILTER_PATTERN = /^[A-Z][A-Za-z]{1,63}(\/[A-Za-z0-9\-.]{1,64})?$/;
+const ENTITY_FILTER_PATTERN = /^[A-Z][A-Za-z]{1,63}(\/[A-Za-z0-9\-.]{1,64})?$/;
 
-/** The token `sub` (a UUID) or a literal agent reference such as `PractitionerRole/{id}`. */
-export const USER_ID_FILTER_PATTERN = /^[A-Za-z0-9\-._:@/]{1,128}$/;
+const USER_ID_FILTER_PATTERN = /^[A-Za-z0-9\-._:@/]{1,128}$/;
 
-/** Deep offsets are refused: the journal is filtered by period, not paged to the end of time. */
-export const MAX_AUDIT_PAGE = 10_000;
+const MAX_AUDIT_PAGE = 10_000;
 
-/** API §9.4 — `?from=&to=&entity=&userId=&page=&pageSize=`. */
+export function toActionList({ value }: { readonly value: unknown }): unknown {
+  const parts = Array.isArray(value) ? (value as unknown[]) : [value];
+  if (!parts.every((part) => typeof part === 'string')) {
+    return value;
+  }
+  const items = (parts as string[]).flatMap((part) => part.split(',')).map((item) => item.trim());
+  const meaningful = items.length === 1 && items[0] === '' ? [] : items;
+  return meaningful.length === 0 ? undefined : [...new Set(meaningful)];
+}
+
 export class AuditQueryDto extends DateRangeQueryDto {
   @ApiPropertyOptional({ description: 'Resource type or one resource reference', example: 'Appointment/1234' })
   @IsOptional()
@@ -25,6 +32,20 @@ export class AuditQueryDto extends DateRangeQueryDto {
   @IsOptional()
   @Matches(USER_ID_FILTER_PATTERN, { message: 'userId contains unsupported characters' })
   readonly userId?: string;
+
+  @ApiPropertyOptional({
+    type: String,
+    isArray: true,
+    enum: AUDIT_ACTIONS,
+    enumName: 'AuditAction',
+    description: 'One action or a comma list (OR); repeated parameters are accepted too',
+    example: 'login,login-failed,logout',
+  })
+  @IsOptional()
+  @Transform(toActionList)
+  @ArrayMaxSize(AUDIT_ACTIONS.length)
+  @IsIn(AUDIT_ACTIONS, { each: true })
+  readonly action?: AuditAction[];
 
   @ApiPropertyOptional({ minimum: 1, maximum: MAX_AUDIT_PAGE, default: 1 })
   @IsOptional()

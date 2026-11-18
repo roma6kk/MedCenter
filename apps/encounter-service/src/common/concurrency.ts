@@ -1,7 +1,4 @@
-/**
- * `Promise.all` over `items` with at most `limit` tasks in flight, results in
- * input order. Keeps a burst of terminology lookups from flooding HAPI.
- */
+// Caps in-flight terminology lookups so a burst cannot flood HAPI.
 export async function mapWithConcurrency<TItem, TResult>(
   items: readonly TItem[],
   limit: number,

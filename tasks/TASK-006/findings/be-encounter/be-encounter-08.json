@@ -1,0 +1,20 @@
+{
+  "id": "be-encounter-08",
+  "unit": "be-encounter",
+  "kind": "question",
+  "severity": "low",
+  "title": "Каждое назначение ссылается только на первый (основной) диагноз приёма — при нескольких диагнозах связь «назначение → диагноз» (BR-005) бывает неверной",
+  "description": "BR-005 требует, чтобы назначения ссылались на Condition и приём. Реализация формально это выполняет, но всегда подставляет в `reasonReference` первый диагноз из `diagnoses[]` (`primaryDiagnosis`): в теле 7.3 у назначения нет поля, которым врач указал бы, к какому диагнозу оно относится. Если приём закрыт двумя диагнозами (например, J06.9 и I10) и назначен антигипертензивный препарат, в HAPI он записан как назначенный «по поводу» J06.9, а в списках 7.5/7.7 поле `reasonConditionId` (описано как «Diagnosis the prescription is for (BR-005)») указывает на ОРВИ. Это задокументированное упрощение (комментарий в complete-encounter.dto.ts: «The first diagnosis is the primary one: every prescription references it»), поэтому решать должен владелец: оставить или дать врачу выбор.",
+  "evidence": "apps/encounter-service/src/modules/encounters/mappers/encounter-completion.mapper.ts:111-124 (`primaryDiagnosis = conditionRefs[0]` is passed to every serviceRequestResource / medicationRequestResource); apps/encounter-service/src/modules/encounters/mappers/clinical-resources.mapper.ts:131-159 (`reasonReference: [{ reference: reasonRef }]`); apps/encounter-service/src/modules/encounters/dto/medication-request.dto.ts and service-request.dto.ts (no diagnosis field); apps/encounter-service/src/modules/history/dto/prescription-item.dto.ts:8-9 (`reasonConditionId` doc). Scenario: diagnoses [J06.9, I10], medicationRequests [{atcCode: 'C09AA02'...}] -> MedicationRequest.reasonReference = Condition(J06.9).",
+  "files": [
+    "apps/encounter-service/src/modules/encounters/mappers/encounter-completion.mapper.ts",
+    "apps/encounter-service/src/modules/encounters/dto/medication-request.dto.ts",
+    "apps/encounter-service/src/modules/encounters/dto/service-request.dto.ts",
+    "frontend/src/components/doctor/encounter-form-fields.tsx"
+  ],
+  "proposedFix": "If the owner wants it: an optional `diagnosisIndex` (0-based position in `diagnoses`, default 0 = the primary one; validated against the array length, 400 VALIDATION_ERROR otherwise) on MedicationRequestDto and ServiceRequestDto; completion mapper picks `conditionRefs[index]`; the visit form adds a diagnosis selector to each order row only when the visit has more than one diagnosis. Fully additive: omitting the field keeps today's behaviour.",
+  "needsDecision": true,
+  "decisionQuestion": "Нужно ли врачу указывать, к какому из диагнозов относится каждое назначение? Сейчас все назначения привязываются к первому (основному) диагнозу приёма. Вариант A (рекомендую оставить как есть для курсовой): документированное упрощение, BR-005 выполнено формально. Вариант B: необязательное поле `diagnosisIndex` у назначения (по умолчанию основной диагноз) и выбор диагноза в форме приёма, когда диагнозов больше одного.",
+  "tzRef": "BR-005, FR-012, FR-014",
+  "confidence": "confirmed"
+}

@@ -17,25 +17,25 @@ import { UpdateMyPatientDto } from './dto/update-my-patient.dto';
 import { versionFromIfMatch } from './if-match';
 import { PatientsService } from './patients.service';
 
-/** API §3.1 and §3.12 — the FHIR profile of the patient the token belongs to (FR-001). */
 @ApiTags('patient')
 @ApiBearerAuth()
 @Controller('api/v1/me/patient')
 export class MePatientController {
   constructor(private readonly patients: PatientsService) {}
 
-  /** No query parameter is read: the patient comes from the token only (ADR-013). */
   @Get()
   @RequiresRoles(Role.PATIENT)
   @RequiresScopes(SMART_SCOPES.PATIENT_READ)
   @ApiOperation({ summary: '3.1 Get the FHIR profile of the current patient' })
   @ApiResponse({ status: HttpStatus.OK, type: PatientResponseDoc })
-  @ApiProblems([...GUARD_PROBLEM_STATUSES, 404], { 404: 'NOT_FOUND: the token has no linked Patient' })
+  @ApiProblems([...GUARD_PROBLEM_STATUSES, 404], {
+    403: 'COMPARTMENT_VIOLATION: the token carries no patient claim',
+    404: 'NOT_FOUND: the Patient resource no longer exists',
+  })
   async getMe(@Req() request: RequestWithClaims): Promise<PatientResponseDto> {
     return this.patients.getMePatient(claimsOf(request));
   }
 
-  /** The phone is the only editable field; ADMIN and DOCTOR have no write path here. */
   @Patch()
   @RequiresRoles(Role.PATIENT)
   @RequiresScopes(SMART_SCOPES.PATIENT_WRITE)
@@ -43,7 +43,9 @@ export class MePatientController {
   @ApiHeader({ name: 'If-Match', required: true, description: 'Card version (`version` from 3.1, ADR-012)', example: '3' })
   @ApiResponse({ status: HttpStatus.OK, type: PatientResponseDoc, description: 'Card with the new version' })
   @ApiProblems([...GUARD_PROBLEM_STATUSES, 400, 404, 409], {
+    403: 'COMPARTMENT_VIOLATION: the token carries no patient claim',
     400: 'VALIDATION_ERROR: invalid phone or missing If-Match',
+    404: 'NOT_FOUND: the Patient resource no longer exists',
     409: 'CONFLICT: stale If-Match version',
   })
   async updateMe(

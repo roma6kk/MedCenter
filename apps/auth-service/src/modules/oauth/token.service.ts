@@ -1,31 +1,17 @@
 import { Inject, Injectable } from '@nestjs/common';
-import type { TokenRevocationChecker } from '@medcenter/common';
+import { SESSION_DENYLIST_NAMESPACE, type TokenRevocationChecker } from '@medcenter/common';
 import { randomUUID } from 'node:crypto';
 
 import { ACCESS_TOKEN_TTL_SECONDS } from './jwt.service';
 
-export type TokenKind = 'code' | 'refresh';
+type TokenKind = 'code' | 'refresh';
 
-/** Authorization codes are short-lived; refresh tokens live 14 days (API 2.1.3). */
 export const AUTHORIZATION_CODE_TTL_SECONDS = 300;
 export const REFRESH_TOKEN_TTL_SECONDS = 14 * 24 * 60 * 60;
 
-/**
- * The denylist answers two different questions and they must never be conflated:
- *
- * - `reuse:` — a token was **consumed** (code exchange or refresh rotation), so a
- *   replay has to fail. This is reuse detection and it belongs to the token
- *   endpoint (`invalid_grant`), not to the guard stack.
- * - `session:` — a token was **revoked** (RFC 7009 / logout), so the session is
- *   over and the paired access token must stop being accepted by
- *   `JwtAuthGuard` (`TOKEN_REVOKED`).
- *
- * Rotation therefore writes only `reuse:` — a proactive refresh must not
- * invalidate the access token the client is still using, or every rotation would
- * log its own caller out.
- */
+// reuse: = consumed (replay fails with invalid_grant); session: = revoked (guard answers TOKEN_REVOKED). Rotation writes only reuse:, or every refresh would log its caller out.
 const REUSE_PREFIX = 'reuse:';
-const SESSION_PREFIX = 'session:';
+const SESSION_PREFIX = SESSION_DENYLIST_NAMESPACE;
 
 export interface StoredToken {
   readonly jti: string;
@@ -33,9 +19,12 @@ export interface StoredToken {
   readonly clientId: string;
   readonly kind: TokenKind;
   readonly scope: string;
-  /** S256 challenge for `code` rows; empty for `refresh` rows. */
   readonly codeChallenge: string;
   readonly expiresAt: Date;
+  // Epoch ms of the last user activity in this session; carried over on rotation. Absent on tokens issued before the idle timeout existed.
+  readonly lastActivityAt?: number;
+  // Stable across rotations of a refresh token and carried as the access token's sid. Absent on tokens issued before it existed: their own jti is the session id.
+  readonly sessionId?: string;
   readonly role?: string;
   readonly patientRef?: string;
   readonly fhirUser?: string;
@@ -44,6 +33,11 @@ export interface StoredToken {
 export interface TokenStore {
   save(token: StoredToken): Promise<void>;
   find(jti: string): Promise<StoredToken | null>;
+  // The refresh token that is live now for a session id; null when it was spent, revoked or never indexed.
+  findCurrent(sessionId: string): Promise<StoredToken | null>;
+  take(jti: string): Promise<StoredToken | null>;
+  // Never creates: a token that was spent or revoked in the meantime stays gone.
+  touch(jti: string, lastActivityAt: number): Promise<void>;
   delete(jti: string): Promise<void>;
 }
 
@@ -55,21 +49,37 @@ export interface TokenDenylist {
 export const TOKEN_STORE = 'TOKEN_STORE';
 export const TOKEN_DENYLIST = 'TOKEN_DENYLIST';
 
-/**
- * Dev/test implementations. Production wiring (a TypeORM-backed store over the
- * `auth.oauth_token` table and a Redis-backed denylist) is the persistence task
- * that follows; both sit behind these two interfaces so the swap is a provider
- * change only.
- */
 export class InMemoryTokenStore implements TokenStore {
   private readonly tokens = new Map<string, StoredToken>();
+  private readonly current = new Map<string, string>();
 
   async save(token: StoredToken): Promise<void> {
     this.tokens.set(token.jti, token);
+    if (token.kind === 'refresh' && token.sessionId !== undefined) {
+      this.current.set(token.sessionId, token.jti);
+    }
   }
 
   async find(jti: string): Promise<StoredToken | null> {
     return this.tokens.get(jti) ?? null;
+  }
+
+  async findCurrent(sessionId: string): Promise<StoredToken | null> {
+    const jti = this.current.get(sessionId);
+    return jti === undefined ? null : (this.tokens.get(jti) ?? null);
+  }
+
+  async take(jti: string): Promise<StoredToken | null> {
+    const token = this.tokens.get(jti) ?? null;
+    this.tokens.delete(jti);
+    return token;
+  }
+
+  async touch(jti: string, lastActivityAt: number): Promise<void> {
+    const token = this.tokens.get(jti);
+    if (token !== undefined) {
+      this.tokens.set(jti, { ...token, lastActivityAt });
+    }
   }
 
   async delete(jti: string): Promise<void> {
@@ -104,17 +114,13 @@ export interface IssueTokenParams {
   readonly kind: TokenKind;
   readonly ttlSeconds: number;
   readonly codeChallenge?: string;
+  readonly lastActivityAt?: number;
+  readonly sessionId?: string;
   readonly role?: string;
   readonly patientRef?: string;
   readonly fhirUser?: string;
 }
 
-/**
- * Owns both denylist namespaces (see `REUSE_PREFIX` / `SESSION_PREFIX`) and is
- * the issuer-side implementation of the guard layer's
- * `TokenRevocationChecker`: `auth-service` binds `TOKEN_REVOCATION` to this
- * service so `JwtAuthGuard` in every BFF reads the same revocation state.
- */
 @Injectable()
 export class TokenService implements TokenRevocationChecker {
   constructor(
@@ -123,14 +129,17 @@ export class TokenService implements TokenRevocationChecker {
   ) {}
 
   async issue(params: IssueTokenParams): Promise<StoredToken> {
+    const jti = randomUUID();
     const token: StoredToken = {
-      jti: randomUUID(),
+      jti,
       userId: params.userId,
       clientId: params.clientId,
       kind: params.kind,
       scope: params.scope,
       codeChallenge: params.codeChallenge ?? '',
       expiresAt: new Date(Date.now() + params.ttlSeconds * 1000),
+      lastActivityAt: params.lastActivityAt ?? Date.now(),
+      ...(params.kind === 'refresh' ? { sessionId: params.sessionId ?? jti } : {}),
       ...(params.role !== undefined ? { role: params.role } : {}),
       ...(params.patientRef !== undefined ? { patientRef: params.patientRef } : {}),
       ...(params.fhirUser !== undefined ? { fhirUser: params.fhirUser } : {}),
@@ -139,17 +148,15 @@ export class TokenService implements TokenRevocationChecker {
     return token;
   }
 
-  /**
-   * Single-use consumption: the row is deleted and its `jti` marked as reused, so
-   * a replayed code or a rotated refresh token can never be used twice. Only the
-   * `reuse:` namespace is written — the caller's live access token stays valid.
-   */
   async consume(jti: string, expectedKind: TokenKind): Promise<StoredToken | null> {
-    const token = await this.store.find(jti);
-    if (token === null || token.kind !== expectedKind) {
+    const found = await this.store.find(jti);
+    if (found === null || found.kind !== expectedKind) {
       return null;
     }
-    await this.store.delete(jti);
+    const token = await this.store.take(jti);
+    if (token === null) {
+      return null;
+    }
     await this.denylist.add(
       `${REUSE_PREFIX}${jti}`,
       Math.ceil((token.expiresAt.getTime() - Date.now()) / 1000),
@@ -160,42 +167,36 @@ export class TokenService implements TokenRevocationChecker {
     return token;
   }
 
-  /** Reuse detection for the token endpoint: was this token already consumed or revoked? */
+  async touch(jti: string): Promise<void> {
+    await this.store.touch(jti, Date.now());
+  }
+
   async isDenied(jti: string): Promise<boolean> {
     return this.denylist.has(`${REUSE_PREFIX}${jti}`);
   }
 
-  /**
-   * Guard-layer lookup (`TokenRevocationChecker`): was this `jti`/`sid`
-   * explicitly revoked? Only the `session:` namespace counts, so rotation does
-   * not end the session it just refreshed.
-   */
   async isRevoked(key: string): Promise<boolean> {
     return this.denylist.has(`${SESSION_PREFIX}${key}`);
   }
 
-  /**
-   * Read-only lookup used by ownership checks (RFC 7009 §2.1) before a token is
-   * revoked. Unlike `consume` it neither deletes the row nor touches the
-   * denylist, so a caller that fails the ownership check leaves no trace.
-   */
   async find(jti: string): Promise<StoredToken | null> {
     return this.store.find(jti);
   }
 
-  /**
-   * Ends the whole session: the row is dropped, the `jti` is sealed against
-   * reuse, and the `jti` is recorded as a revoked session so the access token
-   * issued with that `sid` is refused by the guard layer (`TOKEN_REVOKED`).
-   *
-   * The session entry outlives every access token minted for it — a flat
-   * `ACCESS_TOKEN_TTL_SECONDS` rather than the refresh token's remaining
-   * lifetime, because a pair may be minted one second before the refresh token
-   * itself would have expired.
-   */
-  async revoke(jti: string): Promise<void> {
+  // Takes a session id (an access token's sid) or a refresh token jti; a legacy token has no session id, so its jti is both.
+  async findBySession(id: string): Promise<StoredToken | null> {
+    return (await this.store.findCurrent(id)) ?? (await this.store.find(id));
+  }
+
+  // The session entry lasts a flat ACCESS_TOKEN_TTL_SECONDS: a pair may be minted one second before the refresh token expires. Access tokens carry the session id, so that is what the guard must see denied.
+  async revoke(id: string): Promise<void> {
+    const live = await this.findBySession(id);
+    const jti = live?.jti ?? id;
     await this.store.delete(jti);
     await this.denylist.add(`${REUSE_PREFIX}${jti}`, REFRESH_TOKEN_TTL_SECONDS);
-    await this.denylist.add(`${SESSION_PREFIX}${jti}`, ACCESS_TOKEN_TTL_SECONDS);
+    await this.denylist.add(`${SESSION_PREFIX}${live?.sessionId ?? id}`, ACCESS_TOKEN_TTL_SECONDS);
+    if (live?.sessionId !== undefined && live.sessionId !== jti) {
+      await this.denylist.add(`${SESSION_PREFIX}${jti}`, ACCESS_TOKEN_TTL_SECONDS);
+    }
   }
 }

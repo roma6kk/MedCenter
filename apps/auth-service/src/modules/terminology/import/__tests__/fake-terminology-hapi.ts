@@ -3,11 +3,8 @@ import { FhirClientError, type FhirClient, type FhirResource } from '@medcenter/
 type Json = Record<string, unknown>;
 
 export interface FakeTerminologyHapi extends jest.Mocked<FhirClient> {
-  /** Every stored resource by `Type/id`. */
   readonly store: Map<string, FhirResource>;
-  /** AuditEvents written through `create`. */
   readonly audits: FhirResource[];
-  /** Number of upcoming `$expand` answers that come back empty, like a stale HAPI pre-expansion. */
   staleExpansions: number;
 }
 
@@ -33,10 +30,6 @@ function notFound(): FhirClientError {
   return new FhirClientError('GET', 'http://hapi/fhir/ValueSet/$expand', 404);
 }
 
-/**
- * HAPI stand-in with state: `update`/`delete`/`search` by `url`, `$expand` and
- * `$validate-code` computed from what was written, so an import can be run end to end.
- */
 export function createFakeTerminologyHapi(): FakeTerminologyHapi {
   const store = new Map<string, FhirResource>();
   const audits: FhirResource[] = [];

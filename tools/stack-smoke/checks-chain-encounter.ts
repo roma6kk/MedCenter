@@ -7,7 +7,6 @@ import type { Suite } from './suite';
 const OBSERVATIONS = 'https://fhir.by/CodeSystem/nsi-observations';
 const NSI_SERVICES = 'https://fhir.by/CodeSystem/nsi-services';
 
-/** A valid completion body; each field can be replaced to build a rejected one. */
 export function completionBody(overrides: JsonObject = {}): JsonObject {
   return {
     summary: 'ОРВИ, течение лёгкое',
@@ -20,7 +19,6 @@ export function completionBody(overrides: JsonObject = {}): JsonObject {
   };
 }
 
-/** Two parallel opens of one appointment: one creates (201), the other gets the same encounter (200) or a 409; never two encounters or two audit events. */
 function openStep(suite: Suite): SmokeStep {
   const { api, sessions, chain, accounts } = suite;
   return {
@@ -56,19 +54,17 @@ function reopenAndReadSteps(suite: Suite): SmokeStep[] {
       },
     },
     {
-      name: 'GET /encounters/{id} (doctor, admin) -> the open encounter',
+      name: 'GET /encounters/{id} (doctor) -> the open encounter; admin -> 403 FORBIDDEN_ROLE',
       run: async () => {
-        for (const session of [sessions.doctor, sessions.admin]) {
-          const response = await api.get(`/api/v1/encounters/${chain.encounterId}`, { session });
-          expectStatus(response, 200);
-          expectEqual(expectShape(response.body, ENCOUNTER_DETAILS_SHAPE, 'encounter details')['status'], 'in-progress', 'status');
-        }
+        const response = await api.get(`/api/v1/encounters/${chain.encounterId}`, { session: sessions.doctor });
+        expectStatus(response, 200);
+        expectEqual(expectShape(response.body, ENCOUNTER_DETAILS_SHAPE, 'encounter details')['status'], 'in-progress', 'status');
+        expectProblem(await api.get(`/api/v1/encounters/${chain.encounterId}`, { session: sessions.admin }), 403, 'FORBIDDEN_ROLE');
       },
     },
   ];
 }
 
-/** BR-008: an appointment that already has an encounter (here: in progress) cannot become a no-show. */
 function noShowWhileOpenStep(suite: Suite): SmokeStep {
   const { api, sessions, chain } = suite;
   return {
@@ -77,12 +73,10 @@ function noShowWhileOpenStep(suite: Suite): SmokeStep {
   };
 }
 
-/** Steps 8-10: the doctor opens the encounter for the booked appointment. */
 export function openingSteps(suite: Suite): SmokeStep[] {
   return [openStep(suite), ...reopenAndReadSteps(suite), noShowWhileOpenStep(suite)];
 }
 
-/** Step 11: terminology validation of the completion body (API §1: 422 INVALID_ICD10_CODE / TERMINOLOGY_NOT_FOUND). */
 export function invalidCodeSteps(suite: Suite): SmokeStep[] {
   const { api, sessions, chain } = suite;
   const complete = (body: JsonObject): ReturnType<typeof api.post> =>
@@ -108,7 +102,6 @@ export function invalidCodeSteps(suite: Suite): SmokeStep[] {
   ];
 }
 
-/** API §1: a 422 names the offending request fields in `details[]` next to the unchanged `detail`. */
 function detailsStep(suite: Suite): SmokeStep {
   const { api, sessions, chain } = suite;
   const complete = (overrides: JsonObject): ReturnType<typeof api.post> =>
@@ -162,7 +155,6 @@ function clinicalContentStep(suite: Suite): SmokeStep {
   };
 }
 
-/** BR-008: completing the encounter set the appointment to `fulfilled`, in every view of it. */
 function fulfilledStep(suite: Suite): SmokeStep {
   const { api, sessions, chain } = suite;
   return {
@@ -177,14 +169,13 @@ function fulfilledStep(suite: Suite): SmokeStep {
   };
 }
 
-/** BR-008: a visit that took place can be neither marked as a no-show nor cancelled. */
 function afterVisitStep(suite: Suite): SmokeStep {
   const { api, sessions, chain } = suite;
   return {
     name: 'noshow after the finished encounter -> 409 ENCOUNTER_STATE_INVALID; cancel -> 409 APPOINTMENT_NOT_CANCELLABLE; still fulfilled',
     run: async () => {
       expectProblem(await api.post(`/api/v1/doctor/appointments/${chain.appointmentId}/noshow`, { session: sessions.doctor }), 409, 'ENCOUNTER_STATE_INVALID');
-      const cancel = await api.post(`/api/v1/appointments/${chain.appointmentId}/cancel`, { session: sessions.patient, body: { reason: 'Приём уже состоялся (smoke)' } });
+      const cancel = await api.post(`/api/v1/appointments/${chain.appointmentId}/cancel`, { session: sessions.patient, body: { reason: 'plans-changed' } });
       expectProblem(cancel, 409, 'APPOINTMENT_NOT_CANCELLABLE');
       const response = await api.get(`/api/v1/appointments/${chain.appointmentId}`, { session: sessions.patient });
       expectEqual(expectShape(response.body, APPOINTMENT_SHAPE, 'appointment')['status'], 'fulfilled', 'status after the refused noshow and cancel');
@@ -192,7 +183,6 @@ function afterVisitStep(suite: Suite): SmokeStep {
   };
 }
 
-/** Steps 12-16: the valid completion, the fulfilled appointment, its replay and the clinical content it left. */
 export function completionSteps(suite: Suite): SmokeStep[] {
   const { api, sessions, chain } = suite;
   return [

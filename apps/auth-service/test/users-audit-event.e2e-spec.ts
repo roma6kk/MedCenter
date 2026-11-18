@@ -20,7 +20,6 @@ const OBJECT_ROLE = {
   display: 'Patient',
 };
 
-/** FR-021, ADR-014: every mutation of an account writes an `AuditEvent`, and a refused or unaudited request behaves as documented. */
 describe('Users API — AuditEvent and PractitionerRole interactions with HAPI', () => {
   let fixture: AdminFixture;
   let app: INestApplication;

@@ -1,4 +1,4 @@
-import { createHash, randomUUID } from 'node:crypto';
+import { randomUUID } from 'node:crypto';
 
 import {
   BadRequestException,
@@ -8,7 +8,7 @@ import {
   Logger,
   NotFoundException,
 } from '@nestjs/common';
-import type { JwtClaims } from '@medcenter/common';
+import { clinicDateOf, isAdultOn, type JwtClaims } from '@medcenter/common';
 import {
   Role,
   type ConsentResponse,
@@ -27,6 +27,7 @@ import {
   findActiveConsent,
   idFromLocation,
   isConsentInForce,
+  listActiveConsents,
   listConsents,
   PatientReadAudit,
   revokeConsent,
@@ -37,19 +38,18 @@ import {
   type TransactionWrite,
 } from '@medcenter/fhir';
 
+import { readPersonName } from '../../shared/fhir-datatypes.mapper';
+import { readPatient } from '../../shared/read-patient';
 import { PatientAccessService } from '../access/patient-access.service';
 import { ownPatientId, practitionerRoleIdOf } from '../access/patient-identity';
-import { validateScanUpload, type UploadedScan } from './consent-scan';
+import { sha1Base64, validateScanUpload, type UploadedScan } from './consent-scan';
 
 const AUDIT_SOURCE = 'patient-service';
-/** Clock skew tolerated on a moment the client supplies (signing, revocation). */
 const FUTURE_TOLERANCE_MS = 5 * 60 * 1000;
 const DATE_ONLY = /^\d{4}-\d{2}-\d{2}$/;
-/** A date-only value is the clinic's local day; UTC+14 is the furthest ahead any local day can be. */
 const MAX_UTC_OFFSET_MS = 14 * 60 * 60 * 1000;
 
-/** The bytes of a stored scan and the type they were stored with. */
-export interface ScanContent {
+interface ScanContent {
   readonly contentType: string;
   readonly data: Buffer;
 }
@@ -70,12 +70,39 @@ function notFound(what: string): NotFoundException {
   return new NotFoundException({ errorCode: 'NOT_FOUND', message: `NOT_FOUND: ${what}` });
 }
 
-/** `true` when `moment` (a date or a dateTime) lies beyond what the clock allows for "already happened". */
 function isInTheFuture(moment: string, now: Date): boolean {
   if (DATE_ONLY.test(moment)) {
     return moment > new Date(now.getTime() + MAX_UTC_OFFSET_MS).toISOString().slice(0, 10);
   }
   return new Date(moment).getTime() > now.getTime() + FUTURE_TOLERANCE_MS;
+}
+
+/** The latest day a possibly partial FHIR date (`YYYY`, `YYYY-MM`, `YYYY-MM-DD`) can mean; `undefined` when it is not a date. */
+function latestBirthDay(birthDate: unknown): string | undefined {
+  if (typeof birthDate !== 'string') {
+    return undefined;
+  }
+  const match = /^(\d{4})(?:-(\d{2})(?:-(\d{2}))?)?$/.exec(birthDate);
+  if (match === null) {
+    return undefined;
+  }
+  const year = Number(match[1]);
+  const month = match[2] === undefined ? 12 : Number(match[2]);
+  if (month < 1 || month > 12) {
+    return undefined;
+  }
+  const lastDay = new Date(Date.UTC(year, month, 0)).getUTCDate();
+  const day = match[3] === undefined ? lastDay : Number(match[3]);
+  if (day < 1 || day > lastDay) {
+    return undefined;
+  }
+  return `${match[1]}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+}
+
+// Fails closed: a missing, invalid or partial birth date counts as the latest day it can mean.
+function isAdultAt(patient: FhirResource, day: string): boolean {
+  const birthDay = latestBirthDay(patient['birthDate']);
+  return birthDay !== undefined && isAdultOn(birthDay, day);
 }
 
 function startOf(consent: FhirResource): number | undefined {
@@ -92,12 +119,6 @@ function belongsToPatient(binary: FhirResource, patientId: string): boolean {
   );
 }
 
-/**
- * Patient consent to the electronic medical record (API §3.4–3.11, ADR-019).
- * `Consent` is written together with its `AuditEvent` in one FHIR transaction
- * (ADR-014); reads of another patient's consent go through `PatientReadAudit`,
- * and a scan download is always journalled, before the bytes leave (fail-closed).
- */
 @Injectable()
 export class ConsentsService {
   private readonly logger = new Logger(ConsentsService.name);
@@ -108,17 +129,14 @@ export class ConsentsService {
     private readonly readAudit: PatientReadAudit,
   ) {}
 
-  /** API §3.4 — the patient comes from the token only (ADR-013); reading one's own consent is not journalled. */
   async getMine(claims: JwtClaims): Promise<PatientConsentResponse> {
     return this.history(ownPatientId(claims));
   }
 
-  /** API §3.6 — the patient revokes their own consent; the written application follows later. */
   async revokeMine(claims: JwtClaims, requestId?: string): Promise<ConsentResponse> {
     return this.closeActive(ownPatientId(claims), claims, {}, requestId);
   }
 
-  /** API §3.7 — a doctor's or administrator's read, and any refused read, is journalled (ADR-018). */
   async getForPatient(
     patientId: string,
     claims: JwtClaims,
@@ -130,13 +148,12 @@ export class ConsentsService {
       { interaction: 'search-type', source: AUDIT_SOURCE, requestId },
       async () => {
         await this.access.assertCanRead(claims, patientId);
-        await this.assertPatientExists(patientId);
-        return this.history(patientId);
+        const patient = await readPatient(this.fhir, patientId);
+        return { ...(await this.history(patientId)), patientIsAdult: isAdultAt(patient, clinicDateOf(Date.now())) };
       },
     );
   }
 
-  /** API §3.8 — a paper consent or a written refusal, with the scan of the form. */
   async create(
     patientId: string,
     dto: CreateConsentRequest,
@@ -144,12 +161,13 @@ export class ConsentsService {
     requestId?: string,
   ): Promise<ConsentResponse> {
     await this.access.assertCanWrite(claims, patientId);
-    const signer = this.signerOf(dto, claims);
+    const signer = await this.signerOf(dto, claims);
     if (isInTheFuture(dto.signedAt, new Date())) {
       throw invalid('signedAt', 'must not be in the future');
     }
     this.assertRepresentativeFields(dto);
-    await this.assertPatientExists(patientId);
+    const patient = await readPatient(this.fhir, patientId);
+    this.assertSignerMayBeSelf(patient, dto);
     if ((await findActiveConsent(this.fhir, patientId)) !== null) {
       throw new ConflictException({
         errorCode: 'CONSENT_ALREADY_ACTIVE',
@@ -183,7 +201,6 @@ export class ConsentsService {
     return toConsentResponse({ ...consent, id: createdId(response, 'Consent') });
   }
 
-  /** API §3.9 — the written revocation, with the number of the application. */
   async revoke(
     patientId: string,
     dto: RevokeConsentRequest,
@@ -191,11 +208,10 @@ export class ConsentsService {
     requestId?: string,
   ): Promise<ConsentResponse> {
     await this.access.assertCanWrite(claims, patientId);
-    await this.assertPatientExists(patientId);
+    await readPatient(this.fhir, patientId);
     return this.closeActive(patientId, claims, dto, requestId);
   }
 
-  /** API §3.10 — the scan is stored as a `Binary` tied to the patient; the write is journalled in the same transaction. */
   async uploadScan(
     patientId: string,
     file: UploadedScan | undefined,
@@ -204,7 +220,7 @@ export class ConsentsService {
   ): Promise<ConsentScanUploadResponse> {
     await this.access.assertCanWrite(claims, patientId);
     const scan = validateScanUpload(file);
-    await this.assertPatientExists(patientId);
+    await readPatient(this.fhir, patientId);
     const binary: FhirResource = {
       resourceType: 'Binary',
       contentType: scan.contentType,
@@ -228,11 +244,7 @@ export class ConsentsService {
     };
   }
 
-  /**
-   * API §3.11 — every download is journalled by any user, success or refusal. The
-   * success event is written before the bytes are returned and its failure stops
-   * the answer: a scan carries passport data, so an unjournalled read is not allowed.
-   */
+  // The download is journalled before the bytes are returned and a failed audit stops the answer: a scan carries passport data.
   async readScan(
     patientId: string,
     scanId: string,
@@ -293,7 +305,6 @@ export class ConsentsService {
     };
   }
 
-  /** 3.6 and 3.9: the consent in force is closed in place (`inactive`, period end) with its `update` AuditEvent. */
   private async closeActive(
     patientId: string,
     claims: JwtClaims,
@@ -305,33 +316,31 @@ export class ConsentsService {
     if (isInTheFuture(revokedAt, now)) {
       throw invalid('revokedAt', 'must not be in the future');
     }
-    const active = await findActiveConsent(this.fhir, patientId, now);
-    if (active === null) {
+    // Concurrent writes can leave more than one consent in force; a revocation closes every one of them.
+    const inForce = await listActiveConsents(this.fhir, patientId, now);
+    if (inForce.length === 0) {
       throw notFound(`patient ${patientId} has no active consent to revoke`);
     }
-    const start = startOf(active);
-    if (start !== undefined && new Date(revokedAt).getTime() < start) {
+    if (inForce.some((consent) => new Date(revokedAt).getTime() < (startOf(consent) ?? -Infinity))) {
       throw invalid('revokedAt', 'must not be before the consent began');
     }
-    const closed = revokeConsent(active, {
-      revokedAt,
-      applicationNumber: dto.applicationNumber?.trim(),
-    });
-    const consentId = active.id ?? '';
+    const closed = inForce.map((consent) =>
+      revokeConsent(consent, { revokedAt, applicationNumber: dto.applicationNumber?.trim() }),
+    );
     await commitTransaction(
       this.fhir,
-      [
+      inForce.flatMap((consent, index) => [
         {
-          method: 'PUT',
-          url: `Consent/${consentId}`,
-          resource: closed,
-          ifMatch: versionOf(active),
+          method: 'PUT' as const,
+          url: `Consent/${consent.id ?? ''}`,
+          resource: closed[index],
+          ifMatch: versionOf(consent),
         },
-        this.auditWrite('update', `Consent/${consentId}`, patientId, claims, requestId),
-      ],
+        this.auditWrite('update', `Consent/${consent.id ?? ''}`, patientId, claims, requestId),
+      ]),
       'CONFLICT',
     );
-    return toConsentResponse(closed);
+    return toConsentResponse(closed[0] as FhirResource);
   }
 
   private auditWrite(
@@ -355,22 +364,55 @@ export class ConsentsService {
     };
   }
 
-  /** The medical worker who signed the form: a doctor is the token's PractitionerRole, an administrator names them. */
-  private signerOf(
+  private async signerOf(
     dto: CreateConsentRequest,
     claims: JwtClaims,
-  ): { reference?: string; name?: string } {
+  ): Promise<{ reference?: string; name?: string }> {
     const name = dto.signedByName?.trim();
     if (claims.role === Role.DOCTOR) {
+      const roleId = practitionerRoleIdOf(claims);
+      const stored = name !== undefined && name !== '' ? name : await this.practitionerNameOf(roleId);
       return {
-        reference: `PractitionerRole/${practitionerRoleIdOf(claims)}`,
-        ...(name === undefined ? {} : { name }),
+        reference: `PractitionerRole/${roleId}`,
+        ...(stored === undefined ? {} : { name: stored }),
       };
     }
     if (name === undefined || name === '') {
       throw invalid('signedByName', 'is required: the medical worker who signed the form');
     }
     return { name };
+  }
+
+  private async practitionerNameOf(roleId: string): Promise<string | undefined> {
+    try {
+      const result = await this.fhir.search('PractitionerRole', {
+        _id: roleId,
+        _include: 'PractitionerRole:practitioner',
+      });
+      const practitioner = (result.entry ?? [])
+        .map((entry) => entry.resource)
+        .find((resource) => resource.resourceType === 'Practitioner');
+      const person = readPersonName(practitioner?.['name']);
+      const initials = [person.firstName, person.middleName]
+        .filter((part): part is string => part !== undefined && part !== '')
+        .map((part) => `${part.charAt(0).toUpperCase()}.`);
+      const short = [person.lastName, ...initials].filter((part) => part !== '').join(' ');
+      return short || person.fullName || undefined;
+    } catch (error) {
+      this.logger.warn({ err: error, roleId }, 'Name of the signing doctor was not read; the reference is stored');
+      return undefined;
+    }
+  }
+
+  // A patient under 18 cannot give the consent themselves: a representative signs (the form is dated by the signing day).
+  private assertSignerMayBeSelf(patient: FhirResource, dto: CreateConsentRequest): void {
+    if (dto.consenterType !== 'self') {
+      return;
+    }
+    const signedOn = DATE_ONLY.test(dto.signedAt) ? dto.signedAt : clinicDateOf(Date.parse(dto.signedAt));
+    if (!isAdultAt(patient, signedOn)) {
+      throw invalid('consenterType', 'a patient under 18 cannot sign themselves: a legal representative or guardian signs');
+    }
   }
 
   private assertRepresentativeFields(dto: CreateConsentRequest): void {
@@ -388,7 +430,6 @@ export class ConsentsService {
     }
   }
 
-  /** `Patient/{id}` for a self-signed form, otherwise the verified `RelatedPerson` of this patient. */
   private async performerOf(patientId: string, dto: CreateConsentRequest): Promise<string> {
     if (dto.consenterType === 'self' || dto.relatedPersonId === undefined) {
       return `Patient/${patientId}`;
@@ -409,7 +450,6 @@ export class ConsentsService {
     return `RelatedPerson/${dto.relatedPersonId}`;
   }
 
-  /** The uploaded scan of this patient, with its hash recomputed from the stored bytes. */
   private async readOwnScan(
     patientId: string,
     scanId: string,
@@ -421,7 +461,7 @@ export class ConsentsService {
     const bytes = Buffer.from(String(binary['data'] ?? ''), 'base64');
     return {
       contentType: String(binary['contentType']),
-      hash: createHash('sha1').update(bytes).digest('base64'),
+      hash: sha1Base64(bytes),
     };
   }
 
@@ -436,25 +476,12 @@ export class ConsentsService {
       throw error;
     }
   }
-
-  /** A clerk's or doctor's call on an unknown id is a 404, not an empty result. */
-  private async assertPatientExists(patientId: string): Promise<void> {
-    const patient = await this.fhir.read('Patient', patientId);
-    if (patient.resourceType !== 'Patient') {
-      throw notFound(`Patient ${patientId} does not exist`);
-    }
-  }
 }
 
-/** Id of the resource a transaction created, from the `location` of its response entry. */
 function createdId(bundle: FhirResource, resourceType: string): string {
   const entries =
     (bundle['entry'] as ReadonlyArray<{ response?: { location?: string } }> | undefined) ?? [];
-  for (const entry of entries) {
-    const location = entry.response?.location;
-    if (location?.includes(`${resourceType}/`) === true) {
-      return idFromLocation(location);
-    }
-  }
-  return '';
+  const location = entries.find((entry) => entry.response?.location?.includes(`${resourceType}/`) === true)?.response
+    ?.location;
+  return location === undefined ? '' : idFromLocation(location);
 }

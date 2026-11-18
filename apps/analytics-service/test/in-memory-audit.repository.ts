@@ -12,6 +12,7 @@ function matches(row: AuditEventRow, filter: AuditFilter): boolean {
     time >= filter.range.from.getTime() &&
     time < filter.range.toExclusive.getTime() &&
     (filter.userId === undefined || row.userId === filter.userId) &&
+    (filter.actions === undefined || filter.actions.length === 0 || filter.actions.includes(row.action)) &&
     (filter.resourceType === undefined || row.resourceType === filter.resourceType) &&
     (filter.resourceId === undefined || row.resourceId === filter.resourceId)
   );
@@ -22,11 +23,6 @@ function newestFirst(left: AuditEventRow, right: AuditEventRow): number {
   return byTime !== 0 ? byTime : right.id.localeCompare(left.id);
 }
 
-/**
- * Same contract as `TypeOrmAuditRepository` (insert-or-ignore by id, newest
- * first, forward-only cursor) over a Map, so the HTTP suites run without
- * PostgreSQL. The SQL itself is covered by `read-model.e2e-spec.ts`.
- */
 export class InMemoryAuditRepository implements AuditRepository {
   readonly rows = new Map<string, AuditEventRow>();
   private readonly cursors = new Map<string, Date>();

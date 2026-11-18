@@ -1,0 +1,13 @@
+- fe-doctor-01: done b40af95 — fetchJournalScan walks real pages (search newest first, next visit asc with early stop), truncated hint
+- fe-doctor-04: done b40af95 — NoshowMenu hidden before visit start (frontend). HANDOFF backend (appointment-service): markNoShow 409 ENCOUNTER_STATE_INVALID for a future start + rule in api-designer-spec 6.6 (owner variant (a))
+- fe-doctor-06: done b40af95 — doctorName on timeline, link only own visits, prescription links hidden for colleague visits listed on history page 1
+- task005-triage-a-T1-03: done b40af95 — 403 -> vitalsOtherDoctor, other errors -> retry
+- fe-doctor-03: done b40af95 — patientsOf lastVisit/nextVisit
+- task005-triage-b-33: done b40af95 — retry button in search
+- fe-doctor-05: done b40af95 — zod duplicate-code issue on the second row (client only; server DTO check is a backend suggestion), keys with index
+- fe-doctor-07: done b40af95 — useRemoveRowFocus
+- fe-doctor-08: done b40af95 — clearDraft in EncounterBody when finished
+- fe-doctor-02: done b40af95 — ScrollToFailure wrapper
+- i18n-01: done b40af95 — label key + catalog-keys-exist.spec
+- i18n-04: done b40af95 — formatNumber
+Status: done

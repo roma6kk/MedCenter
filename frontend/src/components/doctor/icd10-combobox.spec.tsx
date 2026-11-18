@@ -9,7 +9,7 @@ import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { apiFetch } from '@/lib/api/api-fetch';
 import type { Term } from './doctor-types';
-import { callsTo, renderWithClient, routeApi, type ApiMock } from './doctor-test-utils';
+import { callsTo, renderWithClient, routeApi, type ApiMock, type ApiRoute } from './doctor-test-utils';
 import { Icd10Combobox } from './icd10-combobox';
 
 const apiFetchMock = apiFetch as ApiMock;
@@ -31,6 +31,13 @@ function Harness({ onChange, onSelectTerm, id = 'icd10-test' }: HarnessProps): R
   return <Icd10Combobox id={id} value={value} onChange={(code) => { setValue(code); onChange?.(code); }} onSelectTerm={onSelectTerm} />;
 }
 
+const EXPANDED = (): unknown => ({ valueSet: 'icd10', total: 3, items: TERMS });
+
+function serveExpand(respond: ApiRoute['respond'] = EXPANDED): void {
+  apiFetchMock.mockReset();
+  routeApi(apiFetchMock, [{ path: '/api/v1/terminology/expand', respond }]);
+}
+
 async function typeAndWaitForList(text: string): Promise<HTMLElement> {
   const input = screen.getByRole('combobox');
   await userEvent.type(input, text);
@@ -39,10 +46,7 @@ async function typeAndWaitForList(text: string): Promise<HTMLElement> {
 }
 
 describe('Icd10Combobox', () => {
-  beforeEach(() => {
-    apiFetchMock.mockReset();
-    routeApi(apiFetchMock, [{ path: '/api/v1/terminology/expand', respond: () => ({ valueSet: 'icd10', total: 3, items: TERMS }) }]);
-  });
+  beforeEach(() => serveExpand());
 
   it('should search the ICD-10 value set by what was typed', async () => {
     renderWithClient(<Harness />);
@@ -133,5 +137,118 @@ describe('Icd10Combobox', () => {
     await userEvent.type(screen.getByRole('combobox'), 'J');
 
     expect(callsTo(apiFetchMock, '/api/v1/terminology/expand')).toHaveLength(0);
+  });
+});
+
+describe('Icd10Combobox states of the search (A7)', () => {
+  beforeEach(() => apiFetchMock.mockReset());
+
+  it('should say it is searching while the terminology has not answered', async () => {
+    serveExpand(() => new Promise(() => undefined));
+    renderWithClient(<Harness />);
+
+    await userEvent.type(screen.getByRole('combobox'), 'J06');
+
+    expect(await screen.findByText('Ищем…')).toBeInTheDocument();
+  });
+
+  it('should say nothing was found, with the text searched, when the terminology has no match', async () => {
+    serveExpand(() => ({ valueSet: 'icd10', total: 0, items: [] }));
+    renderWithClient(<Harness />);
+
+    await userEvent.type(screen.getByRole('combobox'), 'zz9');
+
+    expect(await screen.findByText('Ничего не найдено по «zz9»')).toBeInTheDocument();
+    expect(screen.queryByText('Ищем…')).toBeNull();
+  });
+
+  it('should say the terminology is unavailable and offer a retry that asks again', async () => {
+    let isDown = true;
+    serveExpand(() => { if (isDown) throw new Error('503'); return EXPANDED(); });
+    renderWithClient(<Harness />);
+    await userEvent.type(screen.getByRole('combobox'), 'J06');
+    expect(await screen.findByText(/Справочник недоступен/)).toBeInTheDocument();
+    const callsBefore: number = callsTo(apiFetchMock, '/api/v1/terminology/expand').length;
+
+    isDown = false;
+    await userEvent.click(screen.getByRole('button', { name: 'Повторить' }));
+
+    expect(await screen.findByRole('listbox')).toBeVisible();
+    expect(callsTo(apiFetchMock, '/api/v1/terminology/expand').length).toBeGreaterThan(callsBefore);
+    expect(screen.queryByText(/Справочник недоступен/)).toBeNull();
+  });
+
+  it('should show nothing but the hint of the field before two characters are typed', async () => {
+    renderWithClient(<Harness />);
+
+    await userEvent.type(screen.getByRole('combobox'), 'J');
+
+    expect(screen.queryByText('Ищем…')).toBeNull();
+    expect(screen.queryByText(/Ничего не найдено/)).toBeNull();
+  });
+});
+
+describe('Icd10Combobox with its own text and shortcuts', () => {
+  beforeEach(() => serveExpand());
+
+  function TextHarness({ onPick }: { readonly onPick?: (term: Term) => void }): ReactNode {
+    const [text, setText] = useState('');
+    return (
+      <Icd10Combobox
+        id="dx"
+        label="Диагноз"
+        value=""
+        onChange={() => undefined}
+        text={text}
+        onTextChange={setText}
+        onSelectTerm={onPick}
+        shortcuts={[TERMS[2] as Term]}
+        shortcutsLabel="Из истории пациента"
+      />
+    );
+  }
+
+  it('should show the text it is given and not the code', () => {
+    renderWithClient(<Icd10Combobox id="dx" label="Диагноз" value="J06.9" onChange={() => undefined} text="J06.9 — Острый назофарингит" onTextChange={() => undefined} />);
+
+    expect(screen.getByRole('combobox', { name: 'Диагноз' })).toHaveValue('J06.9 — Острый назофарингит');
+  });
+
+  it('should offer the shortcuts, under their caption, when the field is focused with nothing typed', async () => {
+    renderWithClient(<TextHarness />);
+
+    await userEvent.click(screen.getByRole('combobox'));
+
+    expect(await screen.findByText('Из истории пациента')).toBeInTheDocument();
+    expect(screen.getByRole('option', { name: /K21\.0/ })).toBeInTheDocument();
+    expect(callsTo(apiFetchMock, '/api/v1/terminology/expand')).toHaveLength(0);
+  });
+
+  it('should hand a picked shortcut over like any suggestion', async () => {
+    const onPick = jest.fn();
+    renderWithClient(<TextHarness onPick={onPick} />);
+
+    await userEvent.click(screen.getByRole('combobox'));
+    await userEvent.click(await screen.findByRole('option', { name: /K21\.0/ }));
+
+    expect(onPick).toHaveBeenCalledWith(TERMS[2]);
+  });
+
+  it('should leave the shortcuts once the doctor types, and search instead', async () => {
+    renderWithClient(<TextHarness />);
+
+    await userEvent.type(screen.getByRole('combobox'), 'J06');
+
+    expect(await screen.findByRole('option', { name: /J06\.9/ })).toBeInTheDocument();
+    expect(screen.queryByText('Из истории пациента')).toBeNull();
+  });
+
+  it('should flag a typed text that is no code once the field is left, asking to pick from the list', async () => {
+    renderWithClient(<TextHarness />);
+
+    await userEvent.type(screen.getByRole('combobox'), 'насморк');
+    await userEvent.tab();
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Выберите диагноз из списка');
   });
 });

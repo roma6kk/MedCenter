@@ -17,10 +17,16 @@ describe('doctorInitials', () => {
 });
 
 describe('DoctorCard', () => {
+  it('should write the name as family, given, patronymic when the catalogue knows the patronymic', () => {
+    render(<DoctorCard doctor={{ ...DOCTOR, middleName: 'Сергеевна' }} />);
+
+    expect(screen.getByRole('heading', { level: 2, name: 'Иванова Мария Сергеевна' })).toBeInTheDocument();
+  });
+
   it('should show name and specialty under a heading when the doctor has a specialty', () => {
     render(<DoctorCard doctor={DOCTOR} />);
 
-    expect(screen.getByRole('heading', { level: 2, name: 'Мария Иванова' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 2, name: 'Иванова Мария' })).toBeInTheDocument();
     expect(screen.getByText('Терапевт')).toBeInTheDocument();
   });
 
@@ -46,5 +52,14 @@ describe('DoctorCard', () => {
     render(<DoctorCard doctor={DOCTOR} />);
 
     expect(screen.getByText('МИ')).toHaveAttribute('aria-hidden', 'true');
+  });
+
+  it('should lift on hover when the whole card leads to the profile and ring the chosen doctor of a list', () => {
+    render(<><DoctorCard doctor={DOCTOR} tone="interactive" /><DoctorCard doctor={{ ...DOCTOR, id: 'd-2' }} tone="selected" /></>);
+
+    const [interactive, selected] = screen.getAllByTestId('doctor-card');
+
+    expect(interactive).toHaveClass('cursor-pointer');
+    expect(selected).toHaveClass('ring-2');
   });
 });

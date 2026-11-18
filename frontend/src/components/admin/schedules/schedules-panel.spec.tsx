@@ -1,7 +1,7 @@
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { apiFetch } from '@/lib/api/api-fetch';
-import { pageOf, renderWithClient } from '../shared/test-utils';
+import { chooseRowAction, firstButton, pageOf, renderWithClient } from '../shared/test-utils';
 import type { AdminSchedule } from './schedule-types';
 import { SchedulesPanel } from './schedules-panel';
 
@@ -30,14 +30,10 @@ function answer(schedules: ReadonlyArray<AdminSchedule>): (path: string) => Prom
   return (path) => {
     if (path.startsWith('/api/v1/admin/users')) return Promise.resolve(pageOf([{ id: 'u1', name: 'Иванова Мария', email: 'i@x.test', firstName: 'М', lastName: 'И', roles: ['DOCTOR'], patientRef: null, practitionerRoleRef: 'PractitionerRole/role-1', isActive: true, role: 'DOCTOR' }]));
     if (path.startsWith('/api/v1/rooms')) return Promise.resolve(pageOf([{ id: 'room-1', identifier: '101', name: 'Кабинет 101', isActive: true }]));
-    if (path.startsWith('/api/v1/services')) return Promise.resolve(pageOf([{ id: 'svc-1', name: 'Приём терапевта', typeSystem: 's', typeCode: 'c', defaultDurationMin: 25, isActive: true }]));
+    if (path.startsWith('/api/v1/admin/services')) return Promise.resolve(pageOf([{ id: 'svc-1', name: 'Приём терапевта', typeSystem: 's', typeCode: 'c', defaultDurationMin: 25, isActive: true }]));
     if (path.startsWith('/api/v1/admin/schedules')) return Promise.resolve(pageOf(schedules));
     return Promise.resolve(undefined);
   };
-}
-
-async function first(name: string): Promise<HTMLElement> {
-  return (await screen.findAllByRole('button', { name }))[0] as HTMLElement;
 }
 
 describe('SchedulesPanel', () => {
@@ -55,7 +51,7 @@ describe('SchedulesPanel', () => {
     apiFetchMock.mockImplementation(answer([active]));
     renderWithClient(<SchedulesPanel />);
 
-    expect((await screen.findAllByText('Кабинет 101 (101)')).length).toBeGreaterThan(0);
+    expect((await screen.findAllByText('Кабинет 101')).length).toBeGreaterThan(0);
     expect(screen.getAllByText('Приём терапевта').length).toBeGreaterThan(0);
     expect(screen.getAllByText('Вс 22:00–23:00').length).toBeGreaterThan(0);
   });
@@ -63,7 +59,7 @@ describe('SchedulesPanel', () => {
   it('should ask for the doctor id when a doctor is chosen in the filter', async () => {
     apiFetchMock.mockImplementation(answer([active]));
     renderWithClient(<SchedulesPanel />);
-    await screen.findAllByText('Кабинет 101 (101)');
+    await screen.findAllByText('Кабинет 101');
 
     await userEvent.selectOptions(screen.getByLabelText('Врач'), 'role-1');
 
@@ -79,14 +75,16 @@ describe('SchedulesPanel', () => {
 
     await waitFor(() => expect(apiFetchMock).toHaveBeenCalledWith('/api/v1/admin/schedules?page=1&pageSize=10&active=false'));
     expect(screen.queryByRole('button', { name: /Сгенерировать слоты/ })).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /Изменить расписание/ })).not.toBeInTheDocument();
+    await userEvent.click((await screen.findAllByRole('button', { name: /^Действия:/ }))[0] as HTMLElement);
+    expect(screen.queryByRole('menuitem', { name: 'Изменить' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('menuitem', { name: 'Удалить' })).not.toBeInTheDocument();
   });
 
   it('should open the generation dialog of the chosen schedule with its real id when the action is pressed', async () => {
     apiFetchMock.mockImplementation(answer([active]));
     renderWithClient(<SchedulesPanel />);
 
-    await userEvent.click(await first('Сгенерировать слоты: Иванова Мария · Кабинет 101 (101)'));
+    await userEvent.click(await firstButton('Сгенерировать слоты: Иванова Мария · Кабинет 101'));
     await userEvent.click(within(screen.getByRole('dialog', { name: 'Генерация слотов' })).getByRole('button', { name: 'Сгенерировать' }));
 
     await waitFor(() => expect(apiFetchMock.mock.calls.some(([path]) => path === '/api/v1/admin/schedules/2572/generate')).toBe(true));
@@ -96,7 +94,7 @@ describe('SchedulesPanel', () => {
     apiFetchMock.mockImplementation((path) => (path.includes('/slots') ? Promise.resolve([]) : answer([active])(path)));
     renderWithClient(<SchedulesPanel />);
 
-    await userEvent.click(await first('Слоты расписания: Иванова Мария · Кабинет 101 (101)'));
+    await chooseRowAction('Иванова Мария · Кабинет 101', 'Слоты');
 
     expect(await screen.findByRole('dialog', { name: 'Слоты расписания' })).toBeInTheDocument();
     await waitFor(() => expect(apiFetchMock.mock.calls.some(([path]) => path.startsWith('/api/v1/admin/schedules/2572/slots?'))).toBe(true));
@@ -112,7 +110,7 @@ describe('SchedulesPanel', () => {
   it('should say that the filters leave nothing when a doctor is chosen and no schedule matches', async () => {
     apiFetchMock.mockImplementation((path) => (path.startsWith('/api/v1/admin/schedules') && path.includes('doctorId=') ? Promise.resolve(pageOf([])) : answer([active])(path)));
     renderWithClient(<SchedulesPanel />);
-    await screen.findAllByText('Кабинет 101 (101)');
+    await screen.findAllByText('Кабинет 101');
 
     await userEvent.selectOptions(screen.getByLabelText('Врач'), 'role-1');
 
@@ -138,4 +136,47 @@ describe('SchedulesPanel', () => {
     expect((await screen.findAllByText('Иванова Мария (учётная запись отключена)')).length).toBeGreaterThan(0);
     expect(screen.queryByText('role-1')).not.toBeInTheDocument();
   });
+
+  it('should switch to the week plan with every schedule on one page, a row per doctor and the windows under the weekdays (D3)', async () => {
+    apiFetchMock.mockImplementation(answer([active]));
+    renderWithClient(<SchedulesPanel />);
+    await screen.findAllByText('Кабинет 101');
+
+    await userEvent.click(screen.getByRole('button', { name: 'Неделя' }));
+
+    const plan = within(await screen.findByRole('table', { name: 'Недельный план рабочих окон' }));
+    expect(apiFetchMock).toHaveBeenCalledWith('/api/v1/admin/schedules?page=1&pageSize=100&active=true');
+    expect(plan.getByRole('rowheader', { name: 'Иванова Мария' })).toBeInTheDocument();
+    expect(plan.getByText('22:00–23:00')).toBeInTheDocument();
+    expect(plan.getByText('Кабинет 101')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Сгенерировать слоты/ })).not.toBeInTheDocument();
+  });
+
+  it('should group the week plan by room and go back to the list when «Список» is pressed', async () => {
+    apiFetchMock.mockImplementation(answer([active]));
+    renderWithClient(<SchedulesPanel />);
+    await screen.findAllByText('Кабинет 101');
+    await userEvent.click(screen.getByRole('button', { name: 'Неделя' }));
+    const plan = within(await screen.findByRole('table', { name: 'Недельный план рабочих окон' }));
+
+    await userEvent.click(screen.getByRole('button', { name: 'По кабинетам' }));
+
+    expect(plan.getByRole('rowheader', { name: 'Кабинет 101' })).toBeInTheDocument();
+    expect(plan.getByText('Иванова Мария')).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Список' }));
+    expect((await screen.findAllByText('Вс 22:00–23:00')).length).toBeGreaterThan(0);
+  });
+
+  it('should keep the filters when the week plan is shown and say when it is cut at one page', async () => {
+    apiFetchMock.mockImplementation((path) => (path.includes('pageSize=100&') && path.startsWith('/api/v1/admin/schedules') ? Promise.resolve({ items: [active], meta: { page: 1, pageSize: 100, totalItems: 140, totalPages: 2 } }) : answer([active])(path)));
+    renderWithClient(<SchedulesPanel />);
+    await screen.findAllByText('Кабинет 101');
+    await userEvent.selectOptions(screen.getByLabelText('Врач'), 'role-1');
+
+    await userEvent.click(screen.getByRole('button', { name: 'Неделя' }));
+
+    await waitFor(() => expect(apiFetchMock).toHaveBeenCalledWith('/api/v1/admin/schedules?page=1&pageSize=100&doctorId=role-1&active=true'));
+    expect(await screen.findByText(/Показаны первые расписания: 1/)).toBeInTheDocument();
+  });
 });
+

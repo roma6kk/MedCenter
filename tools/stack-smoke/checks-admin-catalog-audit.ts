@@ -7,7 +7,6 @@ import type { Suite } from './suite';
 
 const API_PREFIX = '/api/v1/admin';
 
-/** API §4.4: two parallel creates of one free identifier -> exactly one 201 and one 409 CONFLICT (the read check alone cannot see the other request). */
 export function concurrentRoomStep(suite: Suite, ids: Ids, tag: string): SmokeStep {
   const { api, sessions } = suite;
   const session = sessions.admin;
@@ -35,28 +34,28 @@ export function concurrentRoomStep(suite: Suite, ids: Ids, tag: string): SmokeSt
   };
 }
 
-/** The audit journal (FR-021, ADR-014) records the admin's catalog writes, one event per write (the journal follows HAPI on an interval). */
 export function auditSteps(suite: Suite, ids: Ids): SmokeStep[] {
   const actions = async (entity: string, action: string): Promise<number> => (await auditOf(suite, entity, action)).length;
   return [
     {
-      name: 'GET /admin/audit?entity=Location/{id} -> the room create, update and delete; the raced room has exactly one create',
+      name: 'GET /admin/audit?entity=Location/{id} -> the room create, two updates and delete; the raced room has exactly one create',
       run: async () => {
         const room = `Location/${ids.removed.room}`;
         expectEqual(await actions(room, 'create'), 1, 'create events of the room');
-        expectEqual(await actions(room, 'update'), 1, 'update events of the room');
+        expectEqual(await actions(room, 'update'), 2, 'update events of the room');
         expectEqual(await actions(room, 'delete'), 1, 'delete events of the room');
         expectEqual(await actions(`Location/${ids.raceRoom}`, 'create'), 1, 'create events of the raced room (the lost create writes none)');
       },
     },
     {
-      name: 'GET /admin/audit?entity=HealthcareService/{id} and Schedule/{id} -> the service create, update, delete and the schedule create, update, delete',
+      name: 'GET /admin/audit?entity=HealthcareService/{id} and Schedule/{id} -> the service create, update, delete and the schedule create, generate, update, delete',
       run: async () => {
         const service = `HealthcareService/${ids.removed.service}`;
         const schedule = `Schedule/${ids.removed.schedule}`;
+        const scheduleEvents: Readonly<Record<string, number>> = { create: 2, update: 1, delete: 1 };
         for (const action of ['create', 'update', 'delete']) {
           expectEqual(await actions(service, action), 1, `${action} events of the service`);
-          expectEqual(await actions(schedule, action), 1, `${action} events of the schedule`);
+          expectEqual(await actions(schedule, action), scheduleEvents[action], `${action} events of the schedule`);
         }
       },
     },

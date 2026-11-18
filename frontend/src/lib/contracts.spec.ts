@@ -35,9 +35,9 @@ describe('contracts', () => {
     expect(result.success).toBe(false);
   });
 
-  it('should require a cancellation reason of 3..500 chars', () => {
-    expect(cancelAppointmentSchema.safeParse({ reason: 'ok' }).success).toBe(false);
-    expect(cancelAppointmentSchema.safeParse({ reason: 'Пациент заболел' }).success).toBe(true);
+  it('should require a cancellation reason that is one of the neutral codes', () => {
+    expect(cancelAppointmentSchema.safeParse({ reason: 'Пациент заболел' }).success).toBe(false);
+    expect(cancelAppointmentSchema.safeParse({ reason: 'plans-changed' }).success).toBe(true);
   });
 
   it('should require at least one ICD-10 diagnosis to complete an encounter', () => {
@@ -48,6 +48,39 @@ describe('contracts', () => {
     });
 
     expect(result.success).toBe(true);
+  });
+
+  it('should refuse clinical texts made of blanks and trim the ones that are kept', () => {
+    const blank = completeEncounterSchema.safeParse({
+      summary: '     ',
+      diagnoses: [{ code: 'J06.9', display: '   ' }],
+      recommendations: '     ',
+      medicationRequests: [{ atcCode: 'J01FA10', dosageText: '     ' }],
+    });
+    const padded = completeEncounterSchema.safeParse({
+      summary: '  ОРВИ  ',
+      diagnoses: [{ code: 'J06.9', display: ' Инфекция ' }],
+      recommendations: '  Покой  ',
+      medicationRequests: [{ atcCode: 'J01FA10', dosageText: ' 1 таб. ', note: '   ' }],
+    });
+
+    expect(blank.success ? [] : blank.error.issues.map((issue) => issue.path.join('.')).sort()).toEqual(['diagnoses.0.display', 'medicationRequests.0.dosageText', 'recommendations', 'summary']);
+    expect(padded.success && [padded.data.summary, padded.data.diagnoses[0]?.display, padded.data.medicationRequests[0]?.dosageText, padded.data.medicationRequests[0]?.note]).toEqual(['ОРВИ', 'Инфекция', '1 таб.', undefined]);
+  });
+
+  it('should report a repeated diagnosis code on the second row', () => {
+    const result = completeEncounterSchema.safeParse({
+      summary: 'ОРВИ, состояние удовлетворительное',
+      diagnoses: [
+        { code: 'J06.9', display: 'Острая респираторная инфекция' },
+        { code: 'I10', display: 'Гипертензия' },
+        { code: 'J06.9', display: 'Острая респираторная инфекция' },
+      ],
+      recommendations: 'Покой, обильное питьё, контроль температуры',
+    });
+
+    expect(result.success).toBe(false);
+    expect(result.success ? [] : result.error.issues.map((issue) => issue.path.join('.'))).toEqual(['diagnoses.2.code']);
   });
 
   it('should reject an invalid ICD-10 code', () => {

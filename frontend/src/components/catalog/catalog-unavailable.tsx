@@ -6,13 +6,10 @@ import { useT } from '@/lib/i18n/use-t';
 import { SECONDARY_BUTTON_CLASS } from './catalog-styles';
 
 interface CatalogUnavailableProps {
-  /** Namespace with `loadError` / `loadErrorHint` (`home` or `catalog`). */
   readonly namespace: 'home' | 'catalog';
-  /** Where "retry" leads: the same page, so the server renders it again. */
   readonly retryHref: string;
 }
 
-/** The catalog could not be loaded on the server: a banner with the cause and a retry link (no client JS needed). */
 export function CatalogUnavailable({ namespace, retryHref }: CatalogUnavailableProps): ReactNode {
   const t = useT(namespace);
   const tCommon = useT('common');

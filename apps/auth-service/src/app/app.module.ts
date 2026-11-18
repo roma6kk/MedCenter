@@ -31,21 +31,16 @@ function decodePemFromBase64Env(key: string): string {
 function ensureSigningEnv(): void {
   const privateKey = decodePemFromBase64Env('JWT_PRIVATE_KEY_B64');
   const publicKey = decodePemFromBase64Env('JWT_PUBLIC_KEY_B64');
-  if (privateKey && privateKey.startsWith('-----BEGIN RSA PRIVATE KEY-----')) {
+  if (privateKey.includes('-----BEGIN ')) {
     process.env['JWT_PRIVATE_KEY'] = privateKey;
   }
-  if (publicKey && publicKey.startsWith('-----BEGIN RSA PUBLIC KEY-----')) {
+  if (publicKey.includes('-----BEGIN ')) {
     process.env['JWT_PUBLIC_KEY'] = publicKey;
   }
 }
 
 ensureSigningEnv();
 
-/**
- * The guard stack is mounted through `APP_GUARD` on purpose (ADR-009): it is
- * the global default, so no service can ship without JWT → scopes → RBAC →
- * rate-limit protection living behind Traefik.
- */
 @Module({
   imports: [OAuthModule, UsersModule, TerminologyModule, HealthModule],
   controllers: [AppController],
@@ -60,7 +55,6 @@ ensureSigningEnv();
 export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer): void {
     consumer.apply(RequestIdMiddleware).forRoutes('*');
-    // Before the APP_GUARDs: the rate-limit key of the two credential routes is the client IP only.
     for (const route of [LOGIN_ROUTE, REGISTER_ROUTE]) {
       consumer
         .apply(pinCredentialRouteBucket(route))

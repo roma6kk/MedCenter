@@ -1,0 +1,18 @@
+{
+  "id": "task005-triage-b-22",
+  "unit": "task005-triage-b",
+  "kind": "question",
+  "severity": "low",
+  "title": "Цвет статуса «Записано»: синий в графике аналитики и бирюзовый в бейджах",
+  "description": "Вопрос из T8. Различие намеренное и описано в коде: в столбцах графика бирюзовый «Записано» слишком близок к зелёному «Посещено», поэтому взят info-синий; в бейджах рядом стоят иконки (CalendarClock, CircleCheck), и цвет не единственный признак. Легенда графика подписана, путаницы нет. Это вкус: единый цвет статуса по всему приложению против бирюзового как «фирменного» цвета активной записи.",
+  "evidence": "frontend/src/components/admin/analytics/status-style.ts:3-14 booked: bg-info with the comment on teal vs success; frontend/src/components/feedback/stamp-badge.tsx:31 `BOOKED_LOOK = { tone: 'primary', icon: CalendarClock }`.",
+  "files": [
+    "frontend/src/components/admin/analytics/status-style.ts",
+    "frontend/src/components/feedback/stamp-badge.tsx"
+  ],
+  "proposedFix": "Variant A (recommended): keep. Variant B: BOOKED_LOOK tone `info` for booked/proposed/arrived/checked-in (one line in stamp-badge.tsx) and fix the specs that name the tone.",
+  "needsDecision": true,
+  "decisionQuestion": "Сделать «Записано» одного цвета везде? Варианты: (A) оставить как есть (в графике синий, в бейджах бирюзовый с иконкой); (B) перекрасить бейдж «Записано» в синий по всему приложению. Рекомендация: A — различие обосновано читаемостью графика, а бейджи не полагаются только на цвет.",
+  "tzRef": "",
+  "confidence": "confirmed"
+}

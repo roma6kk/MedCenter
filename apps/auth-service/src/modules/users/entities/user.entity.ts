@@ -20,13 +20,20 @@ export class User {
   @Column({ name: 'is_active', default: true })
   isActive!: boolean;
 
-  /** When the account holder agreed to the processing of the account data at self-registration (art. 5, Law 99-Z). */
   @Column({ name: 'account_consent_at', type: 'timestamptz', nullable: true })
   accountConsentAt!: Date | null;
 
-  /** Version of the consent text shown at that moment. */
   @Column({ name: 'account_consent_version', type: 'varchar', length: 64, nullable: true })
   accountConsentVersion!: string | null;
+
+  @Column({ name: 'account_consent_withdrawn_at', type: 'timestamptz', nullable: true })
+  accountConsentWithdrawnAt!: Date | null;
+
+  @Column({ name: 'closed_at', type: 'timestamptz', nullable: true })
+  closedAt!: Date | null;
+
+  @Column({ name: 'retention_until', type: 'timestamptz', nullable: true })
+  retentionUntil!: Date | null;
 
   @CreateDateColumn({ name: 'created_at' })
   createdAt!: Date;

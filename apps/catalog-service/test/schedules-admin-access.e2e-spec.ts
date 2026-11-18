@@ -2,7 +2,7 @@ import request from 'supertest';
 
 import { bootCatalog, TOKENS, type CatalogHarness } from './catalog-harness';
 
-jest.mock('jose', () => jest.requireActual<typeof import('./e2e-tokens')>('./e2e-tokens').decodeOnlyJose());
+jest.mock('jose', () => jest.requireActual<typeof import('@medcenter/testing')>('@medcenter/testing').decodeOnlyJose());
 
 type Verb = 'get' | 'post' | 'patch' | 'delete';
 
@@ -23,7 +23,6 @@ const SCHEDULE_ROUTES: readonly ScheduleRoute[] = [
   { label: 'GET /admin/schedules/{id}/slots', verb: 'get', path: `${BASE}/sched-1/slots?from=2026-11-01&to=2026-11-30` },
 ];
 
-/** Schedules are admin-only (API §5.2, BR-007): no other role reaches HAPI through them. */
 describe('Schedules admin access control (e2e)', () => {
   let harness: CatalogHarness;
 
@@ -49,10 +48,8 @@ describe('Schedules admin access control (e2e)', () => {
 
   describe.each(SCHEDULE_ROUTES)('$label', (route) => {
     it('should answer 401 UNAUTHENTICATED as problem+json when the call carries no token', async () => {
-      // Act
       const response = await call(route).expect(401);
 
-      // Assert
       expect(response.headers['content-type']).toContain('application/problem+json');
       expect(response.body).toMatchObject({ status: 401, errorCode: 'UNAUTHENTICATED' });
       expectFhirUntouched();
@@ -62,37 +59,31 @@ describe('Schedules admin access control (e2e)', () => {
       ['doctor', TOKENS.doctor],
       ['patient', TOKENS.patient],
     ])('should answer 403 FORBIDDEN_ROLE before FHIR is touched when a %s calls it', async (_role, token) => {
-      // Act
       const response = await call(route, token).expect(403);
 
-      // Assert
       expect(response.body).toMatchObject({ status: 403, errorCode: 'FORBIDDEN_ROLE' });
       expectFhirUntouched();
     });
   });
 
   it('should answer 400 VALIDATION_ERROR before HAPI is called when an admin patches a schedule with an unknown weekday', async () => {
-    // Act
     const response = await request(harness.app.getHttpServer())
       .patch(`${BASE}/sched-1`)
       .set('Authorization', TOKENS.admin)
       .send({ windows: [{ dayOfWeek: 'XX', startTime: '09:00', endTime: '13:00' }] })
       .expect(400);
 
-    // Assert
     expect(response.body).toMatchObject({ errorCode: 'VALIDATION_ERROR' });
     expect(harness.fhir.read).not.toHaveBeenCalled();
   });
 
   it('should answer 400 VALIDATION_ERROR before HAPI is called when an admin generates slots for a range that is not a date', async () => {
-    // Act
     const response = await request(harness.app.getHttpServer())
       .post(`${BASE}/sched-1/generate`)
       .set('Authorization', TOKENS.admin)
       .send({ from: 'soon', to: 'later' })
       .expect(400);
 
-    // Assert
     expect(response.body).toMatchObject({ errorCode: 'VALIDATION_ERROR' });
     expect(harness.fhir.read).not.toHaveBeenCalled();
   });

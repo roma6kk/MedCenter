@@ -1,16 +1,14 @@
 import { Logger } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
+import { applyObservability } from '@medcenter/common';
 
 import { AppModule } from './app/app.module';
 
-/**
- * The relay has no public API: the only HTTP route is `/health` for the container
- * probe, and it is not routed through Traefik. There is no guard stack because
- * there is nothing to protect (ADR-021).
- */
+/** No guard stack: the relay has no public API, only `/health`, `/ready` and `/metrics`, none routed by Traefik. */
 async function bootstrap(): Promise<void> {
   const logger = new Logger('Bootstrap');
   const app = await NestFactory.create(AppModule);
+  applyObservability(app, { service: 'outbox-relay', dependencies: ['hapi', 'rabbitmq'] });
   app.enableShutdownHooks();
   const port = process.env['PORT'] ?? 3009;
   await app.listen(port);

@@ -16,7 +16,7 @@ const updateMock = updateMyPhone as jest.MockedFunction<typeof updateMyPhone>;
 const NO_PHONE = { telecom: [{ system: 'email', value: 'patient.lebedeva@medcenter.test', use: 'home' }] };
 
 async function open(name = 'Изменить телефон'): Promise<HTMLElement> {
-  renderWithClient(<ProfilePersonalData />);
+  renderWithClient(<ProfilePersonalData completeness={null} />);
   await userEvent.click(await screen.findByRole('button', { name }));
   return screen.getByTestId('phone-form');
 }
@@ -116,7 +116,7 @@ describe('the phone of the patient card (API 3.12)', () => {
 
   it('should not offer to edit when the card could not be read', async () => {
     patientMock.mockRejectedValue(apiProblem(404, 'NOT_FOUND'));
-    renderWithClient(<ProfilePersonalData />, newQueryClient());
+    renderWithClient(<ProfilePersonalData completeness={null} />, newQueryClient());
 
     expect(await screen.findByTestId('no-patient')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /телефон/i })).not.toBeInTheDocument();

@@ -38,10 +38,8 @@ describe('SlotsController', () => {
   });
 
   it('should query the token PractitionerRole with the default window when no range is given', async () => {
-    // Act
     await controller.ownSchedule(doctorRequest('PractitionerRole/role-7'), {});
 
-    // Assert
     expect(doctorSchedule.forRole).toHaveBeenCalledWith(
       'role-7',
       expect.objectContaining({ from: '2026-11-02', to: '2026-11-16' }),
@@ -49,19 +47,15 @@ describe('SlotsController', () => {
   });
 
   it('should refuse the schedule before touching FHIR when the token has no PractitionerRole', async () => {
-    // Act
     const call = controller.ownSchedule(doctorRequest(), { from: '2026-11-01', to: '2027-01-01' });
 
-    // Assert
     await expect(call).rejects.toBeInstanceOf(ForbiddenException);
     expect(doctorSchedule.forRole).not.toHaveBeenCalled();
   });
 
   it('should pass the path id and the requested range to the slot search when the range is valid', async () => {
-    // Act
     await controller.listDoctorSlots({ id: 'prac-1' }, { from: '2026-11-03', to: '2026-11-04' });
 
-    // Assert
     expect(doctorSlots.listFree).toHaveBeenCalledWith(
       'prac-1',
       expect.objectContaining({ from: '2026-11-03', to: '2026-11-04' }),

@@ -1,0 +1,20 @@
+{
+  "id": "be-appointment-04",
+  "unit": "be-appointment",
+  "kind": "robustness",
+  "severity": "low",
+  "title": "Idempotency-Key не защищает от одновременных повторов: два запроса с одним ключом оба идут в операцию, и один получает ложный SLOT_CONFLICT при уже созданной записи",
+  "description": "IdempotencyService.run() делает get -> operation() -> set без отметки «запрос в работе». Если повтор с тем же ключом приходит, пока первый запрос ещё выполняется (обрыв соединения и повторная отправка, медленный коммит в HAPI), кэш ещё пуст, и оба запроса выполняют бронирование. Двойной записи слота не будет (If-Match на Slot), но проигравший запрос получает 409 SLOT_CONFLICT на собственную запись. Если проиграл первый, клиент видит «Слот уже занят» (frontend: classifyBookingFailure -> conflict, слот и ключ сбрасываются, мастер возвращается к выбору слота), хотя запись пациента создана, а ответ 201 попал только в кэш; пациент выберет другое время и запишется второй раз. Смысл идемпотентности в том, что одинаковые запросы дают одинаковый ответ; сейчас это верно только для последовательных повторов. Тот же сервис стоит и перед POST /admin/schedules/{id}/generate.",
+  "evidence": "libs/common/src/lib/idempotency/idempotency.service.ts:78 `await this.store.get(storeKey)` -> :90 `await operation()` -> :91 remember(); the IdempotencyStore contract (lines 5-8) has only get/set, there is no set-if-absent; apps/appointment-service/src/modules/idempotency/redis-idempotency.store.ts:27 uses a plain SET key value EX (catalog-service has its own MemoryIdempotencyStore with get/set only). apps/appointment-service/src/modules/appointments/appointments.controller.ts:85 wraps book() in run(). Scenario: POST /appointments with key K is slow, the same request with K is resent 3 s later; both see an empty cache; request 2 commits first, request 1 gets HAPI 412 -> 409 SLOT_CONFLICT; the client shows 'Слот уже занят' although the booking exists.",
+  "files": [
+    "libs/common/src/lib/idempotency/idempotency.service.ts",
+    "libs/common/src/lib/idempotency/idempotency.service.spec.ts",
+    "apps/appointment-service/src/modules/idempotency/redis-idempotency.store.ts",
+    "apps/catalog-service/src/modules/cache/idempotency-store.provider.ts"
+  ],
+  "proposedFix": "Add setIfAbsent(key, value, ttlSeconds): Promise<boolean> (Redis SET key value NX EX) to the IdempotencyStore contract and to its implementations (RedisIdempotencyStore, the in-memory store of catalog-service, the Map used in specs). In run(), after the cache miss, claim a lock key such as `idempotency:{scope}:{key}:lock` with a short TTL (for example 30 s); when the claim fails, answer 409 CONFLICT with a clear message ('a request with this Idempotency-Key is still being processed, retry shortly'; CONFLICT already exists in the error catalogue), and release the lock in a finally block. A failed lock acquisition because the store is down should behave like today (log and run the operation). Add a concurrency spec to idempotency.service.spec.ts: two run() calls started together with one key -> the operation runs once, the other call gets CONFLICT, a later retry replays the cached answer.",
+  "needsDecision": false,
+  "decisionQuestion": "",
+  "tzRef": "API §0 Идемпотентность; FR-004",
+  "confidence": "confirmed"
+}

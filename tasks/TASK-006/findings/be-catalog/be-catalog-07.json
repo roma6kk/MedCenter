@@ -1,0 +1,18 @@
+{
+  "id": "be-catalog-07",
+  "unit": "be-catalog",
+  "kind": "robustness",
+  "severity": "low",
+  "title": "Расписание с несуществующей услугой, кабинетом или ролью врача даёт 500 INTERNAL вместо 4xx",
+  "description": "SchedulesService.create не проверяет, что practitionerRoleId, roomId и serviceId указывают на существующие ресурсы: он сразу пишет Schedule с тремя actor-ссылками. HAPI по умолчанию включает ссылочную целостность на запись (в docker-compose этот параметр не переопределён) и отвечает 400/422 на ссылку на несуществующий ресурс; FhirClientError превращает 400/422 из HAPI в 500 INTERNAL («необработанная ошибка»). Администратор через API (или админка, если услугу удалили в соседней вкладке между загрузкой списка и сохранением) получает безличное 500 вместо понятного 404/422. Через формы админки (выпадающие списки) это почти недостижимо, поэтому серьёзность низкая, но это граница системы: ввод внешнего клиента.",
+  "evidence": "apps/catalog-service/src/modules/schedules/schedules.service.ts:48-74 — между assertNoScheduleOverlap и createAudited нет чтения HealthcareService/Location/PractitionerRole. libs/fhir/src/lib/fhir-client.provider.ts:314-320 (toApiStatus): 400 и 422 от HAPI -> 500. Сценарий: POST /api/v1/admin/schedules с roomId, у которого нет Location (формат id валиден) -> HAPI-1094 'Resource Location/x not found, specified in path: Schedule.actor' -> транзакция отклонена -> клиент видит 500 INTERNAL. Аналогично при удалении услуги параллельно с созданием расписания (но там HAPI даёт 409 CONFLICT).",
+  "files": [
+    "apps/catalog-service/src/modules/schedules/schedules.service.ts",
+    "libs/fhir/src/lib/fhir-client.provider.ts"
+  ],
+  "proposedFix": "In SchedulesService.create read the three actors before the write (Promise.all of fhirClient.read('PractitionerRole'|'Location'|'HealthcareService', id)); a 404 from HAPI already becomes NOT_FOUND via FhirClientError, so only the message needs to say which reference is unknown — wrap each read and rethrow NotFoundException({errorCode:'NOT_FOUND', message:'NOT_FOUND: roomId ... does not exist'}) (or 422 VALIDATION_ERROR with details[{field:'roomId'}]). The reads also let the service refuse an inactive PractitionerRole / a Location with status inactive (decide with the owner only if that rule is wanted). Add unit + e2e cases (404 for each of the three, no createAudited call).",
+  "needsDecision": false,
+  "decisionQuestion": "",
+  "tzRef": "api-designer-spec §5.2.1; AGENTS.md (validate at system boundaries); FR-020",
+  "confidence": "likely"
+}

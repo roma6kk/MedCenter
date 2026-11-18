@@ -16,4 +16,13 @@ describe('resolveRoleAccess', () => {
   it('should send an anonymous hydrated session to login', () => {
     expect(resolveRoleAccess('PATIENT', { hydrated: true, role: null })).toBe('login');
   });
+
+  it('should not send a visitor to login when auth-service did not answer, so nothing is known about them', () => {
+    expect(resolveRoleAccess('PATIENT', { hydrated: true, role: null, unavailable: true })).toBe('unavailable');
+  });
+
+  it('should still decide by the role when one is known, even if the last exchange got no answer', () => {
+    expect(resolveRoleAccess('PATIENT', { hydrated: true, role: 'PATIENT', unavailable: true })).toBe('allow');
+    expect(resolveRoleAccess('PATIENT', { hydrated: true, role: 'DOCTOR', unavailable: true })).toBe('forbidden');
+  });
 });

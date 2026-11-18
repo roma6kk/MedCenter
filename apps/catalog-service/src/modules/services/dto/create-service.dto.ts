@@ -2,6 +2,7 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
   ArrayMinSize,
   IsArray,
+  IsBoolean,
   IsInt,
   IsNotEmpty,
   IsOptional,
@@ -11,7 +12,6 @@ import {
   Min,
 } from 'class-validator';
 
-/** API §5.1.3 `CreateServiceDto` → FHIR `HealthcareService`. */
 export class CreateServiceDto {
   @ApiProperty({ maxLength: 200, example: 'Консультация терапевта' })
   @IsString()
@@ -19,7 +19,6 @@ export class CreateServiceDto {
   @MaxLength(200)
   name!: string;
 
-  /** Canonical НСИ ЦИСЗ code system (ADR-002), e.g. `https://fhir.by/CodeSystem/nsi-services`. */
   @ApiProperty({
     maxLength: 255,
     description: 'Canonical code system of the НСИ service type',
@@ -52,6 +51,23 @@ export class CreateServiceDto {
   @IsString()
   @MaxLength(2000)
   description?: string;
+
+  @ApiPropertyOptional({ maxLength: 200, example: 'Therapist consultation' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  nameEn?: string;
+
+  @ApiPropertyOptional({ maxLength: 2000 })
+  @IsOptional()
+  @IsString()
+  @MaxLength(2000)
+  descriptionEn?: string;
+
+  @ApiPropertyOptional({ description: 'false hides the service from the public catalogue' })
+  @IsOptional()
+  @IsBoolean()
+  isActive?: boolean;
 
   @ApiPropertyOptional({
     type: String,

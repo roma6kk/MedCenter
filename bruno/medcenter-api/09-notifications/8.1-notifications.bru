@@ -31,5 +31,5 @@ assert {
 }
 
 docs {
-  Spec 8.1. PATIENT, scope `patient/*.read`. Items `{ id, category, text, sent, read, appointmentId?, encounterId? }`; `unread=true` keeps the unread ones.
+  Spec 8.1. PATIENT, scope `patient/*.read`. Items `{ id, category, kind?, text, sent, read, start?, appointmentId?, encounterId? }` (`kind` and `start` let a client word the notification in the UI language; `text` is the Russian fallback); `unread=true` keeps the unread ones, `unread` other than true/false -> 400 VALIDATION_ERROR.
 }

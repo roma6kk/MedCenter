@@ -20,7 +20,6 @@ import {
 import type { CompleteEncounterDto } from './dto/complete-encounter.dto';
 import { EncountersService } from './encounters.service';
 
-/** The event stored in the outbox record (`medcenter-outbox-payload` extension). */
 function basicEvent(basic: FhirResource): Record<string, unknown> {
   const extension = (basic['extension'] as Array<{ url: string; valueString?: string }>).find((item) => item.url.endsWith('outbox-payload'));
   return JSON.parse(extension?.valueString ?? '{}') as Record<string, unknown>;
@@ -43,7 +42,7 @@ describe('EncountersService.complete', () => {
     fhir.operation.mockImplementation(async (_type, _operation, params) =>
       validateCodeAnswer(!UNKNOWN_CODES.has(String(params?.['code']))),
     );
-    fhir.search.mockResolvedValue({ total: 0 }); // no Consent: CONSENT_ENFORCEMENT=warn lets it through
+    fhir.search.mockResolvedValue({ total: 0 });
     fhir.batch.mockResolvedValue(transactionResponse([`Encounter/${ENCOUNTER_ID}/_history/2`]));
     service = new EncountersService(fhir, new TerminologyValidatorService(fhir), 'warn');
   });

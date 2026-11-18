@@ -8,8 +8,7 @@ import type {
   ValueSetSummaryDto,
 } from './terminology-response.dto';
 
-/** OpenAPI description of `ValueSetSummaryDto`. */
-export class ValueSetSummaryDoc implements ValueSetSummaryDto {
+class ValueSetSummaryDoc implements ValueSetSummaryDto {
   @ApiProperty({ example: 'https://fhir.by/ValueSet/atc', description: 'Canonical https://fhir.by/ValueSet/...' })
   url!: string;
 
@@ -26,7 +25,6 @@ export class ValueSetSummaryDoc implements ValueSetSummaryDto {
   status?: string;
 }
 
-/** Page of ValueSets (API 2.3.1). */
 export class ValueSetPageDoc {
   @ApiProperty({ type: [ValueSetSummaryDoc] })
   items!: ValueSetSummaryDoc[];
@@ -35,8 +33,7 @@ export class ValueSetPageDoc {
   meta!: PageMetaDoc;
 }
 
-/** An expanded concept (R4 `ValueSet.expansion.contains`). */
-export class ConceptDoc implements ConceptDto {
+class ConceptDoc implements ConceptDto {
   @ApiProperty({ example: 'https://fhir.by/CodeSystem/InternClassificDiseases10' })
   system!: string;
 
@@ -47,7 +44,6 @@ export class ConceptDoc implements ConceptDto {
   display?: string;
 }
 
-/** A page of an expansion (API 2.3.2). */
 export class ExpansionResponseDoc implements ExpansionResponseDto {
   @ApiProperty({ example: 'https://fhir.by/ValueSet/atc' })
   valueSet!: string;
@@ -59,7 +55,6 @@ export class ExpansionResponseDoc implements ExpansionResponseDto {
   items!: ConceptDoc[];
 }
 
-/** Result of a `system|code` check (API 2.3.3). */
 export class ValidationResponseDoc implements ValidationResponseDto {
   @ApiProperty()
   system!: string;

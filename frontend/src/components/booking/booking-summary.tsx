@@ -4,30 +4,56 @@ import type { ReactNode } from 'react';
 import { useDoctor, useService } from '@/components/catalog/use-catalog';
 import { Card } from '@/components/ui/card';
 import { formatClinicDateTime } from '@/lib/clinic-time';
+import { doctorLabel } from '@/lib/doctor-name';
 import { useT } from '@/lib/i18n/use-t';
 import { useUiStore } from '@/store/use-ui-store';
-import type { BookingDraft } from '@/store/use-booking-draft-store';
+import type { BookingDraft, BookingStep } from '@/store/use-booking-draft-store';
 import { slotDurationMin } from './slot-time';
 
 interface BookingSummaryProps {
   readonly draft: Pick<BookingDraft, 'step' | 'serviceId' | 'doctorId' | 'slotStart' | 'slotEnd'>;
+  readonly onEdit?: (step: BookingStep) => void;
+  readonly showPlace?: boolean;
+  readonly action?: ReactNode;
 }
 
-function Row({ label, children }: { readonly label: string; readonly children: ReactNode }): ReactNode {
+interface RowProps {
+  readonly label: string;
+  readonly children: ReactNode;
+  readonly editStep?: BookingStep;
+  readonly onEdit?: (step: BookingStep) => void;
+}
+
+function EditButton({ label, step, onEdit }: { readonly label: string; readonly step: BookingStep; readonly onEdit: (step: BookingStep) => void }): ReactNode {
+  const t = useT('booking');
+  return (
+    <button
+      type="button"
+      onClick={() => onEdit(step)}
+      aria-label={t('editStepLabel', { what: label })}
+      data-testid={`summary-edit-${step}`}
+      className="-my-2 inline-flex min-h-[44px] flex-none items-center rounded-control px-2 text-sm font-semibold text-primary-soft-foreground hover:underline"
+    >
+      {t('editStep')}
+    </button>
+  );
+}
+
+function Row({ label, children, editStep, onEdit }: RowProps): ReactNode {
   return (
     <div className="flex flex-col gap-0.5">
-      <dt className="text-[13px] text-muted-foreground">{label}</dt>
-      <dd>{children}</dd>
+      <dt className="text-xs text-muted-foreground">{label}</dt>
+      <dd className="flex items-start justify-between gap-3">
+        <span className="min-w-0">{children}</span>
+        {editStep === undefined || onEdit === undefined ? null : <EditButton label={label} step={editStep} onEdit={onEdit} />}
+      </dd>
     </div>
   );
 }
 
-/**
- * "Ваша запись": what the draft holds so far, beside the first three steps. It reads the draft store and the catalogue
- * queries the steps already run (same keys, so nothing is requested twice). The confirmation step has its own summary.
- */
-export function BookingSummary({ draft }: BookingSummaryProps): ReactNode {
+export function BookingSummary({ draft, onEdit, showPlace = false, action }: BookingSummaryProps): ReactNode {
   const t = useT('booking');
+  const home = useT('home');
   const locale = useUiStore((state) => state.locale);
   const service = useService(draft.serviceId);
   const doctor = useDoctor(draft.doctorId);
@@ -38,21 +64,30 @@ export function BookingSummary({ draft }: BookingSummaryProps): ReactNode {
   return (
     <Card as="section" radius="panel" padding="lg" aria-labelledby="booking-summary-title" data-testid="booking-draft-summary" className="flex flex-col gap-4">
       <h2 id="booking-summary-title" className="text-lg font-bold">{t('summaryTitle')}</h2>
-      <dl className="flex flex-col gap-3.5">
-        <Row label={t('summaryService')}>
+      <dl data-testid="booking-summary" className="flex flex-col gap-3.5">
+        <Row label={t('summaryService')} editStep={1} {...(onEdit === undefined ? {} : { onEdit })}>
           {hasService ? <span className="text-base font-semibold">{service.data?.name ?? '…'}</span> : <span className={muted}>{draft.step === 1 ? t('summaryNone') : t('serviceBySchedule')}</span>}
         </Row>
-        <Row label={t('summaryDoctor')}>
-          {draft.doctorId === null ? <span className={muted}>{t('summaryNone')}</span> : <span className="text-base font-semibold">{doctor.data?.name ?? '…'}</span>}
+        <Row label={t('summaryDoctor')} editStep={2} {...(onEdit === undefined ? {} : { onEdit })}>
+          {draft.doctorId === null ? (
+            <span className={muted}>{t('summaryNone')}</span>
+          ) : (
+            <>
+              <span className="text-base font-semibold">{doctor.data === undefined ? '…' : doctorLabel(doctor.data)}</span>
+              {doctor.data?.specialty === undefined ? null : <span className="block text-sm text-muted-foreground">{doctor.data.specialty}</span>}
+            </>
+          )}
         </Row>
-        <Row label={t('summaryTime')}>
-          {draft.slotStart === null ? <span className={muted}>—</span> : <span className="mono text-[15px] font-medium">{formatClinicDateTime(draft.slotStart, locale)}</span>}
+        <Row label={t('summaryTime')} editStep={3} {...(onEdit === undefined ? {} : { onEdit })}>
+          {draft.slotStart === null ? <span className={muted}>—</span> : <span className="tabular-nums text-base font-medium">{formatClinicDateTime(draft.slotStart, locale)}</span>}
         </Row>
         <Row label={t('summaryDuration')}>
-          {minutes > 0 ? <span className="mono text-[15px] font-medium">{t('slotMinutes', { minutes })}</span> : <span className={muted}>—</span>}
+          {minutes > 0 ? <span className="tabular-nums text-base font-medium">{t('slotMinutes', { minutes })}</span> : <span className={muted}>—</span>}
         </Row>
+        {showPlace ? <Row label={t('summaryPlace')}><span className="text-base font-medium">{home('contactAddressValue')}</span></Row> : null}
       </dl>
-      <p className="text-[13px] leading-normal text-muted-foreground">{t('draftNote')}</p>
+      <p className="text-xs leading-normal text-muted-foreground">{showPlace ? t('cancelHint') : t('draftNote')}</p>
+      {action}
     </Card>
   );
 }

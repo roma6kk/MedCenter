@@ -26,10 +26,8 @@ const fullPatient: FhirResource = {
 
 describe('toPatientResponseDto', () => {
   it('should map name, birthDate, gender, telecom and identifiers when the Patient is complete', () => {
-    // Act
     const dto = toPatientResponseDto(fullPatient);
 
-    // Assert
     expect(dto).toEqual({
       id: '9f2c',
       active: true,

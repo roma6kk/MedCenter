@@ -13,20 +13,13 @@ import { FHIR_BY_VALUE_SET_PREFIX, hasValidCodeShape, seededValueSetOf } from '.
 import { TERMINOLOGY_CACHE, type TerminologyCache } from './terminology-cache';
 import { toConcepts, toValidation, toValueSetSummaries } from './value-set-parser';
 
-/** Reference data changes only when a snapshot is imported (ADR-016), so an hour is safe. */
-export const EXPANSION_TTL_SECONDS = 3600;
+const EXPANSION_TTL_SECONDS = 3600;
 
-/**
- * Key namespace of the cached expansions (`…:expand:<page>` and `…:expand-all:<url>`).
- * The snapshot import sweeps it, so every key is built from this one constant.
- */
 export const EXPANSION_CACHE_PREFIX = 'terminology:expand';
 
 const LIST_PAGE_SIZE = 100;
 
-/** Concepts requested per HAPI call when a whole ValueSet is read (HAPI's own cap is 1000). */
 const SCAN_PAGE_SIZE = 500;
-/** Upper bound of a whole-ValueSet read; larger sets are searched only up to this many concepts. */
 const MAX_SCANNED_CONCEPTS = 10_000;
 
 /**
@@ -37,7 +30,6 @@ const MAX_SCANNED_CONCEPTS = 10_000;
  */
 const UNKNOWN_UPSTREAM_STATUSES: ReadonlySet<number> = new Set([404, 422]);
 
-/** HAPI refused the request as one for an unknown ValueSet / code — as opposed to being down or rejecting our request. */
 function isUnknownToUpstream(error: unknown): error is FhirClientError {
   return (
     error instanceof FhirClientError &&
@@ -66,11 +58,6 @@ function matcherOf(filter: string): (concept: ConceptDto) => boolean {
     concept.code.toLowerCase().startsWith(needle) || (concept.display?.toLowerCase().includes(needle) ?? false);
 }
 
-/**
- * Terminology API (API §2.3, FR-018, ADR-002/016): a read-only window onto the
- * `fhir.by` ValueSets the seed publishes to HAPI. HAPI stays the single source
- * of truth — nothing is copied into the `auth` schema.
- */
 @Injectable()
 export class TerminologyService {
   private readonly logger = new Logger(TerminologyService.name);
@@ -80,7 +67,6 @@ export class TerminologyService {
     @Inject(TERMINOLOGY_CACHE) private readonly cache: TerminologyCache,
   ) {}
 
-  /** API 2.3.1 — one page: the seed holds a handful of ValueSets. */
   async listValueSets(): Promise<PaginatedResponseDto<ValueSetSummaryDto>> {
     const found = await this.fhir.search('ValueSet', {
       'url:below': FHIR_BY_VALUE_SET_PREFIX,
@@ -96,11 +82,6 @@ export class TerminologyService {
     });
   }
 
-  /**
-   * API 2.3.2 — `ValueSet/$expand`. Without a filter HAPI pages the answer; with
-   * one the whole (cached) expansion is searched, so keystrokes of a combobox
-   * cost one HAPI call per hour, not one each.
-   */
   async expand(url: string, query: ExpandQueryDto): Promise<ExpansionResponseDto> {
     const count = query.count ?? DEFAULT_EXPAND_COUNT;
     const offset = query.offset ?? 0;
@@ -112,7 +93,6 @@ export class TerminologyService {
     return { valueSet: url, total: matches.length, items: matches.slice(offset, offset + count) };
   }
 
-  /** API 2.3.3 — a pair outside the seed is `valid: false`, not an error: the caller is asking a question. */
   async validate(system: string, code: string): Promise<ValidationResponseDto> {
     const valueSet = seededValueSetOf(system);
     if (valueSet === undefined || !hasValidCodeShape(system, code)) {
@@ -137,7 +117,10 @@ export class TerminologyService {
       return cached;
     }
     const page = await this.fetchPage(url, count, offset);
-    await this.cache.set(key, JSON.stringify(page), EXPANSION_TTL_SECONDS);
+    // An empty expansion is what HAPI answers while a code system is still indexing; cached for an hour it would hide the codes.
+    if (page.items.length > 0) {
+      await this.cache.set(key, JSON.stringify(page), EXPANSION_TTL_SECONDS);
+    }
     return page;
   }
 
@@ -158,10 +141,11 @@ export class TerminologyService {
       }
     }
     if (concepts.length < total) {
-      // The cap is a safety valve, not a feature: a filter over this set silently misses the rest, so say so.
       this.logger.warn({ url, scanned: concepts.length, total }, 'ValueSet exceeds the scan cap; the text filter sees only its first concepts');
     }
-    await this.cache.set(key, JSON.stringify(concepts), EXPANSION_TTL_SECONDS);
+    if (concepts.length > 0) {
+      await this.cache.set(key, JSON.stringify(concepts), EXPANSION_TTL_SECONDS);
+    }
     return concepts;
   }
 
@@ -190,7 +174,6 @@ export class TerminologyService {
       const parsed: unknown = JSON.parse(raw);
       return isValid(parsed) ? parsed : null;
     } catch {
-      // A value we did not write (or a truncated one) is a miss, never an error.
       return null;
     }
   }

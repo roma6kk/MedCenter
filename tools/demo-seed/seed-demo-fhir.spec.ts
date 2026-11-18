@@ -5,9 +5,7 @@ import { DEMO_TAG_SEARCH, demoIds } from './demo-ids';
 import { addDays, horizonOf, plannedSlots, seedDemoFhir, writeResources, type DemoSeedOptions } from './seed-demo-fhir';
 
 const BASE = 'http://fhir.test/fhir';
-/** A Monday: the 14-day window then holds every weekday exactly twice. */
 const OPTIONS: DemoSeedOptions = { fromDay: '2026-11-02', days: 14, now: new Date('2026-11-01T00:00:00.000Z') };
-/** Every weekday occurs twice in 14 days: 80 + 90 (Ivanova), 36 + 36 (Petrov), 90 (Sidorova), 72 (Kozlov). */
 const EXPECTED_SLOTS = 404;
 const TYPES = ['Organization', 'Location', 'Practitioner', 'PractitionerRole', 'HealthcareService', 'Schedule', 'Slot'] as const;
 
@@ -25,7 +23,6 @@ interface BundleRequest {
   readonly entries: ReadonlyArray<{ readonly request?: { readonly url?: string } }>;
 }
 
-/** Records the entry URLs of every transaction Bundle, in request order. */
 function recordBundles(server: InMemoryFhirServer): { fetchImpl: FetchLike; bundles: string[][] } {
   const bundles: string[][] = [];
   const fetchImpl: FetchLike = async (url, init) => {

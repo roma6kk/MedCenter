@@ -1,11 +1,3 @@
-/**
- * query-string — builds `?a=1&b=2` for the API, skipping unset values.
- *
- * `undefined`, `null` and empty strings are dropped so optional filters never reach the server as `x=`
- * (the DTO whitelist would reject an empty enum). Patient scoping is never a parameter (ADR-013): the
- * helper refuses a `patient` key outright instead of relying on the server to ignore it.
- */
-
 export type QueryParamValue = string | number | boolean | null | undefined;
 export type QueryParams = Readonly<Record<string, QueryParamValue>>;
 
@@ -18,7 +10,7 @@ export function buildQueryString(params: QueryParams = {}): string {
     if (value === undefined || value === null || value === '') return;
     search.set(key, String(value));
   });
-  const encoded: string = search.toString();
+  const encoded = search.toString();
   return encoded === '' ? '' : `?${encoded}`;
 }
 

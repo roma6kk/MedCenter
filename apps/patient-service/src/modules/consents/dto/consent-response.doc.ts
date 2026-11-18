@@ -37,7 +37,6 @@ export class ConsentPeriodDoc {
   readonly end?: string;
 }
 
-/** Swagger projection of `ConsentResponse` (API §3.4–3.9). */
 export class ConsentResponseDoc implements ConsentResponse {
   @ApiProperty({ description: 'Consent.id (FHIR id)' })
   readonly id!: string;
@@ -76,16 +75,17 @@ export class ConsentResponseDoc implements ConsentResponse {
   readonly recordedAt?: string;
 }
 
-/** Swagger projection of `PatientConsentResponse` (API §3.4, 3.7). */
 export class PatientConsentResponseDoc implements PatientConsentResponse {
   @ApiProperty({ type: ConsentResponseDoc, nullable: true, description: 'The consent in force, or null' })
   readonly active!: ConsentResponseDoc | null;
 
   @ApiProperty({ type: [ConsentResponseDoc], description: 'Newest first, including the active one' })
   readonly history!: readonly ConsentResponseDoc[];
+
+  @ApiPropertyOptional({ description: 'Staff read only: false when the patient is under 18 (a representative must sign)' })
+  readonly patientIsAdult?: boolean;
 }
 
-/** Swagger projection of `ConsentScanUploadResponse` (API §3.10). */
 export class ConsentScanUploadResponseDoc implements ConsentScanUploadResponse {
   @ApiProperty({ description: 'Binary id; pass it as scanId to 3.8' })
   readonly scanId!: string;
@@ -100,7 +100,6 @@ export class ConsentScanUploadResponseDoc implements ConsentScanUploadResponse {
   readonly hash!: string;
 }
 
-/** multipart/form-data body of 3.10. */
 export class ConsentScanUploadBodyDoc {
   @ApiProperty({ type: 'string', format: 'binary', description: 'PDF, JPEG or PNG up to 10 MB (type checked by signature)' })
   readonly file!: unknown;

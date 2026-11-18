@@ -1,11 +1,15 @@
-import { BadRequestException, Inject, Injectable } from '@nestjs/common';
+import { BadRequestException, HttpException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { buildPaginatedResponse, type PaginatedResponseDto } from '@medcenter/contracts';
-import { createAudited, FHIR_CLIENT, updateAudited, type AuditContext, type FhirClient, type FhirResource, type WriteActor } from '@medcenter/fhir';
-import { toSlotResponseDto, type SlotResponseDto } from '@medcenter/fhir-mappers';
+import { createAudited, FHIR_CLIENT, updateAudited, type FhirClient, type FhirResource, type WriteActor } from '@medcenter/fhir';
+import { type SlotResponseDto } from '@medcenter/fhir-mappers';
 
+import { auditOf } from '../../common/audit';
+import { FHIR_PAGE_SIZE } from '../../common/fhir-search';
 import { CACHE_KEYS, CACHE_TTLS, RedisCacheService } from '../cache/redis-cache.service';
 import type { ScheduleSummaryDto } from '../slots/dto/doctor-schedule-response.dto';
-import { toScheduleSummaryDto } from '../slots/schedule-summary.mapper';
+import { findExtension, toScheduleSummaryDto } from '../slots/schedule-summary.mapper';
+import { clinicDayRange } from '../slots/slot-range';
+import { SLOT_SEARCH_MAX_PAGES, searchScheduleSlots } from '../slots/slot-search';
 import { CreateScheduleDto } from './dto/create-schedule.dto';
 import { UpdateScheduleDto } from './dto/update-schedule.dto';
 import {
@@ -19,20 +23,10 @@ import { removeScheduleWithSlots } from './schedule-removal';
 
 type Extension = Record<string, unknown>;
 
-/** `AuditEvent.source` of the writes of this service. */
-const AUDIT_SOURCE = 'catalog-service';
-
 const DAY_MS = 24 * 60 * 60 * 1000;
 
-/** One page of the admin schedule list in the API §0 envelope. */
 export type SchedulePage = PaginatedResponseDto<ScheduleSummaryDto>;
 
-/**
- * Schedule CRUD (API §5.2.1–5.2.4). Creation rejects a schedule whose horizon
- * and weekly windows overlap another one of the same practitioner role with
- * `409 SCHEDULE_OVERLAP` (BR-007). Answers are `ScheduleSummaryDto`s, never raw
- * FHIR resources.
- */
 @Injectable()
 export class SchedulesService {
   constructor(
@@ -40,12 +34,9 @@ export class SchedulesService {
     private readonly cache: RedisCacheService,
   ) {}
 
-  /** Admin writes carry their `AuditEvent` in the same transaction (FR-021, ADR-014). */
-  private auditOf(actor: WriteActor): AuditContext {
-    return { actor, source: AUDIT_SOURCE };
-  }
-
   async create(dto: CreateScheduleDto, actor: WriteActor): Promise<ScheduleSummaryDto> {
+    this.assertHorizonSpan(dto.horizonFrom, dto.horizonTo);
+    await this.assertActorsExist(dto);
     await assertNoScheduleOverlap(this.fhirClient, {
       practitionerRoleId: dto.practitionerRoleId,
       windows: dto.windows,
@@ -60,9 +51,7 @@ export class SchedulesService {
         { reference: `Location/${dto.roomId}` },
         { reference: `HealthcareService/${dto.serviceId}` },
       ],
-      // `slotDurationMin` is not a native Schedule element in FHIR R4 —
-      // a strict HAPI would reject the resource. It lives in an extension
-      // (like the planning horizon) and the slot generator reads it back from there.
+      // `slotDurationMin` is not a native R4 Schedule element: a strict HAPI would reject it, so it lives in an extension.
       extension: [
         { url: SLOT_DURATION_EXT, valueInteger: dto.slotDurationMin },
         { url: WEEKLY_WINDOWS_EXT, valueString: JSON.stringify(dto.windows) },
@@ -70,15 +59,33 @@ export class SchedulesService {
       ],
       ...(dto.comment === undefined ? {} : { comment: dto.comment }),
     };
-    return toScheduleSummaryDto(await createAudited(this.fhirClient, schedule, this.auditOf(actor)));
+    return toScheduleSummaryDto(await createAudited(this.fhirClient, schedule, auditOf(actor)));
+  }
+
+  /** A missing reference would reach HAPI as a refused write and come back as a 500: name it as a 404 instead. */
+  private async assertActorsExist(dto: CreateScheduleDto): Promise<void> {
+    const references = [
+      { field: 'practitionerRoleId', type: 'PractitionerRole', id: dto.practitionerRoleId },
+      { field: 'roomId', type: 'Location', id: dto.roomId },
+      { field: 'serviceId', type: 'HealthcareService', id: dto.serviceId },
+    ] as const;
+    await Promise.all(
+      references.map(async ({ field, type, id }) => {
+        try {
+          await this.fhirClient.read(type, id);
+        } catch (error: unknown) {
+          if (error instanceof HttpException && error.getStatus() === 404) {
+            throw new NotFoundException({ errorCode: 'NOT_FOUND', message: `NOT_FOUND: ${field} ${id} does not exist (${type})` });
+          }
+          throw error;
+        }
+      }),
+    );
   }
 
   async update(id: string, dto: UpdateScheduleDto, actor: WriteActor): Promise<ScheduleSummaryDto> {
     const existing = await this.fhirClient.read('Schedule', id);
-    // Partial PATCH semantics: a supplied horizon bound replaces its half of
-    // the stored valuePeriod, the other half survives. The 90-day guard runs
-    // on the merged period — checking the DTO alone let a single-bound PATCH
-    // (e.g. only horizonTo) stretch the horizon arbitrarily.
+    // A PATCH bound replaces its half of the stored period; the 90-day guard runs on the merged period, not the DTO alone.
     const storedPeriod = this.findHorizonPeriod(existing);
     const start = dto.horizonFrom ?? storedPeriod?.start;
     const end = dto.horizonTo ?? storedPeriod?.end;
@@ -107,22 +114,16 @@ export class SchedulesService {
       delete merged['extension'];
     }
     delete merged['slotDurationMin'];
-    return toScheduleSummaryDto(await updateAudited(this.fhirClient, { ...merged, id } as FhirResource, this.auditOf(actor)));
+    return toScheduleSummaryDto(await updateAudited(this.fhirClient, { ...merged, id } as FhirResource, auditOf(actor)));
   }
 
-  /**
-   * Every extension is upserted by its URL, so a PATCH of one of them never
-   * drops the others (windows, horizon and duration are independent).
-   */
   private mergeExtensions(
     existing: FhirResource,
     dto: UpdateScheduleDto,
     start: string | undefined,
     end: string | undefined,
   ): Extension[] {
-    const stored: Extension[] = Array.isArray(existing['extension']) ? (existing['extension'] as Extension[]) : [];
-    // The PATCH duration wins, otherwise the stored one (extension or the legacy
-    // top-level element) is carried over and migrated into the extension.
+    const stored = Array.isArray(existing['extension']) ? (existing['extension'] as Extension[]) : [];
     const duration = dto.slotDurationMin ?? this.readStoredDuration(existing);
     const changes: Extension[] = [
       ...(dto.windows === undefined
@@ -133,30 +134,15 @@ export class SchedulesService {
         : [{ url: PLANNING_HORIZON_EXT, valuePeriod: { ...(start === undefined ? {} : { start }), ...(end === undefined ? {} : { end }) } }]),
       ...(duration === undefined ? [] : [{ url: SLOT_DURATION_EXT, valueInteger: duration }]),
     ];
-    return changes.reduce((extensions, change) => this.upsertExtension(extensions, change), [...stored]);
+    const changed = new Set(changes.map((change) => change['url']));
+    return [...stored.filter((extension) => !changed.has(extension['url'])), ...changes];
   }
 
-  private upsertExtension(extensions: readonly Extension[], extension: Extension): Extension[] {
-    return [...extensions.filter((ext) => ext['url'] !== extension['url']), extension];
-  }
-
-  /** Reads the stored slot duration from the extension or the legacy
-   *  top-level element written before the extension was introduced. */
   private readStoredDuration(schedule: FhirResource): number | undefined {
-    const extensions = schedule['extension'];
-    if (Array.isArray(extensions)) {
-      const ext = (extensions as Array<Record<string, unknown>>).find(
-        (candidate) => candidate['url'] === SLOT_DURATION_EXT,
-      );
-      if (typeof ext?.['valueInteger'] === 'number') {
-        return ext['valueInteger'] as number;
-      }
-    }
-    const value = schedule['slotDurationMin'];
-    return typeof value === 'number' ? value : undefined;
+    const stored = findExtension(schedule, SLOT_DURATION_EXT)?.['valueInteger'] ?? schedule['slotDurationMin'];
+    return typeof stored === 'number' ? stored : undefined;
   }
 
-  /** The horizon must not exceed the 90-day planning span (API §5.2.3). */
   private assertHorizonSpan(start: string | undefined, end: string | undefined): void {
     const from = Date.parse(start ?? '');
     const to = Date.parse(end ?? '');
@@ -171,12 +157,12 @@ export class SchedulesService {
     }
   }
 
-  /** API §5.2.2 — schedule list, optionally filtered by doctor / active flag, in the API §0 envelope. */
   async list(page: number, pageSize: number, doctorId?: string, active?: string): Promise<SchedulePage> {
     const result = await this.fhirClient.search('Schedule', {
       ...(doctorId === undefined ? {} : { actor: `PractitionerRole/${doctorId}` }),
       ...(active === undefined ? {} : { active }),
-      _sort: '_id',
+      // `_id` (a random UUID) only breaks ties so a page boundary stays stable.
+      _sort: '-_lastUpdated,_id',
       _count: pageSize,
       _offset: (page - 1) * pageSize,
       _total: 'accurate',
@@ -186,16 +172,12 @@ export class SchedulesService {
     return buildPaginatedResponse(items, { page, pageSize, totalItems, totalPages: Math.ceil(totalItems / pageSize) });
   }
 
-  /** API §5.2.4: busy slots protect the schedule, free ones go with `cascade` (see `removeScheduleWithSlots`). */
-  async remove(id: string, cascade: boolean, actor: WriteActor): Promise<void> {
-    await removeScheduleWithSlots(this.fhirClient, id, cascade, this.auditOf(actor));
+  async remove(id: string, cascade: boolean, actor: WriteActor): Promise<boolean> {
+    const deactivated = await removeScheduleWithSlots(this.fhirClient, id, cascade, auditOf(actor));
     await this.cache.invalidate([CACHE_KEYS.SCHEDULE_SLOTS(id), CACHE_KEYS.ALL_DOCTOR_SLOTS]);
+    return deactivated;
   }
 
-  /** Slots of a schedule, cached for 15 s (NFR-005). Without a `status` the answer is free and busy
-   *  slots only (the two-state contract): a slot retired by a schedule removal (`entered-in-error`)
-   *  appears only when asked for. The cache key includes the status filter — otherwise the first
-   *  filtered query caches a free-only slice under the shared key and unfiltered callers receive it. */
   async listSlots(
     scheduleId: string,
     from: string,
@@ -204,27 +186,25 @@ export class SchedulesService {
   ): Promise<SlotResponseDto[]> {
     const key = CACHE_KEYS.SLOTS(scheduleId, from, `${to}:${status ?? 'all'}`);
     return this.cache.getOrLoad(key, CACHE_TTLS.SLOTS_SECONDS, async () => {
-      const result = await this.fhirClient.search('Slot', {
-        schedule: `Schedule/${scheduleId}`,
-        start: [`ge${from}`, `le${to}`],
-        status: status ?? 'free,busy',
-      });
-      return (result.entry ?? [])
-        .map((entry) => toSlotResponseDto(entry.resource))
-        .sort((a, b) => a.start.localeCompare(b.start));
+      await this.fhirClient.read('Schedule', scheduleId);
+      const { slots, truncated } = await searchScheduleSlots(
+        this.fhirClient,
+        [scheduleId],
+        clinicDayRange(from, to),
+        status ?? 'free,busy',
+      );
+      if (truncated) {
+        // A bare array: a silent cut would show a partial grid as the whole one.
+        throw new BadRequestException({
+          errorCode: 'VALIDATION_ERROR',
+          message: `range: more than ${SLOT_SEARCH_MAX_PAGES * FHIR_PAGE_SIZE} slots, ask for a shorter period`,
+        });
+      }
+      return slots;
     });
   }
 
-  /** Reads the planning-horizon valuePeriod stored on a schedule, if any. */
-  private findHorizonPeriod(
-    schedule: FhirResource,
-  ): { start?: string; end?: string } | undefined {
-    if (!Array.isArray(schedule['extension'])) {
-      return undefined;
-    }
-    const ext = (schedule['extension'] as Array<Record<string, unknown>>).find(
-      (candidate) => candidate['url'] === PLANNING_HORIZON_EXT && 'valuePeriod' in candidate,
-    );
-    return ext === undefined ? undefined : (ext['valuePeriod'] as { start?: string; end?: string });
+  private findHorizonPeriod(schedule: FhirResource): { start?: string; end?: string } | undefined {
+    return findExtension(schedule, PLANNING_HORIZON_EXT)?.['valuePeriod'] as { start?: string; end?: string } | undefined;
   }
 }

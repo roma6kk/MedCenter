@@ -1,14 +1,6 @@
-/**
- * E2E — scenario F of the frontend design spec §6 (FR-019, FR-021, API 9.1–9.4): the administrator reads the analytics
- * report of a period and finds an audit event with the journal filters.
- *
- * The audit events are made at run time: the test creates a room and deletes it through the API (both write an
- * AuditEvent of resource `Location/<id>`, asynchronously), then finds them by resource, actor and period. Nothing here
- * asserts absolute counts of other data: the report is compared with what the API itself answered for the same period.
- */
 import { randomUUID } from 'node:crypto';
 import { expect, test, type BrowserContext, type Page, type Response } from '@playwright/test';
-import { accessTokenOf, bookAnyFreeSlotAs, cancelAppointmentAs } from './fixtures/booking-api';
+import { accessTokenOf, authHeaders, bookAnyFreeSlotAs, cancelAppointmentAs, clinicDay } from './fixtures/booking-api';
 import { hasDemoManifest } from './fixtures/demo-accounts';
 import { openStoredSession } from './fixtures/session-state';
 
@@ -25,10 +17,14 @@ interface AppointmentsReport {
   readonly noshow: number;
 }
 
-const isReport = (kind: string) => (response: Response): boolean => new URL(response.url()).pathname === `/api/v1/admin/analytics/${kind}` && response.request().method() === 'GET';
+const isReport = (kind: string, period?: { readonly from: string; readonly to: string }) => (response: Response): boolean => {
+  const url = new URL(response.url());
+  const matchesPeriod = period === undefined || (url.searchParams.get('from') === period.from && url.searchParams.get('to') === period.to);
+  return url.pathname === `/api/v1/admin/analytics/${kind}` && response.request().method() === 'GET' && matchesPeriod;
+};
+const THIS_YEAR = { from: `${new Date().getFullYear()}-01-01`, to: `${new Date().getFullYear()}-12-31` };
 const isAudit = (response: Response): boolean => new URL(response.url()).pathname === '/api/v1/admin/audit' && response.request().method() === 'GET';
 
-/** The `sub` of the page's access token: the `userId` the journal records for the account. */
 async function subjectOf(page: Page): Promise<string> {
   const payload = (await accessTokenOf(page)).split('.')[1] ?? '';
   return (JSON.parse(Buffer.from(payload, 'base64url').toString('utf8')) as { sub: string }).sub;
@@ -48,16 +44,16 @@ test.describe('admin analytics', () => {
   });
 
   test('should render the appointments report of the period with the numbers the API answered', async () => {
-    const appointments = page.waitForResponse(isReport('appointments'));
-    const encounters = page.waitForResponse(isReport('encounters'));
-    const services = page.waitForResponse(isReport('services-popularity'));
-    await page.goto('/admin/analytics');
+    const appointments = page.waitForResponse(isReport('appointments', THIS_YEAR));
+    const encounters = page.waitForResponse(isReport('encounters', THIS_YEAR));
+    const services = page.waitForResponse(isReport('services-popularity', THIS_YEAR));
+    await page.goto('/admin/analytics?period=year');
     const report = (await (await appointments).json()) as AppointmentsReport;
     expect((await encounters).ok()).toBe(true);
     expect((await services).ok()).toBe(true);
     expect(report.total, 'the demo stack holds appointments of the current year').toBeGreaterThan(0);
 
-    await expect(page.getByRole('heading', { level: 1 })).not.toHaveText('Аналитика');
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText(`Аналитика за ${new Date().getFullYear()} год`);
     const kpis = page.getByTestId('kpi');
     await expect(kpis).toHaveCount(5);
     await expect(kpis.nth(0)).toContainText(String(report.total));
@@ -66,14 +62,15 @@ test.describe('admin analytics', () => {
     await expect(kpis.nth(2)).toContainText(String(report.fulfilled));
     await expect(kpis.nth(3)).toContainText(String(report.cancelled));
     await expect(kpis.nth(4)).toContainText(String(report.noshow));
-    await expect(page.getByRole('table', { name: 'Завершённые приёмы по специальностям' })).toBeVisible();
+    await expect(page.getByRole('list', { name: 'Завершённые приёмы по специальностям' })).toBeVisible();
+    await expect(page.getByTestId('appointments-chart')).toBeVisible();
     await expect(page.getByRole('table', { name: /^Топ-\d+ услуг по записям$/ })).toBeVisible();
   });
 
   test('should follow a booking that was cancelled after the report was opened when the page is read again', async ({ browser, baseURL }) => {
     test.setTimeout(150_000);
-    const first = page.waitForResponse(isReport('appointments'));
-    await page.goto('/admin/analytics');
+    const first = page.waitForResponse(isReport('appointments', THIS_YEAR));
+    await page.goto('/admin/analytics?period=year');
     const before = (await (await first).json()) as AppointmentsReport;
 
     const patient = await openStoredSession(browser, baseURL, 'PATIENT', 2);
@@ -84,44 +81,54 @@ test.describe('admin analytics', () => {
       await patient.context.close();
     }
 
-    // The read model is filled by a worker from the events, so the page is reloaded (a fresh read: applying the same period
-    // again would be answered from the client cache) until the cancellation is in.
+    // The read model is filled by a worker: reload (a fresh read, not the client cache) until the cancellation is in.
     await expect(async () => {
-      const again = page.waitForResponse(isReport('appointments'));
+      const again = page.waitForResponse(isReport('appointments', THIS_YEAR));
       await page.reload();
       const after = (await (await again).json()) as AppointmentsReport;
       expect(after.cancelled).toBeGreaterThan(before.cancelled);
     }).toPass({ timeout: AUDIT_WRITE_TIMEOUT_MS, intervals: [3_000, 5_000] });
   });
 
-  test('should send the chosen top and period and show the no-data notice for a period without appointments', async () => {
-    await page.goto('/admin/analytics');
+  test('should send the chosen top at once and show the no-data notice for a custom period without appointments', async () => {
+    await page.goto('/admin/analytics?period=year');
     await page.waitForLoadState('networkidle');
-    await page.getByLabel('Топ услуг').selectOption('5');
     const services = page.waitForResponse(isReport('services-popularity'));
-    await page.getByRole('button', { name: 'Показать' }).click();
+    await page.getByLabel('Топ услуг').selectOption('5');
     expect(new URL((await services).url()).searchParams.get('top')).toBe('5');
     await expect(page.getByRole('table', { name: 'Топ-5 услуг по записям' })).toBeVisible();
 
+    await page.getByRole('button', { name: 'Свой период' }).click();
     await page.getByLabel('С', { exact: true }).fill('2020-01-01');
+    const empty = page.waitForResponse(isReport('appointments', { from: '2020-01-01', to: '2020-01-31' }));
     await page.getByLabel('По', { exact: true }).fill('2020-01-31');
-    const empty = page.waitForResponse(isReport('appointments'));
-    await page.getByRole('button', { name: 'Показать' }).click();
-    const url = new URL((await empty).url());
-    expect([url.searchParams.get('from'), url.searchParams.get('to')]).toEqual(['2020-01-01', '2020-01-31']);
+    expect((await empty).ok()).toBe(true);
     await expect(page.getByText(NO_DATA)).toHaveCount(3);
+    await expect(page).toHaveURL(/period=custom&from=2020-01-01&to=2020-01-31/);
+  });
+
+  test('should switch the quick period at once and keep it in the address', async () => {
+    await page.goto('/admin/analytics');
+    await page.waitForLoadState('networkidle');
+
+    const week = page.waitForResponse(isReport('appointments'));
+    await page.getByRole('button', { name: 'Неделя' }).click();
+    await week;
+
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText('Аналитика за неделю');
+    await expect(page).toHaveURL(/period=week/);
+    await expect(page.getByRole('button', { name: 'Показать' })).toHaveCount(0);
   });
 
   test('should refuse a period that ends before it starts without sending a request', async () => {
     await page.goto('/admin/analytics');
     await page.waitForLoadState('networkidle');
+    await page.getByRole('button', { name: 'Свой период' }).click();
     const sent: string[] = [];
     page.on('request', (request) => {
       if (request.url().includes('/analytics/')) sent.push(request.url());
     });
-    await page.getByLabel('С', { exact: true }).fill('2026-06-10');
-    await page.getByLabel('По', { exact: true }).fill('2026-06-01');
-    await page.getByRole('button', { name: 'Показать' }).click();
+    await page.getByLabel('По', { exact: true }).fill('2000-01-01');
 
     await expect(page.getByText('Дата начала позже даты окончания')).toBeVisible();
     expect(sent).toEqual([]);
@@ -136,31 +143,33 @@ test.describe('admin audit journal', () => {
   let roomId: string;
 
   async function adminApi(path: string): Promise<{ readonly items: ReadonlyArray<{ readonly action: string }> }> {
-    const response = await page.request.get(path, { headers: { Authorization: `Bearer ${await accessTokenOf(page)}` } });
+    const response = await page.request.get(path, { headers: await authHeaders(page) });
     return (await response.json()) as { items: ReadonlyArray<{ action: string }> };
   }
 
   async function applyFilters(filters: { readonly entity?: string; readonly userId?: string; readonly from?: string; readonly to?: string }): Promise<Response> {
+    const answered = page.waitForResponse((response) => {
+      if (!isAudit(response)) return false;
+      const query = new URL(response.url()).searchParams;
+      return query.get('entity') === (filters.entity ?? null) && query.get('userId') === (filters.userId ?? null) && (filters.from === undefined || query.get('from') === filters.from) && (filters.to === undefined || query.get('to') === filters.to);
+    });
     if (filters.from !== undefined) await page.getByLabel('С', { exact: true }).fill(filters.from);
     if (filters.to !== undefined) await page.getByLabel('По', { exact: true }).fill(filters.to);
     await page.getByLabel('Ресурс').fill(filters.entity ?? '');
     await page.getByLabel('Пользователь').fill(filters.userId ?? '');
-    const answered = page.waitForResponse(isAudit);
-    await page.getByRole('button', { name: 'Применить' }).click();
     return answered;
   }
 
   test.beforeAll(async ({ browser, baseURL }) => {
     ({ context, page } = await openStoredSession(browser, baseURL, 'ADMIN', 0));
     adminSub = await subjectOf(page);
-    const headers = { Authorization: `Bearer ${await accessTokenOf(page)}` };
+    const headers = await authHeaders(page);
     const identifier = `E2E${randomUUID().replace(/-/g, '').slice(0, 8).toUpperCase()}`;
     const created = await page.request.post('/api/v1/admin/rooms', { headers, data: { identifier, name: `Кабинет ${identifier}`, floor: 1 } });
     expect(created.status(), 'the admin creates a room').toBe(201);
     roomId = ((await created.json()) as { id: string }).id;
     const removed = await page.request.delete(`/api/v1/admin/rooms/${roomId}`, { headers });
     expect(removed.status(), 'the admin deletes the room again').toBe(204);
-    // The AuditEvents are written by a worker: wait until both are in the journal before the UI is asked for them.
     await expect
       .poll(async () => (await adminApi(`/api/v1/admin/audit?entity=${encodeURIComponent(`Location/${roomId}`)}`)).items.map((item) => item.action).sort(), { timeout: AUDIT_WRITE_TIMEOUT_MS, intervals: [2_000] })
       .toEqual(['create', 'delete']);
@@ -206,10 +215,9 @@ test.describe('admin audit journal', () => {
   });
 
   test('should filter by period: today holds the events, a past day does not', async () => {
-    // API §0: a date-only `from`/`to` is a UTC day, so «today» is the UTC date (the Minsk date differs between 00:00 and 03:00 local).
-    const utcDay = (date: Date): string => date.toISOString().slice(0, 10);
-    const today = utcDay(new Date());
-    const yesterdayOf = (day: string): string => utcDay(new Date(Date.parse(`${day}T12:00:00Z`) - 24 * 60 * 60 * 1000));
+    // A date-only `from`/`to` is a Minsk clinic day, so «today» is the Minsk day key, not the UTC date.
+    const today = clinicDay(new Date());
+    const yesterdayOf = (day: string): string => clinicDay(new Date(Date.parse(`${day}T12:00:00+03:00`) - 24 * 60 * 60 * 1000));
     const past = yesterdayOf(yesterdayOf(today));
 
     await applyFilters({ entity: `Location/${roomId}`, from: today, to: today });
@@ -227,7 +235,6 @@ test.describe('admin audit journal', () => {
       if (request.url().includes('/admin/audit')) sent.push(request.url());
     });
     await page.getByLabel('Ресурс').fill('location/lower-case');
-    await page.getByRole('button', { name: 'Применить' }).click();
 
     await expect(page.getByText('Укажите тип ресурса с заглавной буквы или Тип/id')).toBeVisible();
     expect(sent).toEqual([]);

@@ -32,7 +32,7 @@ describe('messages catalogues', () => {
 
 describe('createTranslate', () => {
   it('should resolve a key inside a namespace', () => {
-    expect(createTranslate('ru', 'layout.patient')('booking')).toBe('Запись');
+    expect(createTranslate('ru', 'layout.patient')('home')).toBe('Главная');
   });
 
   it('should interpolate ICU values', () => {

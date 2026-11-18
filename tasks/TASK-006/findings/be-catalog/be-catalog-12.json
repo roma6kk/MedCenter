@@ -1,0 +1,20 @@
+{
+  "id": "be-catalog-12",
+  "unit": "be-catalog",
+  "kind": "gap",
+  "severity": "high",
+  "title": "Новая услуга, созданная в админке, не получает врачей: связь «врач — услуга» нигде не создаётся, шаг «Врач» мастера записи остаётся пустым",
+  "description": "Мастер записи ищет врачей услуги через GET /doctors?serviceId=, а practitioner-service отвечает на него запросом PractitionerRole?service=HealthcareService/{id} (поле PractitionerRole.healthcareService). Ни catalog-service, ни practitioner-service, ни auth-service эту связь нигде не пишут: её заполняет только демо-сид (tools/demo-seed/demo-resources.ts:163, «healthcareService — то, по чему ищет PractitionerRole?service=»). Сценарий администратора по ТЗ: создать услугу (POST /admin/services), создать расписание врача на эту услугу (POST /admin/schedules с serviceId) и сгенерировать слоты. Пациент увидит услугу на шаге 1, но на шаге 2 для неё не будет ни одного врача (профиль врача тоже не покажет услугу: use-doctor-services строится на том же запросе), хотя расписание и свободные слоты есть. То же при смене услуги в расписании. Получается, что «управление услугами» создаёт услуги, которые невозможно выбрать целиком в сквозном сценарии записи.",
+  "evidence": "apps/catalog-service/src/modules/schedules/schedules.service.ts:48-74 (create) пишет только Schedule с тремя actor; apps/practitioner-service/src/modules/doctors/doctor-search.ts:60-71 (practitionerRoleQuery): `service: HealthcareService/{id}`; grep по apps без spec: 'healthcareService' читается только в doctor-search.ts, не пишется нигде; единственная запись — tools/demo-seed/demo-resources.ts:163. Фронтенд: frontend/src/components/booking/doctor-step.tsx (список врачей по serviceId), frontend/src/components/catalog/use-doctor-services.ts. Не проверено на живом стеке (он остановлен): вывод основан на чтении кода.",
+  "files": [
+    "apps/practitioner-service/src/modules/doctors/doctor-search.ts",
+    "apps/practitioner-service/src/modules/doctors/doctors.service.ts",
+    "apps/catalog-service/src/modules/schedules/schedules.service.ts",
+    "tools/demo-seed/demo-resources.ts"
+  ],
+  "proposedFix": "Recommended (B): derive the doctors of a service from its active schedules instead of from a link nobody maintains. In practitioner-service replace the `service` filter of practitionerRoleQuery by a first step `Schedule?actor=HealthcareService/{id}&active:not=false&_elements=actor` (paged), collect the PractitionerRole references from `actor`, and continue with the existing role -> practitioner path (`_id` OR list, or `PractitionerRole?_id=`). The demo seed already derives role.healthcareService from the same schedules (demo-resources.ts:163), so the seeded behaviour does not change. Alternative (A): keep the field and make SchedulesService.create add HealthcareService/{serviceId} to PractitionerRole.healthcareService (read, add if absent, updateAudited with If-Match; remove it again when the role's last schedule of the service is deleted). A is more code and more failure modes (two writes, cleanup on delete). Add tests: a service with a schedule but no role link lists its doctor; a service whose only schedule is deactivated lists none.",
+  "needsDecision": false,
+  "decisionQuestion": "",
+  "tzRef": "ТЗ: «управление услугами» (администратор), «просмотр доступных врачей и медицинских услуг», «поиск и выбор доступного времени» (пациент); FR-002; FR-003; FR-016",
+  "confidence": "likely"
+}

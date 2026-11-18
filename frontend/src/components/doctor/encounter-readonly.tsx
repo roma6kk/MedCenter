@@ -2,17 +2,20 @@
 
 import type { ReactNode } from 'react';
 import { CodeChip } from '@/components/feedback/code-chip';
+import { Card } from '@/components/ui/card';
+import { formatNumber } from '@/lib/clinic-time';
 import { useT } from '@/lib/i18n/use-t';
 import { DiagnosisList } from './diagnosis-list';
 import type { EncounterDetails } from './doctor-types';
-import { ATC_SYSTEM, UCUM_SYSTEM } from './encounter-problem-fields';
+import { ATC_SYSTEM } from './encounter-problem-fields';
+import { useUnitLabel } from './unit-label';
 
 function Section({ title, children }: { readonly title: string; readonly children: ReactNode }): ReactNode {
   return (
-    <section className="rounded-card border border-border bg-card p-4">
-      <h2 className="text-base font-semibold">{title}</h2>
+    <Card as="section">
+      <h2 className="text-lg font-bold">{title}</h2>
       <div className="mt-2 text-sm">{children}</div>
-    </section>
+    </Card>
   );
 }
 
@@ -22,6 +25,7 @@ function Empty({ children }: { readonly children: ReactNode }): ReactNode {
 
 function Observations({ items }: { readonly items: EncounterDetails['observations'] }): ReactNode {
   const t = useT('doctor.readonly');
+  const unitLabel = useUnitLabel();
   if (items.length === 0) return <Empty>{t('noObservations')}</Empty>;
   return (
     <ul className="grid gap-1.5">
@@ -29,8 +33,7 @@ function Observations({ items }: { readonly items: EncounterDetails['observation
         <li key={`${item.code}-${index}`} className="flex flex-wrap items-baseline gap-2">
           <CodeChip code={item.code} system={item.codeSystem} />
           <span>{item.display ?? item.code}</span>
-          <span className="mono">{item.value}</span>
-          <CodeChip code={item.unit} system={UCUM_SYSTEM} />
+          <span className="tabular-nums font-semibold" title={item.unit}>{formatNumber(item.value)} {unitLabel(item.unit, item.code)}</span>
         </li>
       ))}
     </ul>
@@ -72,19 +75,15 @@ function Medications({ items }: { readonly items: EncounterDetails['medicationRe
   );
 }
 
-/**
- * The finished encounter as a record (API 7.2): the same four blocks the doctor filled in, read-only (BR-003). The content
- * comes back in the field names of `CompleteEncounterDto`, so nothing needs translating between form and record.
- */
 export function EncounterReadOnly({ encounter }: { readonly encounter: EncounterDetails }): ReactNode {
   const t = useT('doctor.readonly');
   return (
     <div className="grid gap-4" data-testid="encounter-record">
-      <Section title={t('summary')}>{encounter.summary ? <p className="whitespace-pre-line">{encounter.summary}</p> : <Empty>{t('none')}</Empty>}</Section>
-      <Section title={t('diagnoses')}>{encounter.diagnoses.length > 0 ? <DiagnosisList diagnoses={encounter.diagnoses} /> : <Empty>{t('none')}</Empty>}</Section>
       <Section title={t('observations')}><Observations items={encounter.observations} /></Section>
+      <Section title={t('diagnoses')}>{encounter.diagnoses.length > 0 ? <DiagnosisList diagnoses={encounter.diagnoses} /> : <Empty>{t('none')}</Empty>}</Section>
       <Section title={t('services')}><Services items={encounter.serviceRequests} /></Section>
       <Section title={t('medications')}><Medications items={encounter.medicationRequests} /></Section>
+      <Section title={t('summary')}>{encounter.summary ? <p className="whitespace-pre-line">{encounter.summary}</p> : <Empty>{t('none')}</Empty>}</Section>
       <Section title={t('recommendations')}>{encounter.recommendations ? <p className="whitespace-pre-line">{encounter.recommendations}</p> : <Empty>{t('none')}</Empty>}</Section>
     </div>
   );

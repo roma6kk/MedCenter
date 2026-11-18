@@ -7,19 +7,11 @@ import { fullNameOf, windowsOf } from './demo-resources';
 import { specialtyOf } from './demo-lookup';
 import type { DemoFhirSummary } from './seed-demo-fhir';
 
-/**
- * The demo manifest: the ids and (for accounts this tool created) the
- * credentials of the seeded demo. It lives in `tools/demo-seed/output/`, which
- * is git-ignored — it is the *only* place a generated password is ever written.
- */
-
 export interface DemoUserRecord {
   readonly role: 'ADMIN' | 'DOCTOR' | 'PATIENT';
   readonly email: string;
-  /** Present only for accounts created by this tool (never for the bootstrap admin). */
   readonly password?: string;
   readonly userId?: string;
-  /** `PractitionerRole.id` a DOCTOR account is linked to. */
   readonly practitionerRoleId?: string;
   readonly status: 'created' | 'exists' | 'failed';
   readonly detail?: string;
@@ -31,7 +23,7 @@ export interface DemoUsersSection {
   readonly accounts: readonly DemoUserRecord[];
 }
 
-export interface DemoFhirManifest {
+interface DemoFhirManifest {
   readonly generatedAt: string;
   readonly fhirBaseUrl: string;
   readonly organizationId: string;
@@ -53,17 +45,13 @@ export interface DemoFhirManifest {
     roomId: string;
     healthcareServiceId: string;
     slotDurationMin: number;
-    /** Weekly windows in clinic wall-clock time (Europe/Minsk), exactly as stored in the Schedule. */
     windows: ReadonlyArray<{ dayOfWeek: DayCode; startTime: string; endTime: string }>;
-    /** Slots the schedule should hold over the horizon (those that had not started at run time). */
     slotsPlanned: number;
-    /** Slots the latest run had to create; `0` on a re-run means everything was already there. */
     slotsCreated: number;
   }>;
   readonly horizon: { from: string; to: string };
 }
 
-/** The whole file: the FHIR part and the users part are written by separate steps and never clobber each other. */
 export interface DemoManifest extends Partial<DemoFhirManifest> {
   readonly users?: DemoUsersSection;
 }
@@ -102,7 +90,6 @@ function scheduleEntries(summary: DemoFhirSummary): DemoFhirManifest['schedules'
   });
 }
 
-/** Pure: the FHIR half of the manifest from the static catalog and the run summary. */
 export function buildFhirManifest(summary: DemoFhirSummary, fhirBaseUrl: string, generatedAt: string): DemoFhirManifest {
   return {
     generatedAt,
@@ -123,7 +110,6 @@ export function buildFhirManifest(summary: DemoFhirSummary, fhirBaseUrl: string,
   };
 }
 
-/** The manifest on disk, `{}` when there is none yet. A corrupt file is an error, not an empty manifest. */
 export async function readManifest(path: string): Promise<DemoManifest> {
   let text: string;
   try {
@@ -141,14 +127,7 @@ export async function readManifest(path: string): Promise<DemoManifest> {
   return parsed as DemoManifest;
 }
 
-/**
- * Merges `patch` over the manifest on disk (top-level keys), so one step never
- * drops the other's output. The file is replaced atomically (temporary file in
- * the same directory, then `rename`): an interrupted write leaves the previous
- * manifest — and the generated passwords in it — intact instead of a truncated
- * JSON that `readManifest` would then refuse. The fresh file is `0600` every
- * time, not only when the manifest is first created.
- */
+// Atomic replace (temp file + rename): an interrupted write must not truncate the only copy of the generated passwords.
 export async function writeManifest(path: string, patch: DemoManifest): Promise<DemoManifest> {
   const merged: DemoManifest = { ...(await readManifest(path)), ...patch };
   await mkdir(dirname(path), { recursive: true });

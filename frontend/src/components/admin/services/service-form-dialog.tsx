@@ -5,12 +5,14 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm, type UseFormRegisterReturn } from 'react-hook-form';
 import { useT } from '@/lib/i18n/use-t';
 import { FormProblem } from '../shared/admin-problem';
+import { Checkbox } from '@/components/ui/checkbox';
+import { FIELD_NARROW_CLASS } from '@/components/ui/field-styles';
 import { CONTROL_CLASS } from '../shared/admin-styles';
 import type { ServerFieldRule } from '../shared/apply-server-error';
 import { controlProps, Field } from '../shared/form-field';
 import { FormActions } from '../shared/form-actions';
 import { messagesOf, type FieldMessages } from '../shared/form-errors';
-import { Modal } from '../shared/modal';
+import { Dialog } from '@/components/ui/dialog';
 import { useFormBanner } from '../shared/use-form-banner';
 import { useFormMessage } from '../shared/use-form-message';
 import { EMPTY_SERVICE_VALUES, serviceSchema, serviceValuesOf, toServicePayload, type ServiceFormValues } from './service-schema';
@@ -18,7 +20,7 @@ import type { AdminService } from './service-types';
 import { useCreateService, useUpdateService } from './use-admin-services';
 
 type ServiceField = keyof ServiceFormValues;
-const FIELDS: ReadonlyArray<string> = ['name', 'typeSystem', 'typeCode', 'defaultDurationMin', 'description'];
+const FIELDS: ReadonlyArray<string> = ['name', 'typeSystem', 'typeCode', 'defaultDurationMin', 'description', 'nameEn', 'descriptionEn', 'isActive'];
 
 interface FieldsProps {
   readonly register: (name: ServiceField) => UseFormRegisterReturn;
@@ -34,10 +36,10 @@ function CodeFields({ register, errors }: FieldsProps): ReactNode {
       </Field>
       <div className="grid gap-3 sm:grid-cols-2">
         <Field id="service-type-code" label={t('fields.typeCode')} error={errors.typeCode} hint={t('hints.typeCode')} required>
-          <input {...controlProps('service-type-code', errors.typeCode, t('hints.typeCode'))} className={`${CONTROL_CLASS} mono`} {...register('typeCode')} />
+          <input {...controlProps('service-type-code', errors.typeCode, t('hints.typeCode'))} className={`${CONTROL_CLASS} ${FIELD_NARROW_CLASS} mono`} {...register('typeCode')} />
         </Field>
         <Field id="service-duration" label={t('fields.defaultDurationMin')} error={errors.defaultDurationMin} required>
-          <input {...controlProps('service-duration', errors.defaultDurationMin)} type="number" inputMode="numeric" className={CONTROL_CLASS} {...register('defaultDurationMin')} />
+          <input {...controlProps('service-duration', errors.defaultDurationMin)} type="number" inputMode="numeric" className={`${CONTROL_CLASS} ${FIELD_NARROW_CLASS}`} {...register('defaultDurationMin')} />
         </Field>
       </div>
     </>
@@ -55,6 +57,18 @@ function ServiceFields({ register, errors }: FieldsProps): ReactNode {
       <Field id="service-description" label={t('fields.description')} error={errors.description}>
         <textarea {...controlProps('service-description', errors.description)} rows={3} className={CONTROL_CLASS} {...register('description')} />
       </Field>
+      <Field id="service-name-en" label={t('fields.nameEn')} error={errors.nameEn} hint={t('hints.english')}>
+        <input {...controlProps('service-name-en', errors.nameEn, t('hints.english'))} autoComplete="off" lang="en" className={CONTROL_CLASS} {...register('nameEn')} />
+      </Field>
+      <Field id="service-description-en" label={t('fields.descriptionEn')} error={errors.descriptionEn}>
+        <textarea {...controlProps('service-description-en', errors.descriptionEn)} rows={2} lang="en" className={CONTROL_CLASS} {...register('descriptionEn')} />
+      </Field>
+      <Checkbox {...register('isActive')} wrapperClassName="items-start">
+        <span>
+          {t('fields.isActive')}
+          <span className="block text-sm text-muted-foreground">{t('hints.isActive')}</span>
+        </span>
+      </Checkbox>
     </div>
   );
 }
@@ -90,12 +104,11 @@ interface ServiceFormDialogProps {
   readonly onClose: () => void;
 }
 
-/** Create (`POST /admin/services`) or edit (`PATCH`) dialog of a service (FR-016). */
 export function ServiceFormDialog({ service, onClose }: ServiceFormDialogProps): ReactNode {
   const t = useT('admin.services');
   return (
-    <Modal title={service === undefined ? t('createTitle') : t('editTitle')} onClose={onClose}>
+    <Dialog title={service === undefined ? t('createTitle') : t('editTitle')} onClose={onClose}>
       <ServiceForm {...(service === undefined ? {} : { service })} onClose={onClose} />
-    </Modal>
+    </Dialog>
   );
 }

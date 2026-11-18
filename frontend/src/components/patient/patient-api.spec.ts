@@ -1,4 +1,4 @@
-import { fetchAccount, fetchMyHistory, fetchMyPrescriptions, fetchPatientProfile, updateMyPhone } from './patient-api';
+import { closeMyAccount, fetchAccount, fetchMyHistory, fetchMyPrescriptions, fetchPatientProfile, updateMyPhone } from './patient-api';
 
 jest.mock('@/lib/api/api-fetch', () => ({ apiFetch: jest.fn() }));
 
@@ -40,6 +40,15 @@ describe('patient-api', () => {
     expect(options?.method).toBe('PATCH');
     expect(new Headers(options?.headers).get('If-Match')).toBe('W/"3"');
     expect(JSON.parse(String(options?.body))).toEqual({ phone: '+375291234567' });
+  });
+
+  it('should POST the password to /me/deactivate and nothing else', async () => {
+    await closeMyAccount('Str0ng!Pass');
+
+    const [path, options] = apiFetchMock.mock.calls[0] ?? [];
+    expect(path).toBe('/api/v1/me/deactivate');
+    expect(options?.method).toBe('POST');
+    expect(JSON.parse(String(options?.body))).toEqual({ password: 'Str0ng!Pass' });
   });
 
   it('should never send a patient id when the compartment comes from the token', async () => {

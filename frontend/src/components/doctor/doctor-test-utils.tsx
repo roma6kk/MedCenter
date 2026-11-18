@@ -1,9 +1,3 @@
-/**
- * doctor-test-utils — shared helpers of the doctor area's specs (never imported by application code).
- *
- * `apiFetch` is mocked per spec file (`jest.mock` is hoisted and must live there); these helpers wire a route table into
- * that mock and wrap a component in a fresh `QueryClient` so no cache leaks between tests.
- */
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, type RenderResult } from '@testing-library/react';
 import type { ReactElement, ReactNode } from 'react';
@@ -14,9 +8,7 @@ import type { EncounterDetails, JournalAppointment } from './doctor-types';
 export type ApiMock = jest.MockedFunction<(path: string, options?: RequestInit) => Promise<unknown>>;
 
 export interface ApiRoute {
-  /** Upper-case HTTP method; GET when omitted. */
   readonly method?: string;
-  /** The route matches a request whose path starts with this prefix (query string included in the request path). */
   readonly path: string;
   readonly respond: (path: string, options?: RequestInit) => unknown;
 }
@@ -25,7 +17,6 @@ export function problem(status: number, errorCode: ProblemDetails['errorCode'], 
   return new ApiError({ title: errorCode, status, errorCode, ...(detail === undefined ? {} : { detail }), ...(details === undefined ? {} : { details }) });
 }
 
-/** Answers every request from the matching route with the longest path (the first one on a tie); an unmatched request fails the test loudly. */
 export function routeApi(mock: ApiMock, routes: ReadonlyArray<ApiRoute>): void {
   mock.mockImplementation((path: string, options?: RequestInit) => {
     const method: string = (options?.method ?? 'GET').toUpperCase();
@@ -54,7 +45,6 @@ export function renderWithClient(ui: ReactElement, client: QueryClient = newQuer
 
 export type ApiCall = [path: string, options?: RequestInit];
 
-/** The calls made to `path` (prefix match), most useful to assert a body or a query string. */
 export function callsTo(mock: ApiMock, path: string, method: string = 'GET'): ReadonlyArray<ApiCall> {
   return mock.mock.calls.filter(([requested, options]) => requested.startsWith(path) && (options?.method ?? 'GET').toUpperCase() === method);
 }
@@ -63,7 +53,6 @@ export function bodyOf(call: ApiCall | undefined): Record<string, unknown> {
   return JSON.parse(String(call?.[1]?.body)) as Record<string, unknown>;
 }
 
-/** One page of a list in the `{ items, meta }` envelope every listing endpoint answers. */
 export function pageOf<T>(items: ReadonlyArray<T>, page: number = 1, totalPages: number = 1): { items: ReadonlyArray<T>; meta: { page: number; pageSize: number; totalItems: number; totalPages: number } } {
   return { items, meta: { page, pageSize: 20, totalItems: items.length, totalPages } };
 }
@@ -82,7 +71,6 @@ export function appointment(overrides: Partial<JournalAppointment> = {}): Journa
     createdAt: '2026-10-16T08:00:00Z',
     patientName: 'Кузнецов Алексей',
     serviceName: 'Консультация терапевта',
-    reason: 'Боль в горле',
     ...overrides,
   };
 }

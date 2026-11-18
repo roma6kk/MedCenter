@@ -8,35 +8,26 @@ function scheduleWith(...references: readonly string[]): FhirResource {
 
 describe('scheduleActorId', () => {
   it('should return the bare id of the actor of the requested type when the references are relative', () => {
-    // Arrange
     const schedule = scheduleWith('PractitionerRole/role-1', 'Location/room-1', 'HealthcareService/svc-1');
 
-    // Act
     const ids = [scheduleActorId(schedule, 'PractitionerRole'), scheduleActorId(schedule, 'HealthcareService')];
 
-    // Assert
     expect(ids).toEqual(['role-1', 'svc-1']);
   });
 
   it('should resolve the actor when the stored reference is absolute', () => {
-    // Arrange
     const schedule = scheduleWith('http://hapi:8080/fhir/PractitionerRole/role-1');
 
-    // Act
     const id = scheduleActorId(schedule, 'PractitionerRole');
 
-    // Assert
     expect(id).toBe('role-1');
   });
 
   it('should not confuse a type whose name only starts with the requested one', () => {
-    // Arrange
     const schedule = scheduleWith('PractitionerRole/role-1');
 
-    // Act
     const id = scheduleActorId(schedule, 'Practitioner');
 
-    // Assert
     expect(id).toBe('');
   });
 });
@@ -64,7 +55,7 @@ describe('buildBookedAppointment', () => {
   }
 
   it('should list the Practitioner behind the role as a participant so the doctor id travels with the appointment', () => {
-    expect(actorsOf(buildBookedAppointment(bookable, 'Patient/p-1', undefined))).toEqual([
+    expect(actorsOf(buildBookedAppointment(bookable, 'Patient/p-1'))).toEqual([
       'Patient/p-1',
       'PractitionerRole/role-1',
       'Practitioner/doc-1',
@@ -75,14 +66,14 @@ describe('buildBookedAppointment', () => {
   it('should record when it was created as an RFC 3339 instant, not only the day', () => {
     jest.useFakeTimers().setSystemTime(new Date('2026-10-22T07:07:58.285Z'));
     try {
-      expect(buildBookedAppointment(bookable, 'Patient/p-1', undefined)['created']).toBe('2026-10-22T07:07:58.285Z');
+      expect(buildBookedAppointment(bookable, 'Patient/p-1')['created']).toBe('2026-10-22T07:07:58.285Z');
     } finally {
       jest.useRealTimers();
     }
   });
 
   it('should leave the Practitioner participant out when the role names none', () => {
-    const appointment = buildBookedAppointment({ ...bookable, practitionerId: '' }, 'Patient/p-1', 'боль');
+    const appointment = buildBookedAppointment({ ...bookable, practitionerId: '' }, 'Patient/p-1');
 
     expect(actorsOf(appointment)).toEqual(['Patient/p-1', 'PractitionerRole/role-1', 'HealthcareService/svc-1']);
   });

@@ -8,7 +8,6 @@ import { IngestionService } from './ingestion.service';
 import { READ_MODEL_WRITER, TypeOrmReadModelWriter } from './read-model.writer';
 import { SpecialtyResolver } from './specialty.resolver';
 
-/** Event-driven half of the read-model (architect §5: "analytics-worker по событиям"). */
 @Module({
   imports: [FhirModule],
   providers: [

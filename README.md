@@ -187,8 +187,9 @@ sequenceDiagram
 | **JWT RS256 + JWKS** | Подписанные токены; ключи публикуются через JWKS |
 | **OWASP Top 10** | NFR-006; тесты безопасности на scopes, RBAC и компартмент пациента (BR-006) |
 | **TLS** | Все внешние соединения — через Traefik |
-| **Журнал аудита** (`AuditEvent`) | Создание, изменение и удаление данных (FR-021) |
-| **Закон РБ о защите персональных данных** (№ 99-З) | Согласие на обработку данных при записи; юридическая проверка формулировок — открытый пункт |
+| **Журнал аудита** (`AuditEvent`) | Создание, изменение, удаление и чтение данных пациента (FR-021); вход, неудачный вход, блокировка, выход и завершение по бездействию (DICOM 110114), фильтр по типу события |
+| **Завершение сеанса при бездействии** | 15 минут (`SESSION_IDLE_TIMEOUT_MINUTES`), предупреждение за минуту; сервер не продлевает простаивающую сессию |
+| **Закон РБ о защите персональных данных** (№ 99-З) и Закон «О здравоохранении» | Правовой режим — ADR-022 и [обзор TASK-007](tasks/TASK-007/architect-pdn-legal-review.md): согласие на учётную запись с версией текста, страница `/privacy`, регистрация с 18 лет, нейтральные коды причин отмены, удаление учётной записи, выгрузка своих данных, сроки хранения `RETENTION_ACCOUNT_DAYS` |
 
 Для клиента (`frontend/`) refresh-токен не попадает в JavaScript браузера: сессия хранится в
 httpOnly-cookie, access-токен — в памяти.
@@ -219,7 +220,7 @@ httpOnly-cookie, access-токен — в памяти.
 | **ESLint + Prettier** | Единые правила (одинарные кавычки, ширина строки 100) |
 | **Conventional Commits** | Формат сообщений коммитов, например `fix(web): ...`, `feat(...)`, `docs(adr): ...` |
 | **Semantic Versioning** и **Keep a Changelog** 1.1.0 | [CHANGELOG.md](CHANGELOG.md) |
-| **Architecture Decision Records** | ADR-001…ADR-021 в [specs/architect-architecture.md](specs/architect-architecture.md) |
+| **Architecture Decision Records** | ADR-001…ADR-022 в [specs/architect-architecture.md](specs/architect-architecture.md) |
 | **Bruno** | Коллекция API в [bruno/medcenter-api/](bruno/medcenter-api/) |
 | **Docker Compose** | Все сервисы поднимаются одной командой; структура готова к Kubernetes |
 
@@ -228,7 +229,8 @@ httpOnly-cookie, access-токен — в памяти.
 - **Готово:** все 8 BFF-сервисов, `outbox-relay`, клиент Next.js (роли пациента, врача и администратора),
   E2E-сценарии A–F и security-проверки Playwright, Swagger, Bruno-коллекция, демо-данные.
 - **Открыто:** статус `fulfilled` в аналитике, очистка демо-данных HAPI, пояснительная записка,
-  юридическая проверка текста согласия.
+  подтверждение юристом клиники непроверенных норм и сроков хранения (раздел 5 обзора TASK-007).
+- **Учебный стенд:** регистрация открыта намеренно, вводить реальные персональные данные нельзя; запуск только локальный.
 - История изменений — [CHANGELOG.md](CHANGELOG.md); полный список открытых пунктов —
   [tasks/TASK-001/](tasks/TASK-001/).
 
@@ -261,12 +263,24 @@ npm run seed:demo                   # demo organisation, doctors, services, room
 | --- | --- |
 | Backend unit / integration | `npm test` |
 | Lint, типы | `npm run lint`, `npm run typecheck` |
+| Инструменты (сиды, smoke) | `npm run test:tools && npm run lint:tools` |
 | Frontend | `cd frontend && npx tsc --noEmit && npx jest && npx next lint` |
 | Smoke через Traefik | `npm run smoke:stack` |
 | Playwright E2E (сценарии A–F, security) | `cd frontend && E2E_BROWSER_CHANNEL=chrome npx playwright test` |
 
 Демо-аккаунты создаются командой `npm run seed:demo -- --users --with-admin`; список учётных записей и
 ручной чек-лист — в [tasks/TASK-001/verify-manual-testing-guide.md](tasks/TASK-001/verify-manual-testing-guide.md).
+
+### Обслуживание данных
+
+Две идемпотентные команды для баз, заполненных до перехода на нейтральные причины и образец согласия с водяным
+знаком (работают с `SEED_FHIR_BASE_URL`, по умолчанию локальный HAPI; выводят только счётчики):
+
+- `npm run maint:strip-reasons` — пробный прогон; с `-- --apply` удаляет свободный `reasonCode` и заменяет причину
+  отмены без кода на `other` (под `If-Match`), затем удаляет прежние версии через `$expunge`;
+  `-- --apply --expunge-history` очищает историю и у записей, очищенных прежним прогоном.
+- `npm run seed:demo -- --consents --refresh-scans` — заменяет скан демо-согласий образцом «ОБРАЗЕЦ — вымышленные
+  данные» и удаляет прежние версии `Binary`.
 
 ## 7. Документация
 
@@ -276,5 +290,6 @@ npm run seed:demo                   # demo organisation, doctors, services, room
 | [specs/architect-architecture.md](specs/architect-architecture.md) | Архитектура, слои, ADR |
 | [specs/api-designer-spec.md](specs/api-designer-spec.md) | Контракт API `/api/v1` |
 | [specs/frontend-design-spec.md](specs/frontend-design-spec.md) | Клиент, маршруты, E2E-сценарии |
+| [tasks/TASK-007/architect-pdn-legal-review.md](tasks/TASK-007/architect-pdn-legal-review.md) | Правовой обзор обработки персональных данных (РБ) |
 | [docs/diagrams/](docs/diagrams/) | Диаграммы draw.io |
 | [CHANGELOG.md](CHANGELOG.md) | История изменений |

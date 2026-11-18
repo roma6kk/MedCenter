@@ -7,16 +7,10 @@ import { patientRefFromClaims, practitionerRoleRefFromClaims } from '../../commo
 import { referenceField } from '../../common/fhir/fhir-read';
 import { canonicalReference } from '../../common/fhir/fhir-reference';
 import { resourcesOfType } from '../../common/fhir/fhir-search';
-import { appointmentParties, encounterPractitionerRoleRefs } from '../encounters/encounter-access';
+import { appointmentParties, compartmentViolation, encounterPractitionerRoleRefs } from '../encounters/encounter-access';
 
-/** Encounter states of a real visit; `cancelled` and `entered-in-error` prove no care. */
 const CARE_ENCOUNTER_STATUSES = ['planned', 'arrived', 'triaged', 'in-progress', 'onleave', 'finished'];
-/** Appointment states in which the doctor did (or will) see the patient; cancelled and no-show do not count. */
 const CARE_APPOINTMENT_STATUSES = ['booked', 'arrived', 'checked-in', 'fulfilled'];
-
-function compartmentViolation(message: string): ForbiddenException {
-  return new ForbiddenException({ errorCode: 'COMPARTMENT_VIOLATION', message: `COMPARTMENT_VIOLATION: ${message}` });
-}
 
 function isCareEncounter(encounter: FhirResource, patientRef: string, roleRef: string): boolean {
   return (
@@ -35,18 +29,12 @@ function isCareAppointment(appointment: FhirResource, patientRef: string, roleRe
   );
 }
 
-/**
- * Who may read a patient's history and prescriptions (API §7.4/7.5, ADR-013):
- * the patient themselves (compartment from the token) or a doctor who shares an
- * encounter or an appointment with the patient. An admin never reads it (ADR-018).
- */
 @Injectable()
 export class PatientAccessService {
   private readonly logger = new Logger(PatientAccessService.name);
 
   constructor(@Inject(FHIR_CLIENT) private readonly fhir: FhirClient) {}
 
-  /** `Patient/{patientId}` once the caller is allowed to read it; `403` otherwise. */
   async resolveReadablePatient(claims: JwtClaims, patientId: string): Promise<string> {
     const patientRef = `Patient/${patientId}`;
     switch (claims.role) {
@@ -78,13 +66,7 @@ export class PatientAccessService {
     throw compartmentViolation('the practitioner has no encounter or appointment with this patient');
   }
 
-  /**
-   * One hit is enough, and it is re-checked in-process (type, status, patient and
-   * doctor): a search parameter the server ignored must never widen the
-   * compartment, so an unverifiable hit fails closed. HAPI answers a reference
-   * search on an unknown client-assigned id with 404: that is "no shared care"
-   * (403), so a doctor cannot probe which ids exist.
-   */
+  // Fails closed: hits are re-checked in-process, so an ignored search parameter never widens the compartment. A 404 on an unknown id is 'no shared care' (403): ids cannot be probed.
   private async hasMatch(
     resourceType: string,
     params: Readonly<Record<string, string>>,

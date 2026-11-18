@@ -8,7 +8,9 @@ import { User } from '../entities/user.entity';
 import {
   DuplicateEmailError,
   ResourceAlreadyLinkedError,
+  searchTokens,
   type NewUser,
+  type RetentionExpiredQuery,
   type UserChanges,
   type UserLinks,
   type UserListQuery,
@@ -25,8 +27,7 @@ interface DriverErrorShape {
   readonly constraint?: unknown;
 }
 
-/** Name of the violated unique constraint, or `null` for any other failure. */
-export function uniqueViolationOf(error: unknown): string | null {
+function uniqueViolationOf(error: unknown): string | null {
   if (typeof error !== 'object' || error === null) {
     return null;
   }
@@ -37,8 +38,7 @@ export function uniqueViolationOf(error: unknown): string | null {
   return typeof driver.constraint === 'string' ? driver.constraint : '';
 }
 
-/** Escapes `LIKE` wildcards so a search for `50%` matches the literal text. */
-export function escapeLike(term: string): string {
+function escapeLike(term: string): string {
   return term.replace(/[\\%_]/g, (character) => `\\${character}`);
 }
 
@@ -55,6 +55,11 @@ function toRecord(user: User, roles: ReadonlyArray<RoleName>, links: UserLinks):
     createdAt: user.createdAt,
     ...(user.accountConsentAt !== null && user.accountConsentAt !== undefined ? { accountConsentAt: user.accountConsentAt } : {}),
     ...(user.accountConsentVersion !== null && user.accountConsentVersion !== undefined ? { accountConsentVersion: user.accountConsentVersion } : {}),
+    ...(user.accountConsentWithdrawnAt !== null && user.accountConsentWithdrawnAt !== undefined
+      ? { accountConsentWithdrawnAt: user.accountConsentWithdrawnAt }
+      : {}),
+    ...(user.closedAt !== null && user.closedAt !== undefined ? { closedAt: user.closedAt } : {}),
+    ...(user.retentionUntil !== null && user.retentionUntil !== undefined ? { retentionUntil: user.retentionUntil } : {}),
   };
 }
 
@@ -65,11 +70,6 @@ function linkKey(resourceType: string): keyof UserLinks | null {
   return resourceType === 'PractitionerRole' ? 'practitionerRoleId' : null;
 }
 
-/**
- * TypeORM adapter of `UserStore` over the `auth` schema. Multi-row writes
- * (a user and its roles) run in one transaction; uniqueness is enforced by the
- * database and translated into the domain errors of the port.
- */
 export class TypeOrmUserStore implements UserStore {
   constructor(private readonly dataSource: DataSource) {}
 
@@ -126,7 +126,6 @@ export class TypeOrmUserStore implements UserStore {
   }
 
   async remove(id: string): Promise<void> {
-    // `user_role`, `external_link` and `oauth_token` cascade (Init migration).
     await this.users().delete({ id });
   }
 
@@ -143,15 +142,28 @@ export class TypeOrmUserStore implements UserStore {
         { role: query.role },
       );
     }
-    const term = query.search?.trim() ?? '';
-    if (term.length > 0) {
-      builder.andWhere('(u.email ILIKE :term OR u.firstName ILIKE :term OR u.lastName ILIKE :term)', {
-        term: `%${escapeLike(term)}%`,
+    searchTokens(query.search).forEach((token, index) => {
+      builder.andWhere(`(u.email ILIKE :t${index} OR u.firstName ILIKE :t${index} OR u.lastName ILIKE :t${index})`, {
+        [`t${index}`]: `%${escapeLike(token)}%`,
       });
-    }
+    });
     const [rows, total] = await builder
       .orderBy('u.lastName', 'ASC')
       .addOrderBy('u.firstName', 'ASC')
+      .addOrderBy('u.id', 'ASC')
+      .skip((query.page - 1) * query.pageSize)
+      .take(query.pageSize)
+      .getManyAndCount();
+    return { items: await this.hydrateMany(rows), total };
+  }
+
+  async listRetentionExpired(query: RetentionExpiredQuery): Promise<UserPage> {
+    const [rows, total] = await this.users()
+      .createQueryBuilder('u')
+      .where('u.isActive = false')
+      .andWhere('u.retentionUntil IS NOT NULL')
+      .andWhere('u.retentionUntil <= :now', { now: query.now })
+      .orderBy('u.retentionUntil', 'ASC')
       .addOrderBy('u.id', 'ASC')
       .skip((query.page - 1) * query.pageSize)
       .take(query.pageSize)
@@ -163,7 +175,6 @@ export class TypeOrmUserStore implements UserStore {
     return this.dataSource.getRepository(User);
   }
 
-  /** Links `resourceId`, or releases the user's `PractitionerRole` when it is `null`. */
   private async setPractitionerRole(manager: EntityManager, userId: string, resourceId: string | null): Promise<void> {
     if (resourceId === null) {
       await manager.delete(ExternalLink, { userId, resourceType: 'PractitionerRole' });
@@ -172,7 +183,6 @@ export class TypeOrmUserStore implements UserStore {
     await this.upsertLink(manager, userId, 'PractitionerRole', resourceId);
   }
 
-  /** The `ResourceAlreadyLinkedError` leaves the enclosing transaction (if any) to roll back. */
   private async upsertLink(
     manager: EntityManager,
     userId: string,
@@ -201,7 +211,6 @@ export class TypeOrmUserStore implements UserStore {
     }
     const rows = await manager.findBy(RoleEntity, { name: In([...roles]) });
     if (rows.length !== new Set(roles).size) {
-      // The catalogue is seeded by migration 1700000000001; a gap is a deployment defect.
       throw new Error(`Role catalogue is incomplete: expected ${roles.join(', ')}`);
     }
     await manager.insert(
@@ -258,7 +267,6 @@ export class TypeOrmUserStore implements UserStore {
     try {
       return await operation();
     } catch (error: unknown) {
-      // The only unique constraints of `auth.user` are on the email (Init + lower(email)).
       if (uniqueViolationOf(error) !== null) {
         throw new DuplicateEmailError();
       }

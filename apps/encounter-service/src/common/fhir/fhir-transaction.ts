@@ -3,41 +3,26 @@ import { FhirClientError, type FhirClient, type FhirResource } from '@medcenter/
 
 import { parseReference } from './fhir-reference';
 
-/**
- * One write inside an atomic FHIR `transaction` Bundle (pattern of
- * `apps/appointment-service/.../fhir-transaction.ts`). `ifMatch` is the
- * optimistic-lock check: the write applies only if the stored resource is still
- * at the version this service read; HAPI answers 412, surfacing as 409.
- * `ifNoneExist` is a FHIR conditional create: HAPI returns the matching
- * resource (`200`) instead of creating a duplicate (`201`).
- */
 export interface TransactionWrite {
   readonly method: 'POST' | 'PUT';
   readonly url: string;
   readonly resource: FhirResource;
-  /** `urn:uuid:` id so later entries in the same bundle can reference this one. */
   readonly fullUrl?: string;
   readonly ifMatch?: string;
   readonly ifNoneExist?: string;
 }
 
-/** Outcome of one bundle entry (`response.status` such as `201 Created`, `response.location`). */
-export interface TransactionEntryOutcome {
+interface TransactionEntryOutcome {
   readonly status: string;
   readonly location: string;
 }
 
-export type TransactionConflictCode = 'ENCOUNTER_STATE_INVALID' | 'CONFLICT';
+type TransactionConflictCode = 'ENCOUNTER_STATE_INVALID' | 'CONFLICT';
 
-/**
- * Resource id from a `Location` (`Encounter/abc/_history/1` -> `abc`); an
- * absolute location (`http://hapi/fhir/Encounter/abc/_history/1`) resolves the same.
- */
 export function idFromLocation(location: string | undefined): string {
   return parseReference(location)?.id ?? '';
 }
 
-/** `W/"<versionId>"` for the resource as read. Reads from HAPI always carry it. */
 export function versionOf(resource: FhirResource): string {
   const meta = resource['meta'] as { versionId?: unknown } | undefined;
   if (typeof meta?.versionId !== 'string') {
@@ -49,7 +34,6 @@ export function versionOf(resource: FhirResource): string {
   return `W/"${meta.versionId}"`;
 }
 
-/** Per-entry outcomes of a `transaction-response` Bundle, in request order. */
 export function transactionOutcomes(response: FhirResource): readonly TransactionEntryOutcome[] {
   const entries = (response['entry'] as Array<{ response?: { status?: unknown; location?: unknown } }> | undefined) ?? [];
   return entries.map((entry) => ({
@@ -75,12 +59,7 @@ function toBundle(writes: readonly TransactionWrite[]): FhirResource {
   };
 }
 
-/**
- * Commits all writes atomically via one `transaction` Bundle. HAPI has no row
- * locks over REST; it rolls the whole bundle back when any `ifMatch` fails, so
- * a lost race never leaves a half-written state. A 409 (HAPI 409/412) from the
- * bundle is reported as `conflictCode`; any other failure propagates.
- */
+// HAPI has no row locks over REST: the whole bundle rolls back when any `ifMatch` fails, so a lost race leaves nothing half-written.
 export async function commitTransaction(
   fhir: FhirClient,
   writes: readonly TransactionWrite[],

@@ -1,0 +1,19 @@
+{
+  "id": "task005-triage-b-09",
+  "unit": "task005-triage-b",
+  "kind": "question",
+  "severity": "low",
+  "title": "RESOLVED: «бургер слева, панель справа» в кабинетах уже исправлено — меню кабинетов выезжают слева",
+  "description": "Вопрос из T5 устарел: после него меню кабинетов переведено на вариант drawer-left. Мобильное меню кабинета пациента и сайдбар персонала открываются слева, как и бургер; справа остались только панели-«детали» (использование кабинета, сводка пациента в приёме) и меню публичной части (вопрос про публичный бургер вынесен отдельно, см. V4+T9).",
+  "evidence": "frontend/src/components/layout/patient-mobile-menu.tsx:51 `<Dialog variant=\"drawer-left\">`; frontend/src/components/layout/staff-shell.tsx:117 `variant=\"drawer-left\"`; frontend/src/components/ui/dialog.tsx:30-42 drawer vs drawer-left.",
+  "files": [
+    "frontend/src/components/layout/staff-shell.tsx",
+    "frontend/src/components/layout/patient-mobile-menu.tsx",
+    "frontend/src/components/ui/dialog.tsx"
+  ],
+  "proposedFix": "No change.",
+  "needsDecision": false,
+  "decisionQuestion": "",
+  "tzRef": "",
+  "confidence": "confirmed"
+}

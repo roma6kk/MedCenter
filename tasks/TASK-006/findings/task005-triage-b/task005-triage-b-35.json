@@ -1,0 +1,17 @@
+{
+  "id": "task005-triage-b-35",
+  "unit": "task005-triage-b",
+  "kind": "question",
+  "severity": "low",
+  "title": "RESOLVED: единичная ошибка 404 в консоли у гостя на главной/каталоге не воспроизводится, код к ней устойчив",
+  "description": "Наблюдение из V4/T9. Постоянного источника 404 на публичных страницах не нашлось: все статические пути портретов (frontend/public/demo-photos/doctors/{ivanova,petrov,sidorova,kozlov}.jpg) совпадают с четырьмя врачами демо-сида, пустые ответы каталога не кешируются, у Avatar есть onError с откатом на инициалы. Единственная правдоподобная причина: Practitioner из тестовых хвостов (E2E-проверки, деактивированный e2e-check.doctor3) со ссылкой на несуществующий портрет, или устаревший чанк после пересборки во время обхода. Оба случая безвредны для пользователя и относятся к тестовым данным, которые владелец решил не трогать.",
+  "evidence": "tools/demo-seed/demo-catalog.ts:141-144 four doctors and :91-95 photo paths vs frontend/public/demo-photos/doctors (4 files); frontend/src/components/ui/avatar.tsx:16-25 onError fallback; frontend/src/lib/server-fetch.ts:48-60 empty list re-asked with no-store.",
+  "files": [
+    "frontend/src/components/ui/avatar.tsx"
+  ],
+  "proposedFix": "No change. If it shows again, read the failing URL from the network panel before touching code.",
+  "needsDecision": false,
+  "decisionQuestion": "",
+  "tzRef": "",
+  "confidence": "possible"
+}

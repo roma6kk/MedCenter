@@ -8,17 +8,17 @@ import { useT } from '@/lib/i18n/use-t';
 import { defaultGenerationRange, validateGenerationRange, type GenerationRange, type GenerationRangeError } from './generation-range';
 import type { AdminSchedule, GenerateSlotsResult } from './schedule-types';
 import { AdminProblem } from '../shared/admin-problem';
-import { CONTROL_CLASS, SECONDARY_BUTTON_CLASS } from '../shared/admin-styles';
+import { DatePicker } from '@/components/ui/date-picker';
+import { SECONDARY_BUTTON_CLASS } from '../shared/admin-styles';
 import { focusField } from '../shared/focus-field';
 import { controlProps, Field } from '../shared/form-field';
-import { Modal } from '../shared/modal';
+import { Dialog } from '@/components/ui/dialog';
 import { SubmitButton } from '../shared/submit-button';
 import { useIdempotencyKey } from '../shared/use-idempotency-key';
 import { useGenerateSlots, type GenerateSlotsVars } from './use-admin-schedules';
 
 interface SlotGenerationDialogProps {
   readonly schedule: AdminSchedule;
-  /** Who the schedule belongs to, shown under the title (doctor · room). */
   readonly scheduleLabel?: string;
   readonly onClose: () => void;
 }
@@ -36,7 +36,6 @@ interface GenerationForm {
   readonly range: GenerationRange;
   readonly rangeError: GenerationRangeError | null;
   readonly generate: UseMutationResult<GenerateSlotsResult, Error, GenerateSlotsVars>;
-  /** A period edit: the result and the failure of the previous period are not the answer for the new one. */
   readonly change: (next: GenerationRange) => void;
   readonly handleSubmit: (event: FormEvent) => void;
 }
@@ -64,25 +63,21 @@ function useGenerationForm(schedule: AdminSchedule): GenerationForm {
   return { range, rangeError, generate, change, handleSubmit };
 }
 
-/**
- * Slot generation of one schedule (FR-020, API 5.2.5): a `from`…`to` period inside the planning horizon, sent with the
- * `Idempotency-Key` of the intent — a retry of the same period reuses it, a new period or a finished run gets a new key.
- */
 export function SlotGenerationDialog({ schedule, scheduleLabel, onClose }: SlotGenerationDialogProps): ReactNode {
   const t = useT('admin.slots');
   const { range, rangeError, generate, change, handleSubmit } = useGenerationForm(schedule);
   const error: string | undefined = rangeError === null ? undefined : t(`generate.errors.${rangeError}`);
   const horizon: string = schedule.horizonFrom && schedule.horizonTo ? t('generate.horizon', { from: formatDateKey(schedule.horizonFrom, 'numeric'), to: formatDateKey(schedule.horizonTo, 'numeric') }) : '';
   return (
-    <Modal title={t('generate.title')} onClose={onClose} size="sm">
+    <Dialog title={t('generate.title')} onClose={onClose} size="sm">
       {scheduleLabel ? <p className="text-sm text-[var(--muted-foreground)]">{scheduleLabel}</p> : null}
       <form onSubmit={handleSubmit} noValidate className="mt-3 grid gap-3">
         <div className="grid gap-3 sm:grid-cols-2">
           <Field id="generate-from" label={t('generate.from')} error={error} hint={horizon} required>
-            <input {...controlProps('generate-from', error, horizon)} type="date" value={range.from} onChange={(event) => change({ ...range, from: event.target.value })} className={CONTROL_CLASS} />
+            <DatePicker {...controlProps('generate-from', error, horizon)} value={range.from} onChange={(from) => change({ ...range, from })} />
           </Field>
           <Field id="generate-to" label={t('generate.to')} required>
-            <input id="generate-to" type="date" value={range.to} aria-invalid={error ? true : undefined} aria-describedby={error ? 'generate-from-error' : undefined} onChange={(event) => change({ ...range, to: event.target.value })} className={CONTROL_CLASS} />
+            <DatePicker id="generate-to" value={range.to} aria-invalid={error ? true : undefined} aria-describedby={error ? 'generate-from-error' : undefined} onChange={(to) => change({ ...range, to })} />
           </Field>
         </div>
         {generate.isError ? <AdminProblem error={generate.error} /> : null}
@@ -92,6 +87,6 @@ export function SlotGenerationDialog({ schedule, scheduleLabel, onClose }: SlotG
           <SubmitButton label={t('generate.run')} pendingLabel={t('generate.running')} isPending={generate.isPending} error={generate.error} />
         </div>
       </form>
-    </Modal>
+    </Dialog>
   );
 }

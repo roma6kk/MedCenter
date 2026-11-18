@@ -1,6 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
 
-/** `meta` of the API §0 paging envelope, for Swagger only. */
 export class PageMetaDoc {
   @ApiProperty({ minimum: 1, example: 1 })
   readonly page!: number;

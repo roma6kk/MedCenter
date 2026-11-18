@@ -1,0 +1,18 @@
+{
+  "id": "be-patient-05",
+  "unit": "be-patient",
+  "kind": "docs",
+  "severity": "low",
+  "title": "Swagger 3.1 и 3.4 обещает 404 «у токена нет привязанного Patient», а сервис отвечает 403 COMPARTMENT_VIOLATION",
+  "description": "В описании GET /me/patient (3.1) и GET /me/consent (3.4) документировано `404 NOT_FOUND: the token has no linked Patient`. Фактически PATIENT-токен без claim `patient` (auth-service выдаёт такой, если у учётной записи нет ExternalLink: toIdentityClaims возвращает только role) доходит до ownPatientId -> requirePatientRef и получает `403 COMPARTMENT_VIOLATION: Token carries no patient context`; так же отвечают 3.6 и 3.12. 404 возможен только когда сам FHIR-ресурс Patient удалён. Клиентам Swagger-описание обещает не тот код; интерфейсу это не вредит, потому что он намеренно показывает COMPARTMENT_VIOLATION как «не найдено» (error-code-map.ts, BR-006), поэтому профиль без карты показывает «Карточка пациента ещё не создана». Та же неточность описания уже отмечена для 7.4/7.5 (be-encounter-07), у 7.6/7.7 в encounter-service контракт ответа тот же.",
+  "evidence": "apps/patient-service/src/modules/patients/me-patient.controller.ts:33 and apps/patient-service/src/modules/consents/me-consent.controller.ts:37 (@ApiProblems(... 404: 'NOT_FOUND: the token has no linked Patient')); libs/common/src/lib/patient-compartment.ts:15-20 requirePatientRef throws ForbiddenException COMPARTMENT_VIOLATION 'Token carries no patient context'; apps/patient-service/src/modules/access/patient-identity.ts ownPatientId calls it; apps/auth-service/src/modules/oauth/identity.ts:37-45 (PATIENT without patientId -> { role } only); frontend/src/lib/api/error-code-map.ts:39 (COMPARTMENT_VIOLATION -> kind 'not-found', so the UI is fine).",
+  "files": [
+    "apps/patient-service/src/modules/patients/me-patient.controller.ts",
+    "apps/patient-service/src/modules/consents/me-consent.controller.ts"
+  ],
+  "proposedFix": "Correct the Swagger problem lists of 3.1, 3.4, 3.6 and 3.12 (@ApiProblems): `403: FORBIDDEN_SCOPE | FORBIDDEN_ROLE | COMPARTMENT_VIOLATION: the token carries no patient claim`, `404: NOT_FOUND: the Patient resource no longer exists` (3.1, 3.12). Docs only, no behaviour change.",
+  "needsDecision": false,
+  "decisionQuestion": "",
+  "tzRef": "API §3.1, §3.4, §1 (error catalogue), ADR-013",
+  "confidence": "confirmed"
+}

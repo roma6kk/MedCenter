@@ -9,6 +9,32 @@ function silenceConsole(): void {
   jest.spyOn(console, 'log').mockImplementation(() => undefined);
 }
 
+function seed(fetch: FetchLike, options: VerifyOptions = NO_WAIT): ReturnType<typeof seedTerminology> {
+  return seedTerminology(new FhirHttp('http://fhir.test/fhir', fetch), options);
+}
+
+async function withoutFirstExpansionCode(response: Response): Promise<Response> {
+  const body = (await response.json()) as { expansion: { contains: unknown[] } };
+  return new Response(JSON.stringify({ ...body, expansion: { contains: body.expansion.contains.slice(1) } }));
+}
+
+interface StaleOptions {
+  readonly onDelete?: (url: string) => void;
+  readonly refreshesOn?: (url: string) => boolean;
+}
+
+function atcExpansionStaleUntilDelete(server: InMemoryFhirServer, { onDelete, refreshesOn }: StaleOptions = {}): FetchLike {
+  let stale = true;
+  return async (url, init) => {
+    if ((init?.method ?? 'GET') === 'DELETE') {
+      onDelete?.(url);
+      if (refreshesOn?.(url) ?? true) stale = false;
+    }
+    const response = await server.fetch(url, init);
+    return stale && url.includes('$expand') && url.includes('atc') ? withoutFirstExpansionCode(response) : response;
+  };
+}
+
 function counts(server: InMemoryFhirServer): Record<string, number> {
   return { CodeSystem: server.count('CodeSystem'), ValueSet: server.count('ValueSet') };
 }
@@ -43,7 +69,7 @@ describe('seedTerminology', () => {
   it('should publish every CodeSystem and ValueSet of the snapshot on an empty server', async () => {
     const server = new InMemoryFhirServer();
 
-    await seedTerminology(new FhirHttp('http://fhir.test/fhir', server.fetch), NO_WAIT);
+    await seed(server.fetch);
 
     expect(counts(server)).toEqual({ CodeSystem: buildCodeSystems().length, ValueSet: buildValueSets().length });
   });
@@ -64,7 +90,7 @@ describe('seedTerminology', () => {
   it('should never POST a resource', async () => {
     const server = new InMemoryFhirServer();
 
-    await seedTerminology(new FhirHttp('http://fhir.test/fhir', server.fetch), NO_WAIT);
+    await seed(server.fetch);
 
     expect(server.requests.filter((request) => request.method === 'POST')).toEqual([]);
   });
@@ -73,7 +99,7 @@ describe('seedTerminology', () => {
     const server = new InMemoryFhirServer();
     server.preload({ resourceType: 'CodeSystem', id: '1002', url: TERMINOLOGY_URLS.ATC_CODE_SYSTEM, content: 'example' });
 
-    await seedTerminology(new FhirHttp('http://fhir.test/fhir', server.fetch), NO_WAIT);
+    await seed(server.fetch);
 
     const atc = server.all('CodeSystem').filter((system) => system['url'] === TERMINOLOGY_URLS.ATC_CODE_SYSTEM);
     expect(atc.map((system) => system.id)).toEqual(['1002']);
@@ -89,7 +115,7 @@ describe('seedTerminology', () => {
       concept: [{ code: 'J06.9', display: 'Острая инфекция верхних дыхательных путей неуточнённая' }],
     });
 
-    await seedTerminology(new FhirHttp('http://fhir.test/fhir', server.fetch), NO_WAIT);
+    await seed(server.fetch);
 
     const icd10 = server.all('CodeSystem').filter((system) => system['url'] === TERMINOLOGY_URLS.ICD10_CODE_SYSTEM);
     expect(icd10.map((system) => [system.id, system['content']])).toEqual([['cs-icd10', 'fragment']]);
@@ -99,28 +125,29 @@ describe('seedTerminology', () => {
     const server = new InMemoryFhirServer();
     const truncated: FetchLike = async (url, init) => {
       const response = await server.fetch(url, init);
-      if (!url.includes('$expand')) {
-        return response;
-      }
-      const body = (await response.json()) as { expansion: { contains: unknown[] } };
-      return new Response(JSON.stringify({ ...body, expansion: { contains: body.expansion.contains.slice(1) } }));
+      return url.includes('$expand') ? withoutFirstExpansionCode(response) : response;
     };
 
-    await expect(seedTerminology(new FhirHttp('http://fhir.test/fhir', truncated), NO_WAIT)).rejects.toThrow(
+    await expect(seed(truncated)).rejects.toThrow(
       /expansion is incomplete/,
     );
   });
 
   describe('$expand answering a server error right after a ValueSet PUT', () => {
-    /** Fails the first `failures` $expand calls with `status`, then answers like the server. */
-    function flaky(server: InMemoryFhirServer, failures: number, status: number): { fetch: FetchLike; failed: () => number } {
+    function flaky(
+      server: InMemoryFhirServer,
+      failures: number,
+      status: number,
+      match: string = '$expand',
+      body: unknown = { resourceType: 'OperationOutcome' },
+    ): { fetch: FetchLike; failed: () => number } {
       let failed = 0;
       return {
         failed: () => failed,
         fetch: async (url, init) => {
-          if (url.includes('$expand') && failed < failures) {
+          if (url.includes(match) && failed < failures) {
             failed += 1;
-            return new Response(JSON.stringify({ resourceType: 'OperationOutcome' }), { status });
+            return new Response(JSON.stringify(body), { status });
           }
           return server.fetch(url, init);
         },
@@ -133,7 +160,7 @@ describe('seedTerminology', () => {
       const options: VerifyOptions = { ...NO_WAIT, serverErrorDelayMs: 100, sleep: (ms) => { pauses.push(ms); return Promise.resolve(); } };
       const { fetch, failed } = flaky(server, 3, 503);
 
-      await seedTerminology(new FhirHttp('http://fhir.test/fhir', fetch), options);
+      await seed(fetch, options);
 
       expect(failed()).toBe(3);
       expect(pauses).toEqual([100, 200, 400]);
@@ -143,69 +170,70 @@ describe('seedTerminology', () => {
       const server = new InMemoryFhirServer();
       const { fetch, failed } = flaky(server, 1000, 500);
 
-      await expect(seedTerminology(new FhirHttp('http://fhir.test/fhir', fetch), NO_WAIT)).rejects.toBeInstanceOf(FhirHttpError);
-      expect(failed()).toBe(5);
+      await expect(seed(fetch)).rejects.toBeInstanceOf(FhirHttpError);
+      expect(failed()).toBe(7);
+    });
+
+    it('should cap a single pause so the budget covers the HAPI cache', async () => {
+      const server = new InMemoryFhirServer();
+      const pauses: number[] = [];
+      const options: VerifyOptions = { ...NO_WAIT, sleep: (ms) => { pauses.push(ms); return Promise.resolve(); } };
+      const { fetch } = flaky(server, 6, 503);
+
+      await seed(fetch, options);
+
+      expect(pauses).toEqual([1000, 2000, 4000, 8000, 16000, 16000]);
+    });
+
+    it('should retry HAPI-2788 whatever the status', async () => {
+      const server = new InMemoryFhirServer();
+      const outcome = { resourceType: 'OperationOutcome', issue: [{ diagnostics: 'HAPI-2788: Unable to find ValueSet' }] };
+      const { fetch, failed } = flaky(server, 2, 404, '$expand', outcome);
+
+      await seed(fetch);
+
+      expect(failed()).toBe(2);
+    });
+
+    it('should retry a 503 of $validate-code', async () => {
+      const server = new InMemoryFhirServer();
+      const { fetch, failed } = flaky(server, 1, 503, '$validate-code');
+
+      await seed(fetch);
+
+      expect(failed()).toBe(1);
     });
 
     it('should not retry a 4xx', async () => {
       const server = new InMemoryFhirServer();
       const { fetch, failed } = flaky(server, 1000, 404);
 
-      await expect(seedTerminology(new FhirHttp('http://fhir.test/fhir', fetch), NO_WAIT)).rejects.toBeInstanceOf(FhirHttpError);
+      await expect(seed(fetch)).rejects.toBeInstanceOf(FhirHttpError);
       expect(failed()).toBe(1);
     });
   });
 
   it('should recreate a ValueSet whose stored expansion is stale and then succeed', async () => {
     const server = new InMemoryFhirServer();
-    let stale = true;
-    const staleOnce: FetchLike = async (url, init) => {
-      if ((init?.method ?? 'GET') === 'DELETE' && url.includes('/ValueSet/')) {
-        stale = false;
-      }
-      const response = await server.fetch(url, init);
-      if (!stale || !url.includes('$expand') || !url.includes('atc')) {
-        return response;
-      }
-      const body = (await response.json()) as { expansion: { contains: unknown[] } };
-      return new Response(JSON.stringify({ ...body, expansion: { contains: body.expansion.contains.slice(1) } }));
-    };
 
-    await seedTerminology(new FhirHttp('http://fhir.test/fhir', staleOnce), NO_WAIT);
+    await seed(atcExpansionStaleUntilDelete(server, { refreshesOn: (url) => url.includes('/ValueSet/') }));
 
     expect(server.count('ValueSet')).toBe(buildValueSets().length);
   });
 
   it('should recreate a stale ValueSet under the server id it adopted and not leave a second copy', async () => {
-    // Arrange
     const server = new InMemoryFhirServer();
     server.preload({ resourceType: 'ValueSet', id: '1004', url: TERMINOLOGY_URLS.ATC_VALUE_SET, status: 'draft' });
     const deleted: string[] = [];
-    let stale = true;
-    const staleOnce: FetchLike = async (url, init) => {
-      if ((init?.method ?? 'GET') === 'DELETE') {
-        deleted.push(url);
-        stale = false;
-      }
-      const response = await server.fetch(url, init);
-      if (!stale || !url.includes('$expand') || !url.includes('atc')) {
-        return response;
-      }
-      const body = (await response.json()) as { expansion: { contains: unknown[] } };
-      return new Response(JSON.stringify({ ...body, expansion: { contains: body.expansion.contains.slice(1) } }));
-    };
 
-    // Act
-    await seedTerminology(new FhirHttp('http://fhir.test/fhir', staleOnce), NO_WAIT);
+    await seed(atcExpansionStaleUntilDelete(server, { onDelete: (url) => deleted.push(url) }));
 
-    // Assert
     expect(deleted).toEqual(['http://fhir.test/fhir/ValueSet/1004']);
     const atc = server.all('ValueSet').filter((valueSet) => valueSet['url'] === TERMINOLOGY_URLS.ATC_VALUE_SET);
     expect(atc.map((valueSet) => valueSet.id)).toEqual(['1004']);
   });
 
   it('should write nothing when a CodeSystem it would have to delete is not recognisably its own copy', async () => {
-    // Arrange
     const server = new InMemoryFhirServer();
     server.preload({
       resourceType: 'CodeSystem',
@@ -215,10 +243,8 @@ describe('seedTerminology', () => {
       concept: Array.from({ length: 500 }, (_, index) => ({ code: `X${index}`, display: `Real concept ${index}` })),
     });
 
-    // Act
-    const attempt = seedTerminology(new FhirHttp('http://fhir.test/fhir', server.fetch), NO_WAIT);
+    const attempt = seed(server.fetch);
 
-    // Assert
     await expect(attempt).rejects.toThrow(/refuses to delete/);
     expect(server.requests.filter((request) => request.method !== 'GET')).toEqual([]);
     expect(server.all('CodeSystem').map((system) => system.id)).toEqual(['real-icd10']);
@@ -227,7 +253,7 @@ describe('seedTerminology', () => {
   it('should prove J06.9, J01FA10 and Cel and report every ValueSet as validated', async () => {
     const server = new InMemoryFhirServer();
 
-    const summary = await seedTerminology(new FhirHttp('http://fhir.test/fhir', server.fetch), NO_WAIT);
+    const summary = await seed(server.fetch);
 
     expect(summary.keyCodes.map((proof) => proof.code)).toEqual(['J06.9', 'J01FA10', 'Cel']);
     expect(summary.expansions.every((report) => report.rejectedCodes.length === 0)).toBe(true);
@@ -242,7 +268,7 @@ describe('seedTerminology', () => {
       return new Response(JSON.stringify({ resourceType: 'Parameters', parameter: [{ name: 'result', valueBoolean: false }] }));
     };
 
-    await expect(seedTerminology(new FhirHttp('http://fhir.test/fhir', refusing), NO_WAIT)).rejects.toThrow(
+    await expect(seed(refusing)).rejects.toThrow(
       /\$validate-code rejects snapshot codes/,
     );
   });

@@ -1,0 +1,19 @@
+{
+  "id": "contract-02",
+  "unit": "contract",
+  "kind": "question",
+  "severity": "low",
+  "title": "Баннеры ошибок показывают второй строкой сырой английский detail сервера: оставить как «для поддержки» или скрыть и показывать только локализованный текст",
+  "description": "ProblemBanner для любого кода без ошибок полей выводит problem.detail как пришёл с сервера. Все такие тексты английские и технические: «SLOT_CONFLICT: slot is not free», «ENCOUNTER_STATE_INVALID: …», «CONFLICT: resource was changed concurrently», «Rate limit exceeded, retry in 60s» (при этом отдельно выводится локализованная строка «Повторите через N с»). В русском интерфейсе пациент видит под русским заголовком английскую строку с внутренними кодами и id. Это сделано сознательно: RouteErrorPage прямо пишет «error text is for support, not a translation», а problem-banner.spec.tsx проверяет, что detail показывается. Поэтому поведение не правится без решения владельца; в админке уже есть другой путь — AdminProblem заменяет detail локализованным объяснением для известных кодов (admin.problems.*), но для остальных кодов тоже печатает сырой detail.",
+  "evidence": "frontend/src/components/feedback/problem-banner.tsx:41-45 (detail: props.detail ?? ... problem?.detail); frontend/src/components/feedback/problem-banner.spec.tsx:27-33 ('should show the server detail…'); frontend/src/components/feedback/route-pages.tsx:99 (comment: error text is shown as it came); apps/appointment-service/src/modules/appointments/appointments.service.ts:210 (message: 'SLOT_CONFLICT: slot is not free'); apps/encounter-service/src/modules/encounters/encounter-errors.ts:4; libs/common/src/lib/guards/rate-limit.guard.ts:107 ('Rate limit exceeded, retry in Ns'). Scenario: RU интерфейс, пациент отменяет уже отменённую запись из второй вкладки -> баннер «Запись нельзя отменить» + строка «APPOINTMENT_NOT_CANCELLABLE: …» на английском.",
+  "files": [
+    "frontend/src/components/feedback/problem-banner.tsx",
+    "frontend/src/components/feedback/problem-banner.spec.tsx",
+    "frontend/src/components/admin/shared/admin-problem.tsx"
+  ],
+  "proposedFix": "Option A (recommended): ProblemBanner shows the server detail only when the caller passes it explicitly (the pattern AdminProblem already uses for known detail codes); by default it renders the localized headline errors.<code>, the code chip and the request id, which is what support needs. Screens that have something better to say pass their own localized text. Option B: keep the raw detail but only for DOCTOR/ADMIN screens, hide it on patient screens. Option C: keep as is.",
+  "needsDecision": true,
+  "decisionQuestion": "Показывать ли в баннерах ошибок сырой английский текст detail от сервера? Варианты: A) не показывать по умолчанию (останутся локализованный заголовок, код и номер запроса; экраны сами передают понятный текст), B) показывать только врачу и администратору, C) оставить как есть («для поддержки»). Рекомендую A: пациенту английская строка с внутренними кодами ничего не даёт, а для поддержки хватает кода и номера запроса.",
+  "tzRef": "NFR-008",
+  "confidence": "confirmed"
+}

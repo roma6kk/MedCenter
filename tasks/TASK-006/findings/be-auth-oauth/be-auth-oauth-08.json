@@ -1,0 +1,19 @@
+{
+  "id": "be-auth-oauth-08",
+  "unit": "be-auth-oauth",
+  "kind": "security",
+  "severity": "low",
+  "title": "Повторное предъявление уже обменянного refresh-токена или кода только отклоняется: активная сессия злоумышленника не закрывается",
+  "description": "Ротация refresh-токена реализована (токен одноразовый, повтор → 400 invalid_grant), но «reuse detection» ограничена отказом конкретного запроса. Если refresh-токен украден и злоумышленник обменял его первым, он держит самый свежий токен цепочки; когда легитимный клиент предъявляет уже погашенный токен, auth-service отвечает invalid_grant и ничего не делает с живым потомком — сессия злоумышленника продолжает продлеваться на 14 дней. RFC 9700 §4.14.2 (OAuth 2.0 Security BCP) описывает именно этот ход: при предъявлении погашенного refresh-токена сервер отзывает активный токен сессии; RFC 6749 §4.1.2 для повторно использованного кода: SHOULD отозвать все токены, выданные по нему. Сейчас у токенов нет общего идентификатора сессии/семейства: sid access-токена равен jti текущего refresh-токена и меняется при каждой ротации, поэтому и отзыв выхода (revoke) закрывает только последнюю пару, а access-токен, выданный до проактивной ротации, остаётся валидным до своего exp.",
+  "evidence": "apps/auth-service/src/modules/oauth/oauth.service.ts:170-173 (`if (await this.tokens.isDenied(...)) throw OAuthError.invalidGrantRevoked()` — без каких-либо других действий) и :143-149 (повтор кода — просто invalid_grant); token.service.ts:147-161 (consume пишет только reuse:-метку, связи «погашенный → потомок» нет); oauth.service.ts:238-245 (`sid: refresh.jti`). Сценарий: атакующий с копией refresh R1 обменивает его (получает R2), пользователь тут же предъявляет R1 → 400 invalid_grant; R2 и все следующие R3… остаются рабочими.",
+  "files": [
+    "apps/auth-service/src/modules/oauth/oauth.service.ts",
+    "apps/auth-service/src/modules/oauth/token.service.ts",
+    "apps/auth-service/src/modules/oauth/jwt.service.ts"
+  ],
+  "proposedFix": "Give every grant a stable `familyId` (the jti of the first refresh token or of the authorization code) stored on StoredToken and copied on each rotation; keep a `family:<id>` → current-refresh-jti pointer in the same store. Use familyId as the access token `sid` (stable across rotations, so revoke/logout also kills access tokens minted before a proactive rotation). On refresh with a jti found in the reuse: denylist, call tokens.revokeFamily(familyId): delete the current refresh row, write session:<familyId>. Same for a replayed authorization code (record code jti → familyId when it is exchanged). To avoid logging out legitimate concurrent callers add a short leeway (about 10 s, like ROTATION_GRACE_MS in frontend/src/lib/auth/session-broker.ts): a replay within the leeway of the consumption returns invalid_grant without revoking. Requires be-auth-oauth-01 (shared store) for correctness across replicas.",
+  "needsDecision": true,
+  "decisionQuestion": "Закрывать ли всю сессию (refresh и парный access) при повторном предъявлении уже обменянного refresh-токена/кода? Варианты: (A) да, с серверным допуском ~10 с на параллельные вкладки — строго по RFC 9700, небольшой риск ложного выхода; (B) оставить как есть, только отказ запроса (проще, но украденный токен живёт до 14 дней). Рекомендация: A, после переноса хранилища токенов в Redis (be-auth-oauth-01).",
+  "tzRef": "NFR-006; api-designer-spec §2.1.3 (rotation); RFC 9700 §4.14.2; RFC 6749 §4.1.2",
+  "confidence": "confirmed"
+}

@@ -7,7 +7,6 @@ import { WRAP_TEXT } from '../wrap-text';
 import { CodeTag } from './code-tag';
 import type { DiagnosisCount } from './history-model';
 
-/** Diagnosis frequency bars of the loaded page; the count is read as text, the bar only repeats it. */
 export function DiagnosisPanel({ frequency }: { readonly frequency: ReadonlyArray<DiagnosisCount> }): ReactNode {
   const t = useT('patientHistory');
   if (frequency.length === 0) return null;
@@ -19,18 +18,17 @@ export function DiagnosisPanel({ frequency }: { readonly frequency: ReadonlyArra
           <li key={item.code} className="flex flex-col gap-1.5">
             <div className="flex justify-between gap-3 text-sm">
               <span className={WRAP_TEXT}><CodeTag code={item.code} className="bg-transparent px-0" /> {item.display}</span>
-              <span className="mono shrink-0" aria-label={t('frequencyVisits', { count: item.count })}>{item.count}</span>
+              <span className="tabular-nums shrink-0" aria-label={t('frequencyVisits', { count: item.count })}>{item.count}</span>
             </div>
             <div aria-hidden="true" className="h-2 rounded-full bg-secondary"><div className="h-2 rounded-full bg-primary" style={{ width: `${Math.round(item.share * 100)}%` }} /></div>
           </li>
         ))}
       </ul>
-      <p className="text-[13px] text-muted-foreground">{t('frequencyNote')}</p>
+      <p className="text-xs text-muted-foreground">{t('frequencyNote')}</p>
     </Card>
   );
 }
 
-/** The repeat-visit card; no doctor is named because the history carries only a role id. */
 export function RepeatVisitCard(): ReactNode {
   const t = useT('patientHistory');
   return (

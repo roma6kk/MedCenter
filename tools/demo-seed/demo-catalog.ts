@@ -1,22 +1,12 @@
-/**
- * The clinic's reference data as plain definitions (no FHIR here — see
- * `demo-resources.ts` for the R4 builders). Everything is keyed by a stable
- * business key; `seedResourceId(<ResourceType>, key)` turns a key into the
- * deterministic FHIR id, which is what makes the seed idempotent.
- *
- * Working hours are the clinic's wall-clock time (Europe/Minsk, API §5.2.1).
- * They are stored in the schedule as they are; only the slot instants are UTC.
- */
-
 export type DayCode = 'MO' | 'TU' | 'WE' | 'TH' | 'FR' | 'SA' | 'SU';
 
 export interface SpecialtyDef {
   readonly key: string;
-  /** SNOMED CT specialty (qualifier value) — the system `PractitionerRole.specialty` uses across the services. */
   readonly code: string;
   readonly display: string;
-  /** Doctor's profession as shown in the catalog (`Practitioner.qualification[0].code.text`). */
+  readonly displayEn: string;
   readonly profession: string;
+  readonly professionEn: string;
 }
 
 export interface RoomDef {
@@ -30,7 +20,8 @@ export interface RoomDef {
 export interface ServiceDef {
   readonly key: string;
   readonly name: string;
-  /** Code of `https://fhir.by/CodeSystem/nsi-services`; must exist in the terminology snapshot. */
+  readonly nameEn: string;
+  readonly descriptionEn: string;
   readonly typeCode: string;
   readonly durationMin: number;
   readonly description: string;
@@ -41,9 +32,11 @@ export interface DoctorDef {
   readonly family: string;
   readonly given: string;
   readonly patronymic: string;
+  readonly familyEn: string;
+  readonly givenEn: string;
+  readonly patronymicEn: string;
   readonly gender: 'male' | 'female';
   readonly specialtyKey: string;
-  /** Local part of the demo login (`<emailLocal>@<demo domain>`). */
   readonly emailLocal: string;
 }
 
@@ -53,7 +46,6 @@ export interface ScheduleDef {
   readonly serviceKey: string;
   readonly roomKey: string;
   readonly days: readonly DayCode[];
-  /** Clinic wall-clock `HH:mm`. */
   readonly localStart: string;
   readonly localEnd: string;
   readonly slotDurationMin: number;
@@ -67,23 +59,18 @@ export interface PatientDef {
   readonly gender: 'male' | 'female';
 }
 
-export interface AdminDef {
+interface AdminDef {
   readonly emailLocal: string;
   readonly firstName: string;
   readonly lastName: string;
 }
 
-/**
- * Demo portraits are static files of the web app (`frontend/public/demo-photos`), so the
- * FHIR `photo.url` is a same-origin path the browser can load under the CSP (`img-src 'self'`).
- */
 const PHOTO_ROOT = '/demo-photos';
 
 export function doctorPhotoUrl(doctor: Pick<DoctorDef, 'key'>): string {
   return `${PHOTO_ROOT}/doctors/${doctor.key}.jpg`;
 }
 
-/** `patient.kuznetsov` → `/demo-photos/patients/kuznetsov.jpg`. */
 export function patientPhotoUrl(patient: Pick<PatientDef, 'emailLocal'>): string {
   return `${PHOTO_ROOT}/patients/${patient.emailLocal.replace(/^patient\./, '')}.jpg`;
 }
@@ -103,10 +90,10 @@ export const CLINIC = {
 const WEEKDAYS: readonly DayCode[] = ['MO', 'TU', 'WE', 'TH', 'FR'];
 
 export const SPECIALTIES: readonly SpecialtyDef[] = [
-  { key: 'therapy', code: '419192003', display: 'Терапия', profession: 'Терапевт' },
-  { key: 'cardiology', code: '394579002', display: 'Кардиология', profession: 'Кардиолог' },
-  { key: 'neurology', code: '394591006', display: 'Неврология', profession: 'Невролог' },
-  { key: 'surgery', code: '394609007', display: 'Хирургия', profession: 'Хирург' },
+  { key: 'therapy', code: '419192003', display: 'Терапия', displayEn: 'Therapy', profession: 'Терапевт', professionEn: 'Therapist' },
+  { key: 'cardiology', code: '394579002', display: 'Кардиология', displayEn: 'Cardiology', profession: 'Кардиолог', professionEn: 'Cardiologist' },
+  { key: 'neurology', code: '394591006', display: 'Неврология', displayEn: 'Neurology', profession: 'Невролог', professionEn: 'Neurologist' },
+  { key: 'surgery', code: '394609007', display: 'Хирургия', displayEn: 'Surgery', profession: 'Хирург', professionEn: 'Surgeon' },
 ];
 
 export const ROOMS: readonly RoomDef[] = [
@@ -118,26 +105,21 @@ export const ROOMS: readonly RoomDef[] = [
 ];
 
 export const SERVICES: readonly ServiceDef[] = [
-  { key: 'ter-primary', name: 'Приём терапевта (первичный)', typeCode: '10001', durationMin: 30, description: 'Первичная консультация терапевта' },
-  { key: 'ter-repeat', name: 'Приём терапевта (повторный)', typeCode: '10002', durationMin: 20, description: 'Повторная консультация терапевта' },
-  { key: 'card-primary', name: 'Приём кардиолога (первичный)', typeCode: '10003', durationMin: 40, description: 'Первичная консультация кардиолога' },
-  { key: 'neuro-primary', name: 'Приём невролога (первичный)', typeCode: '10004', durationMin: 40, description: 'Первичная консультация невролога' },
-  { key: 'surg-primary', name: 'Приём хирурга (первичный)', typeCode: '10005', durationMin: 30, description: 'Первичная консультация врача-хирурга' },
-  { key: 'ecg', name: 'Электрокардиография (ЭКГ)', typeCode: '10007', durationMin: 20, description: 'ЭКГ в покое с расшифровкой' },
+  { key: 'ter-primary', name: 'Приём терапевта (первичный)', nameEn: 'Therapist appointment (initial)', descriptionEn: 'Initial consultation with a therapist', typeCode: '10001', durationMin: 30, description: 'Первичная консультация терапевта' },
+  { key: 'ter-repeat', name: 'Приём терапевта (повторный)', nameEn: 'Therapist appointment (follow-up)', descriptionEn: 'Follow-up consultation with a therapist', typeCode: '10002', durationMin: 20, description: 'Повторная консультация терапевта' },
+  { key: 'card-primary', name: 'Приём кардиолога (первичный)', nameEn: 'Cardiologist appointment (initial)', descriptionEn: 'Initial consultation with a cardiologist', typeCode: '10003', durationMin: 40, description: 'Первичная консультация кардиолога' },
+  { key: 'neuro-primary', name: 'Приём невролога (первичный)', nameEn: 'Neurologist appointment (initial)', descriptionEn: 'Initial consultation with a neurologist', typeCode: '10004', durationMin: 40, description: 'Первичная консультация невролога' },
+  { key: 'surg-primary', name: 'Приём хирурга (первичный)', nameEn: 'Surgeon appointment (initial)', descriptionEn: 'Initial consultation with a surgeon', typeCode: '10005', durationMin: 30, description: 'Первичная консультация врача-хирурга' },
+  { key: 'ecg', name: 'Электрокардиография (ЭКГ)', nameEn: 'Electrocardiography (ECG)', descriptionEn: 'Resting ECG with interpretation', typeCode: '10007', durationMin: 20, description: 'ЭКГ в покое с расшифровкой' },
 ];
 
 export const DOCTORS: readonly DoctorDef[] = [
-  { key: 'ivanova', family: 'Иванова', given: 'Мария', patronymic: 'Сергеевна', gender: 'female', specialtyKey: 'therapy', emailLocal: 'doctor.ivanova' },
-  { key: 'petrov', family: 'Петров', given: 'Алексей', patronymic: 'Николаевич', gender: 'male', specialtyKey: 'cardiology', emailLocal: 'doctor.petrov' },
-  { key: 'sidorova', family: 'Сидорова', given: 'Елена', patronymic: 'Викторовна', gender: 'female', specialtyKey: 'neurology', emailLocal: 'doctor.sidorova' },
-  { key: 'kozlov', family: 'Козлов', given: 'Дмитрий', patronymic: 'Андреевич', gender: 'male', specialtyKey: 'surgery', emailLocal: 'doctor.kozlov' },
+  { key: 'ivanova', family: 'Иванова', given: 'Мария', patronymic: 'Сергеевна', familyEn: 'Ivanova', givenEn: 'Maria', patronymicEn: 'Sergeevna', gender: 'female', specialtyKey: 'therapy', emailLocal: 'doctor.ivanova' },
+  { key: 'petrov', family: 'Петров', given: 'Алексей', patronymic: 'Николаевич', familyEn: 'Petrov', givenEn: 'Aleksey', patronymicEn: 'Nikolaevich', gender: 'male', specialtyKey: 'cardiology', emailLocal: 'doctor.petrov' },
+  { key: 'sidorova', family: 'Сидорова', given: 'Елена', patronymic: 'Викторовна', familyEn: 'Sidorova', givenEn: 'Elena', patronymicEn: 'Viktorovna', gender: 'female', specialtyKey: 'neurology', emailLocal: 'doctor.sidorova' },
+  { key: 'kozlov', family: 'Козлов', given: 'Дмитрий', patronymic: 'Андреевич', familyEn: 'Kozlov', givenEn: 'Dmitry', patronymicEn: 'Andreevich', gender: 'male', specialtyKey: 'surgery', emailLocal: 'doctor.kozlov' },
 ];
 
-/**
- * One Schedule = one (PractitionerRole, room, service). Schedules of the same
- * role must not overlap (BR-007 / `SCHEDULE_OVERLAP`): the therapist's two are
- * split into morning/afternoon, the cardiologist's by weekday.
- */
 export const SCHEDULES: readonly ScheduleDef[] = [
   { key: 'ivanova-primary', doctorKey: 'ivanova', serviceKey: 'ter-primary', roomKey: 'room-101', days: WEEKDAYS, localStart: '09:00', localEnd: '13:00', slotDurationMin: 30 },
   { key: 'ivanova-repeat', doctorKey: 'ivanova', serviceKey: 'ter-repeat', roomKey: 'room-101', days: WEEKDAYS, localStart: '14:00', localEnd: '17:00', slotDurationMin: 20 },
@@ -153,11 +135,9 @@ export const PATIENTS: readonly PatientDef[] = [
   { emailLocal: 'patient.novikov', firstName: 'Сергей', lastName: 'Новиков', birthDate: '1978-07-21', gender: 'male' },
 ];
 
-/** Demo administrators created by the users step; the bootstrap admin (from `.env`) is separate. */
 export const ADMINS: readonly AdminDef[] = [{ emailLocal: 'admin.demo', firstName: 'Демо', lastName: 'Администратор' }];
 
-/** Belarus abolished DST in 2011: Europe/Minsk is UTC+3 all year (same fixed offset as catalog-service `clinic-calendar.ts`). */
+// Belarus abolished DST in 2011: Europe/Minsk is UTC+3 all year.
 export const CLINIC_UTC_OFFSET_MINUTES = 180;
 
-/** Planning horizon of the seeded slots. */
 export const DEFAULT_SLOT_DAYS = 14;

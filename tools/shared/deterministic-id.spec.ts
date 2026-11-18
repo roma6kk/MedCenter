@@ -1,7 +1,6 @@
 import { seedResourceId, SEED_ID_NAMESPACE, uuidV5 } from './deterministic-id';
 
 const UUID_V5 = /^[0-9a-f]{8}-[0-9a-f]{4}-5[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
-/** RFC 4122 appendix B namespace for DNS names. */
 const DNS_NAMESPACE = '6ba7b810-9dad-11d1-80b4-00c04fd430c8';
 
 describe('uuidV5', () => {

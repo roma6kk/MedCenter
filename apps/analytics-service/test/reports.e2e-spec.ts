@@ -44,7 +44,7 @@ describe('GET /api/v1/admin/analytics/* (API §9.1–9.3, FR-019)', () => {
     expect(response.body).toMatchObject({ booked: 10, fulfilled: 6, cancelled: 3, noshow: 2, total: 21, scoring: 'cohort' });
     expect(harness.fhir.search).toHaveBeenCalledWith('Appointment', {
       status: 'noshow',
-      date: ['ge2026-01-01T00:00:00.000Z', 'lt2027-01-01T00:00:00.000Z'],
+      date: ['ge2025-12-31T21:00:00.000Z', 'lt2026-12-31T21:00:00.000Z'],
       _elements: 'id',
       _sort: '_lastUpdated',
       _count: 200,

@@ -21,11 +21,10 @@ function TrustItem({ icon: Icon, title, text }: { readonly icon: LucideIcon; rea
   );
 }
 
-/** Four facts that make a first-time visitor trust the clinic: licence, diagnostics, health record, corporate care. */
 export function HomeTrust(): ReactNode {
   const t = useT('home');
   return (
-    <section aria-label={t('trustLabel')} className={`${SECTION_CLASS} pb-14`}>
+    <section aria-label={t('trustLabel')} className={`${SECTION_CLASS} reveal-on-scroll pb-14`}>
       <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <TrustItem icon={ShieldCheck} title={t('trustLicenseTitle')} text={t('trustLicense', { number: CLINIC_LICENSE.number, date: CLINIC_LICENSE.date })} />
         <TrustItem icon={Activity} title={t('trustDiagTitle')} text={t('trustDiag')} />

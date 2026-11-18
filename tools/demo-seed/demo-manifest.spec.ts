@@ -119,16 +119,13 @@ describe('manifest file', () => {
   });
 
   it('should keep the previous manifest and leave no temporary file when the replacement fails', async () => {
-    // Arrange
     const path = join(directory, 'demo-manifest.json');
     await writeManifest(path, { users: USERS });
     const before = await readFile(path, 'utf8');
     jest.spyOn(fsPromises, 'rename').mockRejectedValueOnce(new Error('disk full'));
 
-    // Act
     const attempt = writeManifest(path, { users: { ...USERS, accounts: [] } });
 
-    // Assert
     await expect(attempt).rejects.toThrow('disk full');
     expect(await readFile(path, 'utf8')).toBe(before);
     expect(await readdir(directory)).toEqual(['demo-manifest.json']);

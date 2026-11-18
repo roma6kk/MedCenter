@@ -1,5 +1,6 @@
-import type { FhirClient, FhirResource, FhirSearchResult } from '@medcenter/fhir';
+import type { FhirClient, FhirResource } from '@medcenter/fhir';
 
+import { bundle, fhirClientMock } from '../../__tests__/fhir-fixture';
 import { DoctorsService } from './doctors.service';
 
 const SNOMED = 'http://snomed.info/sct';
@@ -24,23 +25,12 @@ function role(id: string, practitionerId: string, active?: boolean): FhirResourc
   };
 }
 
-function bundle(...resources: FhirResource[]): FhirSearchResult {
-  return { entry: resources.map((resource) => ({ resource })) };
-}
-
 describe('DoctorsService practitioner roles', () => {
   let service: DoctorsService;
   let fhir: jest.Mocked<FhirClient>;
 
   beforeEach(() => {
-    fhir = {
-      search: jest.fn(),
-      read: jest.fn(),
-      create: jest.fn(),
-      update: jest.fn(),
-      delete: jest.fn(),
-      batch: jest.fn(),
-    } as unknown as jest.Mocked<FhirClient>;
+    fhir = fhirClientMock();
     service = new DoctorsService(fhir);
   });
 

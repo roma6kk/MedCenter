@@ -19,21 +19,16 @@ import { Role, SMART_SCOPES, type PaginatedResponseDto } from '@medcenter/contra
 
 import { CreateUserDto } from './dto/create-user.dto';
 import { ListUsersQueryDto } from './dto/list-users-query.dto';
+import { RetentionExpiredQueryDto } from './dto/retention-expired-query.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
-import type { UserDetailsResponseDto, UserResponseDto } from './dto/user-response.dto';
-import { UserDetailsResponseDoc, UserPageDoc } from './dto/user-response.doc';
+import type { RetentionExpiredItemDto, UserDetailsResponseDto, UserResponseDto } from './dto/user-response.dto';
+import { RetentionExpiredPageDoc, UserDetailsResponseDoc, UserPageDoc } from './dto/user-response.doc';
 import { NoStoreInterceptor } from './no-store.interceptor';
 import { actorOf, type AuthenticatedRequest } from './request-actor';
 import { UsersService } from './users.service';
 
-/** Ids of `auth.user` are UUID v4 (API §0); anything else is `400 VALIDATION_ERROR`, never a database error. */
 const USER_ID = new ParseUUIDPipe({ version: '4' });
 
-/**
- * API §2.2.1–2.2.5 — user management (FR-015, BR-007). ADMIN only, and the
- * SMART `user/*` scope of the operation on top (scope matrix, API §0). Every
- * answer carries personal data, so none may be cached.
- */
 @ApiTags('auth')
 @ApiBearerAuth()
 @Controller('api/v1/admin/users')
@@ -61,6 +56,16 @@ export class AdminUsersController {
     return this.users.list(query);
   }
 
+  @Get('retention-expired')
+  @ApiOperation({ summary: '2.2.9 Closed accounts whose retention period has passed' })
+  @ApiResponse({ status: 200, description: 'A page of closed accounts waiting for the operator review; nothing is deleted', type: RetentionExpiredPageDoc })
+  @ApiProblems([...GUARD_PROBLEM_STATUSES, 400])
+  @RequiresRoles(Role.ADMIN)
+  @RequiresScopes(SMART_SCOPES.USER_READ)
+  listRetentionExpired(@Query() query: RetentionExpiredQueryDto): Promise<PaginatedResponseDto<RetentionExpiredItemDto>> {
+    return this.users.listRetentionExpired(query);
+  }
+
   @Get(':id')
   @ApiOperation({ summary: '2.2.3 Get a user card with its ExternalLinks' })
   @ApiParam({ name: 'id', format: 'uuid', description: 'User id (UUID v4)' })
@@ -77,7 +82,7 @@ export class AdminUsersController {
   @ApiParam({ name: 'id', format: 'uuid', description: 'User id (UUID v4)' })
   @ApiResponse({ status: 200, description: 'The updated account', type: UserDetailsResponseDoc })
   @ApiProblems([...GUARD_PROBLEM_STATUSES, 400, 404, 409], {
-    409: 'EMAIL_TAKEN, PRACTITIONER_ROLE_TAKEN or SELF_LOCKOUT in detail',
+    409: 'EMAIL_TAKEN, PRACTITIONER_ROLE_TAKEN, SELF_LOCKOUT, or ACCOUNT_CONSENT_WITHDRAWN (isActive: true on an account the patient closed)',
   })
   @RequiresRoles(Role.ADMIN)
   @RequiresScopes(SMART_SCOPES.USER_WRITE)
@@ -89,7 +94,6 @@ export class AdminUsersController {
     return this.users.update(id, dto, actorOf(request));
   }
 
-  /** Soft delete: the account is deactivated and returned (200), never removed. */
   @Delete(':id')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: '2.2.5 Deactivate a user (soft delete)' })

@@ -6,15 +6,18 @@ import Link from 'next/link';
 import { Pager } from '@/components/data-display/paginated-table';
 import { CodeChip } from '@/components/feedback/code-chip';
 import { SectionTitle } from '@/components/feedback/section-title';
-import { TableSkeleton } from '@/components/feedback/states';
+import { ContentSkeleton } from '@/components/feedback/content-skeleton';
+import { useStaggerOnce } from '@/hooks/use-stagger-once';
 import { useT } from '@/lib/i18n/use-t';
 import { formatClinicDate } from '@/lib/clinic-time';
+import { cn } from '@/lib/ui/cn';
 import type { Prescription } from './doctor-types';
 import { ATC_SYSTEM } from './encounter-problem-fields';
 import { QueryFailure } from '@/components/feedback/query-error-state';
-import { usePatientPrescriptions } from './use-doctor-queries';
+import { orderName } from './patient-summary-model';
+import { isOwnVisit, useOwnRoleId } from './use-own-role';
+import { usePatientHistory, usePatientPrescriptions } from './use-doctor-queries';
 
-/** `ServiceRequest` and `MedicationRequest` share one list (API 7.5): the `kind` decides what the card shows. */
 function PrescriptionBody({ item }: { readonly item: Prescription }): ReactNode {
   const t = useT('doctor.prescriptions');
   if (item.kind === 'medication') {
@@ -40,12 +43,7 @@ function PrescriptionBody({ item }: { readonly item: Prescription }): ReactNode 
   );
 }
 
-/** What the order is called: the drug or service name, its code while the name is unknown. */
-function orderName(item: Prescription): string {
-  return item.kind === 'medication' ? item.atcDisplay ?? item.atcCode : item.display ?? item.code;
-}
-
-function PrescriptionCard({ item }: { readonly item: Prescription }): ReactNode {
+function PrescriptionCard({ item, canOpenEncounter }: { readonly item: Prescription; readonly canOpenEncounter: boolean }): ReactNode {
   const t = useT('doctor.prescriptions');
   return (
     <li>
@@ -54,27 +52,30 @@ function PrescriptionCard({ item }: { readonly item: Prescription }): ReactNode 
         {item.note ? <p className="mt-2 text-sm text-muted-foreground">{item.note}</p> : null}
         <p className="mt-3 flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
           <span>{item.authoredOn ? formatClinicDate(item.authoredOn) : null}</span>
-          {item.encounterId ? <Link href={`/encounters/${encodeURIComponent(item.encounterId)}`} aria-label={t('openEncounterOn', { name: orderName(item) })} className="underline">{t('openEncounter')}</Link> : null}
+          {item.encounterId && canOpenEncounter ? <Link href={`/encounters/${encodeURIComponent(item.encounterId)}`} aria-label={t('openEncounterOn', { name: orderName(item) })} className="underline">{t('openEncounter')}</Link> : null}
         </p>
       </article>
     </li>
   );
 }
 
-/** The patient's prescriptions (API 7.5): drugs by ATC code and ordered services, in one list. */
 export function PatientPrescriptions({ patientId }: { readonly patientId: string }): ReactNode {
   const t = useT('doctor.prescriptions');
   const [page, setPage] = useState(1);
   const prescriptions = usePatientPrescriptions(patientId, page);
+  const history = usePatientHistory(patientId, 1);
+  const ownRoleId = useOwnRoleId();
+  const colleagueVisits: ReadonlySet<string> = new Set((history.data?.items ?? []).filter((visit) => !isOwnVisit(visit, ownRoleId)).map((visit) => visit.id));
+  const enter = useStaggerOnce(prescriptions.data !== undefined);
+  if (page === 1 && prescriptions.data?.items.length === 0) return null;
   return (
-    <section aria-labelledby="prescriptions-title" className="mt-6">
+    <section aria-labelledby="prescriptions-title">
       <div id="prescriptions-title"><SectionTitle>{t('title')}</SectionTitle></div>
       <div className="mt-3" aria-busy={prescriptions.isFetching}>
-        {prescriptions.data === undefined ? <QueryFailure query={prescriptions} embedded notFoundText={t('unavailable')} pending={<TableSkeleton />} /> : null}
-        {prescriptions.data && prescriptions.data.items.length === 0 ? <p className="text-sm text-muted-foreground">{t('empty')}</p> : null}
+        {prescriptions.data === undefined ? <QueryFailure query={prescriptions} embedded notFoundText={t('unavailable')} pending={<ContentSkeleton shape="cards" rows={2} />} /> : null}
         {prescriptions.data && prescriptions.data.items.length > 0 ? (
           <>
-            <ul className="grid gap-3 sm:grid-cols-2">{prescriptions.data.items.map((item) => <PrescriptionCard key={item.id} item={item} />)}</ul>
+            <ul className={cn('grid gap-3 sm:grid-cols-2', enter)}>{prescriptions.data.items.map((item) => <PrescriptionCard key={item.id} item={item} canOpenEncounter={item.encounterId === undefined || !colleagueVisits.has(item.encounterId)} />)}</ul>
             {prescriptions.data.meta.totalPages > 1 ? <Pager meta={prescriptions.data.meta} onPage={setPage} /> : null}
           </>
         ) : null}

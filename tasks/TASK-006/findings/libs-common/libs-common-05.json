@@ -1,0 +1,19 @@
+{
+  "id": "libs-common-05",
+  "unit": "libs-common",
+  "kind": "bug",
+  "severity": "low",
+  "title": "isKnownUcumUnit в libs/terminology нигде не используется и расходится с закрытым перечнем UCUM из сида: отвергает «Cel», «%», «mm[Hg]», «kg/m2», зато принимает не-UCUM «mmHg», «mm/Hg», «bpm», «mcg»",
+  "description": "BR-009 («единицы - UCUM», свободный ввод запрещён) на деле обеспечивается проверкой по сидированному ValueSet https://fhir.by/ValueSet/ucum-units (apps/auth-service/.../snapshot/ucum.json, 22 единицы; encounter-service проверяет observations.N.unit через terminology). Хелпер isKnownUcumUnit(unit) из libs/terminology держит собственный «курируемый» список из 46 значений, который не совпадает с сидом ни по составу, ни по написанию: 15 единиц из сида (Cel, %, /min, mm[Hg], kg/m2, mg/dL, g/L, [iU], cm, d, wk, ug, 10*9/L, 10*12/L, {tbl}) хелпер отвергает (температура 36.6 Cel из примера фронтенд-спецификации не пройдёт), а 40 значений из его списка в сиде отсутствуют; среди них не-UCUM написания mmHg, mm/Hg, bpm, mcg, counts, dpn, coth. Из приложений функцию никто не вызывает (только terminology.spec.ts), то есть это мёртвый код, но он экспортируется как публичный API библиотеки и выглядит как готовый валидатор: первый, кто подключит его к DTO наблюдения, сломает ввод температуры, давления и пульса.",
+  "evidence": "libs/terminology/src/lib/validators/ucum.ts:8-18 (KNOWN_UCUM_UNITS) и :21-29; libs/terminology/src/index.ts:4 (экспорт). grep по apps/ и libs/: единственное использование - libs/terminology/src/lib/validators/terminology.spec.ts. Сравнение с apps/auth-service/src/modules/terminology/import/snapshot/ucum.json: в сиде есть Cel, %, /min, mm[Hg], kg/m2 и ещё 10 единиц, которых нет в хелпере; в хелпере есть 40 значений, которых нет в сиде.",
+  "files": [
+    "libs/terminology/src/lib/validators/ucum.ts",
+    "libs/terminology/src/lib/validators/terminology.spec.ts",
+    "libs/terminology/src/index.ts"
+  ],
+  "proposedFix": "Удалить ucum.ts, его экспорт из libs/terminology/src/index.ts и блок describe('isKnownUcumUnit') из terminology.spec.ts: источник истины - сидированный ValueSet и проверка через terminology-validator.service в encounter-service. Если хелпер всё же нужен как офлайн-предпроверка, сгенерировать список из ucum.json (единый источник) вместо ручной копии и добавить тест на совпадение с сидом.",
+  "needsDecision": false,
+  "decisionQuestion": "",
+  "tzRef": "BR-009 (АТХ и UCUM), спецификация API 7.3 (ObservationDto.unit)",
+  "confidence": "confirmed"
+}

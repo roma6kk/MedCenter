@@ -1,0 +1,22 @@
+{
+  "id": "be-catalog-02",
+  "unit": "be-catalog",
+  "kind": "bug",
+  "severity": "medium",
+  "title": "POST /admin/schedules не проверяет горизонт: можно создать расписание шире 90 дней, с horizonTo раньше horizonFrom или с «датой» вроде 2026-02-31",
+  "description": "API §5.2.1 требует planningHorizon ≤ 90 дней, а Swagger-описание horizonTo в CreateScheduleDto обещает «at most 90 days after horizonFrom». Проверку assertHorizonSpan вызывает только update (PATCH), а create сразу идёт в assertNoScheduleOverlap и пишет расписание как есть. Через API можно создать расписание с горизонтом на несколько лет или «задом наперёд» (horizonTo < horizonFrom — такой период ни с чем не пересекается, поэтому SCHEDULE_OVERLAP его не ловит, а слоты по нему сгенерировать нельзя). Те же поля (horizonFrom/horizonTo в Create/UpdateScheduleDto, from/to в GenerateSlotsDto) проверены нестрогим @IsDateString(): он пропускает несуществующие даты (2026-02-31; JS трактует её как 3 марта), недельные/порядковые формы (2026-W45, 2026-306) и даты-время без смещения, тогда как соседние DTO слотов (SlotRangeQueryDto, ScheduleSlotsQueryDto) используют IsDateString({strict:true}) и DATE_OR_ZONED_DATE_TIME. Нечитаемая граница в horizonsIntersect считается открытой, т.е. такое расписание ложно конфликтует (SCHEDULE_OVERLAP) или не конфликтует ни с чем, а в HAPI уходит нечитаемая Period.start (риск 500 INTERNAL). Поведение create и update расходится: тот же диапазон потом нельзя отредактировать через PATCH без 400.",
+  "evidence": "apps/catalog-service/src/modules/schedules/schedules.service.ts: assertHorizonSpan вызывается только в update (стр. 86); create (стр. 48-74) его не вызывает. dto/create-schedule.dto.ts, dto/update-schedule.dto.ts, dto/generate-slots.dto.ts: `@IsDateString()` без strict и без формата YYYY-MM-DD. Проверено в Node: class-validator isDateString('2026-02-31') = true (strict=false), Date.parse('2026-02-31') = 1772496000000 (3 марта); isDateString('2026-W45') = true, Date.parse('2026-W45') = NaN. Сценарии: POST /api/v1/admin/schedules {horizonFrom:'2026-11-01', horizonTo:'2030-01-01', ...} -> 201 (ожидалось 400 VALIDATION_ERROR); {horizonFrom:'2026-12-01', horizonTo:'2026-11-01'} -> 201; {horizonFrom:'2026-W45', ...} -> проходит валидацию. e2e/unit-тесты проверяют 400 для create только на строку 'tomorrow' (test/schedules-admin-writes.e2e-spec.ts:168), 90-дневное правило для create не покрыто (schedules.service.spec.ts:251 и :259 — только update).",
+  "files": [
+    "apps/catalog-service/src/modules/schedules/schedules.service.ts",
+    "apps/catalog-service/src/modules/schedules/dto/create-schedule.dto.ts",
+    "apps/catalog-service/src/modules/schedules/dto/update-schedule.dto.ts",
+    "apps/catalog-service/src/modules/schedules/dto/generate-slots.dto.ts",
+    "apps/catalog-service/src/modules/schedules/schedules.service.spec.ts",
+    "apps/catalog-service/test/schedules-admin-writes.e2e-spec.ts"
+  ],
+  "proposedFix": "(1) Call this.assertHorizonSpan(dto.horizonFrom, dto.horizonTo) at the top of SchedulesService.create (before assertNoScheduleOverlap), so create and update share one rule and the same 400 VALIDATION_ERROR `planningHorizon: range must be within 90 days` (it already rejects span < 0). (2) Make horizonFrom/horizonTo/from/to strict calendar dates: `@IsDateString({ strict: true })` plus `@Matches(/^\\d{4}-\\d{2}-\\d{2}$/)` (one shared constant next to DATE_OR_ZONED_DATE_TIME in common/zoned-date.ts, e.g. CALENDAR_DATE) — the frontend and the seed only send YYYY-MM-DD. Add unit cases (91 days -> 400, 90 days -> ok, reversed bounds -> 400, '2026-02-31' and '2026-W45' -> 400, no HAPI call) and rows in the it.each of schedules-admin-writes.e2e-spec.ts and schedules-admin-access.e2e-spec.ts.",
+  "needsDecision": false,
+  "decisionQuestion": "",
+  "tzRef": "api-designer-spec §5.2.1, §5.2.5; ADR-015; FR-020; NFR (validate at system boundaries, AGENTS.md)",
+  "confidence": "confirmed"
+}

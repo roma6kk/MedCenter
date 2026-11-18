@@ -32,6 +32,7 @@ These are enforceable rules. Wishes are ignored, constraints are enforced.
 - MUST NOT proceed with failing tests — fix or escalate to `/debugger`
 - MUST NOT skip pre-commit hooks (--no-verify)
 - MUST NOT force-push, hard-reset, or DROP TABLE without explicit user consent
+- MUST NOT add itself or any AI tool as a co-author: no `Co-Authored-By:` trailers naming Claude, Anthropic, Codebuff or other AI agents, and no "Generated with" lines, in commits, merge commits or PR descriptions
 
 ## Context & Documentation
 
@@ -39,6 +40,7 @@ These are enforceable rules. Wishes are ignored, constraints are enforced.
 - MUST read MANIFEST.md before writing specs
 - MUST check .task-counter before creating task dirs
 - MUST NOT duplicate information across spec files — reference instead
+- MUST NOT modify `docs/pz/` (пояснительная записка) or `labs/` — they are frozen; when code changes make them outdated, report it to the user instead of editing them
 
 ## Security
 

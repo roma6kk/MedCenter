@@ -52,12 +52,6 @@ import { ScanUploadInterceptor } from './scan-upload.interceptor';
 
 type AuditedRequest = RequestWithClaims & Pick<RequestWithRequestId, 'requestId'>;
 
-/**
- * API §3.7–3.11 — a patient's consent to the electronic record, managed by a
- * DOCTOR (only a patient they share care with, ADR-013) or an ADMIN. The scope
- * and the compartment are enforced in `PatientAccessService`, because
- * `@RequiresScopes` cannot tell a read from a write per route.
- */
 @ApiTags('patient')
 @ApiBearerAuth()
 @Controller('api/v1/patients')

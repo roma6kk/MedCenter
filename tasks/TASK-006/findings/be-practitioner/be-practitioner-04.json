@@ -1,0 +1,19 @@
+{
+  "id": "be-practitioner-04",
+  "unit": "be-practitioner",
+  "kind": "i18n",
+  "severity": "low",
+  "title": "«Занятость кабинета»: строки display приходят с сервера по-русски (слова «активно», «запись», имена врачей, услуги) и не зависят от языка интерфейса; для неактивного расписания пометка дублируется",
+  "description": "GET /admin/rooms/{id}/usage собирает человекочитаемую строку на сервере: `Иванова Мария · Консультация терапевта · 01.11.2026–30.11.2026 · активно/неактивно` для расписания и `02.11.2026 12:00–12:30 · запись · Иванова Мария` для слота. Слова «активно», «неактивно», «запись» зашиты в room-usage.mapper.ts, имя врача строится через toDoctorResponseDto(practitioner) без языка (всегда русское), название услуги берётся как хранится (русское), даты в формате ДД.ММ.ГГГГ. Контроллер usage не читает Accept-Language. Админка двуязычная (admin.rooms.usage.* есть и в ru.json, и в en.json), поэтому в английском интерфейсе drawer показывает смесь: метку типа «Schedule», затем русскую строку. Кроме того, drawer для isActive === false сам дописывает «(inactive)», а в display уже есть слово «неактивно», то есть пометка выводится дважды.",
+  "evidence": "apps/practitioner-service/src/modules/rooms/room-usage.mapper.ts:102 (`isActive ? 'активно' : 'неактивно'`), :118 (`'запись'`), :32-42 practitionerName() calls toDoctorResponseDto(practitioner) with no `lang`; apps/practitioner-service/src/modules/rooms/rooms.controller.ts:73-80 usage() has no Accept-Language handling; frontend/src/components/admin/rooms/room-usage-drawer.tsx:22-24 renders `{reference.display}` and then `t('usage.inactive')` for isActive === false. Scenario: admin switches the UI to English, opens «Occupancy» of a room used by a deactivated schedule -> «Schedule Иванова Мария · Консультация терапевта · 01.11.2026–30.11.2026 · неактивно (inactive)».",
+  "files": [
+    "apps/practitioner-service/src/modules/rooms/room-usage.mapper.ts",
+    "apps/practitioner-service/src/modules/rooms/dto/room-usage-response.dto.ts",
+    "frontend/src/components/admin/rooms/room-usage-drawer.tsx"
+  ],
+  "proposedFix": "Stop baking wording into the API: keep `display` (additive, API clients may use it) but make it language-neutral/short, and add structured fields to RoomUsageReferenceDto: Schedule -> doctorName, serviceName, horizonFrom, horizonTo (isActive already there); Slot -> start, end (already there), doctorName. The drawer then composes the line from i18n keys (admin.rooms.usage.line.schedule / .slot with ICU placeholders) and formats dates with the active locale in Europe/Minsk, and shows the inactive marker once. If a smaller step is preferred: read Accept-Language in the usage controller (resolveContentLanguage), pass `lang` to practitionerName and to the service name (translated(name, _name, lang)) and use 'active'/'inactive'/'booked' words per language, and drop the extra t('usage.inactive') span in the drawer. Add a unit case for en in room-usage.service.spec.ts.",
+  "needsDecision": false,
+  "decisionQuestion": "",
+  "tzRef": "NFR-008 (ru/en); FR-017; api-designer-spec 4.7",
+  "confidence": "confirmed"
+}

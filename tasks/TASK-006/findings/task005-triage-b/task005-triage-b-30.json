@@ -1,0 +1,18 @@
+{
+  "id": "task005-triage-b-30",
+  "unit": "task005-triage-b",
+  "kind": "question",
+  "severity": "low",
+  "title": "Бургер публичной части справа и панель выезжает справа, у кабинетов слева: переносить ли публичный бургер влево",
+  "description": "Вопрос из V4/T9 (вопрос T5 про несовпадение стороны бургера и панели в кабинетах уже исправлен, см. RESOLVED про drawer-left). Сейчас внутри каждой оболочки сторона согласована: публичная шапка (бренд слева, действия и бургер справа) открывает панель справа, кабинеты (бургер слева) открывают её слева. Это вкус: единая сторона против привычной для каждого типа страницы.",
+  "evidence": "frontend/src/components/catalog/public-header.tsx:64 `<Dialog variant=\"drawer\">` (right); frontend/src/components/layout/staff-shell.tsx:117 and patient-mobile-menu.tsx:51 `drawer-left`; frontend/src/components/ui/dialog.tsx:30-42.",
+  "files": [
+    "frontend/src/components/catalog/public-header.tsx",
+    "frontend/src/components/ui/dialog.tsx"
+  ],
+  "proposedFix": "Variant A (recommended): keep. Variant B: move the burger to the left of the brand and open `drawer-left` (two lines in public-header.tsx, spec update).",
+  "needsDecision": true,
+  "decisionQuestion": "Переносить ли бургер публичной шапки влево? Варианты: (A) оставить справа, панель справа (согласовано внутри шапки); (B) перенести влево, как в кабинетах. Рекомендация: A.",
+  "tzRef": "",
+  "confidence": "confirmed"
+}

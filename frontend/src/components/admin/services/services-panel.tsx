@@ -10,7 +10,7 @@ import { AdminPageHeader } from '../shared/admin-page-header';
 import { CreateButton } from '../shared/create-button';
 import { DeleteConfirm } from '../shared/delete-confirm';
 import { QueryState } from '../shared/query-state';
-import { SearchForm } from '../shared/search-form';
+import { LiveSearch } from '../shared/live-search';
 import { useStepBackWhenPageEmpty } from '../shared/use-step-back-when-page-empty';
 import { useAdminServices, useDeleteService, type ServicesFilter } from './use-admin-services';
 
@@ -38,7 +38,6 @@ function ServiceDialogs({ dialog, onClose }: { readonly dialog: DialogState; rea
   return null;
 }
 
-/** `/admin/services` (FR-016): search, the server-paged catalogue, create / edit / delete. */
 export function ServicesPanel(): ReactNode {
   const t = useT('admin.services');
   const [filter, setFilter] = useState<ServicesFilter>({ page: 1, search: '' });
@@ -48,7 +47,7 @@ export function ServicesPanel(): ReactNode {
   return (
     <>
       <AdminPageHeader title={t('title')} description={t('description')} action={<CreateButton label={t('create')} onClick={() => setDialog({ kind: 'create' })} />} />
-      <SearchForm label={t('searchLabel')} value={filter.search} onApply={(search) => setFilter({ page: 1, search })} />
+      <LiveSearch label={t('searchLabel')} value={filter.search} onChange={(search) => setFilter({ page: 1, search })} />
       <QueryState query={query} isEmpty={(data) => data.items.length === 0} emptyTitle={t('empty')} emptyDescription={t('emptyHint')}>
         {(data) => (
           <ServicesTable

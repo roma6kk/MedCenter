@@ -1,0 +1,17 @@
+{
+  "id": "task005-triage-b-23",
+  "unit": "task005-triage-b",
+  "kind": "question",
+  "severity": "low",
+  "title": "Период аналитики по умолчанию: календарный месяц вместо года",
+  "description": "Вопрос из T8. Открытие панели с текущим календарным месяцем (с быстрыми периодами «Сегодня / Неделя / Месяц / Год» и сравнением с прошлым периодом) выглядит осмысленнее года: в начале месяца столбцов мало, но заголовок честно называет период. Это вкус и сценарий показа проекта, технической проблемы нет. Для защиты с демо-данными за одну-две недели месяц даёт заполненный график, год почти пустой.",
+  "evidence": "frontend/src/components/admin/analytics/analytics-period.ts and analytics-panel.tsx default period; report-range.ts keeps currentYearRange for the quick period «Год».",
+  "files": [
+    "frontend/src/components/admin/analytics/analytics-period.ts"
+  ],
+  "proposedFix": "Variant A (recommended): keep the month. Variant B: default to the year (currentYearRange).",
+  "needsDecision": true,
+  "decisionQuestion": "Период аналитики по умолчанию? Варианты: (A) текущий календарный месяц (как сейчас); (B) текущий год. Рекомендация: A — график выглядит заполненным на демо-данных, год остаётся быстрым периодом.",
+  "tzRef": "FR-019",
+  "confidence": "confirmed"
+}

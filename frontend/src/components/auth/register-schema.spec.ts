@@ -6,7 +6,6 @@ const VALID = { email: 'ivan@example.by', firstName: 'Иван', lastName: 'Ив
 function messagesOf(input: Record<string, unknown>): Readonly<Record<string, string>> {
   const result = registerFormSchema.safeParse(input);
   if (result.success) return {};
-  // react-hook-form shows the first issue of a field, so the first one is what the user sees.
   return Object.fromEntries([...result.error.issues].reverse().map((issue) => [String(issue.path[0]), issue.message]));
 }
 
@@ -33,6 +32,16 @@ describe('registerFormSchema', () => {
       birthDate: 'validation.required',
       accountConsent: 'validation.consentRequired',
     });
+  });
+
+  it('should refuse a birth date under 18 with the age message and accept an adult', () => {
+    const minor = new Date();
+    minor.setFullYear(minor.getFullYear() - 10);
+    const adult = new Date();
+    adult.setFullYear(adult.getFullYear() - 30);
+
+    expect(messagesOf({ ...VALID, birthDate: minor.toISOString().slice(0, 10) })['birthDate']).toBe('validation.ageRestricted');
+    expect(messagesOf({ ...VALID, birthDate: adult.toISOString().slice(0, 10) })['birthDate']).toBeUndefined();
   });
 
   it('should reject the email when it is malformed', () => {
@@ -99,7 +108,7 @@ describe('account consent', () => {
 
   it('should send the acceptance with the version of the text shown when the box is ticked', () => {
     expect(toRegisterRequest(registerFormSchema.parse(VALID)).accountConsent).toEqual({ accepted: true, textVersion: ACCOUNT_CONSENT_VERSION });
-    expect(ACCOUNT_CONSENT_VERSION).toBe('2026-10');
+    expect(ACCOUNT_CONSENT_VERSION).toBe('2026-11');
   });
 
   it('should let server errors for the consent and its subfields land on the checkbox', () => {

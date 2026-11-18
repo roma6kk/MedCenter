@@ -1,0 +1,19 @@
+{
+  "id": "task005-triage-a-V2T2-01",
+  "unit": "task005-triage-a",
+  "kind": "question",
+  "severity": "low",
+  "title": "Тост с кнопкой «Отменить» (undo) готов, но не используется: у неявки, отмены записи, отзыва согласия и удаления нет API отката",
+  "description": "Примитив есть (`ToastActionSpec`, `showToast(tone, key, values, action)`), но ни один вызов `showToast` в рабочем коде не передаёт `action`. Все разрушающие операции уже защищены диалогом подтверждения (отмена записи, деактивация, удаление, неявка), а в бэкенде есть только прямые переходы: отмена освобождает слот, неявка и отзыв согласия не имеют обратной операции, удаление услуги/кабинета/расписания необратимо. Откат потребовал бы новых эндпоинтов либо отложенной отправки запроса на клиенте.",
+  "evidence": "frontend/src/lib/ui/toast.ts:9-14 defines ToastActionSpec and the 4th argument of showToast; a grep over non-spec code finds no caller that passes an action (for example frontend/src/components/appointments/use-appointments.ts:57 calls showToast('success', 'appointments.cancelled') with no action). Backend has forward transitions only: apps/appointment-service/.../appointments.controller.ts:133 POST :id/cancel, doctor-appointments.controller.ts:60 POST :id/noshow, no restore/uncancel route in tasks/TASK-006/findings/verify-map-backend-routes.txt.",
+  "files": [
+    "frontend/src/lib/ui/toast.ts",
+    "frontend/src/components/appointments/use-appointments.ts",
+    "apps/appointment-service/src/modules/appointments/doctor-appointments.controller.ts"
+  ],
+  "proposedFix": "No code change unless the owner picks option 2 or 3. Option 3 would wrap the mutation in a delayed-commit hook (same idea as admin/shared/use-debounced-commit.ts) and pass { labelKey: 'common.undo', onAction: cancelPending } as the 4th argument of showToast. Option 2 needs a new transition endpoint in appointment-service plus an outbox event for the notification.",
+  "needsDecision": true,
+  "decisionQuestion": "Добавлять откат разрушающих действий (неявка, отмена записи, отзыв согласия, удаление)? Варианты: (1) нет — оставить диалоги подтверждения, примитив `action` в тосте оставить как общий задел; (2) только для неявки добавить эндпоинт обратного перехода noshow -> booked; (3) отложенная отправка на клиенте (например 5 с до реального запроса) без изменений бэкенда, но уведомление и освобождение слота задерживаются. Рекомендация: (1) — откат не требуется ТЗ, а повторная запись на освобождённый слот может не удаться (гонка), поэтому подтверждение до действия надёжнее отката после.",
+  "tzRef": "",
+  "confidence": "confirmed"
+}

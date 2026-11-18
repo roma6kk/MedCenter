@@ -7,7 +7,7 @@ import {
   INVALID_CREDENTIALS_MESSAGE,
   STALE_FORM_MESSAGE,
   THROTTLED_MESSAGE,
-} from '../src/modules/oauth/login/login.controller';
+} from '../src/modules/oauth/login/login-messages';
 import { startAuthApp, cookiesOf, type AuthApp } from './app-harness';
 import {
   PATIENT_PASSWORD,
@@ -21,8 +21,6 @@ import {
 } from './auth-flow-helpers';
 import { E2E_CLIENT_ID } from './e2e-env';
 
-// `jose` is pure ESM and Jest's CJS runtime cannot load it; the signature check is stubbed and the
-// claims are decoded from the token the application actually signed (see `oauth.e2e-spec.ts`).
 jest.mock('jose', () => ({
   createRemoteJWKSet: () => 'mocked-jwks',
   jwtVerify: async (token: string) => {
@@ -52,7 +50,6 @@ class MemoryRateLimitStore implements RateLimitStore {
   }
 }
 
-/** The credential step of the browser PKCE flow (assumption UI-1), over real HTTP and the real guard stack. */
 describe('Browser login flow (GET /oauth/authorize → POST /oauth/login → code → token)', () => {
   let started: AuthApp;
   let app: INestApplication;
@@ -265,7 +262,6 @@ describe('Browser login flow (GET /oauth/authorize → POST /oauth/login → cod
 
     it('should answer 429 with the login page once one client address exceeds its login budget', async () => {
       const form = await openLoginForm(app);
-      // One email per attempt: the per-account throttle (10 per 15 min) must not be what trips here.
       const attempt = (index: number): request.Test =>
         submitLogin(app, form, { email: `guess-${index}@example.by`, password: 'Wr0ng!Password' });
       for (let i = 0; i < 10; i += 1) {

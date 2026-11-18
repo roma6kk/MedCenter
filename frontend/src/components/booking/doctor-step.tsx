@@ -1,58 +1,85 @@
 'use client';
 
-import type { ReactNode } from 'react';
-import { DoctorCard } from '@/components/catalog/doctor-card';
+import { useEffect, type ReactNode } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { QueryLoading } from '@/components/catalog/query-loading';
 import { QueryFailure } from '@/components/feedback/query-error-state';
 import { useDoctors, useService } from '@/components/catalog/use-catalog';
-import type { Doctor } from '@/components/catalog/catalog-types';
+import type { Doctor, Slot } from '@/components/catalog/catalog-types';
 import { EmptyState } from '@/components/feedback/states';
-import { Button } from '@/components/ui/button';
+import { queryKeys } from '@/lib/api/query-keys';
 import { useT } from '@/lib/i18n/use-t';
+import { DoctorOption } from './doctor-option';
+import { useStableCallback } from './use-stable-callback';
 
 interface DoctorStepProps {
   readonly serviceId: string | null;
   readonly selectedDoctorId: string | null;
   readonly onSelect: (doctorId: string) => void;
+  readonly onSelectSlot: (doctorId: string, slot: Slot) => void;
 }
 
-function DoctorList({ doctors, selectedDoctorId, onSelect }: Omit<DoctorStepProps, 'serviceId'> & { readonly doctors: ReadonlyArray<Doctor> }): ReactNode {
+interface DoctorListProps extends DoctorStepProps {
+  readonly doctors: ReadonlyArray<Doctor>;
+  readonly durationMin: number | null;
+}
+
+function DoctorList({ serviceId, doctors, durationMin, selectedDoctorId, onSelect, onSelectSlot }: DoctorListProps): ReactNode {
   const t = useT('booking');
+  if (doctors.length === 0 && serviceId === null) return <EmptyState title={t('doctorEmptyAll')} description={t('doctorEmptyAllHint')} />;
   if (doctors.length === 0) return <EmptyState title={t('doctorEmpty')} description={t('doctorEmptyHint')} />;
   return (
     <ul className="grid gap-3 lg:grid-cols-2">
       {doctors.map((doctor) => (
         <li key={doctor.id}>
-          <DoctorCard doctor={doctor} headingLevel={3}>
-            <Button
-              aria-pressed={doctor.id === selectedDoctorId}
-              aria-label={`${t('chooseDoctor')}: ${doctor.name}`}
-              onClick={() => onSelect(doctor.id)}
-              data-testid={`doctor-${doctor.id}`}
-            >
-              {t('chooseDoctor')}
-            </Button>
-          </DoctorCard>
+          <DoctorOption doctor={doctor} selected={doctor.id === selectedDoctorId} durationMin={durationMin} serviceId={serviceId} onSelect={onSelect} onSelectSlot={onSelectSlot} />
         </li>
       ))}
     </ul>
   );
 }
 
-/** Step 2: the doctors that give the chosen service (all doctors when no service was chosen). */
-export function DoctorStep({ serviceId, selectedDoctorId, onSelect }: DoctorStepProps): ReactNode {
+export function DoctorStep({ serviceId, selectedDoctorId, onSelect, onSelectSlot }: DoctorStepProps): ReactNode {
   const t = useT('booking');
   const service = useService(serviceId);
   const query = useDoctors(serviceId === null ? {} : { serviceId });
+  const doctors: ReadonlyArray<Doctor> | undefined = query.data?.items;
+  const onlyDoctor: Doctor | undefined = doctors?.length === 1 && selectedDoctorId === null ? doctors[0] : undefined;
+  const client = useQueryClient();
+  const remember = (doctorId: string): void => {
+    const known: Doctor | undefined = doctors?.find((doctor) => doctor.id === doctorId);
+    if (known !== undefined) client.setQueryData(queryKeys.doctor(doctorId), known);
+  };
+  const select = useStableCallback(onSelect);
+  const onlyDoctorId: string | undefined = onlyDoctor?.id;
+  useEffect(() => {
+    if (onlyDoctorId !== undefined) select(onlyDoctorId);
+  }, [onlyDoctorId, select]);
   const heading: string = service.data === undefined ? t('doctorTitle') : t('doctorForService', { service: service.data.name });
+  const waitingForService: boolean = serviceId !== null && service.isPending;
   return (
     <div>
-      <h2 className="text-[22px] font-bold">{heading}</h2>
+      <h2 className="text-xl font-bold">{heading}</h2>
       <div className="mt-4">
-        {query.data === undefined ? (
+        {doctors === undefined ? (
           <QueryFailure query={query} embedded pending={<QueryLoading />} />
+        ) : waitingForService || onlyDoctor !== undefined ? (
+          <QueryLoading />
         ) : (
-          <DoctorList doctors={query.data.items} selectedDoctorId={selectedDoctorId} onSelect={onSelect} />
+          <DoctorList
+            serviceId={serviceId}
+            doctors={doctors}
+            durationMin={service.data?.defaultDurationMin ?? null}
+            selectedDoctorId={selectedDoctorId}
+            onSelect={(doctorId) => {
+              remember(doctorId);
+              onSelect(doctorId);
+            }}
+            onSelectSlot={(doctorId, slot) => {
+              remember(doctorId);
+              onSelectSlot(doctorId, slot);
+            }}
+          />
         )}
       </div>
     </div>

@@ -1,0 +1,19 @@
+{
+  "id": "task005-triage-b-32",
+  "unit": "task005-triage-b",
+  "kind": "a11y",
+  "severity": "low",
+  "title": "Каждый скелетон — отдельная live-область: на карточке пациента у врача три «Загрузка…» для скринридера и три «Загружаем…» на экране через 3 с",
+  "description": "Вопрос из V4/T9 «оставить одну надпись на экран?» это дефект: ContentSkeleton и TableSkeleton сами являются role=status с sr-only «Загрузка…» и через 3 секунды добавляют видимое «Загружаем…» (LoadingNote). Экран с несколькими параллельными загрузками (карточка пациента: сводка, история, назначения) получает три области и три одинаковые подписи, скринридер читает «Загрузка» трижды, а глаз видит три одинаковые строки.",
+  "evidence": "frontend/src/components/feedback/content-skeleton.tsx:117-130 ContentSkeleton = role=status + sr-only t('loading') + <LoadingNote/>; frontend/src/components/feedback/states.tsx:62-75 TableSkeleton the same; the doctor patient card renders three of them at once (frontend/src/components/doctor/patient-card-view.tsx).",
+  "files": [
+    "frontend/src/components/feedback/content-skeleton.tsx",
+    "frontend/src/components/feedback/states.tsx",
+    "frontend/src/components/doctor/patient-card-view.tsx"
+  ],
+  "proposedFix": "Add `quiet?: boolean` to ContentSkeleton (no role=status, no sr-only text, no LoadingNote) and pass it to every skeleton but the first on screens that show several at once (patient card sections), or make LoadingNote show only for the earliest mounted instance via a small module-level registry (useSyncExternalStore). Spec: two skeletons -> one status region with one note.",
+  "needsDecision": false,
+  "decisionQuestion": "",
+  "tzRef": "NFR-008, WCAG 4.1.3",
+  "confidence": "confirmed"
+}

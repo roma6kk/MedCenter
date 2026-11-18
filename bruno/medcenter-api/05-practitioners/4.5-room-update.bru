@@ -32,5 +32,5 @@ assert {
 }
 
 docs {
-  Spec 4.5. ADMIN. Any subset of the create fields; an `identifier` equal to the own one is allowed.
+  Spec 4.5. ADMIN. Any subset of the create fields; an `identifier` equal to the own one is allowed. An absent field keeps its value; `description` empty or blank (or `null`) removes the description and `floor: null` removes the floor. `identifier`/`name` as `null` or blank -> 400 `VALIDATION_ERROR`; a patch that changes nothing -> 200 without a new version or AuditEvent.
 }

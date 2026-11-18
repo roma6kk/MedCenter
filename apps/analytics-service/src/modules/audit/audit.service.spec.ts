@@ -87,6 +87,18 @@ describe('AuditService', () => {
     );
   });
 
+  it('should pass the requested actions to the repository when action is given', async () => {
+    await auditService.list({ action: ['login', 'logout'] });
+
+    expect(repository.findPage).toHaveBeenCalledWith(expect.objectContaining({ actions: ['login', 'logout'] }), expect.anything());
+  });
+
+  it('should not restrict the action when the filter has none', async () => {
+    await auditService.list({});
+
+    expect(repository.findPage).toHaveBeenCalledWith(expect.objectContaining({ actions: undefined }), expect.anything());
+  });
+
   it('should reject a period longer than 366 days before querying the read-model when the span is too wide', async () => {
     await expect(auditService.list({ from: '2025-01-01', to: '2026-10-01' })).rejects.toThrow('range');
     expect(repository.findPage).not.toHaveBeenCalled();

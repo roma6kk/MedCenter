@@ -27,7 +27,6 @@ interface Account {
   readonly token: TokenBody;
 }
 
-/** API §2.2.7 and ADR-013 — the caller's own profile; the patient compartment comes from the token only. */
 describe('GET /api/v1/me and the patient compartment', () => {
   let fixture: AdminFixture;
   let app: INestApplication;

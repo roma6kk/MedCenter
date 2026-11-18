@@ -1,17 +1,15 @@
 'use client';
 
-/**
- * use-profile-data — the five reads the profile page needs, composed without a new request: the account and the card, the
- * nearest appointments, the latest visits and the prescriptions. Each stays its own query result so a block can fail or
- * load on its own. Pages and keys are the ones the list pages already use, so a visit to them warms this page's cache.
- */
 import type { UseQueryResult } from '@tanstack/react-query';
 import { useAppointments } from '@/components/appointments/use-appointments';
 import type { AppointmentView } from '@/components/appointments/appointment-types';
+import { isApiError } from '@/lib/api/api-fetch';
+import { errorCodeToUx } from '@/lib/api/error-code-map';
 import type { PaginatedResponse } from '@/lib/api/pagination';
 import { HISTORY_PAGE_SIZE } from '../history-timeline';
 import { PRESCRIPTIONS_PAGE_SIZE } from '../prescription-list';
 import type { AccountProfile, HistoryEntry, PatientProfile, Prescription } from '../patient-types';
+import { newestFinishedVisit } from './profile-recommendations';
 import { useAccount, useMyHistory, useMyPrescriptions, usePatientProfile } from '../use-patient-queries';
 
 const UPCOMING_PAGE_SIZE = 10;
@@ -34,7 +32,10 @@ export function useProfileData(): ProfileData {
   };
 }
 
-/** A count of what the loaded page holds; `more` when the list has further pages, so the number is "at least". */
+export function isNoCard(patient: UseQueryResult<PatientProfile>): boolean {
+  return patient.isError && isApiError(patient.error) && errorCodeToUx(patient.error.problem.errorCode).kind === 'not-found';
+}
+
 export interface Count {
   readonly value: number;
   readonly more: boolean;
@@ -44,11 +45,10 @@ export function countOf<TItem>(page: PaginatedResponse<TItem> | undefined, predi
   return page === undefined ? null : { value: page.items.filter(predicate).length, more: page.meta.totalPages > 1 };
 }
 
-/** The booked ones among the upcoming list (the server already filters by `status=booked`; this guards stale caches). */
 export function activeAppointments(page: PaginatedResponse<AppointmentView> | undefined): ReadonlyArray<AppointmentView> {
   return (page?.items ?? []).filter((item) => item.status === 'booked');
 }
 
 export function newestFinished(page: PaginatedResponse<HistoryEntry> | undefined): HistoryEntry | undefined {
-  return [...(page?.items ?? [])].filter((entry) => entry.status === 'finished').sort((a, b) => Date.parse(b.date) - Date.parse(a.date))[0];
+  return newestFinishedVisit(page?.items ?? []);
 }

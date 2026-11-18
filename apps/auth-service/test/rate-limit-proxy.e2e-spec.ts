@@ -5,19 +5,13 @@ import request from 'supertest';
 import { startAuthApp } from './app-harness';
 import { E2E_CLIENT_ID, applyE2eEnv } from './e2e-env';
 
-// Same stub as `oauth.e2e-spec.ts`: `jose` is pure ESM and Jest's CJS runtime cannot load it.
 jest.mock('jose', () => ({
   createRemoteJWKSet: () => 'mocked-jwks',
   jwtVerify: async () => ({ payload: {}, protectedHeader: { alg: 'RS256' } }),
 }));
 
-/** `@RateLimit(20)` on `POST /oauth/token`. */
 const TOKEN_LIMIT = 20;
 
-/**
- * In-memory store. The trailing `:<minute>` segment is dropped from the key so a
- * suite that straddles a minute boundary cannot split one bucket in two.
- */
 class MemoryRateLimitStore implements RateLimitStore {
   private readonly hits = new Map<string, number>();
 
@@ -29,20 +23,22 @@ class MemoryRateLimitStore implements RateLimitStore {
   }
 }
 
-/**
- * Express reads `X-Forwarded-For` only when `trust proxy` is set; this is the
- * knob a Traefik-fronted deployment turns on.
- */
 async function bootApp(trustProxy: boolean | number): Promise<INestApplication> {
   return (await startAuthApp({ trustProxy })).app;
 }
 
-/** An unknown refresh token: cheap, side-effect free, answered 400 below the limit. */
 function tokenCall(app: INestApplication, forwardedFor: string): request.Test {
   return request(app.getHttpServer())
     .post('/oauth/token')
     .set('X-Forwarded-For', forwardedFor)
-    .send({ grant_type: 'refresh_token', refresh_token: 'nope', client_id: E2E_CLIENT_ID });
+    .send({ grant_type: 'refresh_token', client_id: E2E_CLIENT_ID });
+}
+
+function refreshCall(app: INestApplication, forwardedFor: string, refreshToken: string): request.Test {
+  return request(app.getHttpServer())
+    .post('/oauth/token')
+    .set('X-Forwarded-For', forwardedFor)
+    .send({ grant_type: 'refresh_token', refresh_token: refreshToken, client_id: E2E_CLIENT_ID });
 }
 
 async function exhaust(app: INestApplication, forwardedFor: string): Promise<void> {
@@ -95,8 +91,28 @@ describe('Rate limit behind a reverse proxy (X-Forwarded-For)', () => {
       expect(other.status).not.toBe(429);
     });
 
+    it('should not let one visitor drain the token budget of visitors behind the same address', async () => {
+      for (let i = 0; i < TOKEN_LIMIT + 5; i += 1) {
+        const response = await refreshCall(app, '10.0.0.9', `garbage-${i}`);
+        expect(response.status).not.toBe(429);
+      }
+
+      const other = await refreshCall(app, '10.0.0.9', 'another-visitor-token');
+
+      expect(other.status).not.toBe(429);
+    });
+
+    it('should answer 429 for one replayed refresh token whatever the address', async () => {
+      for (let i = 0; i < TOKEN_LIMIT; i += 1) {
+        await refreshCall(app, `203.0.113.${i + 1}`, 'replayed-token');
+      }
+
+      const response = await refreshCall(app, '203.0.113.200', 'replayed-token');
+
+      expect(response.status).toBe(429);
+    });
+
     it('should bucket on the client address, not the proxy hop appended to the chain', async () => {
-      // `true` trusts every hop, so the left-most entry is the client.
       await exhaust(app, '203.0.113.10, 10.0.0.2');
 
       const response = await tokenCall(app, '203.0.113.10, 10.0.0.3');

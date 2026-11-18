@@ -5,18 +5,16 @@ import { FHIR_CLIENT, type FhirClient, type FhirResource } from '@medcenter/fhir
 
 import { AppModule } from '../src/app/app.module';
 import { applyE2eEnv } from './e2e-env';
-import { ADMIN_SCOPE, bearer, DOCTOR_SCOPE, PATIENT_SCOPE } from './e2e-tokens';
+import { ADMIN_SCOPE, bearer, DOCTOR_SCOPE, PATIENT_SCOPE } from '@medcenter/testing';
 
 export const ROOM_PHYSICAL_TYPE_SYSTEM = 'http://terminology.hl7.org/CodeSystem/location-physical-type';
 
-/** Bearer tokens for the three roles, as auth-service issues them (ADR-013). */
 export const TOKENS = {
   admin: bearer({ role: 'ADMIN', scope: ADMIN_SCOPE }),
   doctor: bearer({ role: 'DOCTOR', scope: DOCTOR_SCOPE, fhirUser: 'PractitionerRole/role-7' }),
   patient: bearer({ role: 'PATIENT', scope: PATIENT_SCOPE, patient: 'pat-1', fhirUser: 'Patient/pat-1' }),
 } as const;
 
-/** A FHIR client whose every interaction is a Jest mock; tests script only what they use. */
 export function createFhirStub(): jest.Mocked<FhirClient> {
   return {
     search: jest.fn().mockResolvedValue({ entry: [] }),
@@ -29,7 +27,6 @@ export function createFhirStub(): jest.Mocked<FhirClient> {
   } as jest.Mocked<FhirClient>;
 }
 
-/** The app `main.ts` ships (guard stack, filter, validation pipe) on top of a scripted FHIR client. */
 export async function bootWithFhir(fhir: jest.Mocked<FhirClient>): Promise<INestApplication> {
   applyE2eEnv();
   const moduleRef = await Test.createTestingModule({ imports: [AppModule] })
@@ -42,7 +39,6 @@ export async function bootWithFhir(fhir: jest.Mocked<FhirClient>): Promise<INest
   return app;
 }
 
-/** A stored room as HAPI returns it. */
 export function storedRoom(overrides: Record<string, unknown> = {}): FhirResource {
   return {
     resourceType: 'Location',

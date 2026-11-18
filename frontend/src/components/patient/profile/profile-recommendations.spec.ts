@@ -19,13 +19,13 @@ describe('buildRecommendations', () => {
   describe('repeat visit', () => {
     it('should suggest a repeat visit after a finished visit with a recommendation and no booked follow-up', () => {
       const [first] = buildRecommendations(input({ history: [historyFixture({ date: '2026-10-19T07:00:00.000Z' })] }));
-      expect(first).toMatchObject({ id: 'repeat-visit', kind: 'follow-up', ctaHref: '/booking', params: { day: '2026-10-19' } });
+      expect(first).toMatchObject({ id: 'repeat-visit-enc-1', kind: 'follow-up', ctaHref: '/booking', params: { day: '2026-10-19' } });
     });
 
     it('should not suggest it when a later appointment is booked, and ignore a cancelled one', () => {
       const history = [historyFixture({ date: '2026-10-19T07:00:00.000Z' })];
       expect(ids({ history, appointments: [appointmentFixture({ start: '2026-10-28T07:00:00.000Z' })] })).toEqual([]);
-      expect(ids({ history, appointments: [appointmentFixture({ start: '2026-10-28T07:00:00.000Z', status: 'cancelled' })] })).toEqual(['repeat-visit']);
+      expect(ids({ history, appointments: [appointmentFixture({ start: '2026-10-28T07:00:00.000Z', status: 'cancelled' })] })).toEqual(['repeat-visit-enc-1']);
     });
 
     it('should not suggest it without a recommendation, for an unfinished visit or after the window', () => {
@@ -36,7 +36,7 @@ describe('buildRecommendations', () => {
 
     it('should judge by the newest finished visit and keep the window edge inclusive', () => {
       const edge = new Date(Date.parse(`${TODAY}T12:00:00Z`) - REPEAT_VISIT_WINDOW_DAYS * 86_400_000).toISOString();
-      expect(ids({ history: [historyFixture({ date: edge })] })).toEqual(['repeat-visit']);
+      expect(ids({ history: [historyFixture({ date: edge })] })).toEqual(['repeat-visit-enc-1']);
       expect(ids({ history: [historyFixture({ id: 'old', date: '2026-10-01T07:00:00.000Z' }), historyFixture({ id: 'new', date: '2026-10-20T07:00:00.000Z', recommendations: '' })] })).toEqual([]);
     });
   });
@@ -93,6 +93,6 @@ describe('buildRecommendations', () => {
       history: [historyFixture({ date: '2026-10-19T07:00:00.000Z' })],
       prescriptions: [serviceFixture({ id: 'a', status: 'active' })],
     });
-    expect(result).toEqual(['repeat-visit', 'referral-a', 'ecg', 'phone']);
+    expect(result).toEqual(['repeat-visit-enc-1', 'referral-a', 'ecg', 'phone']);
   });
 });

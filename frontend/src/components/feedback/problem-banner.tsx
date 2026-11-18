@@ -8,9 +8,7 @@ import type { ErrorCode, ProblemDetails } from '@/lib/api/problem';
 import { useT } from '@/lib/i18n/use-t';
 
 interface ProblemBannerProps {
-  /** Preferred: the whole problem. The headline becomes the localized `errors.<errorCode>` text (server titles are English). */
   readonly problem?: ProblemDetails;
-  /** Explicit headline; wins over the one derived from `problem` / `errorCode`. */
   readonly title?: string;
   readonly detail?: string;
   readonly errorCode?: ErrorCode;
@@ -25,37 +23,30 @@ interface ProblemView {
   readonly retryAfter: number | undefined;
 }
 
-/** A request that never got a response (offline, DNS, aborted) carries status 0 and `INTERNAL` only as a stand-in code. */
-function isOffline(problem: ProblemDetails | undefined): boolean {
-  return problem?.status === 0;
-}
-
 function useProblemView(props: ProblemBannerProps): ProblemView {
   const t = useT();
   const { problem } = props;
-  // A lost connection says so ("No connection to the server") instead of the "Internal error" its stand-in code stands for,
-  // and shows no code chip: there is no server answer to name. This is also what the central error effect toasts for it.
-  const offline: boolean = isOffline(problem) && props.errorCode === undefined;
+  const offline: boolean = problem?.status === 0 && props.errorCode === undefined;
   const errorCode: ErrorCode | undefined = offline ? undefined : props.errorCode ?? problem?.errorCode;
   const fallbackHeadline: string = offline ? t('errors.NETWORK') : errorCode === undefined ? problem?.title ?? '' : t(errorMessageKey(errorCode));
-  // Field messages are shown next to the inputs; repeating the joined server text here would only add noise.
   const hasFieldErrors: boolean = (problem?.details?.length ?? 0) > 0;
+  // A 500 shows only the headline and request id: the server withholds the cause on purpose (OWASP A05/A09). 502/503 keep their detail.
+  const isInternal: boolean = errorCode === 'INTERNAL' && problem?.status === 500;
   return {
     headline: props.title ?? fallbackHeadline,
     errorCode,
-    detail: props.detail ?? (hasFieldErrors || offline ? undefined : problem?.detail),
+    detail: props.detail ?? (hasFieldErrors || offline || isInternal ? undefined : problem?.detail),
     requestId: props.requestId ?? problem?.requestId,
     retryAfter: problem?.retryAfter,
   };
 }
 
-/** Copies the request id for support (frontend-design-spec §8). Clipboard access can be denied: the id stays visible. */
 async function copyToClipboard(text: string): Promise<boolean> {
   try {
     await navigator.clipboard.writeText(text);
     return true;
   } catch {
-    // Clipboard API unavailable or permission denied: the id is still shown as text, the user can select it.
+    // Clipboard denied or unavailable: the id stays visible as text
     return false;
   }
 }
@@ -71,7 +62,7 @@ function RequestIdButton({ requestId }: { readonly requestId: string }): ReactNo
         type="button"
         onClick={() => void handleCopy()}
         aria-label={t('copyRequestId', { requestId })}
-        className="mono min-h-[24px] text-xs underline"
+        className="mono inline-flex min-h-[44px] items-center text-xs underline"
         data-testid="copy-request-id"
       >
         {requestId}

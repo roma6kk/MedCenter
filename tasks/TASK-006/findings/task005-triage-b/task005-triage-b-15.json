@@ -1,0 +1,18 @@
+{
+  "id": "task005-triage-b-15",
+  "unit": "task005-triage-b",
+  "kind": "question",
+  "severity": "low",
+  "title": "Стаж, образование и описание врача: добавлять ли поля в practitioner-service",
+  "description": "Вопрос из T7. В профиле врача сейчас честная строка «клиника пока не публикует». Поля потребуют формы в админке и данных; в демо данные пришлось бы придумывать. FHIR R4: образование и квалификация ложатся в Practitioner.qualification (code, period, issuer), стаж можно хранить как расширение; описание у Practitioner своего элемента не имеет (расширение).",
+  "evidence": "apps/practitioner-service/src/modules/doctors/dto/doctor-response.dto.ts has no experience, education or about fields; frontend/src/components/catalog/doctor-profile.tsx shows the not-published note.",
+  "files": [
+    "apps/practitioner-service/src/modules/doctors/dto/doctor-response.dto.ts",
+    "frontend/src/components/catalog/doctor-profile.tsx"
+  ],
+  "proposedFix": "Variant A (recommended): leave. Variant B: optional `qualification[]` (education) and extension fields mapped by libs/fhir-mappers, an admin form, shown on the profile only when filled.",
+  "needsDecision": true,
+  "decisionQuestion": "Добавлять ли врачу поля «стаж», «образование», «о враче»? Варианты: (A) нет, оставить честную пометку; (B) да, необязательные поля и форма в админке (потребуются данные для демо). Рекомендация: A — в ТЗ их нет, а выдуманные данные о врачах нежелательны.",
+  "tzRef": "FR-002",
+  "confidence": "confirmed"
+}

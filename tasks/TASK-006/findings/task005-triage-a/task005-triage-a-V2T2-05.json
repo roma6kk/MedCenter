@@ -1,0 +1,18 @@
+{
+  "id": "task005-triage-a-V2T2-05",
+  "unit": "task005-triage-a",
+  "kind": "i18n",
+  "severity": "low",
+  "title": "В каталогах ru.json/en.json остались 21 неиспользуемый ключ (editAria, deleteAria и др.) — удалить",
+  "description": "После перехода таблиц админки на меню «⋯» (DropdownMenu с подписью `admin.common.rowActions`) прежние подписи кнопок остались в каталогах и нигде не используются. Статический обход всех 1514 ключей (имя последнего сегмента не встречается ни в одном .ts/.tsx вне тестов) нашёл 33 кандидата; 12 из них собираются динамически и должны остаться, 21 — мёртвые. Каталоги ru и en совпадают по набору ключей, поэтому удалять нужно в обоих.",
+  "evidence": "Dead (no reference in frontend/src outside messages): admin.rooms.{editAria,deleteAria,usageAria}; admin.schedules.actions.{editAria,deleteAria,slotsAria}; admin.services.{editAria,deleteAria}; admin.users.{editAria,activateAria,deactivateAria}; admin.users.validation.practitionerOnlyDoctor; booking.{newBooking,pickOther,slotConflict,toAppointment}; consent.view.scanFile; doctor.journal.weekLoadError; patient.profile.{accountTitle,patientTitle,readOnly}. Keep (dynamic access): home.path1..4Title/Text (home-path.tsx:35-36 t(`path${step}Title`)), patientPrescriptions.emptyActiveHint/emptyClosedHint (prescription-list.tsx:70 t(`${key}Hint`)), patient.prescriptions.status.on-hold, doctor.patient.telecom.sms (FHIR enum values).",
+  "files": [
+    "frontend/src/messages/ru.json",
+    "frontend/src/messages/en.json"
+  ],
+  "proposedFix": "Delete the 21 listed keys from BOTH frontend/src/messages/ru.json and en.json (keep identical key sets), then run `cd frontend && npx jest src/lib/i18n` and `npx tsc --noEmit`. If a catalogue parity spec exists it will confirm the sets still match. Optional: add a small spec that fails on keys unused in code except an allow-list of dynamic prefixes.",
+  "needsDecision": false,
+  "decisionQuestion": "",
+  "tzRef": "",
+  "confidence": "likely"
+}

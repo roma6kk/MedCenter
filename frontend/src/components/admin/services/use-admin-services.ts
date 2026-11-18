@@ -8,7 +8,7 @@ import { withQuery } from '@/lib/api/query-string';
 import type { AdminService, ServicePayload } from './service-types';
 import { useAdminMutation } from '../shared/use-admin-mutation';
 
-export const SERVICES_PAGE_SIZE = 10;
+const SERVICES_PAGE_SIZE = 10;
 
 export interface ServicesFilter {
   readonly page: number;
@@ -16,12 +16,12 @@ export interface ServicesFilter {
   readonly pageSize?: number;
 }
 
-/** The public catalogue (`GET /api/v1/services`, API 5.1.1): it is also the admin's list, there is no `/admin/services` read. */
+// Always asked in Russian: the form edits the stored name and description, which an English answer would replace with the translation.
 export function useAdminServices(filter: ServicesFilter): UseQueryResult<PaginatedResponse<AdminService>, Error> {
   const params = { page: filter.page, pageSize: filter.pageSize ?? SERVICES_PAGE_SIZE, search: filter.search.trim() };
   return useQuery({
-    queryKey: queryKeys.services(params),
-    queryFn: async () => toPaginated(await apiFetch<PaginatedResponse<AdminService> | ReadonlyArray<AdminService>>(withQuery('/api/v1/services', params))),
+    queryKey: queryKeys.adminServices(params),
+    queryFn: async () => toPaginated(await apiFetch<PaginatedResponse<AdminService> | ReadonlyArray<AdminService>>(withQuery('/api/v1/admin/services', params), { headers: { 'Accept-Language': 'ru' } })),
     placeholderData: keepPreviousData,
   });
 }
@@ -34,7 +34,7 @@ export function useCreateService(): UseMutationResult<AdminService, Error, Servi
   });
 }
 
-export interface UpdateServiceVars {
+interface UpdateServiceVars {
   readonly id: string;
   readonly payload: ServicePayload;
 }
@@ -47,7 +47,6 @@ export function useUpdateService(): UseMutationResult<AdminService, Error, Updat
   });
 }
 
-/** 409 `SERVICE_IN_USE` while a schedule or an appointment still references the service. */
 export function useDeleteService(): UseMutationResult<void, Error, string> {
   return useAdminMutation<string, void>({
     mutationFn: (id) => apiFetch<void>(`/api/v1/admin/services/${id}`, { method: 'DELETE' }),

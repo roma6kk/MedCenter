@@ -1,9 +1,8 @@
-/**
- * register-schema — client validation of `RegisterPatientDto` (api-designer-spec §2.2.6) with the same limits as the
- * server (`contracts.ts` holds them). Messages are `validation.*` message keys, translated where they are shown.
- */
 import { z } from 'zod';
+import { ageInYears } from '@/lib/clinic-time';
 import { ACCOUNT_CONSENT_VERSION, EMAIL_MAX, NAME_MAX, PASSWORD_MAX, PASSWORD_MIN, PASSWORD_PATTERN, isCalendarDate, normaliseBelarusPhone } from '@/lib/contracts';
+
+export const ADULT_AGE_YEARS = 18;
 
 const REQUIRED = { message: 'validation.required' } as const;
 const TOO_LONG = { message: 'validation.tooLong' } as const;
@@ -18,18 +17,14 @@ export const registerFormSchema = z.object({
   firstName: requiredText(NAME_MAX),
   lastName: requiredText(NAME_MAX),
   password: z.string().min(1, REQUIRED).min(PASSWORD_MIN, WEAK_PASSWORD).max(PASSWORD_MAX, TOO_LONG).regex(PASSWORD_PATTERN, WEAK_PASSWORD),
-  birthDate: z.string().min(1, REQUIRED).refine(isCalendarDate, { message: 'validation.date' }),
-  // A native <select> reports "not specified" as an empty string.
+  birthDate: z.string().min(1, REQUIRED).refine(isCalendarDate, { message: 'validation.date' }).refine((value) => !isCalendarDate(value) || (ageInYears(value) ?? ADULT_AGE_YEARS) >= ADULT_AGE_YEARS, { message: 'validation.ageRestricted' }),
   gender: z.enum(['', 'male', 'female']),
-  // Optional; spaces and dashes are allowed and dropped before sending (`normaliseBelarusPhone`).
   phone: z.string().trim().refine((value) => value === '' || normaliseBelarusPhone(value) !== null, { message: 'validation.phone' }),
-  // Consent to the processing of the account data (art. 5, Law 99-Z); it is not the consent to the electronic record.
   accountConsent: z.boolean().refine((accepted) => accepted, { message: 'validation.consentRequired' }),
 });
 
 export type RegisterFormValues = z.infer<typeof registerFormSchema>;
 
-/** `RegisterPatientDto` as the API takes it: names and email trimmed, "not specified" left out. */
 export interface RegisterRequest {
   readonly email: string;
   readonly firstName: string;
@@ -37,7 +32,6 @@ export interface RegisterRequest {
   readonly password: string;
   readonly birthDate: string;
   readonly gender?: 'male' | 'female';
-  /** `+375XXXXXXXXX`; left out when the field is empty. */
   readonly phone?: string;
   readonly accountConsent: { readonly accepted: true; readonly textVersion: string };
 }
@@ -49,5 +43,4 @@ export function toRegisterRequest(values: RegisterFormValues): RegisterRequest {
   return { ...request, ...(gender === '' ? {} : { gender }), ...(normalised === null ? {} : { phone: normalised }) };
 }
 
-/** Form fields the server may report errors for; anything else goes to the banner. */
 export const REGISTER_FIELDS: ReadonlyArray<string> = ['email', 'firstName', 'lastName', 'password', 'birthDate', 'gender', 'phone', 'accountConsent', 'accountConsent.accepted', 'accountConsent.textVersion'];

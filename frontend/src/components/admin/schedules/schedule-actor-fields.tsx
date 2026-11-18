@@ -14,7 +14,6 @@ interface ActorFieldsProps {
   readonly errors: Readonly<Partial<Record<'practitionerRoleId' | 'roomId' | 'serviceId', string>>>;
 }
 
-/** The slot duration follows the service's default until the admin types their own. */
 function useServiceDuration(form: UseFormReturn<ScheduleFormValues>, pickers: SchedulePickers): (serviceId: string) => void {
   return (serviceId) => {
     const service = pickers.services.find((option) => option.value === serviceId);
@@ -24,7 +23,6 @@ function useServiceDuration(form: UseFormReturn<ScheduleFormValues>, pickers: Sc
   };
 }
 
-/** Pickers of the three actors, fed by the doctor, room and service lists; chosen at creation, fixed afterwards. */
 export function ScheduleActorFields({ form, pickers, errors }: ActorFieldsProps): ReactNode {
   const t = useT('admin.schedules');
   const applyDuration = useServiceDuration(form, pickers);
@@ -47,7 +45,6 @@ export function ScheduleActorFields({ form, pickers, errors }: ActorFieldsProps)
   );
 }
 
-/** Read-only summary of the actors of an existing schedule (the API does not let them change). */
 export function ScheduleActorSummary({ values, pickers }: { readonly values: ScheduleFormValues; readonly pickers: SchedulePickers }): ReactNode {
   const t = useT('admin.schedules');
   return (

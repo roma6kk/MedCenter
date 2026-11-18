@@ -1,0 +1,22 @@
+{
+  "id": "be-encounter-05",
+  "unit": "be-encounter",
+  "kind": "robustness",
+  "severity": "low",
+  "title": "7.3: заключение, рекомендации, дозировка и название диагноза из одних пробелов проходят валидацию и сохраняются",
+  "description": "В CompleteEncounterDto поля summary (3..4000), recommendations (3..2000), MedicationRequestDto.dosageText (3..1000) и ConditionDto.display проверяются `@IsNotEmpty()` + `@MinLength(3)`, но строки не обрезаются. Значение из трёх пробелов проходит обе проверки (проверено: class-validator `isNotEmpty('   ')` и `minLength('   ', 3)` оба true), и в ClinicalImpression.summary, CarePlan.description или dosageInstruction.text записываются пробелы; в карте пациента такое назначение выглядит как лекарство без дозировки, а приём — без заключения. Для `emergencyReason` в этом же сервисе обрезка уже сделана (`@Transform(trim)` в emergency-reason.decorator.ts, комментарий «padding cannot satisfy the length bounds»), для остальных текстов — нет; в practitioner-service для названия кабинета используется такой же `trimString`. Схема формы врача на фронтенде (`z.string().min(3)`) тоже не обрезает, поэтому дефект достижим и из интерфейса.",
+  "evidence": "apps/encounter-service/src/modules/encounters/dto/complete-encounter.dto.ts:27-32 and :44-49; dto/medication-request.dto.ts:13-18; dto/condition.dto.ts:16-20 (only `@IsNotEmpty()`); dto/emergency-reason.decorator.ts:9-15 (the trim that exists only for emergencyReason); frontend/src/lib/contracts.ts:91,105,131 (`z.string().min(3)` without `.trim()`). Scenario: POST /encounters/{id}/complete {summary:'   ', recommendations:'   ', diagnoses:[{code:'J06.9', display:'   '}], medicationRequests:[{atcCode:'J01FA10', dosageText:'   '}]} -> 200 and four blank texts are stored.",
+  "files": [
+    "apps/encounter-service/src/modules/encounters/dto/complete-encounter.dto.ts",
+    "apps/encounter-service/src/modules/encounters/dto/medication-request.dto.ts",
+    "apps/encounter-service/src/modules/encounters/dto/condition.dto.ts",
+    "apps/encounter-service/src/modules/encounters/dto/service-request.dto.ts",
+    "apps/encounter-service/src/modules/encounters/dto/emergency-reason.decorator.ts",
+    "frontend/src/lib/contracts.ts"
+  ],
+  "proposedFix": "Extract the trim of emergency-reason.decorator.ts into a small shared transform (e.g. `common/validators/trimmed.ts`, same shape as practitioner-service `trimString`) and apply it before the length checks to summary, recommendations, diagnoses[].display, medicationRequests[].dosageText and the optional `note`s (a blank note then fails `@MinLength` or is dropped by `noteOf`). Frontend: `.trim()` before `.min(3)` in lib/contracts.ts for the same fields so the form shows the error instead of a server 400. Add dto cases (3 spaces -> 400 VALIDATION_ERROR with the field path).",
+  "needsDecision": false,
+  "decisionQuestion": "",
+  "tzRef": "FR-011, FR-013, FR-014, AGENTS.md (validate at system boundaries)",
+  "confidence": "confirmed"
+}

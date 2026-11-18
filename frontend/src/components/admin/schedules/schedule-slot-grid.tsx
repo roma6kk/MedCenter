@@ -2,34 +2,43 @@
 
 import { useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
-import { StampBadge, type SlotStatus } from '@/components/feedback/stamp-badge';
+import { Ban, CircleAlert, CircleCheck, type LucideIcon } from 'lucide-react';
+import type { SlotStatus } from '@/components/feedback/stamp-badge';
+import { cn } from '@/lib/ui/cn';
 import { useT } from '@/lib/i18n/use-t';
 import { useUiStore } from '@/store/use-ui-store';
 import { formatClinicTime, formatDayHeading, groupSlotsByDay, type SlotDay } from '@/lib/clinic-time';
 import type { AdminSchedule, ScheduleSlot } from './schedule-types';
-import { CONTROL_CLASS } from '../shared/admin-styles';
+import { DatePicker } from '@/components/ui/date-picker';
 import { Field } from '../shared/form-field';
 import { QueryState } from '../shared/query-state';
 import { defaultGenerationRange, validatePeriod, type PeriodError } from './generation-range';
 import { countSlots, mayBeTruncated, type SlotCounts } from './slot-grouping';
 import { useScheduleSlots, type SlotsQuery } from './use-admin-schedules';
+import { Select } from '@/components/ui/select';
 
 const STATUS_FILTERS: ReadonlyArray<SlotStatus | ''> = ['', 'free', 'busy', 'entered-in-error'];
-/** The id the `Field` of «С» gives its error text; «По» is described by the same text. */
 const RANGE_ERROR_ID = 'slots-from-error';
 
+const CHIP_LOOK: Readonly<Record<SlotStatus, { readonly className: string; readonly icon: LucideIcon }>> = {
+  free: { className: 'border-border bg-card text-foreground', icon: CircleCheck },
+  busy: { className: 'border-transparent bg-secondary text-muted-foreground', icon: Ban },
+  'entered-in-error': { className: 'border-warning bg-warning-soft text-warning', icon: CircleAlert },
+};
+
 function SlotTile({ slot }: { readonly slot: ScheduleSlot }): ReactNode {
+  const tStamp = useT('stamp');
+  const { className, icon: Icon } = CHIP_LOOK[slot.status];
+  const time: string = `${formatClinicTime(slot.start)}–${formatClinicTime(slot.end)}`;
   return (
-    <li data-testid={`slot-${slot.status}`} className="flex items-center justify-between gap-2 rounded-control border border-[var(--border)] px-2 py-1 text-sm">
-      <span className="mono">
-        {formatClinicTime(slot.start)}–{formatClinicTime(slot.end)}
-      </span>
-      <StampBadge status={slot.status} />
+    <li data-testid={`slot-${slot.status}`} title={`${time} · ${tStamp(slot.status)}`} className={cn('flex items-center justify-center gap-1.5 rounded-control border px-2 py-1.5 text-sm', className)}>
+      <Icon aria-hidden="true" className="size-3.5 shrink-0" />
+      <span className="tabular-nums">{time}</span>
+      <span className="sr-only">{tStamp(slot.status)}</span>
     </li>
   );
 }
 
-/** The totals, and — when the answer is as long as the server's page — the warning that they may be incomplete. */
 function SlotCountsLine({ counts, isPartial }: { readonly counts: SlotCounts; readonly isPartial: boolean }): ReactNode {
   const t = useT('admin.slots');
   const values = { total: counts.total, free: counts.free, busy: counts.busy, error: counts['entered-in-error'] };
@@ -52,7 +61,7 @@ function SlotDays({ days }: { readonly days: ReadonlyArray<SlotDay<ScheduleSlot>
       {days.map(({ day, slots: daySlots }) => (
         <section key={day} aria-label={formatDayHeading(day, locale, 'compact')}>
           <h3 className="serif text-base font-semibold">{formatDayHeading(day, locale, 'compact')}</h3>
-          <ul className="mt-2 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+          <ul className="mt-2 grid grid-cols-[repeat(auto-fill,minmax(8.5rem,1fr))] gap-2">
             {daySlots.map((slot) => (
               <SlotTile key={slot.id} slot={slot} />
             ))}
@@ -80,18 +89,17 @@ interface SlotFiltersProps {
   readonly onChange: (query: SlotsQuery) => void;
 }
 
-/** «С» and «По»: one period error describes both dates (it is the pair that is wrong, not one of them). */
 function PeriodFields({ query, periodError, onChange }: SlotFiltersProps): ReactNode {
   const t = useT('admin.slots');
   const error: string | undefined = periodError === null ? undefined : t(`grid.errors.${periodError}`);
-  const dateProps = { type: 'date', 'aria-invalid': error ? true : undefined, 'aria-describedby': error ? RANGE_ERROR_ID : undefined, className: CONTROL_CLASS } as const;
+  const dateProps = { 'aria-invalid': error ? true : undefined, 'aria-describedby': error ? RANGE_ERROR_ID : undefined, wrapperClassName: 'w-44' } as const;
   return (
     <>
       <Field id="slots-from" label={t('grid.from')} error={error}>
-        <input id="slots-from" {...dateProps} value={query.from} onChange={(event) => onChange({ ...query, from: event.target.value })} />
+        <DatePicker id="slots-from" {...dateProps} value={query.from} onChange={(from) => onChange({ ...query, from })} />
       </Field>
       <Field id="slots-to" label={t('grid.to')}>
-        <input id="slots-to" {...dateProps} value={query.to} onChange={(event) => onChange({ ...query, to: event.target.value })} />
+        <DatePicker id="slots-to" {...dateProps} value={query.to} onChange={(to) => onChange({ ...query, to })} />
       </Field>
     </>
   );
@@ -103,21 +111,16 @@ function SlotFilters({ query, periodError, onChange }: SlotFiltersProps): ReactN
     <div className="mt-3 flex flex-wrap items-end gap-3">
       <PeriodFields query={query} periodError={periodError} onChange={onChange} />
       <Field id="slots-status" label={t('grid.status')}>
-        <select id="slots-status" value={query.status} onChange={(event) => onChange({ ...query, status: event.target.value as SlotStatus | '' })} className={CONTROL_CLASS}>
+        <Select id="slots-status" value={query.status} onChange={(event) => onChange({ ...query, status: event.target.value as SlotStatus | '' })}>
           {STATUS_FILTERS.map((status) => (
             <option key={status} value={status}>{t(`grid.statusFilter.${status === '' ? 'default' : status}`)}</option>
           ))}
-        </select>
+        </Select>
       </Field>
     </div>
   );
 }
 
-/**
- * The slots of one schedule by day, with free / busy / entered-in-error told apart (api-designer-spec §5.2.6). It opens on the
- * next two weeks of the planning horizon, so a schedule that starts later is not shown as empty. A period that cannot be sent
- * (cleared or reversed dates, over 90 days) is explained instead of asked for.
- */
 export function ScheduleSlotGrid({ schedule }: { readonly schedule: AdminSchedule }): ReactNode {
   const t = useT('admin.slots');
   const [query, setQuery] = useState<SlotsQuery>(() => ({ ...defaultGenerationRange(schedule), status: '' }));

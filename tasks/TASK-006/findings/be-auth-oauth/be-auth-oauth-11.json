@@ -1,0 +1,20 @@
+{
+  "id": "be-auth-oauth-11",
+  "unit": "be-auth-oauth",
+  "kind": "question",
+  "severity": "low",
+  "title": "События аутентификации (вход, блокировка по лимиту попыток, выход) нигде не аудируются: AuditEvent пишется только для изменений пользователей и импорта НСИ",
+  "description": "AuditService в auth-service создаёт AuditEvent в HAPI только для recordUserChange (создание/изменение/деактивация учётной записи) и recordTerminologyImport. Успешный и неуспешный вход, срабатывание лимита попыток на учётную запись (LoginThrottle → 429), выход (/oauth/token/revoke) и обнаружение повторного предъявления токена фиксируются лишь строкой в логе приложения (userId или ip, без e-mail). Экран «Аудит» администратора (GET /api/v1/admin/audit) поэтому не может ответить на вопросы «кто и когда входил в систему», «кого пытались подобрать». Формально ТЗ/FR-021 говорит об аудите «создание/изменение/удаление», поэтому это не дефект, а решение владельца: для медицинской системы журнал входов — обычная практика (в HL7 FHIR R4 для этого есть AuditEvent с type DCM 110114 «User Authentication», subtype 110122 «Login»/110123 «Logout», а для блокировок — «Security Alert»).",
+  "evidence": "apps/auth-service/src/modules/audit/audit.service.ts:17-49 (только recordUserChange и recordTerminologyImport); apps/auth-service/src/modules/oauth/login/login.controller.ts:127-134 (только this.logger.warn/log); grep 'authentication|login' по apps/auth-service/src/modules/audit — пусто; tasks/TASK-001/requirements-analyst-requirements.md:87 (FR-021: «создание/изменение/удаление»).",
+  "files": [
+    "apps/auth-service/src/modules/audit/audit.service.ts",
+    "apps/auth-service/src/modules/audit/audit-event.builder.ts",
+    "apps/auth-service/src/modules/oauth/login/login.controller.ts",
+    "apps/auth-service/src/modules/oauth/login/login-throttle.service.ts"
+  ],
+  "proposedFix": "If approved (option A): add AuditService.recordAuthentication({ outcome, subtype: 'login' | 'logout' | 'lockout', userId?, ip, requestId }) with a builder next to audit-event.builder.ts (AuditEvent.type DCM 110114, subtype 110122/110123 or a Security Alert code for lockouts; agent = the account by `Patient|Practitioner` reference or `User/{id}` identifier, source.observer = auth-service, network address = ip; never the e-mail or password). Call it from LoginController.resumeAuthorization (success), from refusalOf on 'throttled', and from OAuthService.revoke. Fire-and-forget with the same never-rethrow rule as recordUserChange so a HAPI outage cannot block sign-in; a spec per call site; make sure the admin audit list (analytics-service) can show the new event types.",
+  "needsDecision": true,
+  "decisionQuestion": "Нужно ли писать в журнал аудита (AuditEvent) события аутентификации? Варианты: (A) успешные входы и выходы врачей и администраторов + все блокировки по лимиту попыток — мало записей, максимум пользы (рекомендую); (B) вообще все входы, включая пациентов, и каждую неудачную попытку — полный журнал, но заметная нагрузка на HAPI и шум; (C) оставить как есть: только лог приложения.",
+  "tzRef": "FR-021; NFR-006 (AuditEvent)",
+  "confidence": "confirmed"
+}

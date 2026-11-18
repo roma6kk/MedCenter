@@ -28,30 +28,33 @@ function setup(respond: () => unknown = () => pageOf(ROWS)): void {
   renderWithClient(<DoctorJournal />);
 }
 
-/** The timeline of the day: a labelled region that holds one list item per visit. */
 async function findTable(): Promise<HTMLElement> {
   return screen.findByRole('region', { name: 'Приёмы по времени' });
 }
 
-function lastJournalPath(): string {
-  return callsTo(apiFetchMock, JOURNAL).at(-1)?.[0] ?? '';
+function lastQuery(): URLSearchParams {
+  return new URL(callsTo(apiFetchMock, JOURNAL).at(-1)?.[0] ?? '', 'http://x').searchParams;
+}
+
+function visit(search: string): void {
+  window.history.replaceState(null, '', `/doctor/appointments${search}`);
 }
 
 describe('DoctorJournal', () => {
-  beforeEach(() => window.history.replaceState(null, '', '/doctor/appointments'));
+  beforeEach(() => visit(''));
+  afterEach(() => window.history.replaceState(null, '', '/'));
 
   it('should request the clinic day as from and to instead of the unsupported date parameter', async () => {
     setup();
 
     await findTable();
 
-    const query = new URL(lastJournalPath(), 'http://x').searchParams;
+    const query = lastQuery();
     expect(query.get('from')).toBe(`${TODAY}T00:00:00+03:00`);
     expect(query.get('to')).toBe(`${TODAY}T23:59:59+03:00`);
     expect(query.has('date')).toBe(false);
   });
 
-// Long typing sequences (hundreds of keystrokes through user-event) take well over 5 s when the machine is busy.
 jest.setTimeout(30_000);
 
   it('should show the Minsk time of each visit with the patient and the booked service', async () => {
@@ -64,12 +67,12 @@ jest.setTimeout(30_000);
     expect(within(row as HTMLElement).getByText('Консультация терапевта')).toBeInTheDocument();
   });
 
-  it('should show the reason of the next patient in the side panel and leave out what the API does not have', async () => {
+  it('should show the next patient in the side panel and leave out what the API does not have', async () => {
     setup();
 
     const panel = within(await screen.findByRole('region', { name: 'Кузнецов Алексей' }));
 
-    expect(panel.getByText('Боль в горле')).toBeInTheDocument();
+    expect(panel.queryByText('Боль в горле')).toBeNull();
     expect(panel.getByText('30 мин')).toBeInTheDocument();
     expect(panel.queryByText(/Прошлые визиты|Последний диагноз/)).toBeNull();
   });
@@ -93,7 +96,54 @@ jest.setTimeout(30_000);
   it('should collapse a long pause between two visits into one line', async () => {
     setup(() => pageOf([ROWS[0] as ReturnType<typeof appointment>, appointment({ id: 'late', patientId: 'p9', patientName: 'Орлов Иван', start: '2026-10-20T11:00:00Z', end: '2026-10-20T11:30:00Z' })]));
 
-    expect(await within(await findTable()).findByText('4 ч 30 мин без записей')).toBeInTheDocument();
+    expect(await within(await findTable()).findByText('Окно 4 ч 30 мин')).toBeInTheDocument();
+  });
+
+  it('should show a pause of half an hour as a quiet «окно» row between two visits (A13)', async () => {
+    setup(() =>
+      pageOf([
+        appointment({ id: 'x1', start: '2026-10-20T06:00:00Z', end: '2026-10-20T06:30:00Z' }),
+        appointment({ id: 'x2', patientId: 'p9', patientName: 'Орлов Иван', start: '2026-10-20T07:00:00Z', end: '2026-10-20T07:30:00Z' }),
+      ]),
+    );
+
+    expect(await within(await findTable()).findByText('Окно 30 мин')).toBeInTheDocument();
+  });
+
+  it('should draw the «now» line between the visits behind the doctor and those ahead on today\'s timeline (A13)', async () => {
+    const at = (offsetMinutes: number): string => new Date(Date.now() + offsetMinutes * 60_000).toISOString();
+    setup(() =>
+      pageOf([
+        appointment({ id: 'past', start: at(-120), end: at(-90) }),
+        appointment({ id: 'ahead', patientId: 'p9', patientName: 'Орлов Иван', start: at(120), end: at(150) }),
+      ]),
+    );
+    const timeline = await findTable();
+
+    const now = await within(timeline).findByTestId('journal-now');
+
+    const order: string[] = Array.from(timeline.querySelectorAll('[data-testid]')).map((node) => node.getAttribute('data-testid') ?? '');
+    expect(order.indexOf('journal-visit-past')).toBeLessThan(order.indexOf('journal-now'));
+    expect(order.indexOf('journal-now')).toBeLessThan(order.indexOf('journal-visit-ahead'));
+    expect(now).toHaveTextContent('Сейчас');
+  });
+
+  it('should not draw the «now» line on another day', async () => {
+    visit(`?date=${shiftDateKey(TODAY, -1)}`);
+    setup();
+
+    await findTable();
+
+    expect(screen.queryByTestId('journal-now')).not.toBeInTheDocument();
+  });
+
+  it('should keep the badge of a no-show readable on the card tinted with its own colour', async () => {
+    setup();
+
+    const badge = within(await screen.findByTestId('journal-visit-a2')).getByTestId('stamp-noshow');
+
+    expect(badge).toHaveClass('bg-card', 'ring-warning');
+    expect(badge).not.toHaveClass('bg-warning-soft');
   });
 
   it('should link the patient name to the patient card', async () => {
@@ -107,7 +157,20 @@ jest.setTimeout(30_000);
     await findTable();
 
     expect(screen.getAllByRole('button', { name: /Открыть приём/ })).toHaveLength(1);
-    expect(screen.getAllByRole('button', { name: /Отметить неявку/ })).toHaveLength(1);
+    expect(screen.getAllByRole('button', { name: /Действия с записью/ })).toHaveLength(1);
+  });
+
+  it('should keep the no-show away from the «Карточка пациента» button and behind a menu with a confirmation (A5)', async () => {
+    setup();
+    await findTable();
+    expect(screen.queryByRole('button', { name: 'Неявка' })).not.toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('button', { name: /Действия с записью/ }));
+    const item = screen.getByRole('menuitem', { name: 'Неявка' });
+    expect(item).toHaveClass('text-destructive');
+    await userEvent.click(item);
+
+    expect(screen.getByRole('dialog', { name: 'Отметить неявку?' })).toBeInTheDocument();
   });
 
   it('should fall back to the patient id when the service sent no name', async () => {
@@ -127,10 +190,35 @@ jest.setTimeout(30_000);
     expect(timeline.getByText('Пациент p4')).toBeInTheDocument();
   });
 
-  it('should say so when the day has no appointments', async () => {
+  it('should say that today has no appointments and name the next one with a button to jump there (A12)', async () => {
+    const tomorrow: string = shiftDateKey(TODAY, 1);
+    const next = appointment({ id: 'n1', patientName: 'Кузнецов Павел', start: `${tomorrow}T07:00:00Z`, end: `${tomorrow}T07:30:00Z` });
+    setup(() => pageOf([]));
+    apiFetchMock.mockImplementation((path: string) => Promise.resolve(path.includes(encodeURIComponent(`${TODAY}T23:59:59+03:00`)) ? pageOf([]) : pageOf([next])));
+
+    expect(await screen.findByText('Сегодня записей нет')).toBeInTheDocument();
+    expect(await screen.findByText('Ближайший приём — завтра, 10:00, Кузнецов П.')).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Перейти к приёму' }));
+
+    await waitFor(() => expect(window.location.search).toBe(`?date=${tomorrow}`));
+  });
+
+  it('should look no further than 14 days ahead and say so when nothing is booked (A12)', async () => {
     setup(() => pageOf([]));
 
-    expect(await screen.findByText('На этот день записей нет')).toBeInTheDocument();
+    expect(await screen.findByText('Сегодня записей нет')).toBeInTheDocument();
+    expect(await screen.findByText('В ближайшие 14 дн. записей нет.')).toBeInTheDocument();
+    const lookAhead = callsTo(apiFetchMock, JOURNAL).map(([path]) => new URL(path, 'http://x').searchParams).find((query) => query.get('from')?.startsWith(shiftDateKey(TODAY, 1)));
+    expect(lookAhead?.get('to')).toBe(`${shiftDateKey(TODAY, 14)}T23:59:59+03:00`);
+    expect(screen.queryByRole('button', { name: 'Перейти к приёму' })).not.toBeInTheDocument();
+  });
+
+  it('should name the day instead of «сегодня» when another empty day is open', async () => {
+    const day: string = shiftDateKey(TODAY, -1);
+    visit(`?date=${day}`);
+    setup(() => pageOf([]));
+
+    expect(await screen.findByText(/^На .* записей нет$/)).toBeInTheDocument();
   });
 
   it('should hide the rows of other statuses when a status is chosen', async () => {
@@ -161,7 +249,7 @@ jest.setTimeout(30_000);
 
     const tomorrow: string = shiftDateKey(TODAY, 1);
     await screen.findByText(/Записей на день/);
-    expect(new URL(lastJournalPath(), 'http://x').searchParams.get('from')).toBe(`${tomorrow}T00:00:00+03:00`);
+    expect(lastQuery().get('from')).toBe(`${tomorrow}T00:00:00+03:00`);
   });
 
   it('should load the previous day and enable the today button when the previous-day button is pressed', async () => {
@@ -171,12 +259,12 @@ jest.setTimeout(30_000);
 
     await userEvent.click(screen.getByRole('button', { name: 'Предыдущий день' }));
 
-    expect(new URL(lastJournalPath(), 'http://x').searchParams.get('from')).toBe(`${shiftDateKey(TODAY, -1)}T00:00:00+03:00`);
+    expect(lastQuery().get('from')).toBe(`${shiftDateKey(TODAY, -1)}T00:00:00+03:00`);
     expect(screen.getByRole('button', { name: 'Сегодня' })).toHaveAttribute('aria-disabled', 'false');
   });
 
   it('should keep keyboard focus on the today button when it is activated', async () => {
-    window.history.replaceState(null, '', `/doctor/appointments?date=${shiftDateKey(TODAY, -2)}`);
+    visit(`?date=${shiftDateKey(TODAY, -2)}`);
     setup();
     await findTable();
     const today = screen.getByRole('button', { name: 'Сегодня' });
@@ -184,10 +272,9 @@ jest.setTimeout(30_000);
 
     await userEvent.keyboard('{Enter}');
 
-    expect(new URL(lastJournalPath(), 'http://x').searchParams.get('from')).toBe(`${TODAY}T00:00:00+03:00`);
+    expect(lastQuery().get('from')).toBe(`${TODAY}T00:00:00+03:00`);
     expect(today).toHaveFocus();
     expect(today).toHaveAttribute('aria-disabled', 'true');
-    window.history.replaceState(null, '', '/');
   });
 
   it('should ignore the today button when the journal already shows today', async () => {
@@ -236,81 +323,74 @@ jest.setTimeout(30_000);
     setup();
     await findTable();
 
-    expect(new URL(lastJournalPath(), 'http://x').searchParams.get('pageSize')).toBe('50');
+    expect(lastQuery().get('pageSize')).toBe('50');
   });
 
   it('should start on the day given in the address bar when it is a real date', async () => {
-    window.history.replaceState(null, '', '/doctor/appointments?date=2026-10-19');
+    visit('?date=2026-10-19');
     setup();
 
     await findTable();
 
-    expect(new URL(lastJournalPath(), 'http://x').searchParams.get('from')).toBe('2026-10-19T00:00:00+03:00');
-    window.history.replaceState(null, '', '/');
+    expect(lastQuery().get('from')).toBe('2026-10-19T00:00:00+03:00');
   });
 
   it('should fall back to today when the day in the address bar is not a date', async () => {
-    window.history.replaceState(null, '', '/doctor/appointments?date=soon');
+    visit('?date=soon');
     setup();
 
     await findTable();
 
-    expect(new URL(lastJournalPath(), 'http://x').searchParams.get('from')).toBe(`${TODAY}T00:00:00+03:00`);
-    window.history.replaceState(null, '', '/');
+    expect(lastQuery().get('from')).toBe(`${TODAY}T00:00:00+03:00`);
   });
 
   it('should write the chosen day into the address bar when the day changes', async () => {
-    window.history.replaceState(null, '', '/doctor/appointments');
     setup();
     await findTable();
 
     await userEvent.click(screen.getByRole('button', { name: 'Следующий день' }));
 
     expect(window.location.search).toBe(`?date=${shiftDateKey(TODAY, 1)}`);
-    window.history.replaceState(null, '', '/');
   });
 
   it('should follow the address bar when a navigation drops the day while the journal stays mounted', async () => {
-    window.history.replaceState(null, '', '/doctor/appointments?date=2026-10-19');
+    visit('?date=2026-10-19');
     apiFetchMock.mockReset();
     routeApi(apiFetchMock, [{ path: JOURNAL, respond: () => pageOf(ROWS) }]);
     const { rerender } = renderWithClient(<DoctorJournal />);
     await findTable();
-    expect(new URL(lastJournalPath(), 'http://x').searchParams.get('from')).toBe('2026-10-19T00:00:00+03:00');
+    expect(lastQuery().get('from')).toBe('2026-10-19T00:00:00+03:00');
 
-    // The shell's "Журнал" link: same route, no `?date=`, the component is not remounted.
-    window.history.replaceState(null, '', '/doctor/appointments');
+    visit('');
     rerender(<DoctorJournal />);
 
-    await waitFor(() => expect(new URL(lastJournalPath(), 'http://x').searchParams.get('from')).toBe(`${TODAY}T00:00:00+03:00`));
+    await waitFor(() => expect(lastQuery().get('from')).toBe(`${TODAY}T00:00:00+03:00`));
     expect(screen.getByRole('button', { name: 'Сегодня' })).toHaveAttribute('aria-disabled', 'true');
-    window.history.replaceState(null, '', '/');
   });
 
   it('should return to page 1 when the day changes while a later page is open', async () => {
     setup(() => pageOf(ROWS, 1, 3));
     await findTable();
     await userEvent.click(screen.getByRole('button', { name: 'Следующая страница' }));
-    await waitFor(() => expect(new URL(lastJournalPath(), 'http://x').searchParams.get('page')).toBe('2'));
+    await waitFor(() => expect(lastQuery().get('page')).toBe('2'));
 
     await userEvent.click(screen.getByRole('button', { name: 'Следующий день' }));
 
-    await waitFor(() => expect(new URL(lastJournalPath(), 'http://x').searchParams.get('page')).toBe('1'));
+    await waitFor(() => expect(lastQuery().get('page')).toBe('1'));
   });
 
   it('should move a journal that follows today to the new day when midnight passes in Minsk', async () => {
-    // 2026-10-20 23:59:30 in Minsk (UTC+3).
     jest.useFakeTimers({ now: new Date('2026-10-20T20:59:30Z'), advanceTimers: true });
     try {
       setup();
       await findTable();
-      expect(new URL(lastJournalPath(), 'http://x').searchParams.get('from')).toBe('2026-10-20T00:00:00+03:00');
+      expect(lastQuery().get('from')).toBe('2026-10-20T00:00:00+03:00');
 
       act(() => {
         jest.advanceTimersByTime(60_000);
       });
 
-      await waitFor(() => expect(new URL(lastJournalPath(), 'http://x').searchParams.get('from')).toBe('2026-10-21T00:00:00+03:00'));
+      await waitFor(() => expect(lastQuery().get('from')).toBe('2026-10-21T00:00:00+03:00'));
       expect(screen.getByRole('button', { name: 'Сегодня' })).toHaveAttribute('aria-disabled', 'true');
     } finally {
       jest.useRealTimers();
@@ -325,7 +405,6 @@ jest.setTimeout(30_000);
     }
 
     it('should request the five working days at once and show each visit as a block at its time', async () => {
-      // On a weekend the day view first asks for that day, which is outside the working week.
       jest.useFakeTimers({ now: new Date('2026-10-21T09:00:00Z'), advanceTimers: true });
       try {
         await openWeek();

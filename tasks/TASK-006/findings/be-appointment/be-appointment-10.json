@@ -1,0 +1,19 @@
+{
+  "id": "be-appointment-10",
+  "unit": "be-appointment",
+  "kind": "security",
+  "severity": "low",
+  "title": "Ответы API с данными пациентов не помечены Cache-Control: no-store - ни в сервисах, ни в Traefik, ни во фронтенде (сквозной недочёт всех BFF)",
+  "description": "Ответы 6.2, 6.3 и 6.5 содержат ФИО пациента и врача, услугу и свободный текст о здоровье; так же устроены карточка пациента, история приёмов и назначения других сервисов. Ни applyHttpEdge (libs/common), ни middleware security-headers в Traefik, ни apiFetch фронтенда не задают Cache-Control: no-store; Express добавляет только слабый ETag. Браузер вправе сохранить такие ответы в своём кэше, и после выхода из учётной записи на общем компьютере (регистратура, кабинет врача) их можно прочитать из кэша браузера. Находка сквозная, обнаружена при проверке ответов appointment-service; исправление нужно в одном месте.",
+  "evidence": "libs/common/src/lib/http/http-edge.ts:24-31 applyHttpEdge() sets only 'trust proxy' and disables x-powered-by; infra/traefik/dynamic.yml:22-38 middleware security-headers has no Cache-Control; frontend/src/lib/api/api-fetch.ts has no `cache` option; grep -rn 'no-store|Cache-Control' in libs/common/src finds nothing. Scenario: a doctor opens the journal on a shared workstation (GET /api/v1/doctor/appointments), signs out; the next person on the same browser profile can read the stored response from the browser cache.",
+  "files": [
+    "libs/common/src/lib/http/http-edge.ts",
+    "infra/traefik/dynamic.yml",
+    "frontend/src/lib/api/api-fetch.ts"
+  ],
+  "proposedFix": "Set `Cache-Control: no-store` (plus `Pragma: no-cache`) on every API response in one place: a tiny middleware registered in applyHttpEdge() so all BFFs get it (it can skip nothing: public catalog routes are cheap and are cached server-side in Redis anyway), or the Traefik security-headers middleware via customResponseHeaders for the /api routers. A public GET that should stay browser-cacheable can set its own Cache-Control in the controller later. Add a spec for http-edge.ts (an authenticated route answers with the header). Verify the Next.js client does not rely on browser caching of /api GETs (it uses react-query with its own staleTime).",
+  "needsDecision": false,
+  "decisionQuestion": "",
+  "tzRef": "NFR-006 (защита ПДн); OWASP ASVS V8 (sensitive data in caches)",
+  "confidence": "likely"
+}

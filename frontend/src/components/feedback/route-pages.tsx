@@ -19,8 +19,7 @@ const TILE_TONE: Record<Tone, string> = {
   destructive: 'bg-destructive-soft text-destructive',
 };
 
-/** The frame of a screen outside every route group (404, 403, a crashed page): one skip link and the `<main>` it targets. */
-function MessageFrame({ children }: { readonly children: ReactNode }): ReactNode {
+export function MessageFrame({ children }: { readonly children: ReactNode }): ReactNode {
   return (
     <>
       <SkipLink />
@@ -48,12 +47,11 @@ interface MessageProps {
   readonly children?: ReactNode;
 }
 
-/** Calm centred message: icon tile, a clear title, one sentence and the way out. */
 function Message({ testId, icon, tone, title, description, children }: MessageProps): ReactNode {
   return (
     <div data-testid={testId} className="w-full rounded-panel border border-border bg-card p-8 text-center sm:p-10">
       <IconTile icon={icon} tone={tone} />
-      <h1 className="mt-5 text-[28px] font-bold leading-tight">{title}</h1>
+      <h1 className="mt-5 text-2xl font-bold leading-tight">{title}</h1>
       <p className="mt-2 text-muted-foreground">{description}</p>
       {children}
     </div>
@@ -65,30 +63,26 @@ function HomeLink({ variant }: { readonly variant: 'primary' | 'secondary' }): R
   return <Link href="/" className={buttonVariants({ variant, size: 'lg' })}>{t('backHome')}</Link>;
 }
 
-/** `app/not-found.tsx`: a URL no route answers to. */
-export function NotFoundPage(): ReactNode {
-  const t = useT('feedback');
-  useDocumentTitle(t('notFoundPage'));
+function HomeMessagePage(props: Omit<MessageProps, 'children'>): ReactNode {
   return (
     <MessageFrame>
-      <Message testId="not-found-state" icon={Compass} tone="primary" title={t('notFoundTitle')} description={t('notFoundPage')}>
+      <Message {...props}>
         <div className="mt-6 flex justify-center"><HomeLink variant="primary" /></div>
       </Message>
     </MessageFrame>
   );
 }
 
-/** `app/403/page.tsx`: where the role guard sends a signed-in user who opened another role's section. */
+export function NotFoundPage(): ReactNode {
+  const t = useT('feedback');
+  useDocumentTitle(t('notFoundPage'));
+  return <HomeMessagePage testId="not-found-state" icon={Compass} tone="primary" title={t('notFoundTitle')} description={t('notFoundPage')} />;
+}
+
 export function ForbiddenPage(): ReactNode {
   const t = useT('feedback');
   useDocumentTitle(t('forbiddenTitle'));
-  return (
-    <MessageFrame>
-      <Message testId="forbidden-state" icon={ShieldAlert} tone="warning" title={t('forbiddenTitle')} description={t('forbiddenPage')}>
-        <div className="mt-6 flex justify-center"><HomeLink variant="primary" /></div>
-      </Message>
-    </MessageFrame>
-  );
+  return <HomeMessagePage testId="forbidden-state" icon={ShieldAlert} tone="warning" title={t('forbiddenTitle')} description={t('forbiddenPage')} />;
 }
 
 interface RouteErrorPageProps {
@@ -96,7 +90,6 @@ interface RouteErrorPageProps {
   readonly reset: () => void;
 }
 
-/** `app/error.tsx`: a page crashed while rendering. The error text is for support, not a translation: it is shown as it came. */
 export function RouteErrorPage({ error, reset }: RouteErrorPageProps): ReactNode {
   const t = useT('feedback');
   const tCommon = useT('common');

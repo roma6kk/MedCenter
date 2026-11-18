@@ -10,11 +10,6 @@ class HealthStatus {
   readonly status!: 'ok';
 }
 
-/**
- * Liveness probe for the compose healthcheck (`HEALTH_PATH=/health`). It only
- * proves the process serves HTTP; HAPI outages surface on the API
- * routes as 502/504 and in the logs.
- */
 @ApiTags('encounter')
 @Controller()
 export class HealthController {

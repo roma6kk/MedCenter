@@ -1,0 +1,21 @@
+{
+  "id": "fe-patient-04",
+  "unit": "fe-patient",
+  "kind": "ux",
+  "severity": "low",
+  "title": "«Мои записи» и «Уведомления» забывают вкладку, фильтр и страницу при возврате из карточки записи; «Медкарта» вкладку в адресе хранит",
+  "description": "Вкладка («Предстоящие» / «Все записи») и номер страницы списка записей, а также фильтр и страница уведомлений живут только в useState. Пациент открывает «Все записи», листает на 3-ю страницу, жмёт «Подробнее» (или ссылку «Открыть запись» в уведомлении), затем «Назад к записям» или кнопку браузера, и снова попадает на вкладку «Предстоящие», страница 1. Страница «Медкарта» уже решает ту же задачу правильно: открытая вкладка лежит в ?tab= (window.history.replaceState), и ссылки вроде /medcard?tab=prescriptions работают. Для списков записей и уведомлений такой привязки нет, и глубокой ссылки на «Все записи» тоже нет. В TASK-005 тот же вопрос (хранить ли фильтры в адресе) поднят только для админских списков.",
+  "evidence": "frontend/src/components/appointments/appointment-list.tsx:87-103 (useListState: useState('upcoming'), useState(1)); frontend/src/components/patient/notification-center.tsx:149-155 (useState filter/page); frontend/src/components/patient/medical-record.tsx:19-26 (tab kept in ?tab= through replaceState) and app/(patient)/medcard/page.tsx:12-14 (searchParams -> initialTab). Scenario: /appointments -> «Все записи» -> page 2 -> «Подробнее» -> «Назад к записям» -> list opens on «Предстоящие», page 1.",
+  "files": [
+    "frontend/src/components/appointments/appointment-list.tsx",
+    "frontend/src/app/(patient)/appointments/page.tsx",
+    "frontend/src/components/patient/notification-center.tsx",
+    "frontend/src/app/(patient)/notifications/page.tsx",
+    "frontend/src/components/patient/medcard-tab.ts"
+  ],
+  "proposedFix": "Follow the MedicalRecord pattern: read `?tab=` (and `?page=` for the 'all' tab) from searchParams in appointments/page.tsx and pass them as initial values; write them back with window.history.replaceState on change (default tab = clean URL). Same for notifications (`?filter=`, `?page=`). Add a small pure parser next to parseMedcardTab (unknown values fall back to the default) and specs for it.",
+  "needsDecision": true,
+  "decisionQuestion": "Хранить вкладку/фильтр и страницу списков пациента («Мои записи», «Уведомления») в адресе, как уже сделано для «Медкарты»? Варианты: (а) да, только для кабинета пациента; (б) да, и для админских списков из вопроса TASK-005; (в) нет, оставить локальное состояние. Рекомендация: (б), одним механизмом.",
+  "tzRef": "FR-006 (просмотр записей), frontend-design-spec §5.2 (активные фильтры)",
+  "confidence": "confirmed"
+}

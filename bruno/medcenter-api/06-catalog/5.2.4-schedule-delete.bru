@@ -26,9 +26,10 @@ script:pre-request {
 }
 
 assert {
-  res.status: eq 204
+  res.status: eq 200
+  res.body.deactivated: isBoolean
 }
 
 docs {
-  Spec 5.2.4. ADMIN. Body `{ "cascade": false }` by default. Without slots -> 204; with free slots only `cascade:true` -> 204 (slots removed, or the schedule is deactivated when appointments reference them); a `busy` slot always -> 409 `SCHEDULE_IN_USE`. A repeat is safe (204).
+  Spec 5.2.4. ADMIN. Body `{ "cascade": false }` by default. Answer 200 `{ "deactivated": boolean }`. Without slots -> `false`; with free slots only `cascade:true` -> `false` (slots removed), or `true` when the schedule is deactivated because appointments reference its slots; a `busy` slot always -> 409 `SCHEDULE_IN_USE`. A repeat is safe (200 `true`).
 }

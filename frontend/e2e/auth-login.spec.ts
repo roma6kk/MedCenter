@@ -1,46 +1,46 @@
-/**
- * E2E — the token-broker flow in a real browser against the live stack (TASK-001, frontend CORE).
- *
- * authorize → auth-service login form → callback → session → refresh → logout, with the seeded demo users. Skipped when the
- * seed manifest is absent (run `npm run seed:demo -- --users --with-admin` first). Credentials never leave the fixtures.
- *
- * auth-service throttles `POST /oauth/login` per IP and per account (brute-force protection), so every describe signs in
- * ONCE in `beforeAll` and its serial tests share that session; mutating cases (token rotation, sign-out) own a separate account.
- */
-import { expect, test, type Browser, type BrowserContext, type Page } from '@playwright/test';
-import { signInThroughLoginForm } from './fixtures/auth';
-import { hasDemoManifest, loadDemoAccount, ROLE_LANDING, type DemoRole } from './fixtures/demo-accounts';
+import { expect, test } from '@playwright/test';
+import { openSignedInSession, returnToOfAuthorizeUrl } from './fixtures/auth';
+import { hasDemoManifest, ROLE_LANDING } from './fixtures/demo-accounts';
+import type { StoredSession } from './fixtures/session-state';
 
 test.skip(!hasDemoManifest(), 'demo seed manifest not found');
 
 const DEFAULT_ORIGIN = 'http://localhost:3000';
 
-interface Session {
-  readonly context: BrowserContext;
-  readonly page: Page;
-}
-
-async function openSession(browser: Browser, role: DemoRole, index: number, baseURL: string | undefined, returnTo?: string): Promise<Session> {
-  const context = await browser.newContext({ baseURL });
-  const page = await context.newPage();
-  await signInThroughLoginForm(page, loadDemoAccount(role, index), { webOrigin: baseURL, returnTo });
-  return { context, page };
-}
-
 test.describe('anonymous visitor', () => {
-  test('should be sent to /login with returnTo when a protected route is opened', async ({ page }) => {
+  test('should be sent to /login with returnTo, and from there straight to the auth-service form, when a protected route is opened', async ({ page, request }) => {
+    const redirect = await request.get('/appointments', { maxRedirects: 0 });
+    expect(redirect.headers()['location']).toMatch(/\/login\?returnTo=%2Fappointments$/);
+
     await page.goto('/appointments');
 
-    await expect(page).toHaveURL(/\/login\?returnTo=%2Fappointments$/);
+    await expect(page.locator('input[name="email"]')).toBeVisible();
+    expect(returnToOfAuthorizeUrl(page.url())).toBe('/appointments');
+  });
+
+  test('should show the branded auth-service form with a way back to the site and a password toggle', async ({ page, baseURL }) => {
+    await page.goto('/login');
+
+    await expect(page.getByRole('link', { name: /На сайт/ })).toHaveAttribute('href', `${new URL(baseURL ?? DEFAULT_ORIGIN).origin}/`);
+    const password = page.locator('input[name="password"]');
+    await expect(password).toHaveAttribute('type', 'password');
+    const toggle = page.getByRole('button', { name: 'Показать пароль' });
+    await expect(toggle).toHaveAttribute('aria-pressed', 'false');
+    await toggle.click();
+    await expect(password).toHaveAttribute('type', 'text');
+    await expect(toggle).toHaveAttribute('aria-pressed', 'true');
+    await toggle.click();
+    await expect(password).toHaveAttribute('type', 'password');
+    await expect(toggle).toHaveAttribute('aria-pressed', 'false');
   });
 });
 
 test.describe('patient session', () => {
   test.describe.configure({ mode: 'serial' });
-  let session: Session;
+  let session: StoredSession;
 
   test.beforeAll(async ({ browser, baseURL }) => {
-    session = await openSession(browser, 'PATIENT', 0, baseURL);
+    session = await openSignedInSession(browser, 'PATIENT', 0, baseURL);
   });
 
   test.afterAll(async () => {
@@ -70,7 +70,7 @@ test.describe('patient session', () => {
   });
 
   test('should show the unread counter in the bell', async () => {
-    await expect(session.page.getByRole('link', { name: /Уведомления, непрочитанных: \d+/ })).toBeVisible();
+    await expect(session.page.getByRole('button', { name: /Уведомления, непрочитанных: \d+/ })).toBeVisible();
   });
 
   test('should show the 403 page when an admin route is opened', async () => {
@@ -82,10 +82,10 @@ test.describe('patient session', () => {
 
 test.describe('patient session with returnTo, rotation and sign-out', () => {
   test.describe.configure({ mode: 'serial' });
-  let session: Session;
+  let session: StoredSession;
 
   test.beforeAll(async ({ browser, baseURL }) => {
-    session = await openSession(browser, 'PATIENT', 1, baseURL, '/appointments');
+    session = await openSignedInSession(browser, 'PATIENT', 1, baseURL, '/appointments');
   });
 
   test.afterAll(async () => {
@@ -99,7 +99,7 @@ test.describe('patient session with returnTo, rotation and sign-out', () => {
   test('should rotate the single-use refresh token and stay signed in when the cached access token is gone', async () => {
     const refreshBefore = (await session.context.cookies()).find((cookie) => cookie.name === 'mc_rt')?.value;
 
-    // The access-token cookie expires after 15 minutes; dropping it forces the next page load through the rotation path.
+    // The access-token cookie expires after 15 minutes; dropping it forces the rotation path.
     await session.context.clearCookies({ name: 'mc_at' });
     await session.page.reload();
     await session.page.waitForLoadState('load');
@@ -112,21 +112,22 @@ test.describe('patient session with returnTo, rotation and sign-out', () => {
 
   test('should end the session and protect the routes again when the user signs out', async () => {
     await session.page.getByRole('button', { name: 'Выйти' }).click();
-    await expect(session.page).toHaveURL(/\/login$/);
+    await expect(session.page).toHaveURL(/\/$/);
 
     expect((await session.context.cookies()).map((cookie) => cookie.name)).not.toContain('mc_rt');
     await session.page.goto('/booking');
-    await expect(session.page).toHaveURL(/\/login\?returnTo=%2Fbooking$/);
+    await expect(session.page.locator('input[name="email"]')).toBeVisible();
+    expect(returnToOfAuthorizeUrl(session.page.url())).toBe('/booking');
   });
 });
 
 for (const role of ['DOCTOR', 'ADMIN'] as const) {
   test.describe(`${role.toLowerCase()} session`, () => {
     test.describe.configure({ mode: 'serial' });
-    let session: Session;
+    let session: StoredSession;
 
     test.beforeAll(async ({ browser, baseURL }) => {
-      session = await openSession(browser, role, 0, baseURL);
+      session = await openSignedInSession(browser, role, 0, baseURL);
     });
 
     test.afterAll(async () => {
@@ -138,8 +139,11 @@ for (const role of ['DOCTOR', 'ADMIN'] as const) {
     });
 
     test('should show no notification bell because staff have no notification endpoints', async () => {
-      await expect(session.page.getByRole('button', { name: 'Выйти' })).toBeVisible();
-      await expect(session.page.getByRole('link', { name: /Уведомления/ })).toHaveCount(0);
+      const profileMenu = session.page.getByRole('button', { name: /^Меню профиля: / }).first();
+      await profileMenu.click();
+      await expect(session.page.getByRole('menuitem', { name: 'Выйти' })).toBeVisible();
+      await session.page.keyboard.press('Escape');
+      await expect(session.page.getByRole('button', { name: /Уведомления/ })).toHaveCount(0);
     });
 
     test('should show the 403 page when a patient route is opened', async () => {

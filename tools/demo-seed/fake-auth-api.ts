@@ -1,17 +1,21 @@
 import type { FetchLike } from '../shared/fhir-http';
+import { readUsersConfig } from './demo-cli-options';
 import { FakeAuthServer } from './fake-auth-server';
-
-/** Test double of the account endpoints of auth-service, on top of the OAuth double. */
+import type { UsersSeedConfig } from './seed-demo-users';
 
 export const ADMIN_EMAIL = 'admin@medcenter.test';
 export const ADMIN_PASSWORD = 'Adm1n!Passw0rd';
+export const USERS_SEED_NOW = new Date('2026-11-02T10:00:00.000Z');
+
+export function usersConfigOf(env: NodeJS.ProcessEnv = {}, previous?: UsersSeedConfig['previous'], withAdmin = true): UsersSeedConfig {
+  return readUsersConfig({ BOOTSTRAP_ADMIN_EMAIL: ADMIN_EMAIL, BOOTSTRAP_ADMIN_PASSWORD: ADMIN_PASSWORD, ...env }, previous, USERS_SEED_NOW, withAdmin);
+}
 
 interface Call {
   readonly path: string;
   readonly authorization?: string;
 }
 
-/** The two account endpoints: admin creation (needs the admin's Bearer token) and public registration. */
 function accountEndpoint(created: string[], calls: Call[], path: string, init: Parameters<FetchLike>[1]): Response {
   const headers = (init?.headers ?? {}) as Record<string, string>;
   calls.push({ path, ...(headers['authorization'] === undefined ? {} : { authorization: headers['authorization'] }) });
@@ -26,7 +30,6 @@ function accountEndpoint(created: string[], calls: Call[], path: string, init: P
   return new Response(JSON.stringify({ id: `id-${created.length}` }), { status: 201 });
 }
 
-/** auth-service as the seed sees it: the OAuth endpoints and the two account endpoints. */
 export function authService(
   accounts: Record<string, string> = { [ADMIN_EMAIL]: ADMIN_PASSWORD },
   grantedScope?: string,

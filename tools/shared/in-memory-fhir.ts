@@ -1,15 +1,5 @@
 import type { FetchLike, FhirResource } from './fhir-http';
 
-/**
- * Test double for HAPI: just enough of FHIR REST for the seed tools — `PUT`,
- * `DELETE`, `transaction`/`batch` Bundles of PUTs, search by top-level
- * string/reference params, `_summary=count` and `ValueSet/$expand`. Its
- * semantics mirror the real server where the seeds depend on them: `PUT`
- * answers `201` for a new id and `200` for an existing one, a PUT whose body
- * is unchanged does not create a new version, and `$expand?filter=` matches the
- * concept *display* only (HAPI's in-memory expansion does not match codes).
- */
-
 interface StoredResource {
   readonly resource: FhirResource;
   readonly version: number;
@@ -49,7 +39,6 @@ function matchesOne(resource: FhirResource, name: string, value: string): boolea
   return field === value || referenceOf(field) === value;
 }
 
-/** A comma-separated value is an OR over its parts, as in FHIR search. */
 function matchesParam(resource: FhirResource, name: string, value: string): boolean {
   return value.split(',').some((part) => matchesOne(resource, name, part));
 }
@@ -113,7 +102,6 @@ export class InMemoryFhirServer {
     return this.store.get(`${resourceType}/${id}`)?.version;
   }
 
-  /** Seeds a pre-existing resource, e.g. a legacy copy left by an earlier run. */
   preload(resource: FhirResource): void {
     this.store.set(`${resource.resourceType}/${resource.id ?? ''}`, { resource, version: 1 });
   }
@@ -175,7 +163,6 @@ export class InMemoryFhirServer {
     return jsonResponse(200, { ...valueSet, expansion: { total: contains.length, contains } });
   }
 
-  /** `result=true` only when the (system, code) pair is a member of the ValueSet. */
   private validateCode(params: URLSearchParams): Response {
     const valueSet = this.all('ValueSet').find((candidate) => candidate['url'] === params.get('url'));
     if (valueSet === undefined) {

@@ -10,7 +10,6 @@ import { AppModule } from './app/app.module';
 
 const HTTP_METHODS = ['get', 'put', 'post', 'delete', 'patch'] as const;
 
-/** Every `METHOD /path` of the document with its operation. */
 function operationsOf(
   document: OpenAPIObject,
 ): Array<{ label: string; path: string; operation: Record<string, unknown> }> {
@@ -57,9 +56,10 @@ describe('catalog-service OpenAPI document (API §10)', () => {
       '/api/v1/admin/schedules/{id}/slots',
       '/api/v1/doctor/schedule',
       '/api/v1/doctors/{id}/slots',
+      '/health',
     ];
     expect(Object.keys(document.paths).sort()).toEqual([...expected].sort());
-    expect(operationsOf(document)).toHaveLength(13);
+    expect(operationsOf(document)).toHaveLength(15);
   });
 
   it('should tag every operation with the service name', () => {
@@ -73,6 +73,7 @@ describe('catalog-service OpenAPI document (API §10)', () => {
       'GET /api/v1/services',
       'GET /api/v1/services/{id}',
       'GET /api/v1/doctors/{id}/slots',
+      'GET /health',
     ];
     for (const { label, operation } of operationsOf(document)) {
       if (publicLabels.includes(label)) {
@@ -107,7 +108,7 @@ describe('catalog-service OpenAPI document (API §10)', () => {
       ).filter((status) => /^2/.test(status));
     expect(successOf('POST /api/v1/admin/services')).toEqual(['201']);
     expect(successOf('DELETE /api/v1/admin/services/{id}')).toEqual(['204']);
-    expect(successOf('DELETE /api/v1/admin/schedules/{id}')).toEqual(['204']);
+    expect(successOf('DELETE /api/v1/admin/schedules/{id}')).toEqual(['200']);
     expect(successOf('POST /api/v1/admin/schedules/{id}/generate')).toEqual(['201']);
   });
 });

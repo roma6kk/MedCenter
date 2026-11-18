@@ -1,0 +1,22 @@
+{
+  "id": "fe-admin-05",
+  "unit": "fe-admin",
+  "kind": "ux",
+  "severity": "low",
+  "title": "«Удаление» расписания со слотами, которые уже держали записи, лишь отключает его, но интерфейс пишет «удалено»; кабинет и услуга навсегда остаются занятыми",
+  "description": "DELETE /admin/schedules/{id}: если после удаления свободных слотов остаются слоты, на которые ссылаются (в том числе отменённые) записи, сервис не удаляет расписание, а ставит active=false и отвечает тем же 204. Интерфейс не различает исходы: тост «Расписание удалено», строка исчезает из списка (по умолчанию показаны только активные), а в фильтре «Неактивные» остаётся. У неактивного расписания спрятаны «Изменить» и «Сгенерировать слоты», а «Удалить» можно нажать сколько угодно: ответ каждый раз 204 и тост об успехе, но ничего не меняется. Поскольку проверки ROOM_IN_USE и SERVICE_IN_USE считают и неактивные расписания, кабинет и услуга такого расписания больше никогда не удаляются: администратор получает 409 «пока на него ссылаются расписания», в «Занятости» видит расписание с пометкой «неактивно» и не имеет действия, которое это снимет.",
+  "evidence": "apps/catalog-service/src/modules/schedules/schedule-removal.ts:127-141 (removeScheduleWithSlots: при оставшихся слотах deactivateSchedule и return, ответ тот же 204); frontend/src/components/admin/schedules/use-admin-schedules.ts:60-66 (useDeleteSchedule: apiFetch<void>, исход не читается) + messages admin.schedules.toast.deleted = «Расписание удалено»; frontend/src/components/admin/schedules/schedules-table.tsx:38-57 (edit и generate только при isActive, «Слоты» и «Удалить» всегда); apps/practitioner-service/src/modules/rooms/rooms.service.ts:122-139 и apps/catalog-service/src/modules/services/services.service.ts:164-181 (поиск Schedule по actor без фильтра active: неактивные расписания тоже дают 409). Сценарий: расписание, по которому записывали и отменяли пациентов -> «Удалить» с галочкой «также свободные слоты» -> тост «удалено», в «Неактивных» оно же -> «Удалить» ещё раз -> снова «удалено», без изменений -> «Удалить кабинет» -> 409 ROOM_IN_USE навсегда.",
+  "files": [
+    "apps/catalog-service/src/modules/schedules/schedule-removal.ts",
+    "frontend/src/components/admin/schedules/use-admin-schedules.ts",
+    "frontend/src/components/admin/schedules/delete-schedule-dialog.tsx",
+    "frontend/src/components/admin/schedules/schedules-table.tsx",
+    "frontend/src/messages/ru.json",
+    "frontend/src/messages/en.json"
+  ],
+  "proposedFix": "Smallest honest step without a policy change: let DELETE answer 200 `{ deactivated: boolean }` instead of an empty 204 (additive for the only client, the admin UI), show the toast «Расписание отключено: слоты с историей записей сохранены» for the deactivated case, hide «Удалить» for an already inactive schedule, and extend the ROOM_IN_USE / SERVICE_IN_USE explanation with «неактивные расписания тоже считаются». The real way out of the dead end (archive a room or a service instead of deleting it) is a product decision, see the question.",
+  "needsDecision": true,
+  "decisionQuestion": "Что делать с кабинетами и услугами, на которые остались ссылки из отключённых расписаний? Варианты: (A) только честные сообщения (отличать «отключено» от «удалено», скрыть повторное «Удалить», объяснить 409), кабинет и услугу при этом удалить нельзя; (B) вместе с (A) дать возможность отключать (архивировать) кабинет и услугу, чтобы они исчезали из выбора расписаний и каталога, но оставались в данных (поле active в PATCH, как у пользователей); (C) оставить как есть. Рекомендация: A сейчас, B как следующий шаг вместе с be-catalog-05 (услугу нельзя отключить), потому что иначе администратор упирается в тупик без единой кнопки.",
+  "tzRef": "FR-016, FR-017, FR-020; BR-001",
+  "confidence": "confirmed"
+}

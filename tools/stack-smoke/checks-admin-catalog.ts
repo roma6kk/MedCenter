@@ -12,7 +12,6 @@ const SATURDAY = [{ dayOfWeek: 'SA', startTime: '09:00', endTime: '12:00' }];
 const HORIZON = { horizonFrom: isoDay(60), horizonTo: isoDay(74) };
 const API_PREFIX = '/api/v1/admin';
 
-/** API §4.4/4.5: `Location.identifier` of a room is unique -> 409 CONFLICT on create and on rename. */
 function duplicateRoomStep(suite: Suite, ids: Ids, tag: string): SmokeStep {
   const { api, sessions } = suite;
   const session = sessions.admin;
@@ -31,6 +30,21 @@ function duplicateRoomStep(suite: Suite, ids: Ids, tag: string): SmokeStep {
       expectStatus(await api.patch(`${API_PREFIX}/rooms/${ids.otherRoom}`, { session, body: { identifier: `smoke-${tag}-b`, name: `Smoke ${tag} b2` } }), 200);
       expectStatus(await api.delete(`${API_PREFIX}/rooms/${ids.otherRoom}`, { session }), 204);
       ids.otherRoom = '';
+    },
+  };
+}
+
+function clearedRoomStep(suite: Suite, ids: Ids): SmokeStep {
+  const { api, sessions } = suite;
+  const session = sessions.admin;
+  return {
+    name: 'PATCH /admin/rooms/{id} with an empty description and a null floor -> 200, both removed',
+    run: async () => {
+      const cleared = await api.patch(`${API_PREFIX}/rooms/${ids.room}`, { session, body: { description: '', floor: null } });
+      expectStatus(cleared, 200);
+      const room = expectShape(cleared.body, ROOM_SHAPE, 'room');
+      expectTrue(!('description' in room), 'the room still has a description after an empty one');
+      expectTrue(!('floor' in room), 'the room still has a floor after null');
     },
   };
 }
@@ -61,6 +75,7 @@ function roomSteps(suite: Suite, ids: Ids, tag: string): SmokeStep[] {
         expectEqual(expectShape(usage.body, ROOM_USAGE_SHAPE, 'usage')['inUse'], false, 'inUse of a new room');
       },
     },
+    clearedRoomStep(suite, ids),
   ];
 }
 
@@ -68,7 +83,7 @@ function serviceStep(suite: Suite, ids: Ids, tag: string): SmokeStep {
   const { api, sessions } = suite;
   const session = sessions.admin;
   return {
-    name: 'POST /admin/services -> 201; PATCH -> 200',
+    name: 'POST /admin/services -> 201; PATCH -> 200; GET /admin/services?search= -> a page with it',
     run: async () => {
       const body = { name: `Smoke ${tag}`, typeSystem: NSI_SERVICES, typeCode: '10001', defaultDurationMin: 30, description: 'created by the stack smoke' };
       const created = await api.post(`${API_PREFIX}/services`, { session, body });
@@ -77,11 +92,12 @@ function serviceStep(suite: Suite, ids: Ids, tag: string): SmokeStep {
       const patched = await api.patch(`${API_PREFIX}/services/${ids.service}`, { session, body: { defaultDurationMin: 25 } });
       expectStatus(patched, 200);
       expectEqual(bodyObject(patched)['defaultDurationMin'], 25, 'defaultDurationMin');
+      const listed = expectPage(await api.get(`${API_PREFIX}/services`, { session, query: { search: `Smoke ${tag}`, pageSize: 100 } }), SERVICE_SHAPE);
+      expectTrue(listed.some((service) => service['id'] === ids.service), 'GET /admin/services does not list the created service');
     },
   };
 }
 
-/** The schedule of the new room and service, in a horizon no demo schedule uses. */
 function scheduleBody(suite: Suite, ids: Ids, horizon: { horizonFrom: string; horizonTo: string } = HORIZON): object {
   return { practitionerRoleId: suite.accounts.doctorRoleId, roomId: ids.room, serviceId: ids.service, ...horizon, windows: SATURDAY, slotDurationMin: 30 };
 }
@@ -147,7 +163,6 @@ function slotSteps(suite: Suite, ids: Ids): SmokeStep[] {
   ];
 }
 
-/** BR-007: the horizon decides whether the same weekday window overlaps. */
 function overlapSteps(suite: Suite, ids: Ids): SmokeStep[] {
   const { api, sessions } = suite;
   const session = sessions.admin;
@@ -198,20 +213,24 @@ function deleteScheduleSteps(suite: Suite, ids: Ids): SmokeStep[] {
   const session = sessions.admin;
   return [
     {
-      name: 'DELETE /admin/schedules/{id} {cascade:true} -> 204 and its free slots are gone',
+      name: 'DELETE /admin/schedules/{id} {cascade:true} -> 200 {deactivated:false}; the schedule and its slots are gone (5.2.6 -> 404)',
       run: async () => {
         const scheduleId = ids.schedule;
-        expectStatus(await api.delete(`${API_PREFIX}/schedules/${scheduleId}`, { session, body: { cascade: true } }), 204);
+        const removed = await api.delete(`${API_PREFIX}/schedules/${scheduleId}`, { session, body: { cascade: true } });
+        expectStatus(removed, 200);
+        expectEqual(bodyObject(removed)['deactivated'], false, 'deactivated');
         ids.removed.schedule = scheduleId;
         ids.schedule = '';
         const slots = await api.get(`${API_PREFIX}/schedules/${scheduleId}/slots`, { session, query: { from: HORIZON.horizonFrom, to: HORIZON.horizonTo } });
-        expectEqual(asArray(slots.body, 'slots').length, 0, 'slots left after the cascade delete');
+        expectProblem(slots, 404, 'NOT_FOUND');
       },
     },
     {
-      name: 'DELETE /admin/schedules/{id} of the second schedule -> 204',
+      name: 'DELETE /admin/schedules/{id} of the second schedule -> 200 {deactivated:false}',
       run: async () => {
-        expectStatus(await api.delete(`${API_PREFIX}/schedules/${ids.futureSchedule}`, { session, body: { cascade: true } }), 204);
+        const removed = await api.delete(`${API_PREFIX}/schedules/${ids.futureSchedule}`, { session, body: { cascade: true } });
+        expectStatus(removed, 200);
+        expectEqual(bodyObject(removed)['deactivated'], false, 'deactivated');
         ids.futureSchedule = '';
       },
     },
@@ -236,7 +255,6 @@ function deleteCatalogStep(suite: Suite, ids: Ids): SmokeStep {
   };
 }
 
-/** Janitor for a chain that stopped half way: removes what the steps left behind, so a failed run leaves no test data. */
 async function removeLeftovers(suite: Suite, ids: Ids): Promise<void> {
   const leftovers: Array<[string, string, unknown?]> = [
     [`${API_PREFIX}/schedules/${ids.schedule}`, ids.schedule, { cascade: true }],
@@ -248,13 +266,12 @@ async function removeLeftovers(suite: Suite, ids: Ids): Promise<void> {
   ];
   for (const [path, id, body] of leftovers.filter(([, id]) => id !== '')) {
     const response = await suite.api.delete(path, { session: suite.sessions.admin, ...(body === undefined ? {} : { body }) });
-    if (response.status !== 204) {
+    if (response.status !== (path.includes('/schedules/') ? 200 : 204)) {
       console.warn(`cleanup: DELETE ${path} answered HTTP ${response.status} (${id}); remove the test data by hand`);
     }
   }
 }
 
-/** The admin's catalog lifecycle in one chain: every step needs what the previous one made. */
 export async function adminCatalogChecks(suite: Suite): Promise<void> {
   const ids: Ids = { room: '', otherRoom: '', service: '', schedule: '', futureSchedule: '', raceRoom: '', removed: { room: '', service: '', schedule: '' } };
   await suite.runner.chain(GROUP, [

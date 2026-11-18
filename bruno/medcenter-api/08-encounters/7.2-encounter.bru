@@ -4,7 +4,6 @@ meta {
   seq: 3
   tags: [
     ro-doctor
-    ro-admin
   ]
 }
 
@@ -30,5 +29,5 @@ tests {
 }
 
 docs {
-  Spec 7.2. DOCTOR (participant) or ADMIN, scope `user/*.read`. Set `encounterId` (7.6 stores it from the patient run).
+  Spec 7.2. DOCTOR (participant) only, ADMIN answers 403 (ADR-018), scope `user/*.read`. Set `encounterId` (7.6 stores it from the patient run).
 }

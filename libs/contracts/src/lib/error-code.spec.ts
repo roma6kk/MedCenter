@@ -1,8 +1,8 @@
 import { ERROR_CODE_HTTP_STATUS, ERROR_CODES, ErrorCode } from './error-code';
 
 describe('ERROR_CODES', () => {
-  it('should expose exactly the 22 API error codes when the catalogue is read', () => {
-    expect(ERROR_CODES).toHaveLength(22);
+  it('should expose exactly the 25 API error codes when the catalogue is read', () => {
+    expect(ERROR_CODES).toHaveLength(25);
   });
 
   it('should declare no duplicate code when every entry is collected', () => {
@@ -63,6 +63,10 @@ describe('ERROR_CODES', () => {
 
   it('should return 422 for INVALID_ICD10_CODE when the status is read', () => {
     expect(ERROR_CODE_HTTP_STATUS.INVALID_ICD10_CODE).toBe(422);
+  });
+
+  it('should return 422 for AGE_RESTRICTED when the status is read', () => {
+    expect(ERROR_CODE_HTTP_STATUS.AGE_RESTRICTED).toBe(422);
   });
 
   it('should return 429 for RATE_LIMITED when the status is read', () => {

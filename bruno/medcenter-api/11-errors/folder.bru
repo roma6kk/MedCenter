@@ -31,13 +31,16 @@ docs {
   | NOT_FOUND | 404 | resource not found |
   | METHOD_NOT_ALLOWED | 405 | method not allowed |
   | CONFLICT | 409 | version conflict or duplicate (EMAIL_TAKEN, room identifier) |
-  | SLOT_CONFLICT | 409 | BR-001: slot already taken |
-  | CONSENT_REQUIRED | 409 | no active EMR consent (7.1, 7.3, 6.1 with reason) |
+  | SLOT_CONFLICT | 409 | BR-001: slot already taken (or already started / no longer offered, 6.1) |
+  | CONSENT_REQUIRED | 409 | no active consent (7.1, 7.3) |
   | CONSENT_ALREADY_ACTIVE | 409 | 3.8: an active consent exists |
   | APPOINTMENT_NOT_CANCELLABLE | 409 | BR-002 |
   | ENCOUNTER_STATE_INVALID | 409 | BR-003/BR-008 |
   | SCHEDULE_OVERLAP | 409 | overlapping planningHorizon |
   | ROOM_IN_USE / SERVICE_IN_USE / SCHEDULE_IN_USE | 409 | deletion blocked by references |
+  | AGE_RESTRICTED | 422 | 2.2.6: self-registration is for persons aged 18 and over; `details[]` names `birthDate` |
+  | ACCOUNT_CONSENT_WITHDRAWN | 409 | 2.2.4: `isActive: true` on an account the patient closed themselves |
+  | INVALID_PASSWORD | 403 | 2.2.8: wrong password when a patient closes their own account, or the account is already closed |
   | INVALID_ICD10_CODE | 422 | code outside the ICD-10 value set; `details[]` per field |
   | TERMINOLOGY_NOT_FOUND | 422 | code outside the seeded НСИ |
   | RATE_LIMITED | 429 | rate limit; `Retry-After` header |

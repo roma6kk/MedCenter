@@ -1,4 +1,4 @@
-import { cancellationInsight, headlineOf, noshowInsight, specialtyInsight } from './analytics-insights';
+import { cancellationInsight, noshowInsight, specialtyInsight } from './analytics-insights';
 import type { AppointmentsReport, MeasureReport } from './analytics-types';
 
 const period = { start: '2026-01-01T00:00:00.000Z', end: '2026-12-31T23:59:59.999Z' };
@@ -16,30 +16,6 @@ function appointments(booked: number, cancelled: number, noshow: number, fulfill
 function encounters(groups: MeasureReport['groups']): MeasureReport {
   return { measure: 'encounters-by-specialty', scoring: 'cohort', period, total: groups.reduce((sum, group) => sum + group.count, 0), groups };
 }
-
-describe('headlineOf', () => {
-  it('should say that more than half is cancelled when cancellations are the majority', () => {
-    expect(headlineOf(appointments(34, 62, 21))).toBe('cancelledMajority');
-  });
-
-  it('should name the leading status when it is not a majority', () => {
-    expect(headlineOf(appointments(10, 12, 10))).toBe('cancelledTop');
-    expect(headlineOf(appointments(10, 3, 12))).toBe('noshowTop');
-    expect(headlineOf(appointments(12, 3, 4))).toBe('bookedTop');
-  });
-
-  it('should name the attended visits when they lead', () => {
-    expect(headlineOf(appointments(3, 2, 1, 9))).toBe('fulfilledTop');
-  });
-
-  it('should call the split even when the top count is shared', () => {
-    expect(headlineOf(appointments(5, 5, 1))).toBe('balanced');
-  });
-
-  it('should give no finding when there are no appointments', () => {
-    expect(headlineOf(appointments(0, 0, 0))).toBe('none');
-  });
-});
 
 describe('cancellationInsight', () => {
   it('should compare the cancellations with booked and no-shows together when they outnumber both', () => {

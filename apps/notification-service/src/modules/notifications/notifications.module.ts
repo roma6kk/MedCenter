@@ -9,6 +9,7 @@ import { createRedisDedupStore } from './redis-dedup.store';
 
 @Module({
   controllers: [NotificationsController],
+  exports: [ConsumerService],
   providers: [
     createFhirClientProvider(),
     { provide: DEDUP_STORE, useFactory: () => createRedisDedupStore() },

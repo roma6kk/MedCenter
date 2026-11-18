@@ -1,0 +1,24 @@
+{
+  "id": "be-analytics-03",
+  "unit": "be-analytics",
+  "kind": "i18n",
+  "severity": "low",
+  "title": "Отчёт 9.3: названия услуг не учитывают Accept-Language, в английском интерфейсе рейтинг услуг остаётся русским, хотя английский перевод в HAPI уже есть",
+  "description": "Коммит 520db7b («English service, specialty and doctor names via FHIR translation and Accept-Language») научил catalog-service и practitioner-service отдавать названия услуг и врачей по заголовку Accept-Language (en -> перевод из расширения translation на HealthcareService._name, иначе русский), а фронтенд apiFetch теперь шлёт этот заголовок во все запросы, в том числе к /admin/analytics. analytics-service заголовок не читает: FhirClinicalReportSource.serviceNames берёт HealthcareService.name как есть. В итоге в таблице «Top 10 services by bookings» английского интерфейса названия услуг русские, хотя переводы сидированы (6 услуг). Отдельно: ключ кэша React Query queryKeys.analytics не содержит локаль (в отличие от services/doctors/doctor), поэтому после исправления бэкенда переключение языка не перезапросит уже загруженный отчёт.",
+  "evidence": "apps/analytics-service/src/modules/reports/clinical-report.source.ts:86-106 serviceNames() (interface at :16): search HealthcareService {_id, _elements:'name', _count} then Map(id -> resource.name), no language; reports.controller.ts:43-50 servicesPopularity() (handler :49-50) has no @Headers('accept-language'); ReportsService.servicesPopularity (reports.service.ts:80-90, names lookup :83). Reference: apps/catalog-service/src/modules/services/services.controller.ts:46-51 (@Headers('accept-language') + resolveContentLanguage) and libs/fhir-mappers/src/lib/translation.ts (resolveContentLanguage, translated(original, element, lang)); translations are stored on HealthcareService._name by tools/demo-seed. Frontend sends the header: frontend/src/lib/api/api-fetch.ts:50; keys: frontend/src/lib/api/query-keys.ts:70 analytics: (kind, params) => ['analytics', kind, normalise(params)] (no locale(), cf. :29-31). Scenario: admin switches the UI to English on /admin/analytics -> 'Приём терапевта' still shown instead of 'Therapist appointment (initial)'.",
+  "files": [
+    "apps/analytics-service/src/modules/reports/reports.controller.ts",
+    "apps/analytics-service/src/modules/reports/reports.service.ts",
+    "apps/analytics-service/src/modules/reports/clinical-report.source.ts",
+    "apps/analytics-service/src/modules/reports/reports.service.spec.ts",
+    "apps/analytics-service/src/modules/reports/clinical-report.source.spec.ts",
+    "frontend/src/lib/api/query-keys.ts",
+    "frontend/src/lib/api/query-keys.spec.ts",
+    "frontend/src/components/admin/analytics/use-analytics.ts"
+  ],
+  "proposedFix": "Follow the catalog pattern: ReportsController.servicesPopularity takes @Headers('accept-language') acceptLanguage?: string and passes resolveContentLanguage(acceptLanguage) (from @medcenter/fhir-mappers) to ReportsService.servicesPopularity(query, lang); ClinicalReportSource.serviceNames(ids, lang) keeps the same HAPI search (verify live that _elements=name still returns the sibling _name; otherwise drop _elements for this call, at most 50 resources) and maps `translated(name, resource['_name'], lang)`. Add the same note to the @ApiOperation summary as in catalog ('name follows Accept-Language: en, else ru'). Frontend: in query-keys.ts append locale() to the services-popularity key (e.g. queryKeys.analytics(kind, params) => ['analytics', kind, normalise(params), locale()] only for kind 'services-popularity', or for all analytics kinds for simplicity) so that a language switch refetches the ranking. Unit specs: language en/ru/missing header in reports.service.spec.ts and clinical-report.source.spec.ts, key spec in query-keys.spec.ts. 9.2 specialty names are a separate question (be-analytics-04).",
+  "needsDecision": false,
+  "decisionQuestion": "",
+  "tzRef": "FR-019; NFR-008 (локализация); коммит 520db7b (английские данные каталога)",
+  "confidence": "confirmed"
+}

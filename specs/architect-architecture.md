@@ -133,11 +133,12 @@ SMART-scopes и RBAC общим guard-слоем (`libs/common`); Traefik мар
 | --- | --- | --- | --- |
 | `appointment.booked.v1` | appointment-service (через outbox, ADR-021) | notification-service | `appointmentId`, `patientRef`, `practitionerRoleRef`, `slotRef`, `start`, `serviceId` |
 | `appointment.cancelled.v1` | appointment-service (через outbox, ADR-021) | notification-service | `appointmentId`, `patientRef`, `actorType`; `reason` — необязательное, не заполняется (ADR-021) |
+| `appointment.noshow.v1` | appointment-service (через outbox, ADR-021) | notification-service | `appointmentId`, `patientRef` |
 | `encounter.completed.v1` | encounter-service (через outbox, ADR-021) | notification-service, analytics-service | `encounterId`, `patientRef`, `practitionerRef`, `diagnosisCount`; `diagnoses[]` — необязательное, не заполняется (ADR-021) |
 | `patient.registered.v1` | auth-service (через outbox, ADR-021) | notification-service | `patientId`; `email` — необязательное, не заполняется (ADR-021) |
 
 Соглашение: события идемпотентно обрабатываются (dedup по `eventId`); контракт — в `libs/contracts`. Доставка — at-least-once; события
-все четыре события публикует `outbox-relay` из записей `Basic` (ADR-021); сервисы-издатели брокера не знают.
+все события публикует `outbox-relay` из записей `Basic` (ADR-021); сервисы-издатели брокера не знают.
 
 **4.5 Форматы ошибок**
 
@@ -181,8 +182,13 @@ SMART-scopes и RBAC общим guard-слоем (`libs/common`); Traefik мар
   и инвалидацией по событиям; rate-limit счётчики; denylist отозванных `jti`.
 - **Индексирование:** индексированные параметры поиска HAPI для `Slot.start/status`,
   `Appointment.date/patient`, `Encounter.date/patient` → NFR-005 (< 500 ms).
-- **Наблюдаемость:** `@nestjs/terminus` (`/health`, `/ready`) на каждом сервисе; `nestjs-pino`
-  (структурные логи + `request-id` сквозной); `prom-client` (RED-метрики).
+- **Наблюдаемость (реализация без новых зависимостей, `libs/common` `applyObservability`):** `GET /health` — liveness;
+  `GET /ready` — готовность (HAPI `/metadata`, TCP Redis/RabbitMQ/PostgreSQL по объявленным зависимостям сервиса,
+  таймаут 2 с на проверку; 503 `{status:'unavailable', failed:[имена]}` без деталей); `GET /metrics` — Prometheus
+  text (RED: `http_requests_total`, `http_request_duration_seconds` по методу, шаблону маршрута и классу статуса,
+  плюс process-метрики); структурные JSON-логи `JsonLogger` (`time`, `level`, `service`, `context`, `msg`,
+  `requestId` через AsyncLocalStorage; `LOG_LEVEL`; секреты маскируются). `/ready` и `/metrics` — только во
+  внутренней сети, в Traefik (`dynamic.yml`) не маршрутизируются. `@nestjs/terminus`, `nestjs-pino`, `prom-client` не нужны.
 
 #### 8. Architecture Decision Records (ADR)
 
@@ -340,7 +346,8 @@ patient-service. Без действующего согласия 7.1/7.3 отв
 `MEDCENTER_EXT.OUTBOX_*` (`libs/terminology`). Отдельный сервис `apps/outbox-relay` (своей БД и публичного API нет, только `/health`) раз в
 несколько секунд читает `Basic?code=outbox-event&_tag=…|pending&_tag:not=…|sent` пачкой (`_count`; HAPI при PUT не заменяет
 `meta.tag`, а добавляет к прежним, поэтому отправленная запись несёт оба тега и `sent` важнее `pending`), публикует каждое через `AmqpEventPublisher`
-(`messageId` = `eventId`) и помечает пачку `sent` одной транзакцией с `If-Match` на прочитанные версии (параллельная реплика
+(`messageId` = `eventId`, флаг `mandatory`: событие, для которого не объявлено ни одной очереди, брокер возвращает, `publish`
+отклоняется и запись остаётся `pending` до следующего опроса, а не помечается `sent`) и помечает пачку `sent` одной транзакцией с `If-Match` на прочитанные версии (параллельная реплика
 проигрывает чисто); опрос идёт под Redis-замком (`SET NX PX` с токеном), поэтому реплики не дублируют работу. Payload для relay
 непрозрачен: схемы `libs/contracts` он не импортирует. *Ретенция:* `sent` старше 7 суток relay удаляет и вызывает `$expunge`
 (в HAPI включено `hapi.fhir.expunge_enabled`); `pending` не удаляется никогда, `pending` старше 5 минут даёт предупреждение в логе
@@ -365,6 +372,21 @@ patient-service. Без действующего согласия 7.1/7.3 отв
 Пороги relay настраиваются переменными `OUTBOX_*` (`docker-compose.yml`), в том числе `OUTBOX_STALE_PENDING_MS` и `OUTBOX_RETENTION_MS`
 (последняя — только для проверки очистки).
 
+**ADR-022 · Правовой режим ПДн учебного стенда и минимальные меры (законодательство РБ) · Accepted (NFR-006; владелец, 2026-11-11)** —
+*Контекст:* правовой обзор TASK-007 (16 вопросов, юрисдикция РБ) показал: пока в системе только вымышленные данные, № 99-З не
+применяется, а с первого реального пользователя появляется оператор, и сведения о здоровье становятся специальными ПДн (ст. 8).
+*Решение:* регистрация остаётся открытой, ввод тестовых данных через интерфейс разрешён; режим `DEMO_MODE`, плашка «Учебный проект» и
+закрытая регистрация не делаются (рекомендация юриста отклонена, остаточный риск принят владельцем); стенд запускается только локально,
+реальные ПДн не вводятся. Минимальные меры в коде: причина отмены записи — нейтральный код без свободного текста о здоровье (B4);
+серверная проверка 18+ при саморегистрации, `AGE_RESTRICTED`, для несовершеннолетнего согласие только от представителя (B3); таймаут
+бездействия сессии (D1, прил. 3 п. 3.7 приказа ОАЦ № 66); события аутентификации — `AuditEvent` типа DICOM 110114 (D3); непредзаполненный
+чекбокс согласия с версией текста и страница учебной политики `/privacy` (B1, C3); «Удалить учётную запись» = деактивация и отзыв токенов,
+медзаписи хранятся (C2); PDF-образец согласия с водяным знаком в сиде и отказ от термина «ЭМК» в интерфейсе (B2, A2).
+*Следствие:* система квалифицируется как ИС организации здравоохранения (не ЭМК/ЭМД, не медизделие); при внедрении клиника — оператор,
+разработчик — уполномоченное лицо (ст. 7), класс ИС 3-спец с аттестацией, СКЗИ и хостингом в РБ — вне объёма курсового, описывается в ПЗ.
+Термин «ЭМК» в ADR-019 читается как «согласие на внесение сведений в ИС клиники». Обзор, недопустимые компромиссы и непроверенные нормы —
+`tasks/TASK-007/architect-pdn-legal-review.md`; ход внедрения — `tasks/TASK-007/progress/coder-pdn-implementation-progress.md`.
+
 #### 9. Трассируемость
 
 **NFR → архитектурный механизм** (ID по `requirements-analyst-requirements.md` §5):
@@ -377,7 +399,7 @@ patient-service. Без действующего согласия 7.1/7.3 отв
 | NFR-004 | Версионированный снапшот НСИ + импортер, биндинг по canonical `https://fhir.by/...` (ADR-002/016) |
 | NFR-005 | Индексированные параметры поиска HAPI + кэш слотов Redis (§7) |
 | NFR-006 | TLS на Traefik, SMART-scopes, RBAC + компартмент, `AuditEvent`, OWASP-контроли; guard-слой в каждом сервисе (§6, ADR-009/013) |
-| NFR-007 | `@nestjs/terminus`, `nestjs-pino` + `request-id`, `prom-client` (§7) |
+| NFR-007 | `/health`, `/ready`, `/metrics` (RED), JSON-логи + `request-id` — `libs/common` `applyObservability` (§7) |
 | NFR-008 | `next-intl` локаль `ru-BY`; TanStack/Zustand (ADR-006/007) |
 | NFR-009 | Stateless BFF + общее состояние Redis (ADR-011) |
 | NFR-010 | draw.io-диаграммы + `CapabilityStatement` из этого дизайна |

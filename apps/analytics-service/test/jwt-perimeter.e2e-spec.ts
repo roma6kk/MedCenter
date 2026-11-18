@@ -3,11 +3,6 @@ import request from 'supertest';
 
 import { startAppHarness, type AppHarness } from './app-harness';
 
-/**
- * Spec-only probe controller: it never ships with the application; it proves
- * the globally mounted guard stack (ADR-009) protects every non-`@Public()`
- * route. Every service carries this file.
- */
 @Controller()
 class PerimeterProbeController {
   @Get('internal/perimeter-probe')

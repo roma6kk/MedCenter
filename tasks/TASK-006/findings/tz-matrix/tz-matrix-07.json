@@ -1,0 +1,25 @@
+{
+  "id": "tz-matrix-07",
+  "unit": "tz-matrix",
+  "kind": "gap",
+  "severity": "medium",
+  "title": "NFR-007: логи не структурные — pino не подключён, а 77 вызовов logger.xxx({...}, 'msg') написаны под pino и в стандартном Nest Logger выводятся искажённо",
+  "description": "NFR-007 и спецификации (MANIFEST: «логи pino с request-id», api-designer-spec §1: «детали только в логе pino + request-id») требуют структурные логи с корреляцией по request-id. Фактически все сервисы стартуют `NestFactory.create(AppModule)` без `useLogger`: пишет стандартный Nest ConsoleLogger в текстовом виде, pino/nestjs-pino не установлены, requestId в строки лога не попадает (middleware только ставит request.requestId; комментарий «read by … the pino logger» ссылается на несуществующий логгер). При этом в коде 77 вызовов в pino-стиле `this.logger.warn({ err, ... }, 'сообщение')`: Nest ConsoleLogger принимает первым аргументом сообщение, а последний строковый аргумент считает контекстом, поэтому человекочитаемый текст попадает в скобки контекста, а объект печатается вместо сообщения. Оператор не может ни фильтровать лог по полям, ни собрать цепочку по x-request-id.",
+  "evidence": "apps/*/src/main.ts: `NestFactory.create(AppModule)` with no `logger`/`useLogger`/`bufferLogs`; package.json has no pino/nestjs-pino; `grep -rnE 'logger\\.(warn|error|log|debug)\\(\\s*\\{' apps libs --include=*.ts` (non-spec) = 77 hits, e.g. apps/analytics-service/src/modules/audit/audit-sync.service.ts:73 `this.logger.log({ fetched, stored }, 'audit journal synchronised from HAPI')`; libs/common/src/lib/request-id.middleware.ts:12-14 mentions a pino logger that does not exist; no AsyncLocalStorage holds the requestId (request-context.ts contains only JwtClaims helpers).",
+  "files": [
+    "libs/common/src/lib/request-id.middleware.ts",
+    "libs/common/src/lib",
+    "apps/auth-service/src/main.ts",
+    "apps/patient-service/src/main.ts",
+    "apps/appointment-service/src/main.ts",
+    "apps/analytics-service/src/main.ts",
+    "apps/encounter-service/src/main.ts",
+    "apps/notification-service/src/main.ts",
+    "apps/outbox-relay/src/main.ts"
+  ],
+  "proposedFix": "Needs no new dependency: add `JsonLogger implements LoggerService` to libs/common that writes one JSON line per call (time, level, service, context, msg, requestId, plus merged object fields; error objects flattened to {name,message,stack}) and accepts both Nest's (message, context) and the existing pino-style ({fields}, 'msg') signatures, so the 77 call sites become correct unchanged. Keep the request id in an AsyncLocalStorage set by RequestIdMiddleware (`als.run({ requestId }, next)`) and read it in the logger. Wire `NestFactory.create(AppModule, { bufferLogs: true })` + `app.useLogger(new JsonLogger('<service>'))` in every main.ts, level from LOG_LEVEL (default info), pretty text when NODE_ENV=development. Alternative: install nestjs-pino as the spec says; the call sites already match its signature. Unit-test both signatures and that secrets/Authorization headers are never serialised.",
+  "needsDecision": false,
+  "decisionQuestion": "",
+  "tzRef": "NFR-007, specs/MANIFEST.md (стек: наблюдаемость)",
+  "confidence": "confirmed"
+}

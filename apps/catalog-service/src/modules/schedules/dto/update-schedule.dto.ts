@@ -6,6 +6,7 @@ import {
   IsInt,
   IsOptional,
   IsString,
+  Matches,
   Max,
   MaxLength,
   Min,
@@ -13,19 +14,15 @@ import {
 } from 'class-validator';
 import { Type } from 'class-transformer';
 
+import { CALENDAR_DATE } from '../../../common/zoned-date';
 import { WeeklyWindowDto } from './create-schedule.dto';
 
-/**
- * API §5.2.3 `UpdateScheduleDto` — window/horizon edits; the service re-checks
- * `SCHEDULE_OVERLAP` for the same practitioner role.
- *
- * Written explicitly rather than via `PartialType`: `@nestjs/mapped-types` is
- * not a workspace dependency.
- */
+/** Written explicitly: `@nestjs/mapped-types` is not a workspace dependency. */
 export class UpdateScheduleDto {
   @ApiPropertyOptional({ format: 'date', example: '2026-11-02' })
   @IsOptional()
-  @IsDateString()
+  @IsDateString({ strict: true })
+  @Matches(CALENDAR_DATE, { message: 'horizonFrom must be a calendar date YYYY-MM-DD' })
   horizonFrom?: string;
 
   @ApiPropertyOptional({
@@ -34,7 +31,8 @@ export class UpdateScheduleDto {
     description: 'Inclusive; at most 90 days after horizonFrom',
   })
   @IsOptional()
-  @IsDateString()
+  @IsDateString({ strict: true })
+  @Matches(CALENDAR_DATE, { message: 'horizonTo must be a calendar date YYYY-MM-DD' })
   horizonTo?: string;
 
   @ApiPropertyOptional({ type: () => [WeeklyWindowDto], minItems: 1 })

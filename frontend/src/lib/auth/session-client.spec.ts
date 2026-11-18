@@ -1,5 +1,7 @@
-import { endRevokedSession, endSession, ensureSession, loadSession, logout, refreshSession } from './session-client';
+import { currentReturnTo, endClosedAccountSession, endIdleSession, endRevokedSession, endSession, ensureSession, loadSession, logout, redirectToLogin, refreshSession } from './session-client';
 import { getAccessToken, clearAccessToken, setAccessToken } from './access-token';
+import { readDraft, writeDraft } from '@/lib/encounter-draft';
+import { consumeFlash } from '@/lib/ui/flash-message';
 import { useBookingDraftStore } from '@/store/use-booking-draft-store';
 import { useSessionStore } from '@/store/use-session-store';
 
@@ -12,6 +14,7 @@ function resetStore(): void {
     patientRef: null,
     fhirUser: null,
     hydrated: false,
+    unavailable: false,
   });
 }
 
@@ -19,19 +22,28 @@ function jsonResponse(body: unknown, status: number): Response {
   return new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
 }
 
+const LIVE_SESSION = {
+  accessToken: 'a.b.c',
+  expiresAt: '2026-10-16T10:15:00.000Z',
+  role: 'PATIENT',
+  scope: 'patient/*.read',
+  patientRef: '1439',
+  fhirUser: null,
+};
+
+beforeEach(() => {
+  jest.restoreAllMocks();
+  clearAccessToken();
+  resetStore();
+});
+
+afterEach(() => {
+  jest.restoreAllMocks();
+  clearAccessToken();
+  resetStore();
+});
+
 describe('loadSession', () => {
-  beforeEach(() => {
-    jest.restoreAllMocks();
-    clearAccessToken();
-    resetStore();
-  });
-
-  afterEach(() => {
-    jest.restoreAllMocks();
-    clearAccessToken();
-    resetStore();
-  });
-
   it('should hydrate the store and the token holder from the broker', async () => {
     jest.spyOn(global, 'fetch').mockResolvedValueOnce(
       jsonResponse(
@@ -73,42 +85,68 @@ describe('loadSession', () => {
     expect(useSessionStore.getState().role).toBeNull();
   });
 
-  it('should mark hydrated and stay signed out when the broker is unreachable', async () => {
+  it('should mark hydrated and flag the session unavailable, not signed out, when the broker is unreachable', async () => {
     jest.spyOn(console, 'error').mockImplementation(() => undefined);
     jest.spyOn(global, 'fetch').mockRejectedValueOnce(new Error('network down'));
 
     await loadSession();
 
     expect(getAccessToken()).toBeNull();
-    expect(useSessionStore.getState().hydrated).toBe(true);
+    const state = useSessionStore.getState();
+    expect(state.hydrated).toBe(true);
+    expect(state.unavailable).toBe(true);
+    expect(state.role).toBeNull();
   });
 
-  it('should mark hydrated and clear the token on a non-ok broker response', async () => {
-    jest.spyOn(global, 'fetch').mockResolvedValueOnce(new Response(null, { status: 500 }));
+  it.each([500, 503, 429])('should flag the session unavailable on a %i from the broker: auth-service did not judge the refresh cookie', async (status) => {
+    jest.spyOn(global, 'fetch').mockResolvedValueOnce(jsonResponse({ error: 'auth_unavailable' }, status));
+
+    await loadSession();
+
+    expect(useSessionStore.getState().hydrated).toBe(true);
+    expect(useSessionStore.getState().unavailable).toBe(true);
+  });
+
+  it('should keep a session already in memory when the broker answers 503', async () => {
+    setAccessToken('a.b.c');
+    useSessionStore.getState().setSession({ ...LIVE_SESSION, role: 'DOCTOR' });
+    jest.spyOn(global, 'fetch').mockResolvedValueOnce(jsonResponse({ error: 'auth_unavailable' }, 503));
+
+    await loadSession();
+
+    expect(getAccessToken()).toBe('a.b.c');
+    expect(useSessionStore.getState().role).toBe('DOCTOR');
+    expect(useSessionStore.getState().unavailable).toBe(false);
+  });
+
+  it('should sign out on a refused broker response', async () => {
+    setAccessToken('a.b.c');
+    useSessionStore.getState().setSession({ ...LIVE_SESSION, role: 'DOCTOR' });
+    jest.spyOn(global, 'fetch').mockResolvedValueOnce(new Response(null, { status: 401 }));
 
     await loadSession();
 
     expect(getAccessToken()).toBeNull();
+    expect(useSessionStore.getState().role).toBeNull();
+    expect(useSessionStore.getState().unavailable).toBe(false);
     expect(useSessionStore.getState().hydrated).toBe(true);
+  });
+
+  it('should recover once auth-service answers again', async () => {
+    jest.spyOn(global, 'fetch')
+      .mockResolvedValueOnce(jsonResponse({ error: 'auth_unavailable' }, 503))
+      .mockResolvedValueOnce(jsonResponse(LIVE_SESSION, 200));
+
+    await loadSession();
+    expect(useSessionStore.getState().unavailable).toBe(true);
+    await loadSession();
+
+    expect(useSessionStore.getState().unavailable).toBe(false);
+    expect(useSessionStore.getState().role).toBe('PATIENT');
   });
 });
 
-const LIVE_SESSION = {
-  accessToken: 'a.b.c',
-  expiresAt: '2026-10-16T10:15:00.000Z',
-  role: 'PATIENT',
-  scope: 'patient/*.read',
-  patientRef: '1439',
-  fhirUser: null,
-};
-
 describe('session exchange single flight', () => {
-  beforeEach(() => {
-    jest.restoreAllMocks();
-    clearAccessToken();
-    resetStore();
-  });
-
   it('should share one request between a mount-time load and a StrictMode double load', async () => {
     const fetchSpy = jest.spyOn(global, 'fetch').mockResolvedValue(jsonResponse(LIVE_SESSION, 200));
 
@@ -122,7 +160,7 @@ describe('session exchange single flight', () => {
 
     const [, refreshed] = await Promise.all([loadSession(), refreshSession()]);
 
-    expect(refreshed).toBe(true);
+    expect(refreshed).toBe('ok');
     expect(fetchSpy).toHaveBeenCalledTimes(1);
   });
 
@@ -137,18 +175,12 @@ describe('session exchange single flight', () => {
 });
 
 describe('refreshSession', () => {
-  beforeEach(() => {
-    jest.restoreAllMocks();
-    clearAccessToken();
-    resetStore();
-  });
-
   it('should POST to the refresh endpoint and update the token and the store', async () => {
     const fetchSpy = jest.spyOn(global, 'fetch').mockResolvedValueOnce(jsonResponse(LIVE_SESSION, 200));
 
     const refreshed = await refreshSession();
 
-    expect(refreshed).toBe(true);
+    expect(refreshed).toBe('ok');
     expect(fetchSpy.mock.calls[0]?.[0]).toBe('/api/auth/refresh');
     expect((fetchSpy.mock.calls[0]?.[1] as RequestInit).method).toBe('POST');
     expect(getAccessToken()).toBe('a.b.c');
@@ -159,31 +191,54 @@ describe('refreshSession', () => {
     useSessionStore.getState().setSession({ ...LIVE_SESSION, role: 'PATIENT' });
     jest.spyOn(global, 'fetch').mockResolvedValueOnce(jsonResponse({ ok: true }, 200));
 
-    await expect(refreshSession()).resolves.toBe(true);
+    await expect(refreshSession()).resolves.toBe('ok');
 
     expect(useSessionStore.getState().role).toBe('PATIENT');
   });
 
-  it('should sign the tab out and resolve false when the refresh is refused', async () => {
+  it('should sign the tab out and resolve ended when the refresh is refused', async () => {
     useSessionStore.getState().setSession({ ...LIVE_SESSION, role: 'PATIENT' });
     setAccessToken('a.b.c');
     jest.spyOn(global, 'fetch').mockResolvedValueOnce(new Response(null, { status: 401 }));
 
-    await expect(refreshSession()).resolves.toBe(false);
+    await expect(refreshSession()).resolves.toBe('ended');
 
     expect(getAccessToken()).toBeNull();
     expect(useSessionStore.getState().role).toBeNull();
+  });
+
+  it('should resolve ended when the broker answers 200 for an anonymous visitor', async () => {
+    jest.spyOn(global, 'fetch').mockResolvedValueOnce(jsonResponse({ accessToken: null }, 200));
+
+    await expect(refreshSession()).resolves.toBe('ended');
+  });
+
+  it('should resolve unavailable and keep the tab signed in when the broker answers 503', async () => {
+    useSessionStore.getState().setSession({ ...LIVE_SESSION, role: 'PATIENT' });
+    setAccessToken('a.b.c');
+    jest.spyOn(global, 'fetch').mockResolvedValueOnce(jsonResponse({ error: 'auth_unavailable' }, 503));
+
+    await expect(refreshSession()).resolves.toBe('unavailable');
+
+    expect(getAccessToken()).toBe('a.b.c');
+    expect(useSessionStore.getState().role).toBe('PATIENT');
+  });
+
+  it('should resolve unavailable and keep the tab signed in when the request itself fails', async () => {
+    jest.spyOn(console, 'error').mockImplementation(() => undefined);
+    useSessionStore.getState().setSession({ ...LIVE_SESSION, role: 'PATIENT' });
+    setAccessToken('a.b.c');
+    jest.spyOn(global, 'fetch').mockRejectedValueOnce(new TypeError('offline'));
+
+    await expect(refreshSession()).resolves.toBe('unavailable');
+
+    expect(getAccessToken()).toBe('a.b.c');
+    expect(useSessionStore.getState().role).toBe('PATIENT');
   });
 });
 
 describe('ensureSession', () => {
   const NOW = Date.parse('2026-10-16T10:00:00Z');
-
-  beforeEach(() => {
-    jest.restoreAllMocks();
-    clearAccessToken();
-    resetStore();
-  });
 
   it('should hydrate the store when it is empty', async () => {
     const fetchSpy = jest.spyOn(global, 'fetch').mockResolvedValueOnce(jsonResponse(LIVE_SESSION, 200));
@@ -217,10 +272,7 @@ describe('endSession and logout', () => {
   const assignSpy = jest.fn();
 
   beforeEach(() => {
-    jest.restoreAllMocks();
     assignSpy.mockReset();
-    clearAccessToken();
-    resetStore();
     useBookingDraftStore.getState().clearDraft();
     Object.defineProperty(window, 'location', { value: { pathname: '/appointments', search: '', assign: assignSpy }, writable: true });
   });
@@ -235,6 +287,7 @@ describe('endSession and logout', () => {
     const init = fetchSpy.mock.calls[0]?.[1] as RequestInit;
     expect(fetchSpy.mock.calls[0]?.[0]).toBe('/api/auth/logout');
     expect((init.headers as Record<string, string>)['Authorization']).toBe('Bearer a.b.c');
+    expect(init.body).toBeUndefined();
     expect(getAccessToken()).toBeNull();
     expect(useSessionStore.getState().role).toBeNull();
   });
@@ -249,22 +302,59 @@ describe('endSession and logout', () => {
     expect(getAccessToken()).toBeNull();
   });
 
-  it('should return to the login screen after a user-initiated logout', async () => {
+  it('should return to the home page after a user-initiated logout', async () => {
     jest.spyOn(global, 'fetch').mockResolvedValueOnce(jsonResponse({ loggedOut: true }, 200));
 
     await logout();
 
-    expect(assignSpy).toHaveBeenCalledWith('/login');
+    expect(assignSpy).toHaveBeenCalledWith('/');
   });
 
   it('should forget the booking draft when the user signs out', async () => {
-    useBookingDraftStore.getState().updateDraft({ doctorId: 'doc-1', reason: 'Болит спина', step: 4 });
+    useBookingDraftStore.getState().updateDraft({ doctorId: 'doc-1', serviceId: 'svc-1', step: 4 });
     jest.spyOn(global, 'fetch').mockResolvedValueOnce(jsonResponse({ loggedOut: true }, 200));
 
     await logout();
 
-    expect(useBookingDraftStore.getState().reason).toBe('');
+    expect(useBookingDraftStore.getState().serviceId).toBeNull();
     expect(useBookingDraftStore.getState().doctorId).toBeNull();
+  });
+
+  it('should forget the unfinished encounter forms of this browser when the user signs out', async () => {
+    writeDraft('1442', { summary: 'ОРВИ', diagnoses: [{ code: '', display: '' }], recommendations: '', observations: [], serviceRequests: [], medicationRequests: [] });
+    jest.spyOn(global, 'fetch').mockResolvedValueOnce(jsonResponse({ loggedOut: true }, 200));
+
+    await logout();
+
+    expect(readDraft('1442')).toBeNull();
+  });
+
+  it('should bring the visitor back to the page with its query, so a chosen day or period survives signing in again', async () => {
+    Object.defineProperty(window, 'location', { value: { pathname: '/doctor/appointments', search: '?date=2026-10-05', assign: assignSpy }, writable: true });
+    jest.spyOn(global, 'fetch').mockResolvedValue(jsonResponse({ loggedOut: true }, 200));
+
+    expect(currentReturnTo()).toBe('/doctor/appointments?date=2026-10-05');
+    redirectToLogin();
+    expect(assignSpy).toHaveBeenLastCalledWith('/login?returnTo=%2Fdoctor%2Fappointments%3Fdate%3D2026-10-05');
+    await endRevokedSession();
+
+    expect(assignSpy).toHaveBeenLastCalledWith('/login?returnTo=%2Fdoctor%2Fappointments%3Fdate%3D2026-10-05&reason=session-ended');
+  });
+
+  it('should end an idle session with the idle reason, a flash and no drafts left behind', async () => {
+    Object.defineProperty(window, 'location', { value: { pathname: '/doctor/appointments', search: '', assign: assignSpy }, writable: true });
+    useBookingDraftStore.getState().updateDraft({ doctorId: 'doc-1', step: 3 });
+    jest.spyOn(global, 'fetch').mockResolvedValueOnce(jsonResponse({ loggedOut: true }, 200));
+
+    const fetchSpy = jest.mocked(global.fetch);
+    await endIdleSession();
+
+    const init = fetchSpy.mock.calls[0]?.[1] as RequestInit;
+    expect(JSON.parse(String(init.body))).toEqual({ reason: 'idle' });
+    expect((init.headers as Record<string, string>)['Content-Type']).toBe('application/json');
+    expect(assignSpy).toHaveBeenLastCalledWith('/login?returnTo=%2Fdoctor%2Fappointments&reason=session-idle');
+    expect(consumeFlash()).toBe('session-idle');
+    expect(useBookingDraftStore.getState().doctorId).not.toBe('doc-1');
   });
 
   it('should keep the booking draft when the session was revoked, so the visitor returns to it after signing in', async () => {
@@ -274,5 +364,17 @@ describe('endSession and logout', () => {
     await endRevokedSession();
 
     expect(useBookingDraftStore.getState().doctorId).toBe('doc-1');
+  });
+
+  it('should clear the drafts and open the closed-account page after the account was closed', async () => {
+    useBookingDraftStore.getState().updateDraft({ doctorId: 'doc-1', step: 3 });
+    setAccessToken('a.b.c');
+    jest.spyOn(global, 'fetch').mockResolvedValueOnce(jsonResponse({ loggedOut: true }, 200));
+
+    await endClosedAccountSession();
+
+    expect(assignSpy).toHaveBeenLastCalledWith('/account-closed');
+    expect(getAccessToken()).toBeNull();
+    expect(useBookingDraftStore.getState().doctorId).toBeNull();
   });
 });

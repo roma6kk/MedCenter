@@ -19,16 +19,17 @@ describe('AppointmentDetailView', () => {
   });
 
   it('should read the appointment by the id of the address and show all its fields', async () => {
-    detailMock.mockResolvedValue(appointmentFixture({ reason: 'Болит спина' }));
+    detailMock.mockResolvedValue(appointmentFixture());
 
     renderWithClient(<AppointmentDetailView appointmentId="1552" />);
 
-    expect(await screen.findByText('Болит спина')).toBeInTheDocument();
+    expect(await screen.findByText('Иванова Мария Сергеевна')).toBeInTheDocument();
     expect(detailMock).toHaveBeenCalledWith('1552');
-    expect(screen.getByRole('heading', { level: 1, name: 'Запись на приём' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 1, name: 'Приём 19 октября, 10:00' })).toBeInTheDocument();
+    expect(document.title).toBe('Приём 19 октября, 10:00 — Лайфлайн');
     expect(screen.getByText('Иванова Мария Сергеевна')).toBeInTheDocument();
     expect(screen.getByText('Приём терапевта (первичный)')).toBeInTheDocument();
-    expect(screen.getByText(/10:00/)).toBeInTheDocument();
+    expect(screen.getByText(/19 окт\. 2026 г\., 10:00/)).toBeInTheDocument();
     expect(screen.getByText(/10:30/)).toBeInTheDocument();
     expect(screen.getByTestId('stamp-booked')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /К списку записей/ })).toHaveAttribute('href', '/appointments');
@@ -54,7 +55,7 @@ describe('AppointmentDetailView', () => {
 
     renderWithClient(<AppointmentDetailView appointmentId="1552" />);
 
-    expect(screen.getByTestId('table-skeleton')).toBeInTheDocument();
+    expect(screen.getByTestId('content-skeleton-detail')).toBeInTheDocument();
   });
 
   it.each([
@@ -82,11 +83,11 @@ describe('AppointmentDetailView', () => {
   });
 
   it('should show why a cancelled appointment was cancelled and offer no cancel button', async () => {
-    detailMock.mockResolvedValue(appointmentFixture({ status: 'cancelled', cancelReason: 'Заболел' }));
+    detailMock.mockResolvedValue(appointmentFixture({ status: 'cancelled', cancelReason: 'other-doctor' }));
 
     renderWithClient(<AppointmentDetailView appointmentId="1552" />);
 
-    expect(await screen.findByText('Заболел')).toBeInTheDocument();
+    expect(await screen.findByText('Выберу другого врача')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Отменить запись' })).not.toBeInTheDocument();
   });
 
@@ -96,12 +97,12 @@ describe('AppointmentDetailView', () => {
     renderWithClient(<AppointmentDetailView appointmentId="1552" />);
     await userEvent.click(await screen.findByRole('button', { name: 'Отменить запись' }));
 
-    await userEvent.type(screen.getByLabelText('Причина отмены'), 'Заболел');
-    detailMock.mockResolvedValue(appointmentFixture({ status: 'cancelled', cancelReason: 'Заболел' }));
+    await userEvent.click(screen.getByRole('radio', { name: 'Изменились планы' }));
+    detailMock.mockResolvedValue(appointmentFixture({ status: 'cancelled', cancelReason: 'plans-changed' }));
     await userEvent.click(screen.getByRole('button', { name: 'Подтвердить отмену' }));
 
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
-    expect(cancelMock).toHaveBeenCalledWith('1552', 'Заболел');
+    expect(cancelMock).toHaveBeenCalledWith('1552', 'plans-changed');
     expect(await screen.findByTestId('stamp-cancelled')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Отменить запись' })).not.toBeInTheDocument();
     expect(screen.getByRole('heading', { level: 1 })).toHaveFocus();

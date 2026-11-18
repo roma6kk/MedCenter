@@ -1,0 +1,18 @@
+{
+  "id": "task005-triage-a-T3-04",
+  "unit": "task005-triage-a",
+  "kind": "question",
+  "severity": "low",
+  "title": "Подсказка об отмене записи без сроков: есть ли у клиники реальный дедлайн отмены?",
+  "description": "Подсказка после записи говорит только «Отменить запись можно в разделе «Мои записи»», о сроках не сказано. Это согласуется с требованиями: BR-002 разрешает пациенту и администратору отменять запись без ограничения по времени, и бэкенд срока не проверяет (пациент может отменить даже запись, время которой уже наступило — отдельная находка be-appointment-08). Реальный срок («не позднее чем за 2 часа») — это правило клиники, которого в ТЗ нет и которое нельзя придумать за владельца; если оно нужно, его удобно сделать системной настройкой администратора (ТЗ: управление системными настройками), проверять в appointment-service и называть в подсказке.",
+  "evidence": "frontend/src/messages/ru.json:675 booking.cancelHint «Отменить запись можно в разделе «Мои записи».» (en.json:675 similar); tasks/TASK-001/requirements-analyst-requirements.md:108 BR-002 (no deadline), :61 FR-005; tasks/TASK-006/findings/be-appointment/be-appointment-08.json (cancel after start is accepted).",
+  "files": [
+    "frontend/src/messages/ru.json",
+    "apps/appointment-service/src/modules/appointments/appointments.service.ts"
+  ],
+  "proposedFix": "None for option 1. For option 2: a setting cancelDeadlineHours (default 0 = no limit) read by appointment-service on POST /appointments/:id/cancel (409 CANCEL_TOO_LATE), shown in the hint via a {hours} placeholder, edited by the admin.",
+  "needsDecision": true,
+  "decisionQuestion": "Есть ли у клиники срок, после которого пациент не может отменить запись сам? Варианты: (1) нет срока, как в BR-002 — подсказку оставить как есть (рекомендация, пока нет реального правила клиники); (2) да, срок N часов — настройка администратора, проверка в appointment-service (409 CANCEL_TOO_LATE) и срок в подсказке; для пациента после срока — «позвоните в регистратуру».",
+  "tzRef": "Пациент: отмена записи; FR-005, BR-002",
+  "confidence": "confirmed"
+}

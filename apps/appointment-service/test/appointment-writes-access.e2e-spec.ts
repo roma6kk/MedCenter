@@ -1,7 +1,7 @@
 import request from 'supertest';
 
 import { BOOKED_APPOINTMENT, startAppHarness, type AppHarness } from './app-harness';
-import type { TestTokenClaims } from './test-tokens';
+import type { TestTokenClaims } from '@medcenter/testing';
 
 const DOCTOR: TestTokenClaims = { sub: 'doc-1', role: 'DOCTOR', scope: 'user/*.read user/*.write launch', fhirUser: 'PractitionerRole/role-1' };
 const ADMIN: TestTokenClaims = { sub: 'adm-1', role: 'ADMIN', scope: 'user/*.read user/*.write launch' };
@@ -9,14 +9,14 @@ const PATIENT: TestTokenClaims = { sub: 'user-1', role: 'PATIENT', scope: 'patie
 
 const COMMITTED = { resourceType: 'Bundle', type: 'transaction-response', entry: [] };
 
-/** Slot id shape catalog-service generates: 64 hex chars of SHA-256, not a UUID. */
 const GENERATED_SLOT_ID = 'a3f1c9e07b2d4c5e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2b3c4d5e6f7a8b9c0d1e';
+const SLOT_START_MS = Date.now() + 24 * 60 * 60 * 1000;
 const FREE_SLOT = {
   resourceType: 'Slot',
   id: GENERATED_SLOT_ID,
   status: 'free',
-  start: '2026-11-02T09:00:00+03:00',
-  end: '2026-11-02T09:30:00+03:00',
+  start: new Date(SLOT_START_MS).toISOString(),
+  end: new Date(SLOT_START_MS + 30 * 60 * 1000).toISOString(),
   schedule: { reference: 'Schedule/sched-1' },
   meta: { versionId: '1' },
 };
@@ -26,11 +26,6 @@ const SCHEDULE = {
   actor: [{ reference: 'PractitionerRole/role-1' }, { reference: 'HealthcareService/svc-1' }],
 };
 
-/**
- * Access rules of the M3 write side over HTTP (API §6.4, §6.6): the doctor is
- * recognised by the `fhirUser = PractitionerRole/{id}` claim auth-service now
- * issues, and the cancel scope follows the caller's role.
- */
 describe('Appointment write access (e2e)', () => {
   let harness: AppHarness;
   const bearer = (claims: TestTokenClaims): string => `Bearer ${harness.issuer.sign(claims)}`;
@@ -63,7 +58,6 @@ describe('Appointment write access (e2e)', () => {
       .send({ slotId: GENERATED_SLOT_ID })
       .expect(201);
 
-    // The service assigns the id itself (ADR-021: the outbox event must name the appointment before the commit).
     expect(response.body).toMatchObject({ id: expect.stringMatching(/^[0-9a-f-]{36}$/), status: 'booked', slotId: GENERATED_SLOT_ID, patientId: 'pat-1' });
   });
 
@@ -144,17 +138,28 @@ describe('Appointment write access (e2e)', () => {
     const response = await request(harness.app.getHttpServer())
       .post('/api/v1/appointments/apt-1/cancel')
       .set('Authorization', bearer(PATIENT))
-      .send({ reason: 'не смогу прийти' })
+      .send({ reason: 'plans-changed' })
       .expect(200);
 
-    expect(response.body).toMatchObject({ status: 'cancelled', cancelReason: 'не смогу прийти' });
+    expect(response.body).toMatchObject({ status: 'cancelled', cancelReason: 'plans-changed' });
+  });
+
+  it('should refuse a free-text cancellation reason before reading anything', async () => {
+    const response = await request(harness.app.getHttpServer())
+      .post('/api/v1/appointments/apt-1/cancel')
+      .set('Authorization', bearer(PATIENT))
+      .send({ reason: 'не смогу прийти' })
+      .expect(400);
+
+    expect(response.body).toMatchObject({ errorCode: 'VALIDATION_ERROR' });
+    expect(harness.fhir.read).not.toHaveBeenCalled();
   });
 
   it('should answer 403 FORBIDDEN_SCOPE without reading when an admin without user/*.write cancels', async () => {
     const response = await request(harness.app.getHttpServer())
       .post('/api/v1/appointments/apt-1/cancel')
       .set('Authorization', bearer({ ...ADMIN, scope: 'user/*.read' }))
-      .send({ reason: 'ошибка записи' })
+      .send({ reason: 'other' })
       .expect(403);
 
     expect(response.body).toMatchObject({ errorCode: 'FORBIDDEN_SCOPE' });

@@ -18,8 +18,8 @@ function renderDialog(): { onClose: jest.Mock; onCancelled: jest.Mock } {
   return { onClose, onCancelled };
 }
 
-async function submitReason(reason: string): Promise<void> {
-  if (reason !== '') await userEvent.type(screen.getByLabelText('Причина отмены'), reason);
+async function submitReason(label: string): Promise<void> {
+  if (label !== '') await userEvent.click(screen.getByRole('radio', { name: label }));
   await userEvent.click(screen.getByRole('button', { name: 'Подтвердить отмену' }));
 }
 
@@ -38,66 +38,64 @@ describe('CancelAppointmentDialog', () => {
     expect(dialog).toHaveAccessibleDescription(/10:00 · Иванова Мария Сергеевна/);
   });
 
-  it('should move the focus to the reason field when it opens', () => {
+  it('should confirm with the solid red button and offer the safe choice beside it (VA2, E3)', () => {
     renderDialog();
 
-    expect(screen.getByLabelText('Причина отмены')).toHaveFocus();
+    expect(screen.getByRole('button', { name: 'Подтвердить отмену' })).toHaveClass('bg-destructive', 'text-destructive-foreground');
+    expect(screen.getByRole('button', { name: 'Не отменять' })).toBeInTheDocument();
   });
 
-  it('should ask for a reason and not call the API when the reason is empty', async () => {
+  it('should be a real modal over the page with a scrim and a close cross, not a popover (B2)', () => {
+    renderDialog();
+
+    const dialog = screen.getByRole('dialog', { name: 'Отмена записи' });
+
+    expect(dialog.parentElement).toHaveClass('fixed', 'inset-0', 'bg-scrim');
+    expect(screen.getByRole('button', { name: 'Закрыть' })).toBeInTheDocument();
+  });
+
+  it('should offer the four neutral reasons as radio buttons and no field for free text', () => {
+    renderDialog();
+
+    const group = screen.getByRole('group', { name: 'Причина отмены' });
+
+    expect(screen.getAllByRole('radio').map((radio) => radio.getAttribute('value'))).toEqual(['plans-changed', 'inconvenient-time', 'other-doctor', 'other']);
+    expect(group).toHaveTextContent('Изменились планы');
+    expect(group).toHaveTextContent('Выберу другого врача');
+    expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
+    expect(screen.queryByRole('radio', { name: /самочувств|болезн/i })).not.toBeInTheDocument();
+  });
+
+  it('should move the focus into the reasons when it opens', () => {
+    renderDialog();
+
+    expect(screen.getByRole('group', { name: 'Причина отмены' })).toContainElement(document.activeElement as HTMLElement);
+  });
+
+  it('should ask to choose a reason and not call the API when none is chosen', async () => {
     renderDialog();
 
     await submitReason('');
 
-    expect(await screen.findByText('Укажите причину отмены')).toBeInTheDocument();
-    expect(screen.getByLabelText('Причина отмены')).toHaveAttribute('aria-invalid', 'true');
+    expect(await screen.findByText('Выберите причину отмены')).toBeInTheDocument();
     expect(cancelMock).not.toHaveBeenCalled();
   });
 
-  it('should explain the minimum length when the reason has fewer than 3 characters', async () => {
-    renderDialog();
-
-    await submitReason('ab');
-
-    expect(await screen.findByText('Причина должна содержать не менее 3 символов')).toBeInTheDocument();
-    expect(cancelMock).not.toHaveBeenCalled();
-  });
-
-  it('should not accept a reason made of spaces only', async () => {
-    renderDialog();
-
-    await submitReason('     ');
-
-    expect(await screen.findByText('Укажите причину отмены')).toBeInTheDocument();
-    expect(cancelMock).not.toHaveBeenCalled();
-  });
-
-  it('should explain the maximum length when the reason has more than 500 characters', async () => {
-    renderDialog();
-    const field = screen.getByLabelText('Причина отмены');
-    await userEvent.click(field);
-    await userEvent.paste('я'.repeat(501));
-
-    await userEvent.click(screen.getByRole('button', { name: 'Подтвердить отмену' }));
-
-    expect(await screen.findByText('Причина не должна быть длиннее 500 символов')).toBeInTheDocument();
-  });
-
-  it('should send the trimmed reason for this appointment and report success', async () => {
+  it('should send the chosen code for this appointment and report success', async () => {
     cancelMock.mockResolvedValue({});
     const { onCancelled } = renderDialog();
 
-    await submitReason('  Заболел  ');
+    await submitReason('Другое');
 
     await waitFor(() => expect(onCancelled).toHaveBeenCalledTimes(1));
-    expect(cancelMock).toHaveBeenCalledWith('1552', 'Заболел');
+    expect(cancelMock).toHaveBeenCalledWith('1552', 'other');
   });
 
   it('should mark the submit button as unavailable and say so while the request is running, keeping the focus on it', async () => {
     cancelMock.mockReturnValue(new Promise(() => undefined));
     renderDialog();
 
-    await submitReason('Заболел');
+    await submitReason('Неудобное время');
 
     const busy = await screen.findByRole('button', { name: 'Отменяем…' });
     expect(busy).toHaveAttribute('aria-disabled', 'true');
@@ -108,12 +106,13 @@ describe('CancelAppointmentDialog', () => {
     cancelMock.mockRejectedValue(apiProblem(409, 'APPOINTMENT_NOT_CANCELLABLE'));
     const { onClose } = renderDialog();
 
-    await submitReason('Заболел');
+    await submitReason('Неудобное время');
 
     expect(await screen.findByRole('alert')).toHaveTextContent('Эту запись уже нельзя отменить');
     expect(screen.queryByRole('button', { name: 'Подтвердить отмену' })).not.toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Закрыть' })).toHaveFocus();
-    await userEvent.click(screen.getByRole('button', { name: 'Закрыть' }));
+    const [closeButton] = screen.getAllByRole('button', { name: 'Закрыть' });
+    expect(closeButton).toHaveFocus();
+    await userEvent.click(closeButton!);
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
@@ -121,17 +120,16 @@ describe('CancelAppointmentDialog', () => {
     cancelMock.mockRejectedValue(apiProblem(400, 'VALIDATION_ERROR', { details: [{ field: 'reason', message: 'reason must be longer than or equal to 3 characters' }] }));
     renderDialog();
 
-    await submitReason('Заболел');
+    await submitReason('Неудобное время');
 
     expect(await screen.findByText('Слишком короткое значение')).toBeInTheDocument();
-    expect(screen.getByLabelText('Причина отмены')).toHaveAttribute('aria-invalid', 'true');
   });
 
   it('should show a banner with the request id when the server fails', async () => {
     cancelMock.mockRejectedValue(apiProblem(500, 'INTERNAL', { requestId: 'req-7' }));
     renderDialog();
 
-    await submitReason('Заболел');
+    await submitReason('Неудобное время');
 
     expect(await screen.findByTestId('problem-banner')).toHaveTextContent('req-7');
     expect(screen.getByRole('button', { name: 'Подтвердить отмену' })).toBeEnabled();
@@ -156,17 +154,17 @@ describe('CancelAppointmentDialog', () => {
 
   it('should keep the focus inside the dialog when Tab is pressed on the last control', async () => {
     renderDialog();
-    screen.getByRole('button', { name: 'Не отменять' }).focus();
+    screen.getByRole('button', { name: 'Закрыть' }).focus();
 
     await userEvent.tab();
 
-    expect(screen.getByLabelText('Причина отмены')).toHaveFocus();
+    expect(screen.getAllByRole('radio')[0]).toHaveFocus();
   });
 
   it('should ignore "Do not cancel" while the request is in flight, because the cancellation is already on its way', async () => {
     cancelMock.mockReturnValue(new Promise(() => undefined));
     const { onClose } = renderDialog();
-    await submitReason('Заболел');
+    await submitReason('Неудобное время');
 
     await userEvent.click(await screen.findByRole('button', { name: 'Не отменять' }));
 
@@ -178,7 +176,7 @@ describe('CancelAppointmentDialog', () => {
   it('should ignore Escape while the request is in flight', async () => {
     cancelMock.mockReturnValue(new Promise(() => undefined));
     const { onClose } = renderDialog();
-    await submitReason('Заболел');
+    await submitReason('Неудобное время');
     await screen.findByRole('button', { name: 'Отменяем…' });
 
     await userEvent.keyboard('{Escape}');
@@ -189,7 +187,7 @@ describe('CancelAppointmentDialog', () => {
   it('should close on Escape again after the request failed', async () => {
     cancelMock.mockRejectedValue(apiProblem(500, 'INTERNAL'));
     const { onClose } = renderDialog();
-    await submitReason('Заболел');
+    await submitReason('Неудобное время');
     await screen.findByTestId('problem-banner');
 
     await userEvent.keyboard('{Escape}');
@@ -200,7 +198,7 @@ describe('CancelAppointmentDialog', () => {
   it('should send the cancellation once when the form is submitted again while the request is in flight', async () => {
     cancelMock.mockReturnValue(new Promise(() => undefined));
     renderDialog();
-    await submitReason('Заболел');
+    await submitReason('Неудобное время');
     await screen.findByRole('button', { name: 'Отменяем…' });
 
     await userEvent.click(screen.getByRole('button', { name: 'Отменяем…' }));
@@ -212,7 +210,7 @@ describe('CancelAppointmentDialog', () => {
     let answer: () => void = () => undefined;
     cancelMock.mockReturnValue(new Promise((resolve) => { answer = () => resolve({}); }));
     const view = renderWithClient(<CancelAppointmentDialog appointment={appointmentFixture()} onClose={jest.fn()} onCancelled={jest.fn()} />);
-    await submitReason('Заболел');
+    await submitReason('Неудобное время');
 
     view.unmount();
     answer();
@@ -224,7 +222,7 @@ describe('CancelAppointmentDialog', () => {
     cancelMock.mockRejectedValue(apiProblem(0, 'INTERNAL'));
     renderDialog();
 
-    await submitReason('Заболел');
+    await submitReason('Неудобное время');
 
     expect(await screen.findByTestId('problem-banner')).toHaveTextContent('Нет связи с сервером');
     expect(screen.queryByTestId('code-chip')).not.toBeInTheDocument();

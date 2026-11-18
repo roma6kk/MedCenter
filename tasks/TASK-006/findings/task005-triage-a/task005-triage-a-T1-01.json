@@ -1,0 +1,20 @@
+{
+  "id": "task005-triage-a-T1-01",
+  "unit": "task005-triage-a",
+  "kind": "question",
+  "severity": "low",
+  "title": "RESOLVED (функционально): «Продолжить приём» — повторное открытие приёма идемпотентно на сервере, память браузера влияет только на подпись кнопки",
+  "description": "Открытый вопрос исходил из того, что без флага `hasOpenEncounter` врач с другого устройства (или с очищенным localStorage) потеряет доступ к начатому приёму. Это не так: `POST /encounters` (7.1) идемпотентен — повторный вызов для записи со статусом booked и уже открытым Encounter возвращает его с кодом 200, а не 409. Браузерная память (`medcenter.startedEncounters`) используется только для подписи «Продолжить приём» вместо «Открыть приём» и для того, чтобы не показывать диалог «приём не сегодня» повторно. Данные и сам приём не теряются, поэтому серверный флаг — необязательное косметическое улучшение: пока врач не жалуется на подпись, добавлять его не нужно (потребовалась бы выборка Encounter?appointment=... на каждую страницу журнала и поле в AppointmentViewDto).",
+  "evidence": "apps/encounter-service/src/modules/encounters/encounters.controller.ts:31-48 (7.1: 201 new, 200 when the appointment already has the open encounter); encounter-opening.service.ts:~67-72 doc comment: a repeated open of an in-progress encounter returns it (created=false, 200), a finished one is 409; frontend/src/components/doctor/started-encounters.ts:1-9 states the fallback ('the button simply reads «Открыть приём» (opening is idempotent)'); open-encounter-button.tsx:~74 needsConfirmation = !isContinuing && day !== today.",
+  "files": [
+    "apps/encounter-service/src/modules/encounters/encounters.controller.ts",
+    "apps/encounter-service/src/modules/encounters/encounter-opening.service.ts",
+    "frontend/src/components/doctor/started-encounters.ts",
+    "frontend/src/components/doctor/open-encounter-button.tsx"
+  ],
+  "proposedFix": "None required. If the owner later wants the label to be server-driven: add optional `encounterId?: string` to the doctor appointment view in appointment-service (one `Encounter?appointment=<ids>&status=in-progress` search per journal page) and let OpenEncounterButton prefer it over localStorage.",
+  "needsDecision": false,
+  "decisionQuestion": "",
+  "tzRef": "FR-010 (открытие приёма), BR-008",
+  "confidence": "confirmed"
+}

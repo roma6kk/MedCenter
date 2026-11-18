@@ -1,0 +1,21 @@
+{
+  "id": "task005-triage-a-T3-01",
+  "unit": "task005-triage-a",
+  "kind": "question",
+  "severity": "low",
+  "title": "Кабинет приёма нигде не показывается пациенту: публичные ответы (врач, слот, запись) не содержат ни названия, ни id кабинета — добавлять roomName?",
+  "description": "На экране «Запись подтверждена», в «Моих записях» и в .ics указан только адрес клиники. Данных о кабинете у пациента нет вообще: расписание = врач + кабинет + услуга (Schedule.actor = Location), поэтому кабинет — свойство расписания, а не врача; в публичном ответе слота его нет; DoctorResponseDto.roomId объявлен в спецификации, но не заполняется; roomId есть только в сводке расписания для персонала (GET /doctor/schedule); список кабинетов GET /rooms (4.3) требует user/*.read, то есть пациенту недоступен; в представлении записи кабинета тоже нет. Чтобы показать «Кабинет 204», нужно добавить аддитивное поле roomName (при желании и этаж) в публичный ответ слота (catalog-service: прочитать Location расписания, один запрос на страницу слотов, кеш уже есть) и в представление записи (appointment-service: снять название при бронировании либо читать при отдаче). Обратной несовместимости нет.",
+  "evidence": "grep for roomName over apps/ and libs/ finds nothing; apps/catalog-service/src/modules/slots/schedule-summary.mapper.ts:92 and dto/doctor-schedule-response.dto.ts:15 carry roomId only for the staff schedule summary; apps/practitioner-service/src/modules/doctors/dto/doctor-response.dto.ts:13 roomId is declared and never populated; apps/practitioner-service/src/modules/rooms/rooms.controller.ts:38-39 GET rooms is @RequiresScopes(SMART_SCOPES.USER_READ); tools/demo-seed/demo-catalog.ts:148-157 one Schedule = one (PractitionerRole, room, service), the cardiologist uses rooms 204 and 210; frontend/src/components/booking/booking-success.tsx:58,74 shows and exports only the clinic address.",
+  "files": [
+    "apps/catalog-service/src/modules/slots/schedule-summary.mapper.ts",
+    "apps/appointment-service/src/modules/appointments",
+    "apps/practitioner-service/src/modules/doctors/dto/doctor-response.dto.ts",
+    "frontend/src/components/booking/booking-success.tsx",
+    "frontend/src/lib/ics.ts"
+  ],
+  "proposedFix": "If option 2 is chosen: (1) catalog-service: add roomName to the public slot response, resolving Location.name of the schedule once per request (cache with the page); (2) appointment-service: put roomName (and floor) into AppointmentViewDto, taken from the slot's schedule at booking or read; (3) frontend: show «Кабинет …» in booking-success, appointment cards and the detail view; .ics LOCATION becomes '<address>, <room>'; (4) drop the unused DoctorResponseDto.roomId or fill it; add i18n keys in ru/en and unit tests for the mappers.",
+  "needsDecision": true,
+  "decisionQuestion": "Показывать пациенту кабинет приёма? Варианты: (1) нет — достаточно адреса клиники, кабинет подскажет регистратура (меньше всего работы; тогда убрать мёртвое roomId из DoctorResponseDto); (2) да — аддитивное поле roomName в слотах и в записях, показ в подтверждении, «Моих записях» и в .ics. Рекомендация: (2) в урезанном виде (только roomName): для пациента в день визита кабинет — самая практичная часть записи, а изменение не ломает существующие клиенты.",
+  "tzRef": "Пациент: поиск и выбор времени, просмотр расписания; FR-003, FR-004",
+  "confidence": "confirmed"
+}

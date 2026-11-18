@@ -18,11 +18,6 @@ interface Entry {
   readonly resource?: FhirResource;
 }
 
-/**
- * A schedule holding `slots` as HAPI keeps them: searches answer by the `status`
- * filter, a batch DELETE removes a slot unless an Appointment `referenced` it (409),
- * a batch PUT stores the slot as sent.
- */
 function scheduleWith(slots: FhirResource[], referenced: string[] = []): jest.Mocked<FhirClient> {
   let remaining = [...slots];
   return {
@@ -36,7 +31,6 @@ function scheduleWith(slots: FhirResource[], referenced: string[] = []): jest.Mo
     batch: jest.fn(async (bundle: FhirResource) => {
       const entries = bundle['entry'] as Entry[];
       if (bundle['type'] === 'transaction') {
-        // The schedule's own change and its AuditEvent (ADR-014).
         return answers(...entries.map(() => '200 OK'));
       }
       return answers(
@@ -58,10 +52,8 @@ function scheduleWith(slots: FhirResource[], referenced: string[] = []): jest.Mo
   } as unknown as jest.Mocked<FhirClient>;
 }
 
-/** The slot batches (`type: batch`) of the removal; the audited schedule write is a `transaction`. */
 const slotBatches = (fhir: jest.Mocked<FhirClient>): unknown[][] => fhir.batch.mock.calls.filter((call) => (call[0] as unknown as { type: string }).type === 'batch');
 
-/** The audited writes of the schedule itself, as `METHOD url` plus the AuditEvent's subtype. */
 function transactionsOf(fhir: jest.Mocked<FhirClient>): string[] {
   return fhir.batch.mock.calls
     .map((call) => call[0] as unknown as { type: string; entry: Array<{ request: { method: string; url: string }; resource?: FhirResource }> })
@@ -89,7 +81,7 @@ describe('removeScheduleWithSlots', () => {
   it('should delete only the schedule when it has no slots', async () => {
     const fhir = scheduleWith([]);
 
-    await removeScheduleWithSlots(fhir, SCHEDULE_ID, false, AUDIT);
+    await expect(removeScheduleWithSlots(fhir, SCHEDULE_ID, false, AUDIT)).resolves.toBe(false);
 
     expect(slotBatches(fhir)).toHaveLength(0);
     expect(transactionsOf(fhir)).toEqual(['DELETE Schedule/sched-1 + POST AuditEvent ([{"system":"http://hl7.org/fhir/restful-interaction","code":"delete"}])']);
@@ -158,7 +150,6 @@ describe('removeScheduleWithSlots', () => {
   });
 });
 
-/** HAPI answers 409 for a slot a cancelled Appointment still names in `Appointment.slot` (verified on the live stack). */
 describe('removeScheduleWithSlots with slots that cancelled appointments reference', () => {
   beforeEach(() => {
     jest.spyOn(Logger.prototype, 'log').mockImplementation();
@@ -171,7 +162,7 @@ describe('removeScheduleWithSlots with slots that cancelled appointments referen
   it('should retire the referenced slot and deactivate the schedule when HAPI answers 409 for its delete', async () => {
     const fhir = scheduleWith([slot('a', 'free'), slot('b', 'free')], ['b']);
 
-    await expect(removeScheduleWithSlots(fhir, SCHEDULE_ID, true, AUDIT)).resolves.toBeUndefined();
+    await expect(removeScheduleWithSlots(fhir, SCHEDULE_ID, true, AUDIT)).resolves.toBe(true);
 
     const [retire] = sentEntries(fhir, 1);
     expect(retire?.request).toMatchObject({ method: 'PUT', url: 'Slot/b' });
@@ -219,7 +210,7 @@ describe('removeScheduleWithSlots with slots that cancelled appointments referen
     const fhir = scheduleWith([slot('b', 'entered-in-error')]);
     fhir.read.mockResolvedValue({ resourceType: 'Schedule', id: SCHEDULE_ID, active: false });
 
-    await expect(removeScheduleWithSlots(fhir, SCHEDULE_ID, true, AUDIT)).resolves.toBeUndefined();
+    await expect(removeScheduleWithSlots(fhir, SCHEDULE_ID, true, AUDIT)).resolves.toBe(true);
 
     expect(fhir.batch).not.toHaveBeenCalled();
   });

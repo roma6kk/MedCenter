@@ -33,7 +33,6 @@ const withService = bundleOf(
   41,
 );
 
-/** `errorCode` carried by a rejected service call. */
 async function errorCodeOf(promise: Promise<unknown>): Promise<unknown> {
   try {
     await promise;
@@ -67,13 +66,10 @@ describe('AppointmentQueriesService', () => {
 
   describe('listForPatient', () => {
     it('should search the own compartment from the token, future only and sorted by start, when upcoming is set', async () => {
-      // Arrange
       const query = { page: 3, pageSize: 20, sortOrder: 'asc' as const, upcoming: true };
 
-      // Act
       await service.listForPatient(patient, query);
 
-      // Assert
       expect(fhir.search).toHaveBeenCalledWith('Appointment', expect.objectContaining({
         patient: 'Patient/9f2c',
         date: [`ge${NOW.toISOString()}`],
@@ -87,24 +83,18 @@ describe('AppointmentQueriesService', () => {
     });
 
     it('should filter by one status token when a single status is requested', async () => {
-      // Arrange
       const query = { page: 1, pageSize: 20, sortOrder: 'asc' as const, upcoming: false, status: ['booked'] as const };
 
-      // Act
       await service.listForPatient(patient, query);
 
-      // Assert
       expect(fhir.search).toHaveBeenCalledWith('Appointment', expect.objectContaining({ patient: 'Patient/9f2c', status: 'booked' }));
     });
 
     it('should OR several statuses in one token and keep the upcoming date bound when both filters are set', async () => {
-      // Arrange
       const query = { page: 1, pageSize: 20, sortOrder: 'asc' as const, upcoming: true, status: ['booked', 'noshow'] as const };
 
-      // Act
       await service.listForPatient(patient, query);
 
-      // Assert
       expect(fhir.search).toHaveBeenCalledWith('Appointment', expect.objectContaining({
         status: 'booked,noshow',
         date: [`ge${NOW.toISOString()}`],
@@ -112,53 +102,41 @@ describe('AppointmentQueriesService', () => {
     });
 
     it('should send no status parameter when the filter is absent or empty', async () => {
-      // Arrange
       const base = { page: 1, pageSize: 20, sortOrder: 'asc' as const, upcoming: true };
 
-      // Act
       await service.listForPatient(patient, base);
       await service.listForPatient(patient, { ...base, status: [] });
 
-      // Assert
       for (const [, params] of fhir.search.mock.calls) {
         expect(params).not.toHaveProperty('status');
       }
     });
 
     it('should not restrict the date and should sort descending when upcoming is off and sortOrder is desc', async () => {
-      // Arrange
       const query = { page: 1, pageSize: 20, sortOrder: 'desc' as const, upcoming: false };
 
-      // Act
       await service.listForPatient(patient, query);
 
-      // Assert
       const params = fhir.search.mock.calls[0]?.[1] ?? {};
       expect(params['date']).toBeUndefined();
       expect(params['_sort']).toBe('-date');
     });
 
     it('should wrap enriched items in the pagination envelope when HAPI reports a total', async () => {
-      // Arrange
       const query = { page: 3, pageSize: 20, sortOrder: 'asc' as const, upcoming: true };
 
-      // Act
       const page = await service.listForPatient(patient, query);
 
-      // Assert
       expect(page.meta).toEqual({ page: 3, pageSize: 20, totalItems: 41, totalPages: 3 });
       expect(page.items).toHaveLength(1);
       expect(page.items[0]).toMatchObject({ id: 'apt-1', serviceName: 'Консультация терапевта' });
     });
 
     it('should refuse before searching when the token carries no patient context', async () => {
-      // Arrange
       const claims: JwtClaims = { ...patient, patient: undefined };
 
-      // Act
       const promise = service.listForPatient(claims, { page: 1, pageSize: 20, sortOrder: 'asc', upcoming: false });
 
-      // Assert
       await expect(promise).rejects.toBeInstanceOf(ForbiddenException);
       expect(fhir.search).not.toHaveBeenCalled();
     });
@@ -166,80 +144,59 @@ describe('AppointmentQueriesService', () => {
 
   describe('findById', () => {
     it('should return the enriched appointment when the caller is the owner patient', async () => {
-      // Arrange
       fhir.search.mockResolvedValue(withService);
 
-      // Act
       const view = await service.findById(patient, 'apt-1');
 
-      // Assert
       expect(fhir.search).toHaveBeenCalledWith('Appointment', expect.objectContaining({ _id: 'apt-1' }));
       expect(view).toMatchObject({ id: 'apt-1', serviceName: 'Консультация терапевта' });
     });
 
     it('should answer NOT_FOUND when no Appointment matches the id', async () => {
-      // Arrange
       fhir.search.mockResolvedValue(bundleOf([]));
 
-      // Act
       const promise = service.findById(patient, 'missing');
 
-      // Assert
       await expect(promise).rejects.toBeInstanceOf(NotFoundException);
     });
 
     it('should answer NOT_FOUND when the only match has a different id', async () => {
-      // Arrange
       fhir.search.mockResolvedValue(bundleOf([{ ...appointment, id: 'apt-2' }]));
 
-      // Act
       const code = await errorCodeOf(service.findById(admin, 'apt-1'));
 
-      // Assert
       expect(code).toBe('NOT_FOUND');
     });
 
     it('should refuse with COMPARTMENT_VIOLATION when another patient asks', async () => {
-      // Arrange
       const other: JwtClaims = { ...patient, patient: 'other' };
 
-      // Act
       const code = await errorCodeOf(service.findById(other, 'apt-1'));
 
-      // Assert
       expect(code).toBe('COMPARTMENT_VIOLATION');
     });
 
     it('should let the participant doctor and an admin read the appointment', async () => {
-      // Arrange
       const callers = [doctor, admin];
 
-      // Act
       const views = await Promise.all(callers.map((claims) => service.findById(claims, 'apt-1')));
 
-      // Assert
       expect(views.map((view) => view.id)).toEqual(['apt-1', 'apt-1']);
     });
 
     it('should refuse with COMPARTMENT_VIOLATION when a non-participant doctor asks', async () => {
-      // Arrange
       const other: JwtClaims = { ...doctor, fhirUser: 'PractitionerRole/role-9' };
 
-      // Act
       const code = await errorCodeOf(service.findById(other, 'apt-1'));
 
-      // Assert
       expect(code).toBe('COMPARTMENT_VIOLATION');
     });
 
     it('should fail closed before searching when a doctor token has no fhirUser', async () => {
-      // Arrange
       const anonymousDoctor: JwtClaims = { ...doctor, fhirUser: undefined };
 
-      // Act
       const code = await errorCodeOf(service.findById(anonymousDoctor, 'apt-1'));
 
-      // Assert
       expect(code).toBe('COMPARTMENT_VIOLATION');
       expect(fhir.search).not.toHaveBeenCalled();
     });
@@ -247,16 +204,13 @@ describe('AppointmentQueriesService', () => {
 
   describe('listForDoctor', () => {
     it('should search the appointments where the token PractitionerRole is an actor within the range', async () => {
-      // Arrange
       const query = { page: 1, pageSize: 50, sortOrder: 'asc' as const, from: '2026-11-02', to: '2026-11-02' };
 
-      // Act
       const page = await service.listForDoctor(doctor, query);
 
-      // Assert
       expect(fhir.search).toHaveBeenCalledWith('Appointment', expect.objectContaining({
         actor: 'PractitionerRole/role-1',
-        date: ['ge2026-11-02', 'le2026-11-02'],
+        date: ['ge2026-11-01T21:00:00.000Z', 'le2026-11-02T20:59:59.999Z'],
         _sort: 'date',
         _count: 50,
         _offset: 0,
@@ -264,60 +218,99 @@ describe('AppointmentQueriesService', () => {
       expect(page.meta).toEqual({ page: 1, pageSize: 50, totalItems: 41, totalPages: 1 });
     });
 
-    it('should not restrict the date when neither from nor to is given', async () => {
-      // Arrange
-      const query = { page: 1, pageSize: 20, sortOrder: 'asc' as const };
+    it('should AND the patient and an OR of statuses with the compartment of the token when both filters are given', async () => {
+      const query = { page: 1, pageSize: 1, sortOrder: 'asc' as const, status: ['booked', 'noshow'], patient: '9f2c' };
 
-      // Act
       await service.listForDoctor(doctor, query);
 
-      // Assert
+      expect(fhir.search).toHaveBeenCalledWith('Appointment', expect.objectContaining({
+        actor: 'PractitionerRole/role-1',
+        patient: 'Patient/9f2c',
+        status: 'booked,noshow',
+        _count: 1,
+      }));
+    });
+
+    it('should send neither patient nor status when the filters are absent or empty', async () => {
+      const query = { page: 1, pageSize: 20, sortOrder: 'asc' as const, status: [] };
+
+      await service.listForDoctor(doctor, query);
+
+      const params = fhir.search.mock.calls[0]?.[1];
+      expect(params?.['patient']).toBeUndefined();
+      expect(params?.['status']).toBeUndefined();
+    });
+
+    it('should not restrict the date when neither from nor to is given', async () => {
+      const query = { page: 1, pageSize: 20, sortOrder: 'asc' as const };
+
+      await service.listForDoctor(doctor, query);
+
       expect(fhir.search.mock.calls[0]?.[1]?.['date']).toBeUndefined();
     });
 
     it('should fail closed before searching when the doctor token has no PractitionerRole identity', async () => {
-      // Arrange
       const anonymousDoctor: JwtClaims = { ...doctor, fhirUser: 'Patient/9f2c' };
 
-      // Act
       const code = await errorCodeOf(service.listForDoctor(anonymousDoctor, { page: 1, pageSize: 20, sortOrder: 'asc' }));
 
-      // Assert
       expect(code).toBe('COMPARTMENT_VIOLATION');
       expect(fhir.search).not.toHaveBeenCalled();
     });
 
     it('should reject with VALIDATION_ERROR when from is after to', async () => {
-      // Arrange
       const query = { page: 1, pageSize: 20, sortOrder: 'asc' as const, from: '2026-11-03', to: '2026-11-02' };
 
-      // Act
       const promise = service.listForDoctor(doctor, query);
 
-      // Assert
       await expect(promise).rejects.toBeInstanceOf(BadRequestException);
       expect(fhir.search).not.toHaveBeenCalled();
     });
 
-    it('should accept a date-time from within the day of a date-only to, which covers the whole day', async () => {
-      // Arrange
-      const query = { page: 1, pageSize: 20, sortOrder: 'asc' as const, from: '2026-11-02T10:00:00Z', to: '2026-11-02' };
+    it('should read a date-only range as clinic days when the bounds differ, so the visit at 01:00 Minsk time belongs to its own day', async () => {
+      const query = { page: 1, pageSize: 20, sortOrder: 'asc' as const, from: '2026-11-03', to: '2026-11-04' };
 
-      // Act
       await service.listForDoctor(doctor, query);
 
-      // Assert
-      expect(fhir.search).toHaveBeenCalledWith('Appointment', expect.objectContaining({ date: ['ge2026-11-02T10:00:00Z', 'le2026-11-02'] }));
+      expect(fhir.search).toHaveBeenCalledWith('Appointment', expect.objectContaining({
+        date: ['ge2026-11-02T21:00:00.000Z', 'le2026-11-04T20:59:59.999Z'],
+      }));
+    });
+
+    it('should send a date-time bound as given when the bound has a time', async () => {
+      const query = { page: 1, pageSize: 20, sortOrder: 'asc' as const, from: '2026-11-02T10:00:00+03:00', to: '2026-11-02T18:00:00Z' };
+
+      await service.listForDoctor(doctor, query);
+
+      expect(fhir.search).toHaveBeenCalledWith('Appointment', expect.objectContaining({
+        date: ['ge2026-11-02T10:00:00+03:00', 'le2026-11-02T18:00:00Z'],
+      }));
+    });
+
+    it('should accept a date-time from within the clinic day of a date-only to, which covers that whole day', async () => {
+      const query = { page: 1, pageSize: 20, sortOrder: 'asc' as const, from: '2026-11-02T10:00:00Z', to: '2026-11-02' };
+
+      await service.listForDoctor(doctor, query);
+
+      expect(fhir.search).toHaveBeenCalledWith('Appointment', expect.objectContaining({
+        date: ['ge2026-11-02T10:00:00Z', 'le2026-11-02T20:59:59.999Z'],
+      }));
+    });
+
+    it('should reject with VALIDATION_ERROR when a date-time from is already on the next clinic day of a date-only to', async () => {
+      const query = { page: 1, pageSize: 20, sortOrder: 'asc' as const, from: '2026-11-02T21:00:00Z', to: '2026-11-02' };
+
+      const code = await errorCodeOf(service.listForDoctor(doctor, query));
+
+      expect(code).toBe('VALIDATION_ERROR');
+      expect(fhir.search).not.toHaveBeenCalled();
     });
 
     it('should derive totalItems from the page when HAPI reports no total', async () => {
-      // Arrange
       fhir.search.mockResolvedValue(bundleOf([appointment]));
 
-      // Act
       const page = await service.listForDoctor(doctor, { page: 2, pageSize: 10, sortOrder: 'asc' });
 
-      // Assert
       expect(page.meta).toEqual({ page: 2, pageSize: 10, totalItems: 11, totalPages: 2 });
     });
   });

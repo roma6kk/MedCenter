@@ -20,7 +20,6 @@ const CONFIG: RelayConfig = {
   housekeepingIntervalMs: 60_000,
 };
 
-/** In-memory HAPI slice: Basic records, tag/_lastUpdated search, If-Match transactions, `$expunge` log. */
 class FakeHapi {
   readonly rows = new Map<string, FhirResource>();
   readonly expunged: string[] = [];
@@ -75,7 +74,6 @@ class FakeHapi {
             this.rows.delete(id);
           } else if (resource !== undefined) {
             const version = Number((this.rows.get(id)?.['meta'] as { versionId: string }).versionId) + 1;
-            // HAPI keeps the tags a version already had and only adds new ones (non-versioned tag storage).
             const kept = this.tagCodes(this.rows.get(id) as FhirResource).map((code) => ({ system: OUTBOX.STATUS_SYSTEM, code }));
             const given = (resource['meta'] as { tag?: Array<{ system: string; code: string }> }).tag ?? [];
             const tag = [...kept, ...given.filter((added) => !kept.some((old) => old.code === added.code))];
@@ -114,6 +112,12 @@ describe('RelayService', () => {
   });
 
   afterEach(() => jest.restoreAllMocks());
+
+  const unreadablePayload = (id: string, ageMs: number): void => {
+    hapi.seed(id, 'pending', ageMs);
+    const bad = hapi.rows.get(id) as unknown as { extension: Array<{ valueString?: string }> };
+    bad.extension[2] = { ...bad.extension[2], valueString: '{not json' };
+  };
 
   it('should publish a pending event with its eventId and mark it sent when a poll finds one', async () => {
     hapi.seed('b1', 'pending', MIN, { v: 1, type: 'appointment.booked.v1', eventId: 'ev-1', appointmentId: 'a-1' });
@@ -172,15 +176,72 @@ describe('RelayService', () => {
   });
 
   it('should skip a record with an unreadable payload and still publish the ones behind it', async () => {
-    hapi.seed('b1', 'pending', 3 * MIN);
-    const bad = hapi.rows.get('b1') as unknown as { extension: Array<{ valueString?: string }> };
-    bad.extension[2] = { ...bad.extension[2], valueString: '{not json' };
+    unreadablePayload('b1', 3 * MIN);
     hapi.seed('b2', 'pending', 2 * MIN);
 
     await service.tick(NOW);
 
     expect(hapi.statusOf('b1')).toBe('pending');
     expect(hapi.statusOf('b2')).toBe('sent');
+  });
+
+  describe('a record that cannot be read', () => {
+    const malformedRecord = (id: string, ageMs: number): void => {
+      hapi.rows.set(id, {
+        resourceType: 'Basic',
+        id,
+        meta: { versionId: '1', lastUpdated: new Date(NOW.getTime() - ageMs).toISOString(), tag: [{ system: OUTBOX.STATUS_SYSTEM, code: 'pending' }] },
+      });
+    };
+    const poisonWarnings = (): number =>
+      warn.mock.calls.filter(([, message]) => /is not valid JSON|is malformed/.test(String(message))).length;
+
+    it('should be reported once, not on every poll, when its payload is not JSON', async () => {
+      unreadablePayload('b1', 3 * MIN);
+
+      await service.tick(NOW);
+      await service.tick(NOW);
+      await service.tick(NOW);
+
+      expect(poisonWarnings()).toBe(1);
+      expect(hapi.statusOf('b1')).toBe('pending');
+    });
+
+    it('should be reported once, not on every poll, when the record itself is malformed', async () => {
+      malformedRecord('junk', 3 * MIN);
+
+      await service.tick(NOW);
+      await service.tick(NOW);
+
+      expect(poisonWarnings()).toBe(1);
+    });
+
+    it('should be reported again an hour later while it is still there, and not before', async () => {
+      unreadablePayload('b1', 3 * MIN);
+      const now = jest.spyOn(Date, 'now');
+      const start = NOW.getTime();
+
+      now.mockReturnValue(start);
+      await service.tick(NOW);
+      now.mockReturnValue(start + 30 * MIN);
+      await service.tick(NOW);
+      expect(poisonWarnings()).toBe(1);
+
+      now.mockReturnValue(start + 61 * MIN);
+      await service.tick(NOW);
+      expect(poisonWarnings()).toBe(2);
+    });
+
+    it('should be reported for each record, and still let the ones behind it through', async () => {
+      unreadablePayload('b1', 4 * MIN);
+      unreadablePayload('b2', 3 * MIN);
+      hapi.seed('b3', 'pending', 2 * MIN);
+
+      await service.tick(NOW);
+      await service.tick(NOW);
+
+      expect(poisonWarnings()).toBe(2);
+    });
   });
 
   it('should not poll when another replica holds the lock', async () => {

@@ -8,23 +8,24 @@ import { clinicDayOf } from '@/lib/clinic-time';
 import { useClinicFormat } from '@/hooks/use-clinic-format';
 import { useT } from '@/lib/i18n/use-t';
 import { cn } from '@/lib/ui/cn';
-import type { DiagnosisView, HistoryEntry, Prescription } from '../patient-types';
+import { normalizeDoctorName } from '@/lib/doctor-name';
+import type { HistoryEntry, Prescription } from '../patient-types';
 import { WRAP_TEXT } from '../wrap-text';
+import { VisitPrintButton } from '@/components/print/visit-print-button';
+import { PatientVisitPrint } from './patient-visit-print';
 import { CodeTag } from './code-tag';
-import { primaryCode } from './history-model';
+import { diagnosesOf } from './history-model';
 
-export const ICD10_SYSTEM = 'https://fhir.by/CodeSystem/InternClassificDiseases10';
+const ICD10_SYSTEM = 'https://fhir.by/CodeSystem/InternClassificDiseases10';
+
+// `failed`/`partial`: a visit without prescriptions may still have had some.
+export type PrescriptionsState = 'loading' | 'ok' | 'failed' | 'partial';
 
 interface VisitRowProps {
   readonly entry: HistoryEntry;
   readonly prescriptions: ReadonlyArray<Prescription>;
-}
-
-/** The diagnoses of a visit; an old record that has only the primary code still shows it. */
-function diagnosesOf(entry: HistoryEntry): ReadonlyArray<DiagnosisView> {
-  if (entry.diagnoses.length > 0) return entry.diagnoses;
-  const code = primaryCode(entry);
-  return code === '' ? [] : [{ code, display: '' }];
+  readonly prescriptionsState?: PrescriptionsState;
+  readonly onRetryPrescriptions?: () => void;
 }
 
 function utcDate(dayKey: string): Date {
@@ -37,14 +38,14 @@ function DateTile({ iso }: { readonly iso: string }): ReactNode {
   const date = utcDate(clinicDayOf(iso));
   return (
     <span aria-hidden="true" className="flex h-16 w-16 flex-none flex-col items-center justify-center rounded-card bg-secondary">
-      <span className="text-[22px] font-bold leading-none">{new Intl.DateTimeFormat(locale, { day: 'numeric', timeZone: 'UTC' }).format(date)}</span>
+      <span className="text-xl font-bold leading-none">{new Intl.DateTimeFormat(locale, { day: 'numeric', timeZone: 'UTC' }).format(date)}</span>
       <span className="text-xs text-muted-foreground">{new Intl.DateTimeFormat(locale, { month: 'short', timeZone: 'UTC' }).format(date).replace('.', '')}</span>
     </span>
   );
 }
 
 function Label({ children }: { readonly children: ReactNode }): ReactNode {
-  return <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">{children}</span>;
+  return <span className="text-sm font-semibold text-muted-foreground">{children}</span>;
 }
 
 function PrescriptionLine({ prescription }: { readonly prescription: Prescription }): ReactNode {
@@ -52,15 +53,17 @@ function PrescriptionLine({ prescription }: { readonly prescription: Prescriptio
   const name = prescription.kind === 'medication' ? prescription.atcDisplay : prescription.display;
   const detail = prescription.kind === 'medication' ? prescription.dosageText : undefined;
   return (
-    <li className="flex flex-wrap items-center gap-2 text-[15px]">
+    <li className="flex flex-wrap items-center gap-2 text-base">
       <CodeTag code={code} />
       <span className={WRAP_TEXT}>{[name, detail].filter(Boolean).join(' — ')}</span>
     </li>
   );
 }
 
-function Details({ entry, prescriptions }: VisitRowProps): ReactNode {
+function Details({ entry, prescriptions, prescriptionsState = 'ok', onRetryPrescriptions }: VisitRowProps): ReactNode {
   const t = useT('patientHistory');
+  const tPrint = useT('visitPrint');
+  const format = useClinicFormat();
   const others = diagnosesOf(entry).slice(1);
   return (
     <div className="flex flex-col gap-3 px-5 pb-5 sm:pl-[98px]">
@@ -68,18 +71,18 @@ function Details({ entry, prescriptions }: VisitRowProps): ReactNode {
         <div className="flex flex-col gap-1.5">
           <Label>{t('diagnoses')}</Label>
           <ul className="flex flex-col gap-1.5">
-            {others.map((d) => (
-              <li key={d.code} className="flex flex-wrap items-center gap-2 text-[15px]"><CodeTag code={d.code} system={ICD10_SYSTEM} />{d.display ? <span className={WRAP_TEXT}>{d.display}</span> : null}</li>
+            {others.map((d, i) => (
+              <li key={`${d.code}-${i}`} className="flex flex-wrap items-center gap-2 text-base"><CodeTag code={d.code} system={ICD10_SYSTEM} />{d.display ? <span className={WRAP_TEXT}>{d.display}</span> : null}</li>
             ))}
           </ul>
         </div>
       ) : null}
       {entry.summary ? (
-        <p className={cn('flex flex-col gap-0.5 text-[15px]', WRAP_TEXT)}><Label>{t('summary')}</Label><span className={cn('whitespace-pre-line', WRAP_TEXT)}>{entry.summary}</span></p>
+        <p className={cn('flex flex-col gap-0.5 text-base', WRAP_TEXT)}><Label>{t('summary')}</Label><span className={cn('whitespace-pre-line', WRAP_TEXT)}>{entry.summary}</span></p>
       ) : null}
       {entry.recommendations ? (
-        <p className={cn('rounded-control bg-primary-soft px-3.5 py-3 text-[15px] leading-normal text-primary-soft-foreground', WRAP_TEXT)}>
-          <span className="block text-xs font-bold uppercase tracking-wider">{t('recommendations')}</span>
+        <p className={cn('rounded-control bg-primary-soft px-3.5 py-3 text-base leading-normal text-primary-soft-foreground', WRAP_TEXT)}>
+          <span className="block text-sm font-semibold">{t('recommendations')}</span>
           <span className={cn('whitespace-pre-line', WRAP_TEXT)}>{entry.recommendations}</span>
         </p>
       ) : null}
@@ -89,17 +92,29 @@ function Details({ entry, prescriptions }: VisitRowProps): ReactNode {
           <ul className="flex flex-col gap-1.5">{prescriptions.map((p) => <PrescriptionLine key={p.id} prescription={p} />)}</ul>
         </div>
       ) : null}
+      {prescriptions.length === 0 && (prescriptionsState === 'failed' || prescriptionsState === 'partial') ? (
+        <p role="status" className="flex flex-wrap items-center gap-x-3 text-sm text-muted-foreground">
+          {prescriptionsState === 'failed' ? t('prescriptionsFailed') : t('prescriptionsPartial')}
+          {prescriptionsState === 'failed' && onRetryPrescriptions !== undefined ? (
+            <button type="button" onClick={onRetryPrescriptions} className="no-print inline-flex min-h-[44px] items-center font-semibold text-primary-soft-foreground underline underline-offset-2">{t('prescriptionsRetry')}</button>
+          ) : (
+            <Link href="/medcard?tab=prescriptions" className="no-print inline-flex min-h-[44px] items-center font-semibold text-primary-soft-foreground underline underline-offset-2">{t('prescriptionsLink')}</Link>
+          )}
+        </p>
+      ) : null}
       <div className="no-print flex flex-wrap gap-2 pt-1">
         <Link href="/booking" className={buttonVariants({ variant: 'primary' })}>{t('rebook')}</Link>
         <Link href={`/appointments/${encodeURIComponent(entry.appointmentId)}`} className={buttonVariants({ variant: 'secondary' })}>{t('openAppointment')}</Link>
-        {prescriptions.length > 0 ? <Link href="/prescriptions" className={buttonVariants({ variant: 'secondary' })}>{t('prescriptionsLink')}</Link> : null}
+        {prescriptions.length > 0 ? <Link href="/medcard?tab=prescriptions" className={buttonVariants({ variant: 'secondary' })}>{t('prescriptionsLink')}</Link> : null}
+        <VisitPrintButton label={tPrint('print')} ariaLabel={tPrint('printVisit', { date: format.dateTime(entry.date) })}>
+          {(finish) => <PatientVisitPrint entry={entry} prescriptions={prescriptions} prescriptionsState={prescriptionsState} onDone={finish} />}
+        </VisitPrintButton>
       </div>
     </div>
   );
 }
 
-/** One visit: a toggle with the date tile, service, time and primary diagnosis; the details open below it (and always print). */
-export function VisitRow({ entry, prescriptions }: VisitRowProps): ReactNode {
+export function VisitRow({ entry, prescriptions, prescriptionsState, onRetryPrescriptions }: VisitRowProps): ReactNode {
   const t = useT('patientHistory');
   const format = useClinicFormat();
   const [open, setOpen] = useState(false);
@@ -122,7 +137,7 @@ export function VisitRow({ entry, prescriptions }: VisitRowProps): ReactNode {
           <span className="flex min-w-0 flex-[999_1_260px] flex-col gap-1">
             {service ? <span className={cn('text-base font-bold', WRAP_TEXT)}>{service}</span> : null}
             <time dateTime={entry.date} className="text-sm text-muted-foreground">{format.dateTime(entry.date)}</time>
-            {entry.doctorName ? <span className={cn('text-sm text-muted-foreground', WRAP_TEXT)}>{t('doctorBy', { name: entry.doctorName })}</span> : null}
+            {entry.doctorName ? <span className={cn('text-sm text-muted-foreground', WRAP_TEXT)}>{t('doctorBy', { name: normalizeDoctorName(entry.doctorName) })}</span> : null}
             <span className="flex flex-wrap items-center gap-2 pt-0.5">
               {diagnosis === undefined ? (
                 <span className="text-sm text-muted-foreground">{t('noDiagnosis')}</span>
@@ -135,10 +150,10 @@ export function VisitRow({ entry, prescriptions }: VisitRowProps): ReactNode {
               )}
             </span>
           </span>
-          <span aria-hidden="true" className="flex-none text-[22px] text-muted-foreground">{open ? '−' : '+'}</span>
+          <span aria-hidden="true" className="flex-none text-xl text-muted-foreground">{open ? '−' : '+'}</span>
         </button>
         <div id={panelId} hidden={!open} className="print:!block">
-          <Details entry={entry} prescriptions={prescriptions} />
+          <Details entry={entry} prescriptions={prescriptions} {...(prescriptionsState === undefined ? {} : { prescriptionsState })} {...(onRetryPrescriptions === undefined ? {} : { onRetryPrescriptions })} />
         </div>
       </article>
     </li>

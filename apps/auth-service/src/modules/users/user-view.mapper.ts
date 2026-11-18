@@ -1,5 +1,6 @@
 import { primaryRole } from '../oauth/identity';
-import type { ExternalLinkDto, UserDetailsResponseDto, UserResponseDto } from './dto/user-response.dto';
+import type { MeResponseDto } from './dto/me-response.dto';
+import type { ExternalLinkDto, RetentionExpiredItemDto, UserDetailsResponseDto, UserResponseDto } from './dto/user-response.dto';
 import type { UserRecord } from './store/user-store';
 
 function externalLinksOf(user: UserRecord): ExternalLinkDto[] {
@@ -15,7 +16,6 @@ function externalLinksOf(user: UserRecord): ExternalLinkDto[] {
   return links;
 }
 
-/** Never exposes `passwordHash`: the response is built field by field, not spread from the record. */
 export function toUserResponse(user: UserRecord): UserResponseDto {
   const { patientId, practitionerRoleId } = user.links;
   return {
@@ -29,9 +29,31 @@ export function toUserResponse(user: UserRecord): UserResponseDto {
     isActive: user.isActive,
     name: `${user.lastName} ${user.firstName}`,
     role: primaryRole(user.roles),
+    accountConsentWithdrawnAt: user.accountConsentWithdrawnAt?.toISOString() ?? null,
   };
 }
 
 export function toUserDetails(user: UserRecord): UserDetailsResponseDto {
   return { ...toUserResponse(user), externalLinks: externalLinksOf(user), createdAt: user.createdAt.toISOString() };
+}
+
+export function toMe(user: UserRecord): MeResponseDto {
+  const { accountConsentAt, accountConsentVersion } = user;
+  return {
+    ...toUserDetails(user),
+    accountConsent: accountConsentAt === undefined || accountConsentVersion === undefined ? null : { at: accountConsentAt.toISOString(), version: accountConsentVersion },
+  };
+}
+
+export function toRetentionExpiredItem(user: UserRecord): RetentionExpiredItemDto {
+  const { closedAt, retentionUntil } = user;
+  if (closedAt === undefined || retentionUntil === undefined) {
+    throw new Error('a retention-expired account must carry closedAt and retentionUntil');
+  }
+  return {
+    id: user.id,
+    name: `${user.lastName} ${user.firstName}`,
+    closedAt: closedAt.toISOString(),
+    retentionUntil: retentionUntil.toISOString(),
+  };
 }

@@ -3,7 +3,6 @@ import { FHIR_CLIENT, FhirClientError, type FhirClient, type FhirResource } from
 
 import { UNKNOWN_SPECIALTY_CODE } from '../../database/entities/encounter-fact.entity';
 
-/** First `PractitionerRole.specialty` (R4 CodeableConcept) reduced to one coding. */
 export interface Specialty {
   readonly system: string | null;
   readonly code: string;
@@ -12,7 +11,6 @@ export interface Specialty {
 
 export const UNKNOWN_SPECIALTY: Specialty = { system: null, code: UNKNOWN_SPECIALTY_CODE, display: null };
 
-/** Roles of one practitioner inspected when the event carries `Practitioner/{id}`. */
 const ROLE_SEARCH_LIMIT = 20;
 
 const RELATIVE_REFERENCE = /^(PractitionerRole|Practitioner)\/([A-Za-z0-9\-.]{1,64})$/;
@@ -30,7 +28,6 @@ function asText(value: unknown): string | null {
   return typeof value === 'string' && value.length > 0 ? value : null;
 }
 
-/** The first specialty with a usable coding (or text) wins; the text labels a bare code. */
 export function specialtyOf(role: FhirResource): Specialty | undefined {
   for (const concept of asObjects(role['specialty'])) {
     const text = asText(concept['text']);
@@ -46,12 +43,7 @@ export function specialtyOf(role: FhirResource): Specialty | undefined {
   return undefined;
 }
 
-/**
- * API §9.2 groups encounters by specialty, which `encounter.completed.v1` does
- * not carry. It is resolved from HAPI once, at ingestion. A role that no longer
- * exists is filed under `unknown`; any other HAPI failure propagates, so the
- * delivery is retried rather than stored with the wrong label.
- */
+// A vanished role is filed under unknown; any other HAPI failure propagates so the delivery is retried, not stored with a wrong label.
 @Injectable()
 export class SpecialtyResolver {
   constructor(@Inject(FHIR_CLIENT) private readonly fhir: FhirClient) {}

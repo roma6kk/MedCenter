@@ -2,6 +2,7 @@ import { ApiPropertyOptional } from '@nestjs/swagger';
 import {
   ArrayMinSize,
   IsArray,
+  IsBoolean,
   IsInt,
   IsNotEmpty,
   IsOptional,
@@ -11,10 +12,6 @@ import {
   Min,
 } from 'class-validator';
 
-/**
- * API §5.1.4 `UpdateServiceDto` — every field optional. Written explicitly
- * because `@nestjs/mapped-types` is not a workspace dependency.
- */
 export class UpdateServiceDto {
   @ApiPropertyOptional({ maxLength: 200, example: 'Консультация терапевта' })
   @IsOptional()
@@ -62,6 +59,23 @@ export class UpdateServiceDto {
   @IsString()
   @MaxLength(2000)
   description?: string;
+
+  @ApiPropertyOptional({ maxLength: 200, example: 'Therapist consultation' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  nameEn?: string;
+
+  @ApiPropertyOptional({ maxLength: 2000 })
+  @IsOptional()
+  @IsString()
+  @MaxLength(2000)
+  descriptionEn?: string;
+
+  @ApiPropertyOptional({ description: 'false hides the service from the public catalogue' })
+  @IsOptional()
+  @IsBoolean()
+  isActive?: boolean;
 
   @ApiPropertyOptional({
     type: String,

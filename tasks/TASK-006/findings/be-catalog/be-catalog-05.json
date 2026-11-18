@@ -1,0 +1,23 @@
+{
+  "id": "be-catalog-05",
+  "unit": "be-catalog",
+  "kind": "gap",
+  "severity": "medium",
+  "title": "Услугу нельзя отключить: isActive есть в ответе и в админке, но нет ни поля в PATCH, ни фильтра в публичном каталоге, а удалить использованную услугу невозможно",
+  "description": "ServiceResponseDto отдаёт isActive, админка рисует бейдж «Неактивна», а use-doctor-services.ts отфильтровывает неактивные услуги на клиенте — но создать неактивную услугу через API нельзя: CreateServiceDto/UpdateServiceDto не принимают isActive/active. При этом удалить услугу, которой хоть раз пользовались, тоже нельзя: DELETE даёт 409 SERVICE_IN_USE, пока на неё ссылается любое Schedule, а расписание с историей записей (слот, на который ссылается отменённая запись) при удалении только деактивируется и остаётся навсегда (так задумано, spec §5.2.4). В итоге услугу, которую клиника перестала оказывать, невозможно убрать из каталога. Кроме того, публичные GET /services и GET /services/{id} не фильтруют active=false (достаточно записи в HAPI напрямую): мастер записи (service-step.tsx) и SSR-каталог (catalog-server.ts) показали бы такую услугу пациенту — фильтр есть только в одном хуке.",
+  "evidence": "apps/catalog-service/src/modules/services/dto/update-service.dto.ts — поля isActive нет; services.service.ts:69-83 (loadPage) ищет HealthcareService без `active`, стр. 300 toResponseDto: `isActive: resource['active'] !== false`; remove (стр. 168-183): любой Schedule с actor=HealthcareService/{id} (в том числе active=false) -> 409 SERVICE_IN_USE; schedule-removal.ts:deactivateSchedule оставляет расписание в HAPI. Фронтенд: frontend/src/components/admin/services/use-admin-services.ts — админский список читает тот же публичный GET /api/v1/services («there is no /admin/services read»), поэтому скрытие неактивных в публичном ответе требует отдельного админского чтения.",
+  "files": [
+    "apps/catalog-service/src/modules/services/services.service.ts",
+    "apps/catalog-service/src/modules/services/dto/update-service.dto.ts",
+    "apps/catalog-service/src/modules/services/dto/create-service.dto.ts",
+    "apps/catalog-service/src/modules/services/services.controller.ts",
+    "frontend/src/components/admin/services/use-admin-services.ts",
+    "frontend/src/components/admin/services/service-form-dialog.tsx",
+    "frontend/src/components/booking/service-step.tsx"
+  ],
+  "proposedFix": "Recommended option A: (1) accept optional boolean `isActive` in Create/UpdateServiceDto and write it to HealthcareService.active (create writes active:true by default); (2) public GET /services adds `active:not=false` to the HAPI search (so cached pages and totals exclude inactive services) and GET /services/{id} answers 404 NOT_FOUND for an inactive service; (3) add GET /api/v1/admin/services (ADMIN, same query DTO, no active filter, not cached or cached under its own prefix `catalog:services:admin:`) and switch use-admin-services.ts to it; (4) add an active switch to the service form dialog (ru/en i18n keys) and keep the client-side filter in use-doctor-services.ts as a second line. Cache: invalidate() already clears the whole `catalog:services:` prefix. Tests: service spec for filter/update, e2e for 404 of an inactive service and for the admin list. Alternative B: leave as is and remove the dead 'inactive' badge and the client filter.",
+  "needsDecision": true,
+  "decisionQuestion": "Нужна ли администратору возможность отключать услугу (снять с публичного каталога, не удаляя)? Сейчас удалить использованную услугу нельзя (SERVICE_IN_USE навсегда из-за деактивированных расписаний), а isActive нигде не выставляется. Варианты: A) добавить isActive в PATCH/POST, скрыть неактивные в публичных GET /services и /services/{id}, добавить админский GET /admin/services (рекомендую; добавочное изменение контракта, 1 новый эндпоинт); B) ничего не добавлять и удалить мёртвый бейдж «Неактивна» и клиентский фильтр.",
+  "tzRef": "FR-016; BR-007; api-designer-spec §5.1 (ServiceResponseDto.isActive), §5.1.5",
+  "confidence": "confirmed"
+}

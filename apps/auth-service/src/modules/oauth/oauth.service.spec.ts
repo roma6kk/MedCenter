@@ -5,67 +5,70 @@ import {
   createOAuthHarness as createHarness,
   decodeClaims,
   readRedirectParam as cookieFromRedirect,
+  type OAuthHarness,
 } from './__tests__/oauth-harness';
 import { TEST_REDIRECT_URI, createTestClient } from './__tests__/test-keys';
 
+type AuthorizeParams = Parameters<OAuthHarness['service']['authorize']>[0];
+
+interface AuthorizeOptions {
+  readonly scope?: string;
+  readonly principal?: AuthorizeParams['principal'];
+  readonly client?: Parameters<typeof createTestClient>[0];
+}
+
+async function authorize(
+  { service, pkce }: OAuthHarness,
+  { scope = 'launch', principal = { userId: 'u1' }, client }: AuthorizeOptions = {},
+): Promise<{ readonly redirect: string; readonly code: string; readonly codeVerifier: string }> {
+  const { codeVerifier, codeChallenge } = pkce.generate();
+  const redirect = await service.authorize({
+    client: createTestClient(client),
+    redirectUri: TEST_REDIRECT_URI,
+    scope,
+    state: 's',
+    codeChallenge,
+    principal,
+  });
+
+  return { redirect, code: cookieFromRedirect(redirect, 'code'), codeVerifier };
+}
+
+async function signIn(harness: OAuthHarness, options?: AuthorizeOptions): ReturnType<OAuthHarness['service']['exchangeCode']> {
+  const { code, codeVerifier } = await authorize(harness, options);
+
+  return harness.service.exchangeCode({ code, clientId: 'medcenter-web', codeVerifier });
+}
+
 describe('OAuthService', () => {
   it('should return a redirect carrying the code and state when authorize succeeds', async () => {
-    const { service } = createHarness();
-    const { codeChallenge } = createHarness().pkce.generate();
+    const harness = createHarness();
 
-    const redirect = await service.authorize({
-      client: createTestClient(),
-      redirectUri: TEST_REDIRECT_URI,
+    const { redirect, code } = await authorize(harness, {
       scope: 'patient/*.read',
-      state: 'state-1',
-      codeChallenge,
       principal: { userId: 'u1', role: 'PATIENT', patientRef: 'Patient/1' },
     });
 
     expect(redirect.startsWith(TEST_REDIRECT_URI)).toBe(true);
-    expect(cookieFromRedirect(redirect, 'state')).toBe('state-1');
-    expect(cookieFromRedirect(redirect, 'code').length).toBeGreaterThan(0);
+    expect(cookieFromRedirect(redirect, 'state')).toBe('s');
+    expect(code.length).toBeGreaterThan(0);
   });
 
   it('should drop scopes the client is not registered for when authorizing', async () => {
-    // M5: the previous version of this test exchanged with a bogus verifier
-    // and asserted only the PKCE failure — it proved nothing about narrowing.
-    // This one goes through the full authorize → exchange flow and asserts the
-    // issued scope is the narrowed one.
-    const { service, pkce } = createHarness();
-    const { codeVerifier, codeChallenge } = pkce.generate();
-
-    const redirect = await service.authorize({
-      client: createTestClient({ scopes: ['launch'] }),
-      redirectUri: TEST_REDIRECT_URI,
+    const tokens = await signIn(createHarness(), {
+      client: { scopes: ['launch'] },
       scope: 'launch patient/*.write',
-      state: 's',
-      codeChallenge,
       principal: { userId: 'u1', role: 'PATIENT' },
-    });
-    const tokens = await service.exchangeCode({
-      code: cookieFromRedirect(redirect, 'code'),
-      clientId: 'medcenter-web',
-      codeVerifier,
     });
 
     expect(tokens.scope).toBe('launch');
   });
 
   it('should answer invalid_scope when no requested scope is granted to the client', async () => {
-    // M5: a token with an empty scope must never be minted.
-    const { service, pkce } = createHarness();
-    const { codeChallenge } = pkce.generate();
+    const harness = createHarness();
 
     const error = await captureOAuthError(
-      service.authorize({
-        client: createTestClient({ scopes: ['launch'] }),
-        redirectUri: TEST_REDIRECT_URI,
-        scope: 'patient/*.write',
-        state: 's',
-        codeChallenge,
-        principal: { userId: 'u1', role: 'PATIENT' },
-      }),
+      authorize(harness, { client: { scopes: ['launch'] }, scope: 'patient/*.write', principal: { userId: 'u1', role: 'PATIENT' } }),
     );
 
     expect(error.getStatus()).toBe(400);
@@ -73,43 +76,22 @@ describe('OAuthService', () => {
   });
 
   it('should grant the full client scope when the authorize request asks for none', async () => {
-    const { service, pkce } = createHarness();
-    const { codeVerifier, codeChallenge } = pkce.generate();
-
-    const redirect = await service.authorize({
-      client: createTestClient({ scopes: ['launch'] }),
-      redirectUri: TEST_REDIRECT_URI,
+    const tokens = await signIn(createHarness(), {
+      client: { scopes: ['launch'] },
       scope: '',
-      state: 's',
-      codeChallenge,
       principal: { userId: 'u1', role: 'PATIENT' },
-    });
-    const tokens = await service.exchangeCode({
-      code: cookieFromRedirect(redirect, 'code'),
-      clientId: 'medcenter-web',
-      codeVerifier,
     });
 
     expect(tokens.scope).toBe('launch');
   });
 
   it('should issue a token pair when the code and PKCE verifier are valid', async () => {
-    const { service, pkce, identities } = createHarness();
-    identities.set('u1', { role: Role.PATIENT, patientId: '1' });
-    const { codeVerifier, codeChallenge } = pkce.generate();
-    const redirect = await service.authorize({
-      client: createTestClient(),
-      redirectUri: TEST_REDIRECT_URI,
-      scope: 'patient/*.read',
-      state: 's',
-      codeChallenge,
-      principal: { userId: 'u1', role: 'PATIENT', patientRef: 'Patient/1' },
-    });
+    const harness = createHarness();
+    harness.identities.set('u1', { role: Role.PATIENT, patientId: '1' });
 
-    const response = await service.exchangeCode({
-      code: cookieFromRedirect(redirect, 'code'),
-      clientId: 'medcenter-web',
-      codeVerifier,
+    const response = await signIn(harness, {
+      scope: 'patient/*.read',
+      principal: { userId: 'u1', role: 'PATIENT', patientRef: 'Patient/1' },
     });
 
     expect(response.token_type).toBe('Bearer');
@@ -121,56 +103,26 @@ describe('OAuthService', () => {
     expect(claims['role']).toBe('PATIENT');
     expect(claims['patient']).toBe('1');
     expect(claims['fhirUser']).toBe('Patient/1');
-    // The access token's session id is the paired refresh token's `jti`, which is
-    // what lets the guard layer treat a revocation of that refresh token as a
-    // revocation of the pair (API error catalogue `TOKEN_REVOKED`).
     expect(claims['sid']).toBe(response.refresh_token);
   });
 
   it('should mark the whole session as revoked when the owner revokes the refresh token', async () => {
-    const { service, tokens, pkce } = createHarness();
-    const { codeChallenge, codeVerifier } = pkce.generate();
-    const redirect = await service.authorize({
-      client: createTestClient(),
-      redirectUri: TEST_REDIRECT_URI,
-      scope: 'patient/*.read',
-      state: 's',
-      codeChallenge,
-      principal: { userId: 'u1' },
-    });
-    const response = await service.exchangeCode({
-      code: cookieFromRedirect(redirect, 'code'),
-      clientId: 'medcenter-web',
-      codeVerifier,
-    });
+    const harness = createHarness();
+    const response = await signIn(harness, { scope: 'patient/*.read' });
 
     await expect(
-      service.revoke({ refreshToken: response.refresh_token, userId: 'u1' }),
+      harness.service.revoke({ refreshToken: response.refresh_token, userId: 'u1' }),
     ).resolves.toBe(true);
 
-    // `response.refresh_token` is the `sid` of `response.access_token`, so this is
-    // exactly the lookup `JwtAuthGuard` performs for that access token.
-    await expect(tokens.isRevoked(response.refresh_token)).resolves.toBe(true);
+    await expect(harness.tokens.isRevoked(response.refresh_token)).resolves.toBe(true);
   });
 
   it('should reject the exchange when the PKCE verifier does not match', async () => {
-    const { service, pkce } = createHarness();
-    const { codeChallenge } = pkce.generate();
-    const redirect = await service.authorize({
-      client: createTestClient(),
-      redirectUri: TEST_REDIRECT_URI,
-      scope: 'launch',
-      state: 's',
-      codeChallenge,
-      principal: { userId: 'u1' },
-    });
+    const harness = createHarness();
+    const { code } = await authorize(harness);
 
     const error = await captureOAuthError(
-      service.exchangeCode({
-        code: cookieFromRedirect(redirect, 'code'),
-        clientId: 'medcenter-web',
-        codeVerifier: 'wrong-verifier',
-      }),
+      harness.service.exchangeCode({ code, clientId: 'medcenter-web', codeVerifier: 'wrong-verifier' }),
     );
 
     expect(error.getStatus()).toBe(400);
@@ -178,17 +130,9 @@ describe('OAuthService', () => {
   });
 
   it('should reject a replayed authorization code', async () => {
-    const { service, pkce } = createHarness();
-    const { codeVerifier, codeChallenge } = pkce.generate();
-    const redirect = await service.authorize({
-      client: createTestClient(),
-      redirectUri: TEST_REDIRECT_URI,
-      scope: 'launch',
-      state: 's',
-      codeChallenge,
-      principal: { userId: 'u1' },
-    });
-    const code = cookieFromRedirect(redirect, 'code');
+    const harness = createHarness();
+    const { service } = harness;
+    const { code, codeVerifier } = await authorize(harness);
 
     await service.exchangeCode({ code, clientId: 'medcenter-web', codeVerifier });
     const error = await captureOAuthError(
@@ -199,55 +143,27 @@ describe('OAuthService', () => {
   });
 
   it('should reject the exchange when client_id does not own the code', async () => {
-    const { service, pkce } = createHarness();
-    const { codeVerifier, codeChallenge } = pkce.generate();
-    const redirect = await service.authorize({
-      client: createTestClient(),
-      redirectUri: TEST_REDIRECT_URI,
-      scope: 'launch',
-      state: 's',
-      codeChallenge,
-      principal: { userId: 'u1' },
-    });
+    const harness = createHarness();
+    const { code, codeVerifier } = await authorize(harness);
 
     const error = await captureOAuthError(
-      service.exchangeCode({
-        code: cookieFromRedirect(redirect, 'code'),
-        clientId: 'someone-else',
-        codeVerifier,
-      }),
+      harness.service.exchangeCode({ code, clientId: 'someone-else', codeVerifier }),
     );
 
     expect(error.getResponse()).toMatchObject({ error: 'invalid_grant' });
   });
 
   it('should rotate the refresh token so the presented one is never reusable', async () => {
-    const { service, pkce } = createHarness();
-    const { codeVerifier, codeChallenge } = pkce.generate();
-    const redirect = await service.authorize({
-      client: createTestClient(),
-      redirectUri: TEST_REDIRECT_URI,
-      scope: 'launch',
-      state: 's',
-      codeChallenge,
-      principal: { userId: 'u1' },
-    });
-    const first = await service.exchangeCode({
-      code: cookieFromRedirect(redirect, 'code'),
-      clientId: 'medcenter-web',
-      codeVerifier,
-    });
+    const harness = createHarness();
+    const { service } = harness;
+    const first = await signIn(harness);
 
-    const rotated = await service.refresh({
-      refreshToken: first.refresh_token,
-      clientId: 'medcenter-web',
-    });
+    const rotated = await service.refresh({ refreshToken: first.refresh_token, clientId: 'medcenter-web' });
 
     expect(rotated.refresh_token).not.toBe(first.refresh_token);
     const error = await captureOAuthError(
       service.refresh({ refreshToken: first.refresh_token, clientId: 'medcenter-web' }),
     );
-    // RFC 6749 §5.2 / API 2.1.3: an already-rotated token is a plain 400 invalid_grant.
     expect(error.getStatus()).toBe(400);
     expect(error.getResponse()).toMatchObject({ error: 'invalid_grant' });
     await expect(
@@ -256,21 +172,9 @@ describe('OAuthService', () => {
   });
 
   it('should deny a refresh token after it is revoked', async () => {
-    const { service, pkce } = createHarness();
-    const { codeVerifier, codeChallenge } = pkce.generate();
-    const redirect = await service.authorize({
-      client: createTestClient(),
-      redirectUri: TEST_REDIRECT_URI,
-      scope: 'launch',
-      state: 's',
-      codeChallenge,
-      principal: { userId: 'u1' },
-    });
-    const response = await service.exchangeCode({
-      code: cookieFromRedirect(redirect, 'code'),
-      clientId: 'medcenter-web',
-      codeVerifier,
-    });
+    const harness = createHarness();
+    const { service } = harness;
+    const response = await signIn(harness);
 
     await service.revoke({ refreshToken: response.refresh_token, userId: 'u1' });
 
@@ -282,84 +186,183 @@ describe('OAuthService', () => {
   });
 
   it('should revoke a refresh token when the authenticated user owns it', async () => {
-    const { service, pkce } = createHarness();
-    const { codeVerifier, codeChallenge } = pkce.generate();
-    const redirect = await service.authorize({
-      client: createTestClient(),
-      redirectUri: TEST_REDIRECT_URI,
-      scope: 'launch',
-      state: 's',
-      codeChallenge,
-      principal: { userId: 'owner-1' },
-    });
-    const response = await service.exchangeCode({
-      code: cookieFromRedirect(redirect, 'code'),
-      clientId: 'medcenter-web',
-      codeVerifier,
-    });
+    const harness = createHarness();
+    const response = await signIn(harness, { principal: { userId: 'owner-1' } });
 
     await expect(
-      service.revoke({ refreshToken: response.refresh_token, userId: 'owner-1' }),
+      harness.service.revoke({ refreshToken: response.refresh_token, userId: 'owner-1' }),
     ).resolves.toBe(true);
   });
 
   it('should not revoke a refresh token owned by a different user', async () => {
-    const { tokens, service, pkce } = createHarness();
-    const { codeVerifier, codeChallenge } = pkce.generate();
-    const redirect = await service.authorize({
-      client: createTestClient(),
-      redirectUri: TEST_REDIRECT_URI,
-      scope: 'launch',
-      state: 's',
-      codeChallenge,
-      principal: { userId: 'owner-1' },
-    });
-    const response = await service.exchangeCode({
-      code: cookieFromRedirect(redirect, 'code'),
-      clientId: 'medcenter-web',
-      codeVerifier,
-    });
+    const harness = createHarness();
+    const response = await signIn(harness, { principal: { userId: 'owner-1' } });
 
     await expect(
-      service.revoke({ refreshToken: response.refresh_token, userId: 'intruder-2' }),
+      harness.service.revoke({ refreshToken: response.refresh_token, userId: 'intruder-2' }),
     ).resolves.toBe(false);
-    // The token is untouched: it is neither denied nor removed.
-    await expect(tokens.isDenied(response.refresh_token)).resolves.toBe(false);
-    await expect(tokens.find(response.refresh_token)).resolves.not.toBeNull();
+    await expect(harness.tokens.isDenied(response.refresh_token)).resolves.toBe(false);
+    await expect(harness.tokens.find(response.refresh_token)).resolves.not.toBeNull();
   });
 
   it('should not revoke a refresh token owned by a different client', async () => {
-    const { tokens, service, pkce } = createHarness();
-    const { codeVerifier, codeChallenge } = pkce.generate();
-    const redirect = await service.authorize({
-      client: createTestClient(),
-      redirectUri: TEST_REDIRECT_URI,
-      scope: 'launch',
-      state: 's',
-      codeChallenge,
-      principal: { userId: 'owner-1' },
-    });
-    const response = await service.exchangeCode({
-      code: cookieFromRedirect(redirect, 'code'),
-      clientId: 'medcenter-web',
-      codeVerifier,
-    });
+    const harness = createHarness();
+    const response = await signIn(harness, { principal: { userId: 'owner-1' } });
 
     await expect(
-      service.revoke({
-        refreshToken: response.refresh_token,
-        userId: 'owner-1',
-        clientId: 'someone-else',
-      }),
+      harness.service.revoke({ refreshToken: response.refresh_token, userId: 'owner-1', clientId: 'someone-else' }),
     ).resolves.toBe(false);
-    await expect(tokens.isDenied(response.refresh_token)).resolves.toBe(false);
+    await expect(harness.tokens.isDenied(response.refresh_token)).resolves.toBe(false);
   });
 
   it('should treat an unknown refresh token as a no-op on revoke', async () => {
     const { service } = createHarness();
 
-    await expect(
-      service.revoke({ refreshToken: 'never-issued', userId: 'u1' }),
-    ).resolves.toBe(false);
+    await expect(service.revoke({ refreshToken: 'never-issued', userId: 'u1' })).resolves.toBe(false);
+  });
+});
+
+describe('OAuthService idle session timeout', () => {
+  const IDLE_MS = 15 * 60_000;
+
+  beforeEach(() => {
+    jest.useFakeTimers({ now: new Date('2026-11-14T10:00:00Z') });
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
+  function refresh(harness: OAuthHarness, token: string): ReturnType<OAuthHarness['service']['refresh']> {
+    return harness.service.refresh({ refreshToken: token, clientId: 'medcenter-web' });
+  }
+
+  it('should refuse a refresh once the session was idle for longer than the limit', async () => {
+    const harness = createHarness(IDLE_MS);
+    const first = await signIn(harness);
+
+    jest.setSystemTime(Date.now() + IDLE_MS + 1_000);
+
+    const error = await captureOAuthError(refresh(harness, first.refresh_token));
+    expect(error.getResponse()).toMatchObject({ error: 'invalid_grant' });
+    await expect(harness.tokens.isRevoked(first.refresh_token)).resolves.toBe(true);
+    expect(harness.recordAuthEvent).toHaveBeenCalledWith({ kind: 'session-idle', userId: 'u1' });
+  });
+
+  it('should not count a refresh as activity, so polling cannot keep an abandoned session alive', async () => {
+    const harness = createHarness(IDLE_MS);
+    let current = await signIn(harness);
+
+    for (let minute = 0; minute < 10; minute += 1) {
+      jest.setSystemTime(Date.now() + 2 * 60_000);
+      current = await refresh(harness, current.refresh_token).catch(() => current);
+    }
+
+    await expect(refresh(harness, current.refresh_token)).rejects.toBeDefined();
+  });
+
+  it('should keep the session alive while activity is recorded', async () => {
+    const harness = createHarness(IDLE_MS);
+    let current = await signIn(harness);
+
+    for (let step = 0; step < 6; step += 1) {
+      jest.setSystemTime(Date.now() + 10 * 60_000);
+      await expect(harness.service.recordActivity(current.refresh_token, 'u1')).resolves.toBe(true);
+      current = await refresh(harness, current.refresh_token);
+    }
+
+    await expect(refresh(harness, current.refresh_token)).resolves.toMatchObject({ token_type: 'Bearer' });
+  });
+
+  it('should record activity of a tab holding a rotated session id against the live refresh token', async () => {
+    const harness = createHarness(IDLE_MS);
+    const first = await signIn(harness);
+    const sid = decodeClaims(first.access_token)['sid'] as string;
+    jest.setSystemTime(Date.now() + 5 * 60_000);
+    const rotated = await refresh(harness, first.refresh_token);
+
+    expect(decodeClaims(rotated.access_token)['sid']).toBe(sid);
+    jest.setSystemTime(Date.now() + 5 * 60_000);
+    await expect(harness.service.recordActivity(sid, 'u1')).resolves.toBe(true);
+
+    jest.setSystemTime(Date.now() + 10 * 60_000);
+    await expect(refresh(harness, rotated.refresh_token)).resolves.toMatchObject({ token_type: 'Bearer' });
+  });
+
+  it('should revoke the whole session through its stable id after rotations', async () => {
+    const harness = createHarness(IDLE_MS);
+    const first = await signIn(harness);
+    const sid = decodeClaims(first.access_token)['sid'] as string;
+    const rotated = await refresh(harness, first.refresh_token);
+
+    await harness.tokens.revoke(sid);
+
+    await expect(harness.tokens.isRevoked(sid)).resolves.toBe(true);
+    await expect(harness.tokens.find(rotated.refresh_token)).resolves.toBeNull();
+  });
+
+  it('should treat a legacy token without a session id as its own session', async () => {
+    const harness = createHarness(IDLE_MS);
+    const legacy = await harness.tokens.issue({ userId: 'u1', clientId: 'medcenter-web', scope: 'launch', kind: 'refresh', ttlSeconds: 600 });
+    const withoutSession = { ...legacy } as { -readonly [K in keyof typeof legacy]?: (typeof legacy)[K] };
+    delete withoutSession.sessionId;
+    await harness.store.save(withoutSession as typeof legacy);
+
+    await expect(harness.service.recordActivity(legacy.jti, 'u1')).resolves.toBe(true);
+    const rotated = await refresh(harness, legacy.jti);
+
+    expect(decodeClaims(rotated.access_token)['sid']).toBe(legacy.jti);
+    await expect(harness.service.recordActivity(legacy.jti, 'u1')).resolves.toBe(true);
+  });
+
+  it('should refuse to record activity for an idle, unknown or foreign session', async () => {
+    const harness = createHarness(IDLE_MS);
+    const first = await signIn(harness);
+
+    await expect(harness.service.recordActivity('never-issued', 'u1')).resolves.toBe(false);
+    await expect(harness.service.recordActivity(first.refresh_token, 'intruder')).resolves.toBe(false);
+    jest.setSystemTime(Date.now() + IDLE_MS + 1_000);
+    await expect(harness.service.recordActivity(first.refresh_token, 'u1')).resolves.toBe(false);
+  });
+});
+
+describe('OAuthService authentication journal', () => {
+  it('should journal a logout when the refresh token is revoked by its owner', async () => {
+    const harness = createHarness();
+    const tokens = await signIn(harness);
+
+    await harness.service.revoke({ refreshToken: tokens.refresh_token, userId: 'u1' });
+
+    expect(harness.recordAuthEvent).toHaveBeenCalledWith({ kind: 'logout', userId: 'u1' });
+  });
+
+  it('should journal a session-idle when the client ended the session for inactivity', async () => {
+    jest.useFakeTimers({ now: new Date('2026-11-14T10:00:00Z') });
+    const harness = createHarness(15 * 60_000);
+    const tokens = await signIn(harness);
+    jest.setSystemTime(Date.now() + 15 * 60_000 - 30_000);
+
+    await harness.service.revoke({ refreshToken: tokens.refresh_token, userId: 'u1', reason: 'idle' });
+    jest.useRealTimers();
+
+    expect(harness.recordAuthEvent).toHaveBeenCalledWith({ kind: 'session-idle', userId: 'u1' });
+  });
+
+  it('should journal a plain logout when an idle reason is claimed for a recently active session', async () => {
+    const harness = createHarness(15 * 60_000);
+    const tokens = await signIn(harness);
+
+    await harness.service.revoke({ refreshToken: tokens.refresh_token, userId: 'u1', reason: 'idle' });
+
+    expect(harness.recordAuthEvent).toHaveBeenCalledWith({ kind: 'logout', userId: 'u1' });
+  });
+
+  it('should not journal a logout when the token belongs to someone else', async () => {
+    const harness = createHarness();
+    const tokens = await signIn(harness);
+
+    await harness.service.revoke({ refreshToken: tokens.refresh_token, userId: 'other' });
+
+    expect(harness.recordAuthEvent).not.toHaveBeenCalled();
   });
 });

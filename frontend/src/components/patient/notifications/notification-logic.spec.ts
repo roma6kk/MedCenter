@@ -44,7 +44,7 @@ describe('notificationAction', () => {
   });
 
   it('should lead a finished visit to the history and offer nothing for other types', () => {
-    expect(notificationAction({ category: 'encounter' })).toEqual({ labelKey: 'openHistory', href: '/history' });
+    expect(notificationAction({ category: 'encounter' })).toEqual({ labelKey: 'openHistory', href: '/medcard' });
     expect(notificationAction({ category: 'registration' })).toBeNull();
     expect(notificationAction({ category: 'other' })).toBeNull();
   });

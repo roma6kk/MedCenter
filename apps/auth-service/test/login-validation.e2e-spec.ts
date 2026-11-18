@@ -12,7 +12,6 @@ jest.mock(
 
 const EMAIL = 'login-validation@example.by';
 
-/** `POST /oauth/login` (assumption UI-1): the form's field bounds, and what a half-filled form gets back. */
 const hasSessionCookie = (response: request.Response): boolean =>
   cookiesOf(response.headers['set-cookie']).some((cookie) => cookie.startsWith('mc_as_session='));
 

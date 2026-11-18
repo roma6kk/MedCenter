@@ -1,0 +1,19 @@
+{
+  "id": "be-catalog-10",
+  "unit": "be-catalog",
+  "kind": "question",
+  "severity": "medium",
+  "title": "Один кабинет можно назначить двум врачам на одно и то же время: SCHEDULE_OVERLAP проверяет только PractitionerRole",
+  "description": "SCHEDULE_OVERLAP по спецификации — «пересечение planningHorizon одного PractitionerRole», и именно это реализовано (assertNoScheduleOverlap ищет расписания только по actor=PractitionerRole/{id}). Ничто не мешает создать два расписания разных врачей с одним roomId, пересекающимися горизонтами и окнами (например, Иванова и Петров, оба «ПН 09:00-13:00», кабинет 101): пациенты запишутся в один кабинет к двум врачам одновременно. Так же ничего не проверяется для двух PractitionerRole одного Practitioner (врач с двумя ролями может быть в двух кабинетах сразу). Это новое бизнес-правило, а не нарушение уже записанного, поэтому нужен ответ владельца. Демо-сид этому правилу не противоречит: у каждого врача свой кабинет, а у Ивановой две услуги в одном кабинете в непересекающиеся часы.",
+  "evidence": "apps/catalog-service/src/modules/schedules/schedule-overlap.ts:46-65 (assertNoScheduleOverlap): поиск `Schedule?actor=PractitionerRole/{id}&active=true`; ни roomId, ни Practitioner не участвуют. tools/demo-seed/demo-catalog.ts:152-159 — сид без пересечений кабинетов. specs/api-designer-spec.md:135 — определение SCHEDULE_OVERLAP.",
+  "files": [
+    "apps/catalog-service/src/modules/schedules/schedule-overlap.ts",
+    "apps/catalog-service/src/modules/schedules/schedules.service.ts",
+    "specs/api-designer-spec.md"
+  ],
+  "proposedFix": "If the owner agrees (option A): extend assertNoScheduleOverlap with a second search by the roomId actor (`Schedule?actor=Location/{roomId}&active=true`, paged like the first one) and report the same 409 SCHEDULE_OVERLAP with a message that names the room; call it from create and from update when windows/horizon change (the stored roomId comes from toScheduleSummaryDto). Optionally also search by all PractitionerRoles of the same Practitioner. Update §1 error-code text and §5.2.1/§5.2.3 in api-designer-spec.md, add unit cases (same room + intersecting windows -> 409, same room + disjoint hours -> ok, same room + disjoint horizons -> ok), and run tools/demo-seed parity tests to confirm the seed is unaffected.",
+  "needsDecision": true,
+  "decisionQuestion": "Запретить ли создание расписаний, которые занимают один кабинет (roomId) в пересекающиеся дни и часы у разных врачей? Сейчас SCHEDULE_OVERLAP защищает только одного врача (PractitionerRole). A) да, добавить проверку по кабинету (и по всем ролям одного врача) с тем же кодом 409 SCHEDULE_OVERLAP (рекомендую, сид не затрагивается); B) нет, кабинет — справочная информация, пересечения допустимы (например, групповой приём).",
+  "tzRef": "BR-001; BR-007; FR-020; api-designer-spec §1 (SCHEDULE_OVERLAP), §5.2.1",
+  "confidence": "confirmed"
+}

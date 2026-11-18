@@ -4,24 +4,16 @@ import { CONSENT_CODE_SYSTEMS, CONSENT_CODES } from '@medcenter/terminology';
 import { isConsentInForce, isEmrConsentOf } from './consent';
 import { FhirClientError, type FhirClient, type FhirResource } from './fhir-client.provider';
 
-/** FHIR R4 `id` (`[A-Za-z0-9\-.]{1,64}`), without the dot-only values that collapse a URL path. */
 const FHIR_ID = /^(?!\.+$)[A-Za-z0-9\-.]{1,64}$/;
 
-/** More than one candidate, because the newest may have expired while an older one still holds. */
 const CANDIDATES = 10;
 
-/**
- * The `emr-processing` consent in force for a patient (design §2.3): HAPI
- * narrows by patient, scope, category and status, then every candidate is
- * re-checked in process, including its period. `null` when there is none.
- * HAPI answers a reference search on an unknown Patient with 404; that means
- * "no consent", not NOT_FOUND. Any other upstream failure propagates.
- */
-export async function findActiveConsent(
+/** Every consent in force, newest first; concurrent writes can leave several and a revocation must close them all. An unknown Patient (HAPI 404) means no consent. */
+export async function listActiveConsents(
   fhir: FhirClient,
   patientId: string,
   now: Date = new Date(),
-): Promise<FhirResource | null> {
+): Promise<ReadonlyArray<FhirResource>> {
   if (!FHIR_ID.test(patientId)) {
     throw new TypeError('patientId must be a FHIR id');
   }
@@ -34,24 +26,25 @@ export async function findActiveConsent(
       _sort: '-date',
       _count: CANDIDATES,
     });
-    return (
-      (result.entry ?? [])
-        .map((entry) => entry.resource)
-        .find((resource) => isConsentInForce(resource, patientId, now)) ?? null
-    );
+    return (result.entry ?? [])
+      .map((entry) => entry.resource)
+      .filter((resource) => isConsentInForce(resource, patientId, now));
   } catch (error) {
     if (error instanceof FhirClientError && error.getStatus() === HttpStatus.NOT_FOUND) {
-      return null;
+      return [];
     }
     throw error;
   }
 }
 
-/**
- * Returns the consent in force or throws `409 CONSENT_REQUIRED` (API §1,
- * ADR-019). Services call it before they write clinical data; whether the
- * refusal is enforced or only logged is their `CONSENT_ENFORCEMENT` decision.
- */
+export async function findActiveConsent(
+  fhir: FhirClient,
+  patientId: string,
+  now: Date = new Date(),
+): Promise<FhirResource | null> {
+  return (await listActiveConsents(fhir, patientId, now))[0] ?? null;
+}
+
 export async function assertActiveConsent(
   fhir: FhirClient,
   patientId: string,
@@ -62,20 +55,14 @@ export async function assertActiveConsent(
     throw new ConflictException({
       errorCode: 'CONSENT_REQUIRED',
       message:
-        'CONSENT_REQUIRED: the patient has no active consent to the electronic medical record',
+        'CONSENT_REQUIRED: the patient has no active consent to the clinic information system',
     });
   }
   return consent;
 }
 
-/** How many consents of one patient the history shows; a patient has a handful at most. */
 const HISTORY_LIMIT = 50;
 
-/**
- * Every `emr-processing` consent of a patient, newest first (design §2.3):
- * active, revoked and refused alike. Re-filtered in process like
- * {@link findActiveConsent}; an unknown Patient (HAPI 404) has an empty history.
- */
 export async function listConsents(
   fhir: FhirClient,
   patientId: string,

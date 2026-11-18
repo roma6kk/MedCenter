@@ -3,6 +3,8 @@ import {
   normaliseEmail,
   parseBootstrapAdminEnv,
   parseDatabaseEnv,
+  readRetentionAccountDays,
+  readSessionIdleTimeoutMs,
   readSessionSecret,
 } from './auth-env';
 
@@ -155,5 +157,37 @@ describe('isCookieSecureForced', () => {
 
     expect(() => isCookieSecureForced({ AUTH_COOKIE_SECURE: 'yes' })).toThrow();
     expect(() => isCookieSecureForced({ AUTH_COOKIE_SECURE: 'yes' })).toThrow();
+  });
+});
+
+describe('readSessionIdleTimeoutMs', () => {
+  it('should default to 15 minutes', () => {
+    expect(readSessionIdleTimeoutMs({})).toBe(15 * 60_000);
+    expect(readSessionIdleTimeoutMs({ SESSION_IDLE_TIMEOUT_MINUTES: '' })).toBe(15 * 60_000);
+  });
+
+  it('should read the configured minutes', () => {
+    expect(readSessionIdleTimeoutMs({ SESSION_IDLE_TIMEOUT_MINUTES: '30' })).toBe(30 * 60_000);
+  });
+
+  it('should reject a value that is not a positive whole number of minutes', () => {
+    expect(() => readSessionIdleTimeoutMs({ SESSION_IDLE_TIMEOUT_MINUTES: '0' })).toThrow();
+    expect(() => readSessionIdleTimeoutMs({ SESSION_IDLE_TIMEOUT_MINUTES: 'soon' })).toThrow();
+  });
+});
+
+describe('readRetentionAccountDays', () => {
+  it('should default to five years', () => {
+    expect(readRetentionAccountDays({})).toBe(1825);
+    expect(readRetentionAccountDays({ RETENTION_ACCOUNT_DAYS: '' })).toBe(1825);
+  });
+
+  it('should read the configured days', () => {
+    expect(readRetentionAccountDays({ RETENTION_ACCOUNT_DAYS: '365' })).toBe(365);
+  });
+
+  it('should reject a value that is not a positive whole number of days', () => {
+    expect(() => readRetentionAccountDays({ RETENTION_ACCOUNT_DAYS: '0' })).toThrow();
+    expect(() => readRetentionAccountDays({ RETENTION_ACCOUNT_DAYS: 'long' })).toThrow();
   });
 });

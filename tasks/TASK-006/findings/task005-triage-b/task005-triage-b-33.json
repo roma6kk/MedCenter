@@ -1,0 +1,20 @@
+{
+  "id": "task005-triage-b-33",
+  "unit": "task005-triage-b",
+  "kind": "ux",
+  "severity": "low",
+  "title": "Поиск пациента в боковой панели врача при ошибке пишет «не удалось» без кнопки «Повторить»",
+  "description": "Вопрос из V4/T9 «добавить?» это пропущенное состояние ошибки: для всех остальных чтений есть общий QueryFailure с кнопкой повтора и паузой при 429, а поиск показывает голую строку, и врачу остаётся перепечатать запрос. Поиск строится на журнале врача (запрос, который может упасть по сети или по лимиту).",
+  "evidence": "frontend/src/components/doctor/doctor-patient-search.tsx:101-103 `patients.isError ? <p className=\"px-3 py-2 text-sm text-destructive\">{t('failed')}</p>` inside role=status aria-live=polite; frontend/src/components/feedback/query-error-state.tsx has the retry banner with useRetryCooldown.",
+  "files": [
+    "frontend/src/components/doctor/doctor-patient-search.tsx",
+    "frontend/src/components/feedback/query-error-state.tsx",
+    "frontend/src/messages/ru.json",
+    "frontend/src/messages/en.json"
+  ],
+  "proposedFix": "In the isError branch render the message plus a 44 px `<button type=\"button\" onClick={() => void patients.refetch()}>` with the common «Повторить» label (reuse the existing common.retry key, add nothing new if it exists), disabled while patients.isFetching. Add a spec: failing fetch -> retry click -> results.",
+  "needsDecision": false,
+  "decisionQuestion": "",
+  "tzRef": "FR-009",
+  "confidence": "confirmed"
+}

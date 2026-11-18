@@ -6,16 +6,10 @@ import { TOKEN_DENYLIST, type TokenDenylist } from '../token.service';
 import { LOGIN_KEYS, type LoginKeys } from './login-keys';
 import { signValue, verifySignedValue } from './signed-value';
 
-/**
- * The session only has to survive `POST /oauth/login` → 302 →
- * `GET /oauth/authorize`; five minutes covers a slow network, not a workday.
- */
 export const LOGIN_SESSION_TTL_SECONDS = 300;
 
-/** How long a rendered login form stays submittable. */
 export const LOGIN_CSRF_TTL_SECONDS = 30 * 60;
 
-/** Denylist namespace of consumed sessions (distinct from the token `reuse:`/`session:` ones). */
 const CONSUMED_PREFIX = 'login:';
 
 const sessionPayloadSchema = z.object({
@@ -25,13 +19,12 @@ const sessionPayloadSchema = z.object({
   exp: z.number().int(),
 });
 
-export interface LoginSession {
+interface LoginSession {
   readonly userId: string;
   readonly sessionId: string;
 }
 
-/** The CSRF cookie holds a random nonce; the form field holds its MAC (signed double-submit). */
-export interface CsrfPair {
+interface CsrfPair {
   readonly cookie: string;
   readonly field: string;
 }
@@ -40,13 +33,7 @@ function nowSeconds(): number {
   return Math.floor(Date.now() / 1000);
 }
 
-/**
- * Authorization-server login session (assumption UI-1). Stateless and signed
- * (HMAC-SHA256, HKDF-derived key), short-lived and **single-use**: once
- * `GET /oauth/authorize` has issued a code with it, `end()` records its id in
- * the denylist, so a browser left behind after a logout cannot silently mint
- * a new code for the previous user.
- */
+// Single-use: end() denylists the id so a browser left behind after logout cannot mint a code for the previous user.
 @Injectable()
 export class LoginSessionService {
   constructor(
@@ -54,7 +41,6 @@ export class LoginSessionService {
     @Inject(TOKEN_DENYLIST) private readonly denylist: TokenDenylist,
   ) {}
 
-  /** The signed cookie value of a fresh session for `userId`. */
   issue(userId: string): string {
     return signValue(
       { v: 1, sub: userId, sid: randomUUID(), exp: nowSeconds() + LOGIN_SESSION_TTL_SECONDS },
@@ -62,7 +48,6 @@ export class LoginSessionService {
     );
   }
 
-  /** `null` for an absent, forged, expired or already consumed session. */
   async read(cookie: string | undefined): Promise<LoginSession | null> {
     if (cookie === undefined || cookie.length === 0) {
       return null;
@@ -77,7 +62,6 @@ export class LoginSessionService {
     return { userId: parsed.data.sub, sessionId: parsed.data.sid };
   }
 
-  /** Consumes the session: it can never authorize a second request. */
   async end(sessionId: string): Promise<void> {
     await this.denylist.add(`${CONSUMED_PREFIX}${sessionId}`, LOGIN_SESSION_TTL_SECONDS);
   }

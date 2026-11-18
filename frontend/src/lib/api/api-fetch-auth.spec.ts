@@ -1,3 +1,4 @@
+import { useUiStore } from '@/store/use-ui-store';
 import { apiFetch } from './api-fetch';
 import { setAccessToken, clearAccessToken, getAccessToken } from '@/lib/auth/access-token';
 
@@ -68,7 +69,6 @@ describe('apiFetch authorization wiring', () => {
   });
 
   it('should hand back the bytes when the answer is asked for as a blob', async () => {
-    // jsdom's Response has no blob(): a minimal stand-in carries the bytes.
     const answer = { ok: true, status: 200, blob: () => Promise.resolve(new Blob(['%PDF'], { type: 'application/pdf' })) } as unknown as Response;
     jest.spyOn(global, 'fetch').mockResolvedValueOnce(answer);
 
@@ -76,5 +76,17 @@ describe('apiFetch authorization wiring', () => {
 
     expect(blob).toBeInstanceOf(Blob);
     expect(blob.type).toBe('application/pdf');
+  });
+
+  it('should send the interface language as Accept-Language, unless the caller set its own', async () => {
+    const fetchSpy = jest.spyOn(global, 'fetch').mockResolvedValue(okJson({}));
+    useUiStore.setState({ locale: 'en' });
+
+    await apiFetch('/api/v1/doctors');
+    await apiFetch('/api/v1/services', { headers: { 'Accept-Language': 'ru' } });
+
+    expect(readHeaders(fetchSpy.mock.calls[0]?.[1]).get('Accept-Language')).toBe('en');
+    expect(readHeaders(fetchSpy.mock.calls[1]?.[1]).get('Accept-Language')).toBe('ru');
+    useUiStore.setState({ locale: 'ru' });
   });
 });

@@ -1,4 +1,10 @@
 import type { UserDetailsResponseDto } from './user-response.dto';
 
-/** API §2.2.7 `GET /api/v1/me`: the caller's own account with its `ExternalLink` rows. */
-export type MeResponseDto = UserDetailsResponseDto;
+export interface AccountConsentDto {
+  readonly at: string;
+  readonly version: string;
+}
+
+export interface MeResponseDto extends UserDetailsResponseDto {
+  readonly accountConsent: AccountConsentDto | null;
+}

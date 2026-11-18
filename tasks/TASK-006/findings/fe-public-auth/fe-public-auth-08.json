@@ -1,0 +1,17 @@
+{
+  "id": "fe-public-auth-08",
+  "unit": "fe-public-auth",
+  "kind": "bug",
+  "severity": "low",
+  "title": "Мёртвый и вводящий в заблуждение код: isPublicPath и PUBLIC_PREFIXES в route-guard.ts нигде не используются",
+  "description": "Edge-middleware решает через shouldRedirectToLogin, которая смотрит только на isProtectedPath. Функция isPublicPath со списком PUBLIC_PREFIXES (/login, /register, /doctors, ...) не вызывается ни из middleware, ни из других модулей, ни из тестов. Её условие к тому же шире, чем читается: последняя ветка path.startsWith(prefix) без границы сегмента делает публичным, например, /doctorsXYZ и /loginfoo, то есть противоположна правилу границы сегмента, которое явно записано в isProtectedPath (`/bookingx` не должен совпасть с `/booking`). Если кто-то позже подключит эту функцию в middleware, получится дыра в защите. Мёртвый код в защитном модуле лучше удалить.",
+  "evidence": "frontend/src/lib/auth/route-guard.ts:24-25 PUBLIC_PREFIXES, :33-35 `isPublicPath` with `|| path.startsWith(prefix)`. `grep -rn isPublicPath frontend/src` finds only the definition (no import in middleware.ts, no spec in route-guard.spec.ts). middleware.ts:4,15 uses only shouldRedirectToLogin.",
+  "files": [
+    "frontend/src/lib/auth/route-guard.ts"
+  ],
+  "proposedFix": "Delete PUBLIC_PREFIXES and isPublicPath (and the sentence about them in the module comment). If an allowlist is ever needed, compare with the same segment-boundary rule as isProtectedPath.",
+  "needsDecision": false,
+  "decisionQuestion": "",
+  "tzRef": "frontend-design-spec §1 (middleware); NFR-006",
+  "confidence": "confirmed"
+}

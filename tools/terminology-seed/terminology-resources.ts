@@ -6,20 +6,6 @@ import observationsSnapshot from './snapshot/observations.json';
 import servicesSnapshot from './snapshot/services.json';
 import ucumSnapshot from './snapshot/ucum.json';
 
-/**
- * Pure R4 builders for the versioned terminology snapshot (ADR-002/ADR-016,
- * risk R-1). Canonical URLs stay `https://fhir.by/...` (international ones —
- * ATC, UCUM — keep their HL7-registered canonicals), and every resource carries
- * a deterministic id so the seed can `PUT` it idempotently.
- *
- * `content: 'fragment'` is deliberate: the snapshot is a curated *subset* of
- * МКБ-10 / АТХ / НСИ ЦИСЗ, which is exactly what R4 `fragment` means. It also
- * keeps HAPI on its in-memory expansion path — a `complete` CodeSystem is
- * indexed into HAPI's terminology tables, whose `$expand` needs Hibernate
- * Search, and the compose HAPI runs with Hibernate Search disabled.
- */
-
-/** ValueSet canonicals the seed publishes. `FHIR_BY` only declares the ICD-10 one so far. */
 export const TERMINOLOGY_URLS = {
   ICD10_CODE_SYSTEM: 'https://fhir.by/CodeSystem/InternClassificDiseases10',
   ICD10_VALUE_SET: FHIR_BY.ICD10_VALUE_SET,
@@ -38,7 +24,7 @@ export interface SeedConcept {
   readonly display: string;
 }
 
-export interface SeedCodeSystem extends FhirResource {
+interface SeedCodeSystem extends FhirResource {
   readonly resourceType: 'CodeSystem';
   readonly id: string;
   readonly url: string;
@@ -52,7 +38,7 @@ export interface SeedCodeSystem extends FhirResource {
   readonly concept: readonly SeedConcept[];
 }
 
-export interface SeedValueSetInclude {
+interface SeedValueSetInclude {
   readonly system: string;
   readonly concept?: readonly SeedConcept[];
 }
@@ -78,7 +64,6 @@ interface TerminologyDefinition {
   readonly title: string;
   readonly caseSensitive: boolean;
   readonly concepts: readonly SeedConcept[];
-  /** `false` for UCUM: an external grammar-based system is never re-published as a CodeSystem. */
   readonly publishesCodeSystem: boolean;
 }
 
@@ -182,17 +167,11 @@ export function buildValueSets(): SeedValueSet[] {
 
 export interface ExpansionCheck {
   readonly valueSetUrl: string;
-  /** The code system the ValueSet draws from (the `system` of `$validate-code`). */
   readonly systemUrl: string;
   readonly concepts: readonly SeedConcept[];
   readonly expectedCodes: readonly string[];
 }
 
-/**
- * Every snapshot code must come back from `$expand` of its ValueSet and be
- * accepted by `$validate-code` against it — the call the services' terminology
- * guards make (BR-004).
- */
 export function buildExpansionChecks(): ExpansionCheck[] {
   return DEFINITIONS.map((definition) => ({
     valueSetUrl: definition.valueSetUrl,

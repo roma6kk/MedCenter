@@ -1,0 +1,18 @@
+{
+  "id": "be-auth-users-04",
+  "unit": "be-auth-users",
+  "kind": "robustness",
+  "severity": "low",
+  "title": "Правка имени пациента администратором затирает отчество и оставляет устаревший name.text: applyDemographics заменяет весь given[] одним элементом",
+  "description": "При PATCH /admin/users/{id} с firstName синхронизация Patient пишет `given: [firstName]`, отбрасывая остальные элементы given официального имени. В белорусском формате «Фамилия Имя Отчество» отчество лежит в `given[1]` (так его читает patient-service: readPersonName -> middleName, так же записаны врачи в сидере). Если у Patient отчество есть (внесено регистратурой напрямую в HAPI или появится при будущем расширении профиля), смена имени в карточке пользователя тихо удаляет его из медицинской карты, причём без отказа и без следа в аудите (в аудите только «update»). Сейчас продукт сам отчество у пациентов не создаёт (регистрация и форма админа его не принимают), поэтому дефект скрытый. Тот же путь не трогает `name.text`: patient-service берёт `fullName` именно из `text`, если он задан (readPersonName: `fullName: stringOf(name['text']) ?? composed`), поэтому у Patient с заполненным `text` после переименования в карточке пользователя продолжает показываться старое ФИО.",
+  "evidence": "apps/auth-service/src/modules/users/patient-provisioner.ts:62-68 `const name = { use: 'official', ...official, ...(change.lastName !== undefined ? { family: change.lastName } : {}), ...(change.firstName !== undefined ? { given: [change.firstName] } : {}) }` — given is replaced wholesale. apps/patient-service/src/shared/fhir-datatypes.mapper.ts:12,70 documents given[1] as middleName. Scenario: Patient.name[0] = {use:'official', family:'Иванов', given:['Иван','Петрович']}; admin PATCH {firstName:'Иоанн'} -> given:['Иоанн'] -> «Иванов Иоанн» (patronymic lost). apps/patient-service/src/shared/fhir-datatypes.mapper.ts:75 `fullName: stringOf(name['text']) ?? composed` — a Patient name with `text` keeps the old full name after the rename because applyDemographics spreads `...official` (incl. `text`) and only overwrites family/given.",
+  "files": [
+    "apps/auth-service/src/modules/users/patient-provisioner.ts",
+    "apps/auth-service/src/modules/users/patient-provisioner.spec.ts"
+  ],
+  "proposedFix": "In applyDemographics keep the rest of the given list: `given: [change.firstName, ...(Array.isArray(official?.given) ? official.given.slice(1) : [])]` (only strings). Add a spec case to patient-provisioner.spec.ts: official name given ['Иван','Петрович'] + change {firstName:'Иоанн'} -> given ['Иоанн','Петрович']. Also remove the stale `text` from the rewritten official name when family or given changed (destructure `{ text: _stale, ...rest } = official`), so fullName is composed from the new parts; extend the spec case with `text: 'Иванов Иван Петрович'`.",
+  "needsDecision": false,
+  "decisionQuestion": "",
+  "tzRef": "FR-015 (синхронизация учётной записи и Patient)",
+  "confidence": "likely"
+}

@@ -7,9 +7,8 @@ import { AppModule } from '../src/app/app.module';
 import { CONSENT_ENFORCEMENT_MODE, type ConsentEnforcement } from '../src/common/consent/consent-gate';
 import { applyE2eEnv } from './e2e-env';
 import { FakeHapi } from './fake-hapi';
-import { startTestIssuer, type TestIssuer, type TestTokenClaims } from './test-tokens';
+import { startTestIssuer, type TestIssuer, type TestTokenClaims } from '@medcenter/testing';
 
-/** Codes the fake terminology server knows: the seed subset the scenarios use. */
 export const SEEDED_CODES: readonly string[] = ['J06.9', 'I10', 'J01FA10', 'N02BE01', 'Cel', '20006', '10008'];
 
 export const APPOINTMENT_ID = 'apt-1';
@@ -21,11 +20,6 @@ export interface AppHarness {
   close(): Promise<void>;
 }
 
-/**
- * Boots the real `AppModule` — global guard stack, validation pipe, RFC 7807
- * filter — over an in-memory HAPI, so the HTTP contract is tested without HAPI.
- * The service no longer publishes events itself (outbox, ADR-021).
- */
 export async function startAppHarness(consentEnforcement: ConsentEnforcement = 'warn'): Promise<AppHarness> {
   applyE2eEnv();
   const issuer = await startTestIssuer();
@@ -72,7 +66,6 @@ export const PATIENT: TestTokenClaims = {
   fhirUser: 'Patient/pat-1',
 };
 
-/** The booked appointment of `Patient/pat-1` with `PractitionerRole/role-1`, as appointment-service writes it. */
 export function bookedAppointment(): FhirResource {
   return {
     resourceType: 'Appointment',
@@ -88,7 +81,6 @@ export function bookedAppointment(): FhirResource {
   };
 }
 
-/** An `emr-processing` consent in force for `Patient/pat-1` (what patient-service 3.8 writes). */
 export function activeConsent(period?: { start?: string; end?: string }): FhirResource {
   return {
     resourceType: 'Consent',
@@ -110,7 +102,6 @@ export function healthcareService(): FhirResource {
   };
 }
 
-/** API §7.3 body of the plan's E2E: `J06.9` / `36.6 Cel` / `J01FA10`. */
 export function completeBody(diagnosisCode = 'J06.9'): Record<string, unknown> {
   return {
     summary: 'Жалобы на заложенность носа, субфебрилитет',

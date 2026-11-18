@@ -13,7 +13,6 @@ interface PrescriptionBase {
   readonly reasonConditionId?: string;
 }
 
-/** Fields both request types share: id, status, authoring date and the BR-005 links. */
 function baseOf(request: FhirResource): PrescriptionBase | undefined {
   if (request.id === undefined) {
     return undefined;

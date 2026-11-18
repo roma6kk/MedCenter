@@ -41,14 +41,11 @@ const PATIENT_PRINCIPAL = {
 
 describe('AuthorizeController', () => {
   it('should render the login form instead of redirecting when there is no login session', async () => {
-    // Arrange
     const { controller } = setup();
     const fake = createFakeResponse();
 
-    // Act
     await controller.authorize(authorizeRequest(), fake.response);
 
-    // Assert
     expect(fake.redirect).not.toHaveBeenCalled();
     expect(fake.statusCode()).toBe(200);
     expect(fake.headers['Content-Type']).toContain('text/html');

@@ -9,7 +9,6 @@ const patientClaims: JwtClaims = {
   sub: 'user-1',
   scope: 'patient/*.write',
   role: 'PATIENT',
-  // auth-service issues the SMART launch context as a bare Patient id.
   patient: '9f2c',
   jti: 'jti-1',
 };
@@ -54,14 +53,19 @@ const bookedAppointment: FhirResource = {
   meta: { versionId: '2' },
 };
 
-/** The event envelope inside an outbox `Basic` (the payload extension, JSON text). */
+const COMMITTED = { resourceType: 'Bundle', type: 'transaction-response', entry: [] };
+
+interface SentBundle {
+  type: string;
+  entry: Array<{ resource: FhirResource; request: Record<string, unknown> }>;
+}
+
 function outboxEventOf(basic: FhirResource | undefined): Record<string, unknown> {
   const extensions = (basic?.['extension'] ?? []) as Array<{ url: string; valueString?: string }>;
   const payload = extensions.find((extension) => extension.url === MEDCENTER_EXT.OUTBOX_PAYLOAD)?.valueString;
   return JSON.parse(payload ?? '{}') as Record<string, unknown>;
 }
 
-/** Error payload (`{ errorCode, message }`) thrown by a service call. */
 async function errorPayloadOf(promise: Promise<unknown>): Promise<unknown> {
   try {
     await promise;
@@ -71,11 +75,14 @@ async function errorPayloadOf(promise: Promise<unknown>): Promise<unknown> {
   throw new Error('expected the promise to reject');
 }
 
+const BEFORE_SLOT_START = new Date('2026-11-02T08:00:00+03:00');
+
 describe('AppointmentsService', () => {
   let service: AppointmentsService;
   let fhir: jest.Mocked<FhirClient>;
 
   beforeEach(() => {
+    jest.useFakeTimers({ now: BEFORE_SLOT_START });
     fhir = {
       search: jest.fn(),
       read: jest.fn(),
@@ -85,8 +92,14 @@ describe('AppointmentsService', () => {
       operation: jest.fn(),
       batch: jest.fn(),
     } as unknown as jest.Mocked<FhirClient>;
-    service = new AppointmentsService(fhir, 'warn');
+    service = new AppointmentsService(fhir);
   });
+
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
+  const sentBundle = (): SentBundle => fhir.batch.mock.calls[0]?.[0] as unknown as SentBundle;
 
   describe('book', () => {
     it('should commit the slot CAS, the Appointment and the AuditEvent in one transaction with the outbox event, when the slot is free', async () => {
@@ -103,7 +116,7 @@ describe('AppointmentsService', () => {
 
       const result = await service.book(patientClaims, { slotId: 'slot-1' });
 
-      const bundle = fhir.batch.mock.calls[0]?.[0] as unknown as { type: string; entry: Array<{ resource?: FhirResource; request: Record<string, unknown> }> };
+      const bundle = sentBundle();
       expect(bundle.type).toBe('transaction');
       expect(bundle.entry[0]?.request).toEqual({ method: 'PUT', url: 'Slot/slot-1', ifMatch: 'W/"3"' });
       const appointmentId = result.id;
@@ -139,7 +152,7 @@ describe('AppointmentsService', () => {
 
       await service.book(patientClaims, { slotId: 'slot-1' });
 
-      const bundle = fhir.batch.mock.calls[0]?.[0] as unknown as { entry: Array<{ resource: FhirResource }> };
+      const bundle = sentBundle();
       const participants = bundle.entry[1]?.resource['participant'] as Array<{ actor: { reference: string } }>;
       expect(participants.map((participant) => participant.actor.reference)).toContain('Patient/9f2c');
     });
@@ -165,6 +178,62 @@ describe('AppointmentsService', () => {
         errorCode: 'SLOT_CONFLICT',
       });
       expect(fhir.batch).not.toHaveBeenCalled();
+    });
+
+    it.each(['2026-11-02T09:00:00+03:00', '2026-11-02T09:05:00+03:00', '2026-11-03T12:00:00+03:00'])(
+      'should throw SLOT_CONFLICT without writing when the slot has already started and the clock reads %s',
+      async (now) => {
+        jest.setSystemTime(new Date(now));
+        fhir.read.mockImplementation(async (type) => (type === 'Slot' ? freeSlot : schedule));
+
+        const payload = await errorPayloadOf(service.book(patientClaims, { slotId: 'slot-1' }));
+
+        expect(payload).toMatchObject({ errorCode: 'SLOT_CONFLICT', message: 'SLOT_CONFLICT: slot has already started' });
+        expect(fhir.batch).not.toHaveBeenCalled();
+      },
+    );
+
+    it('should still book the slot when it starts in one second', async () => {
+      jest.setSystemTime(new Date('2026-11-02T08:59:59+03:00'));
+      fhir.read.mockImplementation(async (type) => (type === 'Slot' ? freeSlot : schedule));
+      fhir.batch.mockResolvedValue(COMMITTED);
+
+      const result = await service.book(patientClaims, { slotId: 'slot-1' });
+
+      expect(result).toMatchObject({ status: 'booked', start: '2026-11-02T09:00:00+03:00' });
+    });
+
+    it.each([undefined, 'soon'])(
+      'should fail with INTERNAL, writing nothing, when the free slot has no parsable start (%s)',
+      async (start) => {
+        fhir.read.mockImplementation(async (type) => (type === 'Slot' ? { ...freeSlot, start } : schedule));
+
+        expect(await errorPayloadOf(service.book(patientClaims, { slotId: 'slot-1' }))).toMatchObject({ errorCode: 'INTERNAL' });
+        expect(fhir.batch).not.toHaveBeenCalled();
+      },
+    );
+
+    it.each([
+      ['Schedule', { ...schedule, active: false }, practitionerRole],
+      ['PractitionerRole', schedule, { ...practitionerRole, active: false }],
+    ])('should throw SLOT_CONFLICT without writing when the %s is inactive', async (_name, scheduleRead, roleRead) => {
+      fhir.read.mockImplementation(async (type) => (type === 'Slot' ? freeSlot : type === 'PractitionerRole' ? roleRead : scheduleRead));
+
+      const payload = await errorPayloadOf(service.book(patientClaims, { slotId: 'slot-1' }));
+
+      expect(payload).toMatchObject({ errorCode: 'SLOT_CONFLICT', message: 'SLOT_CONFLICT: the slot is no longer offered' });
+      expect(fhir.batch).not.toHaveBeenCalled();
+    });
+
+    it.each([undefined, true])('should book when the Schedule and the PractitionerRole carry active=%s', async (active) => {
+      fhir.read.mockImplementation(async (type) =>
+        type === 'Slot' ? freeSlot : type === 'PractitionerRole' ? { ...practitionerRole, active } : { ...schedule, active },
+      );
+      fhir.batch.mockResolvedValue(COMMITTED);
+
+      const result = await service.book(patientClaims, { slotId: 'slot-1' });
+
+      expect(result).toMatchObject({ status: 'booked', practitionerRoleId: 'role-1' });
     });
 
     it('should map the lost race to SLOT_CONFLICT when HAPI rejects the If-Match (412 as 409)', async () => {
@@ -215,7 +284,7 @@ describe('AppointmentsService', () => {
         fhir.read.mockResolvedValue(bookedAppointment);
         fhir.search.mockResolvedValue({ entry: [{ resource: { resourceType: 'Encounter', id: 'enc-1', status } }] });
 
-        expect(await errorPayloadOf(service.cancel(patientClaims, 'apt-1', { reason: 'не смог прийти' }))).toMatchObject({
+        expect(await errorPayloadOf(service.cancel(patientClaims, 'apt-1', { reason: 'plans-changed' }))).toMatchObject({
           errorCode: 'APPOINTMENT_NOT_CANCELLABLE',
         });
         expect(fhir.search).toHaveBeenCalledWith('Encounter', { appointment: 'Appointment/apt-1', _count: 1 });
@@ -227,7 +296,7 @@ describe('AppointmentsService', () => {
       fhir.read.mockImplementation(async (type) => (type === 'Appointment' ? bookedAppointment : { ...freeSlot, status: 'busy' }));
       fhir.batch.mockRejectedValue(new FhirClientError('POST', 'http://hapi/fhir', 412, '{}'));
 
-      expect(await errorPayloadOf(service.cancel(patientClaims, 'apt-1', { reason: 'не смог прийти' }))).toMatchObject({
+      expect(await errorPayloadOf(service.cancel(patientClaims, 'apt-1', { reason: 'plans-changed' }))).toMatchObject({
         errorCode: 'APPOINTMENT_NOT_CANCELLABLE',
       });
     });
@@ -235,7 +304,7 @@ describe('AppointmentsService', () => {
     it('should fail with INTERNAL, without reading a collection URL, when the appointment has no slot', async () => {
       fhir.read.mockResolvedValue({ ...bookedAppointment, slot: undefined });
 
-      expect(await errorPayloadOf(service.cancel(patientClaims, 'apt-1', { reason: 'не смог прийти' }))).toMatchObject({
+      expect(await errorPayloadOf(service.cancel(patientClaims, 'apt-1', { reason: 'plans-changed' }))).toMatchObject({
         errorCode: 'INTERNAL',
       });
       expect(fhir.read).not.toHaveBeenCalledWith('Slot', '');
@@ -245,7 +314,7 @@ describe('AppointmentsService', () => {
     it('should refuse with COMPARTMENT_VIOLATION when the appointment belongs to another patient', async () => {
       fhir.read.mockResolvedValue({ ...bookedAppointment, participant: [{ actor: { reference: 'Patient/other' } }] });
 
-      expect(await errorPayloadOf(service.cancel(patientClaims, 'apt-1', { reason: 'не смог прийти' }))).toMatchObject({
+      expect(await errorPayloadOf(service.cancel(patientClaims, 'apt-1', { reason: 'plans-changed' }))).toMatchObject({
         errorCode: 'COMPARTMENT_VIOLATION',
       });
       expect(fhir.batch).not.toHaveBeenCalled();
@@ -255,7 +324,7 @@ describe('AppointmentsService', () => {
       fhir.read.mockResolvedValue(bookedAppointment);
       const noPatient: JwtClaims = { ...patientClaims, patient: undefined };
 
-      expect(await errorPayloadOf(service.cancel(noPatient, 'apt-1', { reason: 'не смог прийти' }))).toMatchObject({
+      expect(await errorPayloadOf(service.cancel(noPatient, 'apt-1', { reason: 'plans-changed' }))).toMatchObject({
         errorCode: 'COMPARTMENT_VIOLATION',
       });
       expect(fhir.read).not.toHaveBeenCalled();
@@ -264,7 +333,7 @@ describe('AppointmentsService', () => {
     it('should reject with APPOINTMENT_NOT_CANCELLABLE when the appointment is already cancelled', async () => {
       fhir.read.mockResolvedValue({ ...bookedAppointment, status: 'cancelled' });
 
-      expect(await errorPayloadOf(service.cancel(patientClaims, 'apt-1', { reason: 'не смог прийти' }))).toMatchObject({
+      expect(await errorPayloadOf(service.cancel(patientClaims, 'apt-1', { reason: 'plans-changed' }))).toMatchObject({
         errorCode: 'APPOINTMENT_NOT_CANCELLABLE',
       });
       expect(fhir.batch).not.toHaveBeenCalled();
@@ -274,19 +343,21 @@ describe('AppointmentsService', () => {
       fhir.read.mockImplementation(async (type) =>
         type === 'Appointment' ? bookedAppointment : { ...freeSlot, status: 'busy' },
       );
-      fhir.batch.mockResolvedValue({ resourceType: 'Bundle', type: 'transaction-response', entry: [] });
+      fhir.batch.mockResolvedValue(COMMITTED);
 
-      const result = await service.cancel(patientClaims, 'apt-1', { reason: 'не смог прийти' });
+      const result = await service.cancel(patientClaims, 'apt-1', { reason: 'plans-changed' });
 
-      const bundle = fhir.batch.mock.calls[0]?.[0] as unknown as { entry: Array<{ resource: FhirResource; request: Record<string, unknown> }> };
+      const bundle = sentBundle();
       expect(bundle.entry[0]?.request).toEqual({ method: 'PUT', url: 'Appointment/apt-1', ifMatch: 'W/"2"' });
       expect(bundle.entry[1]?.resource['status']).toBe('free');
       expect(bundle.entry[1]?.request).toEqual({ method: 'PUT', url: 'Slot/slot-1', ifMatch: 'W/"3"' });
-      expect(result).toMatchObject({ status: 'cancelled', cancelReason: 'не смог прийти' });
+      expect(bundle.entry[0]?.resource['cancelationReason']).toEqual({
+        coding: [{ system: 'urn:medcenter:appointment-cancel-reason', code: 'plans-changed' }],
+      });
+      expect(result).toMatchObject({ status: 'cancelled', cancelReason: 'plans-changed' });
       const outbox = outboxEventOf(bundle.entry[3]?.resource);
       expect(outbox).toMatchObject({ type: 'appointment.cancelled.v1', appointmentId: 'apt-1', actorType: 'PATIENT', patientRef: 'Patient/9f2c' });
-      // Payload minimisation (ADR-021): the free-text reason never enters the outbox.
-      expect(JSON.stringify(bundle.entry[3]?.resource)).not.toContain('не смог прийти');
+      expect(JSON.stringify(bundle.entry[3]?.resource)).not.toContain('plans-changed');
     });
   });
 
@@ -295,25 +366,67 @@ describe('AppointmentsService', () => {
     const encounterOf = (status: string): FhirResource => ({ resourceType: 'Encounter', id: 'enc-1', status });
 
     beforeEach(() => {
+      jest.setSystemTime(new Date('2026-11-02T09:10:00+03:00'));
       fhir.search.mockResolvedValue({ entry: [] });
+    });
+
+    it.each(['2026-11-02T08:00:00+03:00', '2026-11-02T08:59:59+03:00'])(
+      'should reject with 409 ENCOUNTER_STATE_INVALID and write nothing when the appointment has not started and the clock reads %s',
+      async (now) => {
+        jest.setSystemTime(new Date(now));
+        fhir.read.mockResolvedValue(bookedAppointment);
+
+        const payload = await errorPayloadOf(service.markNoShow(doctorClaims, 'apt-1'));
+
+        expect(payload).toMatchObject({ errorCode: 'ENCOUNTER_STATE_INVALID' });
+        expect(JSON.stringify(payload)).toContain('has not started yet');
+        expect(fhir.batch).not.toHaveBeenCalled();
+      },
+    );
+
+    it('should mark noshow when the clock reads exactly the start of the appointment', async () => {
+      jest.setSystemTime(new Date('2026-11-02T09:00:00+03:00'));
+      fhir.read.mockResolvedValue(bookedAppointment);
+      fhir.batch.mockResolvedValue(COMMITTED);
+
+      const result = await service.markNoShow(doctorClaims, 'apt-1');
+
+      expect(result.status).toBe('noshow');
+    });
+
+    it('should not reveal the start of the appointment when another practitioner asks before it starts', async () => {
+      jest.setSystemTime(new Date('2026-11-02T08:00:00+03:00'));
+      fhir.read.mockResolvedValue(bookedAppointment);
+      const other: JwtClaims = { ...doctorClaims, fhirUser: 'PractitionerRole/role-9' };
+
+      expect(await errorPayloadOf(service.markNoShow(other, 'apt-1'))).toMatchObject({ errorCode: 'COMPARTMENT_VIOLATION' });
     });
 
     it('should mark noshow and keep the slot busy when the participant doctor calls it', async () => {
       fhir.read.mockResolvedValue(bookedAppointment);
-      fhir.batch.mockResolvedValue({ resourceType: 'Bundle', type: 'transaction-response', entry: [] });
+      fhir.batch.mockResolvedValue(COMMITTED);
 
-      const doctor: JwtClaims = { ...patientClaims, role: 'DOCTOR', sub: 'doc-1', patient: undefined, fhirUser: 'PractitionerRole/role-1' };
-      const result = await service.markNoShow(doctor, 'apt-1');
+      const result = await service.markNoShow(doctorClaims, 'apt-1');
 
       expect(result.status).toBe('noshow');
-      const bundle = fhir.batch.mock.calls[0]?.[0] as unknown as { entry: Array<{ request: Record<string, unknown> }> };
-      expect(bundle.entry).toHaveLength(2);
+      const bundle = sentBundle();
+      expect(bundle.entry).toHaveLength(3);
       expect(bundle.entry[0]?.request).toEqual({ method: 'PUT', url: 'Appointment/apt-1', ifMatch: 'W/"2"' });
+    });
+
+    it('should record the appointment.noshow.v1 outbox event in the same transaction as the status when a no-show is marked', async () => {
+      fhir.read.mockResolvedValue(bookedAppointment);
+      fhir.batch.mockResolvedValue(COMMITTED);
+
+      await service.markNoShow(doctorClaims, 'apt-1');
+
+      const bundle = sentBundle();
+      expect(outboxEventOf(bundle.entry[2]?.resource)).toMatchObject({ type: 'appointment.noshow.v1', appointmentId: 'apt-1', patientRef: 'Patient/9f2c' });
     });
 
     it('should refuse with COMPARTMENT_VIOLATION when the practitioner does not participate', async () => {
       fhir.read.mockResolvedValue(bookedAppointment);
-      const other: JwtClaims = { ...patientClaims, role: 'DOCTOR', patient: undefined, fhirUser: 'PractitionerRole/role-9' };
+      const other: JwtClaims = { ...doctorClaims, fhirUser: 'PractitionerRole/role-9' };
 
       expect(await errorPayloadOf(service.markNoShow(other, 'apt-1'))).toMatchObject({ errorCode: 'COMPARTMENT_VIOLATION' });
       expect(fhir.batch).not.toHaveBeenCalled();
@@ -321,7 +434,7 @@ describe('AppointmentsService', () => {
 
     it('should fail closed before reading FHIR when the token carries no practitioner identity', async () => {
       fhir.read.mockResolvedValue(bookedAppointment);
-      const noIdentity: JwtClaims = { ...patientClaims, role: 'DOCTOR', patient: undefined };
+      const noIdentity: JwtClaims = { ...doctorClaims, fhirUser: undefined };
 
       expect(await errorPayloadOf(service.markNoShow(noIdentity, 'apt-1'))).toMatchObject({ errorCode: 'COMPARTMENT_VIOLATION' });
       expect(fhir.read).not.toHaveBeenCalled();
@@ -330,7 +443,7 @@ describe('AppointmentsService', () => {
 
     it('should not reveal the status when another practitioner asks about a non-booked appointment', async () => {
       fhir.read.mockResolvedValue({ ...bookedAppointment, status: 'cancelled' });
-      const other: JwtClaims = { ...patientClaims, role: 'DOCTOR', patient: undefined, fhirUser: 'PractitionerRole/role-9' };
+      const other: JwtClaims = { ...doctorClaims, fhirUser: 'PractitionerRole/role-9' };
 
       expect(await errorPayloadOf(service.markNoShow(other, 'apt-1'))).toMatchObject({ errorCode: 'COMPARTMENT_VIOLATION' });
     });
@@ -370,7 +483,7 @@ describe('AppointmentsService', () => {
 
     it('should look the encounter up through its appointment reference when the no-show is checked', async () => {
       fhir.read.mockResolvedValue(bookedAppointment);
-      fhir.batch.mockResolvedValue({ resourceType: 'Bundle', type: 'transaction-response', entry: [] });
+      fhir.batch.mockResolvedValue(COMMITTED);
 
       await service.markNoShow(doctorClaims, 'apt-1');
 

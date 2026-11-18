@@ -8,6 +8,8 @@ const config: Config = {
   setupFilesAfterEnv: ['<rootDir>/jest.setup.ts'],
   moduleNameMapper: { '^@/(.*)$': '<rootDir>/src/$1' },
   testMatch: ['<rootDir>/src/**/*.spec.ts', '<rootDir>/src/**/*.spec.tsx'],
+  // The 5 s default is too tight for user-event specs under parallel workers.
+  testTimeout: 15_000,
 };
 
 export default createJestConfig(config);

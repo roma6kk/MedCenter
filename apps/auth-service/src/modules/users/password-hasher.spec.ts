@@ -1,6 +1,5 @@
 import { PasswordHasher } from './password-hasher';
 
-/** Cheap parameters keep the suite fast; production uses `DEFAULT_SCRYPT_PARAMS`. */
 const FAST = { N: 2 ** 10, r: 8, p: 1 } as const;
 
 describe('PasswordHasher', () => {

@@ -13,9 +13,8 @@ import {
   startAppHarness,
   type AppHarness,
 } from './app-harness';
-import type { TestTokenClaims } from './test-tokens';
+import type { TestTokenClaims } from '@medcenter/testing';
 
-/** A finished encounter of another patient: it must never leak into `Patient/pat-1` listings. */
 const FOREIGN_ENCOUNTER = {
   resourceType: 'Encounter',
   id: 'enc-foreign',
@@ -25,11 +24,6 @@ const FOREIGN_ENCOUNTER = {
   period: { start: '2026-10-01T06:00:00Z', end: '2026-10-01T06:20:00Z' },
 };
 
-/**
- * API §7.4–7.7 over HTTP: the patient compartment comes from the token only
- * (ADR-013), a doctor reads a patient only after sharing care with them, an
- * admin reads no medical data (ADR-018). HAPI is the in-memory `FakeHapi`.
- */
 describe('History and prescriptions (API §7.4–7.7)', () => {
   let harness: AppHarness;
 
@@ -77,10 +71,17 @@ describe('History and prescriptions (API §7.4–7.7)', () => {
     ]);
   });
 
-  it('should answer 403 COMPARTMENT_VIOLATION when a patient reads another patient history', async () => {
-    const response = await get(PATIENT, '/api/v1/patients/pat-2/history').expect(403);
+  it.each([
+    ['COMPARTMENT_VIOLATION', 403, 'a patient reads another patient history', PATIENT, '/api/v1/patients/pat-2/history'],
+    ['VALIDATION_ERROR', 400, 'the encounterId filter is not a FHIR id', PATIENT, '/api/v1/me/prescriptions?encounterId=a%20b'],
+    ['COMPARTMENT_VIOLATION', 403, 'a doctor never treated the patient', OTHER_DOCTOR, '/api/v1/patients/pat-1/prescriptions'],
+    ['FORBIDDEN_SCOPE', 403, 'a doctor token calls the patient-only me routes', DOCTOR, '/api/v1/me/history'],
+    ['VALIDATION_ERROR', 400, 'the patient path id is made of dots only', DOCTOR, '/api/v1/patients/%2E%2E/history'],
+    ['VALIDATION_ERROR', 400, 'the page size exceeds the API limit', PATIENT, '/api/v1/me/history?pageSize=101'],
+  ])('should answer %s with %i when %s', async (errorCode, status, _case, claims, path) => {
+    const response = await get(claims, path).expect(status);
 
-    expect(response.body).toMatchObject({ errorCode: 'COMPARTMENT_VIOLATION' });
+    expect(response.body).toMatchObject({ errorCode });
   });
 
   it('should let the treating doctor read the patient history when they share an encounter', async () => {
@@ -91,16 +92,9 @@ describe('History and prescriptions (API §7.4–7.7)', () => {
     expect(response.body.items).toEqual([expect.objectContaining({ id: encounterId, practitionerRoleId: 'role-1' })]);
   });
 
-  it('should answer 403 COMPARTMENT_VIOLATION when a doctor never treated the patient', async () => {
-    const response = await get(OTHER_DOCTOR, '/api/v1/patients/pat-1/prescriptions').expect(403);
-
-    expect(response.body).toMatchObject({ errorCode: 'COMPARTMENT_VIOLATION' });
-  });
-
   it('should answer 403 when an admin reads the history or the prescriptions of a patient', async () => {
     await completeVisit();
 
-    // The role guard refuses first (FORBIDDEN_ROLE); the compartment check behind it is the second layer (ADR-018).
     for (const path of ['/api/v1/patients/pat-1/history', '/api/v1/patients/pat-1/prescriptions']) {
       const response = await get(ADMIN, path).expect(403);
       expect(response.body).toMatchObject({ errorCode: expect.stringMatching(/^(FORBIDDEN_ROLE|COMPARTMENT_VIOLATION)$/) });
@@ -147,24 +141,5 @@ describe('History and prescriptions (API §7.4–7.7)', () => {
 
       await get(DOCTOR, '/api/v1/patients/pat-1/history').expect(200);
     });
-  });
-
-  it('should answer 403 FORBIDDEN_SCOPE when a doctor token calls the patient-only me routes', async () => {
-    // ADR-009 guard order: the `user/*` token fails the `patient/*.read` check before the role check.
-    const response = await get(DOCTOR, '/api/v1/me/history').expect(403);
-
-    expect(response.body).toMatchObject({ errorCode: 'FORBIDDEN_SCOPE' });
-  });
-
-  it('should answer 400 VALIDATION_ERROR when the patient path id is made of dots only', async () => {
-    const response = await get(DOCTOR, '/api/v1/patients/%2E%2E/history').expect(400);
-
-    expect(response.body).toMatchObject({ errorCode: 'VALIDATION_ERROR' });
-  });
-
-  it('should answer 400 VALIDATION_ERROR when the page size exceeds the API limit', async () => {
-    const response = await get(PATIENT, '/api/v1/me/history?pageSize=101').expect(400);
-
-    expect(response.body).toMatchObject({ errorCode: 'VALIDATION_ERROR' });
   });
 });

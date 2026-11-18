@@ -1,28 +1,13 @@
-/**
- * E2E — security checks of the frontend design spec §6 and ADR-013 (patient compartment), against the live stack:
- *
- * - the UI never sends a `patient` query parameter while a patient reads through the `patient/*` scopes (`/me/*` family);
- * - the compartment holds at the API too: a patient token cannot read the chart of another patient;
- * - role guards: a patient has no way into the doctor and admin routes, a doctor none into the admin and patient ones;
- * - an anonymous visitor is sent to `/login?returnTo=<path+query>` from every protected route, never from a public one.
- *
- * Role gating in the UI is UX only (the BFF guards are the authority, ADR-009), so the guards are asserted on the visible
- * 403 page AND on the API answer where a route has one. The sessions are the saved states of `auth.setup.ts`.
- */
-import { expect, test, type BrowserContext, type Page, type Request } from '@playwright/test';
-import { accessTokenOf } from './fixtures/booking-api';
+import { expect, test, type Page, type Request } from '@playwright/test';
+import { returnToOfAuthorizeUrl } from './fixtures/auth';
+import { authHeaders } from './fixtures/booking-api';
 import { hasDemoManifest, type DemoRole } from './fixtures/demo-accounts';
-import { openStoredSession } from './fixtures/session-state';
+import { openStoredSession, type StoredSession } from './fixtures/session-state';
 
 test.skip(!hasDemoManifest(), 'demo seed manifest not found');
 
-const PATIENT_ROUTES: ReadonlyArray<string> = ['/booking', '/appointments', '/history', '/prescriptions', '/profile', '/notifications'];
+const PATIENT_ROUTES: ReadonlyArray<string> = ['/home', '/booking', '/appointments', '/medcard', '/history', '/prescriptions', '/profile', '/notifications'];
 const FORBIDDEN_TEXT = 'Этот раздел недоступен для вашей роли.';
-
-interface Session {
-  readonly context: BrowserContext;
-  readonly page: Page;
-}
 
 async function expectForbidden(page: Page, route: string): Promise<void> {
   await page.goto(route);
@@ -32,8 +17,8 @@ async function expectForbidden(page: Page, route: string): Promise<void> {
 
 test.describe('patient compartment (ADR-013)', () => {
   test.describe.configure({ mode: 'serial' });
-  let patient: Session;
-  let other: Session;
+  let patient: StoredSession;
+  let other: StoredSession;
 
   test.beforeAll(async ({ browser, baseURL }) => {
     patient = await openStoredSession(browser, baseURL, 'PATIENT', 0);
@@ -60,7 +45,6 @@ test.describe('patient compartment (ADR-013)', () => {
     expect(sent.length, 'the patient pages read the API').toBeGreaterThan(0);
     const withPatient = sent.filter((request) => new URL(request.url()).searchParams.has('patient')).map((request) => new URL(request.url()).pathname);
     expect(withPatient, 'requests that carry a `patient` parameter').toEqual([]);
-    // The reads of the patient go through the `/me/*` family (API §3.1, §7.6, §7.7), never through `/patients/{id}`.
     const chartReads = sent.filter((request) => /^\/api\/v1\/patients\//.test(new URL(request.url()).pathname)).map((request) => new URL(request.url()).pathname);
     expect(chartReads, 'reads of a chart by id from a patient page').toEqual([]);
   });
@@ -69,9 +53,8 @@ test.describe('patient compartment (ADR-013)', () => {
     const session = (await (await other.page.request.get('/api/auth/session')).json()) as { patientRef: string | null };
     const otherId = session.patientRef?.split('/').pop();
     expect(otherId, 'the second patient has a Patient reference').toBeTruthy();
-    const token = await accessTokenOf(patient.page);
 
-    const history = await patient.page.request.get(`/api/v1/patients/${encodeURIComponent(String(otherId))}/history`, { headers: { Authorization: `Bearer ${token}` } });
+    const history = await patient.page.request.get(`/api/v1/patients/${encodeURIComponent(String(otherId))}/history`, { headers: await authHeaders(patient.page) });
 
     expect(history.status()).toBe(403);
     expect(((await history.json()) as { errorCode?: string }).errorCode).toBe('COMPARTMENT_VIOLATION');
@@ -103,8 +86,7 @@ test.describe('role guards', () => {
     for (const role of ['PATIENT', 'DOCTOR'] as const) {
       const session = await openStoredSession(browser, baseURL, role, 0);
       try {
-        const token = await accessTokenOf(session.page);
-        const audit = await session.page.request.get('/api/v1/admin/audit', { headers: { Authorization: `Bearer ${token}` } });
+        const audit = await session.page.request.get('/api/v1/admin/audit', { headers: await authHeaders(session.page) });
         expect(audit.status(), `${role} on GET /api/v1/admin/audit`).toBe(403);
       } finally {
         await session.context.close();
@@ -123,14 +105,16 @@ test.describe('role guards', () => {
 });
 
 test.describe('anonymous visitor', () => {
-  const PROTECTED: ReadonlyArray<string> = ['/booking', '/appointments', '/history?page=2', '/profile', '/notifications', '/doctor/appointments', '/doctor/schedule', '/admin/analytics', '/admin/audit?entity=Location'];
+  const PROTECTED: ReadonlyArray<string> = ['/home', '/booking', '/appointments', '/medcard', '/history?page=2', '/profile', '/notifications', '/doctor/appointments', '/doctor/schedule', '/admin/analytics', '/admin/audit?entity=Location'];
 
   for (const route of PROTECTED) {
-    test(`should be sent to the login with returnTo=${route} when the protected route is opened`, async ({ page }) => {
-      await page.goto(route);
+    test(`should be sent to the login with returnTo=${route} when the protected route is opened`, async ({ page, request }) => {
+      const redirect = await request.get(route, { maxRedirects: 0 });
+      expect(redirect.headers()['location']).toMatch(new RegExp(`/login\\?returnTo=${encodeURIComponent(route).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`));
 
-      await expect(page).toHaveURL(new RegExp(`/login\\?returnTo=${encodeURIComponent(route).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`));
-      await expect(page.getByRole('link', { name: 'Войти' })).toBeVisible();
+      await page.goto(route);
+      await expect(page.locator('input[name="email"]')).toBeVisible();
+      expect(returnToOfAuthorizeUrl(page.url())).toBe(route);
     });
   }
 

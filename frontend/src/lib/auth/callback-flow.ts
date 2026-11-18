@@ -1,9 +1,4 @@
-/**
- * callback-flow — the verification half of `GET /api/auth/callback` (fail-closed PKCE).
- *
- * Every missing or mismatching piece (code, PKCE cookie, state) rejects the callback:
- * the verifier is never sent to auth-service unless the browser proves it started this flow.
- */
+// Fail closed: the verifier is never sent to auth-service unless code, PKCE cookie and state all match.
 import { resolveAuthBackendUrl, resolveOauthClientId, resolveRedirectUri, type EnvSource } from './auth-config';
 import { parsePkceCookie, sanitizeReturnTo } from './return-to';
 import { parseTokenSet, type TokenSet } from './token-response';
@@ -11,7 +6,6 @@ import { parseTokenSet, type TokenSet } from './token-response';
 export interface CallbackInput {
   readonly code: string;
   readonly verifier: string;
-  /** Sanitized same-origin path the user asked for, or `null` (then the role landing page is used). */
   readonly returnTo: string | null;
 }
 
@@ -23,13 +17,13 @@ export function buildState(state: string, returnTo: string | null): string {
 }
 
 function splitState(stateParam: string): { readonly state: string; readonly encodedReturnTo: string } {
-  const index: number = stateParam.indexOf(STATE_SEPARATOR);
+  const index = stateParam.indexOf(STATE_SEPARATOR);
   if (index === -1) return { state: stateParam, encodedReturnTo: '' };
   return { state: stateParam.slice(0, index), encodedReturnTo: stateParam.slice(index + 1) };
 }
 
 function returnToFrom(encodedReturnTo: string): string | null {
-  const sanitized: string = sanitizeReturnTo(encodedReturnTo, '');
+  const sanitized = sanitizeReturnTo(encodedReturnTo, '');
   return sanitized === '' ? null : sanitized;
 }
 
@@ -44,7 +38,11 @@ export function parseCallback(params: URLSearchParams, pkceCookie: string | unde
   return { code, verifier: pkce.verifier, returnTo: returnToFrom(encodedReturnTo) };
 }
 
-export async function exchangeAuthorizationCode(input: CallbackInput, env: EnvSource = process.env): Promise<TokenSet | null> {
+export type CodeExchangeResult =
+  | { readonly ok: true; readonly tokens: TokenSet }
+  | { readonly ok: false; readonly reason: 'invalid' | 'unavailable' };
+
+export async function exchangeAuthorizationCode(input: CallbackInput, env: EnvSource = process.env): Promise<CodeExchangeResult> {
   try {
     const response: Response = await fetch(`${resolveAuthBackendUrl(env)}/oauth/token`, {
       method: 'POST',
@@ -59,10 +57,13 @@ export async function exchangeAuthorizationCode(input: CallbackInput, env: EnvSo
       cache: 'no-store',
       signal: AbortSignal.timeout(TOKEN_TIMEOUT_MS),
     });
-    if (!response.ok) return null;
-    return parseTokenSet(await response.json());
+    // 400/401 mean the code was refused; 429, 5xx or a non-token body mean the service could not decide.
+    if (response.status === 400 || response.status === 401) return { ok: false, reason: 'invalid' };
+    if (!response.ok) return { ok: false, reason: 'unavailable' };
+    const tokens: TokenSet | null = parseTokenSet(await response.json());
+    return tokens === null ? { ok: false, reason: 'unavailable' } : { ok: true, tokens };
   } catch (error: unknown) {
     console.error('[auth-broker] authorization-code exchange failed: auth-service unreachable', error);
-    return null;
+    return { ok: false, reason: 'unavailable' };
   }
 }

@@ -1,0 +1,20 @@
+{
+  "id": "fe-doctor-04",
+  "unit": "fe-doctor",
+  "kind": "ux",
+  "severity": "medium",
+  "title": "«Неявка» доступна для записи, время которой ещё не наступило: необратимая отметка на завтрашний или вечерний визит одним подтверждением",
+  "description": "Меню «⋯» с пунктом «Неявка» показывается у каждой записи со статусом booked, независимо от даты и времени, и диалог подтверждения не упоминает дату. Врач, листающий журнал на завтра или неделю вперёд (или открывший сегодняшний вечерний приём утром), может отметить неявку пациенту, который ещё не должен был прийти. Отметку «из журнала снять нельзя» (текст самого диалога), слот остаётся busy навсегда (комментарий к markNoShow: «the time has passed and cannot be booked again»), врач отменять запись не вправе (BR-002), а ошибочная отметка попадает в отчёт аналитики по неявкам. Backend не проверяет время: markNoShow требует только статус booked и отсутствие Encounter. Замысел кода явно рассчитывает на прошедшее время, но ни frontend, ни backend его не проверяют. Это продуктовое правило, поэтому нужно решение владельца.",
+  "evidence": "frontend/src/components/doctor/journal-day-view.tsx:90-91 (VisitCard, status booked) and :208-211 (NextPatientPanel) render <NoshowMenu> unconditionally; noshow-menu.tsx:86-90 has no time check; apps/appointment-service/src/modules/appointments/appointments.service.ts:159-182 markNoShow checks only assertBooked + assertNoEncounter. specs/api-designer-spec.md:772 6.6 states no time rule. Scenario: doctor opens tomorrow's journal, presses «⋯» -> «Неявка» -> «Подтвердить неявку» on a 10:00 visit: status becomes noshow, slot stays busy, no undo.",
+  "files": [
+    "frontend/src/components/doctor/journal-day-view.tsx",
+    "frontend/src/components/doctor/noshow-menu.tsx",
+    "apps/appointment-service/src/modules/appointments/appointments.service.ts",
+    "specs/api-designer-spec.md"
+  ],
+  "proposedFix": "Frontend: pass `start` to NoshowMenu and render the menu only when Date.parse(start) <= Date.now() (re-evaluated by useNow, like the now-line) or show the item disabled with an explanation; keep the existing confirmation. Backend (if the owner agrees): in markNoShow reject a visit whose start is still in the future with 409 ENCOUNTER_STATE_INVALID (or a new code), add the rule to api-designer-spec 6.6 and a unit test.",
+  "needsDecision": true,
+  "decisionQuestion": "Разрешать ли врачу отмечать неявку до наступления времени записи? Варианты: (а) нельзя до начала записи — меню скрыто на фронтенде и сервер отвечает 409 (рекомендую: действие необратимо, слот сгорает); (б) запрет только в интерфейсе, сервер не меняем; (в) оставить как есть (врач может закрыть запись заранее, если пациент предупредил, что не придёт, так как отменять запись врачу нельзя).",
+  "tzRef": "BR-008, FR-009; specs/api-designer-spec.md §6.6",
+  "confidence": "confirmed"
+}

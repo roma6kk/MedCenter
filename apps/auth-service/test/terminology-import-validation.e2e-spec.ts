@@ -11,7 +11,6 @@ jest.mock(
 
 const IMPORT_URL = '/api/v1/admin/terminology/import';
 
-/** API §2.3.4 — what the import endpoint refuses before it takes the lock or writes to HAPI. */
 describe('Terminology import API — request validation', () => {
   let fixture: AdminFixture;
   let app: INestApplication;

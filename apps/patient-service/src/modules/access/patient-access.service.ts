@@ -10,11 +10,6 @@ import {
   referencesResource,
 } from './patient-identity';
 
-/**
- * Appointment states that prove a care relationship (API §3: «активный Appointment»).
- * `proposed`/`pending`/`waitlist` were never confirmed; `cancelled`, `noshow`
- * and `entered-in-error` never brought the doctor and the patient together.
- */
 export const CARE_APPOINTMENT_STATUSES: ReadonlyArray<string> = [
   'booked',
   'arrived',
@@ -22,7 +17,6 @@ export const CARE_APPOINTMENT_STATUSES: ReadonlyArray<string> = [
   'fulfilled',
 ];
 
-/** Encounter states that prove a care relationship; `cancelled`/`entered-in-error`/`unknown` do not. */
 export const CARE_ENCOUNTER_STATUSES: ReadonlyArray<string> = [
   'planned',
   'arrived',
@@ -32,14 +26,12 @@ export const CARE_ENCOUNTER_STATUSES: ReadonlyArray<string> = [
   'finished',
 ];
 
-/** Scope each role must hold to read a patient card (API §0 scope matrix). */
 const READ_SCOPE_BY_ROLE: Readonly<Record<string, string>> = {
   [Role.PATIENT]: SMART_SCOPES.PATIENT_READ,
   [Role.DOCTOR]: SMART_SCOPES.USER_READ,
   [Role.ADMIN]: SMART_SCOPES.USER_READ,
 };
 
-/** Scope each role must hold to manage a patient's consent (API §3.8–3.10); a patient has no write path by id. */
 const WRITE_SCOPE_BY_ROLE: Readonly<Record<string, string>> = {
   [Role.DOCTOR]: SMART_SCOPES.USER_WRITE,
   [Role.ADMIN]: SMART_SCOPES.USER_WRITE,
@@ -78,17 +70,7 @@ function encounterJoins(resource: FhirResource, patientId: string, roleId: strin
   );
 }
 
-/**
- * Read access to one patient's card (API §3.2–3.3, ADR-013 defence in depth):
- * - PATIENT (`patient/*.read`): only the patient of the token;
- * - DOCTOR (`user/*.read`): only a patient they share an Appointment or
- *   Encounter with — proven by a HAPI search **and** re-checked in process, so
- *   a search parameter HAPI silently ignores can never widen the result;
- * - ADMIN (`user/*.read`): any patient.
- *
- * The compartment is decided before the patient is read, so a caller without
- * access cannot tell an unknown id (404) from a foreign one (403).
- */
+// Compartment is decided before the patient is read: a caller cannot tell an unknown id (404) from a foreign one (403).
 @Injectable()
 export class PatientAccessService {
   private readonly logger = new Logger(PatientAccessService.name);
@@ -100,12 +82,6 @@ export class PatientAccessService {
     await this.assertInCompartment(claims, patientId);
   }
 
-  /**
-   * Write access to a patient's consent (API §3.8–3.10, ADR-019): DOCTOR and ADMIN
-   * with `user/*.write`; a DOCTOR only for a patient they share care with
-   * (ADR-013). A PATIENT never writes through a patient id (3.6 takes the
-   * patient from the token).
-   */
   async assertCanWrite(claims: JwtClaims, patientId: string): Promise<void> {
     this.assertScope(claims, WRITE_SCOPE_BY_ROLE);
     await this.assertInCompartment(claims, patientId);
@@ -161,12 +137,7 @@ export class PatientAccessService {
     return encounters.some((resource) => encounterJoins(resource, patientId, roleId));
   }
 
-  /**
-   * One matching resource is enough to prove the relationship. HAPI answers a
-   * reference search on an unknown (client-assigned) Patient id with 404; that
-   * means "no shared care", not NOT_FOUND, so the doctor learns nothing about
-   * which ids exist. Any other upstream failure propagates (502/504).
-   */
+  // HAPI answers a reference search on an unknown Patient id with 404: that is "no shared care", not NOT_FOUND (no id existence leak).
   private async searchJoined(
     resourceType: string,
     params: Record<string, unknown>,

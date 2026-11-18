@@ -1,0 +1,19 @@
+{
+  "id": "infra-tools-01",
+  "unit": "infra-tools",
+  "kind": "robustness",
+  "severity": "medium",
+  "title": "Сидер терминологии по-прежнему падает при первом запуске: повтор при 5xx короче кеша HAPI, а $validate-code вообще не повторяется",
+  "description": "`npm run seed:terminology` — обязательный шаг запуска стека (README, «Running the project»). Коммит 8236953 добавил повтор `$expand` только при 5xx (1+2+4+8 с = 15 с суммарно), но в заметке tasks/TASK-005/coder-frontend-t4-report.md (строка 38, написана 26.10, то есть уже после коммита) первый запуск на чистом HAPI всё равно упал на `$expand` МКБ-10 с кодом HAPI-2788, а повторный запуск через ~минуту прошёл. Это в точности время жизни кеша HAPI, которое сам код называет в комментарии к VerifyOptions.delayMs («HAPI caches resolved CodeSystems for about a minute»): окно повторов в 15 с короче, и сидер сдаётся раньше, чем кеш истекает. Кроме того, повтор срабатывает только при status >= 500: если HAPI-2788 приходит как 4xx (не найден по url / не готов), он вообще не повторяется (тест 'should not retry a 4xx' это закрепляет). Третье: `findRejectedCodes` (цикл `$validate-code` по каждому коду снимка) вызывается в verifyAll вне `retryOnServerError`, хотя тот же `$validate-code` внутри `proveKeyCodes` повторяется — два места, делающие одно и то же, ведут себя по-разному, и один 5xx в этом цикле обрывает весь сидер.",
+  "evidence": "tools/terminology-seed/seed-terminology.ts:91-93 (SERVER_ERROR_RETRIES = 4, DEFAULT_SERVER_ERROR_DELAY_MS = 1000 -> pauses 1+2+4+8 = 15 s); :104 (`error.status < 500` is rethrown at once); :140 (only verifyExpansion is wrapped in retryOnServerError); :165 (`await findRejectedCodes(http, check)` is called bare, one `$validate-code` GET per snapshot concept, no retry); :189-190 (the same `$validate-code` inside proveKeyCodes IS wrapped). tools/terminology-seed/seed-terminology.spec.ts:150-155 pins 'should not retry a 4xx'. Scenario: fresh HAPI, `npm run seed:terminology` -> PUT of the ValueSets succeeds, first `$expand?url=` for ICD-10 answers HAPI-2788 for longer than 15 s -> FhirHttpError is thrown, exit code 1; the second run a minute later passes (documented in tasks/TASK-005/coder-frontend-t4-report.md:38 and tasks/TASK-005/verify-open-questions.md:30). The old log logs/seed.log shows the same failure shape before the retry existed ('ValueSet $expand failed with 500').",
+  "files": [
+    "tools/terminology-seed/seed-terminology.ts",
+    "tools/terminology-seed/seed-terminology.spec.ts",
+    "tools/terminology-seed/terminology-proof.ts"
+  ],
+  "proposedFix": "1) In seed-terminology.ts make the transient-failure budget cover HAPI's ~60 s cache: keep the doubling but cap a single pause (1,2,4,8,16,16,16 s ...) and stop on a total deadline of about 75-90 s (e.g. SERVER_ERROR_RETRIES = 6 with a 1 s base is already 63 s; add a margin), still bounded and still configurable through VerifyOptions.serverErrorDelayMs so the unit tests stay instant. 2) Extend the retry predicate: a failure is transient when `error.status >= 500` OR when the FhirHttpError message (it already carries the first 600 chars of the OperationOutcome) contains `HAPI-2788`, whatever the status; a plain 400/404 without that marker is still thrown at once, so the existing test keeps its meaning. 3) Wrap the validate loop too: in verifyAll call `retryOnServerError(options, () => findRejectedCodes(http, check))` (or wrap isCodeValid). 4) Tests: make `flaky()` in the spec match `$validate-code` URLs as well, add a case where `$expand` answers 404 with a body containing HAPI-2788 twice and then succeeds, and one where findRejectedCodes gets a single 503. After the change the README line for the seed can stay as it is.",
+  "needsDecision": false,
+  "decisionQuestion": "",
+  "tzRef": "NFR (воспроизводимый запуск стека), README «Running the project»; вопрос tasks/TASK-005/verify-open-questions.md:30",
+  "confidence": "likely"
+}

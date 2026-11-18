@@ -1,0 +1,19 @@
+{
+  "id": "be-catalog-04",
+  "unit": "be-catalog",
+  "kind": "bug",
+  "severity": "high",
+  "title": "Повторная генерация после правки окон или длительности слота создаёт перекрывающиеся свободные слоты — врач и кабинет записываются дважды на одно время",
+  "description": "Генератор считает слот «уже существующим» только при совпадении начала (epoch ms). Если после первой генерации администратор изменил slotDurationMin или окна расписания (PATCH 5.2.3 это разрешает) и снова нажал «Сгенерировать» на тот же период, планировщик строит новую сетку, а существующие слоты старой сетки не совпадают с ней по start — и в HAPI добавляются новые свободные слоты поверх старых. Пример: сетка 30 минут (09:00-09:30, 09:30-10:00) и после смены на 20 минут (09:00, 09:20, 09:40): слоты 09:20-09:40 перекрывают 09:00-09:30 и 09:30-10:00, и пациенты могут записаться на оба. Код об этом знает (warnOnUnplannedSlots пишет предупреждение в лог), но администратор его не видит, а публичный поиск слотов и запись (BR-001) защищают только «один слот — одна запись», а не «одно время врача — одна запись». Так же ведут себя слоты, оставшиеся от старого генератора, который читал окна как UTC (комментарий в коде).",
+  "evidence": "apps/catalog-service/src/modules/schedules/slot-generator.service.ts:79-81: `fresh = planned.filter((slot) => !existing.has(Date.parse(slot.start)))` — сравнение только по точному start; warnOnUnplannedSlots (стр. 118-127) лишь логирует `unplanned > 0`. Сценарий: Schedule MO 09:00-12:00, slotDurationMin 30, generate {from:'2026-11-02', to:'2026-11-02'} -> 6 слотов; PATCH {slotDurationMin: 20}; generate того же дня -> existing = {06:00Z, 06:30Z, ...}, planned = {06:00Z, 06:20Z, 06:40Z, ...}; записываются 06:20Z-06:40Z и ещё 7 слотов, перекрывающих старые. GET /doctors/{id}/slots отдаёт обе сетки. Тест, который бы это ловил, отсутствует (slot-generator.safety.spec.ts проверяет только повтор с теми же start).",
+  "files": [
+    "apps/catalog-service/src/modules/schedules/slot-generator.service.ts",
+    "apps/catalog-service/src/modules/schedules/slot-planner.ts",
+    "apps/catalog-service/src/modules/schedules/slot-generator.safety.spec.ts"
+  ],
+  "proposedFix": "Make generate skip a planned slot that OVERLAPS any slot the schedule already has (interval overlap start < existingEnd && existingStart < end, status other than entered-in-error), not only one with the same start; count it in `skipped`. findExistingStarts already reads every existing slot of the touched clinic days: return {startMs, endMs} pairs (Slot.end is stored) instead of starts only and test planned slots against them (sort + two-pointer, or a Map by start as fast path). Keep the warnOnUnplannedSlots log but add the number of overlap-skipped slots to it. Add spec cases: duration changed 30 -> 20 (new overlapping slots are skipped, result.skipped > 0), UTC-era slots shifted by 3 h (09:00Z vs 06:00Z overlap partially), identical rerun (all skipped, unchanged behaviour). Replacing the old grid with the new one (retire/delete obsolete FREE slots when windows/duration are PATCHed) deletes data and is a separate product decision; this fix only guarantees that regeneration never produces overlapping slots.",
+  "needsDecision": false,
+  "decisionQuestion": "",
+  "tzRef": "BR-001; api-designer-spec §5.2.5 (существующие слоты не дублируются); ADR-015; FR-020",
+  "confidence": "confirmed"
+}

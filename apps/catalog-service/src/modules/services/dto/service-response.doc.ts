@@ -3,12 +3,11 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { PageMetaDoc } from '../../../common/page-meta.doc';
 import type { ServiceResponseDto } from './service-response.dto';
 
-/** Documentation class of `ServiceResponseDto` (API §5.1): the interface cannot be reflected by Swagger. */
 export class ServiceResponseDoc implements ServiceResponseDto {
   @ApiProperty({ description: 'HealthcareService id (FHIR id)', example: '1044' })
   id!: string;
 
-  @ApiProperty({ example: 'Консультация терапевта' })
+  @ApiProperty({ example: 'Консультация терапевта', description: 'Localized by the Accept-Language header (en, else ru)' })
   name!: string;
 
   @ApiProperty({
@@ -29,14 +28,19 @@ export class ServiceResponseDoc implements ServiceResponseDto {
   @ApiProperty({ minimum: 5, maximum: 240, example: 30 })
   defaultDurationMin!: number;
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({ description: 'Localized by the Accept-Language header (en, else ru)' })
   description?: string;
+
+  @ApiPropertyOptional({ description: 'Stored English name; absent when there is none', example: 'Therapist consultation' })
+  nameEn?: string;
+
+  @ApiPropertyOptional({ description: 'Stored English description; absent when there is none' })
+  descriptionEn?: string;
 
   @ApiProperty({ description: 'false for a service taken out of the catalogue' })
   isActive!: boolean;
 }
 
-/** `PaginatedResponseDto<ServiceResponseDto>` (API §0, §5.1.1). */
 export class ServicePageDoc {
   @ApiProperty({ type: [ServiceResponseDoc] })
   items!: ServiceResponseDoc[];

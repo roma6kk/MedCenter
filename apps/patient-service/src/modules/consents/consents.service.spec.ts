@@ -80,7 +80,6 @@ function createdBundle(resourceType: string, id: string): FhirResource {
   };
 }
 
-/** What the single transaction Bundle of a write contained. */
 function writesOf(
   fhir: jest.Mocked<FhirClient>,
 ): ReadonlyArray<{ resource: FhirResource; request: Record<string, string>; fullUrl?: string }> {
@@ -160,6 +159,13 @@ describe('ConsentsService', () => {
       );
     });
 
+    it('should tell the staff whether the patient is an adult', async () => {
+      expect((await service.getForPatient(PATIENT_ID, adminClaims)).patientIsAdult).toBe(true);
+
+      fhir.read.mockResolvedValue({ ...patientResource, birthDate: '2015-01-01' });
+      expect((await service.getForPatient(PATIENT_ID, adminClaims)).patientIsAdult).toBe(false);
+    });
+
     it('should journal an administrator read too', async () => {
       await service.getForPatient(PATIENT_ID, adminClaims, 'req-1');
 
@@ -228,6 +234,30 @@ describe('ConsentsService', () => {
 
       expect(writesOf(fhir)[0]?.resource['note']).toEqual([
         expect.objectContaining({ authorReference: { reference: `PractitionerRole/${ROLE_ID}` } }),
+      ]);
+    });
+
+    it('should store the name of the doctor next to the reference when the form carries none', async () => {
+      fhir.search.mockImplementation(async (type) => {
+        if (type === 'Consent') return bundleOf(...consents);
+        if (type === 'Appointment') return bundleOf(sharedAppointment);
+        if (type === 'PractitionerRole') {
+          return bundleOf({
+            resourceType: 'Practitioner',
+            id: 'doc-1',
+            name: [{ family: 'Петрова', given: ['Анна', 'Ивановна'] }],
+          });
+        }
+        return bundleOf();
+      });
+
+      await service.create(PATIENT_ID, { ...createDto, signedByName: undefined }, doctorClaims);
+
+      expect(writesOf(fhir)[0]?.resource['note']).toEqual([
+        expect.objectContaining({
+          authorString: 'Петрова А. И.',
+          authorReference: { reference: `PractitionerRole/${ROLE_ID}` },
+        }),
       ]);
     });
 
@@ -388,6 +418,71 @@ describe('ConsentsService', () => {
       });
     });
 
+    it('should refuse a self-signed consent when the patient is under 18 on the signing day', async () => {
+      fhir.read.mockImplementation(async (type) => (type === 'Patient' ? { ...patientResource, birthDate: '2010-06-01' } : relatedPerson));
+
+      expect(await errorPayloadOf(service.create(PATIENT_ID, { ...createDto, signedAt: '2026-05-31' }, adminClaims))).toMatchObject({
+        errorCode: 'VALIDATION_ERROR',
+        details: [{ field: 'consenterType' }],
+      });
+      expect(fhir.batch).not.toHaveBeenCalled();
+    });
+
+    function patientBornOn(birthDate: string | undefined): FhirResource {
+      const rest: Record<string, unknown> = { ...patientResource };
+      Reflect.deleteProperty(rest, 'birthDate');
+      return (birthDate === undefined ? rest : { ...rest, birthDate }) as FhirResource;
+    }
+
+    it.each([
+      ['is missing', undefined],
+      ['is not a date', 'unknown'],
+      ['is an impossible date', '2000-02-30'],
+      ['is a year the patient turns 18 after the signing day', '2008'],
+      ['is a month the patient turns 18 after the signing day', '2008-10'],
+    ])('should refuse a self-signed consent when the birth date %s', async (_case, birthDate) => {
+      fhir.read.mockImplementation(async (type) => (type === 'Patient' ? patientBornOn(birthDate) : relatedPerson));
+
+      expect(await errorPayloadOf(service.create(PATIENT_ID, { ...createDto, signedAt: '2026-05-31' }, adminClaims))).toMatchObject({
+        details: [{ field: 'consenterType' }],
+      });
+      expect(fhir.batch).not.toHaveBeenCalled();
+    });
+
+    it('should accept a self-signed consent when a partial birth date is already 18 or more at its latest day', async () => {
+      fhir.read.mockImplementation(async (type) => (type === 'Patient' ? { ...patientResource, birthDate: '2007' } : scanBinary));
+      fhir.batch.mockResolvedValue(createdBundle('Consent', 'c-9'));
+
+      await expect(service.create(PATIENT_ID, { ...createDto, signedAt: '2025-12-31' }, adminClaims)).resolves.toBeDefined();
+    });
+
+    it('should report the patient as not an adult when the birth date is missing or partial', async () => {
+      fhir.read.mockResolvedValue(patientBornOn(undefined));
+      expect((await service.getForPatient(PATIENT_ID, adminClaims)).patientIsAdult).toBe(false);
+
+      fhir.read.mockResolvedValue({ ...patientResource, birthDate: '2008-12' });
+      expect((await service.getForPatient(PATIENT_ID, adminClaims)).patientIsAdult).toBe(false);
+    });
+
+    it('should accept the self-signed consent on the day the patient turns 18', async () => {
+      fhir.read.mockImplementation(async (type) => (type === 'Patient' ? { ...patientResource, birthDate: '2008-10-21' } : scanBinary));
+      fhir.batch.mockResolvedValue(createdBundle('Consent', 'c-9'));
+
+      await expect(service.create(PATIENT_ID, createDto, adminClaims)).resolves.toBeDefined();
+    });
+
+    it('should accept a representative for a patient under 18', async () => {
+      fhir.read.mockImplementation(async (type) => {
+        if (type === 'Patient') return { ...patientResource, birthDate: '2015-01-01' };
+        return type === 'RelatedPerson' ? relatedPerson : scanBinary;
+      });
+      fhir.batch.mockResolvedValue(createdBundle('Consent', 'c-9'));
+
+      await expect(
+        service.create(PATIENT_ID, { ...createDto, consenterType: 'guardian', relatedPersonId: 'rp-1', representativeDocument: 'Свидетельство о рождении' }, adminClaims),
+      ).resolves.toBeDefined();
+    });
+
     it('should refuse a signing date in the future', async () => {
       const tomorrow = new Date(Date.now() + 72 * 3600_000).toISOString().slice(0, 10);
 
@@ -444,6 +539,18 @@ describe('ConsentsService', () => {
         ],
       });
       expect(response).toMatchObject({ id: 'c-1', status: 'inactive', revocationNumber: 'ЗАЯВ-7' });
+    });
+
+    it('should close every consent in force, so a duplicate cannot outlive the revocation', async () => {
+      consents = [storedConsent({ id: 'c-2' }), storedConsent()];
+
+      const response = await service.revoke(PATIENT_ID, { applicationNumber: 'ЗАЯВ-7' }, adminClaims);
+
+      const writes = writesOf(fhir);
+      expect(writes.map((write) => write.request['url'])).toEqual(['Consent/c-2', 'AuditEvent', 'Consent/c-1', 'AuditEvent']);
+      expect(writes[0]?.resource).toMatchObject({ status: 'inactive' });
+      expect(writes[2]?.resource).toMatchObject({ status: 'inactive' });
+      expect(response).toMatchObject({ id: 'c-2', status: 'inactive' });
     });
 
     it('should default the revocation moment to now', async () => {

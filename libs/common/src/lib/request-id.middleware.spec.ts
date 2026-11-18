@@ -1,4 +1,5 @@
 import type { NextFunction, Response } from 'express';
+import { currentRequestId } from './observability/request-scope';
 import { RequestIdMiddleware, type RequestWithRequestId } from './request-id.middleware';
 
 const UUID_V4 = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -72,5 +73,21 @@ describe('RequestIdMiddleware', () => {
     middleware.use(makeRequest('abc'), makeResponse() as unknown as Response, next);
 
     expect(next).toHaveBeenCalledTimes(1);
+  });
+
+  it('should bind the id to the async chain of the request for the logger', async () => {
+    let seen: string | undefined;
+    const request = makeRequest('req-als');
+
+    middleware.use(request, makeResponse() as unknown as Response, (() => {
+      void Promise.resolve().then(() => {
+        seen = currentRequestId();
+      });
+    }) as NextFunction);
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(seen).toBe('req-als');
+    expect(currentRequestId()).toBeUndefined();
   });
 });

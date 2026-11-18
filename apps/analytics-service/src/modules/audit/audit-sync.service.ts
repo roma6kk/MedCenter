@@ -4,24 +4,17 @@ import { FHIR_CLIENT, type FhirClient, type FhirResource } from '@medcenter/fhir
 import { lastUpdatedOf, toAuditEventRow } from './audit-event.mapper';
 import { AUDIT_REPOSITORY, isRowRejection, type AuditEventRow, type AuditRepository } from './audit.repository';
 
-/** Cursor row name in `analytics.sync_cursor`. */
 export const AUDIT_CURSOR = 'audit-event';
 export const AUDIT_SYNC_PAGE_SIZE = 200;
 
-/**
- * Every run re-reads this window behind the cursor. HAPI stamps
- * `meta.lastUpdated` before its transaction commits, so a write that commits
- * late can carry an older timestamp than one already copied. Re-reading is
- * free of side effects: rows are inserted-or-ignored by id.
- */
+// Re-read window behind the cursor: HAPI stamps meta.lastUpdated before commit, so a late commit can carry an older timestamp.
 export const AUDIT_SYNC_OVERLAP_MS = 60_000;
 
-/** Upper bound of pages per run, so one run never monopolises HAPI; the next run continues. */
-export const AUDIT_SYNC_MAX_PAGES = 25;
+const AUDIT_SYNC_MAX_PAGES = 25;
 
 const EPOCH = new Date(0);
 
-export interface AuditSyncResult {
+interface AuditSyncResult {
   readonly fetched: number;
   readonly stored: number;
 }
@@ -39,11 +32,6 @@ function newestOf(resources: ReadonlyArray<FhirResource>): Date | undefined {
   }, undefined);
 }
 
-/**
- * Copies FHIR `AuditEvent`s written by the BFF services (ADR-014) into the
- * journal read-model. The pull is incremental by `meta.lastUpdated`, oldest
- * first, paged with `_offset`; the cursor moves only after a page is stored.
- */
 @Injectable()
 export class AuditSyncService {
   private readonly logger = new Logger(AuditSyncService.name);
@@ -87,13 +75,7 @@ export class AuditSyncService {
     return { fetched: resources.length, stored: await this.store(rows), newest: newestOf(resources) };
   }
 
-  /**
-   * One statement per page. If PostgreSQL rejects the *data* of the page, the
-   * rows go in one by one and only the unstorable ones are dropped (logged by
-   * `AuditEvent.id`), so a single poisoned entry can never pin the cursor and
-   * freeze the journal. An outage is not a data error: it propagates, the
-   * cursor stays, and the next tick retries the page.
-   */
+  // On a data error of the page rows go one by one and only unstorable ones are dropped, so a poisoned entry cannot pin the cursor. An outage propagates.
   private async store(rows: ReadonlyArray<AuditEventRow>): Promise<number> {
     if (rows.length === 0) {
       return 0;

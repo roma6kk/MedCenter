@@ -4,18 +4,14 @@ import { DocumentBuilder, SwaggerModule, type OpenAPIObject } from '@nestjs/swag
 import { PROBLEM_DETAILS_SCHEMA, problemDetailsSchema } from './problem-details.schema';
 
 export interface SwaggerSetupOptions {
-  /** Short service name used in the URLs: `appointment` serves `/api/docs/appointment`. */
   readonly service: string;
-  /** Human title; defaults to `MedCenter <service>-service API`. */
   readonly title?: string;
   readonly description?: string;
-  /** `parseSwaggerEnv(process.env).SWAGGER_ENABLED` (`libs/config`): off by default, API §10. */
   readonly enabled: boolean;
 }
 
 export const BEARER_AUTH_NAME = 'bearer';
 
-/** The service's OpenAPI document with the global RFC 7807 `problemDetails` schema and the Bearer scheme. */
 export function buildOpenApiDocument(app: INestApplication, options: SwaggerSetupOptions): OpenAPIObject {
   const config = new DocumentBuilder()
     .setTitle(options.title ?? `MedCenter ${options.service}-service API`)
@@ -36,11 +32,6 @@ export function buildOpenApiDocument(app: INestApplication, options: SwaggerSetu
   return document;
 }
 
-/**
- * Mounts the Swagger UI at `/api/docs/<service>` and the OpenAPI JSON at `/api/docs/<service>-json`
- * (API §10), both on the edge route `PathPrefix(/api/docs/<service>)`. Does nothing unless enabled
- * (`SWAGGER_ENABLED=true`). Returns whether the documentation was mounted.
- */
 export function setupSwagger(app: INestApplication, options: SwaggerSetupOptions): boolean {
   if (!(options.enabled)) {
     return false;

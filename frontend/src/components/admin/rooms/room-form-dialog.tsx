@@ -7,11 +7,12 @@ import { useT } from '@/lib/i18n/use-t';
 import { EMPTY_ROOM_VALUES, roomSchema, roomValuesOf, toRoomPayload, type RoomFormValues } from './room-schema';
 import type { AdminRoom } from './room-types';
 import { FormProblem } from '../shared/admin-problem';
+import { FIELD_NARROW_CLASS } from '@/components/ui/field-styles';
 import { CONTROL_CLASS } from '../shared/admin-styles';
 import { FormActions } from '../shared/form-actions';
 import { messagesOf, type FieldMessages } from '../shared/form-errors';
 import { controlProps, Field } from '../shared/form-field';
-import { Modal } from '../shared/modal';
+import { Dialog } from '@/components/ui/dialog';
 import { useFormBanner } from '../shared/use-form-banner';
 import { useFormMessage } from '../shared/use-form-message';
 import { useCreateRoom, useUpdateRoom } from './use-admin-rooms';
@@ -30,10 +31,10 @@ function RoomFields({ register, errors }: FieldsProps): ReactNode {
     <div className="mt-4 grid gap-3">
       <div className="grid gap-3 sm:grid-cols-2">
         <Field id="room-identifier" label={t('fields.identifier')} error={errors.identifier} hint={t('hints.identifier')} required>
-          <input {...controlProps('room-identifier', errors.identifier, t('hints.identifier'))} autoComplete="off" className={`${CONTROL_CLASS} mono`} {...register('identifier')} />
+          <input {...controlProps('room-identifier', errors.identifier, t('hints.identifier'))} autoComplete="off" className={`${CONTROL_CLASS} ${FIELD_NARROW_CLASS} mono`} {...register('identifier')} />
         </Field>
         <Field id="room-floor" label={t('fields.floor')} error={errors.floor}>
-          <input {...controlProps('room-floor', errors.floor)} type="number" inputMode="numeric" className={CONTROL_CLASS} {...register('floor')} />
+          <input {...controlProps('room-floor', errors.floor)} type="number" inputMode="numeric" className={`${CONTROL_CLASS} ${FIELD_NARROW_CLASS}`} {...register('floor')} />
         </Field>
       </div>
       <Field id="room-name" label={t('fields.name')} error={errors.name} required>
@@ -77,12 +78,11 @@ interface RoomFormDialogProps {
   readonly onClose: () => void;
 }
 
-/** Create (`POST /admin/rooms`) or edit (`PATCH`) dialog of a room (FR-017). */
 export function RoomFormDialog({ room, onClose }: RoomFormDialogProps): ReactNode {
   const t = useT('admin.rooms');
   return (
-    <Modal title={room === undefined ? t('createTitle') : t('editTitle')} onClose={onClose}>
+    <Dialog title={room === undefined ? t('createTitle') : t('editTitle')} onClose={onClose}>
       <RoomForm {...(room === undefined ? {} : { room })} onClose={onClose} />
-    </Modal>
+    </Dialog>
   );
 }
