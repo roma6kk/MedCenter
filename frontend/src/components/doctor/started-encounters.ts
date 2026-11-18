@@ -18,6 +18,15 @@ export function startedEncounterOf(appointmentId: string): string | null {
   return typeof encounterId === 'string' && encounterId !== '' ? encounterId : null;
 }
 
+export function forgetStartedEncounter(appointmentId: string): void {
+  try {
+    const { [appointmentId]: _forgotten, ...rest } = read();
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(rest));
+  } catch {
+    // Storage blocked: the button stays «Продолжить», and pressing it opens a new encounter anyway.
+  }
+}
+
 export function rememberStartedEncounter(appointmentId: string, encounterId: string): void {
   try {
     const { [appointmentId]: _replaced, ...rest } = read();

@@ -202,6 +202,38 @@ describe('AppointmentQueriesService', () => {
     });
   });
 
+  describe('listForAdmin', () => {
+    it('should search every appointment without a compartment when no filter is given', async () => {
+      await service.listForAdmin({ page: 1, pageSize: 20, sortOrder: 'asc' });
+
+      const params = fhir.search.mock.calls[0]?.[1];
+      expect(params).toMatchObject({ _sort: 'date', _count: 20, _offset: 0 });
+      expect(params?.['actor']).toBeUndefined();
+      expect(params?.['patient']).toBeUndefined();
+    });
+
+    it('should AND the doctor role, the status and the clinic-day range', async () => {
+      const query = { page: 2, pageSize: 10, sortOrder: 'desc' as const, practitionerRoleId: 'role-1', status: ['booked'], from: '2026-11-02', to: '2026-11-03' };
+
+      await service.listForAdmin(query);
+
+      expect(fhir.search).toHaveBeenCalledWith('Appointment', expect.objectContaining({
+        actor: 'PractitionerRole/role-1',
+        status: 'booked',
+        date: ['ge2026-11-01T21:00:00.000Z', 'le2026-11-03T20:59:59.999Z'],
+        _sort: '-date',
+        _offset: 10,
+      }));
+    });
+
+    it('should reject with VALIDATION_ERROR when from is after to', async () => {
+      const promise = service.listForAdmin({ page: 1, pageSize: 20, sortOrder: 'asc', from: '2026-11-03', to: '2026-11-02' });
+
+      await expect(promise).rejects.toBeInstanceOf(BadRequestException);
+      expect(fhir.search).not.toHaveBeenCalled();
+    });
+  });
+
   describe('listForDoctor', () => {
     it('should search the appointments where the token PractitionerRole is an actor within the range', async () => {
       const query = { page: 1, pageSize: 50, sortOrder: 'asc' as const, from: '2026-11-02', to: '2026-11-02' };

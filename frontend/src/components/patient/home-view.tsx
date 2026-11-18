@@ -5,6 +5,7 @@ import { QueryFailure } from '@/components/feedback/query-error-state';
 import { ContentSkeleton } from '@/components/feedback/content-skeleton';
 import { useDocumentTitle } from '@/hooks/use-document-title';
 import { useT } from '@/lib/i18n/use-t';
+import { ChangePasswordSection } from '@/components/account/change-password-section';
 import { DeleteAccountSection } from '@/components/account/delete-account-section';
 import { MyDataSection } from '@/components/account/my-data/my-data-section';
 import { MyConsentSection } from '@/components/consent/my-consent-section';
@@ -52,6 +53,7 @@ export function HomeView(): ReactNode {
           <ProfilePersonalData completeness={completenessOf(data)} />
           <MyConsentSection />
           <MyDataSection />
+          <ChangePasswordSection />
           <DeleteAccountSection />
         </aside>
       </div>

@@ -2,6 +2,7 @@ import { pipeline, violationsOf } from '../../../__tests__/validation-helper';
 import { CreateUserDto } from './create-user.dto';
 import { ListUsersQueryDto } from './list-users-query.dto';
 import { RegisterPatientDto } from './register-patient.dto';
+import { ChangePasswordDto } from './change-password.dto';
 import { UpdateUserDto } from './update-user.dto';
 
 const LONG_NAME = 'А'.repeat(101);
@@ -300,5 +301,40 @@ describe('free-text fields', () => {
     const today = new Intl.DateTimeFormat('sv-SE', { timeZone: 'Europe/Minsk' }).format(new Date());
 
     expect(await violationsOf(CreateUserDto, { ...CREATE, roles: ['PATIENT'], birthDate: today }, 'body')).toEqual([]);
+  });
+});
+
+describe('ChangePasswordDto (POST /api/v1/me/password)', () => {
+  const BODY: Body = { currentPassword: 'Str0ng!Pass', newPassword: 'N3w!Password' };
+
+  it('should accept a current password and a new password that satisfies the policy', async () => {
+    await expect(violationsOf(ChangePasswordDto, BODY)).resolves.toEqual([]);
+  });
+
+  it.each([
+    ['the current password is missing', { currentPassword: undefined }, 'currentPassword'],
+    ['the new password is missing', { newPassword: undefined }, 'newPassword'],
+    ['the new password breaks the policy', { newPassword: 'weak' }, 'newPassword'],
+    ['the new password is longer than 128 characters', { newPassword: LONG_PASSWORD }, 'newPassword'],
+  ])('should reject when %s', async (_label, overrides, property) => {
+    const violations = await violationsOf(ChangePasswordDto, bodyOf(BODY, overrides));
+
+    expect(violations.some((message) => message.startsWith(property))).toBe(true);
+  });
+});
+
+describe('UpdateUserDto password', () => {
+  it('should accept a password that satisfies the policy and reject a weak one', async () => {
+    await expect(violationsOf(UpdateUserDto, { password: 'N3w!Password' })).resolves.toEqual([]);
+    const violations = await violationsOf(UpdateUserDto, { password: 'weak' });
+    expect(violations.some((message) => message.startsWith('password'))).toBe(true);
+  });
+});
+
+describe('CreateUserDto specialtyCode', () => {
+  it('should accept a numeric code and reject other shapes', async () => {
+    await expect(violationsOf(CreateUserDto, { ...CREATE, specialtyCode: '394579002' })).resolves.toEqual([]);
+    const violations = await violationsOf(CreateUserDto, { ...CREATE, specialtyCode: 'cardio; drop' });
+    expect(violations.some((message) => message.startsWith('specialtyCode'))).toBe(true);
   });
 });

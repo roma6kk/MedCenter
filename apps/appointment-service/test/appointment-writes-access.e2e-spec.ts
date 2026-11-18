@@ -135,6 +135,10 @@ describe('Appointment write access (e2e)', () => {
   });
 
   it('should let the owner patient cancel when the token carries a bare Patient id', async () => {
+    const upcoming = { ...BOOKED_APPOINTMENT, start: FREE_SLOT.start, end: FREE_SLOT.end };
+    harness.fhir.read.mockImplementation(async (type) =>
+      type === 'Appointment' ? upcoming : { resourceType: 'Slot', id: 'slot-1', status: 'busy', meta: { versionId: '3' } },
+    );
     const response = await request(harness.app.getHttpServer())
       .post('/api/v1/appointments/apt-1/cancel')
       .set('Authorization', bearer(PATIENT))
@@ -142,6 +146,17 @@ describe('Appointment write access (e2e)', () => {
       .expect(200);
 
     expect(response.body).toMatchObject({ status: 'cancelled', cancelReason: 'plans-changed' });
+  });
+
+  it('should answer 409 APPOINTMENT_ALREADY_STARTED when the owner patient cancels after the start', async () => {
+    const response = await request(harness.app.getHttpServer())
+      .post('/api/v1/appointments/apt-1/cancel')
+      .set('Authorization', bearer(PATIENT))
+      .send({ reason: 'plans-changed' })
+      .expect(409);
+
+    expect(response.body).toMatchObject({ errorCode: 'APPOINTMENT_ALREADY_STARTED' });
+    expect(harness.fhir.batch).not.toHaveBeenCalled();
   });
 
   it('should refuse a free-text cancellation reason before reading anything', async () => {

@@ -68,6 +68,7 @@ export function effectiveDemographicsOf(change: PatientDemographicsChange | null
 
 export function inverseOf(before: UserRecord, changes: UserChanges): UserChanges {
   return {
+    ...(changes.passwordHash !== undefined ? { passwordHash: before.passwordHash } : {}),
     ...(changes.email !== undefined ? { email: before.email } : {}),
     ...(changes.firstName !== undefined ? { firstName: before.firstName } : {}),
     ...(changes.lastName !== undefined ? { lastName: before.lastName } : {}),

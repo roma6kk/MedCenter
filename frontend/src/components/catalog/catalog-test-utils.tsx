@@ -21,6 +21,7 @@ interface CatalogFixture {
 
 export function serveCatalog({ slots = {}, doctorsByService = {}, services = [] }: CatalogFixture = {}): void {
   apiFetchMock.mockImplementation((path) => {
+    if (path === '/api/v1/clinic') return Promise.reject(new Error('the clinic details are not served'));
     const slotsOf = /\/api\/v1\/doctors\/([^/]+)\/slots/.exec(path);
     if (slotsOf !== null) return Promise.resolve({ doctorId: slotsOf[1], from: SLOT_DAY, to: SLOT_DAY, items: slots[decodeURIComponent(slotsOf[1] ?? '')] ?? [] });
     const byService = /\/api\/v1\/doctors\?.*serviceId=([^&]+)/.exec(path);

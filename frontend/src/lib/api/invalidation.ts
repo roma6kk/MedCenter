@@ -7,6 +7,7 @@ export type MutationKind =
   | 'noshow'
   | 'open-encounter'
   | 'complete-encounter'
+  | 'cancel-encounter'
   | 'read-notification'
   | 'consent-change'
   | 'update-contact'
@@ -15,13 +16,15 @@ export type MutationKind =
   | 'admin-rooms'
   | 'admin-schedules'
   | 'generate-slots'
-  | 'terminology-import';
+  | 'terminology-import'
+  | 'admin-clinic';
 
 export const INVALIDATION: Readonly<Record<MutationKind, ReadonlyArray<QueryKey>>> = {
   booking: [queryRoots.slots, queryRoots.appointments, queryRoots.doctorAppointments, queryRoots.doctorSchedule, queryKeys.unreadCount],
   'cancel-appointment': [
     queryRoots.appointments,
     queryRoots.appointmentDetail,
+    queryRoots.adminAppointments,
     queryRoots.doctorAppointments,
     queryRoots.doctorSchedule,
     queryRoots.slots,
@@ -37,6 +40,7 @@ export const INVALIDATION: Readonly<Record<MutationKind, ReadonlyArray<QueryKey>
     queryRoots.appointments,
     queryRoots.appointmentDetail,
   ],
+  'cancel-encounter': [queryRoots.encounters, queryRoots.doctorAppointments],
   'read-notification': [queryRoots.notifications],
   'consent-change': [queryRoots.consent],
   'update-contact': [queryKeys.patientProfile],
@@ -46,6 +50,7 @@ export const INVALIDATION: Readonly<Record<MutationKind, ReadonlyArray<QueryKey>
   'admin-schedules': [queryRoots.adminSchedules, queryRoots.roomUsage, queryRoots.doctorSchedule],
   'generate-slots': [queryRoots.adminScheduleSlots, queryRoots.doctorSchedule, queryRoots.slots],
   'terminology-import': [queryRoots.valueSets],
+  'admin-clinic': [queryRoots.clinic],
 };
 
 export async function invalidateFor(client: QueryClient, kind: MutationKind): Promise<void> {

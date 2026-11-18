@@ -37,3 +37,7 @@ export function updateMyPhone({ phone, version }: PhoneChange): Promise<PatientP
 export function closeMyAccount(password: string): Promise<void> {
   return apiFetch<void>('/api/v1/me/deactivate', { method: 'POST', body: JSON.stringify({ password }) });
 }
+
+export function changeMyPassword(currentPassword: string, newPassword: string): Promise<void> {
+  return apiFetch<void>('/api/v1/me/password', { method: 'POST', body: JSON.stringify({ currentPassword, newPassword }) });
+}

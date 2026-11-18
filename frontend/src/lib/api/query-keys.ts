@@ -39,13 +39,14 @@ export const queryKeys = {
   doctorSchedule: ['doctorSchedule'] as const,
   doctorScheduleRange: (params?: Params) => ['doctorSchedule', normalise(params), locale()] as const,
   patientCard: (patientId: string) => ['patientCard', patientId] as const,
-  relatedPersons: (patientId: string, params?: Params) => ['relatedPersons', patientId, normalise(params)] as const,
   encounterDetail: (encounterId: string) => ['encounter', encounterId] as const,
 
+  clinic: ['clinic'] as const,
   valueSets: (system?: string) => (system === undefined ? (['valueSets'] as const) : (['valueSets', system] as const)),
   terminologyExpand: (system: string, filter: string) => ['valueSets', system, 'expand', filter] as const,
 
   adminUsers: (params?: Params) => ['adminUsers', normalise(params)] as const,
+  adminAppointments: (params?: Params) => ['adminAppointments', normalise(params), locale()] as const,
   adminSchedules: (params?: Params) => ['adminSchedules', normalise(params)] as const,
   adminScheduleSlots: (scheduleId: string, params?: Params) => ['adminScheduleSlots', scheduleId, normalise(params)] as const,
   analytics: (kind: string, params?: Params) => ['analytics', kind, normalise(params), locale()] as const,
@@ -68,7 +69,9 @@ export const queryRoots = {
   doctorSchedule: ['doctorSchedule'],
   encounters: ['encounter'],
   valueSets: ['valueSets'],
+  clinic: ['clinic'],
   adminUsers: ['adminUsers'],
+  adminAppointments: ['adminAppointments'],
   adminSchedules: ['adminSchedules'],
   adminScheduleSlots: ['adminScheduleSlots'],
 } as const satisfies Readonly<Record<string, QueryKey>>;

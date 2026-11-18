@@ -5,6 +5,10 @@ import { chooseRowAction, firstButton, pageOf, renderWithClient } from '../share
 import type { AdminSchedule } from './schedule-types';
 import { SchedulesPanel } from './schedules-panel';
 
+jest.mock('next/navigation', () => ({ useSearchParams: () => new URLSearchParams(window.location.search) }));
+
+beforeEach(() => window.history.replaceState(null, '', '/'));
+
 jest.mock('@/lib/api/api-fetch', () => {
   const actual = jest.requireActual('@/lib/api/api-fetch');
   return { ...actual, apiFetch: jest.fn() };
@@ -19,7 +23,7 @@ const active: AdminSchedule = {
   roomId: 'room-1',
   serviceId: 'svc-1',
   horizonFrom: '2026-10-16',
-  horizonTo: '2026-11-15',
+  horizonTo: '2099-12-31',
   slotDurationMin: 25,
   windows: [{ dayOfWeek: 'SU', startTime: '22:00', endTime: '23:00' }],
 };

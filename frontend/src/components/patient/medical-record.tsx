@@ -3,6 +3,7 @@
 import { useCallback, useState } from 'react';
 import type { ReactNode } from 'react';
 import { useDocumentTitle } from '@/hooks/use-document-title';
+import { writeUrlQuery } from '@/hooks/use-url-state';
 import { useT } from '@/lib/i18n/use-t';
 import { HistoryTimeline } from './history-timeline';
 import type { MedcardTab } from './medcard-tab';
@@ -17,7 +18,7 @@ export function MedicalRecord({ initialTab = 'history' }: { readonly initialTab?
   useDocumentTitle(t('title'));
   const change = useCallback((next: MedcardTab): void => {
     setTab(next);
-    window.history.replaceState(window.history.state, '', next === 'history' ? '/medcard' : `/medcard?tab=${next}`);
+    writeUrlQuery(next === 'history' ? '' : `tab=${next}`);
   }, []);
   const options: ReadonlyArray<TabOption<MedcardTab>> = [
     { value: 'history', label: t('tabHistory') },

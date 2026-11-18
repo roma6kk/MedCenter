@@ -12,11 +12,15 @@ import { cancelAppointment, fetchAppointment } from './appointment-api';
 const detailMock = fetchAppointment as jest.MockedFunction<typeof fetchAppointment>;
 const cancelMock = cancelAppointment as jest.MockedFunction<typeof cancelAppointment>;
 
+const BEFORE_FIXTURE_START = '2026-10-15T00:00:00Z';
+
 describe('AppointmentDetailView', () => {
   beforeEach(() => {
     jest.resetAllMocks();
+    jest.spyOn(Date, 'now').mockReturnValue(Date.parse(BEFORE_FIXTURE_START));
     resetCabinetState();
   });
+  afterEach(() => jest.restoreAllMocks());
 
   it('should read the appointment by the id of the address and show all its fields', async () => {
     detailMock.mockResolvedValue(appointmentFixture());

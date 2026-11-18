@@ -11,6 +11,7 @@ import {
 
 import { AppController } from './app.controller';
 import { LOGIN_ROUTE, REGISTER_ROUTE, pinCredentialRouteBucket } from './credential-route.middleware';
+import { ClinicModule } from '../modules/clinic/clinic.module';
 import { HealthModule } from '../modules/health/health.module';
 import { OAuthModule } from '../modules/oauth/oauth.module';
 import { TerminologyModule } from '../modules/terminology/terminology.module';
@@ -42,7 +43,7 @@ function ensureSigningEnv(): void {
 ensureSigningEnv();
 
 @Module({
-  imports: [OAuthModule, UsersModule, TerminologyModule, HealthModule],
+  imports: [OAuthModule, UsersModule, TerminologyModule, ClinicModule, HealthModule],
   controllers: [AppController],
   providers: [
     { provide: APP_GUARD, useClass: JwtAuthGuard },

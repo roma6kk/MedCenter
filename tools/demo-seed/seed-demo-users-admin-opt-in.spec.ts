@@ -18,7 +18,7 @@ describe('seedDemoUsers without --with-admin', () => {
 
     expect(section.accounts.map((account) => [account.role, account.status])).toEqual([
       ['ADMIN', 'exists'],
-      ...Array(4).fill(['DOCTOR', 'created']),
+      ...Array(5).fill(['DOCTOR', 'created']),
       ...Array(3).fill(['PATIENT', 'created']),
     ]);
     expect(service.created).not.toContain(DEMO_ADMIN);

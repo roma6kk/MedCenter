@@ -1,5 +1,5 @@
 import { screen, within } from '@testing-library/react';
-import { pageOf, renderWithClient, resetCabinetState } from '@/components/patient/cabinet-test-utils';
+import { renderWithClient, resetCabinetState } from '@/components/patient/cabinet-test-utils';
 import * as doctorApi from '@/components/doctor/doctor-api';
 import { useSessionStore } from '@/store/use-session-store';
 import { AdminPatientConsent } from './admin-patient-consent';
@@ -17,7 +17,6 @@ describe('AdminPatientConsent', () => {
     window.sessionStorage.clear();
     useSessionStore.setState({ role: 'ADMIN' });
     jest.mocked(api.fetchPatientConsent).mockResolvedValue(WITH_ACTIVE);
-    jest.mocked(doctorApi.fetchRelatedPersons).mockResolvedValue(pageOf([]));
   });
 
   it('should show the consent paperwork of the patient for an administrator, with a way back to the users', async () => {

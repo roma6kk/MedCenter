@@ -11,6 +11,7 @@ export interface CliOptions {
   readonly runUsers: boolean;
   readonly runRepair: boolean;
   readonly runConsents: boolean;
+  readonly runVisits: boolean;
   readonly consentExcept?: string;
   readonly withAdmin: boolean;
   readonly refreshScans: boolean;
@@ -18,7 +19,7 @@ export interface CliOptions {
   readonly from?: string;
 }
 
-const SWITCHES = ['--fhir', '--users', '--repair', '--consents', '--with-admin', '--refresh-scans'] as const;
+const SWITCHES = ['--fhir', '--users', '--repair', '--consents', '--visits', '--with-admin', '--refresh-scans'] as const;
 const VALUED = ['--consent-except', '--days', '--from'] as const;
 
 const DAY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
@@ -80,13 +81,15 @@ function optionsOf(flags: ReadonlySet<string>, values: ReadonlyMap<string, strin
   const runUsers = flags.has('--users');
   const runRepair = flags.has('--repair');
   const runConsents = flags.has('--consents');
+  const runVisits = flags.has('--visits');
   const consentExcept = values.get('--consent-except');
   const from = values.get('--from');
   return {
-    runFhir: flags.has('--fhir') || (!runUsers && !runRepair && !runConsents),
+    runFhir: flags.has('--fhir') || (!runUsers && !runRepair && !runConsents && !runVisits),
     runUsers,
     runRepair,
     runConsents,
+    runVisits,
     withAdmin: flags.has('--with-admin'),
     refreshScans: flags.has('--refresh-scans'),
     days: parseDays(values.get('--days') ?? String(DEFAULT_SLOT_DAYS)),

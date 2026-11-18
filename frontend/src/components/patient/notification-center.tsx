@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import type { ReactNode, RefObject } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { BellRing, CheckCheck } from 'lucide-react';
@@ -24,6 +24,7 @@ import { SegmentedTabs, tabPanelProps, type TabOption } from './segmented-tabs';
 import { useClampedPage } from './use-clamped-page';
 import { useClinicFormat } from '@/hooks/use-clinic-format';
 import { useDocumentTitle } from '@/hooks/use-document-title';
+import { parsePage, useUrlState } from '@/hooks/use-url-state';
 import { useStaggerOnce } from '@/hooks/use-stagger-once';
 import { useRestoreFocus } from './use-restore-focus';
 import { NotificationRow } from './notifications/notification-row';
@@ -139,8 +140,10 @@ interface CenterState extends MarkReadState {
 }
 
 function useCenterState(): CenterState {
-  const [filter, setFilter] = useState<NotificationFilter>('all');
-  const [page, setPage] = useState(1);
+  const [url, setUrl] = useUrlState({ filter: 'all', page: '1' });
+  const filter: NotificationFilter = NOTIFICATION_FILTERS.find((item) => item === url.filter) ?? 'all';
+  const page: number = parsePage(url.page);
+  const setPage = (next: number): void => setUrl({ page: String(next) });
   const listRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   const query = useNotifications({ page, pageSize: NOTIFICATIONS_PAGE_SIZE, unread: filter === 'unread' });
@@ -152,10 +155,7 @@ function useCenterState(): CenterState {
     clearFailure();
   }, [filter, page, clearFailure]);
   useClampedPage(query.data?.meta, page, setPage);
-  const changeFilter = useCallback((next: NotificationFilter) => {
-    setFilter(next);
-    setPage(1);
-  }, []);
+  const changeFilter = (next: NotificationFilter): void => setUrl({ filter: next, page: '1' });
   return { ...mark, filter, query, listRef, panelRef, changeFilter, setPage };
 }
 

@@ -1,6 +1,7 @@
 import { randomBytes } from 'node:crypto';
 
 import { asArray, bodyObject, expectEqual, expectPage, expectProblem, expectShape, expectStatus, expectTrue } from './smoke-assert';
+import { signIn } from './smoke-session';
 import { USER_SHAPE } from './smoke-shapes';
 import type { SmokeStep } from './smoke-runner';
 import type { ApiResponse } from './smoke-types';
@@ -63,6 +64,11 @@ async function registrationChecks(suite: Suite, email: string, users: TestUsers)
     users.registered = idOf(response);
     const created = expectShape(response.body, USER_SHAPE, 'registered user');
     expectTrue(/^Patient\/.+/.test(String(created['patientRef'])), 'registration did not link a FHIR Patient');
+  });
+  await runner.check(GROUP, 'POST /me/password as the new patient -> 204', async () => {
+    const session = await signIn(suite.config, { role: 'PATIENT', email, password: body.password });
+    const response = await api.post('/api/v1/me/password', { session, body: { currentPassword: body.password, newPassword: newPassword() } });
+    expectStatus(response, 204);
   });
   await runner.check(GROUP, 'POST /auth/register with a taken email -> 409', async () => {
     expectProblem(await api.post('/api/v1/auth/register', { body }), 409, 'CONFLICT');

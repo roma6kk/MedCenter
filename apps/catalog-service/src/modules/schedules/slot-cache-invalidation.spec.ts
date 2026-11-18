@@ -2,6 +2,7 @@ import type { FhirClient } from '@medcenter/fhir';
 
 import { InMemoryCacheStore } from '../cache/__tests__/in-memory-cache-store';
 import { CACHE_KEYS, RedisCacheService } from '../cache/redis-cache.service';
+import { searchesFor } from './__tests__/schedule-fixture';
 import { SLOT_DURATION_EXT, WEEKLY_WINDOWS_EXT } from './schedule.constants';
 import { SchedulesService } from './schedules.service';
 import { SlotGeneratorService } from './slot-generator.service';
@@ -51,7 +52,7 @@ describe('slot cache invalidation', () => {
   it('should keep the cached pages when generation writes nothing new', async () => {
     const store = await seededStore();
     const fhirClient = createFhirClientMock();
-    fhirClient.search.mockResolvedValue({
+    searchesFor(fhirClient, {
       entry: [
         { resource: { resourceType: 'Slot', start: '2026-11-02T06:00:00.000Z' } },
         { resource: { resourceType: 'Slot', start: '2026-11-02T06:30:00.000Z' } },

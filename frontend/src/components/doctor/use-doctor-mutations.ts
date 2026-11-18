@@ -4,9 +4,10 @@ import { useMutation, useQueryClient, type UseMutationResult } from '@tanstack/r
 import { ApiError } from '@/lib/api/api-fetch';
 import { invalidateFor } from '@/lib/api/invalidation';
 import { showToast } from '@/lib/ui/toast';
-import { postCompleteEncounter, postNoshow, postOpenEncounter, type CompleteEncounterBody } from './doctor-api';
+import { postCancelEncounter, postCompleteEncounter, postNoshow, postOpenEncounter, type CompleteEncounterBody } from './doctor-api';
 import type { EncounterSummary } from './doctor-types';
 import { findFinishedEncounterId } from './find-finished-encounter';
+import { forgetStartedEncounter } from './started-encounters';
 
 interface OpenEncounterInput {
   readonly appointmentId: string;
@@ -58,6 +59,20 @@ export function useCompleteEncounter(encounterId: string, onCompleted?: () => vo
       onCompleted?.();
       showToast('success', 'doctor.encounter.completedToast');
       await invalidateFor(client, 'complete-encounter');
+    },
+  });
+}
+
+export function useCancelEncounter(encounterId: string, appointmentId: string, onCancelled: () => void): UseMutationResult<EncounterSummary, Error, void> {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: () => postCancelEncounter(encounterId),
+    onSuccess: () => {
+      // Before the refresh: it unmounts the form, and a callback never runs after unmount.
+      onCancelled();
+      forgetStartedEncounter(appointmentId);
+      showToast('success', 'doctor.encounter.cancelledToast');
+      void invalidateFor(client, 'cancel-encounter');
     },
   });
 }

@@ -182,7 +182,6 @@ describe('ReportsService', () => {
 
       const report = await reportsService.servicesPopularity({ ...range, top: 5 });
 
-      expect(repository.countBookingsByService).toHaveBeenCalledWith(expect.anything(), 5);
       expect(report.groups).toEqual([
         { code: 'svc-2', display: 'УЗИ сердца', count: 9 },
         { code: 'svc-1', count: 4 },
@@ -198,9 +197,35 @@ describe('ReportsService', () => {
     });
 
     it('should default to the top 10 services when "top" is omitted', async () => {
-      await reportsService.servicesPopularity(range);
+      repository.countBookingsByService.mockResolvedValue(Array.from({ length: 12 }, (_, i) => ({ serviceId: `svc-${i}`, count: '1' })));
 
-      expect(repository.countBookingsByService).toHaveBeenCalledWith(expect.anything(), 10);
+      const report = await reportsService.servicesPopularity(range);
+
+      expect(report.groups).toHaveLength(10);
+    });
+
+    it('should count the services outside the top into "others" and into the total when the list is cut', async () => {
+      repository.countBookingsByService.mockResolvedValue([
+        { serviceId: 'svc-1', count: '9' },
+        { serviceId: 'svc-2', count: '4' },
+        { serviceId: 'svc-3', count: '2' },
+        { serviceId: 'svc-4', count: '1' },
+      ]);
+
+      const report = await reportsService.servicesPopularity({ ...range, top: 2 });
+
+      expect(report.groups.map((group) => group.code)).toEqual(['svc-1', 'svc-2']);
+      expect(report.others).toBe(3);
+      expect(report.total).toBe(16);
+    });
+
+    it('should report no other services when everything fits into the top', async () => {
+      repository.countBookingsByService.mockResolvedValue([{ serviceId: 'svc-1', count: '5' }]);
+
+      const report = await reportsService.servicesPopularity({ ...range, top: 3 });
+
+      expect(report.others).toBe(0);
+      expect(report.total).toBe(5);
     });
 
     it('should skip the HAPI name lookup when no service was booked in the period', async () => {

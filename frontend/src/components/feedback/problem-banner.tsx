@@ -29,13 +29,10 @@ function useProblemView(props: ProblemBannerProps): ProblemView {
   const offline: boolean = problem?.status === 0 && props.errorCode === undefined;
   const errorCode: ErrorCode | undefined = offline ? undefined : props.errorCode ?? problem?.errorCode;
   const fallbackHeadline: string = offline ? t('errors.NETWORK') : errorCode === undefined ? problem?.title ?? '' : t(errorMessageKey(errorCode));
-  const hasFieldErrors: boolean = (problem?.details?.length ?? 0) > 0;
-  // A 500 shows only the headline and request id: the server withholds the cause on purpose (OWASP A05/A09). 502/503 keep their detail.
-  const isInternal: boolean = errorCode === 'INTERNAL' && problem?.status === 500;
   return {
     headline: props.title ?? fallbackHeadline,
     errorCode,
-    detail: props.detail ?? (hasFieldErrors || offline || isInternal ? undefined : problem?.detail),
+    detail: props.detail,
     requestId: props.requestId ?? problem?.requestId,
     retryAfter: problem?.retryAfter,
   };

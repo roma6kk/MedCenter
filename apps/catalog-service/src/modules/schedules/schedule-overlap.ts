@@ -13,6 +13,7 @@ export interface Horizon {
 
 export interface OverlapCandidate {
   readonly practitionerRoleId: string;
+  readonly roomId: string;
   readonly windows: readonly WeeklyWindowDto[];
   readonly horizon: Horizon;
   readonly excludeScheduleId?: string;
@@ -39,7 +40,8 @@ export async function assertNoScheduleOverlap(fhirClient: FhirClient, candidate:
     throw overlap('weekly windows intersect');
   }
   const { resources } = await searchPages(fhirClient, 'Schedule', {
-    actor: `PractitionerRole/${candidate.practitionerRoleId}`,
+    // One search: a comma is OR, so a schedule of the same doctor or of the same room is found.
+    actor: `PractitionerRole/${candidate.practitionerRoleId},Location/${candidate.roomId}`,
     active: 'true',
     _sort: '_id',
   });
@@ -52,6 +54,6 @@ export async function assertNoScheduleOverlap(fhirClient: FhirClient, candidate:
     return horizonsIntersect(candidate.horizon, horizon) && hasCrossOverlap(candidate.windows, existing.windows);
   });
   if (conflicting) {
-    throw overlap(`practitioner role ${candidate.practitionerRoleId} already has a schedule in this period`);
+    throw overlap(`practitioner role ${candidate.practitionerRoleId} or room ${candidate.roomId} already has a schedule at this time`);
   }
 }

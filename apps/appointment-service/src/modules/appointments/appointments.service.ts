@@ -133,6 +133,12 @@ export class AppointmentsService {
       assertPatientOwns(callerRef, appointment);
     }
     assertBooked(appointment, 'APPOINTMENT_NOT_CANCELLABLE', 'cancelled');
+    if (callerRef !== undefined && Date.parse(stringOf(appointment, 'start')) <= Date.now()) {
+      throw new ConflictException({
+        errorCode: 'APPOINTMENT_ALREADY_STARTED',
+        message: 'APPOINTMENT_ALREADY_STARTED: a started appointment can only be cancelled by an administrator',
+      });
+    }
     // A patient who is being seen (an encounter exists) cannot cancel; an encounter opened after this check bumps the version.
     await this.assertNoEncounter(appointmentId, 'APPOINTMENT_NOT_CANCELLABLE', 'cancelled');
     return appointment;
@@ -163,7 +169,7 @@ export class AppointmentsService {
 
   /** An encounter opened after the search is caught by `If-Match` on the Appointment (encounter-service changes its `meta.tag`). */
   private async assertNoEncounter(appointmentId: string, errorCode: ErrorCode, action: string): Promise<void> {
-    const encounters = await this.fhir.search('Encounter', { appointment: `Appointment/${appointmentId}`, _count: 1 });
+    const encounters = await this.fhir.search('Encounter', { appointment: `Appointment/${appointmentId}`, 'status:not': 'cancelled', _count: 1 });
     if ((encounters.entry ?? []).length > 0) {
       throw new ConflictException({
         errorCode,

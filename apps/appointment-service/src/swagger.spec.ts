@@ -46,6 +46,7 @@ describe('appointment-service OpenAPI document (API §10)', () => {
 
   it('should expose every /api/v1 path of API §6', () => {
     const expected = [
+      '/api/v1/admin/appointments',
       '/api/v1/appointments',
       '/api/v1/appointments/{id}',
       '/api/v1/appointments/{id}/cancel',
@@ -54,7 +55,7 @@ describe('appointment-service OpenAPI document (API §10)', () => {
     ];
     const apiPaths = Object.keys(document.paths).filter((path) => path.startsWith('/api/v1/'));
     expect(apiPaths.sort()).toEqual([...expected].sort());
-    expect(operationsOf(document)).toHaveLength(7);
+    expect(operationsOf(document)).toHaveLength(8);
   });
 
   it('should tag every operation with the service name', () => {

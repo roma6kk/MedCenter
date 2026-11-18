@@ -18,6 +18,7 @@ import type { RetentionExpiredQueryDto } from './dto/retention-expired-query.dto
 import type { MeResponseDto } from './dto/me-response.dto';
 import type { UpdateUserDto } from './dto/update-user.dto';
 import type { RetentionExpiredItemDto, UserDetailsResponseDto, UserResponseDto } from './dto/user-response.dto';
+import { DoctorProvisioner } from './doctor-provisioner';
 import { PasswordHasher } from './password-hasher';
 import { PatientProvisioner, type PatientDemographicsChange } from './patient-provisioner';
 import { USER_STORE, type UserChanges, type UserRecord, type UserStore } from './store/user-store';
@@ -34,6 +35,7 @@ export class UsersService {
     @Inject(USER_STORE) private readonly store: UserStore,
     private readonly accounts: AccountFactory,
     private readonly patients: PatientProvisioner,
+    private readonly doctors: DoctorProvisioner,
     private readonly audit: AuditService,
     private readonly hasher: PasswordHasher,
     @Inject(ACCOUNT_RETENTION) private readonly retention: AccountRetention = accountRetentionFromEnv(),
@@ -86,7 +88,7 @@ export class UsersService {
    * `PATCH` is all-or-nothing. The `auth` changes — fields, roles and the
    * `PractitionerRole` link — commit in one store transaction, so a `409`
    * leaves the account as it was. The `Patient` of the account is synced
-   * after it; when HAPI refuses, the commit is reverted and the request fails
+   * after it, and a doctor is hidden from or shown in the catalog by (de)activation; when HAPI refuses, the commit is reverted and the request fails
    * with nothing changed. A change that stays committed always has its `AuditEvent`; a PATCH that changes
    * nothing (the values are already there) writes and journals nothing and answers the unchanged card.
    */
@@ -97,16 +99,31 @@ export class UsersService {
     if (typeof dto.practitionerRoleId === 'string') {
       await this.patients.assertPractitionerRoleExists(dto.practitionerRoleId);
     }
-    const changes = effectiveChangesOf(changesOf(dto, current), current);
+    const passwordHash = dto.password === undefined ? undefined : await this.hasher.hash(dto.password);
+    const changes = {
+      ...effectiveChangesOf(changesOf(dto, current), current),
+      ...(passwordHash !== undefined ? { passwordHash } : {}),
+    };
     const demographics = effectiveDemographicsOf(demographicsOf(dto), current);
     if (Object.keys(changes).length === 0 && demographics === null) {
       return toUserDetails(current);
     }
     const closure = changes.isActive === undefined ? {} : changes.isActive ? { closedAt: null, retentionUntil: null } : closureOf(this.retention);
     const updated = await this.applyChanges(id, { ...changes, ...closure });
-    await this.syncPatient(current, updated, { ...changes, ...closure }, demographics, actor);
-    await this.recordUpdate(current, updated, actor, changes.isActive === false ? 'user.deactivated' : 'user.updated');
+    await this.syncFhir(current, updated, { ...changes, ...closure }, demographics, actor);
+    const event = changes.isActive === false ? 'user.deactivated' : passwordHash !== undefined ? 'user.password_reset' : 'user.updated';
+    await this.recordUpdate(current, updated, actor, event);
     return toUserDetails(updated);
+  }
+
+  /** The caller closes the sessions afterwards (the token store lives in the OAuth module). */
+  async changePassword(id: string, currentPassword: string, newPassword: string, actor: AuditActor): Promise<void> {
+    const current = await this.require(id);
+    if (!(await this.hasher.verify(currentPassword, current.passwordHash))) {
+      throw invalidPassword();
+    }
+    const updated = await this.applyChanges(id, { passwordHash: await this.hasher.hash(newPassword) });
+    await this.recordUpdate(current, updated, actor, 'user.password_changed');
   }
 
   async deactivate(id: string, actor: AuditActor): Promise<UserDetailsResponseDto> {
@@ -117,7 +134,9 @@ export class UsersService {
     if (!current.isActive) {
       return toUserDetails(current);
     }
-    const updated = await this.applyChanges(id, { isActive: false, ...closureOf(this.retention) });
+    const closure = { isActive: false, ...closureOf(this.retention) };
+    const updated = await this.applyChanges(id, closure);
+    await this.syncFhir(current, updated, closure, null, actor);
     await this.recordUpdate(current, updated, actor, 'user.deactivated');
     return toUserDetails(updated);
   }
@@ -166,18 +185,20 @@ export class UsersService {
     return updated;
   }
 
-  private async syncPatient(
+  private async syncFhir(
     before: UserRecord,
     after: UserRecord,
     changes: UserChanges,
     demographics: PatientDemographicsChange | null,
     actor: AuditActor,
   ): Promise<void> {
-    if (demographics === null || after.links.patientId === undefined) {
-      return;
-    }
     try {
-      await this.patients.updateDemographics(after.links.patientId, demographics);
+      if (demographics !== null && after.links.patientId !== undefined) {
+        await this.patients.updateDemographics(after.links.patientId, demographics);
+      }
+      if (changes.isActive !== undefined && after.links.practitionerRoleId !== undefined) {
+        await this.doctors.setActive(after.links.practitionerRoleId, changes.isActive);
+      }
     } catch (error: unknown) {
       await this.revert(before, after, changes, actor);
       throw error;

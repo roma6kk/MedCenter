@@ -280,6 +280,27 @@ describe('AnalyticsPanel', () => {
     expect(table.getByText('gone-a').closest('details')).toBeInTheDocument();
   });
 
+  it('should add an "other services" row and take the shares from the whole period when the report counts services outside the top', async () => {
+    apiFetchMock.mockImplementation((path) => (path.includes('/services-popularity') ? Promise.resolve({ ...services, total: 40, others: 20, groups: [{ code: 'svc-1', display: 'Приём терапевта', count: 20 }] }) : answer(path)));
+    renderWithClient(<AnalyticsPanel />);
+
+    const table = within(await screen.findByRole('table', { name: 'Топ-10 услуг по записям' }));
+
+    const row = (await table.findByText('Прочие услуги')).closest('tr') as HTMLElement;
+    expect(row).toHaveTextContent('20');
+    expect(row).toHaveTextContent('50%');
+    expect(table.getByText('Итого').closest('tr')).toHaveTextContent('40');
+  });
+
+  it('should not show the "other services" row when the report has none outside the top', async () => {
+    renderWithClient(<AnalyticsPanel />);
+
+    const table = within(await screen.findByRole('table', { name: 'Топ-10 услуг по записям' }));
+
+    await table.findByText('Приём терапевта');
+    expect(table.queryByText('Прочие услуги')).not.toBeInTheDocument();
+  });
+
   it('should merge the specialties without a display into one localized row with the codes behind a disclosure', async () => {
     apiFetchMock.mockImplementation((path) => (path.includes('/encounters') ? Promise.resolve({ ...encounters, total: 19, groups: [{ code: '419192003', system: 'http://snomed.info/sct', display: 'Терапия', count: 16 }, { code: 'spec-a', count: 2 }, { code: 'spec-b', count: 1 }] }) : answer(path)));
     renderWithClient(<AnalyticsPanel />);

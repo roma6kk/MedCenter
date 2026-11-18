@@ -65,11 +65,12 @@ Each request lists in its docs which role it needs; a wrong role answers 403 (`F
 | `05-practitioners` | 4 | doctors (public), rooms |
 | `06-catalog` | 5 | services, schedules, slots |
 | `07-appointments` | 6 | booking, list, cancel, doctor view, no-show |
-| `08-encounters` | 7 | open, complete, history, prescriptions |
+| `08-encounters` | 7 | open, complete, cancel, history, prescriptions |
 | `09-notifications` | 8 | in-app notifications |
 | `10-analytics` | 9 | reports and audit log |
 | `11-errors` | 1 | Problem Details catalogue and reproducible error requests |
 | `12-e2e-booking-flow` | 6.1 -> 7.1 -> 7.3 | the §11 chain, three roles |
+| `13-clinic` | 2.4 | public clinic details, admin edit |
 
 Requests store the ids they read (`doctorId`, `slotId`, `appointmentId`, ...) in runtime variables, so run a
 folder top to bottom. A request whose input is missing is skipped, not failed. Every request has assertions

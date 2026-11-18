@@ -150,7 +150,7 @@ export class AppointmentsController {
   })
   @ApiProblems([...GUARD_PROBLEM_STATUSES, 400, 404, 409], {
     403: 'COMPARTMENT_VIOLATION: not the owner patient; FORBIDDEN_ROLE / FORBIDDEN_SCOPE',
-    409: 'APPOINTMENT_NOT_CANCELLABLE: not booked (already cancelled, noshow, fulfilled) or an encounter exists',
+    409: 'APPOINTMENT_NOT_CANCELLABLE: not booked (already cancelled, noshow, fulfilled) or an encounter exists; APPOINTMENT_ALREADY_STARTED: a patient cannot cancel after the start time (an admin can)',
   })
   async cancel(
     @Req() request: AuditedRequest,

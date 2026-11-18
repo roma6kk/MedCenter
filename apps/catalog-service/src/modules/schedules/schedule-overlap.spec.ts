@@ -25,6 +25,7 @@ function fhirWith(...existing: FhirResource[]): jest.Mocked<FhirClient> {
 function candidate(overrides: Partial<OverlapCandidate> = {}): OverlapCandidate {
   return {
     practitionerRoleId: 'role-1',
+    roomId: 'room-1',
     windows: [MONDAY_MORNING],
     horizon: { start: '2026-12-01', end: '2026-12-31' },
     ...overrides,
@@ -76,11 +77,17 @@ describe('assertNoScheduleOverlap', () => {
     expect(fhir.search).not.toHaveBeenCalled();
   });
 
-  it('should look only at the active schedules of the practitioner role', async () => {
+  it('should look only at the active schedules of the practitioner role or the room', async () => {
     const fhir = fhirWith();
 
     await assertNoScheduleOverlap(fhir, candidate());
 
-    expect(fhir.search).toHaveBeenCalledWith('Schedule', expect.objectContaining({ actor: 'PractitionerRole/role-1', active: 'true' }));
+    expect(fhir.search).toHaveBeenCalledWith('Schedule', expect.objectContaining({ actor: 'PractitionerRole/role-1,Location/room-1', active: 'true' }));
+  });
+
+  it('should refuse another doctor on the same room at overlapping hours with SCHEDULE_OVERLAP', async () => {
+    const fhir = fhirWith(schedule('s-2', [MONDAY_MORNING], '2026-12-01', '2026-12-31'));
+
+    await expect(assertNoScheduleOverlap(fhir, candidate({ practitionerRoleId: 'role-2' }))).rejects.toThrow('SCHEDULE_OVERLAP');
   });
 });

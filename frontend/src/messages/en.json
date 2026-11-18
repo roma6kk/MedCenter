@@ -55,11 +55,15 @@
         "roles": "Roles",
         "practitionerRoleId": "Practitioner role (PractitionerRole)",
         "password": "Password",
+        "newPassword": "New password",
+        "specialty": "Specialty",
         "birthDate": "Birth date",
         "gender": "Gender",
         "isActive": "Account is active"
       },
       "hints": {
+        "specialty": "The doctor and the catalog card are created together with the account. The room is set in the schedule.",
+        "newPassword": "Leave empty to keep the current one. The user is signed out everywhere. At least 10 characters: lower and upper case Latin letters, a digit and a symbol",
         "password": "At least 10 characters: lower and upper case Latin letters, a digit and a symbol",
         "practitionerRoleId": "The catalog doctor this account is linked to. Without it the doctor sees no schedule.",
         "practitionerRoleIdTyped": "The doctor catalog is unavailable right now — type the PractitionerRole id. Without it the doctor sees no schedule.",
@@ -90,11 +94,13 @@
         "deactivated": "Account deactivated"
       },
       "validation": {
+        "specialtyRequired": "Choose the doctor's specialty",
         "rolesRequired": "Choose at least one role",
         "birthDateRequired": "A patient needs a birth date",
         "birthDateFuture": "Date of birth cannot be in the future"
       },
       "roleOptionsLoading": "Loading doctors…",
+      "specialtyChoose": "Choose a specialty",
       "roleNotLinked": "Not linked",
       "roleTakenBy": "linked to {name}",
       "links": {
@@ -458,6 +464,7 @@
         "title": "Top {top} services by bookings",
         "service": "Service",
         "count": "Bookings",
+        "others": "Other services",
         "unknown": "Service deleted or unavailable",
         "unknownMany": "Deleted or unavailable services ({count})",
         "unknownNote": "These services were removed from the catalogue, so the appointments kept only an identifier. The identifiers are below."
@@ -488,6 +495,46 @@
       "table": {
         "total": "Total",
         "details": "Details"
+      }
+    },
+    "appointments": {
+      "title": "Appointments",
+      "description": "Patient appointments: who, when and with which doctor. The visit reason is not shown here. Viewing the list is written to the audit journal.",
+      "empty": "No appointments",
+      "emptyHint": "Nobody is booked in the chosen period.",
+      "emptyFiltered": "No appointments found",
+      "emptyFilteredHint": "Change the period or the filters.",
+      "total": "Appointments found: {count}",
+      "cancel": "Cancel",
+      "cancelFor": "Cancel the appointment: {patient}, {when}",
+      "filters": {
+        "label": "Appointment filters",
+        "from": "From",
+        "to": "To",
+        "doctor": "Doctor",
+        "anyDoctor": "All doctors",
+        "status": "Status",
+        "anyStatus": "Any status",
+        "reset": "Reset"
+      },
+      "statuses": {
+        "booked": "Booked",
+        "cancelled": "Cancelled",
+        "noshow": "No-show",
+        "fulfilled": "Seen"
+      },
+      "errors": {
+        "invalid": "Enter valid dates",
+        "order": "The start date is after the end date",
+        "span": "The period cannot exceed 366 days"
+      },
+      "columns": {
+        "start": "Time",
+        "patient": "Patient",
+        "doctor": "Doctor",
+        "service": "Service",
+        "status": "Status",
+        "actions": "Actions"
       }
     },
     "audit": {
@@ -542,6 +589,26 @@
         "login-throttled": "Sign-in blocked (attempt limit)",
         "logout": "Sign-out",
         "session-idle": "Session ended by inactivity"
+      }
+    },
+    "settings": {
+      "title": "Settings",
+      "description": "The clinic's details: visitors see them on the home page, in the footer and in the privacy policy.",
+      "save": "Save",
+      "saving": "Saving…",
+      "fields": {
+        "name": "Clinic name",
+        "phone": "Reception phone",
+        "email": "E-mail",
+        "address": "Address",
+        "hours": "Working hours"
+      },
+      "hints": {
+        "phone": "+375 and nine digits, for example +375 17 000-00-00",
+        "hours": "For example: Mon–Fri 08:00–20:00, Sat 09:00–15:00"
+      },
+      "toast": {
+        "saved": "Clinic details saved"
       }
     },
     "terminology": {
@@ -736,7 +803,9 @@
       "services": "Services",
       "rooms": "Rooms",
       "schedules": "Schedules",
+      "appointments": "Appointments",
       "terminology": "Terminology",
+      "settings": "Settings",
       "audit": "Audit"
     },
     "description": "Appointment booking and clinical records",
@@ -938,6 +1007,12 @@
       "finishedTitle": "The encounter is completed.",
       "finishedHint": "The record is read-only.",
       "notEditable": "An encounter with the status \"{status}\" cannot be completed.",
+      "notYours": "Another doctor is conducting this encounter: you can only read it.",
+      "cancel": "Cancel encounter",
+      "cancelTitle": "Cancel the encounter?",
+      "cancelBody": "Entered data will not be saved. The appointment stays in the journal: you can start the encounter again or mark a no-show.",
+      "cancelKeep": "Keep it",
+      "cancelledToast": "Encounter cancelled",
       "formLabel": "Complete the encounter",
       "diagnosesLegend": "Diagnoses",
       "summary": "Summary",
@@ -1088,8 +1163,6 @@
       "unknown": "Not specified",
       "contacts": "Contacts",
       "noContacts": "No contacts on file",
-      "relatedTitle": "Trusted persons",
-      "relatedUnavailable": "Trusted persons are unavailable",
       "telecom": {
         "phone": "Phone",
         "email": "Email",
@@ -1192,8 +1265,7 @@
     "scanRequired": "Attach the scan of the signed form",
     "scanType": "The scan must be a PDF, JPEG or PNG file",
     "scanSize": "The file is larger than 10 MB",
-    "futureDate": "The signing date cannot be in the future",
-    "relatedRequired": "Choose the patient's trusted person"
+    "futureDate": "The signing date cannot be in the future"
   },
   "errors": {
     "VALIDATION_ERROR": "Check the highlighted fields",
@@ -1207,6 +1279,7 @@
     "CONFLICT": "Conflicts with existing data",
     "SLOT_CONFLICT": "The slot is already taken",
     "APPOINTMENT_NOT_CANCELLABLE": "The appointment cannot be cancelled",
+    "APPOINTMENT_ALREADY_STARTED": "The appointment has already started: ask the front desk to cancel it",
     "CONSENT_REQUIRED": "No active consent to entering information into the clinic information system: send the patient to the front desk or record the paper consent",
     "CONSENT_ALREADY_ACTIVE": "The patient already has an active consent: record its revocation first",
     "ENCOUNTER_STATE_INVALID": "The encounter is already completed",
@@ -1804,13 +1877,6 @@
         "active": "Consent",
         "rejected": "Written refusal"
       },
-      "consenterType": "Signed by",
-      "minorHint": "The patient is under 18: a legal representative or guardian signs the consent.",
-      "relatedPerson": "Patient's trusted person",
-      "relatedPlaceholder": "Choose…",
-      "relatedNone": "The patient has no trusted persons on file: record a consent signed by the patient, or add the trusted person first.",
-      "representativeDocument": "Document proving authority",
-      "representativeHint": "For example: power of attorney, guardianship decision.",
       "signedByName": "Name of the staff member who handled the form",
       "signedByDoctorHint": "Filled in from your account.",
       "file": "Scan of the signed form",
@@ -1971,6 +2037,21 @@
     "consequencesText": "Without consent to keep an account, registration and online booking are unavailable. Booking and visits at the clinic remain possible through the front desk.",
     "crossBorderTitle": "Cross-border transfer",
     "crossBorderText": "No cross-border transfer is carried out."
+  },
+  "passwordChange": {
+    "title": "Password",
+    "sectionLead": "Change your password if someone else may know it. You will have to sign in again afterwards.",
+    "open": "Change password",
+    "dialogTitle": "Change password",
+    "lead": "After the change you are signed out on every device and sign in with the new password.",
+    "currentLabel": "Current password",
+    "currentRequired": "Enter your current password",
+    "newLabel": "New password",
+    "newHint": "At least 10 characters: lower and upper case Latin letters, a digit and a symbol",
+    "wrongPassword": "The current password is wrong.",
+    "cancel": "Cancel",
+    "confirm": "Change password",
+    "busy": "Changing…"
   },
   "accountClosure": {
     "title": "Delete account",

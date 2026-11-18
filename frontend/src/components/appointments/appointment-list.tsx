@@ -15,6 +15,7 @@ import { BookLink } from '@/components/patient/book-link';
 import { SegmentedTabs, tabPanelProps, type TabOption } from '@/components/patient/segmented-tabs';
 import { useClampedPage } from '@/components/patient/use-clamped-page';
 import { useDocumentTitle } from '@/hooks/use-document-title';
+import { parsePage, useUrlState } from '@/hooks/use-url-state';
 import { useStaggerOnce } from '@/hooks/use-stagger-once';
 import { useFocusFallback } from '@/components/patient/use-focus-fallback';
 import type { PaginatedResponse } from '@/lib/api/pagination';
@@ -84,16 +85,15 @@ function AppointmentsPanel({ tab, query, onCancel, onPage }: PanelProps): ReactN
 
 export function AppointmentList(): ReactNode {
   const t = useT('appointments');
-  const [tab, setTabState] = useState<AppointmentTab>('upcoming');
-  const [page, setPage] = useState(1);
+  const [url, setUrl] = useUrlState({ tab: 'upcoming', page: '1' });
+  const tab: AppointmentTab = url.tab === 'all' ? 'all' : 'upcoming';
+  const page: number = parsePage(url.page);
+  const setPage = (next: number): void => setUrl({ page: String(next) });
   const [target, setTarget] = useState<AppointmentView | null>(null);
   const panel = useRef<HTMLDivElement>(null);
   const query = useAppointments({ tab, page, pageSize: APPOINTMENTS_PAGE_SIZE });
   const close = useCallback(() => setTarget(null), []);
-  const setTab = useCallback((next: AppointmentTab) => {
-    setTabState(next);
-    setPage(1);
-  }, []);
+  const setTab = (next: AppointmentTab): void => setUrl({ tab: next, page: '1' });
   const options: ReadonlyArray<TabOption<AppointmentTab>> = [{ value: 'upcoming', label: t('tabUpcoming') }, { value: 'all', label: t('tabAll') }];
   useClampedPage(query.data?.meta, page, setPage);
   // The card that opened the dialog may lose its cancel button: keep the focus in the list.

@@ -43,7 +43,7 @@ function specialtyConcept(specialty: SpecialtyDef): Json {
   };
 }
 
-function serviceTypeConcept(typeCode: string): Json {
+export function serviceTypeConcept(typeCode: string): Json {
   return { coding: [{ system: FHIR_BY.SERVICE_CODE_SYSTEM, code: typeCode, display: nsiServiceDisplay(typeCode) }] };
 }
 

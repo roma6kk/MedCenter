@@ -155,7 +155,7 @@ PKCE-обмена и refresh-токен не попадают в JS браузе
 | `/doctor/appointments`      | журнал на дату (from/to), фильтр статусов                           | `PaginatedTable`, `NoshowButton`, действие «Открыть приём» (только `booked`, BR-008) | 6.5, 6.6, 7.1      | FR-009/011  |
 | `/doctor/schedule`          | своё расписание и слоты                                                   | `DoctorScheduleView` (окна недели + слоты)                                                            | 5.2.7              | FR-009      |
 | `/encounters/[encounterId]` | карточка приёма; до complete — пусто, после — read-only           | `StatusBanner`, `EncounterCompleteForm`                                                                            | 7.2, 7.3           | FR-011…014 |
-| `/patients/[patientId]`     | карточка пациента: история, назначения, доверенные | `PatientHeader`, `PatientHistoryTimeline`, `PrescriptionCard`, `RelatedPersons`                                | 3.2, 3.3, 7.4, 7.5 | FR-010      |
+| `/patients/[patientId]`     | карточка пациента: история, назначения                | `PatientHeader`, `PatientHistoryTimeline`, `PrescriptionCard`                                                  | 3.2, 7.4, 7.5      | FR-010      |
 
 **(admin)** — все под StaffShell, раздел «Admin» виден только ADMIN (BR-007):
 
@@ -167,6 +167,7 @@ PKCE-обмена и refresh-токен не попадают в JS браузе
 | `/admin/rooms`       | CRUD кабинетов + занятость                                      | `RoomsTable`, `RoomForm`, `RoomUsageDrawer`  | 4.3–4.7     | FR-017 |
 | `/admin/schedules`   | расписания + генерация слотов                            | `ScheduleEditor`, `SlotGenerationDialog`       | 5.2.1–5.2.6 | FR-020 |
 | `/admin/terminology` | ValueSets, импорт снапшота                                          | `ValueSetExplorer`, `TerminologyImportPanel`   | 2.3.1–2.3.4 | FR-018 |
+| `/admin/settings`    | сведения о клинике: название, телефон, e-mail, адрес, часы работы   | `SettingsPanel` (одна форма)                   | 2.4.1–2.4.2 | FR-018 |
 | `/admin/analytics`   | сводки записей/приёмов, топ услуг                     | `AnalyticsDashboard` (KPI-карты + recharts) | 9.1–9.3     | FR-019 |
 | `/admin/audit`       | журнал аудита                                                         | `AuditTable`                                     | 9.4          | FR-021 |
 
@@ -222,7 +223,8 @@ PKCE-обмена и refresh-токен не попадают в JS браузе
 
 `useSessionStore` (сессия из broker: role, scope, patientRef, fhirUser, expiresAt; hydrated-флаг) ·
 `useUiStore` (locale, sidebar, активные фильтры) · `useBookingDraftStore` (черновик мастера,
-persist → sessionStorage). Серверные данные — **только** TanStack Query.
+persist → sessionStorage; если во вкладке сохранены врач или слот, ссылки «Войти» ведут после входа на `/booking`, иначе на `/home`). Серверные данные — **только** TanStack Query.
+Вкладка, фильтр и страница списков («Мои записи», «Уведомления», пользователи, услуги, кабинеты, расписания) хранятся в адресе: `useUrlState` / `writeUrlQuery` (`hooks/use-url-state.ts`), `history.replaceState` без навигации; значения по умолчанию в адрес не пишутся.
 
 ##### 5.3 Формы: react-hook-form + zod, паритет с class-validator
 
@@ -292,7 +294,7 @@ cd frontend && npx playwright test                              # после `np
 
 - **next-intl**, `ru-BY` по умолчанию (NFR-008, A-8), `en` — задел: `messages/{ru,en}.json`,
   namespace `common/booking/doctor/admin/errors`; переключатель в шапке. Названия услуг/диагнозов —
-  display из сервера (терминология), не переводим клиентом.
+  display из сервера (терминология), не переводим клиентом. Язык интерфейса применяется после гидратации; `lang` у `<html>` выставляет inline-скрипт в `<head>` по cookie `mc-locale` до первой отрисовки.
 - Даты: хранение RFC 3339 UTC (API §0) → отображение `Europe/Minsk` через `Intl.DateTimeFormat`;
   ввод — локальное время (как в `WeeklyWindowDto`).
 - Локализация ошибок: `errorCode` → ключ `errors.<errorCode>` (текст из каталога §1).
@@ -344,7 +346,7 @@ apps/web/src/
 | FR-007 | `/medcard?tab=prescriptions`                                                      | 7.7                        |
 | FR-008 | `NotificationBell`, `/notifications`                                | 8.1–8.3                   |
 | FR-009 | `/doctor/appointments`, `/doctor/schedule`                          | 5.2.7, 6.5                 |
-| FR-010 | `/patients/[id]`                                                      | 3.2–3.3, 7.4              |
+| FR-010 | `/patients/[id]`                                                      | 3.2, 7.4                  |
 | FR-011 | «Открыть приём»,`/encounters/[id]`                      | 7.1–7.3                   |
 | FR-012 | `Icd10Combobox` в `EncounterCompleteForm`                          | 7.3                        |
 | FR-013 | секция «Рекомендации»                               | 7.3                        |
@@ -352,7 +354,7 @@ apps/web/src/
 | FR-015 | `/admin/users`                                                        | 2.2.1–2.2.5               |
 | FR-016 | `/admin/services`                                                     | 5.1.3–5.1.5               |
 | FR-017 | `/admin/rooms`                                                        | 4.3–4.7                   |
-| FR-018 | `/admin/terminology`                                                  | 2.3.1–2.3.4               |
+| FR-018 | `/admin/terminology`, `/admin/settings`                               | 2.3.1–2.3.4, 2.4.1–2.4.2  |
 | FR-019 | `/admin/analytics`                                                    | 9.1–9.3                   |
 | FR-020 | `/admin/schedules`                                                    | 5.2.1–5.2.6               |
 | FR-021 | `/admin/audit`                                                        | 9.4                        |
@@ -444,9 +446,8 @@ glassmorphism, emoji-иконок, pill-кнопок «везде». Запом�
 
 #### D. Состояния, motion, responsive (дополнение к §5.4/§7/§8)
 
-- `ProblemBanner`: title + detail + `CodeChip errorCode` + `requestId` mono с копированием; для `500 INTERNAL` без detail
-  (сервер не раскрывает причину, а его фраза всегда русская): заголовок `errors.INTERNAL`, чип и `requestId`
-  (502/503 с тем же кодом detail сохраняют: там сервер пишет, что делать);
+- `ProblemBanner`: title + `CodeChip errorCode` + `requestId` mono с копированием; сырой `detail` сервера не показывается
+  (он английский и с внутренними кодами), вторая строка — только текст, который передал сам экран;
   401 → silent refresh, повторный 401 → `/login?returnTo=…`; 429 → «повторите через N с»;
   5xx → страница 500 с `requestId`. `ForbiddenState` (403), `NotFoundState` (404),
   `EmptyState` с CTA, skeleton-набор для таблиц/карточек/таймлайна. Несколько skeleton на одном экране (карточка
@@ -571,5 +572,6 @@ UX в §5.4 — здесь добавлены тексты и фокус-пов�
   `StaffConsentPanel` (статус, история, скачивание скана 3.11 с токеном, форма 3.10+3.8, отзыв 3.9). Приём: 409 `CONSENT_REQUIRED`
   на 7.1 — диалог в журнале, на 7.3 — блок под формой завершения (вне `<form>`), оба с «Экстренная помощь».
 - **Админ**: ссылка «Согласие на ЭМК» в строке пользователя с `patientRef` ведёт на `/admin/patients/[patientId]/consent`;
-  страница читает только 3.7/3.3, медицинских данных не запрашивает; ФИО оформившего вводит администратор (у врача — с сервера).
+  страница читает только 3.7, медицинских данных не запрашивает; ФИО оформившего вводит администратор (у врача — с сервера).
+- **Кто подписал**: форма не спрашивает, согласие всегда подписывает сам пациент (все пациенты 18+, TASK-008, Q19): отправляется `consenterType: self`, блока «Доверенные лица» нет, `GET /patients/{id}/related` фронтенд не вызывает. Запись другого вида, пришедшая с сервера, показывается в истории обычным текстом.
 - **Запись** 6.1: при известном «нет согласия» поле причины заблокировано с подсказкой, черновик причины очищается.

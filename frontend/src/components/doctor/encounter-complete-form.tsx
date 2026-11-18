@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import { FormProvider } from 'react-hook-form';
 import { ConsentRequiredNotice } from '@/components/consent/consent-required-notice';
@@ -9,6 +9,7 @@ import { isApiError } from '@/lib/api/api-fetch';
 import type { ProblemDetails } from '@/lib/api/problem';
 import { useT } from '@/lib/i18n/use-t';
 import { motionSafeScrollBehavior } from '@/lib/ui/motion';
+import { CancelEncounterDialog } from './cancel-encounter-dialog';
 import { ConclusionSection } from './conclusion-section';
 import { DiagnosesEditor } from './diagnoses-editor';
 import { EncounterActionBar } from './encounter-action-bar';
@@ -39,7 +40,7 @@ interface FailureProps {
 
 function CompletionFailure({ problem, foreignMessages, isMarked }: FailureProps): ReactNode {
   const t = useT('doctor.encounter');
-  const detail: string | undefined = isMarked ? t('fixMarkedFields') : foreignMessages.length > 0 ? foreignMessages.join('. ') : problem.detail;
+  const detail: string | undefined = isMarked ? t('fixMarkedFields') : foreignMessages.length > 0 ? foreignMessages.join('. ') : undefined;
   return (
     <ScrollToFailure isActive={!isMarked} className="mt-4">
       <ProblemBanner problem={problem} detail={detail} />
@@ -47,9 +48,16 @@ function CompletionFailure({ problem, foreignMessages, isMarked }: FailureProps)
   );
 }
 
-export function EncounterCompleteForm({ encounterId, patientId }: { readonly encounterId: string; readonly patientId: string }): ReactNode {
+interface EncounterCompleteFormProps {
+  readonly encounterId: string;
+  readonly appointmentId: string;
+  readonly patientId: string;
+}
+
+export function EncounterCompleteForm({ encounterId, appointmentId, patientId }: EncounterCompleteFormProps): ReactNode {
   const t = useT('doctor.encounter');
   const { methods, complete, onSubmit, completeAsEmergency, foreignMessages, isMarked, draft, startOver } = useEncounterForm(encounterId);
+  const [isCancelOpen, setIsCancelOpen] = useState(false);
   const needsConsent: boolean = complete.isError && isApiError(complete.error) && complete.error.errorCode === 'CONSENT_REQUIRED';
 
   return (
@@ -65,10 +73,11 @@ export function EncounterCompleteForm({ encounterId, patientId }: { readonly enc
           <ConclusionSection />
         </div>
         {complete.isError && !needsConsent && isApiError(complete.error) ? <CompletionFailure problem={complete.error.problem} foreignMessages={foreignMessages} isMarked={isMarked} /> : null}
-        <EncounterActionBar status={draft.status} onSaveDraft={draft.saveNow} isCompleting={complete.isPending} />
+        <EncounterActionBar status={draft.status} onSaveDraft={draft.saveNow} isCompleting={complete.isPending} onCancelEncounter={() => setIsCancelOpen(true)} />
       </form>
       {/* Outside the form: a nested form would submit the completion. */}
       {needsConsent ? <ScrollToFailure className="mt-4"><ConsentRequiredNotice action="complete" patientId={patientId} isPending={complete.isPending} onEmergency={completeAsEmergency} /></ScrollToFailure> : null}
+      {isCancelOpen ? <CancelEncounterDialog encounterId={encounterId} appointmentId={appointmentId} onDiscardDraft={draft.forget} onClose={() => setIsCancelOpen(false)} /> : null}
     </FormProvider>
   );
 }

@@ -14,11 +14,13 @@ import {
   IsNotEmpty,
   IsOptional,
   IsString,
+  IsStrongPassword,
   Matches,
   MaxLength,
   ValidateIf,
 } from 'class-validator';
 
+import { PASSWORD_POLICY } from '../../../config/auth-env';
 import type { PatientGender } from '../patient-provisioner';
 import {
   DATE_ONLY_PATTERN,
@@ -30,6 +32,7 @@ import {
   trimmed,
   NAME_MAX_LENGTH,
   isPresent,
+  PASSWORD_MAX_LENGTH,
 } from './validation-patterns';
 
 export class UpdateUserDto {
@@ -86,4 +89,11 @@ export class UpdateUserDto {
   @IsOptional()
   @Matches(FHIR_ID_PATTERN, { message: '$property must be a FHIR resource id' })
   practitionerRoleId?: string | null;
+
+  @ApiPropertyOptional({ format: 'password', maxLength: PASSWORD_MAX_LENGTH, description: 'Sets a new password and closes the user\'s sessions; must satisfy the password policy' })
+  @ValidateIf(isPresent)
+  @IsString()
+  @MaxLength(PASSWORD_MAX_LENGTH)
+  @IsStrongPassword(PASSWORD_POLICY)
+  password?: string;
 }

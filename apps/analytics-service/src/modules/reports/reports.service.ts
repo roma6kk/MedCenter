@@ -70,13 +70,16 @@ export class ReportsService {
     lang: ContentLanguage = DEFAULT_CONTENT_LANGUAGE,
   ): Promise<ServicesPopularityDto> {
     const range = this.rangeOf(query);
-    const rows = await this.repository.countBookingsByService(range, query.top ?? DEFAULT_TOP_SERVICES);
+    const all = await this.repository.countBookingsByService(range);
+    const rows = all.slice(0, query.top ?? DEFAULT_TOP_SERVICES);
+    const others = all.slice(rows.length).reduce((sum, row) => sum + toCount(row.count), 0);
     const names = rows.length === 0 ? new Map<string, string>() : await this.clinical.serviceNames(rows.map((row) => row.serviceId), lang);
     const groups = rows.map((row): MeasureGroupDto => {
       const display = names.get(row.serviceId);
       return { code: row.serviceId, ...(display === undefined ? {} : { display }), count: toCount(row.count) };
     });
-    return this.envelope('services-popularity', range, groups);
+    const report = this.envelope('services-popularity', range, groups);
+    return { ...report, total: report.total + others, others };
   }
 
   private rangeOf(query: DateRangeInput): DateRange {

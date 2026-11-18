@@ -92,6 +92,7 @@ describe('the real controllers', () => {
   const PUBLIC_ROUTES: readonly string[] = [
     'POST /api/v1/auth/register',
     'GET /api/v1/doctors',
+    'GET /api/v1/clinic',
     'GET /api/v1/doctors/:id',
     'GET /api/v1/doctors/:id/slots',
     'GET /api/v1/services',

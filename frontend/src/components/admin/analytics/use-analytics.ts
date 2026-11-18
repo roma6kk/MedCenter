@@ -7,7 +7,7 @@ import { withQuery } from '@/lib/api/query-string';
 import type { ReportRange } from '../shared/report-range';
 import { statusCounts } from './analytics-math';
 import type { Bucket } from './analytics-series';
-import type { AppointmentStatusCode, AppointmentsReport, MeasureReport } from './analytics-types';
+import type { AppointmentStatusCode, AppointmentsReport, MeasureReport, ServicesReport } from './analytics-types';
 
 const BASE = '/api/v1/admin/analytics';
 
@@ -52,9 +52,9 @@ export function useEncountersReport(range: ReportRange): UseQueryResult<MeasureR
   });
 }
 
-export function useServicesPopularity(range: ReportRange, top: number): UseQueryResult<MeasureReport, Error> {
+export function useServicesPopularity(range: ReportRange, top: number): UseQueryResult<ServicesReport, Error> {
   return useQuery({
     queryKey: queryKeys.analytics('services-popularity', { ...range, top }),
-    queryFn: () => apiFetch<MeasureReport>(withQuery(`${BASE}/services-popularity`, { ...range, top })),
+    queryFn: () => apiFetch<ServicesReport>(withQuery(`${BASE}/services-popularity`, { ...range, top })),
   });
 }

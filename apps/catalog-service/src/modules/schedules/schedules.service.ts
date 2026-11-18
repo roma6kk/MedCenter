@@ -20,6 +20,8 @@ import {
 } from './schedule.constants';
 import { assertNoScheduleOverlap } from './schedule-overlap';
 import { removeScheduleWithSlots } from './schedule-removal';
+import { planSlots } from './slot-planner';
+import { removeStaleFreeSlots } from './stale-slots';
 
 type Extension = Record<string, unknown>;
 
@@ -39,6 +41,7 @@ export class SchedulesService {
     await this.assertActorsExist(dto);
     await assertNoScheduleOverlap(this.fhirClient, {
       practitionerRoleId: dto.practitionerRoleId,
+      roomId: dto.roomId,
       windows: dto.windows,
       horizon: { start: dto.horizonFrom, end: dto.horizonTo },
     });
@@ -96,6 +99,7 @@ export class SchedulesService {
       const current = toScheduleSummaryDto(existing);
       await assertNoScheduleOverlap(this.fhirClient, {
         practitionerRoleId: current.practitionerRoleId ?? '',
+        roomId: current.roomId ?? '',
         windows: dto.windows ?? current.windows,
         horizon: { start, end },
         excludeScheduleId: id,
@@ -114,7 +118,27 @@ export class SchedulesService {
       delete merged['extension'];
     }
     delete merged['slotDurationMin'];
-    return toScheduleSummaryDto(await updateAudited(this.fhirClient, { ...merged, id } as FhirResource, auditOf(actor)));
+    const updated = toScheduleSummaryDto(await updateAudited(this.fhirClient, { ...merged, id } as FhirResource, auditOf(actor)));
+    if (dto.windows !== undefined || dto.slotDurationMin !== undefined || dto.horizonFrom !== undefined || dto.horizonTo !== undefined) {
+      await this.removeStaleSlots(id, updated, storedPeriod);
+    }
+    return updated;
+  }
+
+  /** Free slots that are off the new grid or outside the new horizon are deleted; the old horizon is searched too. */
+  private async removeStaleSlots(id: string, updated: ScheduleSummaryDto, oldPeriod: { start?: string; end?: string } | undefined): Promise<void> {
+    if (updated.horizonFrom === undefined || updated.horizonTo === undefined) {
+      return;
+    }
+    const from = Date.parse(updated.horizonFrom);
+    const to = Date.parse(updated.horizonTo);
+    const planned = planSlots(from, to, updated.windows, updated.slotDurationMin ?? 30);
+    const searchFrom = Math.min(from, Date.parse(oldPeriod?.start ?? updated.horizonFrom));
+    const searchTo = Math.max(to, Date.parse(oldPeriod?.end ?? updated.horizonTo));
+    const removed = await removeStaleFreeSlots(this.fhirClient, id, searchFrom, searchTo, planned);
+    if (removed > 0) {
+      await this.cache.invalidate([CACHE_KEYS.SCHEDULE_SLOTS(id), CACHE_KEYS.ALL_DOCTOR_SLOTS]);
+    }
   }
 
   private mergeExtensions(

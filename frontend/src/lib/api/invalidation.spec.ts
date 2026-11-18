@@ -8,6 +8,7 @@ function seededClient(): QueryClient {
   client.setQueryData(queryKeys.appointments(), { items: [] });
   client.setQueryData(queryKeys.appointmentDetail('a1'), {});
   client.setQueryData(queryKeys.doctorAppointments(), { items: [] });
+  client.setQueryData(queryKeys.adminAppointments(), { items: [] });
   client.setQueryData(queryKeys.unreadCount, 1);
   client.setQueryData(queryKeys.encounterDetail('e1'), {});
   client.setQueryData(queryKeys.history('p1'), { items: [] });
@@ -50,7 +51,7 @@ describe('invalidateFor', () => {
 
     await invalidateFor(client, 'cancel-appointment');
 
-    expect(invalidatedKeys(client)).toEqual(expect.arrayContaining(['appointment', 'appointments', 'doctorAppointments', 'notifications.unreadCount']));
+    expect(invalidatedKeys(client)).toEqual(expect.arrayContaining(['adminAppointments', 'appointment', 'appointments', 'doctorAppointments', 'notifications.unreadCount']));
   });
 
   it('should refresh the encounter, the history and the prescriptions after complete (§5.1)', async () => {
@@ -59,6 +60,14 @@ describe('invalidateFor', () => {
     await invalidateFor(client, 'complete-encounter');
 
     expect(invalidatedKeys(client)).toEqual(expect.arrayContaining(['appointments', 'doctorAppointments', 'encounter', 'patientHistory', 'prescriptions']));
+  });
+
+  it('should refresh the journal and the encounter after an encounter is cancelled', async () => {
+    const client = seededClient();
+
+    await invalidateFor(client, 'cancel-encounter');
+
+    expect(invalidatedKeys(client)).toEqual(expect.arrayContaining(['doctorAppointments', 'encounter']));
   });
 
   it('should refresh the patient card after the patient edits their phone', async () => {

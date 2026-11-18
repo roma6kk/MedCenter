@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useId, useRef } from 'react';
 import type { ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 import { useDialogFocus } from '@/hooks/use-dialog-focus';
 import { useModalBehavior } from '@/hooks/use-modal-behavior';
@@ -52,7 +53,9 @@ export function Dialog({ title, description, onClose, children, footer, size = '
   const close = useStableClose(onClose);
   const trapFocus = useDialogFocus<HTMLDivElement>(true, close);
   useModalBehavior(panel);
-  return (
+  if (typeof document === 'undefined') return null;
+  // In <body>: a backdrop-filter ancestor (the staff sidebar) would otherwise become the containing block of the fixed overlay.
+  return createPortal(
     <div className={cn('fixed inset-0 z-40 flex animate-scrim-in bg-scrim backdrop-blur-sm', OVERLAY_CLASS[variant])}>
       <div
         ref={(node) => {
@@ -88,6 +91,7 @@ export function Dialog({ title, description, onClose, children, footer, size = '
           <X aria-hidden="true" className="size-5" />
         </button>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

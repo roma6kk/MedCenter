@@ -37,6 +37,22 @@ describe('demo catalog', () => {
     }
   });
 
+  it('should give the primary therapist service two doctors so the booking wizard shows the doctor step', () => {
+    const doctors = SCHEDULES.filter((schedule) => schedule.serviceKey === 'ter-primary').map((schedule) => schedule.doctorKey);
+
+    expect(new Set(doctors).size).toBe(2);
+  });
+
+  it('should never put two schedules into one room on the same day at overlapping times', () => {
+    for (const a of SCHEDULES) {
+      for (const b of SCHEDULES.filter((other) => other.key > a.key && other.roomKey === a.roomKey)) {
+        const sameDay = a.days.some((day) => b.days.includes(day));
+        const overlap = a.localStart < b.localEnd && b.localStart < a.localEnd;
+        expect(sameDay && overlap).toBe(false);
+      }
+    }
+  });
+
   it('should keep the login of every demo account unique', () => {
     const locals = [...DOCTORS.map((doctor) => doctor.emailLocal), ...PATIENTS.map((patient) => patient.emailLocal)];
 

@@ -36,15 +36,20 @@ export function serviceTypeOf(service: FhirResource): Readonly<Record<string, un
 }
 
 export function encounterOfAppointmentQuery(appointmentId: string): string {
-  return `appointment=Appointment/${appointmentId}`;
+  return `appointment=Appointment/${appointmentId}&status:not=cancelled`;
 }
 
-function openingAuditName(appointmentId: string): string {
-  return `encounter-opened:Appointment/${appointmentId}`;
+// The Appointment version in the key: concurrent opens (same version) write one AuditEvent, a reopening after a cancellation (new version) writes its own.
+function openingKey(context: OpeningContext): string {
+  return `Appointment/${context.appointmentId}@${String((context.appointment['meta'] as { versionId?: unknown }).versionId)}`;
 }
 
-export function openingBypassName(appointmentId: string): string {
-  return `encounter-emergency-open:Appointment/${appointmentId}`;
+function openingAuditName(context: OpeningContext): string {
+  return `encounter-opened:${openingKey(context)}`;
+}
+
+export function openingBypassName(context: OpeningContext): string {
+  return `encounter-emergency-open:${openingKey(context)}`;
 }
 
 export function openedEncounterResource(context: OpeningContext): FhirResource {
@@ -79,9 +84,9 @@ export function buildOpeningWrites(context: OpeningContext): readonly Transactio
         entityRefs: [context.fullUrl],
         patientRef: context.patientRef,
         requestId: context.requestId,
-        entityName: openingAuditName(context.appointmentId),
+        entityName: openingAuditName(context),
       }),
-      ifNoneExist: auditEventByEntityNameQuery(openingAuditName(context.appointmentId)),
+      ifNoneExist: auditEventByEntityNameQuery(openingAuditName(context)),
     },
     {
       method: 'PUT',
@@ -92,10 +97,20 @@ export function buildOpeningWrites(context: OpeningContext): readonly Transactio
   ];
 }
 
+export function unflaggedAppointment(appointment: FhirResource): FhirResource {
+  const meta = isRecord(appointment['meta']) ? appointment['meta'] : {};
+  const tags = arrayField(meta as FhirResource, 'tag');
+  return { ...appointment, meta: { ...meta, tag: tags.filter((tag) => !isOpenedFlag(tag)) } };
+}
+
+function isOpenedFlag(tag: unknown): boolean {
+  return isRecord(tag) && tag['system'] === APPOINTMENT_FLAGS_SYSTEM && tag['code'] === ENCOUNTER_OPENED_FLAG;
+}
+
 function flaggedAppointment(appointment: FhirResource): FhirResource {
   const meta = isRecord(appointment['meta']) ? appointment['meta'] : {};
   const tags = arrayField(meta as FhirResource, 'tag');
-  const flagged = tags.some((tag) => isRecord(tag) && tag['system'] === APPOINTMENT_FLAGS_SYSTEM && tag['code'] === ENCOUNTER_OPENED_FLAG);
+  const flagged = tags.some(isOpenedFlag);
   return {
     ...appointment,
     meta: { ...meta, tag: flagged ? tags : [...tags, { system: APPOINTMENT_FLAGS_SYSTEM, code: ENCOUNTER_OPENED_FLAG }] },

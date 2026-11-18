@@ -20,4 +20,5 @@ export class ServicesPopularityQueryDto extends DateRangeQueryDto {
 
 export interface ServicesPopularityDto extends MeasureReportDto {
   readonly measure: 'services-popularity';
+  readonly others: number;
 }

@@ -20,10 +20,6 @@ script:pre-request {
   if (!bru.getVar('doctorId')) { bru.runner.skipRequest(); }
 }
 
-script:post-response {
-  if (res.status === 200 && res.body.roomId) { bru.setVar('roomId', res.body.roomId); }
-}
-
 assert {
   res.status: eq 200
 }

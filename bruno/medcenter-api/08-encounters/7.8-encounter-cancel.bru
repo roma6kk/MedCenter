@@ -1,0 +1,28 @@
+meta {
+  name: 7.8 Cancel encounter
+  type: http
+  seq: 9
+  tags: [
+    write
+    role-doctor
+  ]
+}
+
+post {
+  url: {{baseUrl}}/api/v1/encounters/{{cancelEncounterId}}/cancel
+  body: none
+  auth: inherit
+}
+
+script:pre-request {
+  if (!bru.getVar('cancelEncounterId')) { bru.runner.skipRequest(); }
+}
+
+assert {
+  res.status: eq 200
+  res.body.status: eq cancelled
+}
+
+docs {
+  Spec 7.8. DOCTOR (the encounter's participant), scope `user/*.write`. Cancels an encounter opened by mistake; the appointment stays `booked`, so 7.1 can start the visit again. Skipped unless `cancelEncounterId` is set (it must not run inside the 7.1 -> 7.3 chain). 409 `ENCOUNTER_STATE_INVALID` when the encounter is not in progress.
+}

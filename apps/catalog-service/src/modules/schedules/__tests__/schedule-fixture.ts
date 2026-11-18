@@ -35,3 +35,11 @@ export function generatorFhirMock(schedule: FhirResource = scheduleOf()): jest.M
     batch: jest.fn().mockImplementation(async (bundle: FhirResource) => batchResponseFor(bundle)),
   } as unknown as jest.Mocked<FhirClient>;
 }
+
+/** The existing slots of the schedule; a search that asks for a status gets only the slots of that status. */
+export function searchesFor(fhirClient: jest.Mocked<FhirClient>, result: { entry?: Array<{ resource: FhirResource }> }): void {
+  fhirClient.search.mockImplementation(async (_type, params) => {
+    const status = (params as { status?: string } | undefined)?.status;
+    return { entry: (result.entry ?? []).filter((entry) => status === undefined || entry.resource['status'] === status) };
+  });
+}

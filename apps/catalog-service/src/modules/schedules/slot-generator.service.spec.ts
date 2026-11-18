@@ -3,7 +3,7 @@ import type { FhirClient } from '@medcenter/fhir';
 
 import { RedisCacheService } from '../cache/redis-cache.service';
 import { WEEKLY_WINDOWS_EXT } from './schedule.constants';
-import { ACTOR, MONDAY_09_10, ONE_DAY, SCHEDULE_ID, generatorFhirMock, scheduleOf } from './__tests__/schedule-fixture';
+import { ACTOR, MONDAY_09_10, ONE_DAY, SCHEDULE_ID, generatorFhirMock, scheduleOf, searchesFor } from './__tests__/schedule-fixture';
 import { SlotGeneratorService } from './slot-generator.service';
 
 describe('SlotGeneratorService', () => {
@@ -19,7 +19,7 @@ describe('SlotGeneratorService', () => {
     const existingStarts = [0, 1, 2, 3, 4, 5].map(
       (i) => new Date(Date.parse('2026-11-02T06:00:00.000Z') + i * 30 * 60_000).toISOString(),
     );
-    fhirClient.search.mockResolvedValue({
+    searchesFor(fhirClient, {
       entry: existingStarts.map((start, i) => ({
         resource: { resourceType: 'Slot', id: `existing-${i}`, start },
       })),
@@ -124,7 +124,7 @@ describe('SlotGeneratorService', () => {
     const existingStarts = [0, 1, 2, 3, 4, 5].map(
       (i) => new Date(Date.parse('2026-11-02T06:00:00.000Z') + i * 30 * 60_000).toISOString(),
     );
-    fhirClient.search.mockResolvedValue({
+    searchesFor(fhirClient, {
       entry: existingStarts.map((start, i) => ({ resource: { resourceType: 'Slot', id: `existing-${i}`, start } })),
     });
 

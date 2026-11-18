@@ -104,6 +104,13 @@ describe('EncounterCompleteForm observation unit', () => {
     await userEvent.type(screen.getByLabelText(/Значение 1/), '70');
   }
 
+  it('should list an observation by its name first and its code after it, while services keep the code first', async () => {
+    setup();
+    await userEvent.click(screen.getByRole('button', { name: 'Добавить наблюдение' }));
+
+    expect(await screen.findByRole('option', { name: 'Температура тела (8310-5)' })).toBeInTheDocument();
+  });
+
   it('should start a new observation row with no unit selected', async () => {
     setup();
 

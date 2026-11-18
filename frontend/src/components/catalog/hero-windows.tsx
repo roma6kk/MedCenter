@@ -36,9 +36,9 @@ function WindowRow({ entry, today }: { readonly entry: SoonestWindow; readonly t
     router.push('/booking');
   };
   return (
-    <li className="flex items-center gap-3 py-3">
+    <li className="flex flex-wrap items-center justify-end gap-x-3 gap-y-2 py-3">
       <Avatar src={doctor.photoUrl} initials={doctorInitials(doctor)} className="h-11 w-11 text-base" />
-      <div className="min-w-0 flex-1">
+      <div className="min-w-[9rem] flex-1">
         <p className="font-semibold leading-tight">{doctorLabel(doctor)}</p>
         <p className="truncate text-sm text-muted-foreground">{doctor.specialty ?? ''}</p>
       </div>

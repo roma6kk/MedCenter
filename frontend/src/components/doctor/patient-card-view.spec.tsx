@@ -26,7 +26,6 @@ const PATIENT = {
   telecom: [{ system: 'phone', value: '+375 29 111-22-33' }, { system: 'email', value: 'kuznetsov@medcenter.test' }],
 };
 
-const RELATED = { id: 'r1', patientId: 'p1', active: true, fullName: 'Кузнецова Мария', relationship: [{ system: 's', code: 'WIFE', display: 'Супруга' }], telecom: [{ system: 'phone', value: '+375 29 555-66-77' }] };
 
 const HISTORY = {
   id: 'enc-9',
@@ -47,7 +46,6 @@ const SERVICE = { id: 's1', kind: 'service', status: 'active', codeSystem: 'http
 function defaultRoutes(): ReadonlyArray<ApiRoute> {
   return [
     { path: '/api/v1/patients/p1/consent', respond: () => ({ active: ACTIVE_RECORD, history: [ACTIVE_RECORD] }) },
-    { path: '/api/v1/patients/p1/related', respond: () => pageOf([RELATED]) },
     { path: '/api/v1/patients/p1/history', respond: () => pageOf([HISTORY]) },
     { path: '/api/v1/patients/p1/prescriptions', respond: () => pageOf([MEDICATION, SERVICE]) },
     { path: '/api/v1/encounters/enc-9', respond: () => encounter({ ...FINISHED_CONTENT, id: 'enc-9' }) },
@@ -107,7 +105,6 @@ describe('PatientCardView header (API 3.2)', () => {
     expect(await screen.findByText('Пациент не найден')).toBeInTheDocument();
     expect(screen.queryByRole('region', { name: 'История обращений' })).toBeNull();
     expect(screen.queryByRole('region', { name: 'Назначения' })).toBeNull();
-    expect(screen.queryByRole('region', { name: 'Доверенные лица' })).toBeNull();
   });
 
   it('should keep the sections when the card fails with a server error that a retry may fix', async () => {
@@ -140,35 +137,6 @@ describe('PatientCardView header lines (A1, A15)', () => {
     const header = within(await screen.findByRole('region', { name: 'Кузнецов Алексей Иванович' }));
 
     expect(await header.findByTestId('consent-line-active')).toHaveTextContent('Согласие на ведение записей в ИС клиники · действует с 20.10.2026');
-  });
-});
-
-describe('PatientCardView trusted persons (API 3.3, A15)', () => {
-  it('should list the trusted person in a line of the header with the relationship and the phone', async () => {
-    setup();
-
-    const section = within(await screen.findByRole('region', { name: 'Доверенные лица' }));
-
-    expect(await section.findByText('Кузнецова Мария')).toBeInTheDocument();
-    expect(section.getByText('(Супруга)')).toBeInTheDocument();
-    expect(section.getByRole('link', { name: '+375 29 555-66-77' })).toBeInTheDocument();
-    expect(within(screen.getByRole('region', { name: 'Кузнецов Алексей Иванович' })).getByRole('region', { name: 'Доверенные лица' })).toBe(section.getByRole('heading', { name: 'Доверенные лица' }).closest('section'));
-  });
-
-  it('should show nothing at all when there are none', async () => {
-    setup([{ path: '/api/v1/patients/p1/related', respond: () => pageOf([]) }]);
-    await screen.findByTestId('consent-line-active');
-
-    expect(screen.queryByRole('region', { name: 'Доверенные лица' })).not.toBeInTheDocument();
-    expect(screen.queryByText('Доверенных лиц нет')).not.toBeInTheDocument();
-  });
-
-  it('should keep the rest of the card, with a muted note, when the trusted persons cannot be loaded', async () => {
-    setup([{ path: '/api/v1/patients/p1/related', respond: () => { throw problem(500, 'INTERNAL'); } }]);
-
-    expect(await screen.findByRole('heading', { level: 1, name: 'Кузнецов Алексей Иванович' })).toBeInTheDocument();
-    expect(await screen.findByText('Данные о доверенных лицах недоступны')).toBeInTheDocument();
-    expect(await within(await screen.findByRole('region', { name: 'История обращений' })).findByText('Острый назофарингит')).toBeInTheDocument();
   });
 });
 

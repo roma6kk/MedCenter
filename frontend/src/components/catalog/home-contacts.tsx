@@ -5,7 +5,8 @@ import { Check, Clock, Mail, MapPin, Phone, type LucideIcon } from 'lucide-react
 import { Card } from '@/components/ui/card';
 import { useT } from '@/lib/i18n/use-t';
 import { SECTION_CLASS } from './catalog-styles';
-import { CLINIC_CONTACTS, HOME_ANCHORS } from './home-content';
+import { HOME_ANCHORS } from './home-content';
+import { phoneHref, useClinic } from './use-clinic';
 
 const TIPS: ReadonlyArray<string> = ['infoTip1', 'infoTip2', 'infoTip3', 'infoTip4'];
 
@@ -23,6 +24,7 @@ function ContactRow({ icon: Icon, label, children }: { readonly icon: LucideIcon
 
 export function HomeContacts(): ReactNode {
   const t = useT('home');
+  const clinic = useClinic();
   return (
     <section id={HOME_ANCHORS.contacts} className={`${SECTION_CLASS} reveal-on-scroll scroll-mt-4 grid gap-4 py-16 md:grid-cols-2`}>
       <Card radius="panel" padding="lg" className="flex flex-col gap-4">
@@ -39,14 +41,14 @@ export function HomeContacts(): ReactNode {
       <Card radius="panel" padding="lg" className="flex flex-col gap-5">
         <h2 className="text-xl font-bold">{t('contactsTitle')}</h2>
         <dl className="flex flex-col gap-5">
-          <ContactRow icon={MapPin} label={t('contactAddress')}>{t('contactAddressValue')}</ContactRow>
+          <ContactRow icon={MapPin} label={t('contactAddress')}>{clinic.address}</ContactRow>
           <ContactRow icon={Phone} label={t('contactPhone')}>
-            <a href={CLINIC_CONTACTS.phoneHref} className="hover:underline">{CLINIC_CONTACTS.phone}</a>
+            <a href={phoneHref(clinic.phone)} className="hover:underline">{clinic.phone}</a>
           </ContactRow>
           <ContactRow icon={Mail} label={t('contactEmail')}>
-            <a href={`mailto:${CLINIC_CONTACTS.email}`} className="hover:underline">{CLINIC_CONTACTS.email}</a>
+            <a href={`mailto:${clinic.email}`} className="hover:underline">{clinic.email}</a>
           </ContactRow>
-          <ContactRow icon={Clock} label={t('contactHours')}>{t('contactHoursValue')}</ContactRow>
+          <ContactRow icon={Clock} label={t('contactHours')}>{clinic.hours}</ContactRow>
         </dl>
       </Card>
     </section>

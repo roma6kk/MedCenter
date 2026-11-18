@@ -11,9 +11,9 @@ export function HomeCta(): ReactNode {
   return (
     <section aria-labelledby="home-cta" className={`${SECTION_CLASS} reveal-on-scroll pt-16`}>
       <div className="relative overflow-hidden rounded-panel bg-warm-soft p-8 md:p-10">
-        <span aria-hidden="true" className="absolute -right-10 -top-10 opacity-60"><BrandMark size={220} /></span>
+        <span aria-hidden="true" className="absolute -right-10 -top-10 origin-top-right opacity-60 max-md:scale-50 max-md:opacity-40"><BrandMark size={220} /></span>
         <div className="relative flex max-w-xl flex-col items-start gap-4">
-          <h2 id="home-cta" className="text-3xl font-bold tracking-tight">{t('ctaTitle')}</h2>
+          <h2 id="home-cta" className="text-3xl font-bold tracking-tight max-md:pr-14">{t('ctaTitle')}</h2>
           <p className="text-lg leading-relaxed text-warm-foreground">{t('ctaText')}</p>
           <HomeActions />
         </div>

@@ -45,7 +45,7 @@ http:
       middlewares: [security-headers]
 
     auth-api:
-      rule: PathPrefix(`/api/v1/auth`) || PathPrefix(`/api/v1/terminology`) || PathPrefix(`/api/v1/admin/users`) || PathPrefix(`/api/v1/admin/terminology`) || Path(`/api/v1/me`) || Path(`/api/v1/me/deactivate`)
+      rule: PathPrefix(`/api/v1/auth`) || PathPrefix(`/api/v1/terminology`) || PathPrefix(`/api/v1/admin/users`) || PathPrefix(`/api/v1/admin/terminology`) || Path(`/api/v1/me`) || Path(`/api/v1/me/deactivate`) || Path(`/api/v1/me/password`) || Path(`/api/v1/clinic`) || Path(`/api/v1/admin/clinic`)
       priority: 40
       entryPoints: [websecure, web]
       service: auth-service
@@ -91,7 +91,7 @@ http:
       middlewares: [security-headers]
 
     appointments:
-      rule: PathPrefix(`/api/v1/appointments`)
+      rule: PathPrefix(`/api/v1/appointments`) || PathPrefix(`/api/v1/admin/appointments`)
       entryPoints: [websecure, web]
       service: appointment-service
       middlewares: [security-headers]

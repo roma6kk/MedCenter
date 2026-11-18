@@ -1,7 +1,8 @@
 'use client';
 
-import type { ReactNode } from 'react';
-import { ChevronsUpDown, LogOut } from 'lucide-react';
+import { useCallback, useState, type ReactNode } from 'react';
+import { ChevronsUpDown, KeyRound, LogOut } from 'lucide-react';
+import { ChangePasswordDialog } from '@/components/account/change-password-dialog';
 import { Avatar } from '@/components/ui/avatar';
 import { DropdownMenu, type MenuItem } from '@/components/ui/dropdown-menu';
 import { logout } from '@/lib/auth/session-client';
@@ -16,8 +17,9 @@ interface StaffProfileMenuProps {
   readonly variant: 'full' | 'avatar';
 }
 
-function useProfileItems(): ReadonlyArray<MenuItem> {
+function useProfileItems(onChangePassword: () => void): ReadonlyArray<MenuItem> {
   const t = useT('layout');
+  const tPassword = useT('passwordChange');
   const locale = useUiStore((state) => state.locale);
   const setLocale = useUiStore((state) => state.setLocale);
   const themeMode = useUiStore((state) => state.themeMode);
@@ -37,13 +39,16 @@ function useProfileItems(): ReadonlyArray<MenuItem> {
     onSelect: () => setThemeMode(mode),
   }));
   const signOut: MenuItem = { key: 'logout', label: t('logout'), icon: LogOut, heading: '', onSelect: () => void logout() };
-  return [...languages, ...themes, signOut];
+  const password: MenuItem = { key: 'password', label: tPassword('open'), icon: KeyRound, heading: '', onSelect: onChangePassword };
+  return [...languages, ...themes, password, signOut];
 }
 
 export function StaffProfileMenu({ variant }: StaffProfileMenuProps): ReactNode {
   const t = useT('layout');
   const profile = useStaffProfile();
-  const items = useProfileItems();
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
+  const closePassword = useCallback((): void => setIsChangingPassword(false), []);
+  const items = useProfileItems(() => setIsChangingPassword(true));
   const isFull: boolean = variant === 'full';
   const trigger: ReactNode = (
     <>
@@ -60,13 +65,16 @@ export function StaffProfileMenu({ variant }: StaffProfileMenuProps): ReactNode 
     </>
   );
   return (
-    <DropdownMenu
-      label={t('profile.menu', { name: profile.name })}
-      items={items}
-      trigger={trigger}
-      align={isFull ? 'start' : 'end'}
-      width={isFull ? 232 : 248}
-      className={cn('gap-2.5 p-1', isFull ? 'min-h-[52px] w-full justify-start px-2' : 'min-h-[44px] min-w-[44px] rounded-full')}
-    />
+    <>
+      <DropdownMenu
+        label={t('profile.menu', { name: profile.name })}
+        items={items}
+        trigger={trigger}
+        align={isFull ? 'start' : 'end'}
+        width={isFull ? 232 : 248}
+        className={cn('gap-2.5 p-1', isFull ? 'min-h-[52px] w-full justify-start px-2' : 'min-h-[44px] min-w-[44px] rounded-full')}
+      />
+      {isChangingPassword ? <ChangePasswordDialog onClose={closePassword} /> : null}
+    </>
   );
 }

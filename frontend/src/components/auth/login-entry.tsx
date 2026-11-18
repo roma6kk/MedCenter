@@ -5,9 +5,9 @@ import Link from 'next/link';
 import { CircleAlert } from 'lucide-react';
 import { buttonVariants } from '@/components/ui/button-variants';
 import { useDocumentTitle } from '@/hooks/use-document-title';
-import { authorizeHref } from '@/lib/auth/authorize-href';
 import { useT } from '@/lib/i18n/use-t';
 import type { LoginErrorKind } from './login-error';
+import { useSignInHref } from './use-sign-in-href';
 
 interface LoginEntryProps {
   readonly returnTo: string;
@@ -16,6 +16,7 @@ interface LoginEntryProps {
 
 export function LoginEntry({ returnTo, error = null }: LoginEntryProps): ReactNode {
   const t = useT('auth.login');
+  const href = useSignInHref(returnTo);
   // The static `metadata.title` is Russian (the locale lives in the browser): the tab follows the chosen language.
   useDocumentTitle(t('title'));
   return (
@@ -29,7 +30,7 @@ export function LoginEntry({ returnTo, error = null }: LoginEntryProps): ReactNo
         </p>
       )}
       <a
-        href={authorizeHref(returnTo)}
+        href={href}
         className={`${buttonVariants({ size: 'lg' })} mt-6 w-full`}
       >
         {t('submit')}

@@ -73,8 +73,25 @@ function noShowWhileOpenStep(suite: Suite): SmokeStep {
   };
 }
 
+function cancelAndOpenAgainStep(suite: Suite): SmokeStep {
+  const { api, sessions, chain } = suite;
+  return {
+    name: 'POST /encounters/{id}/cancel -> 200 cancelled; opening again -> 201 with a new encounter',
+    run: async () => {
+      const cancelled = await api.post(`/api/v1/encounters/${chain.encounterId}/cancel`, { session: sessions.doctor });
+      expectStatus(cancelled, 200);
+      expectEqual(bodyObject(cancelled)['status'], 'cancelled', 'status');
+      const reopened = await api.post('/api/v1/encounters', { session: sessions.doctor, body: { appointmentId: chain.appointmentId } });
+      expectStatus(reopened, 201);
+      const id = String(bodyObject(reopened)['id']);
+      expectTrue(id !== chain.encounterId, 'the appointment was reopened with the cancelled encounter');
+      chain.encounterId = id;
+    },
+  };
+}
+
 export function openingSteps(suite: Suite): SmokeStep[] {
-  return [openStep(suite), ...reopenAndReadSteps(suite), noShowWhileOpenStep(suite)];
+  return [openStep(suite), ...reopenAndReadSteps(suite), noShowWhileOpenStep(suite), cancelAndOpenAgainStep(suite)];
 }
 
 export function invalidCodeSteps(suite: Suite): SmokeStep[] {

@@ -6,6 +6,8 @@ import { LONG_UNBROKEN_TEXT } from './cabinet-fixtures';
 import { apiProblem, expectWraps, newQueryClient, pageOf, renderWithClient, resetCabinetState } from './cabinet-test-utils';
 import { NotificationCenter } from './notification-center';
 
+jest.mock('next/navigation', () => ({ useSearchParams: () => new URLSearchParams(window.location.search) }));
+
 jest.mock('@/lib/notifications/notification-api', () => ({ fetchNotifications: jest.fn(), fetchUnreadCount: jest.fn(), markNotificationRead: jest.fn(), markAllNotificationsRead: jest.fn() }));
 
 import { fetchNotifications, fetchUnreadCount, markAllNotificationsRead, markNotificationRead } from '@/lib/notifications/notification-api';
@@ -23,6 +25,7 @@ describe('NotificationCenter', () => {
   beforeEach(() => {
     jest.resetAllMocks();
     resetCabinetState();
+    window.history.replaceState(null, '', '/notifications');
   });
 
   it('should list the first page with the category, the time in Minsk and a marker on unread items only', async () => {
@@ -67,6 +70,19 @@ describe('NotificationCenter', () => {
     await userEvent.click(screen.getByRole('tab', { name: 'Непрочитанные' }));
 
     await waitFor(() => expect(listMock).toHaveBeenCalledWith({ page: 1, pageSize: 10, unread: true }));
+  });
+
+  it('should keep the filter in the address and open from it', async () => {
+    listMock.mockResolvedValue(pageOf([notification()]));
+    const { unmount } = renderWithClient(<NotificationCenter />);
+    await screen.findByRole('list');
+
+    await userEvent.click(screen.getByRole('tab', { name: 'Непрочитанные' }));
+
+    expect(window.location.search).toBe('?filter=unread');
+    unmount();
+    renderWithClient(<NotificationCenter />);
+    await waitFor(() => expect(listMock).toHaveBeenLastCalledWith({ page: 1, pageSize: 10, unread: true }));
   });
 
   it('should say there is nothing unread when the unread tab is empty', async () => {

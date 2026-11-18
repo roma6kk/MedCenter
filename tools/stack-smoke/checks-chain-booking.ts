@@ -87,14 +87,19 @@ function patientReadsStep(suite: Suite): SmokeStep {
 }
 
 function staffReadsStep(suite: Suite, booking: Booking): SmokeStep {
-  const { api, sessions, chain } = suite;
+  const { api, sessions, accounts, chain } = suite;
   return {
-    name: 'doctor sees it in GET /doctor/appointments; doctor and admin open GET /appointments/{id}',
+    name: 'doctor sees it in GET /doctor/appointments; admin sees it in GET /admin/appointments (no visit reason); doctor and admin open GET /appointments/{id}',
     run: async () => {
       const day = String(booking.slot['start']).slice(0, 10);
       const query = { from: day, to: day, pageSize: 100 };
       const items = expectPage(await api.get('/api/v1/doctor/appointments', { session: sessions.doctor, query }), APPOINTMENT_VIEW_SHAPE);
       expectTrue(items.some((item) => item['id'] === chain.appointmentId), 'the appointment is not in the doctor list');
+      const adminQuery = { ...query, practitionerRoleId: accounts.doctorRoleId, status: 'booked' };
+      const adminItems = expectPage(await api.get('/api/v1/admin/appointments', { session: sessions.admin, query: adminQuery }), APPOINTMENT_VIEW_SHAPE);
+      const listed = adminItems.find((item) => item['id'] === chain.appointmentId);
+      expectTrue(listed !== undefined && typeof listed['patientName'] === 'string', 'the appointment is not in the admin list with the patient name');
+      expectTrue(!('reason' in (listed ?? {})), 'the admin list carries a visit reason');
       for (const session of [sessions.doctor, sessions.admin]) {
         expectStatus(await api.get(`/api/v1/appointments/${chain.appointmentId}`, { session }), 200);
       }

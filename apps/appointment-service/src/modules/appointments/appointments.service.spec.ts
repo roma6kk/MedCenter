@@ -287,7 +287,7 @@ describe('AppointmentsService', () => {
         expect(await errorPayloadOf(service.cancel(patientClaims, 'apt-1', { reason: 'plans-changed' }))).toMatchObject({
           errorCode: 'APPOINTMENT_NOT_CANCELLABLE',
         });
-        expect(fhir.search).toHaveBeenCalledWith('Encounter', { appointment: 'Appointment/apt-1', _count: 1 });
+        expect(fhir.search).toHaveBeenCalledWith('Encounter', { appointment: 'Appointment/apt-1', 'status:not': 'cancelled', _count: 1 });
         expect(fhir.batch).not.toHaveBeenCalled();
       },
     );
@@ -337,6 +337,29 @@ describe('AppointmentsService', () => {
         errorCode: 'APPOINTMENT_NOT_CANCELLABLE',
       });
       expect(fhir.batch).not.toHaveBeenCalled();
+    });
+
+    it('should reject a patient with APPOINTMENT_ALREADY_STARTED and write nothing when the start time has passed', async () => {
+      jest.setSystemTime(new Date('2026-11-02T09:00:00+03:00'));
+      fhir.read.mockResolvedValue(bookedAppointment);
+
+      expect(await errorPayloadOf(service.cancel(patientClaims, 'apt-1', { reason: 'plans-changed' }))).toMatchObject({
+        errorCode: 'APPOINTMENT_ALREADY_STARTED',
+      });
+      expect(fhir.batch).not.toHaveBeenCalled();
+    });
+
+    it('should let an admin cancel a booked appointment whose start time has passed', async () => {
+      jest.setSystemTime(new Date('2026-11-02T09:10:00+03:00'));
+      fhir.read.mockImplementation(async (type) =>
+        type === 'Appointment' ? bookedAppointment : { ...freeSlot, status: 'busy' },
+      );
+      fhir.batch.mockResolvedValue(COMMITTED);
+      const adminClaims: JwtClaims = { ...patientClaims, role: 'ADMIN', sub: 'adm-1', patient: undefined };
+
+      const result = await service.cancel(adminClaims, 'apt-1', { reason: 'other' });
+
+      expect(result.status).toBe('cancelled');
     });
 
     it('should cancel, free the slot with If-Match and record the outbox event when the owner cancels a booked appointment', async () => {
@@ -487,7 +510,7 @@ describe('AppointmentsService', () => {
 
       await service.markNoShow(doctorClaims, 'apt-1');
 
-      expect(fhir.search).toHaveBeenCalledWith('Encounter', { appointment: 'Appointment/apt-1', _count: 1 });
+      expect(fhir.search).toHaveBeenCalledWith('Encounter', { appointment: 'Appointment/apt-1', 'status:not': 'cancelled', _count: 1 });
     });
 
     it('should not ask for encounters when another practitioner calls no-show', async () => {

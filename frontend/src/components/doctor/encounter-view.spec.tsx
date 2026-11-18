@@ -3,17 +3,22 @@ jest.mock('@/lib/api/api-fetch', () => {
   return { ...actual, apiFetch: jest.fn() };
 });
 
+const push = jest.fn();
+jest.mock('next/navigation', () => ({ useRouter: () => ({ push }) }));
+
 jest.setTimeout(30_000);
 
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { apiFetch } from '@/lib/api/api-fetch';
 import { createAppQueryClient } from '@/lib/api/query-client';
-import { encounter, FINISHED_CONTENT, pageOf, problem, renderWithClient, routeApi, type ApiMock, type ApiRoute } from './doctor-test-utils';
+import { callsTo, encounter, FINISHED_CONTENT, pageOf, problem, renderWithClient, routeApi, type ApiMock, type ApiRoute } from './doctor-test-utils';
 import { ACTIVE_RECORD } from '@/components/consent/consent-fixtures';
 import { readDraft, writeDraft } from '@/lib/encounter-draft';
 import { EMPTY_DIAGNOSIS } from './encounter-form-defaults';
+import { useSessionStore } from '@/store/use-session-store';
 import { EncounterView } from './encounter-view';
+import { rememberStartedEncounter, startedEncounterOf } from './started-encounters';
 import type { EncounterDetails } from './doctor-types';
 
 const apiFetchMock = apiFetch as ApiMock;
@@ -119,6 +124,15 @@ describe('EncounterView', () => {
 
     expect(await screen.findByText(/оформить нельзя/)).toBeInTheDocument();
     expect(screen.queryByRole('form', { name: 'Оформление приёма' })).toBeNull();
+  });
+
+  it('should open an in-progress visit of a colleague read-only, without the completion form', async () => {
+    useSessionStore.setState({ fhirUser: 'PractitionerRole/role-2' });
+    setup([encounterRoute(() => encounter())]);
+
+    expect(await screen.findByText(/ведёт другой врач/)).toBeInTheDocument();
+    expect(screen.queryByRole('form', { name: 'Оформление приёма' })).toBeNull();
+    useSessionStore.setState({ fhirUser: null });
   });
 
   it('should show the not-found state when the service answers 404', async () => {
@@ -255,6 +269,71 @@ describe('EncounterView in progress (A6, A7, A8)', () => {
 
     expect(await screen.findByTestId('encounter-record')).toBeInTheDocument();
     expect(readDraft('enc-1')).toBeNull();
+  });
+});
+
+describe('EncounterView cancelling an encounter opened by mistake', () => {
+  const CANCEL: ApiRoute = { path: '/api/v1/encounters/enc-1/cancel', method: 'POST', respond: () => ({ id: 'enc-1', status: 'cancelled' }) };
+
+  beforeEach(() => push.mockReset());
+
+  async function askToCancel(): Promise<void> {
+    await userEvent.click(await screen.findByRole('button', { name: 'Отменить приём' }));
+  }
+
+  it('should ask for a confirmation before anything is sent', async () => {
+    setup([encounterRoute(() => encounter()), CANCEL]);
+
+    await askToCancel();
+
+    expect(within(screen.getByRole('dialog')).getByText('Отменить приём?')).toBeInTheDocument();
+    expect(callsTo(apiFetchMock, '/api/v1/encounters/enc-1/cancel', 'POST')).toHaveLength(0);
+  });
+
+  it('should send nothing and keep the draft when the doctor keeps the visit', async () => {
+    setup([encounterRoute(() => encounter()), CANCEL], () => writeDraft('enc-1', { summary: 'Черновик', diagnoses: [EMPTY_DIAGNOSIS], recommendations: '', observations: [], serviceRequests: [], medicationRequests: [] }));
+    await askToCancel();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Не отменять' }));
+
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(callsTo(apiFetchMock, '/api/v1/encounters/enc-1/cancel', 'POST')).toHaveLength(0);
+    expect(readDraft('enc-1')).not.toBeNull();
+  });
+
+  it('should cancel the visit, discard the local draft and go back to the journal when the doctor confirms', async () => {
+    setup([encounterRoute(() => encounter()), CANCEL], () => {
+      writeDraft('enc-1', { summary: 'Черновик', diagnoses: [EMPTY_DIAGNOSIS], recommendations: '', observations: [], serviceRequests: [], medicationRequests: [] });
+      rememberStartedEncounter('appt-1', 'enc-1');
+    });
+    await askToCancel();
+
+    await userEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Отменить приём' }));
+
+    await waitFor(() => expect(push).toHaveBeenCalledWith('/doctor/appointments'));
+    expect(callsTo(apiFetchMock, '/api/v1/encounters/enc-1/cancel', 'POST')).toHaveLength(1);
+    expect(readDraft('enc-1')).toBeNull();
+    expect(startedEncounterOf('appt-1')).toBeNull();
+  });
+
+  it('should show the problem and keep the dialog when the visit cannot be cancelled', async () => {
+    setup([encounterRoute(() => encounter()), { ...CANCEL, respond: () => { throw problem(409, 'ENCOUNTER_STATE_INVALID'); } }]);
+    await askToCancel();
+
+    await userEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Отменить приём' }));
+
+    expect(await within(screen.getByRole('dialog')).findByRole('alert')).toBeInTheDocument();
+    expect(push).not.toHaveBeenCalled();
+  });
+
+  it('should not offer the cancellation for a visit of a colleague', async () => {
+    useSessionStore.setState({ fhirUser: 'PractitionerRole/role-2' });
+    setup([encounterRoute(() => encounter())]);
+
+    await screen.findByText(/ведёт другой врач/);
+
+    expect(screen.queryByRole('button', { name: 'Отменить приём' })).toBeNull();
+    useSessionStore.setState({ fhirUser: null });
   });
 });
 

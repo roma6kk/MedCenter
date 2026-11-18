@@ -69,4 +69,7 @@ export class EncountersSummaryDoc extends MeasureReportDoc implements Encounters
 export class ServicesPopularityDoc extends MeasureReportDoc implements ServicesPopularityDto {
   @ApiProperty({ enum: ['services-popularity'] })
   declare measure: 'services-popularity';
+
+  @ApiProperty({ minimum: 0, description: 'Appointments for the services outside the shown top; `total` includes them' })
+  others!: number;
 }

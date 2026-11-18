@@ -10,7 +10,7 @@ import { WRAP_TEXT } from '@/components/patient/wrap-text';
 import { toCancelReasonCode } from '@/lib/contracts';
 import { useT } from '@/lib/i18n/use-t';
 import { cn } from '@/lib/ui/cn';
-import { doctorOf, isCancellable, type AppointmentView } from './appointment-types';
+import { doctorOf, isCancellableByPatient, type AppointmentView } from './appointment-types';
 import { StampBadge } from '@/components/feedback/stamp-badge';
 
 interface AppointmentCardProps {
@@ -33,8 +33,8 @@ export function AppointmentActions({ appointment, onCancel, hero = false }: Appo
       >
         {t('open')}
       </Link>
-      {onCancel !== undefined && isCancellable(appointment.status) ? (
-        <Button variant="quiet-danger" size={size} aria-label={t('cancelFor', { when, doctor })} onClick={() => onCancel(appointment)}>
+      {onCancel !== undefined && isCancellableByPatient(appointment) ? (
+        <Button variant="quiet-danger" size={size} aria-label={t('cancelFor', { when, doctor })} onClick={() => onCancel(appointment)} className="whitespace-nowrap px-3">
           <CircleX aria-hidden="true" className="size-4" />
           {hero ? t('cancel') : t('cancelShort')}
         </Button>

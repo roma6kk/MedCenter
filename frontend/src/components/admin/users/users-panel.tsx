@@ -13,7 +13,8 @@ import { RetentionExpiredSection } from './retention-expired-section';
 import { UserFormDialog } from './user-form-dialog';
 import { UsersFilterForm } from './users-filter-form';
 import { UsersTable } from './users-table';
-import type { AdminUser } from './user-types';
+import { USER_ROLES, type AdminUser } from './user-types';
+import { parsePage, useUrlState } from '@/hooks/use-url-state';
 import { useT } from '@/lib/i18n/use-t';
 
 type DialogState = { readonly kind: 'none' } | { readonly kind: 'create' } | { readonly kind: 'edit'; readonly user: AdminUser } | { readonly kind: 'deactivate'; readonly user: AdminUser };
@@ -54,7 +55,8 @@ function usePractitionerRoleSpecialties(): ReadonlyMap<string, string> {
 
 export function UsersPanel(): ReactNode {
   const t = useT('admin.users');
-  const [filter, setFilter] = useState<UsersFilter>({ page: 1, role: '', search: '' });
+  const [url, setUrl] = useUrlState({ role: '', search: '', page: '1' });
+  const filter: UsersFilter = { page: parsePage(url.page), role: USER_ROLES.find((role) => role === url.role) ?? '', search: url.search };
   const [dialog, setDialog] = useState<DialogState>({ kind: 'none' });
   const query = useAdminUsers(filter);
   const activate = useUpdateUser('admin.users.toast.activated');
@@ -63,7 +65,7 @@ export function UsersPanel(): ReactNode {
   return (
     <>
       <AdminPageHeader title={t('title')} description={t('description')} action={<CreateButton label={t('create')} onClick={() => setDialog({ kind: 'create' })} />} />
-      <UsersFilterForm role={filter.role} search={filter.search} onApply={(role, search) => { activate.reset(); setFilter({ ...filter, page: 1, role, search }); }} />
+      <UsersFilterForm role={filter.role} search={filter.search} onApply={(role, search) => { activate.reset(); setUrl({ role, search, page: '1' }); }} />
       {activate.isError ? <div className="mb-3"><AdminProblem error={activate.error} /></div> : null}
       <QueryState query={query} isEmpty={(data) => data.items.length === 0} emptyTitle={t('empty')} emptyDescription={t('emptyHint')}>
         {(data) => (
@@ -72,7 +74,7 @@ export function UsersPanel(): ReactNode {
             practitionerRoles={practitionerRoles}
             rows={data.items}
             meta={data.meta}
-            onPage={(page) => { activate.reset(); setFilter({ ...filter, page }); }}
+            onPage={(page) => { activate.reset(); setUrl({ page: String(page) }); }}
             onEdit={(user) => setDialog({ kind: 'edit', user })}
             onDeactivate={(user) => setDialog({ kind: 'deactivate', user })}
             onActivate={(user) => { if (!activate.isPending) activate.mutate({ id: user.id, payload: { isActive: true } }); }}

@@ -52,10 +52,11 @@ describe('createUserSchema', () => {
     expect(issuePaths({ ...valid, practitionerRoleId: 'a b/c' }, createUserSchema)).toEqual([]);
   });
 
-  it('should accept a PractitionerRole id when the account is a DOCTOR', () => {
-    const values = { ...valid, roles: ['DOCTOR'], birthDate: '', practitionerRoleId: '6ef5270b-6282-5a43-87f9-26d2d8b0c4f7' };
+  it('should ask a DOCTOR for a specialty', () => {
+    const values = { ...valid, roles: ['DOCTOR'], birthDate: '' };
 
-    expect(createUserSchema.safeParse(values).success).toBe(true);
+    expect(issuePaths(values, createUserSchema)).toContain('specialtyCode');
+    expect(createUserSchema.safeParse({ ...values, specialtyCode: '394579002' }).success).toBe(true);
   });
 
   it.each(['', 'short1!A', 'alllowercase1!', 'NoDigits!!!!a', 'NoSymbol1234ab', 'Кириллица1!аА'])('should refuse the password %j when the form is checked', (password) => {
@@ -91,10 +92,26 @@ describe('toCreatePayload', () => {
     expect(toCreatePayload({ ...valid, roles: ['ADMIN'], practitionerRoleId: 'role-1' })).not.toHaveProperty('practitionerRoleId');
   });
 
-  it('should send the gender and the PractitionerRole when they are filled', () => {
-    const payload = toCreatePayload({ ...valid, roles: ['DOCTOR'], gender: 'female', practitionerRoleId: 'role-1' });
+  it('should send the gender and the specialty of a doctor when they are filled', () => {
+    const payload = toCreatePayload({ ...valid, roles: ['DOCTOR'], gender: 'female', specialtyCode: '394579002' });
 
-    expect(payload).toMatchObject({ gender: 'female', practitionerRoleId: 'role-1' });
+    expect(payload).toMatchObject({ gender: 'female', specialtyCode: '394579002' });
+    expect(payload).not.toHaveProperty('practitionerRoleId');
+  });
+});
+
+describe('editUserSchema password', () => {
+  it('should accept an empty password and a strong one, and refuse a weak one', () => {
+    const values = editValuesOf(doctor);
+
+    expect(editUserSchema.safeParse(values).success).toBe(true);
+    expect(editUserSchema.safeParse({ ...values, password: 'Str0ng!Pass1' }).success).toBe(true);
+    expect(editUserSchema.safeParse({ ...values, password: 'weak' }).success).toBe(false);
+  });
+
+  it('should send the password only when it was typed', () => {
+    expect(toUpdatePayload({ ...editValuesOf(doctor), password: 'Str0ng!Pass1' }, doctor)).toEqual({ password: 'Str0ng!Pass1' });
+    expect(toUpdatePayload(editValuesOf(doctor), doctor)).toEqual({});
   });
 });
 

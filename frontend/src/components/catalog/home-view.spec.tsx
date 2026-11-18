@@ -10,7 +10,7 @@ jest.mock('@/lib/api/api-fetch', () => {
 
 import { useBookingDraftStore } from '@/store/use-booking-draft-store';
 import { useSessionStore } from '@/store/use-session-store';
-import { LATER_SLOT, SLOT, renderWithCatalog, serveCatalog } from './catalog-test-utils';
+import { LATER_SLOT, SLOT, apiFetchMock, renderWithCatalog, serveCatalog } from './catalog-test-utils';
 import type { CatalogService, Doctor } from './catalog-types';
 import { CLINIC_LICENSE, CORPORATE_CLIENTS, DIRECTIONS, INSURANCE_PARTNERS } from './home-content';
 import { HomeView } from './home-view';
@@ -277,5 +277,18 @@ describe('HomeView', () => {
 
     expect(screen.getByRole('link', { name: '+375 17 000-00-00' })).toHaveAttribute('href', 'tel:+375170000000');
     expect(screen.getByRole('link', { name: 'info@lifeline.example' })).toHaveAttribute('href', 'mailto:info@lifeline.example');
+  });
+
+  it('should show the contacts the server returns once they arrive', async () => {
+    const catalog = apiFetchMock.getMockImplementation();
+    apiFetchMock.mockImplementation((path) =>
+      path === '/api/v1/clinic' ? Promise.resolve({ name: 'Клиника N', phone: '+375 29 111-22-33', email: 'n@clinic.by', address: 'г. Гомель, ул. Мира, 1', hours: 'Круглосуточно' }) : (catalog as (path: string) => Promise<unknown>)(path),
+    );
+    renderHome();
+
+    expect(await screen.findByRole('link', { name: '+375 29 111-22-33' })).toHaveAttribute('href', 'tel:+375291112233');
+    expect(screen.getByRole('link', { name: 'n@clinic.by' })).toBeInTheDocument();
+    expect(screen.getByText('г. Гомель, ул. Мира, 1')).toBeInTheDocument();
+    expect(screen.getByText('Круглосуточно')).toBeInTheDocument();
   });
 });

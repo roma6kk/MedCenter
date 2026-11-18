@@ -1,15 +1,17 @@
-import { Module } from '@nestjs/common';
+import { forwardRef, Module } from '@nestjs/common';
 
 import { DatabaseModule } from '../../database/database.module';
 import { AuditModule } from '../audit/audit.module';
 import { FhirModule } from '../fhir/fhir.module';
 import { IDENTITY_RESOLVER } from '../oauth/identity';
+import { OAuthModule } from '../oauth/oauth.module';
 import { AccountController } from './account.controller';
 import { ACCOUNT_RETENTION, accountRetentionFromEnv } from './account-retention';
 import { AccountFactory } from './account-factory.service';
 import { AdminUsersController } from './admin-users.controller';
 import { BootstrapAdminService } from './bootstrap-admin.service';
 import { CredentialsService } from './credentials.service';
+import { DoctorProvisioner } from './doctor-provisioner';
 import { PasswordHasher } from './password-hasher';
 import { RegistrationOutbox } from './patient-events';
 import { PatientProvisioner } from './patient-provisioner';
@@ -18,12 +20,13 @@ import { UserIdentityResolver } from './user-identity.resolver';
 import { UsersService } from './users.service';
 
 @Module({
-  imports: [DatabaseModule, FhirModule, AuditModule],
+  imports: [DatabaseModule, FhirModule, AuditModule, forwardRef(() => OAuthModule)],
   controllers: [AdminUsersController, AccountController],
   providers: [
     { provide: PasswordHasher, useFactory: (): PasswordHasher => new PasswordHasher() },
     RegistrationOutbox,
     PatientProvisioner,
+    DoctorProvisioner,
     AccountFactory,
     RegistrationService,
     { provide: ACCOUNT_RETENTION, useFactory: () => accountRetentionFromEnv() },

@@ -29,5 +29,5 @@ tests {
 }
 
 docs {
-  Spec 7.2. DOCTOR (participant) only, ADMIN answers 403 (ADR-018), scope `user/*.read`. Set `encounterId` (7.6 stores it from the patient run).
+  Spec 7.2. DOCTOR with a shared appointment or encounter with the patient (the participant or a colleague; same rule as 7.4, the read is audited), otherwise 403 COMPARTMENT_VIOLATION; ADMIN answers 403 (ADR-018), scope `user/*.read`. Set `encounterId` (7.6 stores it from the patient run).
 }

@@ -1,0 +1,30 @@
+meta {
+  name: 2.4.1 Clinic details
+  type: http
+  seq: 1
+  tags: [
+    ro-public
+    ro-admin
+    ro-doctor
+    ro-patient
+  ]
+}
+
+get {
+  url: {{baseUrl}}/api/v1/clinic
+  body: none
+  auth: none
+}
+
+assert {
+  res.status: eq 200
+  res.body.name: isString
+  res.body.phone: isString
+  res.body.email: isString
+  res.body.address: isString
+  res.body.hours: isString
+}
+
+docs {
+  Spec 2.4.1. Public, no token; `Cache-Control: public, max-age=60`. The landing page, the footer and the privacy policy read the contacts from here.
+}

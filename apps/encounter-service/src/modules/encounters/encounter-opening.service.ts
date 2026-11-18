@@ -28,7 +28,7 @@ const IN_PROGRESS = 'in-progress';
 const BOOKED = 'booked';
 
 function openingBypassOnce(write: TransactionWrite, context: OpeningContext): TransactionWrite {
-  const name = openingBypassName(context.appointmentId);
+  const name = openingBypassName(context);
   const entities = (write.resource['entity'] as ReadonlyArray<{ what?: { reference?: string } }>).map((entity) =>
     entity.what?.reference === context.fullUrl ? { ...entity, name } : entity,
   );
@@ -97,6 +97,7 @@ export class EncounterOpeningService {
   private async encounterOfAppointment(appointmentId: string): Promise<FhirResource | undefined> {
     const result = await this.fhir.search('Encounter', {
       appointment: `Appointment/${appointmentId}`,
+      'status:not': 'cancelled',
       _count: 10,
     });
     const encounters = resourcesOfType(result, 'Encounter');

@@ -33,6 +33,7 @@ export const errorCodeMap: Readonly<Record<ErrorCode, ErrorUx>> = {
   CONFLICT: { kind: 'banner-generic' },
   SLOT_CONFLICT: { kind: 'slot-conflict' },
   APPOINTMENT_NOT_CANCELLABLE: { kind: 'appointment-refresh' },
+  APPOINTMENT_ALREADY_STARTED: { kind: 'banner-generic' },
   CONSENT_REQUIRED: { kind: 'consent-required' },
   CONSENT_ALREADY_ACTIVE: { kind: 'consent-active' },
   ACCOUNT_CONSENT_WITHDRAWN: { kind: 'banner-generic' },

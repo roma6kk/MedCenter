@@ -13,7 +13,7 @@ import { useDocumentTitle } from '@/hooks/use-document-title';
 import { useFocusFallback } from '@/components/patient/use-focus-fallback';
 import { useT } from '@/lib/i18n/use-t';
 import { AppointmentDetails } from './appointment-details';
-import { isCancellable, type AppointmentView } from './appointment-types';
+import { isCancellableByPatient, type AppointmentView } from './appointment-types';
 import { CancelAppointmentDialog } from './cancel-appointment-dialog';
 import { useAppointment } from './use-appointments';
 
@@ -32,7 +32,7 @@ function LoadedAppointment({ appointment, onCancel }: LoadedProps): ReactNode {
   return (
     <div className="animate-fade-in">
       <AppointmentDetails appointment={appointment} />
-      {isCancellable(appointment.status) ? (
+      {isCancellableByPatient(appointment) ? (
         <div className="no-print mt-4">
           <Button variant="quiet-danger" size="lg" onClick={onCancel}>
             <CircleX aria-hidden="true" className="size-5" />

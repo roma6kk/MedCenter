@@ -11,7 +11,6 @@ import type {
   JournalAppointment,
   PatientCard,
   Prescription,
-  RelatedPerson,
 } from './doctor-types';
 import type { CompleteEncounterForm } from '@/lib/contracts';
 
@@ -92,13 +91,12 @@ export function postCompleteEncounter(encounterId: string, body: CompleteEncount
   return apiFetch<EncounterSummary>(`/api/v1/encounters/${encodeURIComponent(encounterId)}/complete`, { method: 'POST', body: JSON.stringify(body) });
 }
 
-export function fetchPatient(patientId: string, signal?: AbortSignal): Promise<PatientCard> {
-  return apiFetch<PatientCard>(`/api/v1/patients/${encodeURIComponent(patientId)}`, { signal });
+export function postCancelEncounter(encounterId: string): Promise<EncounterSummary> {
+  return apiFetch<EncounterSummary>(`/api/v1/encounters/${encodeURIComponent(encounterId)}/cancel`, { method: 'POST' });
 }
 
-export function fetchRelatedPersons(patientId: string, request: PageRequest, signal?: AbortSignal): Promise<PaginatedResponse<RelatedPerson>> {
-  const path = withQuery(`/api/v1/patients/${encodeURIComponent(patientId)}/related`, { page: request.page, pageSize: request.pageSize });
-  return apiFetch<PaginatedResponse<RelatedPerson>>(path, { signal });
+export function fetchPatient(patientId: string, signal?: AbortSignal): Promise<PatientCard> {
+  return apiFetch<PatientCard>(`/api/v1/patients/${encodeURIComponent(patientId)}`, { signal });
 }
 
 export function fetchPatientHistory(patientId: string, request: PageRequest, signal?: AbortSignal): Promise<PaginatedResponse<HistoryItem>> {

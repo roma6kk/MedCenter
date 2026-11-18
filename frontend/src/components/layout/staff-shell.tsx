@@ -7,10 +7,12 @@ import {
   BookText,
   CalendarClock,
   CalendarDays,
+  ClipboardList,
   DoorOpen,
   ListChecks,
   Menu,
   ScrollText,
+  Settings,
   Stethoscope,
   Users,
 } from 'lucide-react';
@@ -47,8 +49,10 @@ export const ADMIN_LINKS: ReadonlyArray<StaffLink> = [
   { href: '/admin/services', labelKey: 'admin.services', icon: Stethoscope },
   { href: '/admin/rooms', labelKey: 'admin.rooms', icon: DoorOpen },
   { href: '/admin/schedules', labelKey: 'admin.schedules', icon: CalendarClock },
+  { href: '/admin/appointments', labelKey: 'admin.appointments', icon: ClipboardList },
   { href: '/admin/terminology', labelKey: 'admin.terminology', icon: BookText },
   { href: '/admin/audit', labelKey: 'admin.audit', icon: ScrollText },
+  { href: '/admin/settings', labelKey: 'admin.settings', icon: Settings },
 ];
 
 interface PartsProps {

@@ -10,6 +10,8 @@ import type { AdminUser } from './user-types';
 const roleChoicesMock = jest.fn<PractitionerRoleChoices, [string | undefined, string]>(() => ({ state: 'unavailable' }));
 jest.mock('./use-practitioner-role-options', () => ({ usePractitionerRoleOptions: (userId: string | undefined, current: string) => roleChoicesMock(userId, current) }));
 
+jest.mock('./use-specialty-options', () => ({ useSpecialtyOptions: () => [{ code: '394579002', label: 'Кардиолог' }, { code: '419192003', label: 'Терапевт' }] }));
+
 jest.mock('@/lib/api/api-fetch', () => {
   const actual = jest.requireActual('@/lib/api/api-fetch');
   return { ...actual, apiFetch: jest.fn() };
@@ -121,19 +123,34 @@ describe('UserFormDialog (create)', () => {
     await waitFor(() => expect(screen.queryByTestId('problem-banner')).not.toBeInTheDocument());
   });
 
-  it('should send the account without the PractitionerRole when a typed id is left in the hidden field after DOCTOR is unchecked', async () => {
+  it('should create a doctor from the full name and a specialty, without asking for a PractitionerRole', async () => {
     apiFetchMock.mockResolvedValue({ ...doctor, id: 'u3' });
     const onClose = jest.fn();
     renderWithClient(<UserFormDialog onClose={onClose} />);
     await fillNewAdmin();
+    await userEvent.click(screen.getByRole('checkbox', { name: 'Администратор' }));
     await userEvent.click(screen.getByRole('checkbox', { name: 'Врач' }));
-    await userEvent.type(screen.getByLabelText(/Роль врача/), 'role-1');
-    await userEvent.click(screen.getByRole('checkbox', { name: 'Врач' }));
+    expect(screen.queryByLabelText(/Роль врача/)).not.toBeInTheDocument();
+    await userEvent.selectOptions(screen.getByLabelText(/Специальность/), '394579002');
 
     await userEvent.click(screen.getByRole('button', { name: 'Создать пользователя' }));
 
     await waitFor(() => expect(onClose).toHaveBeenCalled());
-    expect(JSON.parse(String(apiFetchMock.mock.calls[0]?.[1]?.body))).not.toHaveProperty('practitionerRoleId');
+    const body = JSON.parse(String(apiFetchMock.mock.calls[0]?.[1]?.body));
+    expect(body).toMatchObject({ roles: ['DOCTOR'], specialtyCode: '394579002' });
+    expect(body).not.toHaveProperty('practitionerRoleId');
+  });
+
+  it('should refuse a doctor without a specialty', async () => {
+    renderWithClient(<UserFormDialog onClose={jest.fn()} />);
+    await fillNewAdmin();
+    await userEvent.click(screen.getByRole('checkbox', { name: 'Администратор' }));
+    await userEvent.click(screen.getByRole('checkbox', { name: 'Врач' }));
+
+    await userEvent.click(screen.getByRole('button', { name: 'Создать пользователя' }));
+
+    expect(await screen.findByText('Выберите специальность врача')).toBeInTheDocument();
+    expect(apiFetchMock).not.toHaveBeenCalled();
   });
 
   it('should not keep the new password in the mutation cache when the dialog is gone', async () => {
@@ -153,13 +170,13 @@ describe('UserFormDialog (create)', () => {
     await waitFor(() => expect(client.getMutationCache().getAll()).toHaveLength(0));
   });
 
-  it('should offer the PractitionerRole field only when the DOCTOR role is chosen', async () => {
+  it('should offer the specialty field only when the DOCTOR role is chosen', async () => {
     renderWithClient(<UserFormDialog onClose={jest.fn()} />);
-    expect(screen.queryByLabelText(/Роль врача/)).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/Специальность/)).not.toBeInTheDocument();
 
     await userEvent.click(screen.getByRole('checkbox', { name: 'Врач' }));
 
-    expect(screen.getByLabelText(/Роль врача/)).toBeInTheDocument();
+    expect(screen.getByLabelText(/Специальность/)).toBeInTheDocument();
   });
 
   it('should ask for the birth date only when the PATIENT role is chosen', async () => {
@@ -204,9 +221,7 @@ describe('UserFormDialog (PractitionerRole picker)', () => {
 
   it('should show a disabled list while the doctors are loading', async () => {
     roleChoicesMock.mockReturnValue({ state: 'pending' });
-    renderWithClient(<UserFormDialog onClose={jest.fn()} />);
-
-    await userEvent.click(screen.getByRole('checkbox', { name: 'Врач' }));
+    renderWithClient(<UserFormDialog user={doctor} onClose={jest.fn()} />);
 
     expect(screen.getByLabelText(/Роль врача/)).toBeDisabled();
     expect(screen.getByRole('option', { name: 'Загрузка врачей…' })).toBeInTheDocument();

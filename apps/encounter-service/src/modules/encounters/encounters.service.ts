@@ -5,7 +5,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import type { JwtClaims } from '@medcenter/common';
-import { FHIR_CLIENT, outboxWrite, type FhirClient, type FhirResource } from '@medcenter/fhir';
+import { FHIR_CLIENT, outboxWrite, PatientReadAudit, type FhirClient, type FhirResource } from '@medcenter/fhir';
 
 import { practitionerRoleRefFromClaims } from '../../common/access/claims-identity';
 import {
@@ -14,11 +14,13 @@ import {
   type ConsentEnforcement,
 } from '../../common/consent/consent-gate';
 import { referenceField } from '../../common/fhir/fhir-read';
-import { canonicalReference } from '../../common/fhir/fhir-reference';
+import { canonicalReference, referenceIdOf } from '../../common/fhir/fhir-reference';
 import { resourcesOf } from '../../common/fhir/fhir-search';
 import { commitTransaction } from '../../common/fhir/fhir-transaction';
 import { internal, stateInvalid } from './encounter-errors';
 import { emergencyBypassWrite } from './emergency-bypass';
+import { PatientAccessService } from '../history/patient-access.service';
+import { buildCancellationWrites } from './mappers/encounter-cancellation.mapper';
 import { completedEvent } from '../events/encounter-events';
 import {
   TerminologyValidatorService,
@@ -54,13 +56,13 @@ const ENCOUNTER_REVINCLUDES: readonly string[] = [
   'MedicationRequest:encounter',
 ];
 
-interface CompletableEncounter {
+interface InProgressEncounter {
   readonly encounter: FhirResource;
   readonly appointment: FhirResource;
   readonly patientRef: string;
 }
 
-interface CompletionInputs extends CompletableEncounter {
+interface CompletionInputs extends InProgressEncounter {
   readonly encounterId: string;
   readonly roleRef: string;
   readonly actorSub: string;
@@ -90,10 +92,12 @@ export class EncountersService {
     @Inject(FHIR_CLIENT) private readonly fhir: FhirClient,
     private readonly terminology: TerminologyValidatorService,
     @Inject(CONSENT_ENFORCEMENT_MODE) private readonly consentEnforcement: ConsentEnforcement,
+    private readonly access: PatientAccessService,
+    private readonly readAudit: PatientReadAudit,
   ) {}
 
-  async findOne(claims: JwtClaims, encounterId: string): Promise<EncounterDetailsDto> {
-    const roleRef = resolveEncounterReaderRoleRef(claims);
+  async findOne(claims: JwtClaims, encounterId: string, requestId?: string): Promise<EncounterDetailsDto> {
+    resolveEncounterReaderRoleRef(claims);
     const result = await this.fhir.search('Encounter', {
       _id: encounterId,
       _revinclude: ENCOUNTER_REVINCLUDES,
@@ -108,8 +112,12 @@ export class EncountersService {
         message: `NOT_FOUND: Encounter ${encounterId} does not exist`,
       });
     }
-    assertEncounterParticipant(roleRef, encounter);
-    return toEncounterDetails(encounter, resources);
+    const patientId = referenceIdOf(referenceField(encounter, 'subject'), 'Patient') ?? '';
+    // Same rule and audit as the patient history (7.4): any doctor who shares care with the patient may read.
+    return this.readAudit.audited(claims, patientId, { interaction: 'read', source: 'encounter-service', requestId }, async () => {
+      await this.access.resolveReadablePatient(claims, patientId);
+      return toEncounterDetails(encounter, resources);
+    });
   }
 
   async complete(
@@ -119,7 +127,7 @@ export class EncountersService {
     requestId?: string,
   ): Promise<EncounterResponseDto> {
     const roleRef = practitionerRoleRefFromClaims(claims);
-    const loaded = await this.loadCompletable(roleRef, encounterId);
+    const loaded = await this.loadInProgress(roleRef, encounterId);
     // ADR-019: before terminology lookups and the transaction.
     const consent = await checkConsent(
       this.fhir,
@@ -166,16 +174,25 @@ export class EncountersService {
     );
   }
 
+  // The appointment stays `booked`: the doctor can start the visit again or mark a no-show.
+  async cancel(claims: JwtClaims, encounterId: string, requestId?: string): Promise<EncounterResponseDto> {
+    const roleRef = practitionerRoleRefFromClaims(claims);
+    const loaded = await this.loadInProgress(roleRef, encounterId);
+    const plan = buildCancellationWrites({ ...loaded, encounterId, actorSub: claims.sub, requestId });
+    await commitTransaction(this.fhir, plan.writes, 'ENCOUNTER_STATE_INVALID');
+    return toEncounterResponse({ ...plan.cancelledEncounter, id: encounterId }, []);
+  }
+
   // Order matters: non-participant 403 first (state is not revealed), then state 409, then appointment 409.
-  private async loadCompletable(
+  private async loadInProgress(
     roleRef: string,
     encounterId: string,
-  ): Promise<CompletableEncounter> {
+  ): Promise<InProgressEncounter> {
     const encounter = await this.fhir.read('Encounter', encounterId);
     assertEncounterParticipant(roleRef, encounter);
     if (encounter['status'] !== IN_PROGRESS) {
       throw stateInvalid(
-        `encounter is ${String(encounter['status'])}, only an in-progress one can be completed (BR-003)`,
+        `encounter is ${String(encounter['status'])}, only an in-progress one can be completed or cancelled (BR-003)`,
       );
     }
     const patientRef = canonicalReference(referenceField(encounter, 'subject'), 'Patient');

@@ -68,13 +68,16 @@ describe('GET /api/v1/admin/analytics/* (API §9.1–9.3, FR-019)', () => {
   });
 
   it('should rank services with their HAPI names and honour top when §9.3 is requested', async () => {
-    harness.reports.countBookingsByService.mockResolvedValue([{ serviceId: 'svc-1', count: '7' }]);
+    harness.reports.countBookingsByService.mockResolvedValue([
+      { serviceId: 'svc-1', count: '7' },
+      { serviceId: 'svc-2', count: '2' },
+    ]);
     harness.fhir.search.mockResolvedValue({ entry: [{ resource: { resourceType: 'HealthcareService', id: 'svc-1', name: 'Консультация терапевта' } }] });
 
-    const response = await get(`/api/v1/admin/analytics/services-popularity?${YEAR_2026}&top=3`).expect(200);
+    const response = await get(`/api/v1/admin/analytics/services-popularity?${YEAR_2026}&top=1`).expect(200);
 
-    expect(harness.reports.countBookingsByService).toHaveBeenLastCalledWith(expect.anything(), 3);
     expect(response.body.groups).toEqual([{ code: 'svc-1', display: 'Консультация терапевта', count: 7 }]);
+    expect(response.body).toMatchObject({ others: 2, total: 9 });
   });
 
   it.each([

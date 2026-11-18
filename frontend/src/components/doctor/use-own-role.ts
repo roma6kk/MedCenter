@@ -8,6 +8,6 @@ export function useOwnRoleId(): string | null {
   return roleIdOf(useSessionStore((state) => state.fhirUser));
 }
 
-export function isOwnVisit(item: HistoryItem, ownRoleId: string | null): boolean {
+export function isOwnVisit(item: Pick<HistoryItem, 'practitionerRoleId'>, ownRoleId: string | null): boolean {
   return ownRoleId === null || item.practitionerRoleId === ownRoleId;
 }

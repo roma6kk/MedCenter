@@ -48,11 +48,14 @@ export class EncountersController {
   @ApiOperation({ summary: '7.2 Get encounter details' })
   @ApiParam({ name: 'id', description: 'Encounter id (FHIR id)' })
   @ApiResponse({ status: 200, description: 'Encounter with its clinical content once finished', type: EncounterDetailsDoc })
-  @ApiProblems([400, ...GUARD_PROBLEM_STATUSES, 404], { 404: 'NOT_FOUND: encounter not found' })
+  @ApiProblems([400, ...GUARD_PROBLEM_STATUSES, 404], {
+    403: 'COMPARTMENT_VIOLATION: the doctor has no appointment or encounter with the patient of this encounter',
+    404: 'NOT_FOUND: encounter not found',
+  })
   @RequiresRoles(Role.DOCTOR)
   @RequiresScopes(SMART_SCOPES.USER_READ)
-  async findOne(@Req() request: RequestWithClaims, @Param('id', FhirIdPipe) id: string): Promise<EncounterDetailsDto> {
-    return this.encounters.findOne(claimsOf(request), id);
+  async findOne(@Req() request: AuditedRequest, @Param('id', FhirIdPipe) id: string): Promise<EncounterDetailsDto> {
+    return this.encounters.findOne(claimsOf(request), id, request.requestId);
   }
 
   @Post(':id/complete')
@@ -72,5 +75,20 @@ export class EncountersController {
     @Body() dto: CompleteEncounterDto,
   ): Promise<EncounterResponseDto> {
     return this.encounters.complete(claimsOf(request), id, dto, request.requestId);
+  }
+
+  @Post(':id/cancel')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: '7.8 Cancel an encounter opened by mistake; the appointment stays booked' })
+  @ApiParam({ name: 'id', description: 'Encounter id (FHIR id)' })
+  @ApiResponse({ status: 200, description: 'Encounter cancelled', type: EncounterResponseDoc })
+  @ApiProblems([400, ...GUARD_PROBLEM_STATUSES, 404, 409], {
+    403: 'FORBIDDEN_ROLE / FORBIDDEN_SCOPE / COMPARTMENT_VIOLATION: the doctor is not the participant of the encounter',
+    409: 'ENCOUNTER_STATE_INVALID: the encounter is not in progress or the appointment is no longer booked',
+  })
+  @RequiresRoles(Role.DOCTOR)
+  @RequiresScopes(SMART_SCOPES.USER_WRITE)
+  async cancel(@Req() request: AuditedRequest, @Param('id', FhirIdPipe) id: string): Promise<EncounterResponseDto> {
+    return this.encounters.cancel(claimsOf(request), id, request.requestId);
   }
 }

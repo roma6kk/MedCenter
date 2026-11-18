@@ -82,7 +82,7 @@
 ### 1.6 Допущения и вне объёма
 
 - Одна организация (single-tenant); модель допускает расширение.
-- Уведомления — in-app и по e-mail; SMS и push вне объёма.
+- Уведомления — только внутри приложения; e-mail, SMS и push вне объёма.
 - Оплата и биллинг вне объёма.
 - Врачей и администраторов создаёт администратор; пациент может зарегистрироваться сам.
 - SNOMED CT и LOINC не включены из-за лицензионных ограничений; задел — через `ConceptMap`.
@@ -268,8 +268,14 @@ npm run seed:demo                   # demo organisation, doctors, services, room
 | Smoke через Traefik | `npm run smoke:stack` |
 | Playwright E2E (сценарии A–F, security) | `cd frontend && E2E_BROWSER_CHANNEL=chrome npx playwright test` |
 
+Те же lint, типы и unit-тесты (без Docker и стека) запускает GitHub Actions при каждом пуше и pull request: [.github/workflows/ci.yml](.github/workflows/ci.yml).
+
 Демо-аккаунты создаются командой `npm run seed:demo -- --users --with-admin`; список учётных записей и
 ручной чек-лист — в [tasks/TASK-001/verify-manual-testing-guide.md](tasks/TASK-001/verify-manual-testing-guide.md).
+
+Необязательный флаг `--visits` наполняет кабинет `patient.kuznetsov`: будущая запись и один завершённый приём с диагнозом
+и назначением (повторный запуск ничего не дублирует). Сначала нужны демо-слоты и согласие пациента на ведение медкарты:
+`npm run seed:demo -- --users --consents`, затем `npm run seed:demo -- --visits`.
 
 ### Обслуживание данных
 

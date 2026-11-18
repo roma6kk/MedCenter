@@ -53,6 +53,12 @@ function patientPath(resourceType: string): readonly string[] {
 }
 
 function matchesParam(resource: FhirResource, key: string, value: unknown): boolean {
+  if (key.endsWith(':not')) {
+    return !matchesParam(resource, key.slice(0, -':not'.length), value);
+  }
+  if (key === 'AuditEvent?entity-name:exact') {
+    return (resource['entity'] as Array<{ name?: string }> | undefined)?.some((entity) => entity.name === decodeURIComponent(String(value))) ?? false;
+  }
   const token = matchesConsentToken(resource, key, value);
   if (token !== undefined) {
     return token;
@@ -203,8 +209,8 @@ export class FakeHapi implements FhirClient {
     if (query === undefined) {
       return undefined;
     }
-    const [key, value] = query.split('=');
-    const match = this.stored(entry.request.url).find((resource) => matchesParam(resource, key ?? '', value));
+    const filters = query.split('&').map((pair) => pair.split('='));
+    const match = this.stored(entry.request.url).find((resource) => filters.every(([key, value]) => matchesParam(resource, key ?? '', value)));
     return match === undefined ? undefined : `${match.resourceType}/${match.id ?? ''}`;
   }
 

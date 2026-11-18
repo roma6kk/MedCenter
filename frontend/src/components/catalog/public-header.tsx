@@ -16,7 +16,8 @@ import { ROLE_LANDING } from '@/lib/auth/user-role';
 import { useT } from '@/lib/i18n/use-t';
 import { useSessionStore } from '@/store/use-session-store';
 import { SECTION_CLASS } from './catalog-styles';
-import { CLINIC_CONTACTS, HOME_ANCHORS } from './home-content';
+import { HOME_ANCHORS } from './home-content';
+import { phoneHref, useClinic } from './use-clinic';
 
 const LINK_CLASS = 'inline-flex min-h-[44px] items-center rounded-control px-3 text-base font-medium hover:bg-secondary';
 const DRAWER_LINK_CLASS = 'flex min-h-[48px] items-center border-b border-border-soft text-lg font-medium';
@@ -46,10 +47,11 @@ function AccountLinks(): ReactNode {
 }
 
 function PhoneLink({ className }: { readonly className: string }): ReactNode {
+  const { phone } = useClinic();
   return (
-    <a href={CLINIC_CONTACTS.phoneHref} className={className}>
+    <a href={phoneHref(phone)} className={className}>
       <Phone aria-hidden="true" className="h-[18px] w-[18px] flex-none text-primary" />
-      <span className="sr-only 2xl:not-sr-only">{CLINIC_CONTACTS.phone}</span>
+      <span className="sr-only 2xl:not-sr-only">{phone}</span>
     </a>
   );
 }
@@ -57,6 +59,7 @@ function PhoneLink({ className }: { readonly className: string }): ReactNode {
 function MobileMenu({ onClose }: { readonly onClose: () => void }): ReactNode {
   const t = useT('public');
   const role = useSessionStore((state) => state.role);
+  const { phone } = useClinic();
   return (
     <Dialog title={t('menuTitle')} variant="drawer" onClose={onClose}>
       <nav aria-label={t('navLabel')} className="flex flex-col">
@@ -75,9 +78,9 @@ function MobileMenu({ onClose }: { readonly onClose: () => void }): ReactNode {
           <Link href={ROLE_LANDING[role]} onClick={onClose} className={`${buttonVariants({ variant: 'secondary', size: 'lg' })} w-full`}>{t('cabinet')}</Link>
         )}
       </div>
-      <a href={CLINIC_CONTACTS.phoneHref} className="mt-5 flex min-h-[48px] items-center gap-3 text-lg font-semibold">
+      <a href={phoneHref(phone)} className="mt-5 flex min-h-[48px] items-center gap-3 text-lg font-semibold">
         <Phone aria-hidden="true" className="h-5 w-5 text-primary" />
-        {CLINIC_CONTACTS.phone}
+        {phone}
       </a>
       <div className="mt-4 flex items-center justify-between gap-3 border-t border-border-soft pt-4">
         <LocaleSwitcher />

@@ -13,6 +13,7 @@ interface GroupTableProps {
   readonly nameHeader: string;
   readonly countHeader: string;
   readonly kind: GroupKind;
+  readonly others?: number;
 }
 
 const HEAD_CELL = 'px-5 py-2.5 text-xs font-semibold text-[var(--muted-foreground)]';
@@ -43,7 +44,7 @@ function ShareCell({ count, total }: { readonly count: number; readonly total: n
   );
 }
 
-export function GroupTable({ report, caption, nameHeader, countHeader, kind }: GroupTableProps): ReactNode {
+export function GroupTable({ report, caption, nameHeader, countHeader, kind, others = 0 }: GroupTableProps): ReactNode {
   const t = useT('admin.analytics');
   const { named, unnamed } = splitGroups(report.groups);
   return (
@@ -66,6 +67,13 @@ export function GroupTable({ report, caption, nameHeader, countHeader, kind }: G
             </tr>
           ))}
           {unnamed.length > 0 ? <UnnamedRow groups={unnamed} total={report.total} kind={kind} /> : null}
+          {others > 0 ? (
+            <tr className="border-t border-[var(--border)] text-[var(--muted-foreground)]">
+              <td className="px-5 py-3.5">{t('services.others')}</td>
+              <td className={NUMBER_CELL}>{others}</td>
+              <ShareCell count={others} total={report.total} />
+            </tr>
+          ) : null}
         </tbody>
         <tfoot>
           <tr className="border-t border-[var(--border)] bg-[var(--background)]">

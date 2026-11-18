@@ -88,7 +88,7 @@ export function BookingSuccess({ visit, onBookAnother }: { readonly visit: Booke
           <span className="inline-flex items-start gap-1.5"><MapPin aria-hidden="true" size={16} className="mt-1 flex-none text-primary" />{address}</span>
         </Fact>
       </dl>
-      <div className="flex w-full flex-col justify-center gap-3 sm:flex-row">
+      <div className="flex w-full flex-col justify-center gap-3 sm:flex-row sm:flex-wrap [&>*]:whitespace-nowrap">
         <Button variant="secondary" onClick={addToCalendar} data-testid="add-to-calendar"><CalendarPlus aria-hidden="true" size={18} />{t('addToCalendar')}</Button>
         <Link href="/appointments" className={buttonVariants({ variant: 'primary' })}>{t('toAppointments')}</Link>
         <Link href="/home" className={buttonVariants({ variant: 'ghost' })}>{t('toHome')}</Link>

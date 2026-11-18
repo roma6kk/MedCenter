@@ -3,7 +3,7 @@ import type { FhirClient, FhirResource } from '@medcenter/fhir';
 
 import { slotLabel } from '../slots/clinic-time';
 import { RedisCacheService } from '../cache/redis-cache.service';
-import { ACTOR, MONDAY_09_10, SCHEDULE_ID, generatorFhirMock, scheduleOf } from './__tests__/schedule-fixture';
+import { ACTOR, MONDAY_09_10, SCHEDULE_ID, generatorFhirMock, scheduleOf, searchesFor } from './__tests__/schedule-fixture';
 import { SlotGeneratorService } from './slot-generator.service';
 
 function generatedSlots(fhirClient: jest.Mocked<FhirClient>): Array<{ start: string; end: string }> {
@@ -81,7 +81,7 @@ describe('SlotGeneratorService clinic time', () => {
 
   it('should skip a booked slot when its start already exists inside the range', async () => {
     const fhirClient = generatorFhirMock(scheduleOf(MONDAY_09_10));
-    fhirClient.search.mockResolvedValue({
+    searchesFor(fhirClient, {
       entry: [{ resource: { resourceType: 'Slot', id: 'busy-1', status: 'busy', start: '2026-11-02T09:00:00+03:00' } }],
     });
     const generator = new SlotGeneratorService(fhirClient, new RedisCacheService());
@@ -110,6 +110,7 @@ function existingSlots(firstStart: string, count: number): { entry: Array<{ reso
         id: `existing-${index}`,
         status: 'free',
         start: new Date(Date.parse(firstStart) + index * 30 * 60_000).toISOString(),
+        end: new Date(Date.parse(firstStart) + (index + 1) * 30 * 60_000).toISOString(),
       },
     })),
   };
@@ -121,7 +122,7 @@ describe('SlotGeneratorService and the demo seed', () => {
 
   it('should skip every slot the seed stored when the schedule windows are in clinic time', async () => {
     const fhirClient = generatorFhirMock(scheduleOf(SEEDED_WINDOWS));
-    fhirClient.search.mockResolvedValue(existingSlots('2026-10-19T06:00:00.000Z', 8));
+    searchesFor(fhirClient, existingSlots('2026-10-19T06:00:00.000Z', 8));
     const warn = jest.spyOn(Logger.prototype, 'warn').mockImplementation();
     const generator = new SlotGeneratorService(fhirClient, new RedisCacheService());
 
@@ -136,7 +137,7 @@ describe('SlotGeneratorService and the demo seed', () => {
   it('should warn about the slots its windows do not plan when stored windows still read as UTC', async () => {
     const legacyWindows = SEEDED_WINDOWS.map((window) => ({ ...window, startTime: '06:00', endTime: '10:00' }));
     const fhirClient = generatorFhirMock(scheduleOf(legacyWindows));
-    fhirClient.search.mockResolvedValue(existingSlots('2026-10-19T06:00:00.000Z', 8));
+    searchesFor(fhirClient, existingSlots('2026-10-19T06:00:00.000Z', 8));
     const warn = jest.spyOn(Logger.prototype, 'warn').mockImplementation();
     const generator = new SlotGeneratorService(fhirClient, new RedisCacheService());
 

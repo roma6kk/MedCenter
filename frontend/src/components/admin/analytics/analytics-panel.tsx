@@ -6,6 +6,7 @@ import { useSearchParams } from 'next/navigation';
 import { useMinskToday } from '@/components/doctor/use-minsk-today';
 import { Button } from '@/components/ui/button';
 import { useDocumentTitle } from '@/hooks/use-document-title';
+import { writeUrlQuery } from '@/hooks/use-url-state';
 import { useT } from '@/lib/i18n/use-t';
 import { useUiStore } from '@/store/use-ui-store';
 import { QueryState } from '../shared/query-state';
@@ -21,14 +22,6 @@ import { InsightCards } from './insight-cards';
 import { periodDays, periodTitle } from './period-title';
 import { ReportSection } from './report-section';
 import { useAppointmentSeries, useAppointmentsReport, useEncountersReport, useServicesPopularity } from './use-analytics';
-
-const ANALYTICS_PATH = '/admin/analytics';
-
-/** Mirrors the scope into the address bar without a navigation (Next syncs `useSearchParams` with `replaceState`). */
-function writeScopeToUrl(scope: AnalyticsScope): void {
-  const query: string = scopeToQuery(scope);
-  window.history.replaceState(null, '', query === '' ? ANALYTICS_PATH : `${ANALYTICS_PATH}?${query}`);
-}
 
 interface ScopeState {
   readonly scope: AnalyticsScope;
@@ -49,7 +42,7 @@ function useAnalyticsScope(): ScopeState {
   }
   const apply = (next: AnalyticsScope): void => {
     setChosen(next);
-    writeScopeToUrl(next);
+    writeUrlQuery(scopeToQuery(next));
   };
   const scope: AnalyticsScope = withToday(chosen, today);
   return {
@@ -98,7 +91,7 @@ export function AnalyticsPanel(): ReactNode {
             {(report) => <GroupBars report={report} caption={t('encounters.title')} />}
           </ReportSection>
           <ReportSection title={t('services.title', { top })} query={services} emptyTitle={t('empty')}>
-            {(report) => <GroupTable report={report} caption={t('services.title', { top })} nameHeader={t('services.service')} countHeader={t('services.count')} kind="services" />}
+            {(report) => <GroupTable report={report} caption={t('services.title', { top })} nameHeader={t('services.service')} countHeader={t('services.count')} kind="services" others={report.others} />}
           </ReportSection>
         </div>
         <InsightCards appointments={appointments.data} encounters={encounters.data} />

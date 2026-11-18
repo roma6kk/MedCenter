@@ -2,6 +2,8 @@ import type { TestingModuleBuilder } from '@nestjs/testing';
 import { FHIR_CLIENT } from '@medcenter/fhir';
 
 import { AUTH_DATA_SOURCE } from '../database/database.providers';
+import { CLINIC_STORE } from '../modules/clinic/clinic.store';
+import { InMemoryClinicStore } from '../modules/clinic/__tests__/in-memory-clinic.store';
 import { LOGIN_ATTEMPT_STORE, InMemoryLoginAttemptStore } from '../modules/oauth/login/login-attempt-store';
 import { IMPORT_LOCK, InMemoryImportLock } from '../modules/terminology/import/import-lock';
 import { TERMINOLOGY_CACHE, InMemoryTerminologyCache } from '../modules/terminology/terminology-cache';
@@ -48,5 +50,7 @@ export function withInfrastructureFakes(
     .overrideProvider(AUTH_DATA_SOURCE)
     .useValue({ isInitialized: false })
     .overrideProvider(USER_STORE)
-    .useValue(fakes.store);
+    .useValue(fakes.store)
+    .overrideProvider(CLINIC_STORE)
+    .useValue(new InMemoryClinicStore());
 }

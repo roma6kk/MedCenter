@@ -5,6 +5,10 @@ import { answerMethod, apiProblem, chooseRowAction, firstButton, pageOf, pagedAf
 import type { AdminService } from './service-types';
 import { ServicesPanel } from './services-panel';
 
+jest.mock('next/navigation', () => ({ useSearchParams: () => new URLSearchParams(window.location.search) }));
+
+beforeEach(() => window.history.replaceState(null, '', '/'));
+
 jest.mock('@/lib/api/api-fetch', () => {
   const actual = jest.requireActual('@/lib/api/api-fetch');
   return { ...actual, apiFetch: jest.fn() };

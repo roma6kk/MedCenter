@@ -22,6 +22,14 @@ describe('practitionerRoleOptionsOf', () => {
     ]);
   });
 
+  it('should write the patronymic into the label when the doctor has one', () => {
+    const withPatronymic: Doctor = { ...doctor('Иванова', ['r1']), middleName: 'Сергеевна' };
+
+    const options = practitionerRoleOptionsOf({ doctors: [withPatronymic], accounts: [], userId: undefined, current: '', takenBy });
+
+    expect(options[0]?.label).toBe('Иванова Имя Сергеевна');
+  });
+
   it('should disable a role linked to another account and name that account', () => {
     const options = practitionerRoleOptionsOf({ doctors: [doctor('Петров', ['r2'])], accounts: [account('u9', 'Петров Алексей', 'r2')], userId: 'u1', current: '', takenBy });
 

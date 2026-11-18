@@ -65,7 +65,7 @@ describe('seedDemoUsers when a request rejects', () => {
     const section = await seedDemoUsers(configOf(), rejectingFor(PETROV, service.fetchImpl, false));
 
     const created = section.accounts.filter((account) => account.status === 'created');
-    expect(created).toHaveLength(7);
+    expect(created).toHaveLength(8);
     expect(created.every((account) => typeof account.password === 'string' && account.password.length >= 10)).toBe(true);
     expect(accountOf(section, PETROV)).toMatchObject({ status: 'failed' });
   });
@@ -102,7 +102,7 @@ describe('seedDemoUsers progress', () => {
 
     await seedDemoUsers(configOf(), service.fetchImpl, onProgress);
 
-    expect(sizes).toEqual([1, 2, 3, 4, 5, 6, 7, 8]);
+    expect(sizes).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9]);
   });
 
   it('should keep the previous passwords of accounts not reached yet when a re-run is interrupted', async () => {

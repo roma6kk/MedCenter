@@ -3,6 +3,7 @@
 import { useMemo } from 'react';
 import { useDoctors } from '@/components/catalog/use-catalog';
 import type { Doctor } from '@/components/catalog/catalog-types';
+import { formatDoctorName } from '@/lib/doctor-name';
 import { useT } from '@/lib/i18n/use-t';
 import { useAdminUsers } from './use-admin-users';
 import { referenceId, type AdminUser } from './user-types';
@@ -39,7 +40,7 @@ export function practitionerRoleOptionsOf({ doctors, accounts, userId, current, 
     .forEach((doctor) => {
       const roleIds: ReadonlyArray<string> = doctor.practitionerRoleIds ?? [];
       roleIds.forEach((roleId) => {
-        const base: string = [`${doctor.lastName} ${doctor.firstName}`, doctor.specialty].filter((part) => part !== undefined && part !== '').join(' · ');
+        const base: string = [formatDoctorName(doctor), doctor.specialty].filter((part) => part !== undefined && part !== '').join(' · ');
         const named: string = roleIds.length > 1 ? `${base} (${roleId.slice(0, 8)})` : base;
         const owner: string | undefined = owners.get(roleId);
         options.push({ value: roleId, label: owner === undefined ? named : `${named} — ${takenBy(owner)}`, disabled: owner !== undefined });

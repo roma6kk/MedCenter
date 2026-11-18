@@ -3,7 +3,7 @@ import type { FhirClient, FhirResource } from '@medcenter/fhir';
 
 import { committedAudit, committedWrites } from '@medcenter/testing';
 import { RedisCacheService } from '../cache/redis-cache.service';
-import { ACTOR, ONE_DAY, SCHEDULE_ID, generatorFhirMock, scheduleOf } from './__tests__/schedule-fixture';
+import { ACTOR, ONE_DAY, SCHEDULE_ID, generatorFhirMock, scheduleOf, searchesFor } from './__tests__/schedule-fixture';
 import { SlotGeneratorService } from './slot-generator.service';
 
 function slot(start: string, minutes: number, status = 'free'): { resource: FhirResource } {
@@ -27,9 +27,9 @@ describe('SlotGeneratorService', () => {
   });
 
   describe('a planned slot that overlaps a slot the schedule already has', () => {
-    it('should be skipped when the duration was changed from 30 to 20 minutes, so no time is offered twice', async () => {
-      fhirClient.search.mockResolvedValue({
-        entry: [0, 1, 2, 3, 4, 5].map((i) => slot(new Date(Date.parse('2026-11-02T06:00:00Z') + i * 30 * 60_000).toISOString(), 30)),
+    it('should be skipped when the old slots are busy and the duration was changed from 30 to 20 minutes, so no time is offered twice', async () => {
+      searchesFor(fhirClient, {
+        entry: [0, 1, 2, 3, 4, 5].map((i) => slot(new Date(Date.parse('2026-11-02T06:00:00Z') + i * 30 * 60_000).toISOString(), 30, 'busy')),
       });
       fhirClient.read.mockResolvedValue(scheduleOf(undefined, 20));
 
@@ -41,7 +41,7 @@ describe('SlotGeneratorService', () => {
     });
 
     it('should be skipped when the slots come from the UTC-reading generator (09:00Z instead of 06:00Z)', async () => {
-      fhirClient.search.mockResolvedValue({ entry: [slot('2026-11-02T09:00:00.000Z', 30)] });
+      searchesFor(fhirClient, { entry: [slot('2026-11-02T09:00:00.000Z', 30)] });
 
       const result = await generator.generate(SCHEDULE_ID, ONE_DAY, ACTOR);
 
@@ -49,7 +49,7 @@ describe('SlotGeneratorService', () => {
     });
 
     it('should not be written when it crosses the end of an old slot', async () => {
-      fhirClient.search.mockResolvedValue({ entry: [slot('2026-11-02T08:40:00.000Z', 30)] });
+      searchesFor(fhirClient, { entry: [slot('2026-11-02T08:40:00.000Z', 30, 'busy')] });
 
       const result = await generator.generate(SCHEDULE_ID, ONE_DAY, ACTOR);
 
@@ -59,7 +59,7 @@ describe('SlotGeneratorService', () => {
     });
 
     it('should not block a slot that only touches the old one', async () => {
-      fhirClient.search.mockResolvedValue({ entry: [slot('2026-11-02T06:00:00.000Z', 30)] });
+      searchesFor(fhirClient, { entry: [slot('2026-11-02T06:00:00.000Z', 30)] });
 
       const result = await generator.generate(SCHEDULE_ID, ONE_DAY, ACTOR);
 
@@ -67,7 +67,7 @@ describe('SlotGeneratorService', () => {
     });
 
     it('should ignore a retired slot for the overlap but still never rewrite its own id', async () => {
-      fhirClient.search.mockResolvedValue({
+      searchesFor(fhirClient, {
         entry: [slot('2026-11-02T06:00:00.000Z', 30, 'entered-in-error'), slot('2026-11-02T06:40:00.000Z', 30, 'entered-in-error')],
       });
 
@@ -131,7 +131,7 @@ describe('SlotGeneratorService', () => {
     });
 
     it('should write nothing when no slot was generated', async () => {
-      fhirClient.search.mockResolvedValue({
+      searchesFor(fhirClient, {
         entry: [0, 1, 2, 3, 4, 5].map((i) => slot(new Date(Date.parse('2026-11-02T06:00:00Z') + i * 30 * 60_000).toISOString(), 30)),
       });
 

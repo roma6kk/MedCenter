@@ -1,4 +1,5 @@
-import { CLINIC_CONTACTS, CLINIC_LEGAL } from '@/components/catalog/home-content';
+import { CLINIC_LEGAL } from '@/components/catalog/home-content';
+import type { ClinicDetails } from '@/components/catalog/use-clinic';
 import type { PatientConsent } from '@/components/consent/consent-types';
 import type { AppointmentView } from '@/components/appointments/appointment-types';
 import type { AccountProfile, HistoryEntry, PatientProfile, Prescription } from '@/components/patient/patient-types';
@@ -50,13 +51,12 @@ export function myDataFileName(now: Date): string {
   return `medcenter-my-data-${clinicDateKey(now)}.json`;
 }
 
-function informationOf(account: AccountProfile, locale: Locale): ProcessingInformation {
+function informationOf(account: AccountProfile, locale: Locale, clinic: ClinicDetails): ProcessingInformation {
   const t = createTranslate(locale, 'myData');
   const privacy = createTranslate(locale, 'privacy');
-  const home = createTranslate(locale, 'home');
   return {
     legalBasis: t('infoLegalBasis'),
-    operator: { name: CLINIC_LEGAL.name, unp: CLINIC_LEGAL.unp, address: home('contactAddressValue'), email: CLINIC_CONTACTS.email, phone: CLINIC_CONTACTS.phone, note: t('infoOperatorNote') },
+    operator: { name: clinic.name, unp: CLINIC_LEGAL.unp, address: clinic.address, email: clinic.email, phone: clinic.phone, note: t('infoOperatorNote') },
     purposes: PURPOSES.map((id) => ({ title: privacy(`purpose${id}Title`), data: privacy(`purpose${id}Data`), legalBasis: privacy(`purpose${id}Basis`) })),
     consent: {
       accountConsentAt: account.accountConsent?.at ?? null,
@@ -69,12 +69,12 @@ function informationOf(account: AccountProfile, locale: Locale): ProcessingInfor
   };
 }
 
-export function buildMyDataExport(sources: MyDataSources, locale: Locale, now: Date): MyDataExport {
+export function buildMyDataExport(sources: MyDataSources, locale: Locale, now: Date, clinic: ClinicDetails): MyDataExport {
   return {
     format: 'medcenter-my-data',
     formatVersion: 1,
     generatedAt: now.toISOString(),
-    information: informationOf(sources.account, locale),
+    information: informationOf(sources.account, locale, clinic),
     ...sources,
   };
 }
